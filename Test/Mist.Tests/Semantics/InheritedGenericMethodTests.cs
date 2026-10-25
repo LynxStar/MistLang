@@ -104,7 +104,7 @@ public sealed class InheritedGenericMethodTests : ProgramModelProbe
         var call = InitializerOf<InvocationExpression>(statement);
 
         Assert.Equal("Doubler", call.Method?.DeclaringType?.Name);
-        Assert.Empty(Errors(BuildRun(statement), "MIST_PM_AMBIGUOUS_OVERLOAD"));
+        Assert.Empty(Errors(BuildRun(statement), "MIST0386"));
     }
 
     [Fact]

@@ -19,8 +19,8 @@ public sealed class InheritedStampabilityAnalysisTests : ProgramModelProbe
     protected override string Preamble { get; } = "";
 
     [Theory]
-    [InlineData("new", "MIST_PA_ARRAY_REQUIRES_INITIALIZER")]
-    [InlineData("stackalloc", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE")]
+    [InlineData("new", "MIST0225")]
+    [InlineData("stackalloc", "MIST0226")]
     public void ProgramModelToAnalysis_InheritedReferenceStorageReachesTheAllocationGate(string allocation, string diagnosticId)
     {
         var model = BuildModel($"var actual = {allocation} Derived[2];", "", "", out var diagnostics);

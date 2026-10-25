@@ -525,23 +525,23 @@ The constraint resolution and satisfaction checking for type aliases follows the
 
 | ID | Severity | Message Template |
 |---|---|---|
-| `MIST_CONSTRAINT_0001` | Error | "Type parameter '{Name}' is not defined on '{DeclaringType}'." |
-| `MIST_CONSTRAINT_0002` | Error | "The 'class' and 'struct' constraints are mutually exclusive on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0003` | Warning | "The 'new()' constraint is redundant on type parameter '{TypeParam}' because all structs have a parameterless constructor." |
-| `MIST_CONSTRAINT_0004` | Error | "At most one base class constraint is allowed on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0005` | Error | "Struct '{TypeName}' cannot be used as a base class constraint." |
-| `MIST_CONSTRAINT_0006` | Error | "A base class constraint is incompatible with the 'struct' constraint on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0007` | Error | "Type parameter '{TypeParam}' cannot have multiple 'where' clauses. Combine constraints in a single clause." |
-| `MIST_CONSTRAINT_0008` | Error | "Constraint type '{TypeName}' could not be resolved." |
-| `MIST_CONSTRAINT_0009` | Error | "Type '{TypeArg}' does not implement interface '{Interface}' required by type parameter '{TypeParam}' of '{GenericType}'." |
-| `MIST_CONSTRAINT_0010` | Error | "Type '{TypeArg}' does not satisfy trait '{Trait}' required by type parameter '{TypeParam}' of '{GenericType}'." |
-| `MIST_CONSTRAINT_0011` | Error | "Type '{TypeArg}' does not derive from '{BaseClass}' required by type parameter '{TypeParam}' of '{GenericType}'." |
-| `MIST_CONSTRAINT_0012` | Error | "Type '{TypeArg}' must be a reference type to satisfy the 'class' constraint on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0013` | Error | "Type '{TypeArg}' must be a value type to satisfy the 'struct' constraint on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0014` | Error | "Type '{TypeArg}' must have a public parameterless constructor to satisfy the 'new()' constraint on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0015` | Error | "Type '{TypeArg}' must have a public constructor with parameters '({ParamTypes})' to satisfy the 'new({ParamTypes})' constraint on type parameter '{TypeParam}'." |
-| `MIST_CONSTRAINT_0016` | Error | "No constructor constraint on type parameter '{TypeParam}' matches arguments '({ArgTypes})'. Available constructor constraints: {signatures}." |
-| `MIST_CONSTRAINT_0017` | Error | "Type '{DerivedType}' must declare constraints at least as restrictive as '{BaseType}' for type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0001 (historical)` | Error | "Type parameter '{Name}' is not defined on '{DeclaringType}'." |
+| `MIST_CONSTRAINT_0002 (historical)` | Error | "The 'class' and 'struct' constraints are mutually exclusive on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0003 (historical)` | Warning | "The 'new()' constraint is redundant on type parameter '{TypeParam}' because all structs have a parameterless constructor." |
+| `MIST_CONSTRAINT_0004 (historical)` | Error | "At most one base class constraint is allowed on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0005 (historical)` | Error | "Struct '{TypeName}' cannot be used as a base class constraint." |
+| `MIST_CONSTRAINT_0006 (historical)` | Error | "A base class constraint is incompatible with the 'struct' constraint on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0007 (historical)` | Error | "Type parameter '{TypeParam}' cannot have multiple 'where' clauses. Combine constraints in a single clause." |
+| `MIST_CONSTRAINT_0008 (historical)` | Error | "Constraint type '{TypeName}' could not be resolved." |
+| `MIST_CONSTRAINT_0009 (historical)` | Error | "Type '{TypeArg}' does not implement interface '{Interface}' required by type parameter '{TypeParam}' of '{GenericType}'." |
+| `MIST_CONSTRAINT_0010 (historical)` | Error | "Type '{TypeArg}' does not satisfy trait '{Trait}' required by type parameter '{TypeParam}' of '{GenericType}'." |
+| `MIST_CONSTRAINT_0011 (historical)` | Error | "Type '{TypeArg}' does not derive from '{BaseClass}' required by type parameter '{TypeParam}' of '{GenericType}'." |
+| `MIST_CONSTRAINT_0012 (historical)` | Error | "Type '{TypeArg}' must be a reference type to satisfy the 'class' constraint on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0013 (historical)` | Error | "Type '{TypeArg}' must be a value type to satisfy the 'struct' constraint on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0014 (historical)` | Error | "Type '{TypeArg}' must have a public parameterless constructor to satisfy the 'new()' constraint on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0015 (historical)` | Error | "Type '{TypeArg}' must have a public constructor with parameters '({ParamTypes})' to satisfy the 'new({ParamTypes})' constraint on type parameter '{TypeParam}'." |
+| `MIST_CONSTRAINT_0016 (historical)` | Error | "No constructor constraint on type parameter '{TypeParam}' matches arguments '({ArgTypes})'. Available constructor constraints: {signatures}." |
+| `MIST_CONSTRAINT_0017 (historical)` | Error | "Type '{DerivedType}' must declare constraints at least as restrictive as '{BaseType}' for type parameter '{TypeParam}'." |
 
 ### Error Recovery Strategy
 

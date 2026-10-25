@@ -55,7 +55,7 @@ This plan implements refinement types for the Mist language across the full comp
     - Update Pass 2 handling of `TypeAliasDeclarationNode` to detect `RefinementPredicate`
     - When a refinement is present: resolve the base `SingleTypeRef`, construct `RefinementType`
     - For union types with refinements: create a `UnionType` whose constituents are `RefinementType` instances
-    - Validate predicate compatibility with base type (emit `MIST_TC_0072` if incompatible)
+    - Validate predicate compatibility with base type (emit `MIST_TC_0072 (historical)` if incompatible)
     - Store `RefinementType` as the alias's `DeclaredType`
     - _Requirements: 4.1, 4.2, 4.3, 4.5, 10.1_
   - [x] 5.4 Write unit tests for semantic model registration
@@ -72,8 +72,8 @@ This plan implements refinement types for the Mist language across the full comp
 - [x] 7. Type checker — Compile-time enforcement
   - [x] 7.1 Implement literal evaluation against refinement predicates in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - When assigning a literal to a `RefinementType` variable, call `Predicate.Evaluate(literalValue)`
-    - If evaluation returns false, emit `MIST_TC_0070`
-    - When assigning a non-constant expression of the base type to a `RefinementType`, emit `MIST_TC_0071`
+    - If evaluation returns false, emit `MIST_TC_0070 (historical)`
+    - When assigning a non-constant expression of the base type to a `RefinementType`, emit `MIST_TC_0071 (historical)`
     - When assigning a value already typed as the same `RefinementType`, accept without re-checking
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   - [x] 7.2 Implement widening (refinement → base type) acceptance
@@ -111,7 +111,7 @@ This plan implements refinement types for the Mist language across the full comp
     - _Requirements: 9.1, 9.2, 9.5, 13.2, 13.3_
   - [x] 9.2 Integrate subset proving into assignability checks
     - When assigning `RefinementType A` to `RefinementType B` (same base type), call `RefinementSolver.Implies(A.Predicate, B.Predicate)`
-    - If implies returns true, accept; otherwise emit `MIST_TC_0074`
+    - If implies returns true, accept; otherwise emit `MIST_TC_0074 (historical)`
     - _Requirements: 9.1, 9.3_
   - [x] 9.3 Write property test for subset proving
     - **Property 5: Subset relationship correctness**
@@ -126,15 +126,15 @@ This plan implements refinement types for the Mist language across the full comp
 - [x] 11. Type checker — Readonly validation
   - [x] 11.1 Implement readonly member validation for property pattern refinements
     - When a `RefinementPredicate` contains property patterns, resolve each referenced member
-    - Verify each member has the `readonly` modifier; emit `MIST_TC_0073` if not
+    - Verify each member has the `readonly` modifier; emit `MIST_TC_0073 (historical)` if not
     - Apply recursively for nested property patterns
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
   - [x] 11.2 Write unit tests for readonly validation
     - Create `Test/Mist.Tests/Analysis/RefinementReadonlyTests.cs`
     - Test property pattern referencing readonly field: accepted
-    - Test property pattern referencing mutable field: produces `MIST_TC_0073`
+    - Test property pattern referencing mutable field: produces `MIST_TC_0073 (historical)`
     - Test primitive base type with relational pattern: no readonly check needed
-    - Test nested property pattern with mutable inner field: produces `MIST_TC_0073`
+    - Test nested property pattern with mutable inner field: produces `MIST_TC_0073 (historical)`
     - **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
 
 - [x] 12. Type checker — Pattern matching integration
@@ -148,7 +148,7 @@ This plan implements refinement types for the Mist language across the full comp
     - Test `is RefinementType varName` introduces variable with correct type
     - Test `is RefinementType` (bare, no variable) is valid
     - Test switch expression with refinement type patterns
-    - Test non-constant assigned without pattern matching produces `MIST_TC_0071`
+    - Test non-constant assigned without pattern matching produces `MIST_TC_0071 (historical)`
     - **Validates: Requirements 6.1, 6.2, 14.1, 14.2, 14.4**
 
 - [x] 13. Type checker — Flow-sensitive narrowing
@@ -206,11 +206,11 @@ This plan implements refinement types for the Mist language across the full comp
 - [x] 18. Error diagnostics unit tests
   - [x] 18.1 Write comprehensive diagnostic tests
     - Create `Test/Mist.Tests/Analysis/RefinementDiagnosticTests.cs`
-    - Test `MIST_TC_0070`: literal violating predicate shows value, predicate, type name, and definition location
-    - Test `MIST_TC_0071`: non-constant assignment shows suggestion to use pattern matching
-    - Test `MIST_TC_0072`: incompatible predicate (relational on non-comparable type)
-    - Test `MIST_TC_0073`: mutable member in predicate
-    - Test `MIST_TC_0074`: non-provable subset relationship
+    - Test `MIST_TC_0070 (historical)`: literal violating predicate shows value, predicate, type name, and definition location
+    - Test `MIST_TC_0071 (historical)`: non-constant assignment shows suggestion to use pattern matching
+    - Test `MIST_TC_0072 (historical)`: incompatible predicate (relational on non-comparable type)
+    - Test `MIST_TC_0073 (historical)`: mutable member in predicate
+    - Test `MIST_TC_0074 (historical)`: non-provable subset relationship
     - **Validates: Requirements 11.1, 11.2, 11.3, 11.4, 11.5**
 
 - [x] 19. Union type integration tests

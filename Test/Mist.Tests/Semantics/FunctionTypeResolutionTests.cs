@@ -269,7 +269,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var got = f(1, 2);", extraPreamble: "func<int, bool> f = null;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_FUNCTION_CALL_ARITY"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0362"));
     }
 
     // ── Order 105: lambdas ──────────────────────────────────────────────
@@ -296,7 +296,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var f = x => x;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LAMBDA_PARAMETER_NO_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0360"));
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("func<int, int> f = (x, y) => x;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LAMBDA_ARITY"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0359"));
     }
 
     [Fact]
@@ -331,7 +331,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         var diagnostics = BuildRun(
             "var f = (int n) => { if (n > 0) { return 1; } return \"text\"; };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0361"));
     }
 
     /// <summary>
@@ -377,7 +377,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("func<int, int> f = Overloaded.Add;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0387"));
     }
 
     /// <summary>
@@ -389,7 +389,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("func<long, int> f = Overloaded.Pick;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0387"));
     }
 
     [Theory]
@@ -413,7 +413,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     [InlineData("func<int, string, int> f = Overloaded.Echo;")]
     public void AGenericMethodGroupTheTargetLeavesOpenOrPullsTwoWaysDoesNotConvert(string statement)
     {
-        _ = Assert.Single(Errors(BuildRun(statement), "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+        _ = Assert.Single(Errors(BuildRun(statement), "MIST0387"));
     }
 
     [Theory]
@@ -444,10 +444,10 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("func<int, int> f = Overloaded.Echo<int, string>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
-    [InlineData("func<long, long> f = Overloaded.Echo<int>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
-    [InlineData("func<int, int> f = Overloaded.Pick<int>;", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
-    [InlineData("func<int, int> f = Overloaded.Counter<int>;", "MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD")]
+    [InlineData("func<int, int> f = Overloaded.Echo<int, string>;", "MIST0387")]
+    [InlineData("func<long, long> f = Overloaded.Echo<int>;", "MIST0387")]
+    [InlineData("func<int, int> f = Overloaded.Pick<int>;", "MIST0387")]
+    [InlineData("func<int, int> f = Overloaded.Counter<int>;", "MIST0388")]
     public void StatedTypeArgumentsNoMethodCanTakeAreRefused(string statement, string expected)
     {
         _ = Assert.Single(Errors(BuildRun(statement), expected));
@@ -464,7 +464,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     [Fact]
     public void AMethodGroupMatchesAPositionTypedByTheEnclosingTypesOwnParameter()
     {
-        Assert.Empty(Errors(BuildRun(""), "MIST_PM_METHOD_GROUP_NOT_CONVERTED"));
+        Assert.Empty(Errors(BuildRun(""), "MIST0387"));
     }
 
     [Theory]
@@ -507,7 +507,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("func<int, int> f = pair.Take;", extraPreamble: "var pair = new Pair<int, int>();");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_METHOD_GROUP_AMBIGUOUS"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0389"));
     }
 
     [Fact]

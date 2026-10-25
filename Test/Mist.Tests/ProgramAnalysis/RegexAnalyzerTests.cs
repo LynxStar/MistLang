@@ -41,7 +41,7 @@ public sealed class RegexAnalyzerTests
     {
         var diagnostic = Assert.Single(Analyze(position, "a)|(?:b"));
 
-        Assert.Equal("MIST_PA_REGEX_INVALID", diagnostic.Number.Value);
+        Assert.Equal("MIST0270", diagnostic.Number.Value);
         Assert.Equal(Written + 1, diagnostic.Position().Start.Column);
         Assert.Contains("offset 2", diagnostic.Message, StringComparison.Ordinal);
     }

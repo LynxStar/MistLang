@@ -15,7 +15,7 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class NewtypeCloneAssignabilityTests
 {
     [Theory]
-    [InlineData("newtype-clone-passes-itself-as-its-source", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("newtype-clone-passes-itself-as-its-source", "MIST0157")]
     public void CloneReceiverCannotStandInForItsSource(string refusal, string diagnosticId)
     {
         var built = new HandBuiltModel();
@@ -60,10 +60,10 @@ public sealed class NewtypeCloneAssignabilityTests
     [Theory]
     [InlineData("Again", "Kept", null)]
     [InlineData("Again", "Box", null)]
-    [InlineData("Kept", "Again", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Box", "Again", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Other", "Kept", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Again", "Other", "MIST_PA_CAST_REQUIRED")]
+    [InlineData("Kept", "Again", "MIST0158")]
+    [InlineData("Box", "Again", "MIST0157")]
+    [InlineData("Other", "Kept", "MIST0158")]
+    [InlineData("Again", "Other", "MIST0158")]
     public void AValueEntersAChainedCloneOnlyFromItsImmediateSource(string from, string to, string? expected)
     {
         var chain = new Chain();

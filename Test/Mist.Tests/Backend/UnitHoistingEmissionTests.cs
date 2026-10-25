@@ -257,7 +257,7 @@ public sealed class UnitHoistingEmissionTests
         var emitted = EmitRun(statements, out var diagnostics);
         var refusal = Assert.Single(diagnostics);
 
-        Assert.Equal("MIST_BE_UNHOISTED_UNIT_CALL", refusal.Number.Value);
+        Assert.Equal("MIST0024", refusal.Number.Value);
         Assert.Contains(reason, refusal.Message);
         Assert.DoesNotContain("Probe.Log.F();", emitted);
     }

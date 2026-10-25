@@ -20,17 +20,17 @@ The design is grounded in the current state of the source (verified during resea
 - **Ambient Type Provider** represents sealed via a `Mist.Sentinel.Sealed` attribute derived from `clrType.IsSealed` (`AmbientProvider/SentinelAttributes.cs`), treating a CLR static class (abstract+sealed) as neither. Projectors collapse `IsFamily`/`IsFamilyOrAssembly` → `IsProtected` and skip `assembly`/`private`/`family-and-assembly` members (`AmbientProvider/FieldProjector.cs`). `TypeProjector.CreateShell` sets `MemberModifiers` but no first-class sealed flag on the type.
 - **Grammar** (`Grammar/tokens/keywords.storm`, `Grammar/Mist.storm`) defines `PUBLIC`/`PRIVATE`/`STATIC` keyword tokens and a shared `Modifier` rule (`PUBLIC as PublicModifier | PRIVATE as PrivateModifier | ...`). The Storm-generated lexer/parser is regenerated from these files.
 - **C# Backend** `EmitModifiers` (`CSharpTranspiler/CSharpEmitter.cs`) only maps `public`/`private`/`static`; class/struct/enum emission prepends `public ` when neither `public` nor `private` is present. Critically, struct emission **drops the base struct** from the base list (`"The CLR does not support struct inheritance, so we must NOT emit ': BaseStruct'"`), and C# structs cannot legally carry `protected` members — so inheritable/protected/sealed structs need a lowering decision (see Req 15.4).
-- **Diagnostic registry** infrastructure is already complete (`Common/Diagnostics/DiagnosticDescriptor.cs`, `DiagnosticBag.Report`/`ReportAtNode`, and per-area registry classes under `Descriptors/`). New diagnostics are added as `public static readonly DiagnosticDescriptor` fields; IDs follow the `MIST_TC_*` / `MIST_PARSE_*` scheme.
+- **Diagnostic registry** infrastructure is complete (`Common/Diagnostics/MistDiagnostic.cs`, `DiagnosticBag.Report`/`ReportAtNode`, and per-area registry classes under `Descriptors/`). New diagnostics are added as `public static readonly MistDiagnostic` fields that take the next free `MISTnnnn` Number, per `specs/diagnostics/requirements.md` Requirements 1 to 3; the `MIST_TC_*` / `MIST_PARSE_*` scheme this document once named is historical.
 
-### Dependency and ordering relationship with `diagnostic-descriptor-system`
+### Dependency and ordering relationship with the diagnostics contract
 
-The in-flight `specs/diagnostic-descriptor-system/` spec migrates all diagnostics to the centralized `DiagnosticDescriptor` registry. Its infrastructure tasks (the `DiagnosticDescriptor` type, `DiagnosticBag.Report`/`ReportAtNode`, and every per-area registry class including `TypeCheckDiagnostics`, `ParserDiagnostics`, `SemanticDiagnostics`, `ProgramModelDiagnostics`) are **already complete** (tasks 1–23 done). The remaining tasks are a registry ID-uniqueness test (24), a grep check that forbids inline `new DiagnosticId(` outside registries (25), a steering file (26), and a final `dotnet format` (27).
+The `diagnostic-descriptor-system` specification this section once depended on is superseded by `specs/diagnostics/requirements.md`, whose registry (`MistDiagnostic`, `DiagnosticBag.Report`/`ReportAtNode`, the per-area registry classes and the Tier 1 registry validator) is in place.
 
 Consequences for this feature:
 
-- **No hard blocker.** This feature only *adds* new `DiagnosticDescriptor` entries to existing registry classes, exactly as Requirement 14 mandates. The registry API it depends on is in place.
-- **Ordering / soft dependency.** New descriptors must (a) use IDs unique across *all* registry classes so the uniqueness test (descriptor-system task 24) still passes when it lands, and (b) be emitted only via `DiagnosticBag.Report`/`ReportAtNode` with no inline `new DiagnosticId(` at emission sites, so the grep check (task 25) stays green. Both are already required by Requirement 14 here, so the two specs are mutually consistent; this feature should reference the *registry classes*, not re-introduce local `DiagnosticId` fields on `TypeCheckerAnalyzer`.
-- The exact numeric IDs are assigned at implementation time to the next free `MIST_TC_*` / `MIST_PARSE_*` codes after inspecting the registry, mirroring the reallocation strategy already documented in `TypeCheckerAnalyzer.cs`.
+- **No hard blocker.** This feature only *adds* new `MistDiagnostic` entries to existing registry classes, exactly as Requirement 14 mandates. The registry API it depends on is in place.
+- **Ordering / soft dependency.** New descriptors must (a) take the next free Number so the Tier 1 registry validator (`specs/diagnostics/requirements.md` Requirements 1.4 and 4.1) still passes, and (b) be emitted only through the factory and the bag with no inline construction at emission sites (its Requirement 5). Both are already required by Requirement 14 here, so the two documents are mutually consistent; this feature should reference the *registry classes*, not re-introduce local string identifiers on `TypeCheckerAnalyzer`.
+- The exact Numbers are assigned at implementation time as the next free values above every Number ever issued, including tombstones (`specs/diagnostics/requirements.md` Requirement 1.4).
 
 ## Architecture
 
@@ -69,7 +69,7 @@ The two `Accessibility` enums are structurally identical (same four values) but 
 
 A single conceptual reduction — *"modifier list + enclosing scope kind → concrete `Accessibility` + `Sealed_Flag`"* — is the heart of the feature. It runs in two places (one per pipeline) and is split into two responsibilities to honor the requirements' component assignments:
 
-1. **Explicit reduction + combination validation** (Requirement 2). When a declaration carries explicit access modifiers, they reduce to exactly one `Accessibility` value; `sealed` sets the `Sealed_Flag` independently. Illegal combinations (more than one access modifier — Req 2.6) are reported at the **parse** stage, co-located with the existing post-parse validation in `MistParser.cs` that already emits `MIST_PARSE_*` diagnostics.
+1. **Explicit reduction + combination validation** (Requirement 2). When a declaration carries explicit access modifiers, they reduce to exactly one `Accessibility` value; `sealed` sets the `Sealed_Flag` independently. Illegal combinations (more than one access modifier — Req 2.6) are reported at the **parse** stage, co-located with the existing post-parse validation in `MistParser.cs` that already emits `ParserDiagnostics` descriptors.
 2. **Default resolution** (Requirement 5). When a declaration has no explicit access modifier, the enclosing **scope kind** determines the default (namespace/compilation → `Internal`; class/struct → `Private`; interface/enum → `Public`; nested type → its enclosing scope's rule). This resolution runs during **Semantic Model construction** (classic) and **Program Model construction** (experimental), and the concrete value is stored on the declaration.
 
 The **Type Checker never computes a default** (Req 5.11): every declaration it inspects already carries a concrete `Accessibility`. This is the central invariant that lets enforcement read a single value rather than re-deriving accessibility from scattered rules.
@@ -129,7 +129,7 @@ internal static class AccessibilityFacts
 }
 ```
 
-Combination validation surfaced at the parse stage (Req 2.6): if `accessModifierCount > 1`, emit a new `ParserDiagnostics` descriptor (e.g. `MultipleAccessModifiers`, `MIST_PARSE_*`, `PipelineStage.Parsing`) explaining that Mist has four standalone access levels and no combined levels. `sealed` is orthogonal and never counts as an access modifier.
+Combination validation surfaced at the parse stage (Req 2.6): if `accessModifierCount > 1`, emit a new `ParserDiagnostics` descriptor (e.g. `MultipleAccessModifiers`, with the next free Number) explaining that Mist has four standalone access levels and no combined levels. `sealed` is orthogonal and never counts as an access modifier.
 
 ### 3. Semantic Model (classic) — Requirements 3, 5, 6
 
@@ -379,7 +379,7 @@ Input: the AST `Modifier*` list on a declaration and the kind of the enclosing s
 | exactly `protected` | `Protected` |
 | exactly `internal` | `Internal` |
 | none | resolve scope-kind default (Req 5) |
-| more than one | error `MIST_PARSE_*` (multiple access modifiers) |
+| more than one | error, a `ParserDiagnostics` descriptor (multiple access modifiers) |
 
 `sealed` sets `Sealed_Flag = true` independently and never participates in the access-modifier count.
 
@@ -519,12 +519,12 @@ The properties below were derived from the acceptance-criteria prework and then 
 
 ### Diagnostic surfaces and severities
 
-All new diagnostics are added as `DiagnosticDescriptor` fields in the existing registry classes (Requirement 14), reusing the established shape (`Id`, `DefaultSeverity`, `Stage`, `MessageTemplate`) with no changes to the registry or `DiagnosticDescriptor` structure. Emission uses `DiagnosticBag.Report` / `ReportAtNode` — never inline `new DiagnosticId(...)` at call sites. Exact numeric IDs are assigned at implementation time to the next free codes after inspecting the registry.
+All new diagnostics are added as `MistDiagnostic` fields in the existing registry classes (Requirement 14), reusing the shape of `specs/diagnostics/requirements.md` Requirement 2 (Number, Title, Template, Description, Category, Policy_Class, Default_Severity and Slots) with no changes to the registry structure. Emission uses `DiagnosticBag.Report` / `ReportAtNode` — never inline construction at call sites. Exact Numbers are assigned at implementation time as the next free values (its Requirement 1.4).
 
 | Condition | Registry class | Severity | Stage | Requirement |
 |---|---|---|---|---|
-| More than one access modifier on a declaration | `ParserDiagnostics` (`MIST_PARSE_*`) | Error | Parsing | 2.6 |
-| Private member referenced outside its domain | `TypeCheckDiagnostics` (`MIST_TC_*`) | Error | Analysis | 7.1 |
+| More than one access modifier on a declaration | `ParserDiagnostics` | Error | Parsing | 2.6 |
+| Private member referenced outside its domain | `TypeCheckDiagnostics` | Error | Analysis | 7.1 |
 | Protected member referenced from non-declaring/non-derived location | `TypeCheckDiagnostics` | Error | Analysis | 7.2 |
 | Internal member referenced from an External_Assembly | `TypeCheckDiagnostics` | Error | Analysis | 6.4, 7.3 |
 | Inconsistent accessibility (signature exposes less-accessible type) | `TypeCheckDiagnostics` | Error | Analysis | 8.1–8.5 |

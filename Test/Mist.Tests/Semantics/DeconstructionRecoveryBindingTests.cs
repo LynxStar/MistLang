@@ -15,8 +15,8 @@ public sealed class DeconstructionRecoveryBindingTests
     private const string DeclarationPath = "Probe/Deconstruction.mist";
 
     [Theory]
-    [InlineData(false, "missing", "MIST_PM_UNRESOLVED_IDENTIFIER")]
-    [InlineData(true, "missing", "MIST_PM_UNRESOLVED_IDENTIFIER")]
+    [InlineData(false, "missing", "MIST0296")]
+    [InlineData(true, "missing", "MIST0296")]
     [InlineData(false, "reported-local", null)]
     [InlineData(true, "reported-local", null)]
     public void AReportedSourceFailureKeepsEveryNameWithoutClaimingSuccess(bool typed, string source, string? diagnosticId)
@@ -41,12 +41,12 @@ public sealed class DeconstructionRecoveryBindingTests
     }
 
     [Theory]
-    [InlineData(false, "arity", "MIST_PM_DECONSTRUCTION_ARITY")]
-    [InlineData(true, "arity", "MIST_PM_DECONSTRUCTION_ARITY")]
-    [InlineData(false, "non-tuple", "MIST_PM_DECONSTRUCTION_SOURCE")]
-    [InlineData(true, "non-tuple", "MIST_PM_DECONSTRUCTION_SOURCE")]
-    [InlineData(false, "unfinished", "MIST_PM_DECONSTRUCTION_SOURCE")]
-    [InlineData(true, "unfinished", "MIST_PM_DECONSTRUCTION_SOURCE")]
+    [InlineData(false, "arity", "MIST0365")]
+    [InlineData(true, "arity", "MIST0365")]
+    [InlineData(false, "non-tuple", "MIST0366")]
+    [InlineData(true, "non-tuple", "MIST0366")]
+    [InlineData(false, "unfinished", "MIST0366")]
+    [InlineData(true, "unfinished", "MIST0366")]
     public void AShapeRefusalReportsOnceAtTheDeclarationAndKeepsRecoveryNames(bool typed, string source, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -95,7 +95,7 @@ public sealed class DeconstructionRecoveryBindingTests
         _ = Assert.IsType<UnsupportedStatement>(Bind(f, Declaration(typed, "source", "same", "same")));
         ReadAndCall(f, "same", failed: true);
 
-        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0367", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         _ = Assert.Single(f.Scope.Locals, pair => pair.Key == "same");
     }
 
@@ -120,7 +120,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "first", failed: reported);
         ReadAndCall(f, "second", failed: false);
 
-        string[] expected = reported || typed ? [] : ["MIST_PM_UNRESOLVABLE_OVERLOAD"];
+        string[] expected = reported || typed ? [] : ["MIST0390"];
         Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(d => d.Number.Value));
     }
 
@@ -137,7 +137,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "first", failed: true);
         ReadAndCall(f, "second", failed: false);
 
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0298", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static void ReadAndCall(BindingFragments f, string name, bool failed)

@@ -22,7 +22,7 @@ public sealed class StructBaseConstructorRefusalTests
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
-        Assert.Equal("MIST_STRUCT_BASE_CTOR_REQUIRED", finding.Number.Value);
+        Assert.Equal("MIST0147", finding.Number.Value);
         Assert.Equal(61, finding.Position().Start.Column);
         Assert.Equal("Struct 'Meter' requires constructor arguments. Add ': base(...)' to the constructor of 'Dial'.", finding.Message);
     }

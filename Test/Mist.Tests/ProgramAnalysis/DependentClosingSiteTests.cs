@@ -17,7 +17,7 @@ public sealed class DependentClosingSiteTests
         fragment.Built.Model.ConstructorConstraintClosures.RecordType(box, [Lifted(fragment, 256L)], HandBuiltModel.Node(55));
 
         var finding = Assert.Single(fragment.Run(new RefinementAnalyzer()));
-        Assert.Equal("MIST_DT_0003", finding.Number.Value);
+        Assert.Equal("MIST0280", finding.Number.Value);
         Assert.Equal(56, finding.Position().Start.Column);
         Assert.Contains("'256' of type 'int'", finding.Message, StringComparison.Ordinal);
     }
@@ -41,7 +41,7 @@ public sealed class DependentClosingSiteTests
         registry.RecordType(narrow, [narrowed], HandBuiltModel.Node(70));
 
         var finding = Assert.Single(fragment.Run(new RefinementAnalyzer()));
-        Assert.Equal("MIST_DT_0004", finding.Number.Value);
+        Assert.Equal("MIST0281", finding.Number.Value);
         Assert.Equal(71, finding.Position().Start.Column);
         Assert.Contains("'L' of type 'long'", finding.Message, StringComparison.Ordinal);
         Assert.Contains("parameter 'N' of type 'int'", finding.Message, StringComparison.Ordinal);

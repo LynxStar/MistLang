@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class StablePureGetterTests
 {
-    private const string OverMutable = "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER";
+    private const string OverMutable = "MIST0175";
 
     [Theory]
     [InlineData("getter-calling-a-declared-pure-method")]

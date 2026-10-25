@@ -3,7 +3,7 @@
 // them with different arguments, and one closing needs the same `(int)` constructor a plain `new(int)`
 // constraint does. The generic Box closes `new(int)` and `new(A)` through its own `Box(V held)`, a static
 // member reaching its factory. Runs on the experimental pipeline only: classic cannot resolve a type parameter in a
-// constructor constraint (MIST_CONSTRAINT_0008), so this sample is referenced from AllFeaturesV2 alone.
+// constructor constraint (the historical code MIST_CONSTRAINT_0008), so this sample is referenced from AllFeaturesV2 alone.
 
 using Standard;
 

@@ -19,12 +19,12 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
     protected override string Preamble => "";
 
     [Theory]
-    [InlineData("unresolved-identifier", "Console.WriteLine(neverDeclared);", "MIST_PM_UNRESOLVED_IDENTIFIER")]
-    [InlineData("refused-member-access-as-an-argument", "int k = 5; Console.WriteLine(k.Lenght);", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("local-from-a-refused-member-access-passed-on", "int k = 5; var n = k.Lenght; Console.WriteLine(n);", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("unresolved-receiver-called-as-argument", "Console.WriteLine(nothing.Describe());", "MIST_PM_UNRESOLVED_IDENTIFIER")]
-    [InlineData("local-from-an-ambiguous-call-passed-on", "byte small = 2; var r = Sink.Take(small); Console.WriteLine(r);", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("local-from-an-ambiguous-index-passed-on", "var table = new Table(); byte small = 2; var r = table[small]; Console.WriteLine(r);", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    [InlineData("unresolved-identifier", "Console.WriteLine(neverDeclared);", "MIST0296")]
+    [InlineData("refused-member-access-as-an-argument", "int k = 5; Console.WriteLine(k.Lenght);", "MIST0301")]
+    [InlineData("local-from-a-refused-member-access-passed-on", "int k = 5; var n = k.Lenght; Console.WriteLine(n);", "MIST0301")]
+    [InlineData("unresolved-receiver-called-as-argument", "Console.WriteLine(nothing.Describe());", "MIST0296")]
+    [InlineData("local-from-an-ambiguous-call-passed-on", "byte small = 2; var r = Sink.Take(small); Console.WriteLine(r);", "MIST0386")]
+    [InlineData("local-from-an-ambiguous-index-passed-on", "var table = new Table(); byte small = 2; var r = table[small]; Console.WriteLine(r);", "MIST0386")]
     public void BindingFailureDoesNotCascade(string caseName, string statements, string expected)
     {
         var source = $$"""
@@ -86,10 +86,10 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
         var diagnostics = bag.ToImmutableArray().Where(finding => finding.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning)
             .OrderBy(finding => finding.Position().Start.Line).ToArray();
         string[] expected = [
-            "MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_OPERATOR_NOT_APPLICABLE",
-            "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS",
-            "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_OPERATOR_NOT_APPLICABLE",
-            "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL", "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL",
+            "MIST0200", "MIST0200",
+            "MIST0202", "MIST0202",
+            "MIST0202", "MIST0200",
+            "MIST0205", "MIST0205",
         ];
         Assert.Equal(expected, diagnostics.Select(finding => finding.Number.Value));
         var owners = SourceBodies.Of(model).SelectMany(root => BodyWalker.DescendantsAndSelf(root.Root))
@@ -122,7 +122,7 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, bag);
         var diagnostics = bag.ToImmutableArray().Where(diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
-        Assert.True(diagnostics is [{ Number.Value: "MIST_PM_UNRESOLVED_TYPE" }],
-            $"expected only MIST_PM_UNRESOLVED_TYPE; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Number.Value))}");
+        Assert.True(diagnostics is [{ Number.Value: "MIST0298" }],
+            $"expected only MIST0298; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Number.Value))}");
     }
 }

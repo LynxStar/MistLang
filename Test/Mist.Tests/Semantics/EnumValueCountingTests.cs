@@ -59,7 +59,7 @@ public sealed class EnumValueCountingTests
         EnumMemberBinder.BindAll(levels, fragments.Builder);
 
         Assert.Null(levels.MembersList[1].Value);
-        Assert.Equal("MIST_PM_ENUM_VALUE_OUT_OF_RANGE", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0400", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private IMistType Primitive(string name)

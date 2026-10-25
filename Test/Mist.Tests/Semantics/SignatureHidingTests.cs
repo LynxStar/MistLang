@@ -11,7 +11,7 @@ namespace Mist.Tests.Semantics;
 
 public sealed class SignatureHidingTests : ProgramModelProbe
 {
-    private const string AmbiguousId = "MIST_PM_AMBIGUOUS_OVERLOAD";
+    private const string AmbiguousId = "MIST0386";
 
     public SignatureHidingTests()
         : base("MistSignatureHiding_")

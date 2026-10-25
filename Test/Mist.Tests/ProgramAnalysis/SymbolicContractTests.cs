@@ -15,8 +15,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class SymbolicContractTests
 {
-    private const string Strengthened = "MIST_PA_CONSTRAINT_STRENGTHENED";
-    private const string Unproven = "MIST_PA_REFINEMENT_RETURN_UNPROVEN";
+    private const string Strengthened = "MIST0283";
+    private const string Unproven = "MIST0284";
 
     [Theory]
     [InlineData("direct", "same", "")]

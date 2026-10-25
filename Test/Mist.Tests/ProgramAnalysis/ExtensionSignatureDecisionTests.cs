@@ -205,7 +205,7 @@ public sealed class ExtensionSignatureAnalysisTests
         var later = f.Method(block, "Pick", parameters: [new Parameter("b", f.Integer)]);
 
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
-        Assert.Equal("MIST_PA_DUPLICATE_EXTENSION_METHOD", finding.Number.Value);
+        Assert.Equal("MIST0134", finding.Number.Value);
         Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
         Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
     }
@@ -219,7 +219,7 @@ public sealed class ExtensionSignatureAnalysisTests
         var later = f.Property(block, "Name", f.String);
 
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
-        Assert.Equal("MIST_PA_DUPLICATE_EXTENSION_PROPERTY", finding.Number.Value);
+        Assert.Equal("MIST0135", finding.Number.Value);
         Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
         Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
     }

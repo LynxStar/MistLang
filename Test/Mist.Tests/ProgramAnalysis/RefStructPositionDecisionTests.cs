@@ -42,10 +42,10 @@ public sealed class RefStructPositionDecisionTests
     }
 
     [Theory]
-    [InlineData("class", false, "MIST_PA_REF_STRUCT_FIELD")]
-    [InlineData("struct", false, "MIST_PA_REF_STRUCT_FIELD")]
-    [InlineData("class", true, "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
-    [InlineData("ref-struct", true, "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
+    [InlineData("class", false, "MIST0243")]
+    [InlineData("struct", false, "MIST0243")]
+    [InlineData("class", true, "MIST0246")]
+    [InlineData("ref-struct", true, "MIST0246")]
     public void AFieldThatWouldHoldARefStructOffTheStackIsRefused(string container, bool isStatic, string expected)
     {
         var field = new Field("Data", cursor, OwnershipKind.Unrestricted, new MemberModifiers { IsStatic = isStatic });
@@ -61,10 +61,10 @@ public sealed class RefStructPositionDecisionTests
     }
 
     [Theory]
-    [InlineData("class", false, false, "MIST_PA_REF_STRUCT_PROPERTY")]
-    [InlineData("class", false, true, "MIST_PA_REF_STRUCT_PROPERTY")]
-    [InlineData("struct", true, false, "MIST_PA_REF_STRUCT_PROPERTY")]
-    [InlineData("ref-struct", true, true, "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
+    [InlineData("class", false, false, "MIST0245")]
+    [InlineData("class", false, true, "MIST0245")]
+    [InlineData("struct", true, false, "MIST0245")]
+    [InlineData("ref-struct", true, true, "MIST0246")]
     public void APropertyThatWouldHoldARefStructOffTheStackIsRefused(string container, bool isStatic, bool isAuto, string expected)
     {
         Assert.Equal(expected, RefStructPositions.Property(Container(container), Property(isStatic, isAuto))?.Number.Value);
@@ -96,7 +96,7 @@ public sealed class RefStructPositionDecisionTests
         cursor.BaseAbstractTypes.Add(thing);
         IMistType to = target == "abstract" ? thing : UnknownType.Instance;
 
-        Assert.Equal("MIST_PA_REF_STRUCT_BOXED", Assignability.Boxing(cursor, to, model.Interner)?.Number.Value);
+        Assert.Equal("MIST0250", Assignability.Boxing(cursor, to, model.Interner)?.Number.Value);
     }
 
     [Theory]

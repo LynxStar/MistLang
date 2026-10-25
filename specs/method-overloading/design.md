@@ -300,8 +300,8 @@ The existing `Pass1_CheckMemberRedeclarations` flags any derived-class member wi
 1. Collect the full overload set (via `LookupAll` on the target type's member scope, plus inherited methods from base types).
 2. Collect argument types from the call site.
 3. Call `OverloadResolver.Resolve(candidates, argTypes, model)`.
-4. On `NoApplicableCandidate`: emit `MIST_TC_0031`.
-5. On `AmbiguousCall`: emit `MIST_TC_0032`.
+4. On `NoApplicableCandidate`: emit `MIST_TC_0031 (historical)`.
+5. On `AmbiguousCall`: emit `MIST_TC_0032 (historical)`.
 6. On `Success`: proceed with the resolved symbol for further type checking.
 
 #### Constructor Call Resolution
@@ -316,11 +316,11 @@ The existing `Pass1_CheckMemberRedeclarations` flags any derived-class member wi
 
 | ID | Severity | Message Template |
 |---|---|---|
-| `MIST_SM_0020` | Error | Type '{typeName}' already defines a method '{methodName}' with the same parameter types |
-| `MIST_SM_0021` | Error | Type '{typeName}' already defines a constructor with the same parameter types |
-| `MIST_TC_0031` | Error | No overload for method '{methodName}' matches the argument types ({argTypes}) |
-| `MIST_TC_0032` | Error | Ambiguous call to '{methodName}' — candidates: {sig1}, {sig2} |
-| `MIST_SM_0022` | Error | '{typeName}' does not implement interface method '{interfaceName}.{methodName}({sig})' |
+| `MIST_SM_0020 (historical)` | Error | Type '{typeName}' already defines a method '{methodName}' with the same parameter types |
+| `MIST_SM_0021 (historical)` | Error | Type '{typeName}' already defines a constructor with the same parameter types |
+| `MIST_TC_0031 (historical)` | Error | No overload for method '{methodName}' matches the argument types ({argTypes}) |
+| `MIST_TC_0032 (historical)` | Error | Ambiguous call to '{methodName}' — candidates: {sig1}, {sig2} |
+| `MIST_SM_0022 (historical)` | Error | '{typeName}' does not implement interface method '{interfaceName}.{methodName}({sig})' |
 
 ### 7. C# Emitter Changes
 
@@ -453,11 +453,11 @@ All new diagnostics follow the existing pattern: a `DiagnosticId` string, `Diagn
 
 | Scenario | Diagnostic ID | Stage | Message |
 |---|---|---|---|
-| Duplicate method signature | `MIST_SM_0020` | SemanticModelConstruction | Type '{type}' already defines method '{name}' with parameter types ({types}) |
-| Duplicate constructor signature | `MIST_SM_0021` | SemanticModelConstruction | Type '{type}' already defines a constructor with parameter types ({types}) |
-| No applicable overload | `MIST_TC_0031` | Analysis | No overload for '{name}' matches argument types ({types}) |
-| Ambiguous overload | `MIST_TC_0032` | Analysis | Call to '{name}' is ambiguous between: {sig1} and {sig2} |
-| Missing interface overload | `MIST_SM_0022` | SemanticModelConstruction | '{type}' does not implement '{interface}.{name}({types})' |
+| Duplicate method signature | `MIST_SM_0020 (historical)` | SemanticModelConstruction | Type '{type}' already defines method '{name}' with parameter types ({types}) |
+| Duplicate constructor signature | `MIST_SM_0021 (historical)` | SemanticModelConstruction | Type '{type}' already defines a constructor with parameter types ({types}) |
+| No applicable overload | `MIST_TC_0031 (historical)` | Analysis | No overload for '{name}' matches argument types ({types}) |
+| Ambiguous overload | `MIST_TC_0032 (historical)` | Analysis | Call to '{name}' is ambiguous between: {sig1} and {sig2} |
+| Missing interface overload | `MIST_SM_0022 (historical)` | SemanticModelConstruction | '{type}' does not implement '{interface}.{name}({types})' |
 
 ### Error Recovery
 
@@ -468,7 +468,7 @@ All new diagnostics follow the existing pattern: a `DiagnosticId` string, `Diagn
 ### Backward Compatibility
 
 - `IScope.Lookup(string name)` behavior is unchanged. Existing code that calls `Lookup` for fields, variables, properties, and types continues to work.
-- The existing `MIST_TC_0002` (argument type mismatch) and `MIST_TC_0011` (no matching constructor) diagnostics are superseded by the new overload-aware diagnostics (`MIST_TC_0031`, `MIST_TC_0032`) only when multiple candidates exist. For single-method lookups, the existing diagnostics remain.
+- The existing `MIST_TC_0002 (historical)` (argument type mismatch) and `MIST_TC_0011 (historical)` (no matching constructor) diagnostics are superseded by the new overload-aware diagnostics (`MIST_TC_0031 (historical)`, `MIST_TC_0032 (historical)`) only when multiple candidates exist. For single-method lookups, the existing diagnostics remain.
 
 ## Testing Strategy
 

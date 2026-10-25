@@ -137,7 +137,7 @@ public sealed class ContextualExpressionContractCommonTypeBindingTests
 
         Assert.Same(fragments.Built.Type("Int32"), ResultType(bound));
         var diagnostic = Assert.Single(fragments.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
+        Assert.Equal("MIST0296", diagnostic.Number.Value);
         _ = Assert.IsType<ErrorExpression>(Values(bound).First());
         if(bound is ArrayLiteralExpression or SwitchExpression)
         {
@@ -156,7 +156,7 @@ public sealed class ContextualExpressionContractCommonTypeBindingTests
         var bound = Bind(consumer, fragments);
 
         Assert.Same(ErrorType.Instance, ResultType(bound));
-        Assert.All(fragments.Diagnostics.ToImmutableArray(), diagnostic => Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value));
+        Assert.All(fragments.Diagnostics.ToImmutableArray(), diagnostic => Assert.Equal("MIST0296", diagnostic.Number.Value));
         Assert.Equal(2, fragments.Diagnostics.ToImmutableArray().Length);
         if(bound is ErrorExpression error)
         {
@@ -197,9 +197,9 @@ public sealed class ContextualExpressionContractCommonTypeBindingTests
     }
 
     [Theory]
-    [InlineData("array", "MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE")]
-    [InlineData("switch", "MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE")]
-    [InlineData("lambda", "MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE")]
+    [InlineData("array", "MIST0376")]
+    [InlineData("switch", "MIST0347")]
+    [InlineData("lambda", "MIST0361")]
     public void IncompatibleValuesReceiveTheConsumersOwningDiagnostic(string consumer, string id)
     {
         var fragments = Fragments();

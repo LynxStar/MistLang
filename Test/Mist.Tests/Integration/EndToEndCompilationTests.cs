@@ -57,6 +57,6 @@ public sealed class EndToEndCompilationTests : IDisposable
 
         Assert.NotNull(result);
         Assert.False(result.Succeeded);
-        Assert.Contains(result.Diagnostics, d => d.Number.Value == "MIST_FILE_ERROR");
+        Assert.Contains(result.Diagnostics, d => d.Number.Value == "MIST0101");
     }
 }

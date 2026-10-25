@@ -44,7 +44,7 @@ public sealed class StructuralContainmentTests
     {
         var (input, earlier, later) = Arms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, h.Built.Interner);
-        Assert.True(finding?.Number.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Number.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == "MIST0199", $"{shape}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -104,7 +104,7 @@ public sealed class StructuralContainmentTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
+        Assert.Equal("MIST0199", finding.Number.Value);
         Assert.Equal(42, finding.Position().Start.Column);
     }
 

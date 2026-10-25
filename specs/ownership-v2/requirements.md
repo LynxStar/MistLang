@@ -10,8 +10,8 @@ This document specifies the requirements for **Ownership v2** — a second-gener
 - Removes the v1 owned-type field restriction (all fields must be owned types)
 - Removes the `owned` field modifier on individual fields
 - Removes struct ownership inference (any type can be owned at binding level)
-- Removes `MIST_OWN_FIELD_NOT_OWNED` diagnostic
-- Removes the structural "is this type eligible for ownership" check (the old meaning of `MIST_OWN_TYPE_REQUIRES_OWNED`)
+- Removes `MIST_OWN_FIELD_NOT_OWNED (historical)` diagnostic
+- Removes the structural "is this type eligible for ownership" check (the old meaning of `MIST_OWN_TYPE_REQUIRES_OWNED (historical)`)
 - Adds method call tier restrictions for non-owned types on owned bindings
 - Adds field assignment provenance enforcement on owned bindings
 - Adds `IClonable<T>` interface for shared-to-owned bridging
@@ -188,8 +188,8 @@ The following truth table defines the permitted actions for each variable owners
 #### Acceptance Criteria
 
 1. WHEN an owned type declares a field of any reference type (class, interface, trait), THE Type_Checker SHALL permit the field without requiring the field's type to itself be an owned type.
-2. THE Type_Checker SHALL NOT report `MIST_OWN_FIELD_NOT_OWNED` or any equivalent diagnostic that restricts field types of owned type declarations.
-3. THE Type_Checker SHALL NOT report the `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostic — this specific diagnostic (which enforced the v1 structural "is this type eligible for ownership" check) is removed entirely.
+2. THE Type_Checker SHALL NOT report `MIST_OWN_FIELD_NOT_OWNED (historical)` or any equivalent diagnostic that restricts field types of owned type declarations.
+3. THE Type_Checker SHALL NOT report the `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` diagnostic — this specific diagnostic (which enforced the v1 structural "is this type eligible for ownership" check) is removed entirely.
 4. WHEN an existing codebase uses `owned` type declarations with non-owned field types, THE Compiler SHALL accept these declarations without error under v2 rules.
 
 ### Requirement 11: Removal of Owned Field Modifier
@@ -200,7 +200,7 @@ The following truth table defines the permitted actions for each variable owners
 
 1. THE `owned` modifier on field declarations SHALL be removed from the grammar entirely — it is no longer a valid field modifier.
 2. IF a field declaration uses the `owned` modifier (e.g., `owned MyClass data;`), THE Parser or Type_Checker SHALL report a hard compile error indicating that the `owned` field modifier is no longer supported. No deprecation warning, no silent acceptance.
-3. THE `MIST_OWN_FIELD_NOT_OWNED` diagnostic SHALL be completely removed from the compiler — all diagnostic code, error message definitions, and references to this diagnostic SHALL be deleted from the codebase entirely.
+3. THE `MIST_OWN_FIELD_NOT_OWNED (historical)` diagnostic SHALL be completely removed from the compiler — all diagnostic code, error message definitions, and references to this diagnostic SHALL be deleted from the codebase entirely.
 
 ### Requirement 12: Removal of Struct Ownership Inference
 

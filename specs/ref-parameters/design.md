@@ -133,22 +133,22 @@ The `TypeCheckerAnalyzer` gains new validation passes:
 
 | Validation | Trigger | Diagnostic ID |
 |---|---|---|
-| Ref argument is assignable storage location | Call expression with `RefArgument` | `MIST_REF_0001` |
-| Ref keyword required at call site | Call to ref-parameter method without `ref` | `MIST_REF_0002` |
-| Spurious ref at call site | `ref` on argument for non-ref parameter | `MIST_REF_0003` |
-| Ref + owned mutual exclusivity | Parameter with both ref and `owned` | `MIST_REF_0004` |
-| Ref + borrowed/frozen redundancy | Parameter with both ref and `borrowed`/`frozen` | `MIST_REF_0013` (warning) |
-| Ref readonly assignment prohibition | Assignment through ref readonly local/return | `MIST_REF_0005` |
-| Ref return lifetime (dangling reference) | `return ref localVar;` | `MIST_REF_0006` |
-| Ref type exact match | Ref argument type ≠ parameter type | `MIST_REF_0007` |
-| Ref field storage prohibition | Storing ref in a field | `MIST_REF_0008` |
-| Ref readonly return assignment | Assignment through ref readonly return | `MIST_REF_0009` |
-| Ref local requires initializer | `ref int x;` without `= ref ...` | `MIST_REF_0010` |
-| Ref lambda capture prohibition | Ref local captured by closure | `MIST_REF_0011` |
-| Ref on an operator or cast-operator parameter (Requirement 1.2, corrected 2026-10-21) | Bare `ref` on such a parameter, refused at the parameter | `MIST_PM_REF_ON_OPERATOR_PARAMETER` |
-| Readonly ref on an operator or cast-operator parameter (Requirement 1.2, decided 2026-10-22) | `readonly ref` on such a parameter, refused at the parameter | `MIST_PM_READONLY_REF_ON_OPERATOR_PARAMETER` |
+| Ref argument is assignable storage location | Call expression with `RefArgument` | `MIST_REF_0001 (historical)` |
+| Ref keyword required at call site | Call to ref-parameter method without `ref` | `MIST_REF_0002 (historical)` |
+| Spurious ref at call site | `ref` on argument for non-ref parameter | `MIST_REF_0003 (historical)` |
+| Ref + owned mutual exclusivity | Parameter with both ref and `owned` | `MIST_REF_0004 (historical)` |
+| Ref + borrowed/frozen redundancy | Parameter with both ref and `borrowed`/`frozen` | `MIST_REF_0013 (historical)` (warning) |
+| Ref readonly assignment prohibition | Assignment through ref readonly local/return | `MIST_REF_0005 (historical)` |
+| Ref return lifetime (dangling reference) | `return ref localVar;` | `MIST_REF_0006 (historical)` |
+| Ref type exact match | Ref argument type ≠ parameter type | `MIST_REF_0007 (historical)` |
+| Ref field storage prohibition | Storing ref in a field | `MIST_REF_0008 (historical)` |
+| Ref readonly return assignment | Assignment through ref readonly return | `MIST_REF_0009 (historical)` |
+| Ref local requires initializer | `ref int x;` without `= ref ...` | `MIST_REF_0010 (historical)` |
+| Ref lambda capture prohibition | Ref local captured by closure | `MIST_REF_0011 (historical)` |
+| Ref on an operator or cast-operator parameter (Requirement 1.2, corrected 2026-10-21) | Bare `ref` on such a parameter, refused at the parameter | `MIST0041` |
+| Readonly ref on an operator or cast-operator parameter (Requirement 1.2, decided 2026-10-22) | `readonly ref` on such a parameter, refused at the parameter | `MIST0042` |
 | Ref overload distinction | Overload resolution considers RefKind | (no diagnostic — resolution logic) |
-| Interface/trait RefKind match | Implementing method RefKind ≠ interface | `MIST_REF_0012` |
+| Interface/trait RefKind match | Implementing method RefKind ≠ interface | `MIST_REF_0012 (historical)` |
 
 ### 4. C# Emitter Extensions
 
@@ -198,19 +198,19 @@ The existing TextMate grammar already assigns `storage.modifier.mist` to `ref` v
 
 | ID | Message Template |
 |---|---|
-| `MIST_REF_0001` | "A ref argument must be an assignable variable, field, or array element; '{0}' is not a valid storage location" |
-| `MIST_REF_0002` | "Argument for ref parameter '{0}' must be prefixed with the 'ref' keyword" |
-| `MIST_REF_0003` | "Parameter '{0}' is not declared as ref; remove the 'ref' keyword from the argument" |
-| `MIST_REF_0004` | "The 'ref' modifier and 'owned' specifier are mutually exclusive on a parameter" |
-| `MIST_REF_0005` | "Cannot assign through a ref readonly reference" |
-| `MIST_REF_0006` | "Cannot return a reference to local variable or non-ref parameter '{0}'; its storage is destroyed when the method returns" |
-| `MIST_REF_0007` | "Ref argument type '{0}' must match parameter type '{1}' exactly; no implicit conversions are allowed for ref arguments" |
-| `MIST_REF_0008` | "Cannot store a ref in a field; refs are stack-only aliases" |
-| `MIST_REF_0009` | "Cannot assign through a ref readonly return value" |
-| `MIST_REF_0010` | "A ref local variable must be initialized at declaration" |
-| `MIST_REF_0011` | "Cannot capture ref local '{0}' in a lambda or closure" |
-| `MIST_REF_0012` | "Method '{0}' does not match interface/trait method '{1}': parameter ref kinds must match exactly" |
-| `MIST_REF_0013` | "The ownership specifier '{0}' is redundant on a ref parameter (ref already implies a borrow)" |
+| `MIST_REF_0001 (historical)` | "A ref argument must be an assignable variable, field, or array element; '{0}' is not a valid storage location" |
+| `MIST_REF_0002 (historical)` | "Argument for ref parameter '{0}' must be prefixed with the 'ref' keyword" |
+| `MIST_REF_0003 (historical)` | "Parameter '{0}' is not declared as ref; remove the 'ref' keyword from the argument" |
+| `MIST_REF_0004 (historical)` | "The 'ref' modifier and 'owned' specifier are mutually exclusive on a parameter" |
+| `MIST_REF_0005 (historical)` | "Cannot assign through a ref readonly reference" |
+| `MIST_REF_0006 (historical)` | "Cannot return a reference to local variable or non-ref parameter '{0}'; its storage is destroyed when the method returns" |
+| `MIST_REF_0007 (historical)` | "Ref argument type '{0}' must match parameter type '{1}' exactly; no implicit conversions are allowed for ref arguments" |
+| `MIST_REF_0008 (historical)` | "Cannot store a ref in a field; refs are stack-only aliases" |
+| `MIST_REF_0009 (historical)` | "Cannot assign through a ref readonly return value" |
+| `MIST_REF_0010 (historical)` | "A ref local variable must be initialized at declaration" |
+| `MIST_REF_0011 (historical)` | "Cannot capture ref local '{0}' in a lambda or closure" |
+| `MIST_REF_0012 (historical)` | "Method '{0}' does not match interface/trait method '{1}': parameter ref kinds must match exactly" |
+| `MIST_REF_0013 (historical)` | "The ownership specifier '{0}' is redundant on a ref parameter (ref already implies a borrow)" |
 
 
 
@@ -323,12 +323,12 @@ Ref-related diagnostics should not cascade. Specifically:
 If a parameter has both `ref` and the `owned` ownership specifier (an invalid combination), the semantic model builder should:
 1. Record `RefKind.Ref` on the parameter (honoring the explicit `ref`).
 2. Record `OwnershipTier.Unrestricted` (ignoring the conflicting ownership specifier).
-3. Emit the mutual-exclusivity error diagnostic (`MIST_REF_0004`).
+3. Emit the mutual-exclusivity error diagnostic (`MIST_REF_0004 (historical)`).
 
 If a parameter has both `ref` and `borrowed` or `frozen` (a redundant but valid combination), the semantic model builder should:
 1. Record `RefKind.Ref` on the parameter.
 2. Record `OwnershipTier.Unrestricted` (the ownership specifier is ignored since ref subsumes it).
-3. Emit the redundancy warning diagnostic (`MIST_REF_0013`).
+3. Emit the redundancy warning diagnostic (`MIST_REF_0013 (historical)`).
 
 This ensures downstream phases see a consistent model even for erroneous or redundant source.
 

@@ -12,11 +12,17 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PuritySoundnessTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string FunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
-    private const string PureScope = "MIST_PA_PURE_SCOPE_";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string FunctionRequired = "MIST0142";
+    private static readonly MistDiagnostic[] PureScope =
+    [
+        ProgramAnalysisDiagnostics.PureScopeWrites,
+        ProgramAnalysisDiagnostics.PureScopeReadsMutable,
+        ProgramAnalysisDiagnostics.PureScopeCallsImpure,
+        ProgramAnalysisDiagnostics.PureScopeStoresUnowned,
+    ];
 
     [Fact]
     public void AnOwnedFieldBehindAStructCopy_IsNotTheCopys()
@@ -32,7 +38,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-writes-the-result-of-a-clone-returning-this"));
 
-        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
+        Assert.Contains(finding.Descriptor, PureScope);
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -41,7 +47,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("field-initializer-judged-under-a-pure-constructor"));
 
-        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
+        Assert.Contains(finding.Descriptor, PureScope);
         Assert.Contains("Box", finding.Message, StringComparison.Ordinal);
     }
 
@@ -90,7 +96,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-sets-an-extension-property-whose-setter-writes-a-static"));
 
-        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
+        Assert.Contains(finding.Descriptor, PureScope);
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 

@@ -14,7 +14,7 @@ namespace Mist.Tests.Driver;
 [Trait("Tier", "2")]
 public sealed class StandardPipelinePolicyGateTests
 {
-    private static readonly MistDiagnostic Warning = DiagnosticFixtures.Descriptor("MIST_FIXTURE_GATE", "probe", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
+    private static readonly MistDiagnostic Warning = DiagnosticFixtures.Descriptor("FIXTURE_GATE", "probe", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
 
     private readonly List<string> ran = [];
 

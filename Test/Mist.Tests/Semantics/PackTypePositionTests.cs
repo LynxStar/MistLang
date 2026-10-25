@@ -84,7 +84,7 @@ public sealed class PackTypePositionTests : ProgramModelProbe
     [InlineData("var n = plain.Both(1, \"x\", 2, \"y\");")]
     public void ATupleParameterOverAPack_TakesNoFlatArgumentList(string statement)
     {
-        _ = Assert.Single(Errors(BuildRun(statement), "MIST_PM_NO_APPLICABLE_OVERLOAD"));
+        _ = Assert.Single(Errors(BuildRun(statement), "MIST0385"));
     }
 
     [Fact]
@@ -126,12 +126,12 @@ public sealed class PackTypePositionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("public class Bad<params TArgs> { public void Use(TArgs[0] first) { } }", "MIST_VAR_0003")]
-    [InlineData("public class Bad<Type[]:TArgs> { public TArgs[3] Field; }", "MIST_VAR_0003")]
-    [InlineData("public class Bad { public static int Use<params T>(T[0] first) { return 0; } }", "MIST_VAR_0003")]
-    [InlineData("public class Bad<Type[2]:TArgs> { public void Use(TArgs[2] third) { } }", "MIST_VAR_0004")]
-    [InlineData("public class Bad<Type[2]:TArgs> { public TArgs[5] Field; }", "MIST_VAR_0004")]
-    [InlineData("public class Bad<Type[0]:TArgs> { public void Use(TArgs[0] first) { } }", "MIST_VAR_0004")]
+    [InlineData("public class Bad<params TArgs> { public void Use(TArgs[0] first) { } }", "MIST0409")]
+    [InlineData("public class Bad<Type[]:TArgs> { public TArgs[3] Field; }", "MIST0409")]
+    [InlineData("public class Bad { public static int Use<params T>(T[0] first) { return 0; } }", "MIST0409")]
+    [InlineData("public class Bad<Type[2]:TArgs> { public void Use(TArgs[2] third) { } }", "MIST0410")]
+    [InlineData("public class Bad<Type[2]:TArgs> { public TArgs[5] Field; }", "MIST0410")]
+    [InlineData("public class Bad<Type[0]:TArgs> { public void Use(TArgs[0] first) { } }", "MIST0410")]
     public void AnIndexThePacksDeclaredSizeDoesNotHold_IsRefused(string declaration, string id)
     {
         var diagnostics = BuildRun("", declaration);

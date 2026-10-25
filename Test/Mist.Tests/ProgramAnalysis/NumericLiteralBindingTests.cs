@@ -15,7 +15,7 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class NumericLiteralBindingTests
 {
-    private const string OutOfRange = "MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE";
+    private const string OutOfRange = "MIST0377";
 
     [Theory]
     [InlineData("9223372036854775808L")]

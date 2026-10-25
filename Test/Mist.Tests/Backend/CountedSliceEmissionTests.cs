@@ -17,7 +17,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class CountedSliceEmissionTests
 {
-    private const string Unsupported = "MIST_BE_UNSUPPORTED_IMPLICIT_SLICE";
+    private const string Unsupported = "MIST0014";
 
     private const int PostfixPrecedence = 10;
 

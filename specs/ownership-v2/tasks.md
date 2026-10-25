@@ -2,7 +2,7 @@
 
 ## Overview
 
-Ownership v2 reworks the Mist ownership system so ownership is a property of a *binding* rather than a *type*. The implementation is sequenced to keep the build coherent: additive foundations first (the `IClonable<T>` stdlib bridge, the IClonable derivation pass, and the three new analyzer collaborators with their own tests), then the single breaking change — the `OwnershipAnalyzer` rewrite that deletes the v1 passes (`MIST_OWN_FIELD_NOT_OWNED`, structural `MIST_OWN_TYPE_REQUIRES_OWNED`, owned-field-modifier validation, struct ownership inference) and simultaneously wires in the new components. Sample fallout (deleting `samples/DeepOwnershipTypes/` and `samples/OwnershipSystem/`, creating `samples/Ownership/`) is fixed immediately after the rewrite so AllFeatures stays runnable. Emitter `.Clone()` insertion, the substructural restriction, grammar/diagnostic cleanup, TextMate grammar, and the book chapter follow.
+Ownership v2 reworks the Mist ownership system so ownership is a property of a *binding* rather than a *type*. The implementation is sequenced to keep the build coherent: additive foundations first (the `IClonable<T>` stdlib bridge, the IClonable derivation pass, and the three new analyzer collaborators with their own tests), then the single breaking change — the `OwnershipAnalyzer` rewrite that deletes the v1 passes (`MIST_OWN_FIELD_NOT_OWNED (historical)`, structural `MIST_OWN_TYPE_REQUIRES_OWNED (historical)`, owned-field-modifier validation, struct ownership inference) and simultaneously wires in the new components. Sample fallout (deleting `samples/DeepOwnershipTypes/` and `samples/OwnershipSystem/`, creating `samples/Ownership/`) is fixed immediately after the rewrite so AllFeatures stays runnable. Emitter `.Clone()` insertion, the substructural restriction, grammar/diagnostic cleanup, TextMate grammar, and the book chapter follow.
 
 All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/Standard/`, samples at `samples/`), and **Markdown** (book at `book/src/`). Tests live in `Test/Mist.Tests/`. The 13 correctness properties map to FsCheck property tests that use **in-process `CompilerDriver.Compile()`** (analysis-only) or a **single batched compile-and-run** for stdout observation — no per-iteration process spawning (see Notes).
 
@@ -50,7 +50,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 - [x] 4. `MoveBoundaryResolver` — the single enforcement point
   - [x] 4.1 Implement `MoveBoundaryResolver` and its result types
     - Add `Source/Mist/Analysis/Builtin/MoveBoundaryResolver.cs` with `Resolve(source, destinationType, site, flowState, model, diagnostics)`, the `OwnedMoveSite` enum (`OwnedBindingInit`, `OwnedFieldAssignment`, `OwnedParameterPass`), the `MoveResolution` record, and the `MoveOutcome` enum (`MovedFromOwned`, `ValueCopy`, `ImplicitClone`, `DefaultGraph`, `Error`)
-    - Implement the resolution algorithm in order: (1) `default(T)`/bare `default` → `DefaultGraph`; (2) value/primitive type → `ValueCopy`; (3) already-owned source (constructor call, owned-returning call, live owned binding) → `MovedFromOwned`, guarded by the truth table (reject move from LentRef/LentFrozen/LentReadonly/Moved); (4) non-owned source implementing `IClonable<T>` → `ImplicitClone` (cloning from a lent tier does NOT transition the lender's state); (5) otherwise → `Error` emitting `MIST_OWN_REQUIRES_OWNED` or `MIST_OWN_NOT_CLONABLE`
+    - Implement the resolution algorithm in order: (1) `default(T)`/bare `default` → `DefaultGraph`; (2) value/primitive type → `ValueCopy`; (3) already-owned source (constructor call, owned-returning call, live owned binding) → `MovedFromOwned`, guarded by the truth table (reject move from LentRef/LentFrozen/LentReadonly/Moved); (4) non-owned source implementing `IClonable<T>` → `ImplicitClone` (cloning from a lent tier does NOT transition the lender's state); (5) otherwise → `Error` emitting `MIST_OWN_REQUIRES_OWNED (historical)` or `MIST_OWN_NOT_CLONABLE (historical)`
     - Absorb v1's `YieldsUniqueOwnership` / `IsConstructorOrOwnedCall` provenance logic here; record a clone annotation for `ImplicitClone` outcomes; mark consumed bindings `Moved` for `MovedFromOwned`
     - _Requirements: 6.9, 6.1, 6.2, 6.3, 6.8, 6.10, 4.1, 4.2, 4.3, 4.4, 8.2, 8.3, 8.4, 8.5_
 
@@ -72,7 +72,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 
   - [x] 4.5 Write property test: non-clonable source implies error
     - **Property 4: Non-owned non-clonable source implies error**
-    - For all non-owned, non-clonable reference sources, `Resolve(e) == Error` and `MIST_OWN_NOT_CLONABLE` is emitted
+    - For all non-owned, non-clonable reference sources, `Resolve(e) == Error` and `MIST_OWN_NOT_CLONABLE (historical)` is emitted
     - **Validates: Requirements 8.4, 13.7**
 
   - [x] 4.6 Write property test: clone from lent tier does not consume lender
@@ -109,7 +109,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 - [x] 6. `CooperationContractVerifier`
   - [x] 6.1 Implement `CooperationContractVerifier`
     - Add `Source/Mist/Analysis/Builtin/CooperationContractVerifier.cs` with `Verify(ownedType, resolver, model, diagnostics)`
-    - For each method/constructor of an `owned` type, find assignments `this.Field = <source>` and route each source through `MoveBoundaryResolver.Resolve(..., OwnedFieldAssignment)`; on `Error`, emit `MIST_OWN_CONTRACT_VIOLATION` naming the method, field, and non-owned source
+    - For each method/constructor of an `owned` type, find assignments `this.Field = <source>` and route each source through `MoveBoundaryResolver.Resolve(..., OwnedFieldAssignment)`; on `Error`, emit `MIST_OWN_CONTRACT_VIOLATION (historical)` naming the method, field, and non-owned source
     - Reject static/global reads as sources (they fall through the resolver to `Error`) per design LD-2
     - _Requirements: 5.3, 5.4, 13.4, 13.5_
 
@@ -134,9 +134,9 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - _Requirements: 1.3, 2.3, 3.2, 5.6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 7.1, 7.2, 7.3, 7.4, 7.5, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 10.1, 10.3, 10.4, 12.1, 12.2, 12.3, 12.4_
     - Standard-pipeline consumed and reassigned lifetimes (2026-10-03): the move rule is unchanged. A move into another binding (6.2) and a reassignment after a move, in a loop or out (6.6), are admitted, and a use after a move is still refused. What changed is the cleanup those states owe. For a linear local, consumption and a later initialization are tracked separately, so the binding owes the release of each fresh value it is given, and the destination of a move owes the release instead of the source. A lease owes nothing. See [`backlog/analysis-v2-capability-progression.yaml` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/analysis-v2-capability-progression.yaml), `ownership-borrow-checking` (order 11), and [`backlog/emitter-v2-capability-progression.yaml` at da1aaa8f](https://github.com/LynxStar/MistLang/blob/da1aaa8fd416bd3bdf93e496281e7b2cbf52594c/backlog/emitter-v2-capability-progression.yaml), order 161. _Requirements: 6.2, 6.6._
 
-  - [x] 8.2 Remove the `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` diagnostics
-    - Delete the `MIST_OWN_FIELD_NOT_OWNED` diagnostic id, message definition, and all references (do NOT touch `MIST_DROP_FIELD_NOT_OWNED` in `DropAnalyzer.cs` — out of scope)
-    - Delete the `MIST_OWN_TYPE_REQUIRES_OWNED` structural-eligibility diagnostic id, message, and references
+  - [x] 8.2 Remove the `MIST_OWN_FIELD_NOT_OWNED (historical)` and structural `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` diagnostics
+    - Delete the `MIST_OWN_FIELD_NOT_OWNED (historical)` diagnostic id, message definition, and all references (do NOT touch `MIST_DROP_FIELD_NOT_OWNED (historical)` in `DropAnalyzer.cs` — out of scope)
+    - Delete the `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` structural-eligibility diagnostic id, message, and references
     - Remove any struct ownership inference engine artifacts (Req 12.1)
     - _Requirements: 10.2, 10.3, 11.3, 12.1_
 
@@ -147,7 +147,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
 
   - [x] 8.4 Write unit tests asserting removed diagnostics never fire
-    - Assert `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` are never emitted for owned types with non-owned fields or owned bindings of non-owned types
+    - Assert `MIST_OWN_FIELD_NOT_OWNED (historical)` and structural `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` are never emitted for owned types with non-owned fields or owned bindings of non-owned types
     - _Requirements: 10.2, 10.3, 10.4_
 
   - [x] 8.5 Write unit tests for lending tier integration
@@ -156,31 +156,31 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 
 - [x] 9. Substructural restriction on owned bindings
   - [x] 9.1 Implement `RejectOwnedBindingOnSubstructuralTypes`
-    - In the `OwnershipAnalyzer` Pass B2, reject the `owned` binding specifier applied to a `linear`, `affine`, or `relevant` type, emitting `MIST_OWN_SUBSTRUCTURAL_BINDING` naming the binding and substructural type
+    - In the `OwnershipAnalyzer` Pass B2, reject the `owned` binding specifier applied to a `linear`, `affine`, or `relevant` type, emitting `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)` naming the binding and substructural type
     - Accept owned bindings of non-substructural types (unrestricted or `owned`), subject to provenance
     - _Requirements: 1.4, 13.8_
 
   - [x] 9.2 Write property test for substructural rejection
     - **Property 13: Owned binding rejects substructural types**
-    - For all `linear`/`affine`/`relevant` types T, `owned` binding of T → `MIST_OWN_SUBSTRUCTURAL_BINDING`; for all non-substructural types, permitted
+    - For all `linear`/`affine`/`relevant` types T, `owned` binding of T → `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)`; for all non-substructural types, permitted
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 1.3, 1.4**
 
 - [x] 10. Grammar and owned-field-modifier hard error
   - [x] 10.1 Remove/hard-error the `owned` field modifier
     - In `Source/Mist/Grammar/Mist.storm`, evaluate dropping the owned alternative from `FieldDeclaration` (preserve `frozen`/`borrowed`/`readonly ref` field tiers); if clean grammar removal is not feasible without regeneration impact, keep parsing it syntactically and reject in `RejectOwnedFieldModifier`
-    - Implement `RejectOwnedFieldModifier` to emit the hard error `MIST_OWN_FIELD_MODIFIER_REMOVED` (no warning, no silent acceptance) when an `owned` specifier appears on a field declaration
+    - Implement `RejectOwnedFieldModifier` to emit the hard error `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` (no warning, no silent acceptance) when an `owned` specifier appears on a field declaration
     - Regenerate grammar artifacts if `Mist.storm` changed
     - _Requirements: 11.1, 11.2, 13.6, 19.1, 19.2_
 
   - [x] 10.2 Write unit tests for the owned-field-modifier hard error
-    - Assert `owned MyClass data;` as a field produces `MIST_OWN_FIELD_MODIFIER_REMOVED` (error, not warning)
+    - Assert `owned MyClass data;` as a field produces `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` (error, not warning)
     - _Requirements: 11.2, 13.6, 19.2_
 
 - [x] 11. New diagnostic definitions
   - [x] 11.1 Define the new ownership diagnostics
-    - Add diagnostic id + message definitions for `MIST_OWN_MUTABLE_HIDDEN`, `MIST_OWN_REQUIRES_OWNED` (repurposed), `MIST_OWN_NOT_CLONABLE`, `MIST_OWN_CONTRACT_VIOLATION`, `MIST_OWN_FIELD_MODIFIER_REMOVED`, and `MIST_OWN_SUBSTRUCTURAL_BINDING`, each with the message content described in the Error Handling table (method/type/field/source names and remediation hints)
-    - Confirm kept diagnostics (`MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_INTERFACE_FORBIDDEN`, `MIST_OWN_INCOMPATIBLE_LEND`, `MIST_OWN_MUTATION_BLOCKED`, `MIST_OWN_EXCLUSIVE_VIOLATION`) remain
+    - Add diagnostic id + message definitions for `MIST_OWN_MUTABLE_HIDDEN (historical)`, `MIST_OWN_REQUIRES_OWNED (historical)` (repurposed), `MIST_OWN_NOT_CLONABLE (historical)`, `MIST_OWN_CONTRACT_VIOLATION (historical)`, `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)`, and `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)`, each with the message content described in the Error Handling table (method/type/field/source names and remediation hints)
+    - Confirm kept diagnostics (`MIST_OWN_USE_AFTER_MOVE (historical)`, `MIST_OWN_INTERFACE_FORBIDDEN (historical)`, `MIST_OWN_INCOMPATIBLE_LEND (historical)`, `MIST_OWN_MUTATION_BLOCKED (historical)`, `MIST_OWN_EXCLUSIVE_VIOLATION (historical)`) remain
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8_
 
   - [x] 11.2 Write unit tests for each new diagnostic's trigger and message
@@ -260,7 +260,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (stdlib at `Source/
 - The 13 correctness properties from the design map to property-based tests (Properties 1–10, 13 are analysis-only and use in-process `CompilerDriver.Compile()`; Property 11 uses in-process parse/pretty-print; Property 12 inspects emitted C# in-process). **No property test spawns `dotnet` per iteration.** If any property is later found to require per-iteration process execution, it must be raised for approval per the spec-process-spawning-approval policy before implementation.
 - The proof code in `samples/Ownership/Program.mist` is immutable (sample-proof-code policy). If it cannot be made to compile and produce the exact expected output, stop and report the gap rather than weakening it.
 - The breaking removals (task 8) are grouped with the orchestrator rewrite so the build is fixed in one coherent change; sample fallout is repaired immediately after in task 15.
-- `MIST_DROP_FIELD_NOT_OWNED` in `DropAnalyzer.cs` is out of scope and must not be removed.
+- `MIST_DROP_FIELD_NOT_OWNED (historical)` in `DropAnalyzer.cs` is out of scope and must not be removed.
 
 ## Task Dependency Graph
 

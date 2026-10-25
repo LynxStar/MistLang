@@ -14,13 +14,13 @@ namespace Mist.Tests.Semantics;
 
 public sealed class OverloadSelectionTests : ProgramModelProbe
 {
-    private const string NoOverloadId = "MIST_PM_NO_APPLICABLE_OVERLOAD";
-    private const string AmbiguousId = "MIST_PM_AMBIGUOUS_OVERLOAD";
-    private const string UnresolvableId = "MIST_PM_UNRESOLVABLE_OVERLOAD";
-    private const string MethodGroupId = "MIST_PM_METHOD_GROUP_NOT_CONVERTED";
-    private const string UnresolvedIdentifierId = "MIST_PM_UNRESOLVED_IDENTIFIER";
-    private const string UnresolvedMemberId = "MIST_PM_UNRESOLVED_MEMBER";
-    private const string ForEachElementId = "MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE";
+    private const string NoOverloadId = "MIST0385";
+    private const string AmbiguousId = "MIST0386";
+    private const string UnresolvableId = "MIST0390";
+    private const string MethodGroupId = "MIST0387";
+    private const string UnresolvedIdentifierId = "MIST0296";
+    private const string UnresolvedMemberId = "MIST0301";
+    private const string ForEachElementId = "MIST0373";
 
     private const string Mixer = """
         public class Mixer

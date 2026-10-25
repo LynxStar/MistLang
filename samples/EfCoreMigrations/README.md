@@ -103,7 +103,7 @@ migration file it has just written must be compiled before `database update` can
 ## Workarounds in this sample and why
 
 - **`Items => Set<Item>()` instead of an auto-property.** Mist refuses
-  `public DbSet<Item> Items { get; set; }` with `MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED`: the type
+  `public DbSet<Item> Items { get; set; }` with `MIST0223`: the type
   is not defaultable and the constructor never assigns it. A language rule, not a defect; C# only
   warns, and EF documents the computed form.
 - **`Microsoft.EntityFrameworkCore.Sqlite.Core` instead of the `Sqlite` metapackage in `App`.**

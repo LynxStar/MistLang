@@ -16,10 +16,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class OperatorPositionSiteTests
 {
     [Theory]
-    [InlineData("static-lambda-captures-a-field", "MIST_PA_STATIC_LAMBDA_CAPTURE")]
-    [InlineData("static-lambda-captures-a-local", "MIST_PA_STATIC_LAMBDA_CAPTURE")]
-    [InlineData("static-local-function-captures-a-field", "MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE")]
-    [InlineData("static-local-function-captures-a-local", "MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE")]
+    [InlineData("static-lambda-captures-a-field", "MIST0211")]
+    [InlineData("static-lambda-captures-a-local", "MIST0211")]
+    [InlineData("static-local-function-captures-a-field", "MIST0212")]
+    [InlineData("static-local-function-captures-a-local", "MIST0212")]
     public void RefusedCaptureKeepsItsDiagnostic(string caseName, string expected)
     {
         var model = new HandBuiltModel();
@@ -38,10 +38,10 @@ public sealed class OperatorPositionSiteTests
     }
 
     [Theory]
-    [InlineData("binary", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("unknown-binary", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS")]
-    [InlineData("conditional", "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL")]
-    [InlineData("unknown-member", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS")]
+    [InlineData("binary", "MIST0200")]
+    [InlineData("unknown-binary", "MIST0201")]
+    [InlineData("conditional", "MIST0205")]
+    [InlineData("unknown-member", "MIST0202")]
     public void OperatorReportsAtTheRefusedExpression(string shape, string expected)
     {
         var model = new HandBuiltModel();
@@ -62,9 +62,9 @@ public sealed class OperatorPositionSiteTests
     }
 
     [Theory]
-    [InlineData("coalescing", "MIST_PA_COALESCING_ASSIGNMENT_NOT_A_STATEMENT")]
-    [InlineData("readonly", "MIST_PA_READONLY_LOCAL_REASSIGNED")]
-    [InlineData("optional", "MIST_PA_OPTIONAL_OF_OPTIONAL")]
+    [InlineData("coalescing", "MIST0206")]
+    [InlineData("readonly", "MIST0207")]
+    [InlineData("optional", "MIST0213")]
     public void PositionReportsAtTheRefusedExpression(string shape, string expected)
     {
         var model = new HandBuiltModel();

@@ -11,7 +11,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
 {
-    private const string NotExhaustive = "MIST_PA_SWITCH_NOT_EXHAUSTIVE";
+    private const string NotExhaustive = "MIST0148";
 
     public ExhaustivenessDecisionTests()
         : base("MistExhaustiveness_")

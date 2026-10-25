@@ -552,19 +552,19 @@ When a CLR type implements `IEnumerable<T>`:
 
 | Diagnostic ID | Severity | Condition | Recovery |
 |--------------|----------|-----------|----------|
-| `MIST_PKG_INVALID_NAME` | Error | Package name fails validation | Skip package, continue |
-| `MIST_PKG_INVALID_VERSION` | Error | Version is empty/whitespace/non-string | Skip package, continue |
-| `MIST_PKG_TABLE_EXPECTED` | Error | `[packages]` is not a TOML table | Skip all packages |
-| `MIST_SDK_NOT_FOUND` | Error | .NET SDK installation not found | Halt assembly loading |
-| `MIST_SDK_NO_FRAMEWORK` | Error | Target framework path doesn't exist | Halt assembly loading |
-| `MIST_ASM_LOAD_FAILED` | Error | Assembly file unreadable/corrupted | Skip assembly, continue |
-| `MIST_PKG_NOT_FOUND` | Error | Package not found on any feed | Skip package, continue |
-| `MIST_PKG_NO_COMPATIBLE_TFM` | Error | No compatible framework target | Skip package, continue |
-| `MIST_PKG_NETWORK_ERROR` | Error | Download timeout/connection failure | Skip package, continue |
-| `MIST_NS_NOT_FOUND` | Error | `using` references non-existent namespace | Continue (unresolved names will error later) |
-| `MIST_TYPE_AMBIGUOUS` | Error | Type name ambiguous across namespaces | Report conflicting namespaces |
-| `MIST_ABSTRACT_INSTANTIATION` | Error | `new` on abstract CLR type | Report error at call site |
-| `MIST_SEALED_INHERITANCE` | Error | Mist type inherits from sealed CLR type | Report error at declaration |
+| `MIST0084`, `MIST0085` | Error | Package name fails validation | Skip package, continue |
+| `MIST0086`, `MIST0087` | Error | Version is empty/whitespace/non-string | Skip package, continue |
+| `MIST0083` | Error | `[packages]` is not a TOML table | Skip all packages |
+| `MIST0032` | Error | .NET SDK installation not found | Halt assembly loading |
+| `MIST0033` | Error | Target framework path doesn't exist | Halt assembly loading |
+| `MIST0006` | Error | Assembly file unreadable/corrupted | Skip assembly, continue |
+| `MIST_PKG_NOT_FOUND (historical)` | Error | Package not found on any feed | Skip package, continue |
+| `MIST_PKG_NO_COMPATIBLE_TFM (historical)` | Error | No compatible framework target | Skip package, continue |
+| `MIST_PKG_NETWORK_ERROR (historical)` | Error | Download timeout/connection failure | Skip package, continue |
+| `MIST0293` | Error | `using` references non-existent namespace | Continue (unresolved names will error later) |
+| `MIST0299` | Error | Type name ambiguous across namespaces | Report conflicting namespaces |
+| `MIST_ABSTRACT_INSTANTIATION (historical)` | Error | `new` on abstract CLR type | Report error at call site |
+| `MIST_SEALED_INHERITANCE (historical)` | Error | Mist type inherits from sealed CLR type | Report error at declaration |
 
 ### Error Recovery Strategy
 

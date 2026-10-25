@@ -37,7 +37,7 @@ public sealed class ReadonlyReferenceSiteTests
         };
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), root));
-        Assert.Equal("MIST_PA_READONLY_REF_WRITTEN", diagnostic.Number.Value);
+        Assert.Equal("MIST0208", diagnostic.Number.Value);
         Assert.StartsWith(message, diagnostic.Message, StringComparison.Ordinal);
         Assert.Equal(38, diagnostic.Position().Start.Column);
     }

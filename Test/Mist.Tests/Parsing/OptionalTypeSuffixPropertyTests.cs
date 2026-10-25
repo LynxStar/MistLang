@@ -299,7 +299,7 @@ public sealed class OptionalTypeSuffixPropertyTests
     // For any valid type name T, a program containing the type annotation
     // `T??` SHALL ultimately produce a diagnostic error. However, the error
     // does NOT come from the parser — it comes from the semantic model
-    // builder (task 4.1, MIST_TC_0045).
+    // builder (task 4.1, the historical type-checker code 0045).
     //
     // At the parser level, `T??` is handled as follows:
     // - The lexer tokenizes `??` as QUESTION_QUESTION (not two QUESTION tokens)

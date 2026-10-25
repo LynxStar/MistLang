@@ -92,11 +92,11 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         return projectDir;
     }
 
-    // ── Invalid reference → MIST_PROJECT_REFERENCE_NOT_FOUND ─
+    // ── Invalid reference → MIST0062 ─
 
     /// <summary>
     /// Project A declares a reference to a non-existent path. The
-    /// compilation should abort with a <c>MIST_PROJECT_REFERENCE_NOT_FOUND</c>
+    /// compilation should abort with a <c>MIST0062</c>
     /// diagnostic.
     /// </summary>
     [Fact]
@@ -136,6 +136,6 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 
         Assert.False(result.Succeeded);
         Assert.Contains(result.Diagnostics,
-            d => d.Number.Value == "MIST_PROJECT_REFERENCE_NOT_FOUND");
+            d => d.Number.Value == "MIST0062");
     }
 }

@@ -51,10 +51,10 @@ public sealed class DiagnosticsPolicyTableTests
     [InlineData("diagnostics = 3", "DiagnosticsTableExpected")]
     [InlineData("[diagnostics]\nwarnings_as_erors = true", "DiagnosticsKeyUnknown")]
     [InlineData("[diagnostics]\nwarnings_as_errors = \"yes\"", "DiagnosticsValueInvalid")]
-    [InlineData("[diagnostics]\ndisable = \"MIST_PA_SWITCH_NOT_EXHAUSTIVE\"", "DiagnosticsValueInvalid")]
+    [InlineData("[diagnostics]\ndisable = \"MIST0148\"", "DiagnosticsValueInvalid")]
     [InlineData("[diagnostics]\ndisable = [7]", "DiagnosticsValueInvalid")]
     [InlineData("[diagnostics]\ndisable = [\"MIST9999\"]", "DiagnosticsNumberUnknown")]
-    [InlineData("[diagnostics]\nwarnings_as_errors = [\"MIST_NOWHERE\"]", "DiagnosticsNumberUnknown")]
+    [InlineData("[diagnostics]\nwarnings_as_errors = [\"MIST9997\"]", "DiagnosticsNumberUnknown")]
     public void AnInvalidEntryProducesOneConfigurationOccurrenceAndFailsTheManifest(string toml, string field)
     {
         var bag = new DiagnosticBag();

@@ -52,23 +52,23 @@ This plan implements property initializer blocks on `new` expressions across the
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Type Checker: Add property initializer validation and diagnostics
-  - [x] 5.1 Add diagnostic IDs MIST_PI_0001 through MIST_PI_0006 to the diagnostics infrastructure
-    - MIST_PI_0001 (Error): "Type '{typeName}' does not contain a property or field named '{memberName}'"
-    - MIST_PI_0002 (Error): "Cannot assign '{valueType}' to '{memberName}' of type '{memberType}'"
-    - MIST_PI_0003 (Error): "Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer"
-    - MIST_PI_0004 (Error): "Field '{memberName}' is readonly and cannot be assigned in an initializer"
-    - MIST_PI_0005 (Error): "'{memberName}' is inaccessible due to its protection level"
-    - MIST_PI_0006 (Error): "Member '{memberName}' is assigned more than once in the initializer"
+  - [x] 5.1 Add diagnostic IDs MIST_PI_0001 (historical) through MIST_PI_0006 (historical) to the diagnostics infrastructure
+    - MIST_PI_0001 (historical) (Error): "Type '{typeName}' does not contain a property or field named '{memberName}'"
+    - MIST_PI_0002 (historical) (Error): "Cannot assign '{valueType}' to '{memberName}' of type '{memberType}'"
+    - MIST_PI_0003 (historical) (Error): "Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer"
+    - MIST_PI_0004 (historical) (Error): "Field '{memberName}' is readonly and cannot be assigned in an initializer"
+    - MIST_PI_0005 (historical) (Error): "'{memberName}' is inaccessible due to its protection level"
+    - MIST_PI_0006 (historical) (Error): "Member '{memberName}' is assigned more than once in the initializer"
     - _Requirements: 3.2, 4.2, 5.2, 5.4, 5.6, 6.2_
   - [x] 5.2 Add `CheckPropertyInitializerBlock` method to `TypeCheckerAnalyzer` in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Create a private method `CheckPropertyInitializerBlock(PropertyInitializerBlockNode initializerBlock, IType constructedType, SyntaxNode parentNode, ISemanticModel model, DiagnosticBag diagnostics)`
     - For each `PropertyAssignment`, perform five validation checks in order:
-      1. **Member existence** — Look up the name in the constructed type's `MemberScope`; emit MIST_PI_0001 if not found as property or field
-      2. **Type compatibility** — Get member's `DeclaredType` and value expression type; call `IsAssignable`; emit MIST_PI_0002 if not assignable
-      3. **Writability (property)** — Check `PropertyMetadata.HasSet || PropertyMetadata.HasInit`; emit MIST_PI_0003 if neither
-      4. **Writability (field)** — Check `symbol.ReadonlyStatus`; emit MIST_PI_0004 if readonly
-      5. **Accessibility** — Check access modifier; emit MIST_PI_0005 if private and call site is outside declaring type
-    - Track seen names in `HashSet<string>` for duplicate detection; emit MIST_PI_0006 on second occurrence
+      1. **Member existence** — Look up the name in the constructed type's `MemberScope`; emit MIST_PI_0001 (historical) if not found as property or field
+      2. **Type compatibility** — Get member's `DeclaredType` and value expression type; call `IsAssignable`; emit MIST_PI_0002 (historical) if not assignable
+      3. **Writability (property)** — Check `PropertyMetadata.HasSet || PropertyMetadata.HasInit`; emit MIST_PI_0003 (historical) if neither
+      4. **Writability (field)** — Check `symbol.ReadonlyStatus`; emit MIST_PI_0004 (historical) if readonly
+      5. **Accessibility** — Check access modifier; emit MIST_PI_0005 (historical) if private and call site is outside declaring type
+    - Track seen names in `HashSet<string>` for duplicate detection; emit MIST_PI_0006 (historical) on second occurrence
     - _Requirements: 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 6.1, 6.2_
   - [x] 5.3 Integrate `CheckPropertyInitializerBlock` into the existing `CheckObjectCreation` flow
     - In the `ObjectCreationExpressionPrimaryNode` handling, after existing constructor validation, call `CheckPropertyInitializerBlock` if `Initializer` is non-null
@@ -182,42 +182,42 @@ This plan implements property initializer blocks on `new` expressions across the
   - [x] 13.3 Write PBT for non-existent member produces diagnostic (Property 3)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerMemberExistencePropertyTests.cs`
     - Generate random type declarations and initializer blocks with invalid member names
-    - Verify exactly one MIST_PI_0001 diagnostic is produced per invalid name
+    - Verify exactly one MIST_PI_0001 (historical) diagnostic is produced per invalid name
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 3: Non-existent member produces diagnostic**
     - **Validates: Requirements 3.1, 3.2**
   - [x] 13.4 Write PBT for type-incompatible assignment produces diagnostic (Property 4)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerTypeCompatibilityPropertyTests.cs`
     - Generate random type declarations with settable properties and assign type-incompatible values
-    - Verify exactly one MIST_PI_0002 diagnostic is produced per incompatible assignment
+    - Verify exactly one MIST_PI_0002 (historical) diagnostic is produced per incompatible assignment
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 4: Type-incompatible assignment produces diagnostic**
     - **Validates: Requirements 4.1, 4.2**
   - [x] 13.5 Write PBT for read-only property produces diagnostic (Property 5)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerWritabilityPropertyTests.cs`
     - Generate random type declarations with get-only properties
-    - Verify exactly one MIST_PI_0003 diagnostic is produced per read-only property assignment
+    - Verify exactly one MIST_PI_0003 (historical) diagnostic is produced per read-only property assignment
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 5: Read-only property produces diagnostic**
     - **Validates: Requirements 5.1, 5.2**
   - [x] 13.6 Write PBT for readonly field produces diagnostic (Property 6)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerReadonlyFieldPropertyTests.cs`
     - Generate random type declarations with readonly fields
-    - Verify exactly one MIST_PI_0004 diagnostic is produced per readonly field assignment
+    - Verify exactly one MIST_PI_0004 (historical) diagnostic is produced per readonly field assignment
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 6: Readonly field produces diagnostic**
     - **Validates: Requirements 5.3, 5.4**
   - [x] 13.7 Write PBT for duplicate member produces diagnostic (Property 7)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerDuplicatePropertyTests.cs`
     - Generate random initializer blocks with duplicate member names
-    - Verify exactly one MIST_PI_0006 diagnostic is produced for the duplicate occurrence
+    - Verify exactly one MIST_PI_0006 (historical) diagnostic is produced for the duplicate occurrence
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 7: Duplicate member produces diagnostic**
     - **Validates: Requirements 6.1, 6.2**
   - [x] 13.8 Write PBT for valid initializer produces no diagnostics (Property 8)
     - Create `Test/Mist.Tests/Analysis/PropertyInitializerValidPropertyTests.cs`
     - Generate random type declarations with N settable properties/fields and initializer blocks assigning distinct, type-compatible values to subsets
-    - Verify zero property-initializer diagnostics (MIST_PI_*) are produced
+    - Verify zero property-initializer diagnostics (MIST_PI_* (historical scheme)) are produced
     - In-process via shared `CompilerDriver`, no spawning
     - **Property 8: Valid initializer produces no diagnostics**
     - **Validates: Requirements 3.1, 4.1, 5.1, 6.1, 7.3**
@@ -241,4 +241,4 @@ This plan implements property initializer blocks on `new` expressions across the
 - The grammar changes (Task 1) must be completed first as the Storm source generator produces AST node types that all subsequent stages depend on
 - The `ObjectCreationExpression` alternative ordering matters: the variant with parentheses must come before the no-args variant to avoid ambiguity (the parser tries alternatives in order)
 - All PBT tests are in-process except emission correctness (Property 2) which uses batched compilation (1 compile + 1 run)
-- Six new diagnostic IDs (MIST_PI_0001–MIST_PI_0006) are introduced, all at Error severity
+- Six new diagnostic IDs (MIST_PI_0001 (historical)–MIST_PI_0006 (historical)) are introduced, all at Error severity

@@ -143,7 +143,7 @@ public sealed class NamespaceRootValidationPropertyTests
 
     /// <summary>
     /// For any whitespace-only string as namespace_root, parsing should fail
-    /// with MIST_PROJECT_EMPTY_NAMESPACE_ROOT.
+    /// with MIST0056.
     /// **Validates: Requirements 1.4, 1.5, 1.6**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(NamespaceRootValidationPropertyTests) }, MaxTest = 100)]
@@ -160,7 +160,7 @@ public sealed class NamespaceRootValidationPropertyTests
 
             var diags = diagnostics.ToImmutableArray();
             return result is null
-                && diags.Any(d => d.Number.Value == "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
+                && diags.Any(d => d.Number.Value == "MIST0056");
         }
         finally
         {
@@ -172,7 +172,7 @@ public sealed class NamespaceRootValidationPropertyTests
 
     /// <summary>
     /// For any string with at least one invalid character as namespace_root,
-    /// parsing should fail with MIST_PROJECT_INVALID_NAMESPACE_ROOT.
+    /// parsing should fail with MIST0057.
     /// **Validates: Requirements 1.4, 1.5, 1.6**
     /// </summary>
     [Property(Arbitrary = new[] { typeof(NamespaceRootValidationPropertyTests) }, MaxTest = 100)]
@@ -191,8 +191,8 @@ public sealed class NamespaceRootValidationPropertyTests
             // Should be rejected with either INVALID_NAMESPACE_ROOT or EMPTY_NAMESPACE_ROOT
             // (if the string happens to be whitespace-only after escaping)
             return result is null
-                && diags.Any(d => d.Number.Value is "MIST_PROJECT_INVALID_NAMESPACE_ROOT"
-                               or "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
+                && diags.Any(d => d.Number.Value is "MIST0057"
+                               or "MIST0056");
         }
         finally
         {

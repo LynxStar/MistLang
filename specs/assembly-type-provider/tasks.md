@@ -18,7 +18,7 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Parse `[packages]` table entries as name (key) → version (string value)
     - Validate package name matches `[a-zA-Z0-9\-_\.]+` and ≤128 chars
     - Validate version is non-empty, non-whitespace string
-    - Emit `MIST_PKG_INVALID_NAME`, `MIST_PKG_INVALID_VERSION`, `MIST_PKG_TABLE_EXPECTED` diagnostics
+    - Emit `MIST0084`, `MIST0085`, `MIST0086`, `MIST0087`, `MIST0083` diagnostics
     - Handle absent `[packages]` table as empty list (no error)
     - Handle non-string version values with error diagnostic
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8_
@@ -45,7 +45,7 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Implement disk cache at `~/.mist/sdk-ref-path.cache`: read cached path first, validate with `Directory.Exists`, fall through to full discovery on miss/stale
     - Implement in-process static cache: avoid even the disk read on repeated calls within the same process
     - Implement `RegenerateDiskCache()` for the publish script to call
-    - Emit `MIST_SDK_NOT_FOUND` and `MIST_SDK_NO_FRAMEWORK` diagnostics on failure
+    - Emit `MIST0032` and `MIST0033` diagnostics on failure
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 2.6_
 
   - [ ] 2.2 Implement `PackageResolver`
@@ -57,7 +57,7 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Resolve transitive dependencies with highest-compatible-version semantics
     - Enforce exact version matching (no ranges)
     - 60-second timeout per package download
-    - Emit `MIST_PKG_NOT_FOUND`, `MIST_PKG_NO_COMPATIBLE_TFM`, `MIST_PKG_NETWORK_ERROR` diagnostics
+    - Emit `MIST_PKG_NOT_FOUND (historical)`, `MIST_PKG_NO_COMPATIBLE_TFM (historical)`, `MIST_PKG_NETWORK_ERROR (historical)` diagnostics
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8_
 
 - [ ] 3. Checkpoint - Ensure infrastructure builds cleanly
@@ -157,7 +157,7 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Pass SDK assembly paths and NuGet package assembly paths to the provider
     - Integrate with `CompilerDriver` — call `SdkDiscovery` and `PackageResolver` during Stage 1 (Loading)
     - Pass `ProjectConfiguration.Packages` from `ProjectFileParser` to `PackageResolver`
-    - Handle `MIST_SDK_NOT_FOUND` gracefully (fall back to no assembly types)
+    - Handle `MIST0032` gracefully (fall back to no assembly types)
     - Add SDK cache regeneration step to `publish.sh`
     - _Requirements: 2.1, 2.3, 2.4, 15.4_
 
@@ -167,13 +167,13 @@ This plan replaces the manually coded `CSharpAmbientTypeResolver` with an automa
     - Make all public types from imported CLR namespaces available for unqualified name resolution
     - Resolve Mist-declared types first; fall through to CLR namespaces if no match
     - Support fully-qualified CLR type references without `using` directive
-    - Emit `MIST_NS_NOT_FOUND` for `using` directives referencing non-existent namespaces
-    - Emit `MIST_TYPE_AMBIGUOUS` when type name is ambiguous across multiple imported namespaces
+    - Emit `MIST0293` for `using` directives referencing non-existent namespaces
+    - Emit `MIST0299` when type name is ambiguous across multiple imported namespaces
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
   - [x] 7.2 Add abstract/sealed type validation
-    - Emit `MIST_ABSTRACT_INSTANTIATION` when `new` is used on an abstract CLR type
-    - Emit `MIST_SEALED_INHERITANCE` when a Mist type inherits from a sealed CLR type
+    - Emit `MIST_ABSTRACT_INSTANTIATION (historical)` when `new` is used on an abstract CLR type
+    - Emit `MIST_SEALED_INHERITANCE (historical)` when a Mist type inherits from a sealed CLR type
     - _Requirements: 13.4, 13.5_
 
   - [x] 7.3 Update overload resolution for projected methods

@@ -241,7 +241,7 @@ public sealed class CompilerDriver : ICompilerDriver
         // user units (design § 8). The loader reads every *.mist file under
         // AppContext.BaseDirectory/Standard and returns them as
         // CompilationUnits with IsStdlib=true. If the loader emits any
-        // MIST_STDLIB_PARSE error, the compilation cannot proceed because
+        // MIST0031 error, the compilation cannot proceed because
         // primitive keyword resolution (Stage 4) and operator overload
         // resolution depend on stdlib types being present.
         var stdlibBag = new DiagnosticBag(allDiagnostics.Operation);

@@ -42,7 +42,7 @@ public sealed class ConstructedDefaultRefusalTests
 
         var finding = Assert.Single(fragment.Run(new DefaultabilityAnalyzer()));
 
-        Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Number.Value);
+        Assert.Equal("MIST0180", finding.Number.Value);
         Assert.Equal(31, finding.Position().Start.Column);
         Assert.Equal($"Type '{displayed}' has no default. Construct it explicitly, or use a type that has a default.", finding.Message);
     }
@@ -78,7 +78,7 @@ public sealed class ConstructedDefaultRefusalTests
         Assert.Equal(constrained ? [] : [31, 51], findings.Select(finding => finding.Position().Start.Column));
         Assert.All(findings, finding =>
         {
-            Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Number.Value);
+            Assert.Equal("MIST0180", finding.Number.Value);
             Assert.Contains("'T'", finding.Message, StringComparison.Ordinal);
         });
     }
@@ -93,7 +93,7 @@ public sealed class ConstructedDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Number.Value));
+        Assert.Equal(refused ? ["MIST0180"] : [], findings.Select(finding => finding.Number.Value));
         Assert.All(findings, finding => Assert.Contains("'Box<Connection>'", finding.Message, StringComparison.Ordinal));
     }
 
@@ -111,12 +111,12 @@ public sealed class ConstructedDefaultRefusalTests
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
         Assert.Equal(refused ? [31] : [], findings.Select(finding => finding.Position().Start.Column));
-        Assert.All(findings, finding => Assert.Equal("MIST_PA_NOT_DEFAULTABLE", finding.Number.Value));
+        Assert.All(findings, finding => Assert.Equal("MIST0180", finding.Number.Value));
     }
 
     [Theory]
     [InlineData("intrinsic", null)]
-    [InlineData("connection", "MIST_PA_FIELD_HAS_NO_DEFAULT")]
+    [InlineData("connection", "MIST0181")]
     [InlineData("holder-parameter", null)]
     public void SlotOfAConstruction_IsRefusedAtTheHolderOnlyWhereItsArgumentLeavesItNone(string argument, string? refusal)
     {
@@ -147,7 +147,7 @@ public sealed class ConstructedDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(named is null ? [] : ["MIST_PA_BASE_NOT_DEFAULTABLE"], findings.Select(finding => finding.Number.Value));
+        Assert.Equal(named is null ? [] : ["MIST0182"], findings.Select(finding => finding.Number.Value));
         Assert.All(findings, finding => Assert.Equal(
             $"Type 'Sub' needs a default because it declares no constructor, and its base '{named}' has none to start from. Use a base type that has a default, or give 'Sub' a constructor and no default block.",
             finding.Message));
@@ -207,7 +207,7 @@ public sealed class ConstructedDefaultRefusalTests
 
         var findings = fragment.Run(new ConstraintAnalyzer());
 
-        Assert.Equal(refused ? ["MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED"] : [], findings.Select(finding => finding.Number.Value));
+        Assert.Equal(refused ? ["MIST0179"] : [], findings.Select(finding => finding.Number.Value));
         Assert.All(findings, finding => Assert.Equal(56, finding.Position().Start.Column));
     }
 
@@ -235,7 +235,7 @@ public sealed class ConstructedDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Number.Value));
+        Assert.Equal(refused ? ["MIST0180"] : [], findings.Select(finding => finding.Number.Value));
         Assert.All(findings, finding => Assert.Equal(31, finding.Position().Start.Column));
     }
 

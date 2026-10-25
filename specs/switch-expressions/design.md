@@ -174,12 +174,12 @@ The `TypeCheckerAnalyzer` is extended with the following checks for switch expre
 
 | Check | Diagnostic ID | Description |
 |---|---|---|
-| Non-exhaustive switch | MIST_TC_0060 | Switch expression does not cover all possible values of the scrutinee type |
-| Incompatible arm types | MIST_TC_0061 | Switch arms have incompatible result types (no common type) |
-| Non-bool guard | MIST_TC_0062 | When guard expression does not evaluate to bool |
-| Unreachable arm | MIST_TC_0063 | Switch arm is unreachable (subsumed by preceding arm) — warning |
+| Non-exhaustive switch | MIST_TC_0060 (historical) | Switch expression does not cover all possible values of the scrutinee type |
+| Incompatible arm types | MIST_TC_0061 (historical) | Switch arms have incompatible result types (no common type) |
+| Non-bool guard | MIST_TC_0062 (historical) | When guard expression does not evaluate to bool |
+| Unreachable arm | MIST_TC_0063 (historical) | Switch arm is unreachable (subsumed by preceding arm) — warning |
 
-Note: Diagnostic IDs MIST_TC_0060–0062 are errors; MIST_TC_0063 is a warning.
+Note: Diagnostic IDs MIST_TC_0060 (historical)–0062 are errors; MIST_TC_0063 (historical) is a warning.
 
 The type checker processes switch expressions by:
 1. Walking each arm's guard (if present) and verifying it resolves to `bool`.
@@ -417,10 +417,10 @@ The "Other" category (relational, property, list, logical patterns) is conservat
 
 | Diagnostic ID | Severity | Message Template |
 |---|---|---|
-| MIST_TC_0060 | Error | "Switch expression is not exhaustive. Missing cases: {cases}" |
-| MIST_TC_0061 | Error | "Switch arms have incompatible types: '{type1}' and '{type2}'" |
-| MIST_TC_0062 | Error | "When guard must be a boolean expression, got '{actualType}'" |
-| MIST_TC_0063 | Warning | "Switch arm is unreachable" |
+| MIST_TC_0060 (historical) | Error | "Switch expression is not exhaustive. Missing cases: {cases}" |
+| MIST_TC_0061 (historical) | Error | "Switch arms have incompatible types: '{type1}' and '{type2}'" |
+| MIST_TC_0062 (historical) | Error | "When guard must be a boolean expression, got '{actualType}'" |
+| MIST_TC_0063 (historical) | Warning | "Switch arm is unreachable" |
 
 Each diagnostic includes:
 - The diagnostic ID

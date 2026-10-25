@@ -37,7 +37,7 @@ This feature migrates the `mist.toml` project reference format from TOML's array
 
 #### Acceptance Criteria
 
-1. IF the `references` field is present but is not a TOML table, THEN THE Project_File_Parser SHALL report a diagnostic with identifier `MIST_PROJECT_REFERENCE_INVALID_FORMAT` and severity Error, and return null.
+1. IF the `references` field is present but is not a TOML table, THEN THE Project_File_Parser SHALL report a diagnostic with identifier `MIST0065`, `MIST0066` and severity Error, and return null.
 2. IF a Reference_Value is not a TOML table (inline or sub-table), THEN THE Project_File_Parser SHALL report a `ProjectReferenceInvalidFormat` diagnostic with severity Error and return null.
 3. IF a Reference_Value does not contain a `path` key, or the `path` key is present but its value is not a string, THEN THE Project_File_Parser SHALL report a `ProjectReferenceMissingPath` diagnostic with severity Error and return null.
 4. IF a Reference_Value contains a `path` field whose string value is empty or consists solely of whitespace characters, THEN THE Project_File_Parser SHALL report a `ProjectReferenceEmptyPath` diagnostic with severity Error and return null.
@@ -120,7 +120,7 @@ This feature migrates the `mist.toml` project reference format from TOML's array
 4. THE chapter SHALL document the `ProjectReferenceNameMismatch` error that occurs when the key does not match the target project's name.
 5. THE chapter SHALL update the fields summary table to show `[references]` as a table (not an array of tables), with a description reflecting the named key format.
 6. THE chapter SHALL update all example configurations (multi-project, large project, project with global usings) to use the new `[references]` table syntax.
-7. THE chapter SHALL update the error behavior table to reflect the new diagnostic IDs (`MIST_PROJECT_REFERENCE_INVALID_FORMAT`, `MIST_PROJECT_REFERENCE_INVALID_NAME`, `MIST_PROJECT_REFERENCE_NAME_MISMATCH`) and remove the old `[[references]]`-specific error descriptions.
+7. THE chapter SHALL update the error behavior table to reflect the new diagnostic IDs (`MIST0065`, `MIST0066`, `MIST0067`, `MIST0068`, `MIST0069`, `MIST0070`) and remove the old `[[references]]`-specific error descriptions.
 8. THE chapter SHALL preserve all existing documentation about path resolution rules, circular reference detection, and missing reference errors — only the syntax and format descriptions change.
 
 ### Requirement 10: Register new diagnostic IDs
@@ -129,7 +129,7 @@ This feature migrates the `mist.toml` project reference format from TOML's array
 
 #### Acceptance Criteria
 
-1. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceInvalidFormat` with value `"MIST_PROJECT_REFERENCE_INVALID_FORMAT"`.
-2. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceInvalidName` with value `"MIST_PROJECT_REFERENCE_INVALID_NAME"`.
-3. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceNameMismatch` with value `"MIST_PROJECT_REFERENCE_NAME_MISMATCH"`.
-4. THE DiagnosticId type SHALL ensure that the values `"MIST_PROJECT_REFERENCE_INVALID_FORMAT"`, `"MIST_PROJECT_REFERENCE_INVALID_NAME"`, and `"MIST_PROJECT_REFERENCE_NAME_MISMATCH"` are unique across all defined diagnostic ID fields.
+1. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceInvalidFormat` with value `"MIST0065"`.
+2. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceInvalidName` with value `"MIST0067"`.
+3. THE DiagnosticId type SHALL define a `public static readonly` field named `ProjectReferenceNameMismatch` with value `"MIST0070"`.
+4. THE DiagnosticId type SHALL ensure that the values `"MIST0065"`, `"MIST0067"`, and `"MIST0070"` are unique across all defined diagnostic ID fields.

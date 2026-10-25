@@ -127,11 +127,11 @@ rule WithClause = WITH type:TypeReference name:IDENTIFIER;
 1. For each interface method that declares `with` clauses:
    a. Find all types that implement the interface.
    b. For each implementing type's corresponding method, verify that it declares the **exact same** `with` clauses (matched by resolved type, no variance — not even subtype/supertype relationships).
-   c. If the implementing method omits a `with` clause, emit `MIST_CTX_0006`.
-   d. If the implementing method declares a `with` clause with a different type (including via inheritance), emit `MIST_CTX_0006`.
+   c. If the implementing method omits a `with` clause, emit `MIST0133`.
+   d. If the implementing method declares a `with` clause with a different type (including via inheritance), emit `MIST0133`.
 2. Trait methods follow the same rule, because interfaces and traits are both abstract types and share one conformance path:
    a. A slot is filled by name and signature (`ConformanceAnswers.Method`, through `SlotSignatures.Answers`), by a structural match or a Trait_With_Block mapping alike; `with` clauses take no part in choosing the filler.
-   b. `ContextAnalyzer` then compares the filler's clauses with the slot's (`ContextDecision.Contract`) and emits `MIST_CTX_0006` listing each difference.
+   b. `ContextAnalyzer` then compares the filler's clauses with the slot's (`ContextDecision.Contract`) and emits `MIST0133` listing each difference.
    c. A clause mismatch therefore never surfaces as a missing-member conformance failure: the diagnostic names the clause to add or remove.
 3. When a call is dispatched through an interface or trait type, the context checker uses the `with` clauses from the **interface or trait method signature** (not the concrete type) to determine context requirements at the call site.
 
@@ -323,12 +323,12 @@ Because the CLR erases distinctions between Mist keys (`string?` and `string` ar
 
 | ID | Condition | Message Template |
 |----|-----------|-----------------|
-| `MIST_CTX_0001` | Method or constructor with a `with` clause called without matching context in scope | "{Method\|Constructor} '{name}' requires context of type '{type}', but no matching context declaration is in scope at {location}." |
-| `MIST_CTX_0002` | Method or constructor has multiple `with` clauses binding the same key | "{Method\|Constructor} '{name}' has duplicate context binding for type '{type}': '{earlier}' already binds it at {location}." |
-| ~~`MIST_CTX_0003`~~ | Reserved: no descriptor defines it | — |
-| `MIST_CTX_0004` | A `with` block's value has a type holding an anonymous type, which no `with` clause can name | "Cannot determine a context type from this expression: its type '{type}' holds an anonymous type, which no `with` clause can name." |
-| `MIST_CTX_0005` | Assignment to a context-bound variable, binding it to a writable ref local, or passing it to a writable argument position | "Context-bound variable '{name}' is not reassignable{reason}." where `{reason}` is empty for an assignment, otherwise names the ref local or the position |
-| `MIST_CTX_0006` | A member filling a slot on an abstract type declares different `with` clauses from the slot | "Method '{method}' on type '{type}' must declare the same `with` clauses as the slot it fills on abstract '{abstract}': {differences}." where each difference reads "`with T` is missing" or "`with T` is not declared by the slot" |
+| `MIST0129` | Method or constructor with a `with` clause called without matching context in scope | "{Method\|Constructor} '{name}' requires context of type '{type}', but no matching context declaration is in scope at {location}." |
+| `MIST0130` | Method or constructor has multiple `with` clauses binding the same key | "{Method\|Constructor} '{name}' has duplicate context binding for type '{type}': '{earlier}' already binds it at {location}." |
+| ~~`MIST_CTX_0003 (historical)`~~ | Reserved: no descriptor defines it | — |
+| `MIST0131` | A `with` block's value has a type holding an anonymous type, which no `with` clause can name | "Cannot determine a context type from this expression: its type '{type}' holds an anonymous type, which no `with` clause can name." |
+| `MIST0132` | Assignment to a context-bound variable, binding it to a writable ref local, or passing it to a writable argument position | "Context-bound variable '{name}' is not reassignable{reason}." where `{reason}` is empty for an assignment, otherwise names the ref local or the position |
+| `MIST0133` | A member filling a slot on an abstract type declares different `with` clauses from the slot | "Method '{method}' on type '{type}' must declare the same `with` clauses as the slot it fills on abstract '{abstract}': {differences}." where each difference reads "`with T` is missing" or "`with T` is not declared by the slot" |
 
 The descriptors are `ProgramAnalysisDiagnostics` in `Source/Mist/Common/Diagnostics/Descriptors/ProgramAnalysisDiagnostics.Context.cs`; all are errors reported at Stage 5.
 
@@ -377,7 +377,7 @@ Each correctness property maps to a property-based test with minimum 100 iterati
 - TextMate grammar scope assertions (Requirements 15.1–15.7)
 - Backward compatibility: existing trait-with programs produce identical results (Requirement 13.4)
 - Interface contract violation diagnostic format (Requirement 8.2, 8.3)
-- Trait method filled with differing with-clauses reports `MIST_CTX_0006` (Requirement 8.4, 8.5)
+- Trait method filled with differing with-clauses reports `MIST0133` (Requirement 8.4, 8.5)
 
 ### Integration Tests
 

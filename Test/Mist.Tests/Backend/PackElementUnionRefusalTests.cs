@@ -93,6 +93,6 @@ public sealed class PackElementUnionRefusalTests : ProgramModelProbe
 
         specialization = UnionSpecialization.Enter(model, diagnostics);
 
-        return (model, [.. diagnostics.ToImmutableArray().Where(d => d.Number.Value == "MIST_BE_UNION_OVER_PACK_ELEMENT")]);
+        return (model, [.. diagnostics.ToImmutableArray().Where(d => d.Number.Value == "MIST0026")]);
     }
 }

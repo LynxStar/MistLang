@@ -104,7 +104,7 @@ case TypeLiteralExpressionPrimaryNode typeLiteral:
 ```
 
 Key behaviors:
-- The referenced type is resolved (triggering `MIST_UNDEFINED_TYPE` if not found)
+- The referenced type is resolved (triggering `MIST_UNDEFINED_TYPE (historical)` if not found)
 - The expression type recorded in the expression type map is `TypeType.Instance`, not the referenced type itself
 - For `var x = int;`, the inferred type of `x` becomes `TypeType`
 
@@ -123,7 +123,7 @@ case TypeLiteralExpressionPrimaryNode:
 
 The existing `IsAssignable` method handles `TypeType` correctly because:
 - `TypeType` to `TypeType` → identity match (same singleton reference)
-- `TypeType` to `int` → different types, not numeric, returns false → `MIST_TC_0001`
+- `TypeType` to `int` → different types, not numeric, returns false → `MIST_TC_0001 (historical)`
 - `TypeType` to `UnknownType` → returns true (error suppression)
 
 No changes to `IsAssignable` are needed.
@@ -223,13 +223,13 @@ The Storm code generator will produce a `TypeLiteralExpressionPrimaryNode` class
 
 ### Property 6: Unresolved type literals produce diagnostics
 
-*For any* type name used in a `TypeLiteralExpression` that cannot be resolved in the current scope or imported namespaces, the semantic model builder SHALL emit a `MIST_UNDEFINED_TYPE` diagnostic.
+*For any* type name used in a `TypeLiteralExpression` that cannot be resolved in the current scope or imported namespaces, the semantic model builder SHALL emit a `MIST_UNDEFINED_TYPE (historical)` diagnostic.
 
 **Validates: Requirements 4.1**
 
 ### Property 7: Type mismatch when assigning type literal to non-Type variable
 
-*For any* primitive type keyword T and any non-`Type` declared type D, the declaration `D x = T;` SHALL produce a type mismatch diagnostic (`MIST_TC_0001`).
+*For any* primitive type keyword T and any non-`Type` declared type D, the declaration `D x = T;` SHALL produce a type mismatch diagnostic (`MIST_TC_0001 (historical)`).
 
 **Validates: Requirements 4.4**
 
@@ -251,12 +251,12 @@ The Storm code generator will produce a `TypeLiteralExpressionPrimaryNode` class
 
 | Diagnostic ID | Stage | Condition | Message Template |
 |---------------|-------|-----------|------------------|
-| `MIST_UNDEFINED_TYPE` | Semantic Model | Type literal references an unresolvable type name | `"The type '{typeName}' could not be found."` |
-| `MIST_TC_0001` | Type Checker | Type literal assigned to incompatible variable type | `"Cannot assign 'Type' to '{targetType}'"` |
+| `MIST_UNDEFINED_TYPE (historical)` | Semantic Model | Type literal references an unresolvable type name | `"The type '{typeName}' could not be found."` |
+| `MIST_TC_0001 (historical)` | Type Checker | Type literal assigned to incompatible variable type | `"Cannot assign 'Type' to '{targetType}'"` |
 
 ### Error Recovery
 
-- **Unresolved type literal**: The semantic model builder records `TypeType.Instance` as the expression type even when the referenced type is unresolved (the `MIST_UNDEFINED_TYPE` diagnostic is still emitted). This prevents cascading errors in downstream analysis.
+- **Unresolved type literal**: The semantic model builder records `TypeType.Instance` as the expression type even when the referenced type is unresolved (the `MIST_UNDEFINED_TYPE (historical)` diagnostic is still emitted). This prevents cascading errors in downstream analysis.
 - **Parse errors**: If the `TypeReference` within a `TypeLiteralExpression` fails to parse (e.g., `int[` without closing bracket), the Storm parser's existing error recovery handles it. No special recovery logic is needed.
 
 ### Edge Cases

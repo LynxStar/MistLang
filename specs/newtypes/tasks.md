@@ -28,12 +28,12 @@ Implement basic newtypes — `type Name = new SourceType;` — that create nomin
 
   - [x] 2.2 Implement `RegisterNewtypeDeclaration` in SemanticModelBuilder (Pass 1)
     - Register the newtype name as a symbol with `SymbolKind.Newtype` in the enclosing scope
-    - Check for duplicate names and report `MIST_DUPLICATE_SYMBOL` diagnostic
+    - Check for duplicate names and report `MIST_DUPLICATE_SYMBOL (historical)` diagnostic
     - Wire into the Pass 1 dispatch for `TopLevelItem` and `NamespaceBodyItem`
     - _Requirements: 3.1, 3.3_
 
   - [x] 2.3 Implement `ResolveNewtypeDeclaration` with member cloning (Pass 2)
-    - Resolve the source type reference; report `MIST_UNRESOLVED_TYPE` if not found and assign `ErrorType`
+    - Resolve the source type reference; report `MIST_UNRESOLVED_TYPE (historical)` if not found and assign `ErrorType`
     - Create `NewtypeType` instance and clone all members (fields, properties, methods, constructors, operators, cast operators, indexers) from the source type's scope into the newtype's member scope
     - Update constructor names to the newtype name
     - Set `symbol.DeclaredType` to the new `NewtypeType`
@@ -47,7 +47,7 @@ Implement basic newtypes — `type Name = new SourceType;` — that create nomin
   - [x] 4.1 Enforce nominal distinctness in type checker
     - Update `IsDirectlyAssignable` to reject newtype↔source assignments (both directions)
     - Reject cross-newtype assignments (two newtypes sharing the same source)
-    - Report `MIST_TYPE_MISMATCH` diagnostic with appropriate message for each case
+    - Report `MIST_TYPE_MISMATCH (historical)` diagnostic with appropriate message for each case
     - _Requirements: 2.1, 2.3, 2.4, 2.5_
 
   - [x] 4.2 Allow explicit casts between newtype and source type

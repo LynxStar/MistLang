@@ -296,14 +296,14 @@ private static readonly HashSet<string> AllowedDependentTypes = new(StringCompar
 };
 ```
 
-Emit `MIST_DT_0001` if a type not in this set is used as a dependent type annotation.
+Emit `MIST0407` if a type not in this set is used as a dependent type annotation.
 
 #### Compile-Time Constant Validation
 
 When resolving type arguments for a dependent parameter position:
 - Accept: integer literals, boolean literals, char literals, negated integer literals, hex/binary literals
 - Accept: identifiers that resolve to `const` declarations
-- Reject: any expression, variable, method call, property access → emit `MIST_DT_0002`
+- Reject: any expression, variable, method call, property access → emit `MIST_DT_0002 (historical)`
 
 #### Type Equality
 
@@ -315,24 +315,24 @@ Extend the existing type equality logic:
 #### Pattern Matching
 
 - Allow `is` patterns against closed dependent types (all dependent args are concrete values)
-- Reject patterns against open dependent types (dependent args contain unresolved parameters) → emit `MIST_DT_0007`
+- Reject patterns against open dependent types (dependent args contain unresolved parameters) → emit `MIST_DT_0007 (historical)`
 
 #### Inheritance Validation
 
 - When a derived type forwards a dependent parameter to a base type, validate that the value type is assignable (widening only: `int` → `long` is OK, `long` → `int` is not)
-- Emit `MIST_DT_0004` for narrowing violations
+- Emit `MIST0281` for narrowing violations
 
 #### New Diagnostic IDs
 
 | ID | Condition |
 |----|-----------|
-| `MIST_DT_0001` | Unsupported type used as dependent type annotation |
-| `MIST_DT_0002` | Non-constant expression in dependent type argument position |
-| `MIST_DT_0003` | Type mismatch between dependent argument and parameter annotation |
-| `MIST_DT_0004` | Narrowing violation in dependent parameter forwarding |
-| `MIST_DT_0005` | Dependent parameter name conflicts with member name |
-| `MIST_DT_0006` | Missing dependent type arguments |
-| `MIST_DT_0007` | Pattern match against open dependent type |
+| `MIST0407` | Unsupported type used as dependent type annotation |
+| `MIST_DT_0002 (historical)` | Non-constant expression in dependent type argument position |
+| `MIST0280` | Type mismatch between dependent argument and parameter annotation |
+| `MIST0281` | Narrowing violation in dependent parameter forwarding |
+| `MIST0282` | Dependent parameter name conflicts with member name |
+| `MIST_DT_0006 (historical)` | Missing dependent type arguments |
+| `MIST_DT_0007 (historical)` | Pattern match against open dependent type |
 
 ### 8. C# Emitter Changes
 
@@ -523,16 +523,16 @@ public class ResizableBuffer<TN> : FixedBuffer<TN> where TN : IConstInt
 }
 ```
 
-**Widening validation:** If a derived type forwards `N:int` to a base parameter of type `long`, the emitter constrains `TN` to `IConstInt` but the base expects `IConstLong`. The type checker validates this during semantic analysis and emits `MIST_DT_0004` if the widening is invalid.
+**Widening validation:** If a derived type forwards `N:int` to a base parameter of type `long`, the emitter constrains `TN` to `IConstInt` but the base expects `IConstLong`. The type checker validates this during semantic analysis and emits `MIST0281` if the widening is invalid.
 
 ### 11. Error Diagnostic Implementation
 
-All diagnostics are emitted through the existing `DiagnosticBag` infrastructure. New diagnostic IDs are allocated in the `MIST_DT_*` range to avoid conflicts with existing `MIST_TC_*`, `MIST_SB_*`, and `MIST_CONSTRAINT_*` ranges.
+All diagnostics are emitted through the existing `DiagnosticBag` infrastructure. New diagnostic IDs are allocated in the `MIST_DT_* (historical scheme)` range to avoid conflicts with existing `MIST_TC_* (historical scheme)`, `MIST_SB_* (historical scheme)`, and `MIST_CONSTRAINT_* (historical scheme)` ranges.
 
 Each diagnostic includes:
 - The diagnostic ID
 - Severity (all are Error except where noted)
-- Pipeline stage (Semantics for `MIST_DT_0001`/`0005`/`0006`, Analysis for `MIST_DT_0002`/`0003`/`0004`/`0007`)
+- Pipeline stage (Semantics for `MIST0407`/`0005`/`0006`, Analysis for `MIST_DT_0002 (historical)`/`0003`/`0004`/`0007`)
 - A human-readable message following the format specified in Requirement 15
 - Source location pointing to the offending token/node
 
@@ -548,13 +548,13 @@ Each diagnostic includes:
 
 ### Property 2: Disallowed Dependent Type Annotations Produce Diagnostics
 
-*For any* type annotation that is not in the allowed set {int, uint, long, ulong, short, ushort, byte, sbyte, bool, char}, using it as a Dependent_Type_Annotation SHALL cause the compiler to emit diagnostic `MIST_DT_0001`.
+*For any* type annotation that is not in the allowed set {int, uint, long, ulong, short, ushort, byte, sbyte, bool, char}, using it as a Dependent_Type_Annotation SHALL cause the compiler to emit diagnostic `MIST0407`.
 
 **Validates: Requirements 4.2, 4.3, 4.4, 4.5, 4.6, 15.4**
 
 ### Property 3: Non-Constant Dependent Arguments Produce Diagnostics
 
-*For any* expression that is not a literal or const reference, using it as a dependent type argument SHALL cause the compiler to emit diagnostic `MIST_DT_0002`.
+*For any* expression that is not a literal or const reference, using it as a dependent type argument SHALL cause the compiler to emit diagnostic `MIST_DT_0002 (historical)`.
 
 **Validates: Requirements 5.1, 5.3, 15.1, 15.6**
 
@@ -566,7 +566,7 @@ Each diagnostic includes:
 
 ### Property 5: Open Dependent Type Pattern Rejection
 
-*For any* pattern match expression where the pattern type contains an unresolved dependent type parameter (an open dependent type), the type checker SHALL emit diagnostic `MIST_DT_0007`.
+*For any* pattern match expression where the pattern type contains an unresolved dependent type parameter (an open dependent type), the type checker SHALL emit diagnostic `MIST_DT_0007 (historical)`.
 
 **Validates: Requirements 9.3, 9.4, 15.7**
 
@@ -622,32 +622,32 @@ Each diagnostic includes:
 
 ### Diagnostic Strategy
 
-All dependent type diagnostics use the `MIST_DT_*` prefix to avoid conflicts with existing diagnostic ranges. Diagnostics are emitted at the earliest pipeline stage that can detect the error:
+All dependent type diagnostics use the `MIST_DT_* (historical scheme)` prefix to avoid conflicts with existing diagnostic ranges. Diagnostics are emitted at the earliest pipeline stage that can detect the error:
 
 | Stage | Diagnostics | Rationale |
 |-------|-------------|-----------|
-| Semantic Model (Pass 1) | `MIST_DT_0001`, `MIST_DT_0005`, `MIST_DT_0006` | Type annotation validation and name collision detection happen during type registration |
-| Type Checker (Analysis) | `MIST_DT_0002`, `MIST_DT_0003`, `MIST_DT_0004`, `MIST_DT_0007` | Constant validation, type matching, widening checks, and pattern matching validation require full type resolution |
+| Semantic Model (Pass 1) | `MIST0407`, `MIST0282`, `MIST_DT_0006 (historical)` | Type annotation validation and name collision detection happen during type registration |
+| Type Checker (Analysis) | `MIST_DT_0002 (historical)`, `MIST0280`, `MIST0281`, `MIST_DT_0007 (historical)` | Constant validation, type matching, widening checks, and pattern matching validation require full type resolution |
 
 ### Error Recovery
 
 When a dependent type error is detected:
-- **Invalid annotation type (`MIST_DT_0001`):** The parameter is still registered in the semantic model as a `DependentTypeParameterType` with an `ErrorType` value type. This allows downstream analysis to continue without cascading errors.
-- **Non-constant argument (`MIST_DT_0002`):** The argument position is treated as an `ErrorType` in the constructed type. Type checking continues with the error type.
-- **Type mismatch (`MIST_DT_0003`):** Same recovery as non-constant — use `ErrorType` for the argument.
-- **Narrowing violation (`MIST_DT_0004`):** The forwarding is accepted for the purpose of continued analysis, but the diagnostic is emitted.
-- **Name collision (`MIST_DT_0005`):** The dependent parameter takes precedence in scope resolution (consistent with how type parameters shadow members in C#).
-- **Missing arguments (`MIST_DT_0006`):** The type is treated as if all dependent arguments are `ErrorType`.
-- **Open type pattern (`MIST_DT_0007`):** The pattern is treated as always-false for reachability analysis.
+- **Invalid annotation type (`MIST0407`):** The parameter is still registered in the semantic model as a `DependentTypeParameterType` with an `ErrorType` value type. This allows downstream analysis to continue without cascading errors.
+- **Non-constant argument (`MIST_DT_0002 (historical)`):** The argument position is treated as an `ErrorType` in the constructed type. Type checking continues with the error type.
+- **Type mismatch (`MIST0280`):** Same recovery as non-constant — use `ErrorType` for the argument.
+- **Narrowing violation (`MIST0281`):** The forwarding is accepted for the purpose of continued analysis, but the diagnostic is emitted.
+- **Name collision (`MIST0282`):** The dependent parameter takes precedence in scope resolution (consistent with how type parameters shadow members in C#).
+- **Missing arguments (`MIST_DT_0006 (historical)`):** The type is treated as if all dependent arguments are `ErrorType`.
+- **Open type pattern (`MIST_DT_0007 (historical)`):** The pattern is treated as always-false for reachability analysis.
 
 ### Diagnostic Message Formats
 
 ```
-MIST_DT_0001: Type '{Type}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.
+MIST0407: Type '{Type}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.
 MIST_DT_0002: Dependent type argument must be a compile-time constant. '{Expression}' cannot be evaluated at compile time.
-MIST_DT_0003: Dependent type argument '{Value}' of type '{ActualType}' is not assignable to dependent parameter '{ParamName}' of type '{ExpectedType}'.
-MIST_DT_0004: Dependent type parameter '{Name}' of type '{DerivedType}' on '{DerivedClass}' cannot be forwarded to parameter '{BaseName}' of type '{BaseType}' on '{BaseClass}' because '{DerivedType}' is not implicitly convertible to '{BaseType}'.
-MIST_DT_0005: Dependent type parameter '{Name}' conflicts with member '{Name}' declared in type '{Type}'. Rename either the parameter or the member.
+MIST0280: Dependent type argument '{Value}' of type '{ActualType}' is not assignable to dependent parameter '{ParamName}' of type '{ExpectedType}'.
+MIST0281: Dependent type parameter '{Name}' of type '{DerivedType}' on '{DerivedClass}' cannot be forwarded to parameter '{BaseName}' of type '{BaseType}' on '{BaseClass}' because '{DerivedType}' is not implicitly convertible to '{BaseType}'.
+MIST0282: Dependent type parameter '{Name}' conflicts with member '{Name}' declared in type '{Type}'. Rename either the parameter or the member.
 MIST_DT_0006: Type '{Type}' requires {N} dependent type argument(s) but none were provided.
 MIST_DT_0007: Cannot pattern match against open dependent type '{Type}'. Pattern matching requires concrete dependent values.
 ```

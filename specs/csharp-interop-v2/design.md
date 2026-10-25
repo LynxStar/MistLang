@@ -76,23 +76,23 @@ This is a contained, mechanical change. No suppression of warnings is expected; 
 - `ProjectFileParser.Parse` gains a step (after `[packages]`) that reads the optional `[framework_references]` table:
   - Key = framework name, trimmed, 1–256 chars after trimming.
   - Value must be a TOML boolean. `true` includes the name (exactly once); `false` excludes it.
-  - Diagnostics (severity Error), following the existing `MIST_PKG_*` parser-diagnostic style:
-    - `MIST_FWREF_TABLE_EXPECTED` — `framework_references` present but not a table → empty list.
-    - `MIST_FWREF_INVALID_VALUE` — value not a boolean → exclude entry.
-    - `MIST_FWREF_INVALID_NAME` — empty/whitespace name, or name > 256 chars → exclude entry.
+  - Diagnostics (severity Error), following the existing `MIST_PKG_* (historical scheme)` parser-diagnostic style:
+    - `MIST0088` — `framework_references` present but not a table → empty list.
+    - `MIST0091` — value not a boolean → exclude entry.
+    - `MIST0089`, `MIST0090` — empty/whitespace name, or name > 256 chars → exclude entry.
   - Absent table → empty list, no diagnostic.
   - Like `[packages]`, entry-level errors `continue` (collect all) rather than abort.
 
-> Note: the parser-level TOML-shape diagnostics above are distinct from the resolution diagnostics `MIST_FWREF_001/002` (C3), which are emitted later when an enabled framework cannot be located.
+> Note: the parser-level TOML-shape diagnostics above are distinct from the resolution diagnostics `MIST0034/002` (C3), which are emitted later when an enabled framework cannot be located.
 
 ### C2. Package resolution: stable diagnostics and a structured result
 
 **File:** `Source/Mist/Driver/PackageResolver.cs`.
 
 - Standardize resolver error diagnostic IDs on the stable identifiers from the requirements:
-  - `MIST_PKG_001` — package provides no assemblies compatible with the Target_Framework (lists the TFMs the package offers).
-  - `MIST_PKG_002` — package name/version not found on any configured feed (names every searched feed).
-  - `MIST_PKG_003` — connection/network failure **or** restore timeout; the message indicates which category. Restore timeout bound set to **100 seconds** (the existing 60s download timeout is folded into this).
+  - `MIST_PKG_001 (held back, no number)` — package provides no assemblies compatible with the Target_Framework (lists the TFMs the package offers).
+  - `MIST0036` — package name/version not found on any configured feed (names every searched feed).
+  - `MIST0037` — connection/network failure **or** restore timeout; the message indicates which category. Restore timeout bound set to **100 seconds** (the existing 60s download timeout is folded into this).
 - Each failure emits exactly one diagnostic; resolution continues for the remaining packages (one independent diagnostic per failing package).
 - Change the return shape from `ImmutableArray<string>` to a structured result so the stage/commands can report per-package outcomes:
 
@@ -133,8 +133,8 @@ public sealed record ResolvedFrameworkInfo(string Name, string Version);
 - Success requires the pack directory to exist and contain at least one reference assembly.
 - Version selection: among installed packs whose **major** version matches the Target_Framework's major version, pick the greatest by integer major→minor→patch comparison.
 - Diagnostics:
-  - `MIST_FWREF_001` — enabled framework not installed for the Target_Framework (names framework, TFM, searched pack path).
-  - `MIST_FWREF_002` — framework name is not a known shared framework. A small allow-list of known shared frameworks (`Microsoft.AspNetCore.App`, `Microsoft.WindowsDesktop.App`, `Microsoft.NETCore.App`) distinguishes "unknown name" (002) from "known but not installed" (001).
+  - `MIST0034` — enabled framework not installed for the Target_Framework (names framework, TFM, searched pack path).
+  - `MIST0035` — framework name is not a known shared framework. A small allow-list of known shared frameworks (`Microsoft.AspNetCore.App`, `Microsoft.WindowsDesktop.App`, `Microsoft.NETCore.App`) distinguishes "unknown name" (002) from "known but not installed" (001).
 - Each enabled framework resolves independently; one diagnostic per failing framework.
 
 ### C4. Pipeline wiring
@@ -193,14 +193,14 @@ public MemberClassification Classify(MemberInfo member);
 - `CliArguments`: add `bool Verbose = false`; add `CliCommand.Inspect`, `CliCommand.Restore`; add `string? InspectTypeName`.
 - `CliArgumentParser`: handle `--verbose`; match literals `inspect` and `restore`; for `inspect`, capture the next positional as the type name.
 - `mist build`/`mist run`: when `Verbose`, the build uses the `ConsoleProgressReporter` and sets `CompilerOptions.VerboseResolution = true`. Default builds leave `VerboseResolution = false` (no package-stage header/detail), but errors still print via the diagnostic path: the resolution listener, which no progress setting replaces. (The existing `--quiet` behavior is preserved; `--verbose` and `--quiet` are mutually exclusive — supplying both is a parse error.)
-- `mist restore` (`RunRestoreCommand`): requires a project file in the folder; parses config; runs `PackageResolver` + `FrameworkReferenceResolver`; prints per-package and per-framework detail and any zero-assemblies notes **unconditionally**, plus a success/failure summary; emits `MIST_PKG_*`/`MIST_FWREF_*` on failure; exits 0 on full success, non-zero on any failure or when run outside a project folder. Does not lex/type-check/emit.
+- `mist restore` (`RunRestoreCommand`): requires a project file in the folder; parses config; runs `PackageResolver` + `FrameworkReferenceResolver`; prints per-package and per-framework detail and any zero-assemblies notes **unconditionally**, plus a success/failure summary; emits `MIST_PKG_* (historical scheme)`/`MIST_FWREF_* (historical scheme)` on failure; exits 0 on full success, non-zero on any failure or when run outside a project folder. Does not lex/type-check/emit.
 - `mist inspect <TypeName>` (`RunInspectCommand`): requires a project file; resolves the same SDK + package + framework assemblies a build would use; constructs the provider; resolves `<TypeName>` (fully-qualified namespace + name). Prints the FQN and kind (exactly one of class/struct/interface/enum); lists visible properties and methods (ascending ordinal by name; parameters in declaration order) with projected Mist types; lists hidden members with reasons from `Classify`; for inherited members, indicates the declaring base type by FQN. Empty type → header + "no members". Unresolved type → message + non-zero exit. Omitted name or run outside a project folder → usage guidance + non-zero exit.
 
 The inspection report builder reuses the provider's projection (for visible members and their Mist types) and `VisibilityFilter.Classify` (for hidden members and reasons), enumerating the CLR type's members (including inherited) once.
 
 ### C8. Documentation and sample
 
-- **Book** (`book/src/advanced/dotnet-interop.md`, `book/src/SUMMARY.md`, `book/snippets/...`): document quiet-by-default builds, `--verbose`, `mist restore`, `[framework_references]` (with `Microsoft.AspNetCore.App` example), cross-assembly inheritance, individual-overload hiding, ref structs remaining unmapped, and `mist inspect` (invocation + sample output). All diagnostic IDs (`MIST_PKG_001/002/003`, `MIST_FWREF_001/002`) documented with trigger + meaning. New code examples are compiled snippets per the Book Snippet Policy; ensure SUMMARY.md links the chapter (it is currently unlinked).
+- **Book** (`book/src/advanced/dotnet-interop.md`, `book/src/SUMMARY.md`, `book/snippets/...`): document quiet-by-default builds, `--verbose`, `mist restore`, `[framework_references]` (with `Microsoft.AspNetCore.App` example), cross-assembly inheritance, individual-overload hiding, ref structs remaining unmapped, and `mist inspect` (invocation + sample output). All diagnostic IDs (`MIST_PKG_001 (held back, no number)/002/003`, `MIST0034/002`) documented with trigger + meaning. New code examples are compiled snippets per the Book Snippet Policy; ensure SUMMARY.md links the chapter (it is currently unlinked).
 - **Steering** (`distribute/steering/mist-interop.md`, and as needed `mist-language.md`/`mist-advanced-features.md`): apply Requirement 14, including correcting the now-false "ref structs are projected as stack-only structs" statement. Preserve the `MIST-MANAGED-STEERING` marker and front matter.
 - **Sample** (`samples/CSharpInteropV2/Program.mist` + `mist.toml`): the Requirement 12 proof code verbatim; `mist.toml` declares `Newtonsoft.Json = "13.0.3"` and `[framework_references] "Microsoft.AspNetCore.App" = true`. `samples/AllFeatures` calls `CSharpInteropV2.Program.RunDemo()` and declares the same package + framework reference; baseline updated.
 
@@ -222,14 +222,14 @@ The inspection report builder reuses the provider's projection (for visible memb
 
 | ID | Severity | Condition | Owner |
 |----|----------|-----------|-------|
-| `MIST_FWREF_TABLE_EXPECTED` | Error | `framework_references` not a table | ProjectFileParser |
-| `MIST_FWREF_INVALID_VALUE` | Error | entry value not boolean | ProjectFileParser |
-| `MIST_FWREF_INVALID_NAME` | Error | empty/whitespace or >256-char name | ProjectFileParser |
-| `MIST_PKG_001` | Error | no assemblies compatible with Target_Framework | PackageResolver |
-| `MIST_PKG_002` | Error | package/version not found on any feed | PackageResolver |
-| `MIST_PKG_003` | Error | connection/network failure or restore timeout | PackageResolver |
-| `MIST_FWREF_001` | Error | enabled framework not installed for Target_Framework | FrameworkReferenceResolver |
-| `MIST_FWREF_002` | Error | unknown shared-framework name | FrameworkReferenceResolver |
+| `MIST0088` | Error | `framework_references` not a table | ProjectFileParser |
+| `MIST0091` | Error | entry value not boolean | ProjectFileParser |
+| `MIST0089`, `MIST0090` | Error | empty/whitespace or >256-char name | ProjectFileParser |
+| `MIST_PKG_001 (held back, no number)` | Error | no assemblies compatible with Target_Framework | PackageResolver |
+| `MIST0036` | Error | package/version not found on any feed | PackageResolver |
+| `MIST0037` | Error | connection/network failure or restore timeout | PackageResolver |
+| `MIST0034` | Error | enabled framework not installed for Target_Framework | FrameworkReferenceResolver |
+| `MIST0035` | Error | unknown shared-framework name | FrameworkReferenceResolver |
 
 All resolution errors always surface regardless of `--verbose` or `--quiet`: delivered to the resolution listener during Stage 1.5, before lexing, and kept in the result for its error count and for callers with no listener. `mist restore` runs no later stage and prints its diagnostics after its summary. Resolution failures do not abort the build before Lexing; the build continues with whatever resolved successfully (Requirements 2.6, 5.8). Unresolved cross-assembly relationships are dropped silently from emission but recorded for diagnostics (Requirement 6.6).
 
@@ -238,8 +238,8 @@ All resolution errors always surface regardless of `--verbose` or `--quiet`: del
 In-process tests (no process spawning), using the shared-driver / direct-provider patterns already established in `Test/Mist.Tests`:
 
 - **ProjectFileParser**: `[framework_references]` table parsing — valid true/false, absent table, non-table value, non-boolean value, empty/oversized names. (`Driver/`)
-- **FrameworkReferenceResolver**: pack-path discovery, version selection (major-match, highest), `MIST_FWREF_001` (not installed) and `MIST_FWREF_002` (unknown name). Resolution success asserted against the locally-installed `Microsoft.AspNetCore.App` pack; if absent in CI, the not-installed path is asserted instead. (`Driver/`)
-- **PackageResolver**: structured-result shape and `MIST_PKG_001/002/003` diagnostics. Network-dependent restore is covered by existing TFM-selection unit tests plus targeted tests using already-cached packages; no new network-heavy property tests.
+- **FrameworkReferenceResolver**: pack-path discovery, version selection (major-match, highest), `MIST0034` (not installed) and `MIST0035` (unknown name). Resolution success asserted against the locally-installed `Microsoft.AspNetCore.App` pack; if absent in CI, the not-installed path is asserted instead. (`Driver/`)
+- **PackageResolver**: structured-result shape and `MIST_PKG_001 (held back, no number)/002/003` diagnostics. Network-dependent restore is covered by existing TFM-selection unit tests plus targeted tests using already-cached packages; no new network-heavy property tests.
 - **VisibilityFilter**: ref structs are NOT excluded (`Span<>`/`ReadOnlySpan<>` not excluded); per-overload behavior with genuinely-unsupported overloads; ref-struct overloads stay visible (Span sibling and `byte[]` sibling both kept) using `Test/Mist.Tests.InteropFixtures` (a fixture exposing mixed Span/non-Span overloads); `Classify` reports ref-struct overloads as visible. (`Backend/`)
 - **TypeProjector / AssemblyTypeProvider**: cross-assembly base type and interface resolution and assignability, asserted against genuinely cross-assembly SDK types (e.g., `NetworkStream : Stream`, `IPEndPoint : EndPoint`) loaded through a provider built from runtime + SDK paths; inherited-member access; unresolved-relationship fallback. (`Backend/`)
 - **Inspect/Restore command logic**: invoke the report builder and the restore-resolution logic **in-process** (call the command handler functions directly, not via spawning the CLI). Assert printed output, exit codes, and diagnostics.
@@ -249,7 +249,7 @@ In-process tests (no process spawning), using the shared-driver / direct-provide
 
 ## Design Decisions and Tradeoffs
 
-1. **Resolution in the driver, not the backend.** Moving resolution into an observable stage is the only way to satisfy the verbose/quiet/restore reporting requirements and to surface `MIST_PKG_*`/`MIST_FWREF_*` consistently. Cost: a signature change to `IBackend.GetAmbientTypeResolver`. Accepted — the backend still owns SDK discovery and provider construction.
+1. **Resolution in the driver, not the backend.** Moving resolution into an observable stage is the only way to satisfy the verbose/quiet/restore reporting requirements and to surface `MIST_PKG_* (historical scheme)`/`MIST_FWREF_* (historical scheme)` consistently. Cost: a signature change to `IBackend.GetAmbientTypeResolver`. Accepted — the backend still owns SDK discovery and provider construction.
 2. **String stage identifiers.** Chosen over renumbering integer stages (which would churn baselines and every call site's meaning) or a decimal type. Localized to the reporter contract + two implementations + driver call sites.
 3. **Cache-mediated base-type resolution.** Reuses the provider's existing reference-equality cache rather than introducing a separate inheritance graph, which both fixes cross-assembly resolution and preserves the recursion-safety the cache already provides.
 4. **Per-overload filtering is mostly emergent.** Since filtering is already per-`MemberInfo`, the main risk is that adding ref-struct exclusion could surface a latent group-level cascade. An early investigation task pins the actual root cause of the user's "all overloads hidden" report before changing filtering, so the fix is targeted.
@@ -270,7 +270,7 @@ In-process tests (no process spawning), using the shared-driver / direct-provide
    - `TypeCheckerAnalyzer` and `SemanticModelBuilder` enforce ref-struct discipline (no field/property in non-ref-struct, no capture, no boxing to interface, no generic-arg/union/optional use) keyed off `IsRefStruct`; these checks remain for Mist-declared ref structs.
 
    Therefore the implementation **retains** the projection-time assignment in `TypeProjector.ProjectStruct` and `AssemblyTypeProvider.ResolveType` returns the projected `Span<T>`/`ReadOnlySpan<T>` type (non-null). `VisibilityFilter.IsTypeExcluded` excludes only non-public types, so members whose signatures reference ref structs stay visible.
-6. **Known-framework allow-list.** A small allow-list distinguishes `MIST_FWREF_002` (unknown name) from `MIST_FWREF_001` (known but not installed), giving actionable errors without attempting to enumerate every conceivable shared framework.
+6. **Known-framework allow-list.** A small allow-list distinguishes `MIST0035` (unknown name) from `MIST0034` (known but not installed), giving actionable errors without attempting to enumerate every conceivable shared framework.
 
 ## Correctness Properties
 
@@ -282,7 +282,7 @@ For any project declaring a `[packages]` entry that resolves to at least one ass
 **Validates: Requirements 2.1, 2.2, 2.4**
 
 ### Property 2: Resolution diagnostics are deterministic and category-accurate
-Each failing package or framework produces exactly one error diagnostic with the correct stable ID for its failure category (`MIST_PKG_001` unsupported TFM, `MIST_PKG_002` not found, `MIST_PKG_003` network/timeout; `MIST_FWREF_001` not installed, `MIST_FWREF_002` unknown name), independently per dependency.
+Each failing package or framework produces exactly one error diagnostic with the correct stable ID for its failure category (`MIST_PKG_001 (held back, no number)` unsupported TFM, `MIST0036` not found, `MIST0037` network/timeout; `MIST0034` not installed, `MIST0035` unknown name), independently per dependency.
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.6, 5.4, 5.5, 5.7**
 

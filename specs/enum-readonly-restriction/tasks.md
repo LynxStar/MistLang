@@ -19,15 +19,15 @@ This plan implements a compile-time constraint requiring enum base types to be r
     - _Requirements: 1.15, 1.16_
 
 - [x] 2. Implement enum base type readonly validation
-  - [x] 2.1 Add diagnostic ID constants for MIST_TC_0102 and MIST_TC_0103
+  - [x] 2.1 Add diagnostic ID constants for MIST_TC_0102 (historical) and MIST_TC_0103 (historical)
     - Add `EnumBaseTypeNotReadonly` and `EnumUnionConstituentNotReadonly` static readonly fields to `TypeCheckerAnalyzer.cs`
     - Follow the existing pattern for diagnostic ID declarations (e.g., `PatternIncompatibleRefinement`)
     - _Requirements: 4.5_
 
   - [x] 2.2 Implement `CheckEnumBaseTypeReadonly()` method in TypeCheckerAnalyzer
     - Add private static method that iterates all enum symbols in the semantic model
-    - For non-union underlying types: check `IsTypeReadonly()` and emit `MIST_TC_0102` if not readonly
-    - For union underlying types: check each constituent via `IsTypeReadonly()` and emit `MIST_TC_0103` per non-readonly constituent
+    - For non-union underlying types: check `IsTypeReadonly()` and emit `MIST_TC_0102 (historical)` if not readonly
+    - For union underlying types: check each constituent via `IsTypeReadonly()` and emit `MIST_TC_0103 (historical)` per non-readonly constituent
     - Skip enums with null or `ErrorType` underlying types to avoid cascading errors
     - Diagnostic messages must include the enum name and the non-readonly type name
     - _Requirements: 2.1–2.4, 3.1–3.5, 4.1–4.4_
@@ -74,7 +74,7 @@ This plan implements a compile-time constraint requiring enum base types to be r
     - **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
     - Generate random enum declarations with readonly base types (all four type kinds)
     - Build semantic model + run type checker in-process
-    - Verify zero `MIST_TC_0102` diagnostics for each enum
+    - Verify zero `MIST_TC_0102 (historical)` diagnostics for each enum
     - Use batched approach with shared `CompilerDriver`
     - Test class: `EnumReadonlyAcceptancePropertyTests` in `Test/Mist.Tests/Analysis/`
 
@@ -83,7 +83,7 @@ This plan implements a compile-time constraint requiring enum base types to be r
     - **Validates: Requirements 2.2, 3.2, 4.1, 4.2, 4.4, 4.5**
     - Generate random enum declarations with non-readonly base types
     - Build semantic model + run type checker in-process
-    - Verify exactly one `MIST_TC_0102` diagnostic per enum with correct message content and severity
+    - Verify exactly one `MIST_TC_0102 (historical)` diagnostic per enum with correct message content and severity
     - Use batched approach with shared `CompilerDriver`
     - Test class: `EnumNonReadonlyRejectionPropertyTests` in `Test/Mist.Tests/Analysis/`
 
@@ -91,7 +91,7 @@ This plan implements a compile-time constraint requiring enum base types to be r
     - **Property 4: All-readonly union acceptance**
     - **Validates: Requirements 2.3, 3.3**
     - Generate random enum declarations with union base types where all constituents are readonly
-    - Verify zero `MIST_TC_0103` diagnostics
+    - Verify zero `MIST_TC_0103 (historical)` diagnostics
     - Use batched approach with shared `CompilerDriver`
     - Test class: `EnumReadonlyUnionAcceptancePropertyTests` in `Test/Mist.Tests/Analysis/`
 
@@ -99,14 +99,14 @@ This plan implements a compile-time constraint requiring enum base types to be r
     - **Property 5: Non-readonly union constituent rejection**
     - **Validates: Requirements 2.4, 3.4, 4.3, 4.4, 4.5**
     - Generate random enum declarations with union base types containing non-readonly constituents
-    - Verify correct count and content of `MIST_TC_0103` diagnostics per non-readonly constituent
+    - Verify correct count and content of `MIST_TC_0103 (historical)` diagnostics per non-readonly constituent
     - Use batched approach with shared `CompilerDriver`
     - Test class: `EnumNonReadonlyUnionRejectionPropertyTests` in `Test/Mist.Tests/Analysis/`
 
 - [x] 7. Unit and integration tests
   - [x] 7.1 Write unit tests for bootstrap type readonly verification
     - Verify all 14 bootstrap types have `IsReadonly = true` after semantic model construction
-    - Verify diagnostic IDs `MIST_TC_0102` and `MIST_TC_0103` are unique (don't collide with existing IDs)
+    - Verify diagnostic IDs `MIST_TC_0102 (historical)` and `MIST_TC_0103 (historical)` are unique (don't collide with existing IDs)
     - Test class: `EnumReadonlyRestrictionTests` in `Test/Mist.Tests/Analysis/`
     - _Requirements: 1.1–1.16, 4.5_
 

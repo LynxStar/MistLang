@@ -128,7 +128,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_MISSING_NAMESPACES", diags[0].Number.Value);
+            Assert.Equal("MIST0079", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -157,7 +157,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Number.Value);
+            Assert.Equal("MIST0080", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -186,7 +186,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Number.Value);
+            Assert.Equal("MIST0080", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -215,7 +215,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_NAMESPACE", diags[0].Number.Value);
+            Assert.Equal("MIST0081", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -244,7 +244,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Number.Value);
+            Assert.Equal("MIST0077", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -273,7 +273,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Number.Value);
+            Assert.Equal("MIST0078", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("index 1", diags[0].Message);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
@@ -309,7 +309,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE", diags[0].Number.Value);
+            Assert.Equal("MIST0082", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Warning, diags[0].Severity);
             Assert.Contains("System", diags[0].Message);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
@@ -359,25 +359,25 @@ public sealed class ProjectFileParserGlobalUsingsTests
     // ─── Diagnostic file path inclusion tests ────────────────────────────
 
     [Theory]
-    [InlineData("MIST_GLOBAL_USING_MISSING_NAMESPACES", """
+    [InlineData("MIST0079", """
         name = "MyApp"
 
         [global_usings]
         description = "missing namespaces"
         """)]
-    [InlineData("MIST_GLOBAL_USING_EMPTY_NAMESPACE", """
+    [InlineData("MIST0080", """
         name = "MyApp"
 
         [global_usings]
         namespaces = [""]
         """)]
-    [InlineData("MIST_GLOBAL_USING_INVALID_NAMESPACE", """
+    [InlineData("MIST0081", """
         name = "MyApp"
 
         [global_usings]
         namespaces = ["System::Bad"]
         """)]
-    [InlineData("MIST_GLOBAL_USING_INVALID_FORMAT", """
+    [InlineData("MIST0077", """
         name = "MyApp"
 
         [global_usings]
@@ -424,7 +424,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             var diags = diagnostics.ToImmutableArray();
             Assert.NotEmpty(diags);
 
-            var diag = diags.First(d => d.Number.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE");
+            var diag = diags.First(d => d.Number.Value == "MIST0082");
             Assert.Contains(GetTomlPath(projectDir), diag.Message);
         }
         finally

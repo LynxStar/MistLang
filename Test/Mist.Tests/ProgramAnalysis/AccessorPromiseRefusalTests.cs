@@ -7,10 +7,10 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class AccessorPromiseRefusalTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string SetsProperty = "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string SetsProperty = "MIST0259";
 
     [Theory]
     [InlineData("pure-method-reads-a-local-readonly-indexer-of-a-frozen-input", null)]

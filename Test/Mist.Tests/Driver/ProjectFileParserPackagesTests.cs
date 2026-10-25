@@ -67,7 +67,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_TABLE_EXPECTED", diags[0].Number.Value);
+            Assert.Equal("MIST0083", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -93,7 +93,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_TABLE_EXPECTED", diags[0].Number.Value);
+            Assert.Equal("MIST0083", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -123,7 +123,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Number.Value);
+            Assert.Equal("MIST0086", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
         }
@@ -152,7 +152,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Number.Value);
+            Assert.Equal("MIST0086", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -283,7 +283,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_NAME", diags[0].Number.Value);
+            Assert.Equal("MIST0084", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(packageName, diags[0].Message);
         }
@@ -315,7 +315,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_NAME", diags[0].Number.Value);
+            Assert.Equal("MIST0085", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("128", diags[0].Message);
         }
@@ -375,7 +375,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Number.Value);
+            Assert.Equal("MIST0087", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
         }
@@ -404,7 +404,7 @@ public sealed class ProjectFileParserPackagesTests
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PKG_INVALID_VERSION", diags[0].Number.Value);
+            Assert.Equal("MIST0087", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("SomePackage", diags[0].Message);
         }
@@ -440,8 +440,8 @@ public sealed class ProjectFileParserPackagesTests
             Assert.Equal(2, diags.Length);
 
             // One error for the long name, one for the empty version
-            Assert.Contains(diags, d => d.Number.Value == "MIST_PKG_INVALID_NAME");
-            Assert.Contains(diags, d => d.Number.Value == "MIST_PKG_INVALID_VERSION");
+            Assert.Contains(diags, d => d.Number.Value == "MIST0085");
+            Assert.Contains(diags, d => d.Number.Value == "MIST0087");
 
             // The valid package should still be parsed
             _ = Assert.Single(result.Packages);

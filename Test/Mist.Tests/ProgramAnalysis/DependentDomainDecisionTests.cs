@@ -18,8 +18,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "1")]
 public sealed class DependentDomainDecisionTests
 {
-    private const string NotAssignable = "MIST_DT_0003";
-    private const string NotConvertible = "MIST_DT_0004";
+    private const string NotAssignable = "MIST0280";
+    private const string NotConvertible = "MIST0281";
 
     private readonly HandBuiltModel built = new();
 
@@ -109,7 +109,7 @@ public sealed class DependentDomainDecisionTests
     [Theory]
     [InlineData(1L, null)]
     [InlineData(0L, null)]
-    [InlineData(-1L, "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED")]
+    [InlineData(-1L, "MIST0278")]
     [InlineData(true, NotAssignable)]
     public void AQualifiedRefinementAliasAdmitsOnlyValuesOfItsKindAndPredicate(object value, string? expected)
     {
@@ -208,13 +208,13 @@ public sealed class DependentDomainDecisionTests
         };
 
         Assert.Equal(NotAssignable, RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 300L))?.Number.Value);
-        Assert.Equal("MIST_PA_DEPENDENT_ARGUMENT_VIOLATED", RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 20L))?.Number.Value);
+        Assert.Equal("MIST0278", RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 20L))?.Number.Value);
         Assert.Null(RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 9L)));
     }
 
     [Theory]
     [InlineData(false, null)]
-    [InlineData(true, "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED")]
+    [InlineData(true, "MIST0278")]
     public void AULongAboveLongMeetsAPredicateAsTheTopItSaturatesAt(bool boundedAbove, string? expected)
     {
         var kind = boundedAbove ? ComparisonKind.LessThan : ComparisonKind.GreaterThanOrEqual;
@@ -233,7 +233,7 @@ public sealed class DependentDomainDecisionTests
 
     [Theory]
     [InlineData(true, null)]
-    [InlineData(false, "MIST_PA_DEPENDENT_FORWARD_UNPROVEN")]
+    [InlineData(false, "MIST0279")]
     public void AForwardedParameterMustImplyTheRefinementItFills(bool constrained, string? expected)
     {
         var h = new HandBuiltRefinements();

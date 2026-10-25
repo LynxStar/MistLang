@@ -19,7 +19,7 @@ public sealed class DeclarationModifierPlacementTests
     {
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(Declaration(declaration), [Modifier("async")]));
 
-        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", refusal.Number.Value);
+        Assert.Equal("MIST0323", refusal.Number.Value);
     }
 
     [Theory]
@@ -30,14 +30,14 @@ public sealed class DeclarationModifierPlacementTests
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(
             Declaration("operator"), [.. written.Split(' ').Select(Modifier)]));
 
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", refusal.Number.Value);
+        Assert.Equal("MIST0040", refusal.Number.Value);
     }
 
     [Theory]
-    [InlineData("sealed", "MIST_PM_SEALED_ON_OPERATOR")]
-    [InlineData("readonly", "MIST_PM_READONLY_ON_OPERATOR")]
-    [InlineData("owned", "MIST_PM_OWNED_ON_OPERATOR")]
-    [InlineData("affine", "MIST_PM_AFFINE_ON_OPERATOR")]
+    [InlineData("sealed", "MIST0043")]
+    [InlineData("readonly", "MIST0044")]
+    [InlineData("owned", "MIST0045")]
+    [InlineData("affine", "MIST0046")]
     public void AnUnsupportedOperatorModifierIsRefusedOnce(string modifier, string expected)
     {
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(Declaration("operator"),
@@ -66,7 +66,7 @@ public sealed class DeclarationModifierPlacementTests
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(
             Declaration("field"), [.. written.Split(' ').Select(Modifier)]));
 
-        Assert.Equal("MIST_PM_REF_ON_FIELD", refusal.Number.Value);
+        Assert.Equal("MIST0047", refusal.Number.Value);
     }
 
     [Fact]

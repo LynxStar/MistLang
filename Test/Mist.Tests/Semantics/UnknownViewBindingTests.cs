@@ -22,7 +22,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "2")]
 public sealed class UnknownViewBindingTests
 {
-    private const string Hidden = "MIST_PM_UNKNOWN_VIEW_HIDES_WRITER";
+    private const string Hidden = "MIST0395";
 
     private readonly Fixture f = new();
 

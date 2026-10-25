@@ -123,7 +123,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     [Fact]
     public void TypePack_IsStillRefused()
     {
-        AssertSingle(GuardOn("Packed"), "MIST_BE_DEPENDENT_TYPE_PARAMETER");
+        AssertSingle(GuardOn("Packed"), "MIST0023");
     }
 
     /// <summary>

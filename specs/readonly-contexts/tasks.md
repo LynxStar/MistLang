@@ -103,7 +103,7 @@ This plan implements readonly contexts for the Mist programming language, spanni
 
   - [x] 7.2 Implement base rule enforcement for readonly methods and getters
     - Permit: field reads, readonly method calls, readonly property/indexer getter calls, local variable declarations/assignments, `new` with readonly constructors
-    - Prohibit: field assignments (`MIST_RO_0001`), non-readonly method calls (`MIST_RO_0002`), non-readonly property/indexer getter calls (`MIST_RO_0003`), any property/indexer setter calls (`MIST_RO_0004`), `new` with non-readonly constructors (`MIST_RO_0005`)
+    - Prohibit: field assignments (`MIST_RO_0001 (historical)`), non-readonly method calls (`MIST_RO_0002 (historical)`), non-readonly property/indexer getter calls (`MIST_RO_0003 (historical)`), any property/indexer setter calls (`MIST_RO_0004 (historical)`), `new` with non-readonly constructors (`MIST_RO_0005 (historical)`)
     - _Requirements: 7.1, 11.1–11.10_
 
   - [x] 7.3 Implement constructor privilege (exception 11)
@@ -118,33 +118,33 @@ This plan implements readonly contexts for the Mist programming language, spanni
   - [x] 7.5 Implement readonly block override (exceptions 13–14)
     - When a `readonly { }` block is encountered inside a constructor, push `ContextKind.ReadonlyBlock` — constructor privilege is suspended
     - Base rules apply without exception within the block
-    - Emit `MIST_RO_0010` for field assignments within readonly blocks in constructors
+    - Emit `MIST_RO_0010 (historical)` for field assignments within readonly blocks in constructors
     - _Requirements: 4.3, 9.1, 9.2, 9.3, 11.13, 11.14_
 
   - [x] 7.6 Implement readonly field assignment prohibition outside constructors
-    - When a readonly field is assigned outside a constructor, emit `MIST_RO_0009`
+    - When a readonly field is assigned outside a constructor, emit `MIST_RO_0009 (historical)`
     - _Requirements: 4.1, 4.4_
 
   - [x] 7.7 Implement readonly property/indexer setter restriction outside constructors
-    - When a readonly property/indexer setter is called outside a constructor of the declaring type, emit `MIST_RO_0004`
+    - When a readonly property/indexer setter is called outside a constructor of the declaring type, emit `MIST_RO_0004 (historical)`
     - _Requirements: 5.1, 6.1, 6.2_
 
 - [x] 8. Readonly parameter enforcement
   - [x] 8.1 Implement readonly parameter analysis in `ReadonlyAnalyzer`
-    - When a non-readonly method is called on a readonly parameter → `MIST_RO_0006`
-    - When a field of a readonly parameter is assigned → `MIST_RO_0007`
-    - When a non-readonly setter is called on a readonly parameter → `MIST_RO_0008`
+    - When a non-readonly method is called on a readonly parameter → `MIST_RO_0006 (historical)`
+    - When a field of a readonly parameter is assigned → `MIST_RO_0007 (historical)`
+    - When a non-readonly setter is called on a readonly parameter → `MIST_RO_0008 (historical)`
     - _Requirements: 14.2, 14.3, 14.4_
 
   - [x] 8.2 Implement call-site checking for readonly type arguments in `TypeCheckerAnalyzer`
-    - If the argument's type is a readonly type (`IsReadonly == true`), the corresponding parameter MUST be marked `readonly`; emit `MIST_TC_0073` if not
+    - If the argument's type is a readonly type (`IsReadonly == true`), the corresponding parameter MUST be marked `readonly`; emit `MIST_TC_0073 (historical)` if not
     - If the argument's type is mutable, either parameter kind is acceptable
     - _Requirements: 14.5, 14.6_
 
 - [x] 9. Generic constraint validation
   - [x] 9.1 Implement type argument validation in `TypeCheckerAnalyzer`
-    - When a type parameter has `HasReadonlyConstraint` and the type argument is not readonly → emit `MIST_TC_0070`
-    - When a type parameter has `HasMutableConstraint` and the type argument is readonly → emit `MIST_TC_0071`
+    - When a type parameter has `HasReadonlyConstraint` and the type argument is not readonly → emit `MIST_TC_0070 (historical)`
+    - When a type parameter has `HasMutableConstraint` and the type argument is readonly → emit `MIST_TC_0071 (historical)`
     - _Requirements: 12.1, 12.2, 12.7_
 
   - [x] 9.2 Implement member access rules on constrained type parameters in `ReadonlyAnalyzer`
@@ -156,7 +156,7 @@ This plan implements readonly contexts for the Mist programming language, spanni
   - [x] 10.1 Implement contract verification in `TypeCheckerAnalyzer`
     - When an interface or trait is marked `readonly`, all its members are implicitly readonly
     - For each readonly interface/trait member, verify the implementing member is also readonly (explicit or inferred)
-    - If not → emit `MIST_TC_0072`
+    - If not → emit `MIST_TC_0072 (historical)`
     - The implementing type itself does not need to be readonly — only the specific members
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
 

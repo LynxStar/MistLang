@@ -11,7 +11,7 @@ This feature adds three capabilities to Mist, all built on the already-shipped `
 The design rests on two existing precedents and reuses them rather than reinventing:
 
 - **The `Array<T, Length>` precedent for the type system and interop.** `Array<T, Length>` is *not* modeled as a `ConstructedType`; it is a dedicated `ArrayType` IType carrying `ElementType` + `KnownLength`/`SymbolicLengthId`. Use-sites (`T[]`, `new T[n]`, inbound CLR arrays) are routed to `ArrayType`, the bounds machinery (`ValidateArrayIndexRefinement`) reads its length fields, the emitter erases length via the branch `ArrayType a => $"{...}[]"`, and inbound CLR arrays project to an unknown-length `ArrayType`. Span mirrors every one of these steps. This is explicitly **not** the `Task` precedent (a single `BackingTypes` entry + `IntrinsicTypeMap` projection); see the type-representation decision in §"Data Models".
-- **The `ref struct` precedent for stack-only-ness and heap-escape.** `ref struct` already parses, sets `StructType.IsRefStruct`, emits C# `ref struct`, projects inbound (`clrType.IsByRefLike → IsRefStruct`), and enforces heap-escape (`MIST2002`–`MIST2007`, `RefStructCannotBeOptional`, `MIST_TC_0123`). Span values reuse all of it. Frame-escape is the *new* hazard those rules do not cover: a stackalloc-backed span points into the current frame, so it must not be returned or stored where it outlives the frame.
+- **The `ref struct` precedent for stack-only-ness and heap-escape.** `ref struct` already parses, sets `StructType.IsRefStruct`, emits C# `ref struct`, projects inbound (`clrType.IsByRefLike → IsRefStruct`), and enforces heap-escape (`MIST2002`–`MIST2007`, `RefStructCannotBeOptional`, `MIST_TC_0123 (historical)`). Span values reuse all of it. Frame-escape is the *new* hazard those rules do not cover: a stackalloc-backed span points into the current frame, so it must not be returned or stored where it outlives the frame.
 
 The bounds-checking story is intentionally identical to arrays: full static checking when `Length` is a known constant, lower-bound-only (`>= 0`) with the upper bound deferred to the CLR at runtime when `Length` is unknown. This runtime-fallback gap is the same one arrays have today; it is tracked as a separate CRITICAL item in `project/TODO.md` and this design **deliberately mirrors current array behavior and does not close it** (Requirements notes; Requirement 14.6).
 
@@ -162,7 +162,7 @@ The builder also recognizes the `Standard.Span` / `Standard.ReadOnlySpan` declar
 
 This analyzer gains the following responsibilities (each detailed in §"Data Models" / §"Error Handling"):
 
-- **Stackalloc target-type check (R4.6, R4.7, R4.8):** verify the stackalloc result is consumed only in a `var` / `Span<T,Length>` / `ReadOnlySpan<T,Length>` (or alias) context, that the size is integer-typed (`IsIntLike`, the same predicate array size uses at `MIST_TC_0012`), and emit a mismatch diagnostic otherwise.
+- **Stackalloc target-type check (R4.6, R4.7, R4.8):** verify the stackalloc result is consumed only in a `var` / `Span<T,Length>` / `ReadOnlySpan<T,Length>` (or alias) context, that the size is integer-typed (`IsIntLike`, the same predicate array size uses at `MIST_TC_0012 (historical)`), and emit a mismatch diagnostic otherwise.
 - **Element-type stampability gate (R5):** reuse `StructType.IsStampable` (+ `IsPrimitiveStructByName` fallback) — the *same* gate the bare-`new T[size]` path already uses (`TypeCheckerAnalyzer` ~line 12816) — but anchored at the element-type node and with span-specific messages distinguishing reference type / non-stampable struct / ref struct / unconstrained type parameter.
 - **Index refinement (R1.5, R2.5):** route `SpanType` indexing through the **shared** array-bounds helper (see refactor below), giving identical full-static / lower-bound-only behavior.
 - **Read-only indexer write rejection (R2.8):** reject assignment whose target is the indexer of a read-only `SpanType`, independent of length validation.
@@ -193,7 +193,7 @@ This is reuse of the existing array machinery (identical predicate construction 
 
 ### 5. Frame-escape analysis (new pass alongside `OwnershipAnalyzer`)
 
-The escape analysis is a new pass, `FrameEscapeAnalyzer`, that reuses the `OwnershipAnalyzer`'s existing flow-sensitive infrastructure (the same per-method-body walk that already powers `MIST_OWN_REF_ESCAPE` — "a ref escapes its declaring scope"). It is the genuinely new component; details in §"Frame-Escape Analysis Algorithm". It runs as part of analysis (registered in the analyzer list consumed by `AnalyzerRunner`) after the type checker so span types are resolved.
+The escape analysis is a new pass, `FrameEscapeAnalyzer`, that reuses the `OwnershipAnalyzer`'s existing flow-sensitive infrastructure (the same per-method-body walk that already powers `MIST_OWN_REF_ESCAPE (historical)` — "a ref escapes its declaring scope"). It is the genuinely new component; details in §"Frame-Escape Analysis Algorithm". It runs as part of analysis (registered in the analyzer list consumed by `AnalyzerRunner`) after the type checker so span types are resolved.
 
 ### 6. CSharpEmitter (`Source/Mist/Backends/CSharpTranspiler/`)
 
@@ -236,7 +236,7 @@ This is the Array length-erasure path (R7.1/R7.2 explicitly require this and for
 
 3. **`Array<T,Length>` itself is modeled this way.** The bootstrap `Array<TValue, Length>` declaration is special-cased and *not* used at use-sites (`SemanticModelBuilder` comment: "not resolvable via normal name lookup… Route 'Array'… to produce an `ArrayType` directly"). Anchor #4 says to study how the Array intrinsic dependent type is modeled and mirror it — that model is `ArrayType`, so the faithful mirror is `SpanType`.
 
-4. **Heap-escape reuse is preserved by a small, bounded recognition change.** Arrays are reference types; spans are ref structs, so `SpanType.Kind => TypeKind.Struct` and span values must be recognized as ref structs at the existing heap-escape sites. The central predicate `IsRefStructType(IType)` is extended to also return `true` for `SpanType`, and the handful of inline `StructType { IsRefStruct: true }` match sites (`MIST2002` field, `MIST2003` property, `MIST2005` union in `SemanticModelBuilder`/`TypeCheckerAnalyzer`, `RefStructCannotBeOptional`, `MIST2004` generic arg, `MIST2007` interface, `MIST_TC_0123` capture) are routed through that predicate. This is "reuse existing ref-struct machinery" (anchor #6) and keeps R9.3 (all heap-escape diagnostics still fire for spans) working with no parallel logic.
+4. **Heap-escape reuse is preserved by a small, bounded recognition change.** Arrays are reference types; spans are ref structs, so `SpanType.Kind => TypeKind.Struct` and span values must be recognized as ref structs at the existing heap-escape sites. The central predicate `IsRefStructType(IType)` is extended to also return `true` for `SpanType`, and the handful of inline `StructType { IsRefStruct: true }` match sites (`MIST2002` field, `MIST2003` property, `MIST2005` union in `SemanticModelBuilder`/`TypeCheckerAnalyzer`, `RefStructCannotBeOptional`, `MIST2004` generic arg, `MIST2007` interface, `MIST_TC_0123 (historical)` capture) are routed through that predicate. This is "reuse existing ref-struct machinery" (anchor #6) and keeps R9.3 (all heap-escape diagnostics still fire for spans) working with no parallel logic.
 
 **Trade-off acknowledged:** the `ConstructedType` route would inherit heap-escape recognition "for free" (it is already matched by `IsRefStructType`'s second arm), but it would break the two anchors that matter most here (Array-precedent emission and `ValidateArrayIndexRefinement` reuse). The bounded recognition change for `SpanType` is the smaller, more faithful cost.
 
@@ -287,16 +287,16 @@ Following R8.7 (continue the ref-struct `MIST20xx` convention) and R14.1 (`MIST_
 |---|---|---|---|
 | `MIST2008` | escape | stackalloc-backed span **returned** from a method | 8.2 |
 | `MIST2009` | escape | stackalloc-backed span **stored** where it outlives the frame (incl. propagation into a containing ref struct, R8.5) | 8.3, 8.5 |
-| `MIST_TC_0150` | type-checker | stackalloc result used where target is neither `Span<T>` nor `ReadOnlySpan<T>` (R4.6) | 4.6, 14.4 |
-| `MIST_TC_0151` | type-checker | stackalloc size not integer-typed (R4.8) | 4.8 |
-| `MIST_TC_0152` | type-checker | stackalloc element type is a reference type | 5.4, 14.3 |
-| `MIST_TC_0153` | type-checker | stackalloc element type is a non-stampable struct | 5.5, 14.3 |
-| `MIST_TC_0154` | type-checker | stackalloc element type is a ref struct | 5.6, 14.3 |
-| `MIST_TC_0155` | type-checker | stackalloc element type is an unconstrained type parameter | 5.7 |
-| `MIST_TC_0156` | type-checker | assignment through a `ReadOnlySpan` indexer | 2.8 |
-| `MIST_PARSE_STACKALLOC_SIZE` | parser | `stackalloc T` / `stackalloc T[]` (missing/empty size) | 3.4, 3.5 |
+| `MIST_TC_0150 (historical)` | type-checker | stackalloc result used where target is neither `Span<T>` nor `ReadOnlySpan<T>` (R4.6) | 4.6, 14.4 |
+| `MIST_TC_0151 (historical)` | type-checker | stackalloc size not integer-typed (R4.8) | 4.8 |
+| `MIST_TC_0152 (historical)` | type-checker | stackalloc element type is a reference type | 5.4, 14.3 |
+| `MIST_TC_0153 (historical)` | type-checker | stackalloc element type is a non-stampable struct | 5.5, 14.3 |
+| `MIST_TC_0154 (historical)` | type-checker | stackalloc element type is a ref struct | 5.6, 14.3 |
+| `MIST_TC_0155 (historical)` | type-checker | stackalloc element type is an unconstrained type parameter | 5.7 |
+| `MIST_TC_0156 (historical)` | type-checker | assignment through a `ReadOnlySpan` indexer | 2.8 |
+| `MIST0124` | parser | `stackalloc T` / `stackalloc T[]` (missing/empty size) | 3.4, 3.5 |
 
-Existing heap-escape IDs (`MIST2002`–`MIST2007`, `RefStructCannotBeOptional`, `MIST_TC_0123`) are **reused unchanged** for spans at heap-escape positions (R9.3); no new IDs are minted for those.
+Existing heap-escape IDs (`MIST2002`–`MIST2007`, `RefStructCannotBeOptional`, `MIST_TC_0123 (historical)`) are **reused unchanged** for spans at heap-escape positions (R9.3); no new IDs are minted for those.
 
 ## Frame-Escape Analysis Algorithm
 
@@ -304,7 +304,7 @@ This is the genuinely new analysis. It is modeled on C#'s ref-safety semantics, 
 
 ### Placement
 
-A new flow-sensitive pass, `FrameEscapeAnalyzer`, hosted with the `OwnershipAnalyzer` machinery. Rationale: `OwnershipAnalyzer` already performs the exact kind of per-method-body, flow-sensitive walk this needs and already owns the closely-related diagnostic `MIST_OWN_REF_ESCAPE` ("a ref escapes its declaring scope"). Frame escape for stackalloc-backed spans is the span-typed analogue of ref escape, so it reuses that traversal scaffold rather than introducing a parallel walker (anchor #6, R8.7). It runs after the type checker (so every expression has a resolved `SpanType`) and before emission (so a detected escape suppresses C# output for the affected compilation, R8.2/R8.3).
+A new flow-sensitive pass, `FrameEscapeAnalyzer`, hosted with the `OwnershipAnalyzer` machinery. Rationale: `OwnershipAnalyzer` already performs the exact kind of per-method-body, flow-sensitive walk this needs and already owns the closely-related diagnostic `MIST_OWN_REF_ESCAPE (historical)` ("a ref escapes its declaring scope"). Frame escape for stackalloc-backed spans is the span-typed analogue of ref escape, so it reuses that traversal scaffold rather than introducing a parallel walker (anchor #6, R8.7). It runs after the type checker (so every expression has a resolved `SpanType`) and before emission (so a detected escape suppresses C# output for the affected compilation, R8.2/R8.3).
 
 ### Tracking lattice
 
@@ -351,11 +351,11 @@ The C# compiler will *also* reject the equivalent escape (its own ref-safety rul
 
 For `stackalloc T[n]` in target-type context `Ctx`:
 
-1. **Element type** `T` must be a `Stampable_Type` (`StructType.IsStampable`, R5). Otherwise reject with the appropriate `MIST_TC_015{2,3,4,5}` and assign no span type.
-2. **Size** `n` must be integer-typed (`IsIntLike(typeof(n))`, R4.7). Otherwise `MIST_TC_0151`.
+1. **Element type** `T` must be a `Stampable_Type` (`StructType.IsStampable`, R5). Otherwise reject with the appropriate `MIST_TC_015 (historical){2,3,4,5}` and assign no span type.
+2. **Size** `n` must be integer-typed (`IsIntLike(typeof(n))`, R4.7). Otherwise `MIST_TC_0151 (historical)`.
 3. **Length:** literal `N` → `KnownLength = N`; non-literal → unknown (R4.1, R4.2).
 4. **Kind:** if `Ctx` is a `ReadOnlySpan<T,Length>` family target → `IsReadOnly = true` (R4.3, R4.5); else `IsReadOnly = false` (mutable `Span`).
-5. **Allowed contexts (R4.6):** `var` declaration (infers the `SpanType`), explicit `Span<T,Length>`/`ReadOnlySpan<T,Length>`, or the `Span<T>`/`ReadOnlySpan<T>` aliases. Any other target (e.g., `int`, `Array<T,Length>`, an arithmetic operand) → `MIST_TC_0150`, naming both the stackalloc result type and the expected type.
+5. **Allowed contexts (R4.6):** `var` declaration (infers the `SpanType`), explicit `Span<T,Length>`/`ReadOnlySpan<T,Length>`, or the `Span<T>`/`ReadOnlySpan<T>` aliases. Any other target (e.g., `int`, `Array<T,Length>`, an arithmetic operand) → `MIST_TC_0150 (historical)`, naming both the stackalloc result type and the expected type.
 6. **Widening (R4.4):** `SpanType(T, known)` initializer → `Span<T>` (unknown) binding is accepted (length erased), kind permitting.
 
 ## Interop Reconciliation Rules (consolidated, R7/R9)
@@ -388,7 +388,7 @@ The properties below are the consolidated, non-redundant set produced by the pre
 
 ### Property 3: Stackalloc missing/empty size is rejected and recovered
 
-*For any* element-type reference `T`, parsing `stackalloc T` (no brackets) or `stackalloc T[]` (empty brackets) produces no `StackallocExpression` node, emits the recovery diagnostic `MIST_PARSE_STACKALLOC_SIZE`, and parsing continues.
+*For any* element-type reference `T`, parsing `stackalloc T` (no brackets) or `stackalloc T[]` (empty brackets) produces no `StackallocExpression` node, emits the recovery diagnostic `MIST0124`, and parsing continues.
 
 **Validates: Requirements 3.4, 3.5**
 
@@ -406,13 +406,13 @@ The properties below are the consolidated, non-redundant set produced by the pre
 
 ### Property 6: Stackalloc target-type restriction
 
-*For any* target type `Ctx`, `stackalloc T[n]` is accepted iff `Ctx` is `var`, a `Span<T, Length>` family type, or a `ReadOnlySpan<T, Length>` family type; for any other `Ctx` (e.g., `int`, `Array<T, Length>`, an arithmetic operand) it is rejected with `MIST_TC_0150` whose message names both the stackalloc result type and the expected type.
+*For any* target type `Ctx`, `stackalloc T[n]` is accepted iff `Ctx` is `var`, a `Span<T, Length>` family type, or a `ReadOnlySpan<T, Length>` family type; for any other `Ctx` (e.g., `int`, `Array<T, Length>`, an arithmetic operand) it is rejected with `MIST_TC_0150 (historical)` whose message names both the stackalloc result type and the expected type.
 
 **Validates: Requirements 4.6, 14.4**
 
 ### Property 7: Stackalloc size must be integer-typed
 
-*For any* size expression `n`, `stackalloc T[n]` is accepted (with respect to the size) iff the type of `n` is `Int32` or implicitly convertible to `Int32`; otherwise it is rejected with `MIST_TC_0151` whose message names the type of `n`.
+*For any* size expression `n`, `stackalloc T[n]` is accepted (with respect to the size) iff the type of `n` is `Int32` or implicitly convertible to `Int32`; otherwise it is rejected with `MIST_TC_0151 (historical)` whose message names the type of `n`.
 
 **Validates: Requirements 4.7, 4.8**
 
@@ -424,13 +424,13 @@ The properties below are the consolidated, non-redundant set produced by the pre
 
 ### Property 9: Non-stampable element rejection carries the correct reason
 
-*For any* non-stampable element type `T`, `stackalloc T[n]` is rejected, no span type is assigned, and the emitted diagnostic, anchored at the element type, is exactly: `MIST_TC_0152` when `T` is a reference type, `MIST_TC_0153` when `T` is a struct with one or more non-stampable fields, `MIST_TC_0154` when `T` is a ref struct, and `MIST_TC_0155` when `T` is an unconstrained type parameter.
+*For any* non-stampable element type `T`, `stackalloc T[n]` is rejected, no span type is assigned, and the emitted diagnostic, anchored at the element type, is exactly: `MIST_TC_0152 (historical)` when `T` is a reference type, `MIST_TC_0153 (historical)` when `T` is a struct with one or more non-stampable fields, `MIST_TC_0154 (historical)` when `T` is a ref struct, and `MIST_TC_0155 (historical)` when `T` is an unconstrained type parameter.
 
 **Validates: Requirements 5.4, 5.5, 5.6, 5.7, 14.3**
 
 ### Property 10: Read-only indexer assignment is always rejected
 
-*For any* value of a `ReadOnlySpan<T, Length>` family type and *any* index expression (in range or out of range), an assignment whose target is the span's indexer is rejected with `MIST_TC_0156`, independently of any length validation.
+*For any* value of a `ReadOnlySpan<T, Length>` family type and *any* index expression (in range or out of range), an assignment whose target is the span's indexer is rejected with `MIST_TC_0156 (historical)`, independently of any length validation.
 
 **Validates: Requirements 2.8**
 
@@ -484,7 +484,7 @@ The properties below are the consolidated, non-redundant set produced by the pre
 
 ### Property 19: Spans obey heap-escape rules like any ref struct
 
-*For any* heap-escape position (field of a non-ref-struct type, property of a non-ref-struct type, generic type argument, union constituent, interface boxing, optional suffix, lambda capture), placing a `Span`/`ReadOnlySpan` value there emits the same existing diagnostic (`MIST2002`, `MIST2003`, `MIST2004`, `MIST2005`, `MIST2007`, `RefStructCannotBeOptional`, or `MIST_TC_0123` respectively) that any other ref struct emits at that position, and compilation halts.
+*For any* heap-escape position (field of a non-ref-struct type, property of a non-ref-struct type, generic type argument, union constituent, interface boxing, optional suffix, lambda capture), placing a `Span`/`ReadOnlySpan` value there emits the same existing diagnostic (`MIST2002`, `MIST2003`, `MIST2004`, `MIST2005`, `MIST2007`, `RefStructCannotBeOptional`, or `MIST_TC_0123 (historical)` respectively) that any other ref struct emits at that position, and compilation halts.
 
 **Validates: Requirements 9.3**
 
@@ -508,20 +508,20 @@ All error conditions surface as Mist diagnostics at error severity with a non-em
 
 | Condition | Stage / component | Diagnostic | Recovery |
 |---|---|---|---|
-| `stackalloc T` / `stackalloc T[]` (no/empty size) | Parser | `MIST_PARSE_STACKALLOC_SIZE` | No node produced; parser continues (R3.4, R3.5). |
-| stackalloc size not integer-typed | TypeCheckerAnalyzer | `MIST_TC_0151` | No span type assigned; analysis continues. |
-| stackalloc in non-span/non-`var` context | TypeCheckerAnalyzer | `MIST_TC_0150` | Names both result and expected type. |
-| element type reference type | TypeCheckerAnalyzer | `MIST_TC_0152` | Anchored at element type; no span type. |
-| element type non-stampable struct | TypeCheckerAnalyzer | `MIST_TC_0153` | Anchored at element type; no span type. |
-| element type ref struct | TypeCheckerAnalyzer | `MIST_TC_0154` | Anchored at element type; no span type. |
-| element type unconstrained type param | TypeCheckerAnalyzer | `MIST_TC_0155` | Anchored at element type; no span type. |
-| assignment through `ReadOnlySpan` indexer | TypeCheckerAnalyzer | `MIST_TC_0156` | Independent of length validation (R2.8). |
+| `stackalloc T` / `stackalloc T[]` (no/empty size) | Parser | `MIST0124` | No node produced; parser continues (R3.4, R3.5). |
+| stackalloc size not integer-typed | TypeCheckerAnalyzer | `MIST_TC_0151 (historical)` | No span type assigned; analysis continues. |
+| stackalloc in non-span/non-`var` context | TypeCheckerAnalyzer | `MIST_TC_0150 (historical)` | Names both result and expected type. |
+| element type reference type | TypeCheckerAnalyzer | `MIST_TC_0152 (historical)` | Anchored at element type; no span type. |
+| element type non-stampable struct | TypeCheckerAnalyzer | `MIST_TC_0153 (historical)` | Anchored at element type; no span type. |
+| element type ref struct | TypeCheckerAnalyzer | `MIST_TC_0154 (historical)` | Anchored at element type; no span type. |
+| element type unconstrained type param | TypeCheckerAnalyzer | `MIST_TC_0155 (historical)` | Anchored at element type; no span type. |
+| assignment through `ReadOnlySpan` indexer | TypeCheckerAnalyzer | `MIST_TC_0156 (historical)` | Independent of length validation (R2.8). |
 | known-length index out of range (literal) | TypeCheckerAnalyzer (shared bounds helper) | existing array index diagnostic | Full static check (R1.5/R2.5). |
 | unknown-length index upper bound | — | **none** (deferred to CLR at runtime) | Intentional array parity (R14.6). |
 | span kind / element mismatch at C# boundary | TypeCheckerAnalyzer | mismatch diagnostic | Binding/call left unmodified (R7.7). |
 | stackalloc-backed span returned | FrameEscapeAnalyzer | `MIST2008` | Compilation fails; no C# emitted (R8.2). |
 | stackalloc-backed span escaping store | FrameEscapeAnalyzer | `MIST2009` | Compilation fails; no C# emitted (R8.3, R8.5). |
-| ref struct (incl. span) at a heap-escape position | existing ref-struct machinery | `MIST2002`–`MIST2007` / `RefStructCannotBeOptional` / `MIST_TC_0123` | Existing behavior; compilation halts (R9.3). |
+| ref struct (incl. span) at a heap-escape position | existing ref-struct machinery | `MIST2002`–`MIST2007` / `RefStructCannotBeOptional` / `MIST_TC_0123 (historical)` | Existing behavior; compilation halts (R9.3). |
 
 A single rejection emits exactly one specific reason for the stampability gate (R14.3); the frame-escape and target-mismatch diagnostics each carry a single, located message (R14.2, R14.4). The unknown-length upper-bound case never produces a compile diagnostic, even when a statically-detectable unsafe pattern is present (R14.6).
 

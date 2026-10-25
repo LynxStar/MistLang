@@ -391,9 +391,9 @@ The `as` keyword is already recognized in Mist's TextMate grammar (for trait mem
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_TC_0070` | TypeChecker | The 'as' operator cannot be used between '{sourceType}' and '{targetType}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed. |
-| `MIST_TC_0071` | TypeChecker | 'as void' is not a valid conversion. |
-| `MIST_TC_0072` | TypeChecker | A void-typed expression cannot be used with the 'as' operator. |
+| `MIST_TC_0070 (historical)` | TypeChecker | The 'as' operator cannot be used between '{sourceType}' and '{targetType}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed. |
+| `MIST_TC_0071 (historical)` | TypeChecker | 'as void' is not a valid conversion. |
+| `MIST_TC_0072 (historical)` | TypeChecker | A void-typed expression cannot be used with the 'as' operator. |
 
 ## Data Models
 

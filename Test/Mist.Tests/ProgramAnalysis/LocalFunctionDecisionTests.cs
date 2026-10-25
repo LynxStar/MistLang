@@ -17,8 +17,8 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED", "MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT",
-        "MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE", "MIST_PA_CAPTURED_BINDING",
+        "MIST0221", "MIST0220",
+        "MIST0212", "MIST0269",
     ];
 
     public LocalFunctionDecisionTests()
@@ -133,7 +133,7 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse("int x; void Set() { x = 1; } Set(); var r = x;"));
 
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Number.Value);
+        Assert.Equal("MIST0220", finding.Number.Value);
     }
 
     [Fact]

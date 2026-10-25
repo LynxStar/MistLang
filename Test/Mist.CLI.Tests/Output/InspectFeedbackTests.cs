@@ -6,9 +6,9 @@ namespace Mist.CLI.Tests.Output;
 [Trait("Tier", "1")]
 public sealed class InspectFeedbackTests
 {
-    private static readonly Diagnostic Package = Make("MIST_PKG_002", DiagnosticSeverity.Error, "Package 'BadPkg' version 'not-valid' could not be found.");
-    private static readonly Diagnostic Framework = Make("MIST_FWREF_002", DiagnosticSeverity.Error, "Framework reference 'C' is not a known shared framework.");
-    private static readonly Diagnostic Warning = Make("MIST_PKG_003", DiagnosticSeverity.Warning, "Package 'W' contributed no assemblies.");
+    private static readonly Diagnostic Package = Make("MIST0036", DiagnosticSeverity.Error, "Package 'BadPkg' version 'not-valid' could not be found.");
+    private static readonly Diagnostic Framework = Make("MIST0035", DiagnosticSeverity.Error, "Framework reference 'C' is not a known shared framework.");
+    private static readonly Diagnostic Warning = Make("MIST0037", DiagnosticSeverity.Warning, "Package 'W' contributed no assemblies.");
 
     [Fact]
     public void AnError_IsWrittenOnceInTheBuildsText_AndFails()

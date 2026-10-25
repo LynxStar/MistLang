@@ -61,7 +61,7 @@ internal static class MemberResolution
 
         // Ahead of extensions and behind declared members, which is where a projection belongs: it
         // is the declaring type's own, so it beats an extension, but a member actually written
-        // under the name beats it -- and writing one is MIST_VAR_0007 rather than a shadowing.
+        // under the name beats it -- and writing one is MIST0412 rather than a shadowing.
         if(found is NotFoundResult
             && SpreadProjection.Find(constructed, declaring, memberName, context) is { } projected)
         {

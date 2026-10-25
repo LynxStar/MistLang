@@ -30,9 +30,9 @@ public static class FrameworkReferenceResolver
     /// <summary>
     /// The set of shared-framework names Mist recognizes. An enabled framework
     /// whose name is absent from this allow-list is reported as an unknown
-    /// shared framework (<c>MIST_FWREF_002</c>) without any attempt to locate a
+    /// shared framework (<c>MIST0035</c>) without any attempt to locate a
     /// reference pack for it; a name that is present but whose pack cannot be
-    /// located is reported as not-installed (<c>MIST_FWREF_001</c>).
+    /// located is reported as not-installed (<c>MIST0034</c>).
     /// </summary>
     private static readonly ImmutableHashSet<string> KnownFrameworks =
         ImmutableHashSet.Create(
@@ -77,7 +77,7 @@ public static class FrameworkReferenceResolver
         // diagnostic is emitted per failing framework.
         foreach(var framework in frameworks)
         {
-            // Unknown shared-framework name: report MIST_FWREF_002 and do not
+            // Unknown shared-framework name: report MIST0035 and do not
             // attempt to locate a pack (we have no canonical pack name to search).
             if(!KnownFrameworks.Contains(framework.Name))
             {
@@ -100,7 +100,7 @@ public static class FrameworkReferenceResolver
             if(resolved is null)
             {
                 // Known shared framework, but its reference pack is not installed
-                // for the target framework: report MIST_FWREF_001, naming the
+                // for the target framework: report MIST0034, naming the
                 // framework, the target framework, and the pack path searched.
                 diagnostics.Add(DiagnosticFactory.Legacy(
                     CommonDiagnostics.FrameworkReferenceNotInstalled,

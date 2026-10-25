@@ -14,7 +14,7 @@ namespace Mist.Tests.Parsing;
 /// **Property 5: Parser Completeness Invariant**
 ///
 /// For all source files where the Storm parser returns a non-null root but does not
-/// consume all default-channel tokens, <c>MIST_PARSE_INCOMPLETE</c> is emitted with
+/// consume all default-channel tokens, <c>MIST0123</c> is emitted with
 /// the correct line position of the first unconsumed token.
 ///
 /// **Validates: Requirements 3.1, 3.3, 3.4**
@@ -36,7 +36,7 @@ public class ParserCompletenessPropertyTests
         string TrailingContent,
         string Description)
     {
-        /// <summary>The combined source text that should trigger MIST_PARSE_INCOMPLETE.</summary>
+        /// <summary>The combined source text that should trigger MIST0123.</summary>
         public string CombinedSource => ValidPrefix + TrailingContent;
 
         public override string ToString()
@@ -114,7 +114,7 @@ public class ParserCompletenessPropertyTests
     // **Validates: Requirements 3.1, 3.3, 3.4**
     //
     // For all source files where the Storm parser returns a non-null root
-    // but does not consume all default-channel tokens, MIST_PARSE_INCOMPLETE
+    // but does not consume all default-channel tokens, MIST0123
     // is emitted with the correct line position of the first unconsumed token.
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -131,11 +131,11 @@ public class ParserCompletenessPropertyTests
 
         var diagnostics = bag.ToImmutableArray();
 
-        // If the parser is skeletal (MIST_PARSE_STUB), the completeness check cannot
+        // If the parser is skeletal (MIST0121), the completeness check cannot
         // be exercised; treat as vacuously satisfied.
-        if(diagnostics.Any(d => d.Number.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Number.Value == "MIST0121"))
         {
-            return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
+            return true.ToProperty().Label("parser skeletal (MIST0121)");
         }
 
         // If the prefix itself doesn't parse (root is null), the completeness check
@@ -145,9 +145,9 @@ public class ParserCompletenessPropertyTests
             return true.ToProperty().Label("root is null (prefix did not parse)");
         }
 
-        // (1) MIST_PARSE_INCOMPLETE must be present (Requirement 3.1)
+        // (1) MIST0123 must be present (Requirement 3.1)
         var incompleteDiag = diagnostics.FirstOrDefault(d =>
-            d.Number.Value == "MIST_PARSE_INCOMPLETE");
+            d.Number.Value == "MIST0123");
 
         var hasDiag = incompleteDiag is not null;
 

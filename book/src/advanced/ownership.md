@@ -385,7 +385,7 @@ A move is only permitted when the binding is **Live** — the sole owner with ex
 Passing an owned binding to an *ordinary* parameter — one declared neither `owned` nor `borrowed`, `frozen` or `readonly ref` — is not a move, but it is a handoff: the callee may keep what it was given, so the compiler no longer treats the binding as the only holder of its value. The binding stays usable, and so does its value: you can read it, mutate it and pass it again. What it can no longer do is make an ownership claim — move into another `owned` binding, an `owned` parameter, an `owned` field or a `with owned` receiver, or be returned from an `owned`-returning method — until it is reassigned a fresh owned value. The same holds for an `owned` field of an owned binding handed to such a parameter: the holder cannot be moved or returned owned until that field is written afresh. A lent parameter gives the value back when the call returns and leaves the binding Live; a value of a type that cannot change, such as a `string`, is never affected.
 
 ```text
-error MIST_PA_OWNED_RETURN_NOT_OWNED: 'Make' returns owned but this value is not: 'c' was handed to parameter 'c' of 'Keep' without a move, so another holder may still reach it.
+error MIST0263: 'Make' returns owned but this value is not: 'c' was handed to parameter 'c' of 'Keep' without a move, so another holder may still reach it.
 ```
 
 In the emitted C#, a move is just an ordinary assignment. There is no nulling of the source and no runtime move tracking — the safety was all proven at compile time.

@@ -35,8 +35,8 @@ public sealed class ProjectReferenceManifestSeamTests : IDisposable
     }
 
     [Theory]
-    [InlineData("version = \"1.0.0\"", "MIST_PROJECT_MISSING_NAME")]
-    [InlineData("name = [", "MIST_PROJECT_TOML_ERROR")]
+    [InlineData("version = \"1.0.0\"", "MIST0052")]
+    [InlineData("name = [", "MIST0051")]
     public void ManifestParserToResolver_RepeatedFailedLoadsPropagateOneErrorAndKeepValidSiblings(string content, string expectedId)
     {
         var brokenFolder = WriteProject("Broken", content);

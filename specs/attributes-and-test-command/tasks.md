@@ -30,7 +30,7 @@ This plan implements three interconnected features: attribute syntax parsing/emi
   - [x] 2.1 Parse `output_type` field in `ProjectFileParser`
     - Read optional `output_type` string from the TOML model
     - Validate case-sensitive exact match against `"executable"` and `"library"`
-    - Emit `MIST_PROJECT_INVALID_OUTPUT_TYPE` diagnostic for invalid values
+    - Emit `MIST0059` diagnostic for invalid values
     - Default to `Executable` when absent
     - _Requirements: 14.1, 14.2, 14.3_
 
@@ -69,7 +69,7 @@ This plan implements three interconnected features: attribute syntax parsing/emi
 
   - [x] 4.3 Update `EntryPointAnalyzer` for library mode
     - When `OutputType == Library`: skip Main entry point validation entirely
-    - When `OutputType == Library` and top-level statements exist: emit `MIST_EP_0007` error
+    - When `OutputType == Library` and top-level statements exist: emit `MIST0115` error
     - Pass `OutputType` via `CompilerOptions` or a new mechanism to the analyzer
     - _Requirements: 14.6, 14.7, 14.8_
 
@@ -124,7 +124,7 @@ This plan implements three interconnected features: attribute syntax parsing/emi
 
   - [x] 7.2 Implement test package warning detection
     - After successful compilation but before invoking `dotnet test`, scan AST for method declarations with attributes ending in `Fact`, `Theory`, `Test`, or `TestMethod`
-    - If found and no package in `mist.toml` contains "Test" or "xunit" (case-insensitive), emit warning `MIST_TEST_0001`
+    - If found and no package in `mist.toml` contains "Test" or "xunit" (case-insensitive), emit warning `MIST0102`
     - _Requirements: 6.3_
 
   - [x] 7.3 Wire `CliCommand.Test` into the `switch` in `Main`

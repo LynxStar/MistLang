@@ -81,7 +81,7 @@ public sealed class StdlibParseCacheTests : IDisposable
     {
         public TokenStream Lex(SourceText source, DiagnosticBag diagnostics)
         {
-            diagnostics.Add(DiagnosticFixtures.Occurrence("MIST_TEST_LEX_REJECTED",
+            diagnostics.Add(DiagnosticFixtures.Occurrence("TEST_LEX_REJECTED",
                 DiagnosticSeverity.Error,
                 PipelineStage.Lexing,
                 "Rejected by the test lexer",

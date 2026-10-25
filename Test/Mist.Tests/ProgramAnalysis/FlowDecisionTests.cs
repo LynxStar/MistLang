@@ -12,9 +12,9 @@ public sealed class FlowDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", "MIST_PA_FIELD_READ_BEFORE_ASSIGNMENT",
-        "MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED", "MIST_PA_ARRAY_REQUIRES_INITIALIZER",
-        "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE",
+        "MIST0220", "MIST0222",
+        "MIST0223", "MIST0225",
+        "MIST0226",
     ];
 
     private const string Dog = """
@@ -99,7 +99,7 @@ public sealed class FlowDecisionTests : ProgramModelProbe
             }
             """));
 
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Number.Value);
+        Assert.Equal("MIST0220", finding.Number.Value);
     }
 
     [Theory]

@@ -11,7 +11,7 @@ The keystone of the design is that a type-parameter pack is not a new kind of en
 
 The motivating proof point is collapsing the `Func`/`Action` bootstrap: the 17 hand-written `Func` classes plus 17 `Action` aliases (34 declarations) in `Source/Standard/Bootstrap/Func.mist` and `Source/Standard/Bootstrap/Action.mist` become one declaration each.
 
-These requirements are derived from and consistent with the approved design document (`design.md`). The feature is implemented in the compiler's sole pipeline, the standard pipeline (`Source/Mist/Driver/StandardPipeline.cs`). The feature was first delivered while a second, classic (semantics) pipeline also existed; that pipeline is no longer in the tree, and the design's historical architecture notes describe the arrangement of that time. Where a behavior maps to a diagnostic, the requirement references the design's dedicated `MIST_VAR_*` range so requirements and design remain traceable. All code examples in this document use ASCII-only characters and Mist array-literal syntax (`[a, b, c]`).
+These requirements are derived from and consistent with the approved design document (`design.md`). The feature is implemented in the compiler's sole pipeline, the standard pipeline (`Source/Mist/Driver/StandardPipeline.cs`). The feature was first delivered while a second, classic (semantics) pipeline also existed; that pipeline is no longer in the tree, and the design's historical architecture notes describe the arrangement of that time. Where a behavior maps to a diagnostic, the requirement references the design's dedicated `MIST_VAR_* (historical scheme)` range so requirements and design remain traceable. All code examples in this document use ASCII-only characters and Mist array-literal syntax (`[a, b, c]`).
 
 ## Glossary
 
@@ -22,7 +22,7 @@ These requirements are derived from and consistent with the approved design docu
 - **Parser**: The Storm-generated parser that produces an abstract syntax tree from a token stream.
 - **Pretty_Printer**: The `MistPrettyPrinter` component that formats a Mist AST back into valid Mist source text.
 - **Program_Model_Builder**: The model-construction role that builds the resolved type model (types, type parameters, parameters, constructed types) from the AST. It is realized as `ProgramModelBuilder` (`Source/Mist/ProgramModel/`), which produces the program model.
-- **Type_Checker**: The design role that validates type rules over the program model. It is not one component: a rule is realized as a diagnostic reported during program-model construction or as a Stage 5 analysis rule (`Source/Mist/ProgramAnalysis/`), and each `MIST_VAR_*` descriptor declares the stage that reports it.
+- **Type_Checker**: The design role that validates type rules over the program model. It is not one component: a rule is realized as a diagnostic reported during program-model construction or as a Stage 5 analysis rule (`Source/Mist/ProgramAnalysis/`), and each `MIST_VAR_* (historical scheme)` descriptor declares the stage that reports it.
 - **Backend**: The C# transpiler stage (`CSharpEmitterV2`, `Source/Mist/Backends/CSharpTranspiler/Emitter/`) that emits C# source from the program model.
 - **TextMate_Grammar**: The VS Code syntax highlighting grammar at `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguage.json`.
 - **Standard_Library**: The built-in Mist library at `Source/Standard/`.
@@ -48,21 +48,21 @@ These requirements are derived from and consistent with the approved design docu
 
 ### Diagnostics
 
-The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements reference these codes where relevant. The compiler declares the range's descriptors in `ProgramModelDiagnostics` and, for the Backend ceiling, in `BackendDiagnostics`; a code marked reserved has no descriptor at the current revision, so no diagnostic carries it:
+The design defines a dedicated `MIST_VAR_* (historical scheme)` diagnostic range. Requirements reference these codes where relevant. The compiler declares the range's descriptors in `ProgramModelDiagnostics` and, for the Backend ceiling, in `BackendDiagnostics`; a code marked reserved has no descriptor at the current revision, so no diagnostic carries it:
 
-- **MIST_VAR_0001** (Program model): More than one Unbracketed_Pack (`params`) in a single type-parameter or value-parameter list.
-- **MIST_VAR_0002** (Type checker): A pack identifier used in bare type position.
-- **MIST_VAR_0003** (Type checker): Indexing `TArgs[i]` where the length is not proven to be at least `i + 1`.
-- **MIST_VAR_0004** (Type checker): Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`).
-- **MIST_VAR_0005** (Type checker): A flat argument list that cannot be bound because there are too few arguments to fill the fixed and bracketed slots.
-- **MIST_VAR_0006** (Type checker, reserved): A Zip between operands not proven to have equal length. No descriptor defines this code.
-- **MIST_VAR_0007** (Program model): A Spread Stem that collides with another member.
-- **MIST_VAR_0008** (Program model, reserved): An empty Spread Stem. No descriptor defines this code: the grammar requires a Stem identifier on a Spread member declaration, so there is no declaration for it to report on.
-- **MIST_VAR_0009** (Type checker, reserved): A pack element that does not satisfy a Whole_Pack_Constraint. No descriptor defines this code.
-- **MIST_VAR_0010** (Backend): A construction that exceeds the target CLR type capacity.
-- **MIST_VAR_0011** (Type checker): A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation (for example a symbolic value pack `args...` spread into a fixed-arity destination such as `Sum3(args...)`). A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments.
-- **MIST_VAR_0012** (Program model): A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter. Only the homogeneous collection form is pinned to the end; a Value_Pack (`params TArgs args`) binds inward from both ends and may sit anywhere in the list.
-- **MIST_VAR_0013** (Program model): A `params` parameter that is neither a Value_Pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference.
+- **MIST0404** and **MIST0405** (Program model): More than one Unbracketed_Pack (`params`) in a single type-parameter list, or more than one value-side `params` in a single value-parameter list.
+- **MIST0406** (Type checker): A pack identifier used in bare type position.
+- **MIST0409** (Type checker): Indexing `TArgs[i]` where the length is not proven to be at least `i + 1`.
+- **MIST0410** (Type checker): Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`).
+- **MIST0411** (Type checker): A flat argument list that cannot be bound because there are too few arguments to fill the fixed and bracketed slots.
+- **MIST_VAR_0006* (historical scheme)* (Type checker, reserved): A Zip between operands not proven to have equal length. No descriptor defines this code.
+- **MIST0412** (Program model): A Spread Stem that collides with another member.
+- **MIST_VAR_0008* (historical scheme)* (Program model, reserved): An empty Spread Stem. No descriptor defines this code: the grammar requires a Stem identifier on a Spread member declaration, so there is no declaration for it to report on.
+- **MIST_VAR_0009* (historical scheme)* (Type checker, reserved): A pack element that does not satisfy a Whole_Pack_Constraint. No descriptor defines this code.
+- **MIST0028** (Backend): A construction that exceeds the target CLR type capacity.
+- **MIST0415** (Type checker): A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation (for example a symbolic value pack `args...` spread into a fixed-arity destination such as `Sum3(args...)`). A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments.
+- **MIST0413** (Program model): A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter. Only the homogeneous collection form is pinned to the end; a Value_Pack (`params TArgs args`) binds inward from both ends and may sit anywhere in the list.
+- **MIST0414** (Program model): A `params` parameter that is neither a Value_Pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference.
 
 ## Requirements
 
@@ -79,7 +79,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 5. WHEN the Parser encounters either a `params` modifier or an explicit `Type[]:` or `Type[N]:` domain annotation inside a type-parameter list, THE Parser SHALL parse the annotated type parameter as a Type_Parameter_Pack declaration.
 6. WHEN the Parser encounters a `params` modifier on a value parameter within a value parameter list, THE Parser SHALL parse that parameter as a value-side `params` parameter -- a Value_Pack when its declared type is a pack type parameter (for example `params TArgs args`) and a Value_Level_Params when its declared type is an array type `T[]` (for example `params string[] parts`) -- distinguishing it by its position in the value parameter list from a `params` modifier inside a type-parameter list (which is a Type_Parameter_Pack).
 7. WHEN the Parser encounters a flat type-argument list such as `Foo<int, string>`, THE Parser SHALL parse it through the existing type-argument-list rule and SHALL produce a flat type-argument-list node, leaving resolution of the flat form into bracketed pack slots (for example folding `Foo<int, string>` into the canonical `Foo<[int, string]>`) to the Binding_Rule at a later stage.
-8. WHEN the Parser encounters more than one `params` modifier in a single type-parameter or value-parameter list (for example `Foo<params A, params B>`), THE Parser SHALL parse each `params` modifier as a valid pack declaration without emitting a parse-error diagnostic, leaving the at-most-one-Unbracketed_Pack check (diagnostic MIST_VAR_0001) to the Program_Model_Builder.
+8. WHEN the Parser encounters more than one `params` modifier in a single type-parameter or value-parameter list (for example `Foo<params A, params B>`), THE Parser SHALL parse each `params` modifier as a valid pack declaration without emitting a parse-error diagnostic, leaving the at-most-one-Unbracketed_Pack check (diagnostics MIST0404 and MIST0405) to the Program_Model_Builder.
 
 ### Requirement 2: Pretty-Printer Round-Trip for Variadic Surface Forms
 
@@ -104,7 +104,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 2. WHERE the only type-array parameter in a type-parameter list is written in the explicit `Type[]:` form, THE Program_Model_Builder SHALL treat that lone pack as an Unbracketed_Pack (inverse sugar), so that a single-pack family never requires brackets.
 3. THE Program_Model_Builder SHALL permit more than one `Type[]:` pack in a single type-parameter list, and SHALL classify each such pack that is not an Unbracketed_Pack as a Bracketed_Pack whose arguments are supplied in brackets `[...]` at the use site.
 4. THE Program_Model_Builder SHALL permit at most one Unbracketed_Pack per type-parameter list.
-5. IF a type-parameter list declares more than one Unbracketed_Pack, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0001.
+5. IF a type-parameter list declares more than one Unbracketed_Pack, THEN THE Program_Model_Builder SHALL emit diagnostic MIST0404.
 6. THE Program_Model_Builder SHALL compute arity as the count of declared slots, counting each type-array pack slot (whether spelled `params` or `Type[]:`) as exactly one slot regardless of the number of types the slot later absorbs (for example `Foo<TVal, Type[]:TArgs, params CtorArgs, Type[]:Args3, TRes>` has arity 5).
 
 ### Requirement 4: Binding Rule
@@ -118,7 +118,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 3. THE Type_Checker SHALL permit an empty Unbracketed_Pack, binding it to the empty type array so that an arity-0 pack is well-formed (for example `Func<string>` binds `TArgs` to `[]` and `TResult` to `string`).
 4. THE Type_Checker SHALL treat the flat construction form and the bracketed canonical form of the same pack as denoting the same type (for example `Foo<int, string>` and `Foo<[int, string]>`).
 5. WHEN binding the declaration `class Between<TFirst, params TMid, TLast>` at the use site `Between<int, string, bool, double>`, THE Type_Checker SHALL bind `TFirst` to `int`, `TLast` to `double`, and `TMid` to `[string, bool]`.
-6. IF a flat argument list supplies fewer arguments than the number of fixed scalar slots plus the number of Bracketed_Pack slots (the minimum required to fill every non-pack slot while the Unbracketed_Pack absorbs zero arguments), THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0005 indicating too few arguments to fill the fixed scalar and Bracketed_Pack slots.
+6. IF a flat argument list supplies fewer arguments than the number of fixed scalar slots plus the number of Bracketed_Pack slots (the minimum required to fill every non-pack slot while the Unbracketed_Pack absorbs zero arguments), THEN THE Type_Checker SHALL emit diagnostic MIST0411 indicating too few arguments to fill the fixed scalar and Bracketed_Pack slots.
 
 ### Requirement 5: Type Identity of Constructed Variadic Types
 
@@ -139,10 +139,10 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 1. WHERE a pack identifier appears in expression position, THE Type_Checker SHALL treat it as the Comptime `Type[]` value.
 2. THE Type_Checker SHALL make the size-agnostic operations length query (`.Length`), iteration, and Spread available for a pack regardless of whether its length is proven.
-3. IF a pack identifier appears in bare type position (for example `public TArgs Item;`), THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0002.
-4. IF a pack with the unknown-length Type_Array_Domain `Type[]` is indexed as `TArgs[i]` in type position, where its length is not proven to be at least `i + 1`, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0003.
+3. IF a pack identifier appears in bare type position (for example `public TArgs Item;`), THEN THE Type_Checker SHALL emit diagnostic MIST0406.
+4. IF a pack with the unknown-length Type_Array_Domain `Type[]` is indexed as `TArgs[i]` in type position, where its length is not proven to be at least `i + 1`, THEN THE Type_Checker SHALL emit diagnostic MIST0409.
 5. WHERE a pack has the fixed-size Type_Array_Domain `Type[N]`, THE Type_Checker SHALL permit indexing `TArgs[i]` for a Comptime index `i` in the range `0` through `N - 1`, yielding the Comptime `Type` value at that index.
-6. IF a pack with the fixed-size Type_Array_Domain `Type[N]` is indexed as `TArgs[i]` with a Comptime index `i` outside the range `0` through `N - 1` (for example `TArgs[N]` or a negative index), THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0004.
+6. IF a pack with the fixed-size Type_Array_Domain `Type[N]` is indexed as `TArgs[i]` with a Comptime index `i` outside the range `0` through `N - 1` (for example `TArgs[N]` or a negative index), THEN THE Type_Checker SHALL emit diagnostic MIST0410.
 7. WHEN a guard narrows an unknown-length pack to a fixed-size domain of size `N` (for example `if (TArgs is Type[3] fixed)`), THE Type_Checker SHALL permit indexing the narrowed binding with a Comptime index in the range `0` through `N - 1` within that branch.
 8. WHERE a pack identifier is followed by the Spread suffix `TArgs...`, THE Type_Checker SHALL expand the pack in place into a count of positions equal to the pack length, substituting each element type in order, so that an empty pack expands to zero positions.
 
@@ -157,10 +157,10 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 3. THE Type_Checker SHALL permit a Value_Pack value of tuple type `(TArgs...)` to be stored in a local of that tuple type, returned from a method whose declared return type is that tuple type, and passed as an argument to a parameter of that tuple type.
 4. WHEN a method that declares fixed parameters positioned before, after, or on both sides of a value pack `params TArgs args` is invoked with a flat argument list, THE Type_Checker SHALL bind the fixed parameters positionally inward from both ends per the Binding_Rule and SHALL collect the remaining contiguous middle arguments into `args` as the tuple `(TArgs...)` (for example, given `Foo(int number, params TArgs args, bool enabled)`, the call `Foo(5, a, b, c, true)` binds `number` to `5`, `enabled` to `true`, and `args` to `(a, b, c)`).
 5. WHERE a Value_Pack value is followed by the Spread suffix `args...` in argument position, THE Type_Checker SHALL expand the tuple into exactly N individual argument slots in element order, where N is the number of elements of the tuple `(TArgs...)` (for example, a Value_Pack whose pack is bound to `[int, string]` expands into two argument slots).
-6. IF a method declaring a value pack `params TArgs args` is invoked with a flat argument list containing too few arguments to fill the method's fixed parameters, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0005.
+6. IF a method declaring a value pack `params TArgs args` is invoked with a flat argument list containing too few arguments to fill the method's fixed parameters, THEN THE Type_Checker SHALL emit diagnostic MIST0411.
 7. WHERE a value parameter is declared as a plain tuple parameter `(TArgs...) args` without the `params` modifier, THE Type_Checker SHALL treat it as an ordinary single-tuple parameter that receives one tuple argument at the call site rather than a flat argument list, so that the `params` modifier is the sole marker of the Flattened_Call_Convention.
 8. THE Program_Model_Builder SHALL permit at most one value-side `params` parameter per value-parameter list, counting both a Value_Pack (`params TArgs args`, target tuple `(TArgs...)`) and a Value_Level_Params (`params T[] xs`, target array) as a `params` parameter, and SHALL require any additional pack in the same list to be declared as an explicit plain tuple parameter `(TArgs...) name` (for example `Foo(params TArgs first, (TArgs2...) second)` and `Foo((TArgs...) a, (TArgs2...) b, params string[] names)`).
-9. IF a value-parameter list declares more than one value-side `params` parameter (whether targeting tuples, arrays, or a mix), THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0001.
+9. IF a value-parameter list declares more than one value-side `params` parameter (whether targeting tuples, arrays, or a mix), THEN THE Program_Model_Builder SHALL emit diagnostic MIST0405.
 
 ### Requirement 8: Spread, Forward, and Zip
 
@@ -171,10 +171,10 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 1. WHERE a Comptime `Type[]` operand is spread (for example `TArgs...`), THE Type_Checker SHALL expand the operand into a number of type slots equal to the operand's length (`.Length`), preserving element order so that the element at each position of the operand occupies the corresponding expanded type slot, and expanding an empty operand into zero type slots.
 2. WHERE any tuple value is spread (for example the value pack `args...`, or an ordinary tuple `(7, "foo", false)...`), THE Type_Checker SHALL decompose the tuple into a number of argument slots equal to the tuple's element count, preserving element order so that the element at each position occupies the corresponding argument slot, and expanding an empty tuple into zero argument slots.
 3. THE Type_Checker SHALL apply tuple decomposition (the value-side Spread) to every tuple value, not only to value packs, so that a Value_Pack `args...` is simply the case where the tuple originated from a pack.
-4. WHEN a tuple value is decomposed into argument or parameter slots (for example `SomeMethod(x...)`), THE Type_Checker SHALL treat the decomposition as well-typed if and only if the tuple's ordered element types match the target slots positionally under assignability, and SHALL otherwise emit diagnostic MIST_VAR_0011.
+4. WHEN a tuple value is decomposed into argument or parameter slots (for example `SomeMethod(x...)`), THE Type_Checker SHALL treat the decomposition as well-typed if and only if the tuple's ordered element types match the target slots positionally under assignability, and SHALL otherwise emit diagnostic MIST0415.
 5. WHERE two operands are spread in parallel as a Zip (for example `field... = args...`), THE Type_Checker SHALL expand them element by element into `N` paired positions, where `N` is the common length of the two operands, pairing the operands position by position so that each left-hand slot receives exactly one right-hand value.
 6. THE Type_Checker SHALL permit a Zip only when the two operands are proven to have equal length, either because they originate from the same pack or because equal length has otherwise been established.
-7. IF a Zip is attempted between operands not proven to have equal length, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0006.
+7. IF a Zip is attempted between operands not proven to have equal length, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0006 (historical).
 
 ### Requirement 9: Spread-Accepting Positions
 
@@ -196,9 +196,9 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 1. WHERE a Spread of a Type_Parameter_Pack appears in a member-declaring position with Stem `S` (for example `public TArgs... Item;`), THE Program_Model_Builder SHALL declare an aggregate member `S` of tuple type `(TArgs...)` (the whole ValueTuple) together with exactly `N` element-projection members `S1` through `SN` (1-based), where `N` is the pack length, each projection `Sk` has the pack's element type at 0-based index `k - 1` and denotes the k-th element of `S`, and the aggregate and all projections take the same accessibility and member kind (field or property) as the Spread declaration, so that an instance exposes both the tuple `S` and its elements `Sk`.
 2. THE Program_Model_Builder SHALL reserve the Stem namespace so that the Spread owns the aggregate name `S` and every `S{i}` projection name; no other member may use the Stem `S` or any `S{i}` name, and no two Spread Stems may prefix one another.
-3. IF a member outside the Spread family uses the Stem `S` or an `S{i}` name, or two Spread Stems prefix one another, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0007.
+3. IF a member outside the Spread family uses the Stem `S` or an `S{i}` name, or two Spread Stems prefix one another, THEN THE Program_Model_Builder SHALL emit diagnostic MIST0412.
 4. THE Program_Model_Builder SHALL require a non-empty Stem.
-5. IF a Spread declares an empty Stem, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0008.
+5. IF a Spread declares an empty Stem, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0008 (historical).
 6. WHERE the pack is empty, THE Program_Model_Builder SHALL produce the empty aggregate and zero element projections.
 7. WHERE the pack has length 1, THE Program_Model_Builder SHALL produce the aggregate `S` of type `(T)` and the single projection `S1` (the numeric suffix is always present).
 8. WHERE two Spreads of the same pack appear in one type (for example `Key...` and `Value...`), THE Program_Model_Builder SHALL produce for each Spread index-aligned element projections at the same count `N` (for example `Key1 .. KeyN` and `Value1 .. ValueN`).
@@ -212,8 +212,8 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 1. WHERE a Type_Parameter_Pack is declared with a Whole_Pack_Constraint `where TArgs : IConstraint`, THE Type_Checker SHALL require every element type bound to the pack to independently satisfy the constraint.
 2. WHERE a Type_Parameter_Pack is declared with a Whole_Pack_Constraint, THE Type_Checker SHALL permit any member declared by the constraint to be used on each element type of the pack and on each element value `args[i]` of the corresponding Value_Pack.
-3. IF any element type bound to a Type_Parameter_Pack that declares a Whole_Pack_Constraint does not satisfy the constraint, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0009 for each such element type and SHALL treat each offending element as an error type so that downstream analysis continues.
-4. WHERE a Type_Parameter_Pack that declares a Whole_Pack_Constraint is bound to the empty type array `[]`, THE Type_Checker SHALL treat the Whole_Pack_Constraint as satisfied and SHALL NOT emit diagnostic MIST_VAR_0009.
+3. IF any element type bound to a Type_Parameter_Pack that declares a Whole_Pack_Constraint does not satisfy the constraint, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0009 (historical) for each such element type and SHALL treat each offending element as an error type so that downstream analysis continues.
+4. WHERE a Type_Parameter_Pack that declares a Whole_Pack_Constraint is bound to the empty type array `[]`, THE Type_Checker SHALL treat the Whole_Pack_Constraint as satisfied and SHALL NOT emit diagnostic MIST_VAR_0009 (historical).
 
 ### Requirement 12: Method-Level Packs
 
@@ -225,11 +225,11 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 2. WHERE a method declares the value parameter `params TArgs args`, THE Type_Checker SHALL treat `args` within the method body as a Value_Pack whose type is the tuple `(TArgs...)`.
 3. WHERE a method body passes `args...` in an argument position of a call (for example `Consume(args...)`), THE Type_Checker SHALL expand the Value_Pack into one argument per pack element, in declaration order, filling the callee's corresponding argument slots.
 4. THE Program_Model_Builder SHALL permit at most one Unbracketed_Pack per method type-parameter list.
-5. IF a method type-parameter list declares more than one Unbracketed_Pack, THEN THE Program_Model_Builder SHALL emit diagnostic MIST_VAR_0001.
+5. IF a method type-parameter list declares more than one Unbracketed_Pack, THEN THE Program_Model_Builder SHALL emit diagnostic MIST0404.
 6. WHEN the Type_Checker checks a variadic method body, THE Type_Checker SHALL require the body to be well-typed for every instantiation the signature and constraints permit, applying the same open-generic type-checking discipline used for any type parameter (for example, in `class Foo<TValue> { int Bar(TValue value) { return Double(value); } }`, `Double(value)` is rejected because `TValue` is not proven to be `int`).
 7. WHERE a variadic method body forwards a value pack with `args...`, THE Type_Checker SHALL accept the spread when its destination provably accepts the pack `(TArgs...)` for every `TArgs` -- another `params TArgs` or `(TArgs...)` parameter, or a `Func<TArgs..., R>` value.
-8. IF a variadic method body spreads a value pack `args...` into a fixed-arity destination that is not provably `(TArgs...)`-compatible for every instantiation (for example `Sum3(args...)` where `Sum3` takes `(int, int, int)`), THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0011.
-9. WHERE a variadic method body guards a value pack with `args is T x` for a concrete tuple type `T` (for example `args is (int, int, int) triple`), THE Type_Checker SHALL narrow the pack to `T` within that branch so that spreading `x...` into a destination whose slots match `T` is well-typed (recovering the forwarding that criterion 8 rejects for an unnarrowed symbolic pack), and IF a spread within such a branch targets a destination that does not match the narrowed shape `T`, THEN THE Type_Checker SHALL emit diagnostic MIST_VAR_0011.
+8. IF a variadic method body spreads a value pack `args...` into a fixed-arity destination that is not provably `(TArgs...)`-compatible for every instantiation (for example `Sum3(args...)` where `Sum3` takes `(int, int, int)`), THEN THE Type_Checker SHALL emit diagnostic MIST0415.
+9. WHERE a variadic method body guards a value pack with `args is T x` for a concrete tuple type `T` (for example `args is (int, int, int) triple`), THE Type_Checker SHALL narrow the pack to `T` within that branch so that spreading `x...` into a destination whose slots match `T` is well-typed (recovering the forwarding that criterion 8 rejects for an unnarrowed symbolic pack), and IF a spread within such a branch targets a destination that does not match the narrowed shape `T`, THEN THE Type_Checker SHALL emit diagnostic MIST0415.
 10. WHERE a variadic method body matches a Value_Pack, or a field typed `TArgs...`, against a positional tuple pattern (for example `args is (int a, int b)` where `args` has the tuple type `(TArgs...)`), THE Type_Checker SHALL read the pattern as the positional form of criterion 9's type test: it matches exactly the instantiations whose pack length equals the pattern's element count and whose elements match the element patterns, each binding takes the type of the pack element at its position, and a discard tests the length alone. Because the pack's length and element types are open in the body, neither a length nor an element type that some instantiation cannot satisfy is an error there; at such an instantiation the pattern does not match. A positional pattern over a closed tuple, or over a fixed-size `Type[N]` pack read as its N elements, keeps the arity and never-match judgments of the tuple-pattern-matching spec.
 
 > **Amendment note (2026-10-21, operator decision).** Criterion 10 records the owner's answer "Admit" to whether a
@@ -247,7 +247,7 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 2. WHEN a method with a Value_Level_Params parameter `params T[] xs` is invoked with a flat argument list whose trailing arguments (those supplied after the fixed leading parameters) are each assignable to the element type `T`, THE Type_Checker SHALL collect those trailing arguments in left-to-right source order into a single `T[]` value and bind it to `xs`.
 3. WHEN a method with a Value_Level_Params parameter `params T[] xs` is invoked with zero trailing arguments, THE Type_Checker SHALL bind `xs` to a non-null `T[]` of length zero.
 4. WHERE `params` appears in a value parameter list on a `T[]`-typed parameter, THE Program_Model_Builder SHALL interpret it as a Value_Level_Params, distinguishing it by position from a Type_Parameter_Pack declared inside a type-parameter list.
-5. THE Program_Model_Builder SHALL count a Value_Level_Params as a value-side `params` parameter for the purpose of the at-most-one-`params`-per-value-parameter-list rule defined in Requirement 7, so that a value-parameter list may not contain a Value_Level_Params together with any other value-side `params` parameter (whether a Value_Pack or another Value_Level_Params), subject to diagnostic MIST_VAR_0001 when violated.
+5. THE Program_Model_Builder SHALL count a Value_Level_Params as a value-side `params` parameter for the purpose of the at-most-one-`params`-per-value-parameter-list rule defined in Requirement 7, so that a value-parameter list may not contain a Value_Level_Params together with any other value-side `params` parameter (whether a Value_Pack or another Value_Level_Params), subject to diagnostic MIST0405 when violated.
 6. THE Backend SHALL emit a Value_Level_Params parameter as a C# `params T[]` array parameter so that the callee receives a real array.
 7. IF a method with a Value_Level_Params parameter `params T[] xs` is invoked with a trailing argument that is not assignable to the element type `T`, THEN THE Type_Checker SHALL reject the invocation with a type error indicating that the argument is not assignable to `T` and SHALL NOT bind `xs`.
 
@@ -283,11 +283,11 @@ The design defines a dedicated `MIST_VAR_*` diagnostic range. Requirements refer
 
 #### Acceptance Criteria
 
-1. THE Compiler SHALL, within the Grammar, Program_Model_Builder, and Type_Checker stages, accept a Type_Parameter_Pack or Value_Pack of any element count (0 or greater) and SHALL NOT emit MIST_VAR_0010 or reject a construction on the basis of pack element count at those stages, so that pack arity is unbounded in the front end and any Arity_Ceiling is confined to the Backend.
-2. IF the Backend maps a construction to a `System.Func` or `System.Action` shape that would require more than 16 input parameter types, THEN THE Backend SHALL emit diagnostic MIST_VAR_0010 identifying the offending construction and the exceeded target CLR capacity.
-3. WHEN the Backend maps a Value_Pack of more than 7 elements to `System.ValueTuple`, THE Backend SHALL represent the construction as nested `System.ValueTuple` values and SHALL NOT emit MIST_VAR_0010 for that construction.
-4. IF the Backend cannot represent a construction within the target CLR type capacity (a `System.Func` or `System.Action` over 16 input parameter types, or a Value_Pack over 7 elements that cannot be represented as nested `System.ValueTuple` values), THEN THE Backend SHALL emit diagnostic MIST_VAR_0010 at the Backend stage, identifying the offending construction and the exceeded target CLR capacity, without imposing any constraint or emitting any diagnostic at the Grammar, Program_Model_Builder, or Type_Checker stages.
-5. WHEN the Backend maps a construction that fits the target CLR type capacity (a `System.Func` or `System.Action` with 16 or fewer input parameter types, or a Value_Pack of 7 or fewer elements), THE Backend SHALL emit the corresponding C# shape without emitting MIST_VAR_0010.
+1. THE Compiler SHALL, within the Grammar, Program_Model_Builder, and Type_Checker stages, accept a Type_Parameter_Pack or Value_Pack of any element count (0 or greater) and SHALL NOT emit MIST0028 or reject a construction on the basis of pack element count at those stages, so that pack arity is unbounded in the front end and any Arity_Ceiling is confined to the Backend.
+2. IF the Backend maps a construction to a `System.Func` or `System.Action` shape that would require more than 16 input parameter types, THEN THE Backend SHALL emit diagnostic MIST0028 identifying the offending construction and the exceeded target CLR capacity.
+3. WHEN the Backend maps a Value_Pack of more than 7 elements to `System.ValueTuple`, THE Backend SHALL represent the construction as nested `System.ValueTuple` values and SHALL NOT emit MIST0028 for that construction.
+4. IF the Backend cannot represent a construction within the target CLR type capacity (a `System.Func` or `System.Action` over 16 input parameter types, or a Value_Pack over 7 elements that cannot be represented as nested `System.ValueTuple` values), THEN THE Backend SHALL emit diagnostic MIST0028 at the Backend stage, identifying the offending construction and the exceeded target CLR capacity, without imposing any constraint or emitting any diagnostic at the Grammar, Program_Model_Builder, or Type_Checker stages.
+5. WHEN the Backend maps a construction that fits the target CLR type capacity (a `System.Func` or `System.Action` with 16 or fewer input parameter types, or a Value_Pack of 7 or fewer elements), THE Backend SHALL emit the corresponding C# shape without emitting MIST0028.
 
 ### Requirement 17: TextMate Grammar Update
 
@@ -481,7 +481,7 @@ public class Program
         Console.WriteLine($"twoPacks={twoPacks}");
 
         // PROOF: forwarding a value pack into a Func whose parameter list IS the pack; provable for
-        //        every TArgs (a fixed-arity target would be MIST_VAR_0011, see Requirement 21).
+        //        every TArgs (a fixed-arity target would be MIST0415, see Requirement 21).
         Func<int, int, int, int> add = (a, b, c) => a + b + c;
         var forward = Apply(add, 2, 3, 4);
         Console.WriteLine($"forward={forward}");
@@ -682,7 +682,7 @@ emptyPackChain=0 0
 
 #### Acceptance Criteria
 
-1. A negative test fixture SHALL contain the Negative Proof Code below verbatim, and the Compiler SHALL reject it, emitting diagnostic MIST_VAR_0011 on the `Sum3(args...)` spread.
+1. A negative test fixture SHALL contain the Negative Proof Code below verbatim, and the Compiler SHALL reject it, emitting diagnostic MIST0415 on the `Sum3(args...)` spread.
 2. THE negative fixture SHALL NOT be added to the runnable sample at `samples/Variadics/Program.mist` (which must compile without errors); it SHALL live as a type-checker rejection test.
 3. IF the fixture compiles successfully, THEN the test SHALL fail, because a successful compile means the Type_Checker is not enforcing destination typing on spread.
 
@@ -699,7 +699,7 @@ public class NegativeProofs
     // Sum3(args...) cannot be proven well-typed for every TArgs -- it would fail for
     // TArgs = [string]. This is ordinary open-generic checking: the same reason
     // Double(value) is rejected in Foo<TValue>. The type checker MUST reject the spread
-    // with MIST_VAR_0011.
+    // with MIST0415.
     public static int ForwardSumBad<params TArgs>(params TArgs args)
     {
         return Sum3(args...);
@@ -712,7 +712,7 @@ public class NegativeProofs
 }
 ```
 
-**Expected:** compilation fails with diagnostic MIST_VAR_0011 reported on `Sum3(args...)`.
+**Expected:** compilation fails with diagnostic MIST0415 reported on `Sum3(args...)`.
 
 ### Requirement 22: Pack-Bearing Declaration Kinds and Variadic Abstract Types
 

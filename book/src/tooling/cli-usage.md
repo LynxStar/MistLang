@@ -19,7 +19,7 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 |---------|----------|------------|-------------|
 | `build` | Yes | — | Compiles the project and produces output artifacts. |
 | `run` | Yes | Runs the artifact with `dotnet` | Compiles, then executes the resulting binary. Executable projects only: a project with `output_type = "library"` is refused before compiling. |
-| `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST_TEST_0001` when it finds test-attributed methods but no test framework package. |
+| `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST0102` when it finds test-attributed methods but no test framework package. |
 | `restore` | No | — | Resolves `[packages]` and `[framework_references]` only, and always prints the resolver's detail and summary. It never lexes, type-checks or emits. |
 | `inspect <TypeName>` | No | — | Resolves the same assemblies a build would and prints a CLR type's projected and hidden members. It prints the same dependency diagnostics a build does to standard error, once each, and exits 1 without a report when one is an error. |
 | `steering` | No | — | Installs the bundled Mist agent references into the project's `.mist/agents/` directory and adds a Mist block pointing at them to `AGENTS.md`, and to an existing `CLAUDE.md` that does not import `AGENTS.md`. |
@@ -33,13 +33,13 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 
 | Flag | Short | Value | Default | Description |
 |------|-------|-------|---------|-------------|
-| `--backend` | — | `<id>` | `csharp` | Selects the code generation backend. Currently only `csharp` is available; another value fails compilation with `MIST_UNKNOWN_BACKEND`. |
+| `--backend` | — | `<id>` | `csharp` | Selects the code generation backend. Currently only `csharp` is available; another value fails compilation with `MIST0099`. |
 | `--output` | — | `<dir>` | `<project>/out` | Sets the directory where transpiled source files are written. |
 | `--bin` | — | `<dir>` | `<project>/bin` | Sets the directory where compiled binary artifacts are placed. |
 | `--mode` | — | `compile` \| `lex` | `compile` | Selects the compiler mode for `build`. `compile` runs the full pipeline; `lex` dumps token streams only. |
 | `--pipeline` | — | `standard` | `standard` | Selects the compilation pipeline. `standard` is the only pipeline, so the flag can be omitted; any other value is a parse error. |
 | `--platform` | — | `windows` \| `linux` \| `macos` | this machine | Sets the platform the program is compiled for, which decides the platform-specific startup code the compiler emits and the operating-system part of the target runtime identifier. |
-| `--rid` | — | `<rid>` | this machine's | Sets the target runtime identifier, such as `linux-x64`, which decides the native and runtime-specific files copied into `bin/`. It takes precedence over `--platform`; an identifier the SDK does not know fails with `MIST_RID_UNKNOWN`. See [Target runtime identifier](#target-runtime-identifier). |
+| `--rid` | — | `<rid>` | this machine's | Sets the target runtime identifier, such as `linux-x64`, which decides the native and runtime-specific files copied into `bin/`. It takes precedence over `--platform`; an identifier the SDK does not know fails with `MIST0100`. See [Target runtime identifier](#target-runtime-identifier). |
 | `--verbose` | `-v` | — | off | Shows the progress of every stage, including Stage 1.5 package-resolution detail. |
 | `--quiet` | `-q` | — | off | Suppresses progress output during compilation, and the list of installed files for `steering`. |
 

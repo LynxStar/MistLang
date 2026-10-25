@@ -49,10 +49,10 @@ public sealed class MistParser : IParser
         // The Storm-generated parser is a backtracking PEG parser: when the
         // `stackalloc T[n]` alternative fails partway (e.g. the `[size]` is
         // missing or empty), it truncates its own diagnostics and backtracks,
-        // leaving only a generic MIST_PARSE_ERROR. Requirements 3.4 and 3.5
+        // leaving only a generic MIST0122. Requirements 3.4 and 3.5
         // call for a specific recovery diagnostic identifying the missing or
         // empty stackalloc size. We detect those shapes here with a focused
-        // token scan and emit MIST_PARSE_STACKALLOC_SIZE; parsing still
+        // token scan and emit MIST0124; parsing still
         // continues (no node is produced for the malformed expression).
         DetectStackallocSizeErrors(tokens, diagnostics);
 
@@ -113,7 +113,7 @@ public sealed class MistParser : IParser
     }
 
     /// <summary>
-    /// Walks the parsed AST and emits a <c>MIST_PARSE_MULTIPLE_ACCESS</c> diagnostic
+    /// Walks the parsed AST and emits a <c>MIST0128</c> diagnostic
     /// for every declaration whose modifier list contains more than one access modifier.
     /// Uses <see cref="AccessModifierSyntax.CountAccessModifiers"/> as the single source of
     /// truth for counting access modifiers (Requirement 2.6).
@@ -153,7 +153,7 @@ public sealed class MistParser : IParser
     /// Scans the token stream for malformed <c>stackalloc</c> expressions that lack a
     /// bracketed size (<c>stackalloc T</c>, Requirement 3.4) or use empty brackets
     /// (<c>stackalloc T[]</c>, Requirement 3.5) and emits a
-    /// <c>MIST_PARSE_STACKALLOC_SIZE</c> recovery diagnostic for each.
+    /// <c>MIST0124</c> recovery diagnostic for each.
     /// </summary>
     /// <remarks>
     /// The grammar's <c>StackallocExpression</c> alternative requires
@@ -277,7 +277,7 @@ public sealed class MistParser : IParser
     /// Scans each abstract type body for property declarations that carry a body
     /// (block accessors like <c>get { ... }</c>, expression accessors like
     /// <c>get =&gt; ...;</c>, or an expression-bodied property like
-    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c>
+    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST0127</c>
     /// diagnostic. Only methods may have default implementations in an abstract
     /// type; property slots must always be filled by the implementer
     /// (Requirement 13.3).

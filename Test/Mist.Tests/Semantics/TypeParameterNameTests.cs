@@ -39,7 +39,7 @@ public sealed class TypeParameterNameTests
 
         var reported = diagnostics.ToImmutableArray();
         Assert.Equal(findings, reported.Length);
-        Assert.All(reported, diagnostic => Assert.Equal("MIST_PM_DUPLICATE_TYPE_PARAMETER", diagnostic.Number.Value));
+        Assert.All(reported, diagnostic => Assert.Equal("MIST0408", diagnostic.Number.Value));
         Assert.Equal(nodes.Length, box.TypeParametersList.Count);
     }
 

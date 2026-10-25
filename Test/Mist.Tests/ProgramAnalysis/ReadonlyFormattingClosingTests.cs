@@ -8,8 +8,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class ReadonlyFormattingClosingTests
 {
-    private const string FormatsMutable = "MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE";
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
+    private const string FormatsMutable = "MIST0258";
+    private const string CallsMutable = "MIST0257";
 
     private readonly FormattingFragments f = new();
 

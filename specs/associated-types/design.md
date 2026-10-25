@@ -155,7 +155,7 @@ Constraint resolution reuses the existing `ResolveConstraintClause` infrastructu
 
 #### Duplicate Detection
 
-During Pass 1, after registering all slots, the builder checks for duplicate slot names within the same interface/trait and emits `MIST_AT_0001` if found.
+During Pass 1, after registering all slots, the builder checks for duplicate slot names within the same interface/trait and emits `MIST0038` if found.
 
 ### 4. Type Checker Changes (TypeCheckerAnalyzer / SemanticModelBuilder)
 
@@ -257,12 +257,12 @@ Constraint keywords (`struct`, `class`) in the constraint list are highlighted w
 
 | ID | Scenario | Message Template |
 |----|----------|-----------------|
-| `MIST_AT_0001` | Duplicate associated type slot name | "Interface/trait '{TypeName}' declares duplicate associated type slot '{SlotName}'" |
-| `MIST_AT_0002` | Missing concrete type member | "Type '{ImplName}' does not provide a concrete type for associated type slot '{SlotName}' required by '{InterfaceName}'" |
-| `MIST_AT_0003` | Unsatisfied constraint | "Concrete type '{ConcreteType}' does not satisfy constraint '{Constraint}' required by associated type slot '{SlotName}' in '{InterfaceName}'" |
-| `MIST_AT_0004` | Unresolved associated type reference | "Type parameter '{TypeParam}' does not have an associated type '{SlotName}'; '{TypeParam}' is not constrained by an interface or trait declaring '{SlotName}'" |
-| `MIST_AT_0005` | Modifiers on associated type slot | "Modifiers are not permitted on associated type slot declarations" |
-| `MIST_AT_0006` | Abstract slot in class/struct | "Abstract type slots are only permitted in interfaces and traits" |
+| `MIST0038` | Duplicate associated type slot name | "Interface/trait '{TypeName}' declares duplicate associated type slot '{SlotName}'" |
+| `MIST_AT_0002 (historical)` | Missing concrete type member | "Type '{ImplName}' does not provide a concrete type for associated type slot '{SlotName}' required by '{InterfaceName}'" |
+| `MIST_AT_0003 (historical)` | Unsatisfied constraint | "Concrete type '{ConcreteType}' does not satisfy constraint '{Constraint}' required by associated type slot '{SlotName}' in '{InterfaceName}'" |
+| `MIST_AT_0004 (historical)` | Unresolved associated type reference | "Type parameter '{TypeParam}' does not have an associated type '{SlotName}'; '{TypeParam}' is not constrained by an interface or trait declaring '{SlotName}'" |
+| `MIST0039` | Modifiers on associated type slot | "Modifiers are not permitted on associated type slot declarations" |
+| `MIST_AT_0006 (historical)` | Abstract slot in class/struct | "Abstract type slots are only permitted in interfaces and traits" |
 
 ## Data Models
 
@@ -328,13 +328,13 @@ Associated type slots are registered as `Symbol` instances in the interface/trai
 
 ### Property 3: Abstract slot in class/struct emits diagnostic
 
-*For any* valid associated type slot declaration text, placing that declaration inside a class or struct body SHALL cause the compiler to emit diagnostic `MIST_AT_0006` indicating that abstract type slots are only permitted in interfaces and traits.
+*For any* valid associated type slot declaration text, placing that declaration inside a class or struct body SHALL cause the compiler to emit diagnostic `MIST_AT_0006 (historical)` indicating that abstract type slots are only permitted in interfaces and traits.
 
 **Validates: Requirements 1.6**
 
 ### Property 4: Modifiers on associated type slot emit diagnostic
 
-*For any* non-empty combination of modifier keywords (`public`, `private`, `static`) preceding an associated type slot declaration in an interface or trait body, the compiler SHALL emit diagnostic `MIST_AT_0005` indicating that modifiers are not permitted on associated type slot declarations.
+*For any* non-empty combination of modifier keywords (`public`, `private`, `static`) preceding an associated type slot declaration in an interface or trait body, the compiler SHALL emit diagnostic `MIST0039` indicating that modifiers are not permitted on associated type slot declarations.
 
 **Validates: Requirements 1.8**
 
@@ -346,13 +346,13 @@ Associated type slots are registered as `Symbol` instances in the interface/trai
 
 ### Property 6: Duplicate slot names emit diagnostic
 
-*For any* interface or trait body containing two or more associated type slots with the same name (regardless of differing constraint lists), the semantic model SHALL emit diagnostic `MIST_AT_0001` identifying the duplicate.
+*For any* interface or trait body containing two or more associated type slots with the same name (regardless of differing constraint lists), the semantic model SHALL emit diagnostic `MIST0038` identifying the duplicate.
 
 **Validates: Requirements 2.7**
 
 ### Property 7: Implementor obligation enforcement
 
-*For any* interface with N associated type slots (each with a constraint list) and any implementor that provides M concrete type members (where 0 ≤ M ≤ N), the type checker SHALL emit exactly (N − M) diagnostics for missing slots (`MIST_AT_0002`), and for each provided concrete type member that does not satisfy its slot's constraints, the type checker SHALL emit diagnostic `MIST_AT_0003` identifying the unsatisfied constraint.
+*For any* interface with N associated type slots (each with a constraint list) and any implementor that provides M concrete type members (where 0 ≤ M ≤ N), the type checker SHALL emit exactly (N − M) diagnostics for missing slots (`MIST_AT_0002 (historical)`), and for each provided concrete type member that does not satisfy its slot's constraints, the type checker SHALL emit diagnostic `MIST_AT_0003 (historical)` identifying the unsatisfied constraint.
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 8.1, 8.2**
 
@@ -370,7 +370,7 @@ Associated type slots are registered as `Symbol` instances in the interface/trai
 
 ### Property 10: Invalid associated type reference emits diagnostic
 
-*For any* generic type parameter `T` constrained by an interface, and any identifier `X` that is not an associated type slot of any constraining interface or trait, a reference to `T.X` in a type position SHALL cause the type checker to emit diagnostic `MIST_AT_0004`.
+*For any* generic type parameter `T` constrained by an interface, and any identifier `X` that is not an associated type slot of any constraining interface or trait, a reference to `T.X` in a type position SHALL cause the type checker to emit diagnostic `MIST_AT_0004 (historical)`.
 
 **Validates: Requirements 5.4, 8.3**
 
@@ -386,20 +386,20 @@ Associated type slots are registered as `Symbol` instances in the interface/trai
 
 | Condition | Diagnostic | Severity | Recovery |
 |-----------|-----------|----------|----------|
-| `type Name : Constraints;` in class/struct body | MIST_AT_0006: "Abstract type slots are only permitted in interfaces and traits" | Error | Skip to next semicolon, continue parsing |
-| Modifiers before associated type slot | MIST_AT_0005: "Modifiers are not permitted on associated type slot declarations" | Error | Ignore modifiers, parse slot normally |
-| Missing semicolon after slot declaration | Existing MIST_PARSE_* error | Error | Standard recovery |
-| Empty constraint list after `:` | Existing MIST_PARSE_* error | Error | Standard recovery |
+| `type Name : Constraints;` in class/struct body | MIST_AT_0006 (historical): "Abstract type slots are only permitted in interfaces and traits" | Error | Skip to next semicolon, continue parsing |
+| Modifiers before associated type slot | MIST0039: "Modifiers are not permitted on associated type slot declarations" | Error | Ignore modifiers, parse slot normally |
+| Missing semicolon after slot declaration | Existing MIST_PARSE_* (historical scheme) error | Error | Standard recovery |
+| Empty constraint list after `:` | Existing MIST_PARSE_* (historical scheme) error | Error | Standard recovery |
 
 ### Semantic Errors
 
 | Condition | Diagnostic | Severity | Recovery |
 |-----------|-----------|----------|----------|
-| Duplicate slot name in same interface/trait | MIST_AT_0001: "Interface/trait '{Type}' declares duplicate associated type slot '{Name}'" | Error | Register first occurrence, skip duplicates |
-| Unresolved type in constraint list | Existing MIST_TC_* error (reuses generic constraint resolution) | Error | Use ErrorType, continue |
-| Missing concrete type member in implementor | MIST_AT_0002: "Type '{Impl}' does not provide a concrete type for associated type slot '{Slot}' required by '{Interface}'" | Error | Skip satisfaction check for this slot |
-| Concrete type does not satisfy constraint | MIST_AT_0003: "Concrete type '{Type}' does not satisfy constraint '{Constraint}' required by associated type slot '{Slot}' in '{Interface}'" | Error | Continue checking other constraints |
-| Invalid T.SlotName reference | MIST_AT_0004: "Type parameter '{T}' does not have an associated type '{Name}'; '{T}' is not constrained by an interface or trait declaring '{Name}'" | Error | Use ErrorType, continue |
+| Duplicate slot name in same interface/trait | MIST0038: "Interface/trait '{Type}' declares duplicate associated type slot '{Name}'" | Error | Register first occurrence, skip duplicates |
+| Unresolved type in constraint list | Existing MIST_TC_* (historical scheme) error (reuses generic constraint resolution) | Error | Use ErrorType, continue |
+| Missing concrete type member in implementor | MIST_AT_0002 (historical): "Type '{Impl}' does not provide a concrete type for associated type slot '{Slot}' required by '{Interface}'" | Error | Skip satisfaction check for this slot |
+| Concrete type does not satisfy constraint | MIST_AT_0003 (historical): "Concrete type '{Type}' does not satisfy constraint '{Constraint}' required by associated type slot '{Slot}' in '{Interface}'" | Error | Continue checking other constraints |
+| Invalid T.SlotName reference | MIST_AT_0004 (historical): "Type parameter '{T}' does not have an associated type '{Name}'; '{T}' is not constrained by an interface or trait declaring '{Name}'" | Error | Use ErrorType, continue |
 
 ### Error Recovery Strategy
 
@@ -411,12 +411,12 @@ The compiler follows the existing pattern of continuing after errors to report a
 
 ### Diagnostic Location Strategy
 
-- **MIST_AT_0001** (duplicate): Points to the second (duplicate) slot declaration
-- **MIST_AT_0002** (missing): Points to the implementor's type declaration header (class/struct name)
-- **MIST_AT_0003** (unsatisfied): Points to the concrete type member declaration
-- **MIST_AT_0004** (unresolved): Points to the `T.SlotName` usage site
-- **MIST_AT_0005** (modifiers): Points to the first modifier token
-- **MIST_AT_0006** (wrong context): Points to the `type` keyword
+- **MIST0038** (duplicate): Points to the second (duplicate) slot declaration
+- **MIST_AT_0002* (historical scheme)* (missing): Points to the implementor's type declaration header (class/struct name)
+- **MIST_AT_0003* (historical scheme)* (unsatisfied): Points to the concrete type member declaration
+- **MIST_AT_0004* (historical scheme)* (unresolved): Points to the `T.SlotName` usage site
+- **MIST0039** (modifiers): Points to the first modifier token
+- **MIST_AT_0006* (historical scheme)* (wrong context): Points to the `type` keyword
 
 ## Testing Strategy
 

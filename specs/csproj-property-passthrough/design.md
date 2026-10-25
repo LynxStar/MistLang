@@ -87,13 +87,13 @@ public sealed record CompilerOptions(
 
 | ID | Severity | Condition |
 |---|---|---|
-| `MIST_CSPROJ_PROP_TABLE_EXPECTED` | Error | `csproj_properties` field present but not a TOML table |
-| `MIST_CSPROJ_PROP_EMPTY_KEY` | Error | Property key is empty/whitespace after trimming |
-| `MIST_CSPROJ_PROP_INVALID_KEY` | Error | Property key contains invalid characters |
-| `MIST_CSPROJ_PROP_KEY_TOO_LONG` | Error | Property key exceeds 128 characters |
-| `MIST_CSPROJ_PROP_INVALID_VALUE` | Error | Property value is not a string |
-| `MIST_CSPROJ_PROP_EMPTY_VALUE` | Error | Property value is empty/whitespace |
-| `MIST_CSPROJ_PROP_MANAGED_OVERRIDE` | Warning | Property key shadows a compiler-managed property |
+| `MIST0092` | Error | `csproj_properties` field present but not a TOML table |
+| `MIST0093` | Error | Property key is empty/whitespace after trimming |
+| `MIST0094` | Error | Property key contains invalid characters |
+| `MIST0095` | Error | Property key exceeds 128 characters |
+| `MIST0096` | Error | Property value is not a string |
+| `MIST0097` | Error | Property value is empty/whitespace |
+| `MIST0098` | Warning | Property key shadows a compiler-managed property |
 
 ## Correctness Properties
 

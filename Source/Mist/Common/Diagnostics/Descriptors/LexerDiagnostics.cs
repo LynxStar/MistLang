@@ -5,7 +5,7 @@ namespace Mist.Common.Diagnostics;
 public static class LexerDiagnostics
 {
     public static readonly MistDiagnostic LexError = new(
-        DiagnosticNumber.Mint("MIST_LEX_ERROR"),
+        DiagnosticNumber.Mint("MIST0120"),
         Title: "Lexical error",
         Template: "{0}",
         Description: "The Storm lexer could not tokenize the source at this position and the message is the lexer's own. Correct the character sequence it names; nothing after it is parsed until the file lexes cleanly.",

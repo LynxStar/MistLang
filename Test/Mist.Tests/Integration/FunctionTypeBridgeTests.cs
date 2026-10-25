@@ -137,8 +137,7 @@ public sealed class FunctionTypeBridgeTests : IDisposable
     {
         var modelErrors = Compile(ForwardsAPackIntoFunc)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Where(d => d.Number.Value.StartsWith("MIST_PM_", StringComparison.Ordinal)
-                || d.Number.Value.StartsWith("MIST_VAR_", StringComparison.Ordinal))
+            .Where(d => d.Stage == PipelineStage.SemanticModelConstruction)
             .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 

@@ -12,17 +12,17 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RefinementMemberRefusalTests
 {
     [Theory]
-    [InlineData("constant-unproven-against-a-symbolic-bound", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("from-end-index-unproven-for-indexer-constraint", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("from-end-index-violates-indexer-constraint", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("list-pattern-element-after-a-slice-unproven", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("list-pattern-element-violates-indexer-constraint", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("list-pattern-position-unproven-against-a-member-bound", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("member-bound-unproven-over-a-field", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("member-bound-unproven-where-the-member-may-exceed-the-value", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("member-bound-violated-through-a-lift", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("span-slice-start-past-its-length", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("span-slice-start-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
+    [InlineData("constant-unproven-against-a-symbolic-bound", "MIST0277")]
+    [InlineData("from-end-index-unproven-for-indexer-constraint", "MIST0277")]
+    [InlineData("from-end-index-violates-indexer-constraint", "MIST0276")]
+    [InlineData("list-pattern-element-after-a-slice-unproven", "MIST0277")]
+    [InlineData("list-pattern-element-violates-indexer-constraint", "MIST0276")]
+    [InlineData("list-pattern-position-unproven-against-a-member-bound", "MIST0277")]
+    [InlineData("member-bound-unproven-over-a-field", "MIST0277")]
+    [InlineData("member-bound-unproven-where-the-member-may-exceed-the-value", "MIST0277")]
+    [InlineData("member-bound-violated-through-a-lift", "MIST0276")]
+    [InlineData("span-slice-start-past-its-length", "MIST0271")]
+    [InlineData("span-slice-start-unproven", "MIST0272")]
     public void MemberBoundsAndPositionsNeedASupportedProof(string name, string expected)
     {
         var h = new HandBuiltRefinements();

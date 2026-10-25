@@ -50,7 +50,7 @@ Element access itself does not need new syntax: the grammar's existing `IndexSuf
 
 4. **The `SliceElement` rule is generalized from a bare identifier to an optional full pattern.** C# 11 allows any pattern after `..`. A bare identifier (`.. name`) is **not** a valid Mist `Pattern`, so existing `.. name` slice bindings migrate to `.. var name`. `.. _` and bare `..` continue to parse (as a discard sub-pattern and an absent sub-pattern respectively).
 
-5. **The array-only list-pattern check is broadened, not replaced.** The existing `MIST_TC_0054` check that requires a list-pattern scrutinee to be an array is generalized to accept any indexable/sliceable receiver (arrays, `Span<T>`/`ReadOnlySpan<T>`, `string`, `List<T>`, and the countable-plus-sliceable shape). The descriptor is repurposed (same ID, broadened message).
+5. **The array-only list-pattern check is broadened, not replaced.** The existing `MIST_TC_0054 (historical)` check that requires a list-pattern scrutinee to be an array is generalized to accept any indexable/sliceable receiver (arrays, `Span<T>`/`ReadOnlySpan<T>`, `string`, `List<T>`, and the countable-plus-sliceable shape). The descriptor is repurposed (same ID, broadened message).
 
 6. **Emission relies on native C# lowering.** Mist emits `^(operand)`, `start..end`, and `receiver[arg]` directly and lets the C# compiler perform its built-in Index/Range lowering for arrays, spans, and strings. An explicit `Slice(int, int)` fallback is designed for the narrow case where a Mist-sliceable receiver is not covered by C#'s implicit range support.
 
@@ -123,7 +123,7 @@ flowchart TD
 | Parser | `MistParser` (generated) | Regenerated from the grammar; no hand edits. |
 | Semantic model | `SemanticModelBuilder` | Resolve `FromEndExpression` -> `Standard.Index`, `RangeExpression` -> `Standard.Range`; thread the new `Range` tier; set element-access result types for `Index`/`Range` arguments; set slice sub-pattern binding types. |
 | Type checker | `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs` | `CheckFromEndExpression`, `CheckRange`, extended `CheckIndexSuffix`, broadened `CheckListPatternElementList`; thread the `Range` tier through multiplicative navigation. |
-| Diagnostics | `Source/Mist/Common/Diagnostics/Descriptors/TypeCheckDiagnostics.cs` | 7 new descriptors (`MIST_TC_0181`–`MIST_TC_0187`); repurpose `MIST_TC_0054`. |
+| Diagnostics | `Source/Mist/Common/Diagnostics/Descriptors/TypeCheckDiagnostics.cs` | 7 new descriptors (`MIST_TC_0181 (historical)`–`MIST_TC_0187 (historical)`); repurpose `MIST_TC_0054 (historical)`. |
 | Type surfacing | `Source/Standard/Bootstrap/Index.mist`, `Range.mist`; `CSharpTypeMap.cs`; `AmbientProvider/WellKnownTypeMap.cs` | Make `Standard.Index`/`Standard.Range` spellable and map them to `System.Index`/`System.Range`. |
 | Emitter | `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs` | Emit `^(op)`, ranges, and native slicing; extend list/slice pattern emission; thread the `Range` tier. |
 | Pretty printer | `Source/Mist/Parsing/MistPrettyPrinter.cs` | Print `^`, ranges, list/slice patterns; thread the `Range` tier. |
@@ -341,8 +341,8 @@ For a `SliceElementListPatternElementNode` whose `Subpattern` is a binding patte
 #### 5a. Index-from-end operand (`CheckFromEndExpression`)
 
 - Operand integer-compatible (`IsIntLike`) -> accept (Req 6.1).
-- Operand `void` -> `MIST_TC_0182` (Req 6.3).
-- Operand any other non-integer type -> `MIST_TC_0181`, naming the operand type (Req 6.2, 12.1).
+- Operand `void` -> `MIST_TC_0182 (historical)` (Req 6.3).
+- Operand any other non-integer type -> `MIST_TC_0181 (historical)`, naming the operand type (Req 6.2, 12.1).
 
 #### 5b. Range bounds (`CheckRange`)
 
@@ -350,26 +350,26 @@ For each **present** bound (null = absent, which is always valid and denotes sta
 
 - integer-compatible -> accept (Req 7.1).
 - `Standard.Index` -> accept (Req 7.2).
-- otherwise -> reject the **entire** range with `MIST_TC_0183`, naming the offending bound type and pointing at the bound's source span (Req 7.3, 12.2).
+- otherwise -> reject the **entire** range with `MIST_TC_0183 (historical)`, naming the offending bound type and pointing at the bound's source span (Req 7.3, 12.2).
 
 A present-but-invalid bound is never silently treated as absent (Req 7.5).
 
 #### 5c. Element-access receiver validation (extend `CheckIndexSuffix`)
 
-`CheckIndexSuffix` currently requires an `int`-like argument (or a matching custom indexer) and emits `IndexerParameterTypeMismatch` (`MIST_TC_0010`) otherwise. It is extended to branch on the argument's Compile_Time_Type:
+`CheckIndexSuffix` currently requires an `int`-like argument (or a matching custom indexer) and emits `IndexerParameterTypeMismatch` (`MIST_TC_0010 (historical)`) otherwise. It is extended to branch on the argument's Compile_Time_Type:
 
-- argument `Standard.Index`: require `IsIndexableType(receiver)`, else `MIST_TC_0184` naming the receiver type (Req 8.6, 12.3).
-- argument `Standard.Range`: require `IsSliceableType(receiver)`, else `MIST_TC_0185` naming the receiver type (Req 8.7, 12.4).
+- argument `Standard.Index`: require `IsIndexableType(receiver)`, else `MIST_TC_0184 (historical)` naming the receiver type (Req 8.6, 12.3).
+- argument `Standard.Range`: require `IsSliceableType(receiver)`, else `MIST_TC_0185 (historical)` naming the receiver type (Req 8.7, 12.4).
 - ordinary integer argument or matching custom indexer: existing behavior, unchanged.
 
 #### 5d. List and slice pattern checking (broaden `CheckListPatternElementList`)
 
-The current code requires the scrutinee to be an `ArrayType` and otherwise emits `MIST_TC_0054` (`PatternListRequiresArray`). It is broadened:
+The current code requires the scrutinee to be an `ArrayType` and otherwise emits `MIST_TC_0054 (historical)` (`PatternListRequiresArray`). It is broadened:
 
-- **Receiver**: require `IsIndexableType(receiver)` (arrays, `Span<T>`, `ReadOnlySpan<T>`, `string`, `List<T>`, countable+int-indexer). Otherwise emit the repurposed `MIST_TC_0054` (`PatternListRequiresIndexable`, broadened message). Element sub-patterns are type-checked against the receiver's element type (Req 20.1, 20.3).
-- **Slice sub-pattern**: for a `SliceElement` whose `Subpattern` is non-null, require `IsSliceableType(receiver)` and type-check the sub-pattern against `TryGetSliceResultType(receiver)`; where the sub-pattern is a binding, set the bound variable's type to that slice-result type. If the receiver is not sliceable, emit `MIST_TC_0187` naming the receiver type (Req 20.2, 20.5).
-- **At most one slice**: if more than one `SliceElement` appears in a list pattern, emit `MIST_TC_0186` (Req 20.4).
-- The existing `PatternListTooManyElements` (`MIST_TC_0055`, warning) is retained.
+- **Receiver**: require `IsIndexableType(receiver)` (arrays, `Span<T>`, `ReadOnlySpan<T>`, `string`, `List<T>`, countable+int-indexer). Otherwise emit the repurposed `MIST_TC_0054 (historical)` (`PatternListRequiresIndexable`, broadened message). Element sub-patterns are type-checked against the receiver's element type (Req 20.1, 20.3).
+- **Slice sub-pattern**: for a `SliceElement` whose `Subpattern` is non-null, require `IsSliceableType(receiver)` and type-check the sub-pattern against `TryGetSliceResultType(receiver)`; where the sub-pattern is a binding, set the bound variable's type to that slice-result type. If the receiver is not sliceable, emit `MIST_TC_0187 (historical)` naming the receiver type (Req 20.2, 20.5).
+- **At most one slice**: if more than one `SliceElement` appears in a list pattern, emit `MIST_TC_0186 (historical)` (Req 20.4).
+- The existing `PatternListTooManyElements` (`MIST_TC_0055 (historical)`, warning) is retained.
 
 All new descriptors are registered through the same `TypeCheckDiagnostics` mechanism as existing diagnostics (Req 12.5, 20.6).
 
@@ -501,20 +501,20 @@ Type-classification predicates (semantic model / shared type utilities): `IsCoun
 
 ### Diagnostic IDs
 
-Existing highest type-checker id is `MIST_TC_0180`; the new block starts at `MIST_TC_0181`.
+Existing highest type-checker id is `MIST_TC_0180 (historical)`; the new block starts at `MIST_TC_0181 (historical)`.
 
 | ID | Descriptor | Severity | Message (shape) | Req |
 |---|---|---|---|---|
-| `MIST_TC_0054` (repurposed) | `PatternListRequiresIndexable` (was `PatternListRequiresArray`) | Error | "A list pattern requires a countable, indexable receiver, but found '{0}'" | 20.3 |
-| `MIST_TC_0181` | `IndexFromEndOperandNotInteger` | Error | "The index-from-end operator '^' requires an integer operand, but the operand has type '{0}'" | 6.2, 12.1 |
-| `MIST_TC_0182` | `IndexFromEndOperandVoid` | Error | "A void-typed expression cannot be used as the operand of the index-from-end operator '^'" | 6.3 |
-| `MIST_TC_0183` | `RangeBoundInvalidType` | Error | "A range bound must be an integer or an 'Index', but the bound has type '{0}'" | 7.3, 12.2 |
-| `MIST_TC_0184` | `IndexAccessRequiresIndexable` | Error | "Index-from-end access requires a countable, indexable receiver, but the receiver has type '{0}'" | 8.6, 12.3 |
-| `MIST_TC_0185` | `RangeAccessRequiresSliceable` | Error | "Range slicing requires a sliceable receiver, but the receiver has type '{0}'" | 8.7, 12.4 |
-| `MIST_TC_0186` | `PatternListMultipleSlices` | Error | "A list pattern may contain at most one slice pattern" | 20.4 |
-| `MIST_TC_0187` | `PatternSliceRequiresSliceable` | Error | "A slice subpattern requires a sliceable receiver, but the receiver has type '{0}'" | 20.5 |
+| `MIST_TC_0054 (historical)` (repurposed) | `PatternListRequiresIndexable` (was `PatternListRequiresArray`) | Error | "A list pattern requires a countable, indexable receiver, but found '{0}'" | 20.3 |
+| `MIST_TC_0181 (historical)` | `IndexFromEndOperandNotInteger` | Error | "The index-from-end operator '^' requires an integer operand, but the operand has type '{0}'" | 6.2, 12.1 |
+| `MIST_TC_0182 (historical)` | `IndexFromEndOperandVoid` | Error | "A void-typed expression cannot be used as the operand of the index-from-end operator '^'" | 6.3 |
+| `MIST_TC_0183 (historical)` | `RangeBoundInvalidType` | Error | "A range bound must be an integer or an 'Index', but the bound has type '{0}'" | 7.3, 12.2 |
+| `MIST_TC_0184 (historical)` | `IndexAccessRequiresIndexable` | Error | "Index-from-end access requires a countable, indexable receiver, but the receiver has type '{0}'" | 8.6, 12.3 |
+| `MIST_TC_0185 (historical)` | `RangeAccessRequiresSliceable` | Error | "Range slicing requires a sliceable receiver, but the receiver has type '{0}'" | 8.7, 12.4 |
+| `MIST_TC_0186 (historical)` | `PatternListMultipleSlices` | Error | "A list pattern may contain at most one slice pattern" | 20.4 |
+| `MIST_TC_0187 (historical)` | `PatternSliceRequiresSliceable` | Error | "A slice subpattern requires a sliceable receiver, but the receiver has type '{0}'" | 20.5 |
 
-Existing `MIST_TC_0055` (`PatternListTooManyElements`, warning) is retained unchanged.
+Existing `MIST_TC_0055 (historical)` (`PatternListTooManyElements`, warning) is retained unchanged.
 
 ### C# Emission Mapping
 
@@ -582,13 +582,13 @@ Properties are grouped as parse/print (in-process), semantic/type (in-process), 
 
 ### Property 7: Index-from-end operand type checking
 
-*For any* index-from-end expression, the Type_Checker SHALL accept it when the operand is integer-compatible and SHALL otherwise emit exactly one diagnostic that names the operand type (`MIST_TC_0181` for a non-integer operand, `MIST_TC_0182` for a `void` operand) and identifies the expression's source span.
+*For any* index-from-end expression, the Type_Checker SHALL accept it when the operand is integer-compatible and SHALL otherwise emit exactly one diagnostic that names the operand type (`MIST_TC_0181 (historical)` for a non-integer operand, `MIST_TC_0182 (historical)` for a `void` operand) and identifies the expression's source span.
 
 **Validates: Requirements 6.1, 6.2, 6.3, 12.1**
 
 ### Property 8: Range bound type checking
 
-*For any* range expression, the Type_Checker SHALL accept every absent bound and every present bound whose type is integer-compatible or `Standard.Index`, and SHALL reject the entire range with exactly one `MIST_TC_0183` diagnostic — naming the offending bound type and its source span — whenever a present bound has any other type (a present-but-invalid bound is never treated as absent).
+*For any* range expression, the Type_Checker SHALL accept every absent bound and every present bound whose type is integer-compatible or `Standard.Index`, and SHALL reject the entire range with exactly one `MIST_TC_0183 (historical)` diagnostic — naming the offending bound type and its source span — whenever a present bound has any other type (a present-but-invalid bound is never treated as absent).
 
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 12.2**
 
@@ -606,7 +606,7 @@ Properties are grouped as parse/print (in-process), semantic/type (in-process), 
 
 ### Property 11: Element-access receiver rejection
 
-*For any* receiver that is not an Indexable_Type used with a `Standard.Index` argument, the Type_Checker SHALL emit exactly one `MIST_TC_0184` diagnostic naming the receiver type; and *for any* receiver that is not a Sliceable_Type used with a `Standard.Range` argument, the Type_Checker SHALL emit exactly one `MIST_TC_0185` diagnostic naming the receiver type. Each diagnostic identifies the element-access source span.
+*For any* receiver that is not an Indexable_Type used with a `Standard.Index` argument, the Type_Checker SHALL emit exactly one `MIST_TC_0184 (historical)` diagnostic naming the receiver type; and *for any* receiver that is not a Sliceable_Type used with a `Standard.Range` argument, the Type_Checker SHALL emit exactly one `MIST_TC_0185 (historical)` diagnostic naming the receiver type. Each diagnostic identifies the element-access source span.
 
 **Validates: Requirements 8.6, 8.7, 12.3, 12.4**
 
@@ -636,7 +636,7 @@ Properties are grouped as parse/print (in-process), semantic/type (in-process), 
 
 ### Property 16: List and slice pattern type checking
 
-*For any* list pattern matched against an Indexable_Type receiver, the Type_Checker SHALL accept it and type-check each element sub-pattern against the receiver's element type; *for any* slice sub-pattern, the Type_Checker SHALL require a Sliceable_Type receiver, type-check the sub-pattern against the slice-result type, and set any binding introduced by the sub-pattern to that slice-result type; and the Type_Checker SHALL emit `MIST_TC_0054` for a non-indexable receiver, `MIST_TC_0186` for more than one slice element, and `MIST_TC_0187` for a slice sub-pattern against a non-sliceable receiver.
+*For any* list pattern matched against an Indexable_Type receiver, the Type_Checker SHALL accept it and type-check each element sub-pattern against the receiver's element type; *for any* slice sub-pattern, the Type_Checker SHALL require a Sliceable_Type receiver, type-check the sub-pattern against the slice-result type, and set any binding introduced by the sub-pattern to that slice-result type; and the Type_Checker SHALL emit `MIST_TC_0054 (historical)` for a non-indexable receiver, `MIST_TC_0186 (historical)` for more than one slice element, and `MIST_TC_0187 (historical)` for a slice sub-pattern against a non-sliceable receiver.
 
 **Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5**
 
@@ -659,21 +659,21 @@ Properties are grouped as parse/print (in-process), semantic/type (in-process), 
 | Condition | Behavior |
 |---|---|
 | `^` with no following operand (e.g. `^)`) | Parse error: expected an operand after `^`. |
-| `[1, .. var a, .. var b]` (two slices) | Parses structurally; rejected by the type checker (`MIST_TC_0186`), matching C# which surfaces the multiple-slice restriction as a semantic error. |
+| `[1, .. var a, .. var b]` (two slices) | Parses structurally; rejected by the type checker (`MIST_TC_0186 (historical)`), matching C# which surfaces the multiple-slice restriction as a semantic error. |
 | Unterminated list pattern (`[1, 2`) | Parse error: expected `]`. The parser synchronizes at the next `]` or `;`. |
 
 ### Type-Checker Diagnostics
 
 | ID | Severity | Condition | Message (shape) |
 |---|---|---|---|
-| `MIST_TC_0054` (repurposed) | Error | List pattern on a non-indexable receiver | "A list pattern requires a countable, indexable receiver, but found '{0}'" |
-| `MIST_TC_0181` | Error | `^` operand not integer-compatible | "The index-from-end operator '^' requires an integer operand, but the operand has type '{0}'" |
-| `MIST_TC_0182` | Error | `^` operand is `void` | "A void-typed expression cannot be used as the operand of the index-from-end operator '^'" |
-| `MIST_TC_0183` | Error | Range bound neither integer nor `Index` | "A range bound must be an integer or an 'Index', but the bound has type '{0}'" |
-| `MIST_TC_0184` | Error | `Index` argument on non-indexable receiver | "Index-from-end access requires a countable, indexable receiver, but the receiver has type '{0}'" |
-| `MIST_TC_0185` | Error | `Range` argument on non-sliceable receiver | "Range slicing requires a sliceable receiver, but the receiver has type '{0}'" |
-| `MIST_TC_0186` | Error | More than one slice pattern in a list pattern | "A list pattern may contain at most one slice pattern" |
-| `MIST_TC_0187` | Error | Slice sub-pattern on non-sliceable receiver | "A slice subpattern requires a sliceable receiver, but the receiver has type '{0}'" |
+| `MIST_TC_0054 (historical)` (repurposed) | Error | List pattern on a non-indexable receiver | "A list pattern requires a countable, indexable receiver, but found '{0}'" |
+| `MIST_TC_0181 (historical)` | Error | `^` operand not integer-compatible | "The index-from-end operator '^' requires an integer operand, but the operand has type '{0}'" |
+| `MIST_TC_0182 (historical)` | Error | `^` operand is `void` | "A void-typed expression cannot be used as the operand of the index-from-end operator '^'" |
+| `MIST_TC_0183 (historical)` | Error | Range bound neither integer nor `Index` | "A range bound must be an integer or an 'Index', but the bound has type '{0}'" |
+| `MIST_TC_0184 (historical)` | Error | `Index` argument on non-indexable receiver | "Index-from-end access requires a countable, indexable receiver, but the receiver has type '{0}'" |
+| `MIST_TC_0185 (historical)` | Error | `Range` argument on non-sliceable receiver | "Range slicing requires a sliceable receiver, but the receiver has type '{0}'" |
+| `MIST_TC_0186 (historical)` | Error | More than one slice pattern in a list pattern | "A list pattern may contain at most one slice pattern" |
+| `MIST_TC_0187 (historical)` | Error | Slice sub-pattern on non-sliceable receiver | "A slice subpattern requires a sliceable receiver, but the receiver has type '{0}'" |
 
 ### Recovery Strategy
 
@@ -717,9 +717,9 @@ This feature introduces **zero** new process-spawning tests. Every Mist-owned st
 | 3. Range parsing | §2.2b (Range rule), §3 (absent-bound nodes); Property 1 | New |
 | 4. Precedence/associativity | §2.2a–b (placement), Design Decisions 1–2; Properties 2, 3, 4 | New |
 | 5. Index/Range type resolution & surfacing | §4a, §8 (surfacing); Properties 5, 6 | New |
-| 6. Index operand type checking | §5a; Property 7 | New (`MIST_TC_0181/0182`) |
-| 7. Range bound type checking | §5b; Property 8 | New (`MIST_TC_0183`) |
-| 8. Sliceable/indexable receiver checking | §4b, §5c; Properties 9, 10, 11 | New (`MIST_TC_0184/0185`) |
+| 6. Index operand type checking | §5a; Property 7 | New (`MIST_TC_0181 (historical)/0182`) |
+| 7. Range bound type checking | §5b; Property 8 | New (`MIST_TC_0183 (historical)`) |
+| 8. Sliceable/indexable receiver checking | §4b, §5c; Properties 9, 10, 11 | New (`MIST_TC_0184 (historical)/0185`) |
 | 9. Index-from-end access semantics | §6b (native lowering); Property 12 | New (relies on C# lowering) |
 | 10. Range slicing semantics | §6b (native lowering + Slice fallback); Property 13 | New (relies on C# lowering) |
 | 11. C# emission | §6a–b; Property 14 | New |
@@ -731,7 +731,7 @@ This feature introduces **zero** new process-spawning tests. Every Mist-owned st
 | 17. Feature coverage doc | §11 | New (doc) |
 | 18. `Range` type migration | §10; Testing Strategy (migration integration) | New |
 | 19. List/slice pattern parsing | §2.2c (SliceElement generalization), §3 (node change); Property 15 | **Partially exists**: `ListPattern` parsing exists; `SliceElement` generalized; 19.7 disambiguation **already satisfied & tested** (`ArrayLiteralPatternDisambiguationPropertyTests`) |
-| 20. List/slice pattern type checking | §5d (broaden `MIST_TC_0054`); Property 16 | **Partially exists**: array-receiver check exists (`MIST_TC_0054`); broadened + `MIST_TC_0186/0187` new |
+| 20. List/slice pattern type checking | §5d (broaden `MIST_TC_0054 (historical)`); Property 16 | **Partially exists**: array-receiver check exists (`MIST_TC_0054 (historical)`); broadened + `MIST_TC_0186 (historical)/0187` new |
 | 21. List/slice match semantics | §6c (native list patterns); Property 17 | New (relies on C# list-pattern lowering) |
 | 22. List/slice pattern emission | §6c; Property 18 | New (extends existing list-pattern emission) |
 | 23. List/slice pretty-printing & round-trip | §7; Property 15 | New (extends existing list-pattern printing) |

@@ -51,9 +51,9 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
     - During the constraint-resolution pass, for each `AdhocRefinementConstraintWhereClauseNode`:
       - Look up the name in dependent type parameters → attach predicate to `DependentTypeParameterType.AdhocConstraint`
       - Look up the name in value parameters → store in parameter refinement map
-      - If not found → emit `MIST_REFINEMENT_0001` diagnostic
-      - If found as regular type parameter → emit `MIST_REFINEMENT_0002` diagnostic
-      - If duplicate → emit `MIST_REFINEMENT_0003` diagnostic
+      - If not found → emit `MIST_REFINEMENT_0001 (historical)` diagnostic
+      - If found as regular type parameter → emit `MIST_REFINEMENT_0002 (historical)` diagnostic
+      - If duplicate → emit `MIST_REFINEMENT_0003 (historical)` diagnostic
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 9.6, 10.3_
 
   - [x] 4.2 Write property test for semantic model predicate attachment (Property 2)
@@ -78,16 +78,16 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
   - [x] 6.1 Implement compile-time enforcement for dependent argument refinement constraints
     - In `TypeCheckerAnalyzer`, when constructing a type with a `DependentTypeParameterType` that has an `AdhocConstraint`:
       - Evaluate the predicate against the compile-time constant value
-      - If violation → emit `MIST_REFINEMENT_0004` diagnostic
+      - If violation → emit `MIST_REFINEMENT_0004 (historical)` diagnostic
       - If forwarding from another dependent parameter → use `RefinementSolver.Implies` to verify source constraint implies target
-      - If implication fails → emit `MIST_REFINEMENT_0006` diagnostic
-      - If source has no constraint and target requires one → emit `MIST_REFINEMENT_0008` diagnostic
+      - If implication fails → emit `MIST_REFINEMENT_0006 (historical)` diagnostic
+      - If source has no constraint and target requires one → emit `MIST_REFINEMENT_0008 (historical)` diagnostic
     - Handle inheritance scenarios: verify fixed dependent values satisfy base type constraints
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 9.1, 9.2, 9.3, 9.4, 9.5, 13.1, 13.7, 13.8_
 
   - [x] 6.2 Implement compile-time enforcement for parameter refinement constraints
     - In `TypeCheckerAnalyzer`, when calling a method/constructor/indexer with a parameter that has an adhoc refinement:
-      - If argument is a compile-time constant → evaluate predicate, emit `MIST_REFINEMENT_0005` on violation
+      - If argument is a compile-time constant → evaluate predicate, emit `MIST_REFINEMENT_0005 (historical)` on violation
       - If argument is non-constant → accept (defer to runtime guard)
       - If argument's type is a named refinement type → use `RefinementSolver.Implies` to check if argument's predicate implies parameter's constraint
     - Apply equivalently to constructor and indexer parameters
@@ -95,7 +95,7 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
 
   - [x] 6.3 Implement predicate-type compatibility validation
     - Validate that relational predicates are only applied to comparable types (int, uint, long, ulong, short, ushort, byte, sbyte, char, float, double, decimal)
-    - Reject relational predicates on `bool` and `string` → emit `MIST_REFINEMENT_0007` diagnostic
+    - Reject relational predicates on `bool` and `string` → emit `MIST_REFINEMENT_0007 (historical)` diagnostic
     - Accept constant patterns and `and` combinators on all equality-comparable types
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 13.6_
 
@@ -217,8 +217,8 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 14. Interface/trait method refinement constraint satisfaction (Liskov Substitution)
-  - [x] 14.1 Add `MIST_REFINEMENT_0009` diagnostic constant
-    - Add the diagnostic ID `MIST_REFINEMENT_0009` to the diagnostics constants file
+  - [x] 14.1 Add `MIST_REFINEMENT_0009 (historical)` diagnostic constant
+    - Add the diagnostic ID `MIST_REFINEMENT_0009 (historical)` to the diagnostics constants file
     - Message template: "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept."
     - _Requirements: 17.4_
 
@@ -232,7 +232,7 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
         - If interface predicate is non-null and impl predicate is null → accept (no constraint means accepts all values)
         - If both are non-null → check `RefinementSolver.Implies(interfacePredicate, implPredicate)`:
           - If true → accept
-          - If false → emit `MIST_REFINEMENT_0009` diagnostic
+          - If false → emit `MIST_REFINEMENT_0009 (historical)` diagnostic
       - Validate each parameter independently (violation on one does not suppress others)
     - Apply the same algorithm to indexer parameters
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9_
@@ -242,7 +242,7 @@ This plan implements ad-hoc refinement constraints for the Mist language — `wh
     - Create `InterfaceTraitRefinementSatisfactionPropertyTests` in `Test/Mist.Tests/`
     - Generate random interface/trait method declarations with parameter refinement constraints
     - Pair with implementing methods that have: (a) same predicate, (b) no predicate, (c) weaker predicate (implication holds), (d) stronger predicate (implication fails)
-    - Build full programs in-process via `CompilerDriver.Compile()`, verify acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009` diagnostic for case (d)
+    - Build full programs in-process via `CompilerDriver.Compile()`, verify acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009 (historical)` diagnostic for case (d)
     - Cover both interfaces and traits, single and multiple parameters, and indexer parameters
     - Generate cases where the interface has no constraint (implementation may add any constraint freely)
     - Uses in-process compilation (no process spawning per iteration)

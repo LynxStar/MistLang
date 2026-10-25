@@ -11,14 +11,14 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PurityRoundThreeTests
 {
-    private const string OwnedSourceNotOwned = "MIST_PA_OWNED_SOURCE_NOT_OWNED";
-    private const string OwnedReturnNotOwned = "MIST_PA_OWNED_RETURN_NOT_OWNED";
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
-    private const string AllocatesMutable = "MIST_PA_READONLY_CONTEXT_ALLOCATES_MUTABLE";
-    private const string NoImplicitConversion = "MIST_PA_NO_IMPLICIT_CONVERSION";
+    private const string OwnedSourceNotOwned = "MIST0264";
+    private const string OwnedReturnNotOwned = "MIST0263";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string StoresUnowned = "MIST0141";
+    private const string AllocatesMutable = "MIST0260";
+    private const string NoImplicitConversion = "MIST0157";
 
     [Theory]
     [InlineData("owned-binding-initialized-from-an-unrestricted-reference")]

@@ -88,23 +88,23 @@ public static class ProjectFileParser
 3. Parse TOML using `Tomlyn.Toml.ToModel(content)` — catch `TomlException` for syntax errors (R12.3)
 4. Extract the `name` key from the root table
 5. Validate:
-   - `name` key exists (R10.5) — error `MIST_PROJECT_MISSING_NAME`
-   - `name` is not empty/whitespace (R10.6) — error `MIST_PROJECT_EMPTY_NAME`
-   - `name` matches `^[a-zA-Z0-9\-_\.]+$` (R11.1) — error `MIST_PROJECT_INVALID_NAME`
-   - `name.Length <= 128` (R11.3) — error `MIST_PROJECT_NAME_TOO_LONG`
+   - `name` key exists (R10.5) — error `MIST0052`
+   - `name` is not empty/whitespace (R10.6) — error `MIST0053`
+   - `name` matches `^[a-zA-Z0-9\-_\.]+$` (R11.1) — error `MIST0054`
+   - `name.Length <= 128` (R11.3) — error `MIST0055`
 6. Return `new ProjectConfiguration(name)` on success, or `null` with diagnostics on failure
 
 **Diagnostic IDs:**
 
 | ID | Severity | Condition |
 |---|---|---|
-| `MIST_PROJECT_FILE_NOT_FOUND` | Error | `mist.toml` does not exist in project folder |
-| `MIST_PROJECT_FILE_READ_ERROR` | Error | I/O error reading the file |
-| `MIST_PROJECT_TOML_ERROR` | Error | TOML syntax error |
-| `MIST_PROJECT_MISSING_NAME` | Error | No `name` field in the TOML document |
-| `MIST_PROJECT_EMPTY_NAME` | Error | `name` is empty or whitespace-only |
-| `MIST_PROJECT_INVALID_NAME` | Error | `name` contains characters outside `[a-zA-Z0-9\-_\.]` |
-| `MIST_PROJECT_NAME_TOO_LONG` | Error | `name` exceeds 128 characters |
+| `MIST0049` | Error | `mist.toml` does not exist in project folder |
+| `MIST0050` | Error | I/O error reading the file |
+| `MIST0051` | Error | TOML syntax error |
+| `MIST0052` | Error | No `name` field in the TOML document |
+| `MIST0053` | Error | `name` is empty or whitespace-only |
+| `MIST0054` | Error | `name` contains characters outside `[a-zA-Z0-9\-_\.]` |
+| `MIST0055` | Error | `name` exceeds 128 characters |
 
 All diagnostics use `PipelineStage.Driver` since project file parsing is a driver-level concern.
 
@@ -228,13 +228,13 @@ new Diagnostic(
 
 ### Property 2: Whitespace-only names are rejected
 
-*For any* string composed entirely of whitespace characters (spaces, tabs, newlines, etc.), parsing a `mist.toml` containing that string as the `name` value should fail with a `MIST_PROJECT_EMPTY_NAME` diagnostic, and no `ProjectConfiguration` should be returned.
+*For any* string composed entirely of whitespace characters (spaces, tabs, newlines, etc.), parsing a `mist.toml` containing that string as the `name` value should fail with a `MIST0053` diagnostic, and no `ProjectConfiguration` should be returned.
 
 **Validates: Requirements 10.6**
 
 ### Property 3: Name character validation
 
-*For any* non-empty string of length 1–128, if every character is in `[a-zA-Z0-9\-_\.]` then `ProjectFileParser` should accept it. If the string contains at least one character outside that set, `ProjectFileParser` should reject it with a `MIST_PROJECT_INVALID_NAME` diagnostic whose message includes each invalid character.
+*For any* non-empty string of length 1–128, if every character is in `[a-zA-Z0-9\-_\.]` then `ProjectFileParser` should accept it. If the string contains at least one character outside that set, `ProjectFileParser` should reject it with a `MIST0054` diagnostic whose message includes each invalid character.
 
 **Validates: Requirements 11.1, 11.2**
 
@@ -256,13 +256,13 @@ new Diagnostic(
 
 | Category | Diagnostic IDs | Behavior |
 |---|---|---|
-| File not found | `MIST_PROJECT_FILE_NOT_FOUND` | CLI prints error, exits with code 1. Build never starts. |
-| File I/O error | `MIST_PROJECT_FILE_READ_ERROR` | CLI prints error, exits with code 1. |
-| TOML syntax error | `MIST_PROJECT_TOML_ERROR` | CLI prints error with Tomlyn's error details (line/column if available), exits with code 1. |
-| Missing name field | `MIST_PROJECT_MISSING_NAME` | CLI prints error, exits with code 1. |
-| Empty/whitespace name | `MIST_PROJECT_EMPTY_NAME` | CLI prints error, exits with code 1. |
-| Invalid characters | `MIST_PROJECT_INVALID_NAME` | CLI prints error listing the invalid characters, exits with code 1. |
-| Name too long | `MIST_PROJECT_NAME_TOO_LONG` | CLI prints error stating the 128-char limit, exits with code 1. |
+| File not found | `MIST0049` | CLI prints error, exits with code 1. Build never starts. |
+| File I/O error | `MIST0050` | CLI prints error, exits with code 1. |
+| TOML syntax error | `MIST0051` | CLI prints error with Tomlyn's error details (line/column if available), exits with code 1. |
+| Missing name field | `MIST0052` | CLI prints error, exits with code 1. |
+| Empty/whitespace name | `MIST0053` | CLI prints error, exits with code 1. |
+| Invalid characters | `MIST0054` | CLI prints error listing the invalid characters, exits with code 1. |
+| Name too long | `MIST0055` | CLI prints error stating the 128-char limit, exits with code 1. |
 
 ### Error Reporting Strategy
 
@@ -300,7 +300,7 @@ Each correctness property maps to a single FsCheck property test with a minimum 
 | Property | Test Location | Generator Strategy |
 |---|---|---|
 | P1: TOML round-trip | `Mist.Tests` | Generate random strings from `[a-zA-Z0-9\-_\.]` of length 1–128. Write to temp `mist.toml`, parse, assert `Name` matches. |
-| P2: Whitespace rejection | `Mist.Tests` | Generate random strings from whitespace chars (`\x20\t\n\r`). Write to temp `mist.toml`, parse, assert null result and `MIST_PROJECT_EMPTY_NAME` diagnostic. |
+| P2: Whitespace rejection | `Mist.Tests` | Generate random strings from whitespace chars (`\x20\t\n\r`). Write to temp `mist.toml`, parse, assert null result and `MIST0053` diagnostic. |
 | P3: Character validation | `Mist.Tests` | Two sub-generators: (a) valid names from `[a-zA-Z0-9\-_\.]` — assert accepted; (b) strings with at least one char outside that set — assert rejected with diagnostic listing invalid chars. |
 | P4: Name propagation | `Mist.Tests` | Generate valid names. Construct `CompilerOptions` with name. Use a mock/spy `IBackend` to capture the `projectName` argument passed to `Emit`. Assert it matches. |
 | P5: Emitter .csproj naming | `Mist.Tests` | Generate valid names. Call `CSharpEmitter.Emit` with a mock semantic model into a temp directory. Assert a file named `{name}.csproj` exists. |
@@ -314,11 +314,11 @@ Each correctness property maps to a single FsCheck property test with a minimum 
 
 | Test | Validates |
 |---|---|
-| Missing `mist.toml` → `MIST_PROJECT_FILE_NOT_FOUND` | R10.4 |
-| TOML without `name` key → `MIST_PROJECT_MISSING_NAME` | R10.5 |
-| Malformed TOML → `MIST_PROJECT_TOML_ERROR` | R12.3 |
+| Missing `mist.toml` → `MIST0049` | R10.4 |
+| TOML without `name` key → `MIST0052` | R10.5 |
+| Malformed TOML → `MIST0051` | R12.3 |
 | Name exactly 128 chars → accepted | R11.3 (boundary) |
-| Name of 129 chars → `MIST_PROJECT_NAME_TOO_LONG` | R11.4 (boundary) |
+| Name of 129 chars → `MIST0055` | R11.4 (boundary) |
 | Sample projects contain correct `mist.toml` files | R14.1–14.4 |
 
 ### Integration Tests

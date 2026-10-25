@@ -89,7 +89,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
         BindsCleanly("if (u is (int x, int y) whole) { var probe = $\"{x}{y}{whole.Item1}\"; }");
 
         var diagnostics = BuildRun("if (u is (int x, int y) whole) { var probe = whole.x; }");
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0301"));
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = coords is (var a, var b, var c);");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_TUPLE_PATTERN_ARITY"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0351"));
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = g is (var a, var b);");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_TUPLE_PATTERN_SCRUTINEE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0352"));
     }
 
     [Fact]
@@ -159,7 +159,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = coords is (var a, 2) or (1, var b);");
 
-        Assert.Equal(2, Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED").Count());
+        Assert.Equal(2, Errors(diagnostics, "MIST0348").Count());
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = coords is not (var a, var b);");
 
-        Assert.Equal(2, Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED").Count());
+        Assert.Equal(2, Errors(diagnostics, "MIST0348").Count());
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = u is not (int x, int y) whole;");
 
-        Assert.Equal(3, Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED").Count());
+        Assert.Equal(3, Errors(diagnostics, "MIST0348").Count());
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class TuplePatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var probe = n;", extraPreamble: "if (pair is (var n, var s)) { }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     private Pattern PatternOf(string statement)

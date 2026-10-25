@@ -79,13 +79,13 @@ as written in the book, and `static` to mean what it means on a lambda.
    its Declaring_List and the blocks nested in it, and the modifier is not emitted.
 2. THE Compiler SHALL accept `static` and SHALL refuse a `static` Local_Function whose body
    references an enclosing local, parameter, `this`, an instance field or an instance property,
-   with diagnostic `MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE` at the reference.
+   with diagnostic `MIST0212` at the reference.
 3. THE Compiler SHALL accept `async`, with the meaning Requirement 6 gives it.
 4. THE Compiler SHALL refuse `sealed`, `intrinsic`, `readonly`, `owned`, `ref`, `affine`, `linear`
-   and `relevant` on a Local_Function with diagnostic `MIST_PM_LOCAL_FUNCTION_MODIFIER`, naming the
+   and `relevant` on a Local_Function with diagnostic `MIST0369`, naming the
    modifier, at the declaration.
 5. WHEN two accessibility modifiers are written, THE Compiler SHALL report
-   `MIST_PARSE_MULTIPLE_ACCESS` as it does on a member.
+   `MIST0128` as it does on a member.
 
 ### Requirement 3: Name, Scope and Hoisting
 
@@ -105,9 +105,9 @@ reading rather than for the compiler.
 3. THE Compiler SHALL admit a Local_Function calling itself, and two Local_Functions of one
    Declaring_List calling each other.
 4. WHEN a Declaring_List declares two Local_Functions of one name, THE Compiler SHALL report
-   `MIST_PM_DUPLICATE_LOCAL_FUNCTION` at the second.
+   `MIST0368` at the second.
 5. WHEN a Declaring_List declares a local variable with a Local_Function's name, THE Compiler
-   SHALL report `MIST_PM_DUPLICATE_LOCAL` at the variable, since the function's name is already
+   SHALL report `MIST0367` at the variable, since the function's name is already
    declared there (Hoisting).
 6. THE Compiler SHALL admit a Local_Function in a nested block whose name shadows a local or
    Local_Function of an enclosing block, as nested blocks may shadow locals today.
@@ -115,7 +115,7 @@ reading rather than for the compiler.
    (`func<int, int> f = Twice;`) under the method-group conversion rules of the
    delegate-func-conversion spec.
 8. THE Compiler SHALL refuse a Local_Function that declares type parameters with
-   `MIST_PM_LOCAL_FUNCTION_GENERIC` at the declaration. Generic local functions are out of scope.
+   `MIST0370` at the declaration. Generic local functions are out of scope.
 
 ### Requirement 4: Body and Captures
 
@@ -131,7 +131,7 @@ it the way a lambda can, so that it is a closure with a name.
    Capture by reference: a write inside the body is visible outside and a write outside is visible
    inside, as the first-class-functions spec has it for lambdas (Req 16.1).
 3. THE Compiler SHALL refuse a Capture of a ref struct, an `owned`, `borrowed` or `frozen` binding,
-   or a `readonly ref` binding with `MIST_PA_CAPTURED_BINDING`, as it refuses the same capture by a
+   or a `readonly ref` binding with `MIST0269`, as it refuses the same capture by a
    lambda, with the message naming a local function rather than a lambda.
 4. THE Compiler SHALL admit `this` and instance members inside a non-static Local_Function of an
    instance member, and SHALL refuse them inside a Local_Function of a static member exactly as it
@@ -150,11 +150,11 @@ before the call.
 #### Acceptance Criteria
 
 1. THE Compiler SHALL judge a Local_Function's body for reads of its own unassigned locals as it
-   judges any body (`MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT`).
+   judges any body (`MIST0220`).
 2. THE Compiler SHALL compute, for each Local_Function, the set of enclosing locals its body reads
    without declaring, together with the sets of every Local_Function it calls or names, and SHALL
    refuse a call to the Local_Function, or a conversion of its name to a function type, at which any
-   local of that set is not definitely assigned, with `MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED`
+   local of that set is not definitely assigned, with `MIST0221`
    naming the function and the local.
 3. THE Compiler SHALL NOT report a read of an enclosing local inside the body itself, since
    criterion 2 judges it at every entry into the body.

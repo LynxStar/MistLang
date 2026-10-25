@@ -17,7 +17,7 @@ This document references requirements from `requirements.md` by number throughou
 3. **Method-tier visibility** (Req 2, 3): non-owned types in owned bindings expose readonly methods only; owned types expose all methods (their cooperation contract is verified).
 4. **Cooperation contract** (Req 5): for `owned` types the compiler verifies all internal field assignments come from owned sources, routed through the same move boundary.
 5. **`IClonable<T>`** (Req 8): the shared-to-owned bridge, auto-derived when all fields are clonable, bootstrapped from primitives.
-6. **Removals** (Req 10, 11, 12): the v1 field restriction, the `owned` field modifier, struct ownership inference, and the `MIST_OWN_FIELD_NOT_OWNED` / structural `MIST_OWN_TYPE_REQUIRES_OWNED` checks are deleted.
+6. **Removals** (Req 10, 11, 12): the v1 field restriction, the `owned` field modifier, struct ownership inference, and the `MIST_OWN_FIELD_NOT_OWNED (historical)` / structural `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` checks are deleted.
 7. **What stays** (Req 6, 7, 9): owned bindings/params/returns, move + use-after-move tracking, the lending state machine, zero-cost emission.
 
 ## Architecture
@@ -217,7 +217,7 @@ public sealed class CooperationContractVerifier
 
 **Responsibilities**:
 - For each method/constructor of an `owned` type, find assignments `this.Field = <source>` (and implicit assignments in constructors).
-- Route each source through `MoveBoundaryResolver.Resolve(..., site: OwnedFieldAssignment)`. If the result is `Error`, emit `MIST_OWN_CONTRACT_VIOLATION` identifying the method, the field, and the non-owned source (Req 13 AC 4–5).
+- Route each source through `MoveBoundaryResolver.Resolve(..., site: OwnedFieldAssignment)`. If the result is `Error`, emit `MIST_OWN_CONTRACT_VIOLATION (historical)` identifying the method, the field, and the non-owned source (Req 13 AC 4–5).
 - **Static/global reads are rejected as sources** (documented design decision): a field assignment whose source is a static field read or global read does not yield an owned value and is not clonable-by-provenance, so it falls through to `Error`. This closes the alias-leak path for owned types (see Known Limitations).
 - This is the "not blind trust" guarantee of Req 3 AC 3: mutable methods are permitted on owned types *because* this verifier proves the contract.
 
@@ -253,7 +253,7 @@ public enum MethodVisibility { Allowed, HiddenMutable }
 | owned | owned type | readonly | Allowed (Req 3 AC 1) |
 | owned | owned type | mutable | Allowed (Req 3 AC 1, contract verified) |
 | owned | non-owned type | readonly | Allowed (Req 2 AC 1) |
-| owned | non-owned type | mutable | HiddenMutable → `MIST_OWN_MUTABLE_HIDDEN` (Req 2 AC 2/4, Req 13 AC 1) |
+| owned | non-owned type | mutable | HiddenMutable → `MIST_OWN_MUTABLE_HIDDEN (historical)` (Req 2 AC 2/4, Req 13 AC 1) |
 | unrestricted | any | any | Allowed (not an owned binding; out of scope) |
 
 **Responsibilities**:
@@ -350,7 +350,7 @@ For all non-owned reference sources e whose type implements `IClonable<T>`, `Res
 **Validates: Requirements 6.9, 8.2, 8.3**
 
 ### Property 4: Non-owned non-clonable source implies error (Req 8 AC 4, Req 13 AC 7)
-For all non-owned reference sources e whose type does not implement `IClonable<T>`, `Resolve(e) == Error` and `MIST_OWN_NOT_CLONABLE` is emitted.
+For all non-owned reference sources e whose type does not implement `IClonable<T>`, `Resolve(e) == Error` and `MIST_OWN_NOT_CLONABLE (historical)` is emitted.
 
 **Validates: Requirements 8.4, 13.7**
 
@@ -385,7 +385,7 @@ For all owned destinations of type T, both `default(T)` and bare `default` (type
 **Validates: Requirements 6.10**
 
 ### Property 13: Owned binding rejects substructural types (Req 1 AC 4)
-For all types T declared `linear`, `affine`, or `relevant`, an `owned` binding of T is rejected with `MIST_OWN_SUBSTRUCTURAL_BINDING`. For all non-substructural types (unrestricted or `owned`), an `owned` binding is permitted (subject to provenance).
+For all types T declared `linear`, `affine`, or `relevant`, an `owned` binding of T is rejected with `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)`. For all non-substructural types (unrestricted or `owned`), an `owned` binding is permitted (subject to provenance).
 
 **Validates: Requirements 1.3, 1.4**
 
@@ -405,48 +405,48 @@ For all compiled programs, emitted C# contains no `owned` keyword, no reference 
 
 | Diagnostic ID | Status | Trigger | Requirement |
 |---------------|--------|---------|-------------|
-| `MIST_OWN_USE_AFTER_MOVE` | **Kept** | Access to a moved binding | Req 6 AC 4, Req 13 AC 3 |
-| `MIST_OWN_MUTABLE_HIDDEN` | **New** | Mutable method called on non-owned type in owned binding | Req 2 AC 4, Req 13 AC 1 |
-| `MIST_OWN_REQUIRES_OWNED` | **New (repurposed)** | Owned destination assigned a non-owned, non-clonable source | Req 1 AC 5, Req 4 AC 2, Req 13 AC 2 |
-| `MIST_OWN_NOT_CLONABLE` | **New** | Clone needed but type lacks `IClonable<T>` | Req 8 AC 4, Req 13 AC 7 |
-| `MIST_OWN_CONTRACT_VIOLATION` | **New** | Owned type's method/ctor assigns a field from a non-owned source | Req 5 AC 4, Req 13 AC 4–5 |
-| `MIST_OWN_FIELD_MODIFIER_REMOVED` | **New** | `owned` used as a field modifier | Req 11 AC 2, Req 13 AC 6 |
-| `MIST_OWN_SUBSTRUCTURAL_BINDING` | **New** | `owned` binding specifier applied to a `linear`/`affine`/`relevant` type | Req 1 AC 4, Req 13 AC 8 |
-| `MIST_OWN_INTERFACE_FORBIDDEN` | **Kept** | `owned` on interface/trait | Req 5 AC 6 |
-| `MIST_OWN_INCOMPATIBLE_LEND` | **Kept** | Lending from an incompatible tier | Req 9 |
-| `MIST_OWN_MUTATION_BLOCKED` | **Kept** | Mutation while frozen outstanding | Req 7 |
-| `MIST_OWN_EXCLUSIVE_VIOLATION` | **Kept** | Access while borrowed/readonly outstanding | Req 7 |
-| `MIST_OWN_FIELD_NOT_OWNED` | **REMOVED** | (v1: ref field in owned type not owned) | Req 10 AC 2, Req 11 AC 3 |
-| `MIST_OWN_TYPE_REQUIRES_OWNED` | **REMOVED** | (v1: owned binding of non-owned type / structural check) | Req 10 AC 3 |
+| `MIST_OWN_USE_AFTER_MOVE (historical)` | **Kept** | Access to a moved binding | Req 6 AC 4, Req 13 AC 3 |
+| `MIST_OWN_MUTABLE_HIDDEN (historical)` | **New** | Mutable method called on non-owned type in owned binding | Req 2 AC 4, Req 13 AC 1 |
+| `MIST_OWN_REQUIRES_OWNED (historical)` | **New (repurposed)** | Owned destination assigned a non-owned, non-clonable source | Req 1 AC 5, Req 4 AC 2, Req 13 AC 2 |
+| `MIST_OWN_NOT_CLONABLE (historical)` | **New** | Clone needed but type lacks `IClonable<T>` | Req 8 AC 4, Req 13 AC 7 |
+| `MIST_OWN_CONTRACT_VIOLATION (historical)` | **New** | Owned type's method/ctor assigns a field from a non-owned source | Req 5 AC 4, Req 13 AC 4–5 |
+| `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` | **New** | `owned` used as a field modifier | Req 11 AC 2, Req 13 AC 6 |
+| `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)` | **New** | `owned` binding specifier applied to a `linear`/`affine`/`relevant` type | Req 1 AC 4, Req 13 AC 8 |
+| `MIST_OWN_INTERFACE_FORBIDDEN (historical)` | **Kept** | `owned` on interface/trait | Req 5 AC 6 |
+| `MIST_OWN_INCOMPATIBLE_LEND (historical)` | **Kept** | Lending from an incompatible tier | Req 9 |
+| `MIST_OWN_MUTATION_BLOCKED (historical)` | **Kept** | Mutation while frozen outstanding | Req 7 |
+| `MIST_OWN_EXCLUSIVE_VIOLATION (historical)` | **Kept** | Access while borrowed/readonly outstanding | Req 7 |
+| `MIST_OWN_FIELD_NOT_OWNED (historical)` | **REMOVED** | (v1: ref field in owned type not owned) | Req 10 AC 2, Req 11 AC 3 |
+| `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` | **REMOVED** | (v1: owned binding of non-owned type / structural check) | Req 10 AC 3 |
 
-> Note on `MIST_DROP_FIELD_NOT_OWNED` (in `DropAnalyzer.cs`): this is a **separate** diagnostic belonging to drop/substructural semantics (affine/linear field containment), not the v1 ownership field restriction. It is **out of scope** and must not be removed by this work. Only the ownership analyzer's `MIST_OWN_FIELD_NOT_OWNED` is deleted (Req 11 AC 3).
+> Note on `MIST_DROP_FIELD_NOT_OWNED (historical)` (in `DropAnalyzer.cs`): this is a **separate** diagnostic belonging to drop/substructural semantics (affine/linear field containment), not the v1 ownership field restriction. It is **out of scope** and must not be removed by this work. Only the ownership analyzer's `MIST_OWN_FIELD_NOT_OWNED (historical)` is deleted (Req 11 AC 3).
 
 ### Error scenarios
 
 **Scenario 1 — Mutable method on non-owned type in owned binding (Req 2 AC 4).**
 - Condition: `owned var w = new Widget(...); w.SetValue(99);` where `Widget` is not `owned` and `SetValue` is mutable.
-- Response: `MIST_OWN_MUTABLE_HIDDEN` naming the method, the type, and explaining non-owned types appear readonly in owned bindings; suggest declaring the type `owned` or using direct field assignment.
+- Response: `MIST_OWN_MUTABLE_HIDDEN (historical)` naming the method, the type, and explaining non-owned types appear readonly in owned bindings; suggest declaring the type `owned` or using direct field assignment.
 - Recovery: developer declares `Widget` owned, or assigns the field directly with an owned source.
 
 **Scenario 2 — Non-owned, non-clonable source into owned destination (Req 8 AC 4).**
 - Condition: `owned var c = sharedThing;` where `sharedThing`'s type is a non-owned class without `IClonable`.
-- Response: `MIST_OWN_NOT_CLONABLE` suggesting the type implement `IClonable<T>`.
+- Response: `MIST_OWN_NOT_CLONABLE (historical)` suggesting the type implement `IClonable<T>`.
 
 **Scenario 3 — Cooperation contract violation (Req 5 AC 4).**
 - Condition: inside `owned class Vault`, a method assigns `this.Setting = someNonOwnedParam;`.
-- Response: `MIST_OWN_CONTRACT_VIOLATION` naming the method, field, and source. Recovery: make the parameter `owned`, clone it, or construct fresh.
+- Response: `MIST_OWN_CONTRACT_VIOLATION (historical)` naming the method, field, and source. Recovery: make the parameter `owned`, clone it, or construct fresh.
 
 **Scenario 4 — Removed owned field modifier (Req 11 AC 2).**
 - Condition: `owned MyClass data;` as a field.
-- Response: hard error `MIST_OWN_FIELD_MODIFIER_REMOVED` — no warning, no silent acceptance (Req 19 AC 2).
+- Response: hard error `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` — no warning, no silent acceptance (Req 19 AC 2).
 
 **Scenario 5 — Use-after-move (Req 6 AC 4).**
 - Condition: `owned var y = x; ... use(x);`
-- Response: `MIST_OWN_USE_AFTER_MOVE` with binding name, move location, access location.
+- Response: `MIST_OWN_USE_AFTER_MOVE (historical)` with binding name, move location, access location.
 
 **Scenario 6 — Owned binding on a substructural type (Req 1 AC 4).**
 - Condition: `owned var r = new LinearResource(...);` where `LinearResource` is declared `linear` (or `affine`/`relevant`).
-- Response: hard error `MIST_OWN_SUBSTRUCTURAL_BINDING` naming the binding and the substructural type, explaining that substructural types manage their own usage discipline via drop semantics and cannot be combined with `owned` binding tracking.
+- Response: hard error `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)` naming the binding and the substructural type, explaining that substructural types manage their own usage discipline via drop semantics and cannot be combined with `owned` binding tracking.
 - Recovery: drop the `owned` specifier and rely on the type's substructural discipline.
 
 ## Testing Strategy
@@ -456,7 +456,7 @@ For all compiled programs, emitted C# contains no `owned` keyword, no reference 
 - `MethodTierVisibilityFilter`: the decision table above as explicit `[Theory]`/`[InlineData]` cases (Req 2, 3).
 - `CooperationContractVerifier`: owned types with compliant and violating bodies (Req 5).
 - IClonable derivation: types with all-clonable vs partially-clonable fields (Req 8 AC 6–7).
-- Diagnostic removal: assert `MIST_OWN_FIELD_NOT_OWNED` and structural `MIST_OWN_TYPE_REQUIRES_OWNED` are never emitted for any input (Req 10).
+- Diagnostic removal: assert `MIST_OWN_FIELD_NOT_OWNED (historical)` and structural `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` are never emitted for any input (Req 10).
 
 ### Property-based testing (FsCheck)
 Properties 1–12 above. To honor the process-spawning policies (`test-process-spawning.md`, `spec-process-spawning-approval.md`), these use **in-process `CompilerDriver.Compile()`** for analysis-only properties (Properties 1–10 and 12 inspect diagnostics/semantic model without spawning) and a **single batched compile-and-run** for any property that must observe stdout. No per-iteration `dotnet` spawning. If any property is later found to need per-iteration process execution, that will be raised for approval before implementation.
@@ -473,8 +473,8 @@ Properties 1–12 above. To honor the process-spawning policies (`test-process-s
 This section enumerates exactly what v1 code and artifacts are deleted or changed. There is **no backwards compatibility** (Req 19).
 
 ### Deleted code in `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs`
-1. `FieldNotOwned` diagnostic id (`MIST_OWN_FIELD_NOT_OWNED`) and all references (Req 11 AC 3).
-2. `TypeRequiresOwned` diagnostic id (`MIST_OWN_TYPE_REQUIRES_OWNED`) and all references — the structural eligibility check (Req 10 AC 3).
+1. `FieldNotOwned` diagnostic id (`MIST_OWN_FIELD_NOT_OWNED (historical)`) and all references (Req 11 AC 3).
+2. `TypeRequiresOwned` diagnostic id (`MIST_OWN_TYPE_REQUIRES_OWNED (historical)`) and all references — the structural eligibility check (Req 10 AC 3).
 3. `ValidateOwnedTypeDeclarations` → `ValidateOwnedClassOrStruct`: delete the field-restriction logic (the reference-field/owned-field/non-storable loop). **Keep** the interface/trait rejection, relocated to `RejectOwnedOnInterfacesAndTraits` (Req 5 AC 6).
 4. `ValidateOwnedBindingTypes` (Pass 2b): delete the "type must be owned" check (Req 1 AC 3). The initializer-provenance logic (`YieldsUniqueOwnership`, `IsConstructorOrOwnedCall`, `TryResolveIdentifierSymbol` usage for provenance) is **absorbed into `MoveBoundaryResolver`**, not kept in place.
 5. `ValidateOwnedFieldModifiers` (Pass 2c): delete entirely; replaced by the hard-error `RejectOwnedFieldModifier` (Req 11).
@@ -513,7 +513,7 @@ These are documented (not necessarily solved) per the design brief.
 When `owned var x = new NonOwnedType(sharedAlias)` runs, the constructor body of a **non-owned** type has no cooperation contract. The constructor may store `sharedAlias` into a field, so the resulting graph is not provably alias-free even though `x` is an owned binding. v2 **accepts this weaker guarantee**: the owned binding guarantees unique ownership of the *root reference* and gates mutation at the binding level (readonly-method-only access, Req 2), but does not retroactively prove deep non-aliasing for non-owned constructors. Deep guarantees require declaring the type `owned` (cooperation contract verified). This is an intentional consequence of moving from type-level to binding-level ownership.
 
 ### LD-2: Statics as field-assignment sources in owned types
-For `owned` types, the `CooperationContractVerifier` must reject field assignments whose source is a static or global read (e.g. `this.Field = SomeType.SharedInstance`). A static read yields neither an owned value (it's a shared global) nor a fresh graph, and treating it as clonable would silently duplicate global state. The verifier therefore routes static/global reads through the resolver, which returns `Error` (falls through to `MIST_OWN_CONTRACT_VIOLATION`). This keeps the owned graph free of aliases into mutable global state. (Non-owned types in owned bindings are unaffected because they cannot call mutable methods anyway, Req 2.)
+For `owned` types, the `CooperationContractVerifier` must reject field assignments whose source is a static or global read (e.g. `this.Field = SomeType.SharedInstance`). A static read yields neither an owned value (it's a shared global) nor a fresh graph, and treating it as clonable would silently duplicate global state. The verifier therefore routes static/global reads through the resolver, which returns `Error` (falls through to `MIST_OWN_CONTRACT_VIOLATION (historical)`). This keeps the owned graph free of aliases into mutable global state. (Non-owned types in owned bindings are unaffected because they cannot call mutable methods anyway, Req 2.)
 
 ### LD-3: Value-type clone elision
 For value types whose copy semantics already produce independent values, the emitter may elide the emitted `.Clone()` (Req 8 AC 8). This is an optimization, not a correctness requirement; the resolver still reports `ImplicitClone`/`ValueCopy` and the observable behavior is identical.

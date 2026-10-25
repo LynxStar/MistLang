@@ -202,7 +202,7 @@ public enum DefaultValueKind
 
 In `Pass1_RegisterTypes` → `RegisterMemberDeclaration`, add a case for `DefaultBlockMemberMemberDeclarationNode`:
 - Store the `DefaultBlockDeclarationNode` on the containing `ClassType` or `StructType`.
-- If a default block is already stored, emit `MIST_DEFAULT_DUPLICATE` diagnostic.
+- If a default block is already stored, emit `MIST_DEFAULT_DUPLICATE (historical)` diagnostic.
 
 #### 4c. Semantic Model Builder — New Pass 1f: Defaultability Analysis
 
@@ -272,18 +272,18 @@ In `CheckPrimaryNode`, add cases:
 
 **`DefaultExpressionPrimaryNode`**:
 1. Resolve the type reference to an `IType`.
-2. If unresolved → emit `MIST_DEFAULT_UNDEFINED_TYPE`.
-3. If `InterfaceType` → emit `MIST_DEFAULT_ON_INTERFACE`.
-4. If `TraitType` → emit `MIST_DEFAULT_ON_TRAIT`.
-5. If `TypeParameterType` → emit `MIST_DEFAULT_ON_TYPE_PARAMETER`.
+2. If unresolved → emit `MIST_DEFAULT_UNDEFINED_TYPE (historical)`.
+3. If `InterfaceType` → emit `MIST_DEFAULT_ON_INTERFACE (historical)`.
+4. If `TraitType` → emit `MIST_DEFAULT_ON_TRAIT (historical)`.
+5. If `TypeParameterType` → emit `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)`.
 6. If `ClassType` or `StructType` with `Defaultability != NotDefaultable` → valid, assign type.
-7. If `NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED` with explanation.
+7. If `NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED (historical)` with explanation.
 
 **`DefaultLiteralExpressionPrimaryNode`**:
 1. Look up the expected type from context (assignment target type, return type, parameter type).
 2. If context provides a type → treat as `default(InferredType)` and validate as above.
-3. If in a `var` declaration → emit `MIST_DEFAULT_CANNOT_INFER` ("type cannot be inferred because neither side provides a type").
-4. If no context type → emit `MIST_DEFAULT_CANNOT_INFER` ("type of default cannot be determined from context").
+3. If in a `var` declaration → emit `MIST_DEFAULT_CANNOT_INFER (historical)` ("type cannot be inferred because neither side provides a type").
+4. If no context type → emit `MIST_DEFAULT_CANNOT_INFER (historical)` ("type of default cannot be determined from context").
 
 #### 5b. Default Block Validation
 
@@ -291,10 +291,10 @@ Add a new validation pass in `Analyze` that walks all type symbols:
 
 For each type with an explicit default block:
 1. Validate each field override references a field that exists in the type's member scope (including inherited fields).
-2. Validate visibility: if the field is from a base type, it must be public (not private). Emit `MIST_DEFAULT_FIELD_NOT_VISIBLE` on violation.
+2. Validate visibility: if the field is from a base type, it must be public (not private). Emit `MIST_DEFAULT_FIELD_NOT_VISIBLE (historical)` on violation.
 3. Validate type bindings: the concrete type must be a `ClassType` or `StructType` that is defaultable.
 4. Validate compile-time constant expressions (v1: only literal expressions are compile-time constants).
-5. Check for redundancy: if the explicit default block produces the same values as the inferred default would, emit `MIST_DEFAULT_REDUNDANT` (Info severity).
+5. Check for redundancy: if the explicit default block produces the same values as the inferred default would, emit `MIST_DEFAULT_REDUNDANT (historical)` (Info severity).
 
 ### 6. C# Emitter Changes (`CSharpEmitter.cs`)
 
@@ -578,18 +578,18 @@ public enum DefaultabilityStatus
 
 | Diagnostic ID | Severity | Stage | Trigger |
 |---------------|----------|-------|---------|
-| `MIST_DEFAULT_NOT_SUPPORTED` | Error | Analysis | `default(T)` where T is not defaultable |
-| `MIST_DEFAULT_DUPLICATE` | Error | SemanticModel | More than one default block in a type |
-| `MIST_DEFAULT_FIELD_NOT_VISIBLE` | Error | Analysis | Default block overrides a non-visible field |
-| `MIST_DEFAULT_NOT_CONSTANT` | Error | Analysis | Non-constant expression in default context |
-| `MIST_DEFAULT_UNDEFINED_TYPE` | Error | Analysis | `default(T)` where T is undefined |
-| `MIST_DEFAULT_ON_INTERFACE` | Error | Analysis | `default(T)` where T is an interface |
-| `MIST_DEFAULT_ON_TRAIT` | Error | Analysis | `default(T)` where T is a trait |
-| `MIST_DEFAULT_ON_TYPE_PARAMETER` | Error | Analysis | `default(T)` where T is a type parameter |
-| `MIST_DEFAULT_CANNOT_INFER` | Error | Analysis | Bare `default` with no inferable type |
-| `MIST_DEFAULT_REDUNDANT` | Info | Analysis | Explicit default block matches inferred default |
-| `MIST_DEFAULT_REQUIRES_BINDING` | Error | SemanticModel | Interface/trait field without type binding |
-| `MIST_DEFAULT_BASE_NOT_DEFAULTABLE` | Error | SemanticModel | Derived type's base class is not defaultable |
+| `MIST_DEFAULT_NOT_SUPPORTED (historical)` | Error | Analysis | `default(T)` where T is not defaultable |
+| `MIST_DEFAULT_DUPLICATE (historical)` | Error | SemanticModel | More than one default block in a type |
+| `MIST_DEFAULT_FIELD_NOT_VISIBLE (historical)` | Error | Analysis | Default block overrides a non-visible field |
+| `MIST_DEFAULT_NOT_CONSTANT (historical)` | Error | Analysis | Non-constant expression in default context |
+| `MIST_DEFAULT_UNDEFINED_TYPE (historical)` | Error | Analysis | `default(T)` where T is undefined |
+| `MIST_DEFAULT_ON_INTERFACE (historical)` | Error | Analysis | `default(T)` where T is an interface |
+| `MIST_DEFAULT_ON_TRAIT (historical)` | Error | Analysis | `default(T)` where T is a trait |
+| `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)` | Error | Analysis | `default(T)` where T is a type parameter |
+| `MIST_DEFAULT_CANNOT_INFER (historical)` | Error | Analysis | Bare `default` with no inferable type |
+| `MIST_DEFAULT_REDUNDANT (historical)` | Info | Analysis | Explicit default block matches inferred default |
+| `MIST_DEFAULT_REQUIRES_BINDING (historical)` | Error | SemanticModel | Interface/trait field without type binding |
+| `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)` | Error | SemanticModel | Derived type's base class is not defaultable |
 
 ### Error Recovery Strategy
 

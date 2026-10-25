@@ -198,24 +198,24 @@ public sealed class ClonableNewtypeConversionDecisionTests
     }
 
     [Theory]
-    [InlineData("Jaguar withoutACast = tiger;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("var noCopy = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("var noCopyBack = (Entity)new Actor();", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("var inheritedCopyOnly = (Margay)ocelot;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("Celled<int> genericWithoutACast = cell;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("var fromAnotherInstance = (Celled<string>)cell;", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("var toAnotherInstance = (Cell<int>)celled;", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("var renamedField = (Puma)lion;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("var renamedFieldBack = (Lion)puma;", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("Rung aReadonlySourceNoLongerLeavesImplicitly = step;", "MIST_PA_CAST_REQUIRED")]
+    [InlineData("Jaguar withoutACast = tiger;", "MIST0158")]
+    [InlineData("var noCopy = (Actor)entity;", "MIST0152")]
+    [InlineData("var noCopyBack = (Entity)new Actor();", "MIST0152")]
+    [InlineData("var inheritedCopyOnly = (Margay)ocelot;", "MIST0152")]
+    [InlineData("Celled<int> genericWithoutACast = cell;", "MIST0158")]
+    [InlineData("var fromAnotherInstance = (Celled<string>)cell;", "MIST0151")]
+    [InlineData("var toAnotherInstance = (Cell<int>)celled;", "MIST0149")]
+    [InlineData("var renamedField = (Puma)lion;", "MIST0154")]
+    [InlineData("var renamedFieldBack = (Lion)puma;", "MIST0154")]
+    [InlineData("Rung aReadonlySourceNoLongerLeavesImplicitly = step;", "MIST0158")]
     public void ACastWithNoCopyThatHolds_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
     }
 
     [Theory]
-    [InlineData("var aCloneTestedAgainstAMutableSource = jaguar is Tiger;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aCloneTestedAgainstAMutableSourceByAs = jaguar as Tiger;", "MIST_PM_AS_NO_RELATIONSHIP")]
+    [InlineData("var aCloneTestedAgainstAMutableSource = jaguar is Tiger;", "MIST0193")]
+    [InlineData("var aCloneTestedAgainstAMutableSourceByAs = jaguar as Tiger;", "MIST0403")]
     public void ATypeTestBetweenACloneAndASourceThatDefinesItsOwnCopy_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);

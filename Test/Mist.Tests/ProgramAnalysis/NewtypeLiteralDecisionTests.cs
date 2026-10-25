@@ -59,11 +59,11 @@ public sealed class NewtypeLiteralDecisionTests
     }
 
     [Theory]
-    [InlineData("Sink.Take(30);", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Age operand = 30 + 1;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("func<Age> result = () => 30;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("func<Age> returned = () => { return 30; };", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Small tooLarge = 300;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
+    [InlineData("Sink.Take(30);", "MIST0158")]
+    [InlineData("Age operand = 30 + 1;", "MIST0158")]
+    [InlineData("func<Age> result = () => 30;", "MIST0158")]
+    [InlineData("func<Age> returned = () => { return 30; };", "MIST0158")]
+    [InlineData("Small tooLarge = 300;", "MIST0157")]
     public void ALiteralAnywhereElse_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);

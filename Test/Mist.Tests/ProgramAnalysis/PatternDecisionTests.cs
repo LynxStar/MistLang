@@ -13,9 +13,9 @@ public sealed class PatternDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_PATTERN_NEVER_MATCHES", "MIST_PA_PATTERN_NARROWS_TO_UNKNOWN",
-        "MIST_PA_PATTERN_NOT_COMPARABLE", "MIST_PA_PATTERN_CONSTANT_MISMATCH", "MIST_PA_PATTERN_BOUND_NOT_CONSTANT",
-        "MIST_PA_SWITCH_ARM_UNREACHABLE",
+        "MIST0193", "MIST0194",
+        "MIST0196", "MIST0197", "MIST0198",
+        "MIST0199",
     ];
 
     public PatternDecisionTests()

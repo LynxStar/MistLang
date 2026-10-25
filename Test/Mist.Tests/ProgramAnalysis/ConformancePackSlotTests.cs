@@ -26,16 +26,16 @@ public sealed class ConformancePackSlotTests
     }
 
     [Theory]
-    [InlineData("Int32, Int32", "Int32", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, int)")]
-    [InlineData("Int32, Int32", "Int32; Int32; Int32", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, int)")]
-    [InlineData("Int32, Int32", "Int32; String", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, int)")]
-    [InlineData("Int32, Int32", "Int32; Int32", "String", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, int)")]
-    [InlineData("Int32, Int32", "(Int32, Int32)", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, int)")]
-    [InlineData("String", "Int32", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(string)")]
-    [InlineData("", "Int32", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply()")]
-    [InlineData("Int32, TRest...", "params TRest", "Int32", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "int Apply(int, (TRest...))")]
-    [InlineData("Int32, Int32", null, "Int32", "MIST_PA_SLOT_NOT_FILLED", "int Apply(int, int)")]
-    [InlineData("TRest...", null, "Int32", "MIST_PA_SLOT_NOT_FILLED", "int Apply((TRest...))")]
+    [InlineData("Int32, Int32", "Int32", "Int32", "MIST0184", "int Apply(int, int)")]
+    [InlineData("Int32, Int32", "Int32; Int32; Int32", "Int32", "MIST0184", "int Apply(int, int)")]
+    [InlineData("Int32, Int32", "Int32; String", "Int32", "MIST0184", "int Apply(int, int)")]
+    [InlineData("Int32, Int32", "Int32; Int32", "String", "MIST0184", "int Apply(int, int)")]
+    [InlineData("Int32, Int32", "(Int32, Int32)", "Int32", "MIST0184", "int Apply(int, int)")]
+    [InlineData("String", "Int32", "Int32", "MIST0184", "int Apply(string)")]
+    [InlineData("", "Int32", "Int32", "MIST0184", "int Apply()")]
+    [InlineData("Int32, TRest...", "params TRest", "Int32", "MIST0184", "int Apply(int, (TRest...))")]
+    [InlineData("Int32, Int32", null, "Int32", "MIST0183", "int Apply(int, int)")]
+    [InlineData("TRest...", null, "Int32", "MIST0183", "int Apply((TRest...))")]
     public void AMemberOfAnotherShape_IsRefusedAgainstTheExpandedSignature(
         string bound, string? written, string returns, string expected, string signature)
     {
@@ -57,7 +57,7 @@ public sealed class ConformancePackSlotTests
         _ = DeclarationFragments.Method(Conformer(fragment), "Apply", integer, integer, positive);
 
         Assert.Empty(fragment.Run(new ConformanceAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", Assert.Single(fragment.Run(new RefinementAnalyzer())).Number.Value);
+        Assert.Equal("MIST0283", Assert.Single(fragment.Run(new RefinementAnalyzer())).Number.Value);
     }
 
     private static ClassType Conformer(DeclarationFragments fragment)

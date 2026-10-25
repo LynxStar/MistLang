@@ -237,21 +237,21 @@ These nodes appear as optional children on:
 
 | ID | Description |
 |----|-------------|
-| `MIST_OWN_USE_AFTER_MOVE` | Access to a variable after it has been moved |
-| `MIST_OWN_REF_ESCAPE` | A ref escapes its declaring scope |
-| `MIST_OWN_MUTATION_BLOCKED` | Mutation attempted while frozen ref is outstanding |
-| `MIST_OWN_NOT_STORABLE` | Ref assigned to a field or collection |
-| `MIST_OWN_EXCLUSIVE_VIOLATION` | Multiple mutable borrows or access during ref loan |
-| `MIST_OWN_INCOMPATIBLE_LEND` | Lending from a tier that cannot provide the requested tier |
-| `MIST_OWN_FIELD_NOT_OWNED` | Reference-type field in owned type is not owned |
-| `MIST_OWN_TYPE_REQUIRES_OWNED` | Owned type instance not held as owned |
-| `MIST_OWN_INTERFACE_FORBIDDEN` | Owned type attempts to implement interface/trait |
-| `MIST_OWN_SIGNATURE_MISMATCH` | Ownership specifier mismatch in interface/trait satisfaction |
-| `MIST_OWN_INVALID_RETURN_SPEC` | Non-owned specifier used on return type |
-| `MIST_OWN_CONDITIONAL_MOVE` | Variable moved in one branch, accessed in another |
-| `MIST_OWN_LOOP_MOVE` | Variable moved in loop without re-assignment |
-| `MIST_OWN_UNRESTRICTED_TO_REF` | Unrestricted variable passed to ref/frozen ref parameter |
-| `MIST_OWN_DUPLICATE_SPECIFIER` | Multiple ownership specifiers on same declaration |
+| `MIST_OWN_USE_AFTER_MOVE (historical)` | Access to a variable after it has been moved |
+| `MIST_OWN_REF_ESCAPE (historical)` | A ref escapes its declaring scope |
+| `MIST_OWN_MUTATION_BLOCKED (historical)` | Mutation attempted while frozen ref is outstanding |
+| `MIST_OWN_NOT_STORABLE (historical)` | Ref assigned to a field or collection |
+| `MIST_OWN_EXCLUSIVE_VIOLATION (historical)` | Multiple mutable borrows or access during ref loan |
+| `MIST_OWN_INCOMPATIBLE_LEND (historical)` | Lending from a tier that cannot provide the requested tier |
+| `MIST_OWN_FIELD_NOT_OWNED (historical)` | Reference-type field in owned type is not owned |
+| `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` | Owned type instance not held as owned |
+| `MIST_OWN_INTERFACE_FORBIDDEN (historical)` | Owned type attempts to implement interface/trait |
+| `MIST_OWN_SIGNATURE_MISMATCH (historical)` | Ownership specifier mismatch in interface/trait satisfaction |
+| `MIST_OWN_INVALID_RETURN_SPEC (historical)` | Non-owned specifier used on return type |
+| `MIST_OWN_CONDITIONAL_MOVE (historical)` | Variable moved in one branch, accessed in another |
+| `MIST_OWN_LOOP_MOVE (historical)` | Variable moved in loop without re-assignment |
+| `MIST_OWN_UNRESTRICTED_TO_REF (historical)` | Unrestricted variable passed to ref/frozen ref parameter |
+| `MIST_OWN_DUPLICATE_SPECIFIER (historical)` | Multiple ownership specifiers on same declaration |
 
 ### Flow Analysis State
 
@@ -342,7 +342,7 @@ The ownership analyzer is designed to be resilient:
 ### Diagnostic Message Format
 
 Each diagnostic includes:
-1. **Error ID** (e.g., `MIST_OWN_USE_AFTER_MOVE`)
+1. **Error ID** (e.g., `MIST_OWN_USE_AFTER_MOVE (historical)`)
 2. **Primary location** — the offending access/operation
 3. **Related location(s)** — where the move/borrow occurred
 4. **Explanation** — human-readable description of why the operation is invalid

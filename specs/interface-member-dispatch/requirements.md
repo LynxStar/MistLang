@@ -27,7 +27,7 @@ This document specifies the requirements for fixing interface member dispatch an
 1. WHEN the target type of a member access expression is an `InterfaceType`, THE Semantic_Model_Builder SHALL search the InterfaceType's Member_Scope for a member matching the given name.
 2. WHEN the target type is an `InterfaceType` and the member is not found in the InterfaceType's own Member_Scope, THE Semantic_Model_Builder SHALL search the Member_Scopes of all inherited interfaces (transitively) for a member matching the given name.
 3. WHEN the target type is an `InterfaceType` and the member is found in the InterfaceType's Member_Scope or any inherited interface's Member_Scope, THE Semantic_Model_Builder SHALL return the member's declared type.
-4. WHEN the target type is an `InterfaceType` and the member is not found in the InterfaceType's Member_Scope or any inherited interface's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER` diagnostic error.
+4. WHEN the target type is an `InterfaceType` and the member is not found in the InterfaceType's Member_Scope or any inherited interface's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER (historical)` diagnostic error.
 5. WHEN the target type is an `InterfaceType` with diamond inheritance (two inherited interfaces both inheriting from a common ancestor), THE Semantic_Model_Builder SHALL resolve the member without duplication errors or infinite loops.
 
 ### Requirement 2: C# Emission of Interface Lists on Class Declarations

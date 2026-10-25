@@ -25,7 +25,7 @@ public sealed class RenderingTests
     public void ASchemaBreachAdmitsTheFallbackAndOneInternalError()
     {
         var descriptor = DiagnosticFixtures.Descriptor(
-            "MIST_FIXTURE_NAMED", "'{name}' has type '{type}'.", slots: [new Slot("name", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+            "FIXTURE_NAMED", "'{name}' has type '{type}'.", slots: [new Slot("name", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 
         var admission = DiagnosticFactory.Create(
             descriptor, new FileOnly("probe.mist"), PipelineStage.Analysis, [new TextValue("wrong kind"), new TypeValue("Standard.Int32", "int")]);
@@ -34,7 +34,7 @@ public sealed class RenderingTests
         var breach = Assert.Single(admission.Breaches);
         Assert.Same(InternalDiagnostics.ArgumentSchemaBreach, breach.Descriptor);
         Assert.Equal(DiagnosticCategory.Ice, breach.Descriptor.Category);
-        Assert.Contains("MIST_FIXTURE_NAMED", breach.Message);
+        Assert.Contains("FIXTURE_NAMED", breach.Message);
         Assert.Contains("Analysis", breach.Message);
         Assert.Contains("slot 'name' is Name but the argument is Text", breach.Message);
     }
@@ -42,7 +42,7 @@ public sealed class RenderingTests
     [Fact]
     public void AMissingPositionalArgumentIsABreachNotAThrow()
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_POSITIONAL", "'{0}' and '{1}'.");
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_POSITIONAL", "'{0}' and '{1}'.");
 
         var admission = DiagnosticFactory.Create(descriptor, new Absent(AbsenceReason.Unavailable), PipelineStage.Parsing, [new TextValue("only one")]);
 
@@ -55,7 +55,7 @@ public sealed class RenderingTests
     public void NamedSubstitutionHonorsEscapesRepeatsAndOptionalSegments()
     {
         var descriptor = DiagnosticFixtures.Descriptor(
-            "MIST_FIXTURE_OPTIONAL",
+            "FIXTURE_OPTIONAL",
             "'{name}' is not callable{namespace?; '{name}' lives in {namespace}}. Write {{name}}.",
             slots: [new Slot("name", SlotKind.Name), new Slot("namespace", SlotKind.Optional, SlotKind.Name)]);
 
@@ -70,7 +70,7 @@ public sealed class RenderingTests
     public void PositionalSubstitutionMatchesCompositeFormatting()
     {
         var descriptor = DiagnosticFixtures.Descriptor(
-            "MIST_FIXTURE_FORMAT", "Reference '{0}' in '{1}' must be a table (e.g., {0} = {{ path = \"...\" }}).");
+            "FIXTURE_FORMAT", "Reference '{0}' in '{1}' must be a table (e.g., {0} = {{ path = \"...\" }}).");
         var bag = new DiagnosticBag(PipelineStage.Driver);
 
         bag.Report(descriptor, default, "mist.toml", "Lib", "mist.toml");
@@ -83,7 +83,7 @@ public sealed class RenderingTests
     [Fact]
     public void ArgumentsAreSnapshotsRenderedUnderTheInvariantCulture()
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_CULTURE", "{0} items, {1}, {2}.");
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_CULTURE", "{0} items, {1}, {2}.");
         var bag = new DiagnosticBag();
         var mutable = new System.Text.StringBuilder("before");
 
@@ -96,7 +96,7 @@ public sealed class RenderingTests
     [Fact]
     public void MissingNullAndEmptyAreDistinctValues()
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_NULLS", "[{0}][{1}]");
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_NULLS", "[{0}][{1}]");
         var bag = new DiagnosticBag();
 
         bag.Report(descriptor, default, "", null, "");
@@ -110,7 +110,7 @@ public sealed class RenderingTests
     [Fact]
     public void TheRendererNeverRecursesIntoItsOwnFailure()
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_BROKEN", "unbalanced {0");
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_BROKEN", "unbalanced {0");
 
         var text = DiagnosticRenderer.Render(descriptor, [new TextValue("x")]);
 

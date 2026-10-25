@@ -6,7 +6,7 @@ This plan wires a C#-style accessibility model (`public`/`private`/`protected`/`
 
 Tasks are sequenced to respect the pipeline order and build incrementally: grammar/lexer keywords -> parser modifier reduction + combination validation -> classic Semantic Model enum, storage, and scope-based default resolution -> Type Checker refactor + full enforcement rule set -> C# backend emission + struct lowering -> experimental Program Model migration -> Ambient Type Provider CLR projection -> existing-violation cleanup -> highlighting -> sample app -> book chapter -> whole-codebase verification. Each step builds on the previous ones and ends wired into the pipeline, with no orphaned code.
 
-Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5/4.5); `sealed` is always a separate boolean flag, never an enum value. All new diagnostics are added **only** as `DiagnosticDescriptor` fields in the existing registry classes (`ParserDiagnostics`, `TypeCheckDiagnostics`), use IDs unique across every registry, and are emitted only via `DiagnosticBag.Report`/`ReportAtNode` (no inline `new DiagnosticId(` at call sites), keeping this feature consistent with the in-flight `diagnostic-descriptor-system` spec.
+Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5/4.5); `sealed` is always a separate boolean flag, never an enum value. All new diagnostics are added **only** as `MistDiagnostic` fields in the existing registry classes (`ParserDiagnostics`, `TypeCheckDiagnostics`), take the next free Number, and are emitted only via `DiagnosticBag.Report`/`ReportAtNode` (no inline construction at call sites), keeping this feature consistent with `specs/diagnostics/requirements.md`.
 
 ## Tasks
 
@@ -37,7 +37,7 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
   - [x] 2.4 Add the multiple-access-modifier diagnostic and wire parse-stage combination validation
-    - Add a `MultipleAccessModifiers` `DiagnosticDescriptor` (`MIST_PARSE_*`, Error, `PipelineStage.Parsing`) to `Source/Mist/Common/Diagnostics/Descriptors/ParserDiagnostics.cs` with a unique ID; message explains Mist has four standalone levels and no combined levels
+    - Add a `MultipleAccessModifiers` `MistDiagnostic` (the next free Number, Error) to `Source/Mist/Common/Diagnostics/Descriptors/ParserDiagnostics.cs` with a unique ID; message explains Mist has four standalone levels and no combined levels
     - In `Source/Mist/Parsing/MistParser.cs` post-parse validation, call `AccessibilityFacts.TryReduceExplicit` and, when `accessModifierCount > 1`, emit via `DiagnosticBag.Report`/`ReportAtNode` (no inline `new DiagnosticId(`)
     - _Requirements: 2.6, 14.1, 14.3_
 
@@ -88,8 +88,8 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
 
 - [x] 4. Classic Type Checker: refactor and full enforcement
   - [x] 4.1 Add the accessibility `TypeCheckDiagnostics` descriptor entries
-    - Add `DiagnosticDescriptor` fields to `Source/Mist/Common/Diagnostics/Descriptors/TypeCheckDiagnostics.cs` for: private-outside-domain, protected-non-derived, internal-cross-assembly, inconsistent-accessibility, base/interface-less-accessible, override/interface-impl violation, nested-type-outside-domain, sealed-inheritance, newtype-over-sealed, sealed-on-alias/non-type (Error), and protected-in-sealed (**Warning**)
-    - Assign next-free `MIST_TC_*` IDs unique across all registries, `PipelineStage.Analysis`
+    - Add `MistDiagnostic` fields to `Source/Mist/Common/Diagnostics/Descriptors/TypeCheckDiagnostics.cs` for: private-outside-domain, protected-non-derived, internal-cross-assembly, inconsistent-accessibility, base/interface-less-accessible, override/interface-impl violation, nested-type-outside-domain, sealed-inheritance, newtype-over-sealed, sealed-on-alias/non-type (Error), and protected-in-sealed (**Warning**)
+    - Assign the next free Numbers (`specs/diagnostics/requirements.md` Requirement 1.4)
     - _Requirements: 14.1, 14.2, 14.3_
 
   - [x] 4.2 Add the `AccessibilityOrder` partial-order helper
@@ -317,7 +317,7 @@ Two independent `Accessibility` enums are defined (one per pipeline, per Req 3.5
 - Tasks marked with `*` are optional test sub-tasks and can be skipped for a faster MVP; core implementation sub-tasks are never optional.
 - Two independent `Accessibility` enums are defined (classic in `Mist.Semantics.Model`, experimental in `Mist.ProgramModel.Model`); `sealed` is always a separate boolean flag, never an enum value.
 - The Type Checker never computes a default: after Semantic Model construction every declaration carries a concrete `Accessibility` (the central invariant enforced by Property 5).
-- All new diagnostics are added only as `DiagnosticDescriptor` fields in the existing `ParserDiagnostics`/`TypeCheckDiagnostics` registry classes, use IDs unique across every registry, and are emitted only via `DiagnosticBag.Report`/`ReportAtNode` (no inline `new DiagnosticId(`), keeping this feature consistent with the in-flight `diagnostic-descriptor-system` spec.
+- All new diagnostics are added only as `MistDiagnostic` fields in the existing `ParserDiagnostics`/`TypeCheckDiagnostics` registry classes, take the next free Number, and are emitted only via `DiagnosticBag.Report`/`ReportAtNode` (no inline construction), keeping this feature consistent with `specs/diagnostics/requirements.md`.
 - Enforcement, reduction, and default property tests (Properties 1-17) compile Mist in-process via a shared `CompilerDriver` and inspect the `DiagnosticBag`; the round-trip test (Property 19) compiles emitted C# in-process via Roslyn; CLR-projection tests (Properties 20-21) exercise pure projection helpers. None spawns a process per iteration.
 - The only process-spawning test is the approved sample proof-code integration test (task 11.3), which compiles in-process and spawns only to run the built output a small fixed number of times.
 - The locked proof code is immutable during implementation (Req 20.7): if it or its expected output appears inconsistent with a requirement, halt and request user intervention rather than weakening the implementation or the proof code.

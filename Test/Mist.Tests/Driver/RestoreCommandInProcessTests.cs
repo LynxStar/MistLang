@@ -62,7 +62,7 @@ public sealed class RestoreCommandInProcessTests
 
         Assert.Equal(1, exitCode);
         Assert.Contains("0 succeeded, 1 failed", output);
-        Assert.StartsWith("error MIST_PKG_002: Package 'BadPkg'", errorOutput);
+        Assert.StartsWith("error MIST0036: Package 'BadPkg'", errorOutput);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class RestoreCommandInProcessTests
         Assert.Equal(1, exitCode);
         Assert.Contains("Restored Newtonsoft.Json", output);
         Assert.Contains("1 succeeded, 1 failed", output);
-        Assert.Contains("MIST_PKG_002", errorOutput);
+        Assert.Contains("MIST0036", errorOutput);
     }
 
     [Fact]
@@ -94,9 +94,9 @@ public sealed class RestoreCommandInProcessTests
         Assert.Equal(["0 succeeded, 3 failed"], Lines(output));
         var errors = Lines(errorOutput);
         Assert.Equal(3, errors.Length);
-        Assert.StartsWith("error MIST_PKG_002: Package 'BadA'", errors[0]);
-        Assert.StartsWith("error MIST_PKG_002: Package 'BadB'", errors[1]);
-        Assert.StartsWith("error MIST_FWREF_002: Framework reference 'Not.A.Framework'", errors[2]);
+        Assert.StartsWith("error MIST0036: Package 'BadA'", errors[0]);
+        Assert.StartsWith("error MIST0036: Package 'BadB'", errors[1]);
+        Assert.StartsWith("error MIST0035: Framework reference 'Not.A.Framework'", errors[2]);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class RestoreCommandInProcessTests
             [new ResolvedPackageInfo("Analyzers", "1.0.0", "", 0), new ResolvedPackageInfo("Lib", "2.0.0", "net8.0", 1)],
             FailureCount: 1);
         var frameworks = new FrameworkResolutionResult([], [new ResolvedFrameworkInfo("Microsoft.AspNetCore.App", "10.0.0")], FailureCount: 0);
-        var failure = DiagnosticFixtures.Occurrence("MIST_PKG_001", DiagnosticSeverity.Error, PipelineStage.Driver, "Package 'Old' does not support net10.0.", default, "", null);
+        var failure = DiagnosticFixtures.Occurrence("TEST_PKG_001", DiagnosticSeverity.Error, PipelineStage.Driver, "Package 'Old' does not support net10.0.", default, "", null);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -124,7 +124,7 @@ public sealed class RestoreCommandInProcessTests
                 "3 succeeded, 1 failed",
             ],
             Lines(output.ToString()));
-        Assert.Equal(["error MIST_PKG_001: Package 'Old' does not support net10.0."], Lines(error.ToString()));
+        Assert.Equal(["error TEST_PKG_001: Package 'Old' does not support net10.0."], Lines(error.ToString()));
     }
 
     [Fact]

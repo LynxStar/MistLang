@@ -96,7 +96,7 @@ public static class PackageResolver
         }
 
         // Validate version strings up-front (same behavior as before — invalid
-        // versions produce MIST_PKG_002 without hitting the network).
+        // versions produce MIST0036 without hitting the network).
         var validPackages = ImmutableArray.CreateBuilder<NuGetPackageReference>();
         var failureCount = 0;
 

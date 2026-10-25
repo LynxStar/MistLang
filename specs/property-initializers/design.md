@@ -14,7 +14,7 @@ The feature extends the existing `ObjectCreationExpression` grammar rule with an
 **Key design decisions:**
 
 1. **Grammar extension, not new rule** — The initializer block is an optional suffix on the existing `ObjectCreationExpression` production, keeping the grammar minimal and avoiding ambiguity with block statements.
-2. **Validation in the type checker** — Member existence, type compatibility, writability, accessibility, and duplicate detection are all checked in `TypeCheckerAnalyzer`, consistent with how property assignment is already validated (MIST_TC_0020, MIST_TC_0021, MIST_TC_0025).
+2. **Validation in the type checker** — Member existence, type compatibility, writability, accessibility, and duplicate detection are all checked in `TypeCheckerAnalyzer`, consistent with how property assignment is already validated (MIST_TC_0020 (historical), MIST_TC_0021 (historical), MIST_TC_0025 (historical)).
 3. **Semantic model records expression types only** — The semantic model builder resolves each value expression's type and the overall expression type (the constructed type). It does not create new symbol kinds for initializer assignments.
 4. **Emitter produces inline C# initializer syntax** — Matching the existing single-line emission style used for `new` expressions.
 
@@ -118,15 +118,15 @@ private void CheckPropertyInitializerBlock(
 
 This method performs five validation passes on each `PropertyAssignment`:
 
-1. **Member existence** — Look up the assignment name in the constructed type's `MemberScope`. The member must be a `SymbolKind.Property` or `SymbolKind.Field`. If not found, emit `MIST_PI_0001`.
+1. **Member existence** — Look up the assignment name in the constructed type's `MemberScope`. The member must be a `SymbolKind.Property` or `SymbolKind.Field`. If not found, emit `MIST_PI_0001 (historical)`.
 
-2. **Type compatibility** — Get the member's `DeclaredType` and the value expression's type from `model.GetTypeOf(assignment.Value)`. Call `IsAssignable(valueType, memberType, model)`. If not assignable, emit `MIST_PI_0002`.
+2. **Type compatibility** — Get the member's `DeclaredType` and the value expression's type from `model.GetTypeOf(assignment.Value)`. Call `IsAssignable(valueType, memberType, model)`. If not assignable, emit `MIST_PI_0002 (historical)`.
 
-3. **Writability** — For properties: check `PropertyMetadata.HasSet || PropertyMetadata.HasInit`. If neither, emit `MIST_PI_0003`. For fields: check `symbol.ReadonlyStatus` — if `ExplicitReadonly`, `InferredReadonly`, or `ImplicitReadonly`, emit `MIST_PI_0004`.
+3. **Writability** — For properties: check `PropertyMetadata.HasSet || PropertyMetadata.HasInit`. If neither, emit `MIST_PI_0003 (historical)`. For fields: check `symbol.ReadonlyStatus` — if `ExplicitReadonly`, `InferredReadonly`, or `ImplicitReadonly`, emit `MIST_PI_0004 (historical)`.
 
-4. **Accessibility** — Check the member's access modifier. If the property's set/init accessor has a `PrivateModifierModifierNode` and the call site is outside the declaring type, emit `MIST_PI_0005`. For fields with `PrivateModifierModifierNode`, same check.
+4. **Accessibility** — Check the member's access modifier. If the property's set/init accessor has a `PrivateModifierModifierNode` and the call site is outside the declaring type, emit `MIST_PI_0005 (historical)`. For fields with `PrivateModifierModifierNode`, same check.
 
-5. **Duplicate detection** — Track seen member names in a `HashSet<string>`. If a name appears twice, emit `MIST_PI_0006` on the second occurrence.
+5. **Duplicate detection** — Track seen member names in a `HashSet<string>`. If a name appears twice, emit `MIST_PI_0006 (historical)` on the second occurrence.
 
 Additionally, for the `ObjectCreationExpressionNoArgsPrimaryNode` variant, the type checker verifies that the type has a parameterless constructor (or no constructors at all, implying a default constructor).
 
@@ -223,12 +223,12 @@ The TextMate grammar at `Editor/mist-syntax-highlighting/syntaxes/mist.tmLanguag
 
 | ID | Severity | Condition | Message Template |
 |----|----------|-----------|-----------------|
-| `MIST_PI_0001` | Error | Member name not found on target type | `"Type '{typeName}' does not contain a property or field named '{memberName}'"` |
-| `MIST_PI_0002` | Error | Value type not assignable to member type | `"Cannot assign '{valueType}' to '{memberName}' of type '{memberType}'"` |
-| `MIST_PI_0003` | Error | Property has no set/init accessor | `"Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer"` |
-| `MIST_PI_0004` | Error | Field is readonly | `"Field '{memberName}' is readonly and cannot be assigned in an initializer"` |
-| `MIST_PI_0005` | Error | Member not accessible from call site | `"'{memberName}' is inaccessible due to its protection level"` |
-| `MIST_PI_0006` | Error | Duplicate member assignment | `"Member '{memberName}' is assigned more than once in the initializer"` |
+| `MIST_PI_0001 (historical)` | Error | Member name not found on target type | `"Type '{typeName}' does not contain a property or field named '{memberName}'"` |
+| `MIST_PI_0002 (historical)` | Error | Value type not assignable to member type | `"Cannot assign '{valueType}' to '{memberName}' of type '{memberType}'"` |
+| `MIST_PI_0003 (historical)` | Error | Property has no set/init accessor | `"Property '{memberName}' has no accessible 'set' or 'init' accessor and cannot be assigned in an initializer"` |
+| `MIST_PI_0004 (historical)` | Error | Field is readonly | `"Field '{memberName}' is readonly and cannot be assigned in an initializer"` |
+| `MIST_PI_0005 (historical)` | Error | Member not accessible from call site | `"'{memberName}' is inaccessible due to its protection level"` |
+| `MIST_PI_0006 (historical)` | Error | Duplicate member assignment | `"Member '{memberName}' is assigned more than once in the initializer"` |
 
 ### AST Node Relationships
 
@@ -275,31 +275,31 @@ classDiagram
 
 ### Property 3: Non-existent member produces diagnostic
 
-*For any* type T and any identifier name that is not a declared property or field on T (or its base types), a property initializer `new T() { name = expr }` SHALL produce exactly one `MIST_PI_0001` diagnostic naming the invalid member and the type.
+*For any* type T and any identifier name that is not a declared property or field on T (or its base types), a property initializer `new T() { name = expr }` SHALL produce exactly one `MIST_PI_0001 (historical)` diagnostic naming the invalid member and the type.
 
 **Validates: Requirements 3.1, 3.2**
 
 ### Property 4: Type-incompatible assignment produces diagnostic
 
-*For any* type T with a settable property P of type A, and any expression whose type B is not assignable to A, a property initializer `new T() { P = expr }` SHALL produce exactly one `MIST_PI_0002` diagnostic naming the member, expected type, and actual type.
+*For any* type T with a settable property P of type A, and any expression whose type B is not assignable to A, a property initializer `new T() { P = expr }` SHALL produce exactly one `MIST_PI_0002 (historical)` diagnostic naming the member, expected type, and actual type.
 
 **Validates: Requirements 4.1, 4.2**
 
 ### Property 5: Read-only property produces diagnostic
 
-*For any* type T with a property P that has only a `get` accessor (no `set` or `init`), a property initializer `new T() { P = expr }` SHALL produce exactly one `MIST_PI_0003` diagnostic.
+*For any* type T with a property P that has only a `get` accessor (no `set` or `init`), a property initializer `new T() { P = expr }` SHALL produce exactly one `MIST_PI_0003 (historical)` diagnostic.
 
 **Validates: Requirements 5.1, 5.2**
 
 ### Property 6: Readonly field produces diagnostic
 
-*For any* type T with a field F marked `readonly`, a property initializer `new T() { F = expr }` SHALL produce exactly one `MIST_PI_0004` diagnostic.
+*For any* type T with a field F marked `readonly`, a property initializer `new T() { F = expr }` SHALL produce exactly one `MIST_PI_0004 (historical)` diagnostic.
 
 **Validates: Requirements 5.3, 5.4**
 
 ### Property 7: Duplicate member produces diagnostic
 
-*For any* property initializer block containing the same member name K more than once, the type checker SHALL produce exactly one `MIST_PI_0006` diagnostic for the duplicate occurrence.
+*For any* property initializer block containing the same member name K more than once, the type checker SHALL produce exactly one `MIST_PI_0006 (historical)` diagnostic for the duplicate occurrence.
 
 **Validates: Requirements 6.1, 6.2**
 
@@ -321,12 +321,12 @@ classDiagram
 
 | Diagnostic ID | Stage | Trigger | Recovery |
 |---------------|-------|---------|----------|
-| `MIST_PI_0001` | Type Checker | Member name not found on type | Skip this assignment, continue checking remaining assignments |
-| `MIST_PI_0002` | Type Checker | Value type not assignable to member type | Report mismatch, continue checking remaining assignments |
-| `MIST_PI_0003` | Type Checker | Property has no set/init accessor | Report error, continue checking remaining assignments |
-| `MIST_PI_0004` | Type Checker | Field is readonly | Report error, continue checking remaining assignments |
-| `MIST_PI_0005` | Type Checker | Member not accessible | Report error, continue checking remaining assignments |
-| `MIST_PI_0006` | Type Checker | Duplicate member name | Report on second occurrence, continue checking remaining assignments |
+| `MIST_PI_0001 (historical)` | Type Checker | Member name not found on type | Skip this assignment, continue checking remaining assignments |
+| `MIST_PI_0002 (historical)` | Type Checker | Value type not assignable to member type | Report mismatch, continue checking remaining assignments |
+| `MIST_PI_0003 (historical)` | Type Checker | Property has no set/init accessor | Report error, continue checking remaining assignments |
+| `MIST_PI_0004 (historical)` | Type Checker | Field is readonly | Report error, continue checking remaining assignments |
+| `MIST_PI_0005 (historical)` | Type Checker | Member not accessible | Report error, continue checking remaining assignments |
+| `MIST_PI_0006 (historical)` | Type Checker | Duplicate member name | Report on second occurrence, continue checking remaining assignments |
 | Parse error | Parser | Malformed initializer block syntax | Standard parser error recovery (skip to next `}` or `;`) |
 
 **Error recovery strategy:** Each assignment in the initializer block is validated independently. A failure on one assignment does not prevent validation of subsequent assignments. This maximizes the number of diagnostics reported in a single compilation pass.

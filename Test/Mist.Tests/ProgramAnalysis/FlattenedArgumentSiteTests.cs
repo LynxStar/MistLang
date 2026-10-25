@@ -43,7 +43,7 @@ public sealed class FlattenedArgumentSiteTests
     {
         var diagnostic = Assert.Single(Analyze(Call(slot, arguments)));
 
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", diagnostic.Number.Value);
+        Assert.Equal("MIST0157", diagnostic.Number.Value);
         Assert.Equal(column, diagnostic.Position().Start.Column);
         Assert.Contains(conversion, diagnostic.Message);
     }

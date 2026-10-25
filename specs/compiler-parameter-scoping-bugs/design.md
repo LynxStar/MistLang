@@ -52,7 +52,7 @@ END FUNCTION
 
 ### Examples
 
-- **Bug 1**: `public Point(int x, int y) { this.x = x; this.y = y; }` — parameter `y` produces `MIST_UNDEFINED_IDENTIFIER` because only `x` is registered in the method scope
+- **Bug 1**: `public Point(int x, int y) { this.x = x; this.y = y; }` — parameter `y` produces `MIST_UNDEFINED_IDENTIFIER (historical)` because only `x` is registered in the method scope
 - **Bug 1**: `public int Add(int a, int b) { return a + b; }` — parameter `b` is not in scope, causing a type resolution failure on `b`
 - **Bug 2**: `private int value = 0;` — the entire file's AST is silently dropped during Pass 2, causing all types in that file to be unregistered
 - **Bug 2**: `private static int totalCreated;` (no initializer) — works correctly, confirming the bug is specific to the optional initializer group
@@ -92,7 +92,7 @@ Based on code analysis of `SemanticModelBuilder.cs`:
 
 Property 1: Bug Condition — All Method Parameters Registered in Scope
 
-_For any_ method or constructor declaration with N parameters (N ≥ 2), the fixed `RegisterParameters` function SHALL register all N parameters in the method body scope, such that each parameter name is resolvable via `scope.Lookup(name)` and no `MIST_UNDEFINED_IDENTIFIER` diagnostic is produced when the parameter is referenced in the method body.
+_For any_ method or constructor declaration with N parameters (N ≥ 2), the fixed `RegisterParameters` function SHALL register all N parameters in the method body scope, such that each parameter name is resolvable via `scope.Lookup(name)` and no `MIST_UNDEFINED_IDENTIFIER (historical)` diagnostic is produced when the parameter is referenced in the method body.
 
 **Validates: Requirements 2.1**
 
@@ -184,9 +184,9 @@ The testing strategy follows a two-phase approach: first, surface counterexample
 4. **Three-Parameter Constructor Test**: Build a constructor with three parameters and verify all are in scope (will fail on unfixed code)
 
 **Expected Counterexamples**:
-- Bug 1: Second parameter produces `MIST_UNDEFINED_IDENTIFIER` diagnostic
-- Bug 2: Type from file with field initializer produces `MIST_UNDEFINED_TYPE` in other files
-- Bug 3: Semantic model builder throws exception or produces `MIST_SEMANTIC_ERROR`
+- Bug 1: Second parameter produces `MIST_UNDEFINED_IDENTIFIER (historical)` diagnostic
+- Bug 2: Type from file with field initializer produces `MIST_UNDEFINED_TYPE (historical)` in other files
+- Bug 3: Semantic model builder throws exception or produces `MIST_SEMANTIC_ERROR (historical)`
 
 ### Fix Checking
 

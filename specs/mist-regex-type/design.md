@@ -297,14 +297,14 @@ The `RefinementType` stores:
 
 | Condition | Diagnostic ID | Message |
 |-----------|--------------|---------|
-| Unterminated regex literal (no closing backtick) | `MIST_LEX_ERROR` | "Unterminated regex literal starting at line {L}, column {C}" |
-| Invalid regex pattern in literal | `MIST_TC_REGEX_INVALID` | "Invalid regex pattern: {error} at offset {offset}" |
-| Invalid regex pattern in string literal assigned to regex | `MIST_TC_REGEX_INVALID` | "Invalid regex pattern: {error} at offset {offset}" |
-| String assigned to regex without explicit cast | `MIST_TC_0001` (type mismatch) | "Cannot implicitly convert type 'string' to 'regex'. An explicit cast exists (are you missing a cast?)" |
-| Regex pattern on non-string scrutinee | `MIST_TC_REGEX_SCRUTINEE` | "Regex patterns require a 'string' scrutinee, but found '{type}'" |
-| Regex refinement on non-string base type | `MIST_TC_REGEX_REFINEMENT` | "Regex refinement predicates are only valid on 'string' types" |
-| String literal doesn't match regex-refined type | `MIST_TC_REFINEMENT_FAIL` | "String literal \"{value}\" does not match the regex pattern '{pattern}'" |
-| Non-constant string assigned to regex-refined type | `MIST_TC_REFINEMENT_NONCONST` | "Cannot assign non-constant expression to regex-refined type '{type}'. Use pattern matching: if (value is {type} x) { ... }" |
+| Unterminated regex literal (no closing backtick) | `MIST0120` | "Unterminated regex literal starting at line {L}, column {C}" |
+| Invalid regex pattern in literal | `MIST_TC_REGEX_INVALID (historical)` | "Invalid regex pattern: {error} at offset {offset}" |
+| Invalid regex pattern in string literal assigned to regex | `MIST_TC_REGEX_INVALID (historical)` | "Invalid regex pattern: {error} at offset {offset}" |
+| String assigned to regex without explicit cast | `MIST_TC_0001 (historical)` (type mismatch) | "Cannot implicitly convert type 'string' to 'regex'. An explicit cast exists (are you missing a cast?)" |
+| Regex pattern on non-string scrutinee | `MIST_TC_REGEX_SCRUTINEE (historical)` | "Regex patterns require a 'string' scrutinee, but found '{type}'" |
+| Regex refinement on non-string base type | `MIST_TC_REGEX_REFINEMENT (historical)` | "Regex refinement predicates are only valid on 'string' types" |
+| String literal doesn't match regex-refined type | `MIST_TC_REFINEMENT_FAIL (historical)` | "String literal \"{value}\" does not match the regex pattern '{pattern}'" |
+| Non-constant string assigned to regex-refined type | `MIST_TC_REFINEMENT_NONCONST (historical)` | "Cannot assign non-constant expression to regex-refined type '{type}'. Use pattern matching: if (value is {type} x) { ... }" |
 
 ### Runtime Errors
 

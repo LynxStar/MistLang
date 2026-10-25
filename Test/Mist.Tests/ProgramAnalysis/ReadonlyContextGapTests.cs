@@ -13,9 +13,9 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class ReadonlyContextGapTests
 {
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
-    private const string SetsProperty = "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY";
-    private const string WritesThroughRef = "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF";
+    private const string CallsMutable = "MIST0257";
+    private const string SetsProperty = "MIST0259";
+    private const string WritesThroughRef = "MIST0261";
 
     [Fact]
     public void AReadonlyMember_MayNotWriteThroughARef()

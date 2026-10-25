@@ -18,12 +18,12 @@ public sealed class RefinedPatternFlowTests
     [Theory]
     [InlineData("a-chained-test-proves-the-whole-chain", null)]
     [InlineData("a-chained-test-proves-its-base", null)]
-    [InlineData("the-outer-predicate-alone-proves-nothing", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("a-failed-chained-test-does-not-prove-the-base", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("the-fact-does-not-leave-the-branch", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("reassignment-loses-the-fact", "MIST_PA_REFINEMENT_UNPROVEN")]
+    [InlineData("the-outer-predicate-alone-proves-nothing", "MIST0272")]
+    [InlineData("a-failed-chained-test-does-not-prove-the-base", "MIST0272")]
+    [InlineData("the-fact-does-not-leave-the-branch", "MIST0272")]
+    [InlineData("reassignment-loses-the-fact", "MIST0272")]
     [InlineData("a-matched-constituent-binds-its-refinement", null)]
-    [InlineData("a-matched-constituent-is-not-another", "MIST_PA_REFINEMENT_NOT_IMPLIED")]
+    [InlineData("a-matched-constituent-is-not-another", "MIST0273")]
     [InlineData("a-constituent-of-another-base-binds-its-refinement", null)]
     public void APatternProvesOnlyWhatItsEmittedTestChecks(string name, string? expected)
     {

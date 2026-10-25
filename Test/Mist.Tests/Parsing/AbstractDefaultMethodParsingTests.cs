@@ -18,7 +18,7 @@ namespace Mist.Tests.Parsing;
 ///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="CallableBlockBodyCallableBodyNode"/>).</item>
 ///   <item>Slots and defaults may be freely mixed in any order.</item>
 ///   <item>A property with a body inside an abstract type produces the
-///   <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c> diagnostic.</item>
+///   <c>MIST0127</c> diagnostic.</item>
 /// </list>
 ///
 /// **Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5**
@@ -172,7 +172,7 @@ public class AbstractDefaultMethodParsingTests
         var (_, diagnostics) = Parse(source);
 
         Assert.DoesNotContain(diagnostics,
-            d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+            d => d.Number.Value == "MIST0127");
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
@@ -188,7 +188,7 @@ public class AbstractDefaultMethodParsingTests
         var (_, diagnostics) = Parse(source);
 
         var diag = Assert.Single(diagnostics,
-            d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+            d => d.Number.Value == "MIST0127");
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Equal(
             "Property slots cannot have default implementations. Only methods can have defaults.",
@@ -202,7 +202,7 @@ public class AbstractDefaultMethodParsingTests
 
         var (_, diagnostics) = Parse(source);
 
-        Assert.Contains(diagnostics, d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+        Assert.Contains(diagnostics, d => d.Number.Value == "MIST0127");
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class AbstractDefaultMethodParsingTests
 
         var (_, diagnostics) = Parse(source);
 
-        Assert.Contains(diagnostics, d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+        Assert.Contains(diagnostics, d => d.Number.Value == "MIST0127");
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public class AbstractDefaultMethodParsingTests
         var (_, diagnostics) = Parse(source);
 
         Assert.DoesNotContain(diagnostics,
-            d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+            d => d.Number.Value == "MIST0127");
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
@@ -246,7 +246,7 @@ public class AbstractDefaultMethodParsingTests
         var (_, diagnostics) = Parse(source);
 
         Assert.DoesNotContain(diagnostics,
-            d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+            d => d.Number.Value == "MIST0127");
     }
 
     [Fact]
@@ -266,6 +266,6 @@ public class AbstractDefaultMethodParsingTests
 
         var (_, diagnostics) = Parse(source);
 
-        Assert.Contains(diagnostics, d => d.Number.Value == "MIST_ABSTRACT_PROPERTY_DEFAULT");
+        Assert.Contains(diagnostics, d => d.Number.Value == "MIST0127");
     }
 }

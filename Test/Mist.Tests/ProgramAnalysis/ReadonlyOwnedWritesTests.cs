@@ -10,8 +10,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class ReadonlyOwnedWritesTests
 {
-    private const string FieldAssigned = "MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER";
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
+    private const string FieldAssigned = "MIST0251";
+    private const string CallsMutable = "MIST0257";
 
     [Theory]
     [InlineData("readonly-method-writes-and-locally-calls-an-owned-local")]

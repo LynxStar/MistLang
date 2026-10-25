@@ -17,7 +17,7 @@ namespace Mist.Tests.Parsing;
 ///
 /// For any element-type reference <c>T</c>, parsing <c>stackalloc T</c> (no brackets) or
 /// <c>stackalloc T[]</c> (empty brackets) produces no <c>StackallocExpression</c> node,
-/// emits the recovery diagnostic <c>MIST_PARSE_STACKALLOC_SIZE</c>, and parsing continues.
+/// emits the recovery diagnostic <c>MIST0124</c>, and parsing continues.
 /// </summary>
 public class StackallocMissingSizeRecoveryPropertyTests
 {
@@ -50,16 +50,16 @@ public class StackallocMissingSizeRecoveryPropertyTests
 
         var diagnostics = bag.ToImmutableArray();
 
-        // If the parser is skeletal (MIST_PARSE_STUB), the malformed-size behavior cannot
+        // If the parser is skeletal (MIST0121), the malformed-size behavior cannot
         // be exercised; treat as vacuously satisfied so the suite stays meaningful elsewhere.
-        if(diagnostics.Any(d => d.Number.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Number.Value == "MIST0121"))
         {
-            return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
+            return true.ToProperty().Label("parser skeletal (MIST0121)");
         }
 
         // (1) The specific recovery diagnostic MUST be emitted (R3.4 / R3.5).
         var hasStackallocSizeDiagnostic = diagnostics.Any(d =>
-            d.Number.Value == "MIST_PARSE_STACKALLOC_SIZE"
+            d.Number.Value == "MIST0124"
             && d.Severity == DiagnosticSeverity.Error);
 
         // (2) No StackallocExpression node may be produced (R3.4 / R3.5).

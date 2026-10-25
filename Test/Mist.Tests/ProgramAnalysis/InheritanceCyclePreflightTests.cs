@@ -24,9 +24,9 @@ public sealed class InheritanceCyclePreflightTests
         ProgramAnalysisRunner.Run(model, diagnostics, timings);
 
         var findings = diagnostics.ToImmutableArray();
-        Assert.Equal(["MIST_MISSING_ENTRY_POINT", "MIST_PA_CYCLIC_INHERITANCE"], findings.Select(diagnostic => diagnostic.Number.Value));
+        Assert.Equal(["MIST0108", "MIST0163"], findings.Select(diagnostic => diagnostic.Number.Value));
         var diagnostic = findings[1];
-        Assert.Equal("MIST_PA_CYCLIC_INHERITANCE", diagnostic.Number.Value);
+        Assert.Equal("MIST0163", diagnostic.Number.Value);
         Assert.Equal("inheritance-cycle-checks", diagnostic.AnalyzerName);
         Assert.Equal("hand-built.mist", diagnostic.Location.Path);
         Assert.Equal(31, diagnostic.Position().Start.Column);
@@ -46,7 +46,7 @@ public sealed class InheritanceCyclePreflightTests
         derived.BaseType = parent;
         var model = ModelOf(isLibrary: true, parent, derived);
         var diagnostics = new DiagnosticBag();
-        var binding = DiagnosticFixtures.Occurrence("MIST_PM_PROBE", DiagnosticSeverity.Error,
+        var binding = DiagnosticFixtures.Occurrence("TEST_PM_PROBE", DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "existing binding refusal", default, "hand-built.mist", null);
         diagnostics.Add(binding);
         var timings = new AnalysisTimings();
@@ -54,8 +54,8 @@ public sealed class InheritanceCyclePreflightTests
         ProgramAnalysisRunner.Run(model, diagnostics, timings);
 
         Assert.Contains(binding, diagnostics.ToImmutableArray());
-        Assert.Contains(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST_PA_SEALED_BASE_TYPE");
-        Assert.DoesNotContain(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST_PA_CYCLIC_INHERITANCE");
+        Assert.Contains(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST0162");
+        Assert.DoesNotContain(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST0163");
         Assert.Equal(1, timings.ProgramScopes);
         Assert.Contains(timings.Analyzers, analyzer => analyzer.Name == "ConformanceAnalyzer");
     }

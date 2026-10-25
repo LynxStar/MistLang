@@ -16,7 +16,7 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class EnumRefinementFlowTests
 {
     [Theory]
-    [InlineData(-20L, "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData(-20L, "MIST0271")]
     [InlineData(10L, null)]
     [InlineData(100L, null)]
     public void AliasesAndLocalCopiesCarryEnumFacts(long number, string? expected)
@@ -39,8 +39,8 @@ public sealed class EnumRefinementFlowTests
 
     [Theory]
     [InlineData(10L, 100L, null)]
-    [InlineData(-20L, 100L, "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData(-20L, -20L, "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData(-20L, 100L, "MIST0272")]
+    [InlineData(-20L, -20L, "MIST0271")]
     public void JoinsRequireEveryIncomingEnumFactToSatisfyThePredicate(long left, long right, string? expected)
     {
         var model = new EnumRefinementModel();
@@ -73,13 +73,13 @@ public sealed class EnumRefinementFlowTests
             join ? HandBuiltRefinements.If(HandBuiltRefinements.Local(model.Facts.Bool, "flag"), reset) : reset,
             HandBuiltRefinements.Need(local, model.AtLeast(color, green)));
 
-        AssertFinding(model, body, "MIST_PA_REFINEMENT_UNPROVEN");
+        AssertFinding(model, body, "MIST0272");
     }
 
     [Theory]
     [InlineData(false, false, null)]
-    [InlineData(false, true, "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData(true, false, "MIST_PA_REFINEMENT_UNPROVEN")]
+    [InlineData(false, true, "MIST0272")]
+    [InlineData(true, false, "MIST0272")]
     public void OnlyTheBuiltInGuardProvesItsThenBranch(bool userOperator, bool elseBranch, string? expected)
     {
         var model = new EnumRefinementModel();
@@ -127,7 +127,7 @@ public sealed class EnumRefinementFlowTests
         var body = HandBuiltModel.Block(HandBuiltRefinements.Give(local, result),
             HandBuiltRefinements.Need(local, h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L)));
 
-        AssertFinding(model, body, "MIST_PA_REFINEMENT_UNPROVEN");
+        AssertFinding(model, body, "MIST0272");
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class EnumRefinementFlowTests
                 HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(copy, high))),
             HandBuiltRefinements.Need(copy, target));
 
-        AssertFinding(model, body, "MIST_PA_REFINEMENT_UNPROVEN");
+        AssertFinding(model, body, "MIST0272");
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class EnumRefinementFlowTests
             HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(local, sum)),
             HandBuiltRefinements.Need(local, model.AtLeast(color, first)));
 
-        AssertFinding(model, body, "MIST_PA_REFINEMENT_UNPROVEN");
+        AssertFinding(model, body, "MIST0272");
     }
 
     private static TypeAlias Alias(string name, IMistType type)

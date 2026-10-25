@@ -17,7 +17,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "2")]
 public sealed class UserSliceBindingTests
 {
-    private const string NotSliceable = "MIST_PM_RECEIVER_NOT_SLICEABLE";
+    private const string NotSliceable = "MIST0353";
 
     [Fact]
     public void ARangeIndexerOfACountedReceiverIsTheSelectedAccess()
@@ -186,8 +186,8 @@ public sealed class UserSliceBindingTests
 
     [Theory]
     [InlineData("unsliceable", NotSliceable)]
-    [InlineData("two-slices", "MIST_PM_LIST_PATTERN_MULTIPLE_SLICES")]
-    [InlineData("unindexable", "MIST_PM_LIST_PATTERN_SCRUTINEE")]
+    [InlineData("two-slices", "MIST0357")]
+    [InlineData("unindexable", "MIST0356")]
     public void ARefusedListPatternKeepsItsBindingsAsFailures_SoNothingNamesThemAgain(string refusal, string id)
     {
         var f = new Fixture();

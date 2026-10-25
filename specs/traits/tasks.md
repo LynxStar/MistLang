@@ -63,11 +63,11 @@ Add traits — a structural typing mechanism — to the Mist programming languag
   - [x] 4.1 Implement `Pass1_ResolveWithBlocks` sub-pass
     - Add new sub-pass after all types are registered and interface lists are resolved
     - For each `WithDeclaration`: resolve type name to `ClassType`/`StructType`, resolve trait name to `TraitType`
-    - Emit `MIST_TRAIT_WITH_UNDEFINED_TYPE` when type name is not found
-    - Emit `MIST_TRAIT_WITH_UNDEFINED_TRAIT` when trait name is not found
-    - Emit `MIST_TRAIT_DUPLICATE_WITH` for duplicate type-trait pairs
+    - Emit `MIST_TRAIT_WITH_UNDEFINED_TYPE (historical)` when type name is not found
+    - Emit `MIST_TRAIT_WITH_UNDEFINED_TRAIT (historical)` when trait name is not found
+    - Emit `MIST_TRAIT_DUPLICATE_WITH (historical)` for duplicate type-trait pairs
     - For each `MemberMapping`: validate source member exists as public on the type, validate target member exists in the trait, validate type compatibility
-    - Emit `MIST_TRAIT_WITH_UNDEFINED_SOURCE`, `MIST_TRAIT_WITH_UNDEFINED_TARGET`, `MIST_TRAIT_WITH_TYPE_MISMATCH` as appropriate
+    - Emit `MIST_TRAIT_WITH_UNDEFINED_SOURCE (historical)`, `MIST_TRAIT_WITH_UNDEFINED_TARGET (historical)`, `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` as appropriate
     - Store validated mappings in a `WithBlockRegistry` for use by the satisfaction pass
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.9_
 
@@ -84,9 +84,9 @@ Add traits — a structural typing mechanism — to the Mist programming languag
     - Method matching: require same name, return type, and parameter types
     - Property matching: require same name, compatible type, and at least the trait's accessors
     - Exclude private members from matching
-    - Emit `MIST_TRAIT_MEMBER_VISIBILITY` when a private member matches a trait member name
+    - Emit `MIST_TRAIT_MEMBER_VISIBILITY (historical)` when a private member matches a trait member name
     - Combine structural matches with `with` block mappings
-    - Emit `MIST_TRAIT_WITH_UNSATISFIED` when a `with` block doesn't cover all unmapped members
+    - Emit `MIST_TRAIT_WITH_UNSATISFIED (historical)` when a `with` block doesn't cover all unmapped members
     - Register complete satisfactions in the `TraitSatisfactionMap`
     - Store the `TraitSatisfactionMap` on the `SemanticModel` and expose via `ISemanticModel`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 6.7, 6.8, 10.5_
@@ -120,7 +120,7 @@ Add traits — a structural typing mechanism — to the Mist programming languag
   - [x] 7.4 Extend `TypeCheckerAnalyzer.IsAssignable` for trait assignability
     - Add trait assignability logic: when target is `TraitType`, check if source satisfies it via `TraitSatisfactionMap`
     - Implement `SatisfiesTrait` helper that queries the `TraitSatisfactionMap` on the semantic model
-    - Extend `CheckAssignability` to emit `MIST_TRAIT_UNSATISFIED` diagnostic with trait name, type name, and unsatisfied member list when assignment fails
+    - Extend `CheckAssignability` to emit `MIST_TRAIT_UNSATISFIED (historical)` diagnostic with trait name, type name, and unsatisfied member list when assignment fails
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 10.1_
 
   - [x] 7.5 Write property test for trait assignability

@@ -97,7 +97,7 @@ Stage 0 - Cleaning
 ...
 Stage 1 - Loading
 ...
-error MIST_PKG_002: Package 'Newtonsoft.Jsn' version '13.0.3' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.
+error MIST0036: Package 'Newtonsoft.Jsn' version '13.0.3' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.
 Stage 2 - Lexing
 ...
 Stage 5 - Analysis
@@ -150,7 +150,7 @@ Resolved Microsoft.AspNetCore.App 10.0.0
 
 When a package cannot be resolved, the compiler emits a stable diagnostic identifier so you can quickly identify the category of failure. These diagnostics are always surfaced, during Stage 1.5, regardless of whether `--verbose` is supplied (see [When a Dependency Fails](#when-a-dependency-fails)).
 
-### `MIST_PKG_001` — Incompatible Target Framework
+### `MIST_PKG_001 (held back, no number)` — Incompatible Target Framework
 
 **Trigger:** A declared package version provides no assemblies compatible with the project's target framework.
 
@@ -163,58 +163,58 @@ error MIST_PKG_001: Package 'EmbedIO' version '3.5.2' does not support net10.0.
 
 **Fix:** Check if a newer version of the package supports your target framework, or lower your target framework.
 
-### `MIST_PKG_002` — Package Not Found
+### `MIST0036` — Package Not Found
 
 **Trigger:** The declared package name or version cannot be found on any configured NuGet feed.
 
 **Meaning:** Either the package name is misspelled, the version doesn't exist, or the feed isn't reachable. The diagnostic names every feed that was searched.
 
 ```
-error MIST_PKG_002: Package 'Newtonsoft.Jsn' version '13.0.3' not found.
+error MIST0036: Package 'Newtonsoft.Jsn' version '13.0.3' not found.
   Searched feeds: https://api.nuget.org/v3/index.json
 ```
 
 **Fix:** Verify the package name and version in your `mist.toml`. Check nuget.org for the correct spelling.
 
-### `MIST_PKG_003` — Network Failure or Timeout
+### `MIST0037` — Network Failure or Timeout
 
 **Trigger:** A connection or network failure occurs while restoring a package, or the restore does not complete within 100 seconds.
 
 **Meaning:** The NuGet feed could not be reached, or the download was too slow. The diagnostic indicates which category (connection failure vs. timeout).
 
 ```
-error MIST_PKG_003: Failed to restore 'Newtonsoft.Json' version '13.0.3': connection failure.
+error MIST0037: Failed to restore 'Newtonsoft.Json' version '13.0.3': connection failure.
 ```
 
 ```
-error MIST_PKG_003: Failed to restore 'LargePackage' version '1.0.0': restore timeout (100s).
+error MIST0037: Failed to restore 'LargePackage' version '1.0.0': restore timeout (100s).
 ```
 
 **Fix:** Check your network connection. If the package is already cached at `~/.nuget/packages/`, it will be used without a network request.
 
 ## Framework Reference Diagnostics
 
-### `MIST_FWREF_001` — Framework Not Installed
+### `MIST0034` — Framework Not Installed
 
 **Trigger:** An enabled framework reference is not installed on the host machine for the target framework.
 
 **Meaning:** The compiler looked for the reference assembly pack at the expected path and didn't find it. The diagnostic names the framework, the target framework, and the path that was searched.
 
 ```
-error MIST_FWREF_001: Framework 'Microsoft.AspNetCore.App' is not installed for net10.0.
+error MIST0034: Framework 'Microsoft.AspNetCore.App' is not installed for net10.0.
   Searched: /usr/local/share/dotnet/packs/Microsoft.AspNetCore.App.Ref/
 ```
 
 **Fix:** Install the .NET SDK version that includes the required shared framework. For ASP.NET Core, this is typically included with the .NET SDK installer.
 
-### `MIST_FWREF_002` — Unknown Framework Name
+### `MIST0035` — Unknown Framework Name
 
 **Trigger:** The enabled framework name does not correspond to a known shared framework.
 
 **Meaning:** The framework name is likely misspelled or refers to something that isn't a .NET shared framework.
 
 ```
-error MIST_FWREF_002: Unknown shared framework 'Microsoft.AspNet.App'.
+error MIST0035: Unknown shared framework 'Microsoft.AspNet.App'.
   Known frameworks: Microsoft.AspNetCore.App, Microsoft.WindowsDesktop.App
 ```
 
@@ -484,7 +484,7 @@ A CLR method, property or indexer that returns `ref readonly` hands back a refer
 
 It prints `first=10, copied=1`: the builder's write shows through the alias and not through the copy. A readonly reference promises only that *you* will not write through it, which is all `ref readonly` promises, so the element can still change under you, as it does here.
 
-Taking a writable reference through one is refused with `MIST_PA_READONLY_REF_WRITTEN`: binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`. A `readonly ref` local is a readonly reference in the same way.
+Taking a writable reference through one is refused with `MIST0208`: binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`. A `readonly ref` local is a readonly reference in the same way.
 
 ### Working Around Hidden Members
 

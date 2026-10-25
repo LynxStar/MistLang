@@ -86,7 +86,7 @@ public sealed class AnonymousTypeResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var v = new { held.Count() };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_ANONYMOUS_MEMBER_NOT_NAMEABLE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0416"));
     }
 
     // ── Harness ─────────────────────────────────────────────────────────

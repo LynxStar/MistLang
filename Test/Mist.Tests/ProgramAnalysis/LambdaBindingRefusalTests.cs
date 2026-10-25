@@ -10,10 +10,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class LambdaBindingRefusalTests
 {
     [Theory]
-    [InlineData("lambda-whose-parameter-nothing-fixes", "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED")]
-    [InlineData("lambda-parameter-stated-against-an-inferred-type", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("lambda-body-broken-under-the-inferred-parameter", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("overloaded-callback-no-candidate-beats", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    [InlineData("lambda-whose-parameter-nothing-fixes", "MIST0391")]
+    [InlineData("lambda-parameter-stated-against-an-inferred-type", "MIST0392")]
+    [InlineData("lambda-body-broken-under-the-inferred-parameter", "MIST0301")]
+    [InlineData("overloaded-callback-no-candidate-beats", "MIST0386")]
     public void LambdaParticipatesInRealBindingAndInference(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();

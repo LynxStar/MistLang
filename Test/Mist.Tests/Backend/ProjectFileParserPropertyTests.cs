@@ -141,7 +141,7 @@ public sealed class ProjectFileParserPropertyTests
                 Assert.Null(result);
                 var diags = diagnostics.ToImmutableArray();
                 _ = Assert.Single(diags);
-                Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Number.Value);
+                Assert.Equal("MIST0061", diags[0].Number.Value);
                 Assert.Contains("mist.toml", diags[0].Message);
             }
             finally

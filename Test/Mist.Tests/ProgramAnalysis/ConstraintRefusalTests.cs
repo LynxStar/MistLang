@@ -16,28 +16,28 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class ConstraintRefusalTests
 {
     [Theory]
-    [InlineData("class-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("constructor-constraint", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("constructor-constraint-naming-a-sibling-parameter", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("extension-method-constraint-naming-the-blocks-parameter", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("f-bounded-constraint-closed-over-the-wrong-type", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("f-bounded-constraint-in-a-base-clause", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-constraint-naming-the-receivers-parameter", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-explicit-against-a-sibling-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-group-against-a-self-referencing-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-group-inferred-against-its-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-inferred-against-a-self-referencing-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("generic-method-inferred-against-a-sibling-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("linear-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("pack-element-against-a-constraint-naming-its-pack", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("readonly-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("sibling-constraint-closed-by-a-supertype", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("sibling-constraint-inside-a-constructed-constraint", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("stampable-constraint-with-a-reference-argument", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("stampable-constraint-with-unproven-forwarding", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("type-constraint-reached-only-through-a-declared-implicit-operator", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("type-constraint-reached-only-through-a-newtypes-copy", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("type-constraint-an-abstract-only-the-newtypes-source-conforms-to", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("class-constraint", "MIST0178")]
+    [InlineData("constructor-constraint", "MIST0179")]
+    [InlineData("constructor-constraint-naming-a-sibling-parameter", "MIST0179")]
+    [InlineData("extension-method-constraint-naming-the-blocks-parameter", "MIST0178")]
+    [InlineData("f-bounded-constraint-closed-over-the-wrong-type", "MIST0178")]
+    [InlineData("f-bounded-constraint-in-a-base-clause", "MIST0178")]
+    [InlineData("generic-method-constraint-naming-the-receivers-parameter", "MIST0178")]
+    [InlineData("generic-method-explicit-against-a-sibling-constraint", "MIST0178")]
+    [InlineData("generic-method-group-against-a-self-referencing-constraint", "MIST0178")]
+    [InlineData("generic-method-group-inferred-against-its-constraint", "MIST0178")]
+    [InlineData("generic-method-inferred-against-a-self-referencing-constraint", "MIST0178")]
+    [InlineData("generic-method-inferred-against-a-sibling-constraint", "MIST0178")]
+    [InlineData("linear-constraint", "MIST0178")]
+    [InlineData("pack-element-against-a-constraint-naming-its-pack", "MIST0178")]
+    [InlineData("readonly-constraint", "MIST0178")]
+    [InlineData("sibling-constraint-closed-by-a-supertype", "MIST0178")]
+    [InlineData("sibling-constraint-inside-a-constructed-constraint", "MIST0178")]
+    [InlineData("stampable-constraint-with-a-reference-argument", "MIST0178")]
+    [InlineData("stampable-constraint-with-unproven-forwarding", "MIST0178")]
+    [InlineData("type-constraint-reached-only-through-a-declared-implicit-operator", "MIST0178")]
+    [InlineData("type-constraint-reached-only-through-a-newtypes-copy", "MIST0178")]
+    [InlineData("type-constraint-an-abstract-only-the-newtypes-source-conforms-to", "MIST0178")]
     public void RefusesNamedCase(string name, string expected)
     {
         var built = new HandBuiltModel();
@@ -49,10 +49,10 @@ public sealed class ConstraintRefusalTests
 
     [Theory]
     [InlineData("defaultable", null)]
-    [InlineData("nondefaultable-storage", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("nondefaultable-storage", "MIST0179")]
     [InlineData("initialized-storage", null)]
     [InlineData("native-base", null)]
-    [InlineData("native-base-nondefaultable-storage", "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("native-base-nondefaultable-storage", "MIST0179")]
     [InlineData("intrinsic-base", null)]
     public void ConstructorlessGenericArgument_HasItsImplicitConstructorOnlyWhenItsDefaultCanBeBuilt(string argument, string? expected)
     {
@@ -126,7 +126,7 @@ public sealed class ConstraintRefusalTests
 
     [Theory]
     [InlineData("Score", null)]
-    [InlineData("Grade", "MIST_PA_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("Grade", "MIST0178")]
     public void AWholePackConstraintSpreadingItsPack_IsJudgedPerElementAgainstTheWholeClosing(string element, string? expected)
     {
         var built = new HandBuiltModel();

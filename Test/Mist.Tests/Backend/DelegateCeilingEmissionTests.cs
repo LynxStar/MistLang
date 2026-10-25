@@ -45,7 +45,7 @@ public sealed class DelegateCeilingEmissionTests
 
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
 
-        Assert.Equal(("MIST_VAR_0010", PipelineStage.Backend, 11), (refusal.Number.Value, refusal.Stage, refusal.Position().Start.Line));
+        Assert.Equal(("MIST0028", PipelineStage.Backend, 11), (refusal.Number.Value, refusal.Stage, refusal.Position().Start.Line));
         Assert.Contains("takes 17 inputs, and System.Func and System.Action hold at most 16", refusal.Message);
     }
 
@@ -54,7 +54,7 @@ public sealed class DelegateCeilingEmissionTests
     {
         var refusal = Assert.Single(Emit("Bundle", width: 17), diagnostic => diagnostic.Position().Start.Line != 11);
 
-        Assert.Equal(("MIST_VAR_0010", 23), (refusal.Number.Value, refusal.Position().Start.Line));
+        Assert.Equal(("MIST0028", 23), (refusal.Number.Value, refusal.Position().Start.Line));
         Assert.Contains("in 'Bundle.Map', where 'TArgs' holds 17 types, takes 17 inputs", refusal.Message);
     }
 

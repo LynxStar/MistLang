@@ -93,7 +93,7 @@ public sealed class TypeAliasResolutionTests : ProgramModelProbe
                 type CycleB = CycleA;
                 """);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_CYCLIC_TYPE_ALIAS"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0300"));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class TypeAliasResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("int ok = 1;", extraTypes: "type SelfLoop = SelfLoop;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_CYCLIC_TYPE_ALIAS"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0300"));
     }
 
     [Fact]

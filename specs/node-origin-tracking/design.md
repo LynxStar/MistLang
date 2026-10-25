@@ -259,7 +259,7 @@ private static Diagnostic MakeDiagnostic(string id, string message, SyntaxNode n
 
 | Scenario | Behavior |
 |----------|----------|
-| `MistParser` receives `TokenStream` with null `Source` | Report `MIST_PARSE_ERROR` diagnostic and return `ParseResult` with null `Root`. Do not produce nodes without origin. |
+| `MistParser` receives `TokenStream` with null `Source` | Report `MIST0122` diagnostic and return `ParseResult` with null `Root`. Do not produce nodes without origin. |
 | `node.Origin` is `null` (transition period) | `DiagnosticHelper.ResolveLocation` treats null the same as `TestOrigin` — returns `<unknown>` path and default location. No exception. |
 | `SyntheticOrigin` chain is circular | Should not occur by construction (origins are immutable records assigned at creation time). If detected, `DiagnosticHelper` terminates after a maximum depth (e.g., 100) and returns `<unknown>`. |
 | `node.Span` exceeds `SourceText.Contents.Length` | `DiagnosticHelper.ResolveLocation` returns the file path from origin but uses `default` for location. Does not throw. |

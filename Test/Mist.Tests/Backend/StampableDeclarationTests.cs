@@ -31,7 +31,7 @@ public sealed class StampableDeclarationTests : ProgramModelProbe
         ProgramAnalysisRunner.Run(model, findings);
 
         var finding = Assert.Single(findings.ToImmutableArray(), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal("MIST_PA_STAMPABLE_DECLARATION_NOT_SATISFIED", finding.Number.Value);
+        Assert.Equal("MIST0224", finding.Number.Value);
         Assert.Contains(field, finding.Message, StringComparison.Ordinal);
     }
 
@@ -67,6 +67,6 @@ public sealed class StampableDeclarationTests : ProgramModelProbe
         var diagnostics = BuildRun("", declaration);
 
         var finding = Assert.Single(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal("MIST_PM_STAMPABLE_REQUIRES_STRUCT", finding.Number.Value);
+        Assert.Equal("MIST0317", finding.Number.Value);
     }
 }

@@ -70,6 +70,6 @@ public sealed class PackSlotCallBindingTests : ProgramModelProbe
     [InlineData("var n = constant.Apply(1);")]
     public void ACallThroughTheAbstract_TakesExactlyTheWidthThePackWasBoundTo(string statement)
     {
-        _ = Assert.Single(Errors(BuildRun(statement), "MIST_PM_NO_APPLICABLE_OVERLOAD"));
+        _ = Assert.Single(Errors(BuildRun(statement), "MIST0385"));
     }
 }

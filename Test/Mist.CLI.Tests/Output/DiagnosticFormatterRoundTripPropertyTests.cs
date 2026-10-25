@@ -45,7 +45,7 @@ public class DiagnosticFormatterRoundTripPropertyTests
         var gen =
             from id in Gen.Elements(
                 "MIST001", "MIST002", "CS0001", "CS1234",
-                "MIST_LEX_ERROR", "MIST_PARSE_ERROR", "MIST_UNDEFINED_TYPE")
+                "MIST0120", "MIST0122", "TEST_UNDEFINED_TYPE")
             from severity in Gen.Elements(DiagnosticSeverity.Error, DiagnosticSeverity.Warning)
             from stage in Gen.Elements(
                 PipelineStage.Lexing, PipelineStage.Parsing,

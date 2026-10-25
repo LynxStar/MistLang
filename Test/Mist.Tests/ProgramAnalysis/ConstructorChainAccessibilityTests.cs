@@ -117,7 +117,7 @@ public sealed class ConstructorChainAccessibilityTests
 
         var finding = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Number.Value);
+        Assert.Equal("MIST0159", finding.Number.Value);
         Assert.Equal("hand-built.mist", finding.Location.Path);
         Assert.Equal(41, finding.Position().Start.Column);
         Assert.Equal("'Base' is inaccessible due to its protection level: private members are accessible only within the declaring type.", finding.Message);
@@ -128,8 +128,8 @@ public sealed class ConstructorChainAccessibilityTests
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData(false, "MIST_PA_BASE_CTOR_UNSATISFIED")]
-    [InlineData(true, "MIST_STRUCT_BASE_CTOR_REQUIRED")]
+    [InlineData(false, "MIST0285")]
+    [InlineData(true, "MIST0147")]
     public void UnwrittenPrivateBaseChainKeepsItsImplicitChainDiagnostic(bool isStruct, string diagnosticId)
     {
         var fragment = new DeclarationFragments();

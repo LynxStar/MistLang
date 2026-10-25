@@ -4,26 +4,12 @@ using System.Text.RegularExpressions;
 namespace Mist.Common.Diagnostics;
 
 /// <summary>
-/// The Tier 1 rules a registry mistake fails before it reaches a user. Until the reissue mints one
-/// number per template, the nine codes that several declarations share today are tolerated by
-/// name, and a positional template with no slot schema is tolerated until Phase 3 requires names.
+/// The Tier 1 rules a registry mistake fails before it reaches a user. A positional template with
+/// no slot schema is tolerated until Phase 3 requires names.
 /// </summary>
 internal static partial class RegistryValidator
 {
-    internal static readonly ImmutableHashSet<string> SharedUntilReissue =
-    [
-        "MIST_FWREF_INVALID_NAME",
-        "MIST_GLOBAL_USING_INVALID_FORMAT",
-        "MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE",
-        "MIST_PKG_INVALID_NAME",
-        "MIST_PKG_INVALID_VERSION",
-        "MIST_PM_NOT_CALLABLE",
-        "MIST_PROJECT_REFERENCE_INVALID_FORMAT",
-        "MIST_PROJECT_REFERENCE_INVALID_NAME",
-        "MIST_VAR_0001",
-    ];
-
-    [GeneratedRegex(@"^MIST[0-9A-Z_]+$")]
+    [GeneratedRegex(@"^MIST(?!0000)[0-9]{4}$")]
     private static partial Regex NumberShape();
 
     public static ImmutableArray<string> Validate(IEnumerable<RegistryEntry> entries, IEnumerable<Tombstone> tombstones)
@@ -35,7 +21,7 @@ internal static partial class RegistryValidator
 
         foreach(var group in list.GroupBy(entry => entry.Descriptor.Number.Value ?? "", StringComparer.Ordinal))
         {
-            if(group.Count() > 1 && !SharedUntilReissue.Contains(group.Key))
+            if(group.Count() > 1)
             {
                 problems.Add($"{group.Key}: declared by {string.Join(", ", group.Select(entry => entry.Field))}");
             }

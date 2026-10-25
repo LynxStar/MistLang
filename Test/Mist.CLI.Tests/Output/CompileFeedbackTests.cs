@@ -12,10 +12,10 @@ namespace Mist.CLI.Tests.Output;
 [Trait("Tier", "2")]
 public sealed class CompileFeedbackTests
 {
-    private static readonly Diagnostic PackageA = Error("MIST_PKG_002", "Package 'A' version 'x' could not be found.");
-    private static readonly Diagnostic PackageB = Error("MIST_PKG_002", "Package 'B' version 'y' could not be found.");
-    private static readonly Diagnostic Framework = Error("MIST_FWREF_002", "Framework reference 'C' is not a known shared framework.");
-    private static readonly Diagnostic Source = Error("MIST_PM_UNRESOLVED_TYPE", "Type 'Widget' could not be resolved.", "Program.mist");
+    private static readonly Diagnostic PackageA = Error("MIST0036", "Package 'A' version 'x' could not be found.");
+    private static readonly Diagnostic PackageB = Error("MIST0036", "Package 'B' version 'y' could not be found.");
+    private static readonly Diagnostic Framework = Error("MIST0035", "Framework reference 'C' is not a known shared framework.");
+    private static readonly Diagnostic Source = Error("MIST0298", "Type 'Widget' could not be resolved.", "Program.mist");
 
     [Fact]
     public void ADeliveredErrorIsWrittenWhenItArrives_AheadOfTheStagesAfterIt_AndNeverAgain()
@@ -131,7 +131,7 @@ public sealed class CompileFeedbackTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        var warning = Warning("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE", "Namespace 'Gone' is not defined.");
+        var warning = Warning("MIST0294", "Namespace 'Gone' is not defined.");
         var built = new CompilerResult(true, "bin/Probe.dll", [warning]);
         CompilerResult? handedOn = null;
 
@@ -173,7 +173,7 @@ public sealed class CompileFeedbackTests
     public void AFailureBeforeAnythingWasDeliveredIsWrittenInFull()
     {
         using var error = new StringWriter();
-        var configuration = Error("MIST_TOML_PARSE", "mist.toml could not be parsed.", "mist.toml");
+        var configuration = Error("TEST_TOML_PARSE", "mist.toml could not be parsed.", "mist.toml");
         var launched = false;
 
         var exit = new CompileFeedback(NullProgressReporter.Instance, error).Run(

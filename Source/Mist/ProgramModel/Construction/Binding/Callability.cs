@@ -90,7 +90,7 @@ internal static class Callability
         else
         {
             context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NotCallableExtensionNotImported, call, null,
+                ProgramModelDiagnostics.NotCallable, call, null,
                 name, type, string.Join(", ", offering.Select(ns => $"'{ns}'")));
         }
 

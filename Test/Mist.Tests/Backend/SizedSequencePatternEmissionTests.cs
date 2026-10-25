@@ -217,7 +217,7 @@ public sealed class SizedSequencePatternEmissionTests
         BodyEmitter.EmitExpression(expression, new CSharpWriter(), diagnostics);
 
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST", refusal.Number.Value);
+        Assert.Equal("MIST0013", refusal.Number.Value);
     }
 
     private static string Emit(Expression expression)

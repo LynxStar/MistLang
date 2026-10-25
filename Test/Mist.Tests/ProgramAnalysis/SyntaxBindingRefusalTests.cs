@@ -14,14 +14,14 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class SyntaxBindingRefusalTests
 {
     [Theory]
-    [InlineData("local-function-generic", "MIST_PM_LOCAL_FUNCTION_GENERIC")]
-    [InlineData("local-function-with-sealed-modifier", "MIST_PM_LOCAL_FUNCTION_MODIFIER")]
-    [InlineData("duplicate-local-function", "MIST_PM_DUPLICATE_LOCAL_FUNCTION")]
-    [InlineData("local-after-local-function-of-the-same-name", "MIST_PM_DUPLICATE_LOCAL")]
-    [InlineData("abstract-constructed", "MIST_PM_ABSTRACT_CONSTRUCTED")]
-    [InlineData("anonymous-member-with-no-name", "MIST_PM_ANONYMOUS_MEMBER_NOT_NAMEABLE")]
-    [InlineData("from-end-index-into-an-uncountable-receiver", "MIST_PM_RECEIVER_NOT_COUNTABLE")]
-    [InlineData("list-pattern-over-an-uncountable-receiver", "MIST_PM_RECEIVER_NOT_COUNTABLE")]
+    [InlineData("local-function-generic", "MIST0370")]
+    [InlineData("local-function-with-sealed-modifier", "MIST0369")]
+    [InlineData("duplicate-local-function", "MIST0368")]
+    [InlineData("local-after-local-function-of-the-same-name", "MIST0367")]
+    [InlineData("abstract-constructed", "MIST0417")]
+    [InlineData("anonymous-member-with-no-name", "MIST0416")]
+    [InlineData("from-end-index-into-an-uncountable-receiver", "MIST0355")]
+    [InlineData("list-pattern-over-an-uncountable-receiver", "MIST0355")]
     public void BinderRefusesTheOriginalSyntaxShape(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();

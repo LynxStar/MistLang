@@ -111,7 +111,7 @@
 - Remove `TraitType tt => tt.IsReadonly` and `TraitType => false` patterns
 - Remove `ConstructedTraitType` substitution logic in member access
 - Remove `foreach (var baseTrait in baseConstraints.TraitConstraints)` loops
-- Remove `MIST_TRAIT_UNSATISFIED` emission
+- Remove `MIST_TRAIT_UNSATISFIED (historical)` emission
 
 ### F2. `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs` — MODIFY (35 hits)
 - Remove trait-related ownership checking logic (TraitType pattern matches, trait field/method ownership validation)

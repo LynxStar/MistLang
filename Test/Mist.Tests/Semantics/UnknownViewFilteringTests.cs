@@ -13,7 +13,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "3")]
 public sealed class UnknownViewFilteringTests : ProgramModelProbe
 {
-    private const string Hidden = "MIST_PM_UNKNOWN_VIEW_HIDES_WRITER";
+    private const string Hidden = "MIST0395";
 
     public UnknownViewFilteringTests()
         : base("MistUnknownView_")

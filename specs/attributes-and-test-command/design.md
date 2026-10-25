@@ -105,7 +105,7 @@ Modified declaration rules gain `attributes:AttributeList*` prefix:
 
 **Library mode**: When `OutputType == Library`:
 - Skip all entry point validation (no Main required, no TLS conflict checks)
-- If top-level statements exist, emit error `MIST_EP_0007`: "Library projects cannot have top-level statements"
+- If top-level statements exist, emit error `MIST0115`: "Library projects cannot have top-level statements"
 
 ### CSharpEmitter
 
@@ -120,7 +120,7 @@ Modified declaration rules gain `attributes:AttributeList*` prefix:
 
 ### Test Package Warning
 
-After successful compilation but before invoking `dotnet test`, scan the AST for method declarations with attribute names ending in `Fact`, `Theory`, `Test`, or `TestMethod`. If found and no package in `mist.toml` contains "Test" or "xunit" (case-insensitive), emit warning diagnostic `MIST_TEST_0001`.
+After successful compilation but before invoking `dotnet test`, scan the AST for method declarations with attribute names ending in `Fact`, `Theory`, `Test`, or `TestMethod`. If found and no package in `mist.toml` contains "Test" or "xunit" (case-insensitive), emit warning diagnostic `MIST0102`.
 
 ## Data Models
 
@@ -218,7 +218,7 @@ Declaration nodes (`ClassDeclarationNode`, `StructDeclarationNode`, etc.) gain a
 
 ### Property 5: Test Package Warning Detection
 
-*For any* Mist program where at least one method has an attribute whose unqualified name ends in `Fact`, `Theory`, `Test`, or `TestMethod`, and the project's package list does not contain any package name matching "Test" or "xunit" (case-insensitive substring), the system SHALL emit warning diagnostic `MIST_TEST_0001`. If the package list does contain such a package, no warning SHALL be emitted.
+*For any* Mist program where at least one method has an attribute whose unqualified name ends in `Fact`, `Theory`, `Test`, or `TestMethod`, and the project's package list does not contain any package name matching "Test" or "xunit" (case-insensitive substring), the system SHALL emit warning diagnostic `MIST0102`. If the package list does contain such a package, no warning SHALL be emitted.
 
 **Validates: Requirements 6.3**
 
@@ -241,20 +241,20 @@ Declaration nodes (`ClassDeclarationNode`, `StructDeclarationNode`, etc.) gain a
 
 | Condition | Diagnostic ID | Severity |
 |-----------|--------------|----------|
-| `output_type` has invalid value | `MIST_PROJECT_INVALID_OUTPUT_TYPE` | Error |
+| `output_type` has invalid value | `MIST0059` | Error |
 | `mist run` on library project | CLI error message (pre-compilation) | Error |
 
 ### Entry Point Errors
 
 | Condition | Diagnostic ID | Severity |
 |-----------|--------------|----------|
-| Library project with top-level statements | `MIST_EP_0007` | Error |
+| Library project with top-level statements | `MIST0115` | Error |
 
 ### Test Command Errors
 
 | Condition | Diagnostic ID | Severity |
 |-----------|--------------|----------|
-| Test attributes without test framework packages | `MIST_TEST_0001` | Warning |
+| Test attributes without test framework packages | `MIST0102` | Warning |
 | `mist test --mode lex` | CLI parse error | Error |
 | `dotnet` not found on PATH | CLI error message | Error |
 

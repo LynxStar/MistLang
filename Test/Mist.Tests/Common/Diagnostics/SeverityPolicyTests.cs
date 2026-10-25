@@ -34,8 +34,8 @@ public sealed class SeverityPolicyTests
     public void ApplyNeverLowersNeverTouchesFixedAndPromotesOnlyWhatPolicyNames(
         PolicyClass policyClass, DiagnosticSeverity defaultSeverity, string shape, DiagnosticSeverity expected, bool changed)
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_POLICY", "probe", defaultSeverity, policy: policyClass);
-        var other = DiagnosticNumber.Mint("MIST_FIXTURE_OTHER");
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_POLICY", "probe", defaultSeverity, policy: policyClass);
+        var other = DiagnosticNumber.Mint("FIXTURE_OTHER");
         var policy = shape switch
         {
             "all" => DiagnosticPolicy.Default with { PromoteAllWarnings = true },
@@ -58,7 +58,7 @@ public sealed class SeverityPolicyTests
     [Fact]
     public void EffectiveSeverityIsComputedOnceAtAdmissionAndRecordedWithItsReason()
     {
-        var descriptor = DiagnosticFixtures.Descriptor("MIST_FIXTURE_PROMOTED", "probe", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_PROMOTED", "probe", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
         var operation = new DiagnosticOperation { Policy = DiagnosticPolicy.Default with { PromoteAllWarnings = true } };
         var bag = new DiagnosticBag(operation);
 
@@ -78,8 +78,8 @@ public sealed class SeverityPolicyTests
     [Fact]
     public void HasErrorsReadsEffectiveSeverityAndAnInfoNeverCounts()
     {
-        var info = DiagnosticFixtures.Descriptor("MIST_FIXTURE_INFO", "note", DiagnosticSeverity.Info, policy: PolicyClass.Promotable);
-        var warning = DiagnosticFixtures.Descriptor("MIST_FIXTURE_WARN", "warn", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
+        var info = DiagnosticFixtures.Descriptor("FIXTURE_INFO", "note", DiagnosticSeverity.Info, policy: PolicyClass.Promotable);
+        var warning = DiagnosticFixtures.Descriptor("FIXTURE_WARN", "warn", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
         var all = new DiagnosticBag(new DiagnosticOperation { Policy = DiagnosticPolicy.Default with { PromoteAllWarnings = true } });
         var none = new DiagnosticBag();
 
@@ -103,7 +103,7 @@ public sealed class SeverityPolicyTests
     public void OnlyAnOptionalRuleCanBeSwitched(PolicyClass policyClass, bool enabledByDefault, bool disabled, bool enabled, bool expected)
     {
         var descriptor = new MistDiagnostic(
-            DiagnosticNumber.Mint("MIST_FIXTURE_SWITCH"), "Switch probe", "probe", "A probe.", DiagnosticCategory.Typ,
+            DiagnosticNumber.Mint("FIXTURE_SWITCH"), "Switch probe", "probe", "A probe.", DiagnosticCategory.Typ,
             policyClass, DiagnosticSeverity.Warning, EnabledByDefault: enabledByDefault);
         var policy = DiagnosticPolicy.Default with
         {

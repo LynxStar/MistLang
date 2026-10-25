@@ -88,7 +88,7 @@ public sealed class KeywordTypeStaticLookupTests
 
         Assert.True(missed.IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Number.Value);
+        Assert.Equal("MIST0301", diagnostic.Number.Value);
         Assert.Contains("'Type'", diagnostic.Message);
     }
 
@@ -118,7 +118,7 @@ public sealed class KeywordTypeStaticLookupTests
         _ = Assert.IsType<NotFoundResult>(access.Member);
         _ = Assert.IsType<TypeReferenceExpression>(access.Receiver);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Number.Value);
+        Assert.Equal("MIST0301", diagnostic.Number.Value);
         Assert.Contains("'int'", diagnostic.Message);
     }
 
@@ -147,7 +147,7 @@ public sealed class KeywordTypeStaticLookupTests
 
         Assert.True(access.IsFailed);
         _ = Assert.IsType<NotFoundResult>(access.Member);
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0301", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class KeywordTypeStaticLookupTests
 
         Assert.True(access.IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Number.Value);
+        Assert.Equal("MIST0301", diagnostic.Number.Value);
         Assert.Contains("'int'", diagnostic.Message);
         Assert.Contains("'NoSuchMember'", diagnostic.Message);
         Assert.Equal("hand-built.mist", diagnostic.Location.Path);

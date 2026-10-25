@@ -14,11 +14,11 @@ namespace Mist.Tests.Semantics;
 public sealed class ContextualExpressionStorageContractTests
 {
     [Theory]
-    [InlineData("GlobalField", typeof(FieldResult), "MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE")]
-    [InlineData("GlobalProperty", typeof(PropertyResult), "MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE")]
-    [InlineData("GlobalMethod", typeof(MethodGroupResult), "MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE")]
-    [InlineData("Method", typeof(MethodGroupResult), "MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE")]
-    [InlineData("Missing", typeof(NotFoundResult), "MIST_PM_UNRESOLVED_MEMBER")]
+    [InlineData("GlobalField", typeof(FieldResult), "MIST0350")]
+    [InlineData("GlobalProperty", typeof(PropertyResult), "MIST0350")]
+    [InlineData("GlobalMethod", typeof(MethodGroupResult), "MIST0349")]
+    [InlineData("Method", typeof(MethodGroupResult), "MIST0349")]
+    [InlineData("Missing", typeof(NotFoundResult), "MIST0301")]
     public void APropertySubpatternDistinguishesUnusableMembersFromMissingMembers(string name, Type member, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -50,7 +50,7 @@ public sealed class ContextualExpressionStorageContractTests
 
         Assert.True(bound.IsFailed);
         _ = Assert.IsType<EnumMemberResult>(Assert.Single(bound.Subpatterns).Member);
-        Assert.Equal("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0349", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]

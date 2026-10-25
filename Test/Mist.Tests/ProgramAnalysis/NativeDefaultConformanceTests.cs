@@ -53,7 +53,7 @@ public sealed class NativeDefaultConformanceTests
 
         var diagnostic = Assert.Single(fragment.Run(new ConformanceAnalyzer()));
 
-        Assert.Equal("MIST_PA_SLOT_NOT_FILLED", diagnostic.Number.Value);
+        Assert.Equal("MIST0183", diagnostic.Number.Value);
         Assert.Contains("'string Name()'", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -77,7 +77,7 @@ public sealed class NativeDefaultConformanceTests
 
         var diagnostic = Assert.Single(fragment.Run(new ConformanceAnalyzer()));
 
-        Assert.Equal("MIST_PA_SLOT_NOT_FILLED", diagnostic.Number.Value);
+        Assert.Equal("MIST0183", diagnostic.Number.Value);
         Assert.Contains("'string Greet()'", diagnostic.Message, StringComparison.Ordinal);
     }
 

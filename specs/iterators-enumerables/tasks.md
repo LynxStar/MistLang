@@ -55,13 +55,13 @@ This plan implements first-class iterator/enumerable support in Mist through two
   - [x] 4.2 Enhance `CheckForeachStatement` to validate collection implements `IEnumerable<TElement>`
     - Resolve the collection expression's type
     - Call `FindIEnumerableImplementation` to get `TElement`
-    - If not found: emit diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE` with the resolved type name, bind iteration variable to `ErrorType` for error recovery
+    - If not found: emit diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` with the resolved type name, bind iteration variable to `ErrorType` for error recovery
     - If found: bind the iteration variable to `TElement`
     - _Requirements: 3.1, 3.2, 3.3_
 
   - [x] 4.3 Add explicit type annotation validation to `CheckForeachStatement`
     - If the foreach declares an explicit element type, validate assignability from `TElement` to the declared type
-    - If not assignable: emit diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH`
+    - If not assignable: emit diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH (historical)`
     - If assignable: bind the iteration variable to the declared type
     - _Requirements: 3.4, 3.5_
 
@@ -72,7 +72,7 @@ This plan implements first-class iterator/enumerable support in Mist through two
 
   - [x] 4.5 Write property test for foreach over non-IEnumerable types (Property 4)
     - **Property 4: Foreach over non-IEnumerable types produces a diagnostic**
-    - Generate random types that do NOT implement `IEnumerable<TElement>`, compile foreach statements in-process, verify `MIST_TC_FOREACH_NOT_ENUMERABLE` diagnostic is emitted
+    - Generate random types that do NOT implement `IEnumerable<TElement>`, compile foreach statements in-process, verify `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` diagnostic is emitted
     - **Validates: Requirements 3.2**
 
   - [x] 4.6 Write property test for explicit element type annotation (Property 5)

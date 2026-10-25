@@ -16,15 +16,15 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_INACCESSIBLE_MEMBER", "MIST_PA_INACCESSIBLE_TYPE", "MIST_PA_INCONSISTENT_ACCESSIBILITY", "MIST_PA_SEALED_BASE_TYPE",
-        "MIST_PA_NEWTYPE_OVER_SEALED_TYPE", "MIST_PA_SEALED_TYPE_ALIAS", "MIST_PA_ENUM_BASE_NOT_READONLY",
-        "MIST_PA_ENUM_DUPLICATE_VALUE", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", "MIST_PA_CONSTRAINT_NOT_SATISFIED",
-        "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED", "MIST_PA_NOT_DEFAULTABLE", "MIST_PA_FIELD_HAS_NO_DEFAULT",
-        "MIST_PA_BASE_NOT_DEFAULTABLE", "MIST_PA_PROPERTY_HAS_NO_DEFAULT", "MIST_PA_REFINEMENT_ZERO_NOT_ADMITTED",
-        "MIST_PA_OPERATOR_NOT_PUBLIC", "MIST_PA_OPERATOR_UNPAIRED", "MIST_PA_LOGICAL_OPERATOR_DECLARED",
-        "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", "MIST_PA_REFINEMENT_NOT_COMPARABLE", "MIST_PA_REFINEMENT_CONSTANT_MISMATCH",
-        "MIST_PA_DUPLICATE_SIGNATURE", "MIST_PA_MEMBER_REDECLARATION", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER",
-        "MIST_PA_BASE_CTOR_UNSATISFIED",
+        "MIST0159", "MIST0160", "MIST0161", "MIST0162",
+        "MIST0164", "MIST0165", "MIST0166",
+        "MIST0167", "MIST0168", "MIST0178",
+        "MIST0179", "MIST0180", "MIST0181",
+        "MIST0182", "MIST0286", "MIST0287",
+        "MIST0169", "MIST0170", "MIST0171",
+        "MIST0172", "MIST0173", "MIST0174",
+        "MIST0176", "MIST0177", "MIST0175",
+        "MIST0285",
     ];
 
     public DeclarationShapeDecisionTests()
@@ -482,7 +482,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse(statement, extraTypes, Library));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Number.Value);
+        Assert.Equal("MIST0160", finding.Number.Value);
     }
 
     [Fact]
@@ -508,7 +508,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse("int n = Open.Quiet();", referenced: Library));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Number.Value);
+        Assert.Equal("MIST0159", finding.Number.Value);
     }
 
     [Fact]
@@ -666,7 +666,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         const string shapes = "public class Shapes { public static int Sides<T>(T shape) where T : IShape { return 4; } }";
 
-        Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Number.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED"));
+        Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Number.Value == "MIST0178"));
     }
 
     private const string Closings = """

@@ -14,8 +14,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "1")]
 public sealed class ConstraintEntailmentTests
 {
-    private const string Refused = "MIST_PA_CONSTRAINT_NOT_SATISFIED";
-    private const string RefusedConstructor = "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED";
+    private const string Refused = "MIST0178";
+    private const string RefusedConstructor = "MIST0179";
 
     private readonly HandBuiltModel built = new();
 

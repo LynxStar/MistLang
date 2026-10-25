@@ -81,22 +81,22 @@ This plan implements target-typed `new()` expressions across the Mist compiler p
 - [x] 5. Type checker — validation and diagnostics
   - [x] 5.1 Add type checker validation for target-typed new expressions
     - Add validation in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs` for both node types
-    - Emit `MIST_TARGET_NEW_WITH_VAR` when used in a `var` declaration context
-    - Emit `MIST_TARGET_NEW_NO_CONTEXT` when expression type is ErrorType and no target available
-    - Emit `MIST_TARGET_NEW_INTERFACE` when target type is an interface
-    - Emit `MIST_TARGET_NEW_TRAIT` when target type is a trait
-    - Reuse existing `MIST_ABSTRACT_INSTANTIATION` for abstract classes
+    - Emit `MIST_TARGET_NEW_WITH_VAR (historical)` when used in a `var` declaration context
+    - Emit `MIST_TARGET_NEW_NO_CONTEXT (historical)` when expression type is ErrorType and no target available
+    - Emit `MIST_TARGET_NEW_INTERFACE (historical)` when target type is an interface
+    - Emit `MIST_TARGET_NEW_TRAIT (historical)` when target type is a trait
+    - Reuse existing `MIST_ABSTRACT_INSTANTIATION (historical)` for abstract classes
     - Reuse existing constructor resolution logic for argument/parameter type matching
     - Define new diagnostic IDs in the appropriate diagnostics file
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 5.3, 5.4_
 
   - [x] 5.2 Write unit tests for type checker diagnostics
     - Create `Test/Mist.Tests/Semantics/TargetTypedNewDiagnosticTests.cs`
-    - Test `var x = new()` → `MIST_TARGET_NEW_WITH_VAR`
-    - Test `new()` in expression statement → `MIST_TARGET_NEW_NO_CONTEXT`
-    - Test interface target → `MIST_TARGET_NEW_INTERFACE`
-    - Test trait target → `MIST_TARGET_NEW_TRAIT`
-    - Test abstract class target → `MIST_ABSTRACT_INSTANTIATION`
+    - Test `var x = new()` → `MIST_TARGET_NEW_WITH_VAR (historical)`
+    - Test `new()` in expression statement → `MIST_TARGET_NEW_NO_CONTEXT (historical)`
+    - Test interface target → `MIST_TARGET_NEW_INTERFACE (historical)`
+    - Test trait target → `MIST_TARGET_NEW_TRAIT (historical)`
+    - Test abstract class target → `MIST_ABSTRACT_INSTANTIATION (historical)`
     - Test constructor argument count mismatch → existing error
     - In-process (compile with shared driver, inspect diagnostics)
     - _Requirements: 4.3, 4.4, 4.5, 4.6, 5.1, 5.2_

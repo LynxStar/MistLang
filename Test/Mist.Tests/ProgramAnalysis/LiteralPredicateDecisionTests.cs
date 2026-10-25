@@ -91,33 +91,33 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("Positive value = -2.5;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Positive first = 2.5; Positive value = -first;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Positive value = 0u;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Unit value = 1.5;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("NotZero value = -0.0;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("FloatUnit value = -0.5f;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("DecimalUnit value = 1.5m;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Tenth value = 0.1f;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("float number = 0.1f; double copy = number; Tenth value = copy;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Named value = \"anything\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Other value = \"x\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Escaped value = \"a\\\\n\\\"b\\\\c\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Letters value = \"abc1\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Letters value = \"abc\\n\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Either value = \"ab\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Digits value = \"x12\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("double number = 2.5; number = -1.0; Positive value = number;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("Positive Make() { return -2.5; }", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("double Take(Positive p) { return p; } var value = Take(-2.5);", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("double Take(double p) where p > 0.0 { return p; } var value = Take(-2.5);", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("string Take(string p) where p `[a-z]+` { return p; } var value = Take(\"123\");", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("FloatTenth value = 0.1f;", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("NotLetters value = \"abc\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("LetterOrDigit value = \"abc1\";", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("NotLetters Make() { return \"abc\"; }", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("string Take(LetterOrDigit p) { return p; } var value = Take(\"abc1\");", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("float Take(FloatTenth p) { return p; } var value = Take(0.1f);", "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("Positive value = -2.5;", "MIST0271")]
+    [InlineData("Positive first = 2.5; Positive value = -first;", "MIST0271")]
+    [InlineData("Positive value = 0u;", "MIST0271")]
+    [InlineData("Unit value = 1.5;", "MIST0271")]
+    [InlineData("NotZero value = -0.0;", "MIST0271")]
+    [InlineData("FloatUnit value = -0.5f;", "MIST0271")]
+    [InlineData("DecimalUnit value = 1.5m;", "MIST0271")]
+    [InlineData("Tenth value = 0.1f;", "MIST0271")]
+    [InlineData("float number = 0.1f; double copy = number; Tenth value = copy;", "MIST0271")]
+    [InlineData("Named value = \"anything\";", "MIST0271")]
+    [InlineData("Other value = \"x\";", "MIST0271")]
+    [InlineData("Escaped value = \"a\\\\n\\\"b\\\\c\";", "MIST0271")]
+    [InlineData("Letters value = \"abc1\";", "MIST0271")]
+    [InlineData("Letters value = \"abc\\n\";", "MIST0271")]
+    [InlineData("Either value = \"ab\";", "MIST0271")]
+    [InlineData("Digits value = \"x12\";", "MIST0271")]
+    [InlineData("double number = 2.5; number = -1.0; Positive value = number;", "MIST0271")]
+    [InlineData("Positive Make() { return -2.5; }", "MIST0271")]
+    [InlineData("double Take(Positive p) { return p; } var value = Take(-2.5);", "MIST0271")]
+    [InlineData("double Take(double p) where p > 0.0 { return p; } var value = Take(-2.5);", "MIST0276")]
+    [InlineData("string Take(string p) where p `[a-z]+` { return p; } var value = Take(\"123\");", "MIST0276")]
+    [InlineData("FloatTenth value = 0.1f;", "MIST0271")]
+    [InlineData("NotLetters value = \"abc\";", "MIST0271")]
+    [InlineData("LetterOrDigit value = \"abc1\";", "MIST0271")]
+    [InlineData("NotLetters Make() { return \"abc\"; }", "MIST0271")]
+    [InlineData("string Take(LetterOrDigit p) { return p; } var value = Take(\"abc1\");", "MIST0271")]
+    [InlineData("float Take(FloatTenth p) { return p; } var value = Take(0.1f);", "MIST0271")]
     public void AConstantThatFailsThePredicate_IsRefusedAsViolated(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
@@ -138,14 +138,14 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("LetterOrDigit value = inputText;")]
     public void AValueWithoutASoundLiteralProof_IsStillUnproven(string statement)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse(statement)).Number.Value);
+        Assert.Equal("MIST0272", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Fact]
     public void ARegexThatExceedsTheEvaluationBudget_RemainsUnproven()
     {
         var input = new string('a', 10000);
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse($"Slow value = \"{input}\";")).Number.Value);
+        Assert.Equal("MIST0272", Assert.Single(Analyse($"Slow value = \"{input}\";")).Number.Value);
     }
 
     private ImmutableArray<Diagnostic> Analyse(string statement)

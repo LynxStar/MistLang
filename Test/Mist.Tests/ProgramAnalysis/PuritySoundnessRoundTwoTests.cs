@@ -12,12 +12,12 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PuritySoundnessRoundTwoTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string ContractNotMet = "MIST_PA_PURITY_CONTRACT_NOT_MET";
-    private const string Untestable = "MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE";
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string ContractNotMet = "MIST0144";
+    private const string Untestable = "MIST0146";
+    private const string CallsMutable = "MIST0257";
 
     [Fact]
     public void AStructsLocalReadonlyMember_MayNotReadThroughAnOwnedReferenceFieldOfTheCopy()

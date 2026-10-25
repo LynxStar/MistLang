@@ -30,7 +30,7 @@ public sealed class UnresolvedMemberNamingTests
         _ = f.Bind(BindingFragments.Identifier("held"), new MemberAccessSuffixPostfixSuffixNode { Name = BindingFragments.Token("Missing") });
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Number.Value);
+        Assert.Equal("MIST0301", diagnostic.Number.Value);
         Assert.Contains(expected, diagnostic.Message, StringComparison.Ordinal);
     }
 }

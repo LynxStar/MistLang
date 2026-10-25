@@ -169,14 +169,14 @@ In `MistPrettyPrinter.cs`, add a case for `AnonymousTypeExpressionPrimaryNode`:
 
 | Code | Message Template | Trigger |
 |------|-----------------|---------|
-| `MIST_ANON_EMPTY` | "Anonymous types require at least one property" | `new { }` |
-| `MIST_ANON_DUPLICATE_PROP` | "Anonymous type already contains a property named '{name}'" | Duplicate property name |
-| `MIST_ANON_NO_PROJECTION_NAME` | "Cannot infer property name from expression; use explicit `Name = expr` form" | Projection from literal/method call |
-| `MIST_ANON_READONLY` | "Anonymous type properties are read-only" | Assignment to anon property |
-| `MIST_ANON_ESCAPE_SIGNATURE` | "Anonymous types cannot appear in method signatures" | Anon type in return/param position |
-| `MIST_ANON_ESCAPE_FIELD` | "Anonymous types cannot be used as field types" | Anon type as field type |
-| `MIST_ANON_ESCAPE_GENERIC` | "Anonymous types have no denotable name and cannot be used as generic type arguments" | Anon type as type argument |
-| `MIST_ANON_EQUALITY_MISMATCH` | "Cannot compare anonymous types with different shapes" | `==`/`!=` between different anon types |
+| `MIST_ANON_EMPTY (historical)` | "Anonymous types require at least one property" | `new { }` |
+| `MIST_ANON_DUPLICATE_PROP (historical)` | "Anonymous type already contains a property named '{name}'" | Duplicate property name |
+| `MIST_ANON_NO_PROJECTION_NAME (historical)` | "Cannot infer property name from expression; use explicit `Name = expr` form" | Projection from literal/method call |
+| `MIST_ANON_READONLY (historical)` | "Anonymous type properties are read-only" | Assignment to anon property |
+| `MIST_ANON_ESCAPE_SIGNATURE (historical)` | "Anonymous types cannot appear in method signatures" | Anon type in return/param position |
+| `MIST_ANON_ESCAPE_FIELD (historical)` | "Anonymous types cannot be used as field types" | Anon type as field type |
+| `MIST_ANON_ESCAPE_GENERIC (historical)` | "Anonymous types have no denotable name and cannot be used as generic type arguments" | Anon type as type argument |
+| `MIST_ANON_EQUALITY_MISMATCH (historical)` | "Cannot compare anonymous types with different shapes" | `==`/`!=` between different anon types |
 
 
 
@@ -266,17 +266,17 @@ In `MistPrettyPrinter.cs`, add a case for `AnonymousTypeExpressionPrimaryNode`:
 
 ### Parser Errors
 
-- **Empty anonymous type** (`new { }`): Falls through to `TargetTypedNewExpressionNoArgs` parsing. If the semantic context requires an anonymous type, the type checker reports `MIST_ANON_EMPTY`. If it's a valid target-typed new context, no error.
+- **Empty anonymous type** (`new { }`): Falls through to `TargetTypedNewExpressionNoArgs` parsing. If the semantic context requires an anonymous type, the type checker reports `MIST_ANON_EMPTY (historical)`. If it's a valid target-typed new context, no error.
 - **Missing comma separator**: Standard parser recovery — the Storm parser reports a syntax error at the unexpected token.
 - **Trailing comma**: Allowed by the grammar (`AnonymousPropertyList` includes optional trailing comma).
 
 ### Type Checker Errors
 
-- **Duplicate property names**: Detected during `AnonymousType` construction in the semantic model builder. The first occurrence is accepted; subsequent duplicates emit `MIST_ANON_DUPLICATE_PROP`.
-- **Invalid projection**: When a `ProjectedAnonymousProperty`'s `Postfix` node cannot be reduced to a simple identifier or member access (e.g., it's a method call or literal), emit `MIST_ANON_NO_PROJECTION_NAME`.
-- **Escape to method signatures/fields/generics**: Caught during type annotation resolution. When the resolved type is `AnonymousType` in a forbidden position, emit the appropriate diagnostic (`MIST_ANON_ESCAPE_SIGNATURE`, `MIST_ANON_ESCAPE_FIELD`, `MIST_ANON_ESCAPE_GENERIC`).
-- **Read-only assignment**: Detected when the assignment target is resolved to an `AnonymousType` property. Emit `MIST_ANON_READONLY`.
-- **Cross-shape equality**: Detected when `==`/`!=` operands have different `AnonymousType` shapes. Emit `MIST_ANON_EQUALITY_MISMATCH`.
+- **Duplicate property names**: Detected during `AnonymousType` construction in the semantic model builder. The first occurrence is accepted; subsequent duplicates emit `MIST_ANON_DUPLICATE_PROP (historical)`.
+- **Invalid projection**: When a `ProjectedAnonymousProperty`'s `Postfix` node cannot be reduced to a simple identifier or member access (e.g., it's a method call or literal), emit `MIST_ANON_NO_PROJECTION_NAME (historical)`.
+- **Escape to method signatures/fields/generics**: Caught during type annotation resolution. When the resolved type is `AnonymousType` in a forbidden position, emit the appropriate diagnostic (`MIST_ANON_ESCAPE_SIGNATURE (historical)`, `MIST_ANON_ESCAPE_FIELD (historical)`, `MIST_ANON_ESCAPE_GENERIC (historical)`).
+- **Read-only assignment**: Detected when the assignment target is resolved to an `AnonymousType` property. Emit `MIST_ANON_READONLY (historical)`.
+- **Cross-shape equality**: Detected when `==`/`!=` operands have different `AnonymousType` shapes. Emit `MIST_ANON_EQUALITY_MISMATCH (historical)`.
 - **Property initializer type error**: If a property expression fails type checking (e.g., references an undefined variable), the underlying error is reported as normal, and the property type is set to `ErrorType`. The `AnonymousType` is still constructed to allow further diagnostics downstream.
 
 ### Recovery Strategy

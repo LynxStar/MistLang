@@ -422,9 +422,9 @@ When a `PostfixSuffix` of kind `InvocationSuffix` is applied to an expression wh
 
 The type checker walks the lambda body and identifies all references to variables from enclosing scopes. For each captured variable:
 
-- If the variable's type is a ref struct → error `MIST_TC_0110`
-- If the variable has `owned` ownership → error `MIST_TC_0111`
-- If the variable has `ref`/`frozen ref`/`readonly ref`/`borrowed` ownership → error `MIST_TC_0112`
+- If the variable's type is a ref struct → error `MIST_TC_0110 (historical)`
+- If the variable has `owned` ownership → error `MIST_TC_0111 (historical)`
+- If the variable has `ref`/`frozen ref`/`readonly ref`/`borrowed` ownership → error `MIST_TC_0112 (historical)`
 
 #### Static Lambda Validation
 
@@ -433,7 +433,7 @@ For lambdas with the `static` modifier, the type checker verifies that the body 
 - Static fields and constants
 - Type names
 
-Any reference to a local variable, instance field, or `this` → error `MIST_TC_0113`.
+Any reference to a local variable, instance field, or `this` → error `MIST_TC_0113 (historical)`.
 
 #### Async Lambda Validation
 
@@ -442,12 +442,12 @@ For lambdas with the `async` modifier:
 - The inferred return type is wrapped in `Task<T>`
 
 For lambdas WITHOUT `async`:
-- `await` expressions are forbidden → error `MIST_TC_0114`
+- `await` expressions are forbidden → error `MIST_TC_0114 (historical)`
 - Auto-await rules apply (same as sync methods calling async methods)
 
 #### Mixed Parameter Type Validation
 
-If a lambda parameter list mixes typed and untyped parameters → error `MIST_TC_0115`.
+If a lambda parameter list mixes typed and untyped parameters → error `MIST_TC_0115 (historical)`.
 
 ### 6. C# Emitter Changes
 
@@ -539,18 +539,18 @@ var RESERVED_TYPES = 'int uint long ulong short ushort byte sbyte float double d
 
 | ID | Condition | Requirement |
 |---|---|---|
-| `MIST_TC_0110` | Lambda captures a ref struct variable | 11.1 |
-| `MIST_TC_0111` | Lambda captures an owned-type variable | 11.2, 11.3 |
-| `MIST_TC_0112` | Lambda captures a borrowed/frozen/readonly ref variable | 11.4, 11.5, 11.6 |
-| `MIST_TC_0113` | Static lambda references enclosing variable | 8.2, 8.4 |
-| `MIST_TC_0114` | `await` in non-async lambda body | 9.5 |
-| `MIST_TC_0115` | Mixed typed/untyped lambda parameters | 4.7, 4.8 |
-| `MIST_TC_0116` | Lambda parameter types cannot be inferred (no target type) | 6.6 |
-| `MIST_TC_0117` | Inconsistent return types in block lambda | 6.7 |
-| `MIST_TC_0118` | Missing return in non-void block lambda | 5.4 |
-| `MIST_TC_0119` | Func invocation argument count mismatch | 7.9 |
-| `MIST_TC_0120` | Func invocation argument type mismatch | 7.10 |
-| `MIST_TC_0121` | Ambiguous method group (multiple overloads match) | 7.8 |
+| `MIST_TC_0110 (historical)` | Lambda captures a ref struct variable | 11.1 |
+| `MIST_TC_0111 (historical)` | Lambda captures an owned-type variable | 11.2, 11.3 |
+| `MIST_TC_0112 (historical)` | Lambda captures a borrowed/frozen/readonly ref variable | 11.4, 11.5, 11.6 |
+| `MIST_TC_0113 (historical)` | Static lambda references enclosing variable | 8.2, 8.4 |
+| `MIST_TC_0114 (historical)` | `await` in non-async lambda body | 9.5 |
+| `MIST_TC_0115 (historical)` | Mixed typed/untyped lambda parameters | 4.7, 4.8 |
+| `MIST_TC_0116 (historical)` | Lambda parameter types cannot be inferred (no target type) | 6.6 |
+| `MIST_TC_0117 (historical)` | Inconsistent return types in block lambda | 6.7 |
+| `MIST_TC_0118 (historical)` | Missing return in non-void block lambda | 5.4 |
+| `MIST_TC_0119 (historical)` | Func invocation argument count mismatch | 7.9 |
+| `MIST_TC_0120 (historical)` | Func invocation argument type mismatch | 7.10 |
+| `MIST_TC_0121 (historical)` | Ambiguous method group (multiple overloads match) | 7.8 |
 
 ## Data Models
 
@@ -625,7 +625,7 @@ Mutations to a captured variable inside a lambda MUST be visible outside the lam
 
 ### Property 4: Static Lambda Isolation
 
-A static lambda MUST NOT reference any variable from an enclosing scope. The type checker MUST reject any such reference with `MIST_TC_0113`. The resulting `Func` type is identical to a non-static lambda with the same signature.
+A static lambda MUST NOT reference any variable from an enclosing scope. The type checker MUST reject any such reference with `MIST_TC_0113 (historical)`. The resulting `Func` type is identical to a non-static lambda with the same signature.
 
 - **Validates: Requirements 8.2, 8.3, 8.4, 8.5**
 
@@ -675,18 +675,18 @@ The lambda pretty-print round-trip (Property 6) is strengthened to generate lamb
 
 | Diagnostic | Trigger | Recovery |
 |---|---|---|
-| `MIST_TC_0110` | Lambda captures ref struct | Report error, skip capture validation for that variable |
-| `MIST_TC_0111` | Lambda captures owned type | Report error, skip capture validation |
-| `MIST_TC_0112` | Lambda captures borrowed/frozen/readonly ref | Report error, skip capture validation |
-| `MIST_TC_0113` | Static lambda references enclosing variable | Report error, continue type checking body |
-| `MIST_TC_0114` | `await` in non-async lambda | Report error, treat as if async for continued analysis |
-| `MIST_TC_0115` | Mixed typed/untyped lambda params | Report error, treat all as untyped for continued analysis |
-| `MIST_TC_0116` | Cannot infer lambda param types | Report error, assign ErrorType to params |
-| `MIST_TC_0117` | Inconsistent return types in block lambda | Report error, use first return type |
-| `MIST_TC_0118` | Missing return in non-void block lambda | Report error |
-| `MIST_TC_0119` | Func invocation arg count mismatch | Report error |
-| `MIST_TC_0120` | Func invocation arg type mismatch | Report error per mismatched arg |
-| `MIST_TC_0121` | Ambiguous method group | Report error listing matching overloads |
+| `MIST_TC_0110 (historical)` | Lambda captures ref struct | Report error, skip capture validation for that variable |
+| `MIST_TC_0111 (historical)` | Lambda captures owned type | Report error, skip capture validation |
+| `MIST_TC_0112 (historical)` | Lambda captures borrowed/frozen/readonly ref | Report error, skip capture validation |
+| `MIST_TC_0113 (historical)` | Static lambda references enclosing variable | Report error, continue type checking body |
+| `MIST_TC_0114 (historical)` | `await` in non-async lambda | Report error, treat as if async for continued analysis |
+| `MIST_TC_0115 (historical)` | Mixed typed/untyped lambda params | Report error, treat all as untyped for continued analysis |
+| `MIST_TC_0116 (historical)` | Cannot infer lambda param types | Report error, assign ErrorType to params |
+| `MIST_TC_0117 (historical)` | Inconsistent return types in block lambda | Report error, use first return type |
+| `MIST_TC_0118 (historical)` | Missing return in non-void block lambda | Report error |
+| `MIST_TC_0119 (historical)` | Func invocation arg count mismatch | Report error |
+| `MIST_TC_0120 (historical)` | Func invocation arg type mismatch | Report error per mismatched arg |
+| `MIST_TC_0121 (historical)` | Ambiguous method group | Report error listing matching overloads |
 
 All errors are non-fatal — the compiler continues analysis after reporting, using `ErrorType` where a type cannot be determined. This ensures the developer sees all errors in a single compilation pass.
 

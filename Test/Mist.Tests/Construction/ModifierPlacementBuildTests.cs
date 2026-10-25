@@ -23,7 +23,7 @@ public sealed class ModifierPlacementBuildTests
         _ = Build(declaration, diagnostics, new AsyncModifierModifierNode());
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Number.Value);
+        Assert.Equal("MIST0323", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
@@ -35,15 +35,15 @@ public sealed class ModifierPlacementBuildTests
         _ = Build("operator", diagnostics, new RefModifierModifierNode());
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", diagnostic.Number.Value);
+        Assert.Equal("MIST0040", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
-    [InlineData("sealed", "MIST_PM_SEALED_ON_OPERATOR")]
-    [InlineData("readonly", "MIST_PM_READONLY_ON_OPERATOR")]
-    [InlineData("owned", "MIST_PM_OWNED_ON_OPERATOR")]
-    [InlineData("affine", "MIST_PM_AFFINE_ON_OPERATOR")]
+    [InlineData("sealed", "MIST0043")]
+    [InlineData("readonly", "MIST0044")]
+    [InlineData("owned", "MIST0045")]
+    [InlineData("affine", "MIST0046")]
     public void AnUnsupportedOperatorModifierIsReportedOnceAtItsDeclaration(string modifier, string expected)
     {
         var diagnostics = new DiagnosticBag();
@@ -70,7 +70,7 @@ public sealed class ModifierPlacementBuildTests
 
         _ = Build("operator", diagnostics, new ReadonlyModifierModifierNode(), new RefModifierModifierNode());
 
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0040", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class ModifierPlacementBuildTests
         _ = Build("enum", diagnostics, new PureModifierModifierNode(), new AsyncModifierModifierNode());
 
         Assert.Equal(
-            ["MIST_PM_PURITY_MODIFIER_PLACEMENT", "MIST_PM_ASYNC_NOT_ALLOWED"],
+            ["MIST0321", "MIST0323"],
             diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 

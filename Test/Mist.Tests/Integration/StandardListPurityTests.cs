@@ -14,8 +14,8 @@ namespace Mist.Tests.Integration;
 [Trait("Tier", "3")]
 public sealed class StandardListPurityTests
 {
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
+    private const string CallsImpure = "MIST0139";
+    private const string Writes = "MIST0137";
 
     private const string Admitted = """
         public class Holder

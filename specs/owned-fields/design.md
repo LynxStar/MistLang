@@ -8,7 +8,7 @@ This document references requirements from `requirements.md` by number throughou
 
 ### What changes from ownership-v2
 
-1. **`RejectOwnedFieldModifier` pass is deleted** (Req 7) — the hard error `MIST_OWN_FIELD_MODIFIER_REMOVED` is removed. The `owned` field modifier becomes valid syntax with new semantics.
+1. **`RejectOwnedFieldModifier` pass is deleted** (Req 7) — the hard error `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` is removed. The `owned` field modifier becomes valid syntax with new semantics.
 2. **Per-field state tracking** (Req 16) — the flow-sensitive analysis extends to track each owned field's state independently within `MethodFlowState`.
 3. **Shared vs owned parent access rules** (Req 2) — the Type_Checker distinguishes operations on owned fields based on whether the parent is owned or shared.
 4. **This-tier inference** (Req 17) — a new compiler pass infers what ownership tier a method requires on `this` from its usage of owned fields.
@@ -394,7 +394,7 @@ END
 The `OwnershipAnalyzer` (at `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs`) is modified to:
 
 1. **Delete** `RejectOwnedFieldModifier` pass and its call site (Req 7 AC 2)
-2. **Delete** `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic and message builder (Req 7 AC 1)
+2. **Delete** `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic and message builder (Req 7 AC 1)
 3. **Add** `ThisTierInferencePass` invocation before flow-sensitive analysis
 4. **Add** `OwnershipInferencePass` invocation before flow-sensitive analysis
 5. **Add** `FieldTypeRestrictionVerifier` invocation in the cooperation contract loop
@@ -432,9 +432,9 @@ public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
 
 ### Modified Component 2: `MethodTierVisibilityFilter` (REMOVED)
 
-The existing `MethodTierVisibilityFilter` (at `Source/Mist/Analysis/Builtin/MethodTierVisibilityFilter.cs`) and the `MIST_OWN_MUTABLE_HIDDEN` diagnostic are **removed entirely** (Req 6). The blanket method-hiding logic is replaced by the this-tier call-site check (Req 17 AC 15–16): a method is callable if the caller's binding tier satisfies the method's inferred or declared this-tier. No separate visibility filter is needed.
+The existing `MethodTierVisibilityFilter` (at `Source/Mist/Analysis/Builtin/MethodTierVisibilityFilter.cs`) and the `MIST_OWN_MUTABLE_HIDDEN (historical)` diagnostic are **removed entirely** (Req 6). The blanket method-hiding logic is replaced by the this-tier call-site check (Req 17 AC 15–16): a method is callable if the caller's binding tier satisfies the method's inferred or declared this-tier. No separate visibility filter is needed.
 
-The flow-sensitive analysis now checks `ThisTierInferencePass.GetThisTier(method)` against the caller's binding tier directly. If the tier is insufficient, `MIST_OWN_THIS_TIER_MISMATCH` is emitted instead of the old `MIST_OWN_MUTABLE_HIDDEN`.
+The flow-sensitive analysis now checks `ThisTierInferencePass.GetThisTier(method)` against the caller's binding tier directly. If the tier is insufficient, `MIST_OWN_THIS_TIER_MISMATCH (historical)` is emitted instead of the old `MIST_OWN_MUTABLE_HIDDEN (historical)`.
 
 ### Modified Component 3: `MoveBoundaryResolver` (field-level awareness)
 
@@ -623,7 +623,7 @@ For all owned bindings with multiple owned fields where field A is in a non-Live
 
 ### Property 6: Field-type restriction correctness (Req 4)
 
-For all owned types T, T compiles without `MIST_OWN_FIELD_TYPE_VIOLATION` ⟺ every field's type is owned OR implements `IClonable<T>` OR is a value type.
+For all owned types T, T compiles without `MIST_OWN_FIELD_TYPE_VIOLATION (historical)` ⟺ every field's type is owned OR implements `IClonable<T>` OR is a value type.
 
 ```
 ∀ owned type T:
@@ -646,7 +646,7 @@ For all owned-field assignments (regardless of parent tier), the source must sat
 
 ### Property 8: With-annotation validation (Req 17 AC 10–12)
 
-For all methods with explicit `with {tier}`, the declared tier is accepted ⟺ tier >= inferred minimum. Under-declared tiers produce `MIST_OWN_THIS_TIER_INSUFFICIENT`.
+For all methods with explicit `with {tier}`, the declared tier is accepted ⟺ tier >= inferred minimum. Under-declared tiers produce `MIST_OWN_THIS_TIER_INSUFFICIENT (historical)`.
 
 ```
 ∀ method m with 'with declared':
@@ -672,25 +672,25 @@ The existing truth table from ownership-v2 is unchanged. For all states s and ac
 
 | Diagnostic ID | Trigger | Message template | Requirement |
 |---|---|---|---|
-| `MIST_OWN_SHARED_EXTRACT` | Move/borrow/freeze/readonly-ref of owned field through shared parent | "Cannot {operation} owned field '{field}' through a shared binding — extracting from an owned field requires an owned binding to the parent" | Req 2 AC 5, Req 11 AC 1 |
-| `MIST_OWN_FIELD_TYPE_VIOLATION` | Owned type has field whose type is non-owned, non-IClonable reference type | "Field '{field}' of owned type '{type}' has type '{fieldType}' which is not an owned type and does not implement IClonable<{fieldType}> — all fields of an owned type must be owned types, implement IClonable, or be value types" | Req 4 AC 4, Req 11 AC 2 |
-| `MIST_OWN_THIS_TIER_INSUFFICIENT` | Method's explicit `with {tier}` is less restrictive than body requires | "Method '{method}' declares 'with {declared}' but the body requires at least '{required}' — {operation} on owned field '{field}' requires {required} access" | Req 17 AC 11 |
-| `MIST_OWN_THIS_TIER_MISMATCH` | Call site receiver binding does not satisfy method's this-tier | "Cannot call '{method}' which requires '{requiredTier}' access to 'this' — the receiver '{receiver}' only provides '{actualTier}' access" | Req 17 AC 16 |
-| `MIST_OWN_SHARED_READ_NOT_CLONABLE` | Read of owned field through shared parent where type is not IClonable | "Cannot read owned field '{field}' through a shared binding — the field type '{type}' does not implement IClonable<{type}> and the field cannot be moved out through a shared parent" | Req 2 AC 6, Req 11 AC 7 |
-| `MIST_OWN_INFERENCE_FAILURE` | Ownership inference cannot find a consistent tier assignment | "Cannot infer ownership for '{binding}' — conflicting uses require {tierA} but {use} requires {tierB}. Add an explicit ownership specifier to resolve" | Req 18 AC 5 |
-| `MIST_OWN_STATIC_FIELD_OWNED` | `owned` modifier on a static field | "Static field '{field}' cannot be marked 'owned' — ownership semantics require an instance-level owner" | Req 1 AC 5, Req 11 AC 4 |
+| `MIST_OWN_SHARED_EXTRACT (historical)` | Move/borrow/freeze/readonly-ref of owned field through shared parent | "Cannot {operation} owned field '{field}' through a shared binding — extracting from an owned field requires an owned binding to the parent" | Req 2 AC 5, Req 11 AC 1 |
+| `MIST_OWN_FIELD_TYPE_VIOLATION (historical)` | Owned type has field whose type is non-owned, non-IClonable reference type | "Field '{field}' of owned type '{type}' has type '{fieldType}' which is not an owned type and does not implement IClonable<{fieldType}> — all fields of an owned type must be owned types, implement IClonable, or be value types" | Req 4 AC 4, Req 11 AC 2 |
+| `MIST_OWN_THIS_TIER_INSUFFICIENT (historical)` | Method's explicit `with {tier}` is less restrictive than body requires | "Method '{method}' declares 'with {declared}' but the body requires at least '{required}' — {operation} on owned field '{field}' requires {required} access" | Req 17 AC 11 |
+| `MIST_OWN_THIS_TIER_MISMATCH (historical)` | Call site receiver binding does not satisfy method's this-tier | "Cannot call '{method}' which requires '{requiredTier}' access to 'this' — the receiver '{receiver}' only provides '{actualTier}' access" | Req 17 AC 16 |
+| `MIST_OWN_SHARED_READ_NOT_CLONABLE (historical)` | Read of owned field through shared parent where type is not IClonable | "Cannot read owned field '{field}' through a shared binding — the field type '{type}' does not implement IClonable<{type}> and the field cannot be moved out through a shared parent" | Req 2 AC 6, Req 11 AC 7 |
+| `MIST_OWN_INFERENCE_FAILURE (historical)` | Ownership inference cannot find a consistent tier assignment | "Cannot infer ownership for '{binding}' — conflicting uses require {tierA} but {use} requires {tierB}. Add an explicit ownership specifier to resolve" | Req 18 AC 5 |
+| `MIST_OWN_STATIC_FIELD_OWNED (historical)` | `owned` modifier on a static field | "Static field '{field}' cannot be marked 'owned' — ownership semantics require an instance-level owner" | Req 1 AC 5, Req 11 AC 4 |
 
 ### Removed diagnostics
 
 | Diagnostic ID | Status | Reason |
 |---|---|---|
-| `MIST_OWN_FIELD_MODIFIER_REMOVED` | **DELETED** | The `owned` field modifier is now valid (Req 7 AC 1) |
-| `MIST_OWN_MUTABLE_HIDDEN` | **DELETED** | Blanket method hiding removed; replaced by `MIST_OWN_THIS_TIER_MISMATCH` (Req 6) |
-| `MIST_OWN_CONTRACT_VIOLATION` | **DELETED** | Behavioral cooperation contract subsumed by provenance on owned fields (Req 8 + Req 3) |
+| `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` | **DELETED** | The `owned` field modifier is now valid (Req 7 AC 1) |
+| `MIST_OWN_MUTABLE_HIDDEN (historical)` | **DELETED** | Blanket method hiding removed; replaced by `MIST_OWN_THIS_TIER_MISMATCH (historical)` (Req 6) |
+| `MIST_OWN_CONTRACT_VIOLATION (historical)` | **DELETED** | Behavioral cooperation contract subsumed by provenance on owned fields (Req 8 + Req 3) |
 
 ### Kept diagnostics (unchanged from ownership-v2)
 
-All remaining ownership diagnostics: `MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_REQUIRES_OWNED`, `MIST_OWN_NOT_CLONABLE`, `MIST_OWN_INTERFACE_FORBIDDEN`, `MIST_OWN_INCOMPATIBLE_LEND`, `MIST_OWN_MUTATION_BLOCKED`, `MIST_OWN_EXCLUSIVE_VIOLATION`, `MIST_OWN_SUBSTRUCTURAL_BINDING`.
+All remaining ownership diagnostics: `MIST_OWN_USE_AFTER_MOVE (historical)`, `MIST_OWN_REQUIRES_OWNED (historical)`, `MIST_OWN_NOT_CLONABLE (historical)`, `MIST_OWN_INTERFACE_FORBIDDEN (historical)`, `MIST_OWN_INCOMPATIBLE_LEND (historical)`, `MIST_OWN_MUTATION_BLOCKED (historical)`, `MIST_OWN_EXCLUSIVE_VIOLATION (historical)`, `MIST_OWN_SUBSTRUCTURAL_BINDING (historical)`.
 
 ## Testing Strategy
 
@@ -700,10 +700,10 @@ All remaining ownership diagnostics: `MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_REQUIR
 - **`OwnershipInferencePass`**: test functions with var bindings exercising each downgrade step. Covers Req 18 AC 1–5.
 - **`FieldTypeRestrictionVerifier`**: owned types with all-owned-fields, all-clonable fields, mixed, violating fields. Covers Req 4 AC 1–6.
 - **`PerFieldStateTracker`**: composite state computation, partial move/restore, sibling independence, parent-to-child restriction. Covers Req 16 AC 1–24.
-- **This-tier call-site checking**: verify `MIST_OWN_THIS_TIER_MISMATCH` fires when caller tier is insufficient. Covers Req 17 AC 15–16.
-- **Diagnostic removal**: assert `MIST_OWN_FIELD_MODIFIER_REMOVED`, `MIST_OWN_MUTABLE_HIDDEN`, and `MIST_OWN_CONTRACT_VIOLATION` are never emitted for any input (Req 6, Req 7).
+- **This-tier call-site checking**: verify `MIST_OWN_THIS_TIER_MISMATCH (historical)` fires when caller tier is insufficient. Covers Req 17 AC 15–16.
+- **Diagnostic removal**: assert `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)`, `MIST_OWN_MUTABLE_HIDDEN (historical)`, and `MIST_OWN_CONTRACT_VIOLATION (historical)` are never emitted for any input (Req 6, Req 7).
 - **Owned field provenance**: assignments through shared/owned parents with owned/non-owned/clonable sources. Covers Req 8.
-- **Shared parent extraction blocked**: assert `MIST_OWN_SHARED_EXTRACT` fires for move/borrow/freeze/readonly-ref through shared parent. Covers Req 2 AC 4–6.
+- **Shared parent extraction blocked**: assert `MIST_OWN_SHARED_EXTRACT (historical)` fires for move/borrow/freeze/readonly-ref through shared parent. Covers Req 2 AC 4–6.
 
 ### Property-based testing (FsCheck)
 
@@ -725,13 +725,13 @@ Properties 1–9 above. All use **in-process `CompilerDriver.Compile()`** — no
 | Item | Location | Reason |
 |---|---|---|
 | `RejectOwnedFieldModifier` method | `OwnershipAnalyzer.cs` | Req 7 AC 2 — owned field modifier is now valid |
-| `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic ID + message | `OwnershipAnalyzer.cs` | Req 7 AC 1 |
+| `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic ID + message | `OwnershipAnalyzer.cs` | Req 7 AC 1 |
 | `FieldModifierRemovedMessage` helper | `OwnershipAnalyzer.cs` | Req 7 AC 1 |
 | `MethodTierVisibilityFilter` class | `MethodTierVisibilityFilter.cs` | Req 6 — replaced by this-tier call-site check |
-| `MIST_OWN_MUTABLE_HIDDEN` diagnostic ID + message | `OwnershipAnalyzer.cs` | Req 6 AC 2 — replaced by `MIST_OWN_THIS_TIER_MISMATCH` |
+| `MIST_OWN_MUTABLE_HIDDEN (historical)` diagnostic ID + message | `OwnershipAnalyzer.cs` | Req 6 AC 2 — replaced by `MIST_OWN_THIS_TIER_MISMATCH (historical)` |
 | `CooperationContractVerifier` class | `CooperationContractVerifier.cs` | Req 5 AC 4 — behavioral contract subsumed by provenance on owned fields |
-| `MIST_OWN_CONTRACT_VIOLATION` diagnostic ID + message | `OwnershipAnalyzer.cs` | Subsumed by provenance error on owned fields |
-| Unit tests asserting `MIST_OWN_FIELD_MODIFIER_REMOVED` | `Test/Mist.Tests/` | Req 7 AC 4 |
+| `MIST_OWN_CONTRACT_VIOLATION (historical)` diagnostic ID + message | `OwnershipAnalyzer.cs` | Subsumed by provenance error on owned fields |
+| Unit tests asserting `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` | `Test/Mist.Tests/` | Req 7 AC 4 |
 | Unit tests for `MethodTierVisibilityFilter` | `Test/Mist.Tests/` | Req 6 — component removed |
 | Unit tests for `CooperationContractVerifier` | `Test/Mist.Tests/` | Component removed |
 

@@ -5,7 +5,7 @@ namespace Mist.Tests.Common.Diagnostics;
 [Trait("Tier", "1")]
 public sealed class OrdinalTests
 {
-    private static readonly MistDiagnostic Probe = DiagnosticFixtures.Descriptor("MIST_FIXTURE_ORDINAL", "probe {0}");
+    private static readonly MistDiagnostic Probe = DiagnosticFixtures.Descriptor("FIXTURE_ORDINAL", "probe {0}");
 
     [Fact]
     public void AdmittedOccurrencesReceiveStrictlyIncreasingOrdinalsAcrossTheOperation()

@@ -247,14 +247,14 @@ The `SemanticModelBuilder` adds extension block processing in two passes:
 
 **Pass 2 (Reference Resolution):**
 - Resolve the receiver type reference to an `IType`
-- If resolution fails → emit `MIST_SB_0070` diagnostic, skip block
+- If resolution fails → emit `MIST_SB_0070 (historical)` diagnostic, skip block
 - Register a parameter symbol for the receiver in the block's scope
 - Walk member declarations:
   - For methods: register as `SymbolKind.Method` in the block's member scope
-  - For properties: register as `SymbolKind.Property`; reject `set` accessors with `MIST_SB_0071`
-  - For fields or other invalid members: emit `MIST_SB_0072`
+  - For properties: register as `SymbolKind.Property`; reject `set` accessors with `MIST_SB_0071 (historical)`
+  - For fields or other invalid members: emit `MIST_SB_0072 (historical)`
 - Register the `ExtensionBlockInfo` in the `ExtensionRegistry`
-- Check for duplicate signatures across all extension blocks for the same receiver type → `MIST_SB_0073`
+- Check for duplicate signatures across all extension blocks for the same receiver type → `MIST_SB_0073 (historical)`
 
 ### Type Checker Changes
 
@@ -306,9 +306,9 @@ When a static member access `TypeName.MemberName` fails on the type's own static
 
 #### Validation Rules
 
-- If a `static` extension member body references the receiver parameter → emit `MIST_TC_0080`
-- If a method parameter name conflicts with the receiver parameter name → emit `MIST_TC_0081`
-- If receiver type is `void` → emit `MIST_SB_0074`
+- If a `static` extension member body references the receiver parameter → emit `MIST_TC_0080 (historical)`
+- If a method parameter name conflicts with the receiver parameter name → emit `MIST_TC_0081 (historical)`
+- If receiver type is `void` → emit `MIST_SB_0074 (historical)`
 
 ### C# Emitter Changes
 
@@ -498,15 +498,15 @@ Add a new pattern in `declaration-names` for extension block structure:
 
 | ID | Stage | Severity | Description |
 |----|-------|----------|-------------|
-| `MIST_SB_0070` | SemanticModel | Error | Extension block receiver type cannot be resolved |
-| `MIST_SB_0071` | SemanticModel | Error | Extension property declares a `set` accessor (read-only only) |
-| `MIST_SB_0072` | SemanticModel | Error | Extension block contains invalid member (only methods and properties allowed) |
-| `MIST_SB_0073` | SemanticModel | Error | Duplicate extension member signature for the same receiver type |
-| `MIST_SB_0074` | SemanticModel | Error | `void` cannot be used as an extension receiver type |
-| `MIST_TC_0080` | TypeChecker | Error | Static extension member references receiver parameter |
-| `MIST_TC_0081` | TypeChecker | Error | Method parameter name conflicts with receiver parameter name |
-| `MIST_TC_0082` | TypeChecker | Error | Ambiguous extension method resolution (multiple equally-specific candidates) |
-| `MIST_TC_0083` | TypeChecker | Warning | Extension member shadows receiver parameter name |
+| `MIST_SB_0070 (historical)` | SemanticModel | Error | Extension block receiver type cannot be resolved |
+| `MIST_SB_0071 (historical)` | SemanticModel | Error | Extension property declares a `set` accessor (read-only only) |
+| `MIST_SB_0072 (historical)` | SemanticModel | Error | Extension block contains invalid member (only methods and properties allowed) |
+| `MIST_SB_0073 (historical)` | SemanticModel | Error | Duplicate extension member signature for the same receiver type |
+| `MIST_SB_0074 (historical)` | SemanticModel | Error | `void` cannot be used as an extension receiver type |
+| `MIST_TC_0080 (historical)` | TypeChecker | Error | Static extension member references receiver parameter |
+| `MIST_TC_0081 (historical)` | TypeChecker | Error | Method parameter name conflicts with receiver parameter name |
+| `MIST_TC_0082 (historical)` | TypeChecker | Error | Ambiguous extension method resolution (multiple equally-specific candidates) |
+| `MIST_TC_0083 (historical)` | TypeChecker | Warning | Extension member shadows receiver parameter name |
 
 ### Extension Block Symbol Structure
 
@@ -600,19 +600,19 @@ flowchart TD
 
 ### Property 9: Static Receiver Access Rejection
 
-*For any* static extension member whose body contains a reference to the receiver parameter name, the type checker SHALL emit diagnostic `MIST_TC_0080`.
+*For any* static extension member whose body contains a reference to the receiver parameter name, the type checker SHALL emit diagnostic `MIST_TC_0080 (historical)`.
 
 **Validates: Requirements 3.3, 13.4**
 
 ### Property 10: Duplicate Signature Detection
 
-*For any* two extension blocks on the same receiver type T that declare members with identical names and parameter type lists, the semantic model builder SHALL emit diagnostic `MIST_SB_0073`.
+*For any* two extension blocks on the same receiver type T that declare members with identical names and parameter type lists, the semantic model builder SHALL emit diagnostic `MIST_SB_0073 (historical)`.
 
 **Validates: Requirements 8.9, 20.4**
 
 ### Property 11: Set Accessor Rejection
 
-*For any* extension property that declares a `set` or `init` accessor, the compiler SHALL emit diagnostic `MIST_SB_0071`.
+*For any* extension property that declares a `set` or `init` accessor, the compiler SHALL emit diagnostic `MIST_SB_0071 (historical)`.
 
 **Validates: Requirements 6.5, 20.3**
 
@@ -650,20 +650,20 @@ flowchart TD
 
 | Condition | Diagnostic | Severity |
 |-----------|-----------|----------|
-| Receiver type unresolvable | `MIST_SB_0070` | Error |
-| Extension property with `set` accessor | `MIST_SB_0071` | Error |
-| Field declaration in extension block | `MIST_SB_0072` | Error |
-| Duplicate member signature across extension blocks | `MIST_SB_0073` | Error |
-| `void` as receiver type | `MIST_SB_0074` | Error |
+| Receiver type unresolvable | `MIST_SB_0070 (historical)` | Error |
+| Extension property with `set` accessor | `MIST_SB_0071 (historical)` | Error |
+| Field declaration in extension block | `MIST_SB_0072 (historical)` | Error |
+| Duplicate member signature across extension blocks | `MIST_SB_0073 (historical)` | Error |
+| `void` as receiver type | `MIST_SB_0074 (historical)` | Error |
 
 ### Type Checker Errors
 
 | Condition | Diagnostic | Severity |
 |-----------|-----------|----------|
-| Static member references receiver | `MIST_TC_0080` | Error |
-| Parameter name conflicts with receiver | `MIST_TC_0081` | Error |
-| Ambiguous extension resolution | `MIST_TC_0082` | Error |
-| Member shadows receiver parameter | `MIST_TC_0083` | Warning |
+| Static member references receiver | `MIST_TC_0080 (historical)` | Error |
+| Parameter name conflicts with receiver | `MIST_TC_0081 (historical)` | Error |
+| Ambiguous extension resolution | `MIST_TC_0082 (historical)` | Error |
+| Member shadows receiver parameter | `MIST_TC_0083 (historical)` | Warning |
 
 ### Error Recovery Strategy
 

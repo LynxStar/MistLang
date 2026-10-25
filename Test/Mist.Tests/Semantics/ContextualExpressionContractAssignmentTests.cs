@@ -135,7 +135,7 @@ public sealed class ContextualExpressionContractAssignmentTests
         var call = f.Bind(BindingFragments.Identifier("Take"), new InvocationSuffixPostfixSuffixNode { Arguments = BindingFragments.Arguments(assignment) });
 
         Assert.True(PriorFailure.Of(call));
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0296", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static ExpressionNode Number()

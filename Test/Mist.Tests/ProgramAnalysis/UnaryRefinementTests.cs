@@ -46,7 +46,7 @@ public sealed class UnaryRefinementTests
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), At(h, site, value, target)));
 
-        Assert.Equal(form == "anonymous" && site == "argument" ? "MIST_PA_CONSTRAINT_UNPROVEN" : "MIST_PA_REFINEMENT_UNPROVEN", finding.Number.Value);
+        Assert.Equal(form == "anonymous" && site == "argument" ? "MIST0277" : "MIST0272", finding.Number.Value);
         Assert.Equal(25, finding.Position().Start.Column);
     }
 
@@ -118,7 +118,7 @@ public sealed class UnaryRefinementTests
         var findings = h.Built.Analyze(new RefinementAnalyzer(), root);
         if(intrinsic)
         {
-            Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(findings).Number.Value);
+            Assert.Equal("MIST0272", Assert.Single(findings).Number.Value);
         }
         else
         {

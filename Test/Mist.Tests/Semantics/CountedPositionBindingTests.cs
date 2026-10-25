@@ -59,7 +59,7 @@ public sealed class CountedPositionBindingTests
         var bound = Assert.IsType<ListPattern>(PatternBinder.Bind(Pattern(list), shelf, f.Binding, f.Builder));
 
         Assert.Equal(admitted, !bound.IsFailed);
-        Assert.Equal(admitted ? [] : ["MIST_PM_LIST_PATTERN_SCRUTINEE"], f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
+        Assert.Equal(admitted ? [] : ["MIST0356"], f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     private static ClassType Shelf(BindingFragments f, IMistType parameter)

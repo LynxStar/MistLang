@@ -142,7 +142,7 @@ Relational patterns eliminate the need for `when` guards in many numeric scenari
 An arm whose every value the earlier arms already match can never run, and is a compile-time error. Earlier arms count together, endpoints count exactly, and an arm with a `when` guard covers nothing, since its guard may fail. Here every value above 10 is already above 0:
 
 ```mist
-// error MIST_PA_SWITCH_ARM_UNREACHABLE: This switch arm is unreachable: an earlier arm already matches everything it could.
+// error MIST0199: This switch arm is unreachable: an earlier arm already matches everything it could.
 var size = count switch
 {
     > 0 => "some",

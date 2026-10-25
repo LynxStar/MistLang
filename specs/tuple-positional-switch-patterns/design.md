@@ -124,7 +124,7 @@ No new parse errors are introduced. If a parenthesized pattern has malformed ele
 
 ### Semantic Errors (Existing — No Changes)
 
-- `MIST_UNDEFINED_TYPE`: Fired if an element resolved as a type reference cannot be found. Already handled by `ResolveTypeReference` fallback in `BareTypePattern` within element resolution.
+- `MIST_UNDEFINED_TYPE (historical)`: Fired if an element resolved as a type reference cannot be found. Already handled by `ResolveTypeReference` fallback in `BareTypePattern` within element resolution.
 - Enum member not found: Fired by the existing `UndefinedEnumMemberAccess` diagnostic when `EnumName.InvalidMember` is used.
 - Tuple arity mismatch: Fired by the type checker when a `TuplePositionalPattern` has a different number of elements than the scrutinee's `TupleType`.
 

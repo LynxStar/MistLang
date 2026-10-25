@@ -92,7 +92,7 @@ public sealed class ProjectReferencePropertyTests
 
                 var diags = diagnostics.ToImmutableArray();
                 var cycleDiag = diags.FirstOrDefault(d =>
-                    d.Number.Value == "MIST_PROJECT_CIRCULAR_REFERENCE");
+                    d.Number.Value == "MIST0064");
 
                 Assert.NotNull(cycleDiag);
                 Assert.Equal(DiagnosticSeverity.Error, cycleDiag.Severity);
@@ -231,7 +231,7 @@ public sealed class ProjectReferencePropertyTests
                 Assert.Equal(errorCount, diags.Length);
                 Assert.All(diags, d =>
                 {
-                    Assert.Equal("MIST_PROJECT_REFERENCE_NOT_FOUND", d.Number.Value);
+                    Assert.Equal("MIST0062", d.Number.Value);
                     Assert.Equal(DiagnosticSeverity.Error, d.Severity);
                 });
             }
@@ -304,7 +304,7 @@ public sealed class ProjectReferencePropertyTests
 
                 var diags = diagnostics.ToImmutableArray();
                 var mismatchDiags = diags.Where(d =>
-                    d.Number.Value == "MIST_PROJECT_REFERENCE_NAME_MISMATCH").ToList();
+                    d.Number.Value == "MIST0070").ToList();
 
                 _ = Assert.Single(mismatchDiags);
                 Assert.Equal(DiagnosticSeverity.Error, mismatchDiags[0].Severity);

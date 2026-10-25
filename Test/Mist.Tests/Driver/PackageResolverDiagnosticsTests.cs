@@ -2,7 +2,7 @@
 // In-process tests for the structured PackageResolutionResult shape and each
 // resolver diagnostic category.
 //
-// Validates: Requirements 3.1 (MIST_PKG_002 — not found / invalid version),
+// Validates: Requirements 3.1 (MIST0036 — not found / invalid version),
 //            3.6 (one independent diagnostic per failing package; siblings continue).
 //
 // These tests exercise the pre-network validation path (invalid NuGet version
@@ -20,7 +20,7 @@ namespace Mist.Tests.Driver;
 /// <summary>
 /// Unit tests for <see cref="PackageResolver.ResolvePackages"/> covering the
 /// structured <see cref="PackageResolutionResult"/> shape and the
-/// <c>MIST_PKG_002</c> diagnostic category (invalid version / not found).
+/// <c>MIST0036</c> diagnostic category (invalid version / not found).
 /// Network-dependent tests are in integration test classes.
 /// </summary>
 public sealed class PackageResolverDiagnosticsTests
@@ -64,7 +64,7 @@ public sealed class PackageResolverDiagnosticsTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // MIST_PKG_002 — not found / invalid version (Requirement 3.2)
+    // MIST0036 — not found / invalid version (Requirement 3.2)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class PackageResolverDiagnosticsTests
             diagnostics);
 
         var diag = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PKG_002", diag.Number.Value);
+        Assert.Equal("MIST0036", diag.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("SomePackage", diag.Message);
 
@@ -107,7 +107,7 @@ public sealed class PackageResolverDiagnosticsTests
 
         var diags = diagnostics.ToImmutableArray();
         Assert.Equal(2, diags.Length);
-        Assert.All(diags, d => Assert.Equal("MIST_PKG_002", d.Number.Value));
+        Assert.All(diags, d => Assert.Equal("MIST0036", d.Number.Value));
         Assert.Contains(diags, d => d.Message.Contains("FirstBad", StringComparison.Ordinal));
         Assert.Contains(diags, d => d.Message.Contains("SecondBad", StringComparison.Ordinal));
 
@@ -118,7 +118,7 @@ public sealed class PackageResolverDiagnosticsTests
     [Fact]
     public void FailingPackageDoesNotPreventSiblingResolution()
     {
-        // One package fails (invalid version → MIST_PKG_002); a sibling package
+        // One package fails (invalid version → MIST0036); a sibling package
         // with a valid version gets passed to dotnet restore. The invalid package
         // should produce a diagnostic without blocking the restore of valid packages.
         //
@@ -136,7 +136,7 @@ public sealed class PackageResolverDiagnosticsTests
 
         // The invalid version package should produce a diagnostic.
         var invalidVersionDiag = diagnostics.ToImmutableArray()
-            .FirstOrDefault(d => d.Number.Value == "MIST_PKG_002" && d.Message.Contains("BadPackage"));
+            .FirstOrDefault(d => d.Number.Value == "MIST0036" && d.Message.Contains("BadPackage"));
         Assert.NotNull(invalidVersionDiag);
 
         // The failure count includes the invalid version package.

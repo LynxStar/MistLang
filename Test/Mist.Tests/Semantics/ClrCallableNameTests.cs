@@ -104,7 +104,7 @@ public sealed class ClrCallableNameResolutionTests
         _ = Assert.IsType<ErrorType>(Resolve("System.MissingFunc", "Int32"));
 
         var diagnostic = Assert.Single(fragments.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Number.Value);
+        Assert.Equal("MIST0298", diagnostic.Number.Value);
         Assert.Contains("System.MissingFunc<>", diagnostic.Message);
     }
 
@@ -117,7 +117,7 @@ public sealed class ClrCallableNameResolutionTests
         _ = Assert.IsType<ErrorType>(Resolve(name, Enumerable.Repeat("Int32", arity).ToArray()));
 
         var diagnostic = Assert.Single(fragments.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Number.Value);
+        Assert.Equal("MIST0298", diagnostic.Number.Value);
         Assert.Contains(name, diagnostic.Message);
     }
 

@@ -55,7 +55,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_NOT_FOUND", diags[0].Number.Value);
+            Assert.Equal("MIST0062", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(bogusPath, diags[0].Message);
         }
@@ -82,7 +82,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE", diags[0].Number.Value);
+            Assert.Equal("MIST0063", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(emptyDir, diags[0].Message);
         }
@@ -114,7 +114,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_NOT_FOUND", diags[0].Number.Value);
+            Assert.Equal("MIST0062", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -145,7 +145,7 @@ public sealed class ProjectReferenceResolverTests
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
             // The inner parse error for missing name should be propagated
-            Assert.Equal("MIST_PROJECT_MISSING_NAME", diags[0].Number.Value);
+            Assert.Equal("MIST0052", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -248,7 +248,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_CIRCULAR_REFERENCE", diags[0].Number.Value);
+            Assert.Equal("MIST0064", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -294,7 +294,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_CIRCULAR_REFERENCE", diags[0].Number.Value);
+            Assert.Equal("MIST0064", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
 
             // The message should contain both A and B paths
@@ -334,7 +334,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_NAME_MISMATCH", diags[0].Number.Value);
+            Assert.Equal("MIST0070", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("WrongName", diags[0].Message);
             Assert.Contains("CorrectName", diags[0].Message);
@@ -385,7 +385,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_NAME_MISMATCH", diags[0].Number.Value);
+            Assert.Equal("MIST0070", diags[0].Number.Value);
 
             // Neither the mismatched project nor its transitive dep should be in the result
             Assert.Empty(result);
@@ -432,7 +432,7 @@ public sealed class ProjectReferenceResolverTests
             Assert.Equal(3, diags.Length);
             Assert.All(diags, d =>
             {
-                Assert.Equal("MIST_PROJECT_REFERENCE_NOT_FOUND", d.Number.Value);
+                Assert.Equal("MIST0062", d.Number.Value);
                 Assert.Equal(DiagnosticSeverity.Error, d.Severity);
             });
 
@@ -531,7 +531,7 @@ public sealed class ProjectReferenceResolverTests
             var result = ProjectReferenceResolver.ResolveAll(rootDir, [DirectoryRef("Empty", empty)], diagnostics);
 
             var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE", diagnostic.Number.Value);
+            Assert.Equal("MIST0063", diagnostic.Number.Value);
             Assert.Equal($"Referenced directory '{empty}' holds no mist.toml, .csproj or .dll.", diagnostic.Message);
             Assert.Empty(result.Projects);
             Assert.Empty(result.ExternalReferences);

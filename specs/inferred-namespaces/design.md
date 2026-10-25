@@ -91,8 +91,8 @@ public sealed record CompilerOptions(
 New behavior in `Parse()`:
 - After reading `name`, check for optional `namespace_root` field.
 - If present and non-empty: validate characters (same regex as `name`), use as `NamespaceRoot`.
-- If present but empty/whitespace: report `MIST_PROJECT_EMPTY_NAMESPACE_ROOT` error.
-- If present but invalid characters: report `MIST_PROJECT_INVALID_NAMESPACE_ROOT` error.
+- If present but empty/whitespace: report `MIST0056` error.
+- If present but invalid characters: report `MIST0057` error.
 - If absent: default `NamespaceRoot` to `name`.
 
 ### 4. Grammar (Modified)
@@ -274,10 +274,10 @@ GlobalScope
 
 | ID | Severity | Description |
 |----|----------|-------------|
-| `MIST_PROJECT_EMPTY_NAMESPACE_ROOT` | Error | `namespace_root` is present but empty/whitespace |
-| `MIST_PROJECT_INVALID_NAMESPACE_ROOT` | Error | `namespace_root` contains invalid characters |
-| `MIST_UNDEFINED_NAMESPACE` | Error | `using` references a namespace that doesn't exist (existing, severity unchanged) |
-| `MIST_AMBIGUOUS_TYPE` | Error | Type name is ambiguous due to multiple `using` imports |
+| `MIST0056` | Error | `namespace_root` is present but empty/whitespace |
+| `MIST0057` | Error | `namespace_root` contains invalid characters |
+| `MIST0293` | Error | `using` references a namespace that doesn't exist (existing, severity unchanged) |
+| `MIST_AMBIGUOUS_TYPE (historical)` | Error | Type name is ambiguous due to multiple `using` imports |
 
 
 ## Correctness Properties
@@ -386,15 +386,15 @@ GlobalScope
 
 | Condition | Diagnostic ID | Severity | Message |
 |-----------|--------------|----------|---------|
-| `namespace_root` is empty or whitespace | `MIST_PROJECT_EMPTY_NAMESPACE_ROOT` | Error | "Namespace root in '{filePath}' must not be empty or whitespace when specified." |
-| `namespace_root` has invalid characters | `MIST_PROJECT_INVALID_NAMESPACE_ROOT` | Error | "Namespace root in '{filePath}' contains invalid characters: {list}. Only alphanumeric characters, hyphens, underscores, and periods are allowed." |
+| `namespace_root` is empty or whitespace | `MIST0056` | Error | "Namespace root in '{filePath}' must not be empty or whitespace when specified." |
+| `namespace_root` has invalid characters | `MIST0057` | Error | "Namespace root in '{filePath}' contains invalid characters: {list}. Only alphanumeric characters, hyphens, underscores, and periods are allowed." |
 
 ### Semantic Errors (SemanticModelBuilder)
 
 | Condition | Diagnostic ID | Severity | Message |
 |-----------|--------------|----------|---------|
-| `using` references unknown namespace | `MIST_UNDEFINED_NAMESPACE` | Error | "The namespace '{name}' could not be found." (existing) |
-| Ambiguous type from multiple `using` imports | `MIST_AMBIGUOUS_TYPE` | Error | "The type name '{name}' is ambiguous between namespaces '{ns1}' and '{ns2}'." |
+| `using` references unknown namespace | `MIST0293` | Error | "The namespace '{name}' could not be found." (existing) |
+| Ambiguous type from multiple `using` imports | `MIST_AMBIGUOUS_TYPE (historical)` | Error | "The type name '{name}' is ambiguous between namespaces '{ns1}' and '{ns2}'." |
 
 ### Graceful Degradation
 

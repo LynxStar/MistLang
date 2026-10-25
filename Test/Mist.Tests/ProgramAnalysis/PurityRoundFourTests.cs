@@ -5,12 +5,12 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PurityRoundFourTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
-    private const string PureFunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
-    private const string ReadonlyContractNotMet = "MIST_PA_READONLY_CONTRACT_NOT_MET";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string StoresUnowned = "MIST0141";
+    private const string PureFunctionRequired = "MIST0142";
+    private const string ReadonlyContractNotMet = "MIST0187";
 
     [Fact]
     public void FrozenLocalDeclaredOverAnUnrestrictedInput()
@@ -315,7 +315,7 @@ public sealed class PurityRoundFourTests
     [Fact]
     public void GenericDefinitionsFieldInitializerIsHeldToADefaultsConsistency()
     {
-        Refused("generic-definitions-field-initializer-is-a-default-of-every-instantiation", "MIST_PA_DEFAULT_NOT_CONSISTENT", "'Note'");
+        Refused("generic-definitions-field-initializer-is-a-default-of-every-instantiation", "MIST0143", "'Note'");
     }
 
     [Fact]

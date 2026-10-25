@@ -8,13 +8,13 @@
   - **GOAL**: Surface counterexamples that demonstrate both bugs exist
   - **Scoped PBT Approach**: Scope the property to concrete failing cases:
     - Compile `Point.mist` and `Color.mist` together (multi-type namespace with constructor chaining)
-    - Assert `MIST_TC_0013` is NOT emitted for `Point() : this(0, 0)` (bug 1: false positive fires because `FindEnclosingType` returns `Color`)
+    - Assert `MIST_TC_0013 (historical)` is NOT emitted for `Point() : this(0, 0)` (bug 1: false positive fires because `FindEnclosingType` returns `Color`)
     - Assert any emitted type checker diagnostic has non-null `CompilationUnitPath` (bug 2: always null)
     - Assert any emitted type checker diagnostic has `Location.Start.Line >= 1` (bug 2: line is always 0)
   - Run test on UNFIXED code
   - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bugs exist)
   - Document counterexamples found:
-    - `MIST_TC_0013` fires with "No constructor on 'Color' matches the chained arguments" for Point's constructor chain
+    - `MIST_TC_0013 (historical)` fires with "No constructor on 'Color' matches the chained arguments" for Point's constructor chain
     - All type checker diagnostics have `CompilationUnitPath == null` and `Location.Start.Line == 0`
   - Mark task complete when test is written, run, and failure is documented
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
@@ -23,13 +23,13 @@
   - **Property 2: Preservation** - Genuine Constructor Chain Errors and Non-Chain Diagnostics Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - **Observe on UNFIXED code**:
-    - Compile a program where constructor chain genuinely has no match (e.g., `Foo() : this(1, 2, 3)` with only `Foo(int)`) — observe `MIST_TC_0013` fires with correct type name
+    - Compile a program where constructor chain genuinely has no match (e.g., `Foo() : this(1, 2, 3)` with only `Foo(int)`) — observe `MIST_TC_0013 (historical)` fires with correct type name
     - Compile a single-type program with valid constructor chaining — observe no false positive
-    - Trigger non-constructor-chain diagnostics (MIST_TC_0001 assignment mismatch, MIST_TC_0008 return type, MIST_TC_0011 object creation) — observe same diagnostic IDs and messages
-    - Verify `CheckObjectCreation` correctly emits `MIST_TC_0011` for mismatched `new Type(args)` — observe behavior
+    - Trigger non-constructor-chain diagnostics (MIST_TC_0001 (historical) assignment mismatch, MIST_TC_0008 (historical) return type, MIST_TC_0011 (historical) object creation) — observe same diagnostic IDs and messages
+    - Verify `CheckObjectCreation` correctly emits `MIST_TC_0011 (historical)` for mismatched `new Type(args)` — observe behavior
   - **Write property-based tests capturing observed behavior**:
-    - For all constructor chains where declaring type genuinely has no matching constructor, `MIST_TC_0013` fires with the correct type name
-    - For all single-type compilations with valid constructor chaining, no `MIST_TC_0013` is emitted
+    - For all constructor chains where declaring type genuinely has no matching constructor, `MIST_TC_0013 (historical)` fires with the correct type name
+    - For all single-type compilations with valid constructor chaining, no `MIST_TC_0013 (historical)` is emitted
     - For all non-constructor-chain type checking (method bodies, field declarations, object creation, operators, assignments, entry points), the same set of diagnostic IDs and messages are produced
     - `FindDeclaringType` usage in `CheckMethodBody`/`CheckConstructorBody` continues to resolve correctly
   - Run tests on UNFIXED code
@@ -44,8 +44,8 @@
     - `FindDeclaringType` already exists at line 175 and verifies `ReferenceEquals(memberScope, typeScope)`
     - This is a single-line change that reuses proven logic
     - _Bug_Condition: isBugCondition_WrongType(input) where FindEnclosingType(ctorSymbol) != FindDeclaringType(ctorSymbol) AND ctorSymbol has a constructor chain_
-    - _Expected_Behavior: enclosingType == FindDeclaringType(ctorSymbol) AND no false MIST_TC_0013 emitted_
-    - _Preservation: Genuine MIST_TC_0013 errors still fire for truly mismatched constructor chains_
+    - _Expected_Behavior: enclosingType == FindDeclaringType(ctorSymbol) AND no false MIST_TC_0013 (historical) emitted_
+    - _Preservation: Genuine MIST_TC_0013 (historical) errors still fire for truly mismatched constructor chains_
     - _Requirements: 2.1, 2.2_
 
   - [x] 3.2 Remove the buggy `FindEnclosingType` method
@@ -85,7 +85,7 @@
     - The test from task 1 encodes the expected behavior
     - When this test passes, it confirms:
       - `CheckConstructorChain` resolves the correct declaring type via `FindDeclaringType`
-      - No false `MIST_TC_0013` for `Point() : this(0, 0)` in multi-type namespace
+      - No false `MIST_TC_0013 (historical)` for `Point() : this(0, 0)` in multi-type namespace
       - Type checker diagnostics include non-null `CompilationUnitPath`
       - Type checker diagnostics have correct 1-based line/column
     - Run bug condition exploration test from step 1
@@ -98,9 +98,9 @@
     - Run preservation property tests from step 2
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm all tests still pass after fix:
-      - Genuine `MIST_TC_0013` still fires for truly mismatched constructor chains
+      - Genuine `MIST_TC_0013 (historical)` still fires for truly mismatched constructor chains
       - `CheckObjectCreation` still correctly matches constructors
-      - All other type checker diagnostics (MIST_TC_0001–0018) unchanged
+      - All other type checker diagnostics (MIST_TC_0001 (historical)–0018) unchanged
       - `FindDeclaringType` in `CheckMethodBody`/`CheckConstructorBody` unaffected
       - Lexer/parser diagnostics pass through unchanged
 

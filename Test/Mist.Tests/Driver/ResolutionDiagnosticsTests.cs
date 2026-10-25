@@ -12,52 +12,52 @@ public sealed class ResolutionDiagnosticsTests
     {
         var built = new CompilerResult(true, "bin/Probe.dll", []);
 
-        var joined = Reporting(0, null, Warning("MIST_PKG_002")).JoinInto(built);
+        var joined = Reporting(0, null, Warning("MIST0036")).JoinInto(built);
 
         Assert.True(joined.Succeeded);
         Assert.Equal("bin/Probe.dll", joined.PrimaryOutputArtifactPath);
-        Assert.Equal(["MIST_PKG_002"], Ids(joined));
+        Assert.Equal(["MIST0036"], Ids(joined));
     }
 
     [Fact]
     public void AnErrorJoinsTheFailedResultThePipelineGaveItAndKeepsBothErrors()
     {
-        var refused = new CompilerResult(false, null, [Error("MIST_PM_UNRESOLVED_TYPE")]);
+        var refused = new CompilerResult(false, null, [Error("MIST0298")]);
 
-        var joined = Reporting(0, null, Error("MIST_PKG_002")).JoinInto(refused);
+        var joined = Reporting(0, null, Error("MIST0036")).JoinInto(refused);
 
         Assert.False(joined.Succeeded);
         Assert.Null(joined.PrimaryOutputArtifactPath);
-        Assert.Equal(["MIST_PKG_002", "MIST_PM_UNRESOLVED_TYPE"], Ids(joined));
+        Assert.Equal(["MIST0036", "MIST0298"], Ids(joined));
     }
 
     [Fact]
     public void TheyGoBackAfterWhatPrecededThemAndBeforeWhatFollowed()
     {
-        var result = new CompilerResult(false, null, [Error("MIST_FILE_ERROR"), Error("MIST_LEX"), Error("MIST_PARSE")]);
+        var result = new CompilerResult(false, null, [Error("MIST0101"), Error("TEST_LEX"), Error("TEST_PARSE")]);
 
-        var joined = Reporting(1, null, Error("MIST_PKG_002"), Error("MIST_FWREF_002")).JoinInto(result);
+        var joined = Reporting(1, null, Error("MIST0036"), Error("MIST0035")).JoinInto(result);
 
-        Assert.Equal(["MIST_FILE_ERROR", "MIST_PKG_002", "MIST_FWREF_002", "MIST_LEX", "MIST_PARSE"], Ids(joined));
+        Assert.Equal(["MIST0101", "MIST0036", "MIST0035", "TEST_LEX", "TEST_PARSE"], Ids(joined));
     }
 
     [Fact]
     public void AResultShorterThanWhatPrecededThemTakesThemLast()
     {
-        var result = new CompilerResult(false, null, [Error("MIST_FILE_ERROR")]);
+        var result = new CompilerResult(false, null, [Error("MIST0101")]);
 
-        var joined = Reporting(3, null, Error("MIST_PKG_002")).JoinInto(result);
+        var joined = Reporting(3, null, Error("MIST0036")).JoinInto(result);
 
-        Assert.Equal(["MIST_FILE_ERROR", "MIST_PKG_002"], Ids(joined));
+        Assert.Equal(["MIST0101", "MIST0036"], Ids(joined));
     }
 
     [Fact]
     public void EachDiagnosticReachesTheListenerApart_InReportOrder()
     {
         var listener = new RecordingListener();
-        var first = Error("MIST_PKG_002", "Package 'A'");
-        var second = Error("MIST_PKG_002", "Package 'B'");
-        var framework = Error("MIST_FWREF_002", "Framework 'C'");
+        var first = Error("MIST0036", "Package 'A'");
+        var second = Error("MIST0036", "Package 'B'");
+        var framework = Error("MIST0035", "Framework 'C'");
 
         Reporting(0, listener, first, second, framework).Deliver();
 
@@ -71,9 +71,9 @@ public sealed class ResolutionDiagnosticsTests
     public void TheResultKeepsTheInstancesTheListenerReceived_InStageOrder()
     {
         var listener = new RecordingListener();
-        var loading = Error("MIST_FILE_ERROR");
-        var parsing = Error("MIST_PARSE");
-        var resolution = Reporting(1, listener, Error("MIST_PKG_002", "Package 'A'"), Error("MIST_PKG_002", "Package 'B'"));
+        var loading = Error("MIST0101");
+        var parsing = Error("TEST_PARSE");
+        var resolution = Reporting(1, listener, Error("MIST0036", "Package 'A'"), Error("MIST0036", "Package 'B'"));
         resolution.Deliver();
 
         var joined = resolution.JoinInto(new CompilerResult(false, null, [loading, parsing]));
@@ -89,8 +89,8 @@ public sealed class ResolutionDiagnosticsTests
     public void ALaterDeliveryPassesOnOnlyWhatWasReportedSince()
     {
         var listener = new RecordingListener();
-        var early = Error("MIST_PKG_002", "Package 'A'");
-        var late = Error("MIST_FWREF_002", "Framework 'C'");
+        var early = Error("MIST0036", "Package 'A'");
+        var late = Error("MIST0035", "Framework 'C'");
         var resolution = Reporting(0, listener, early);
 
         resolution.Deliver();
@@ -116,12 +116,12 @@ public sealed class ResolutionDiagnosticsTests
     [Fact]
     public void WithNoListenerDeliveryChangesNothingTheResultReads()
     {
-        var resolution = Reporting(0, null, Error("MIST_PKG_002"));
+        var resolution = Reporting(0, null, Error("MIST0036"));
         resolution.Deliver();
 
         var joined = resolution.JoinInto(new CompilerResult(false, null, []));
 
-        Assert.Equal(["MIST_PKG_002"], Ids(joined));
+        Assert.Equal(["MIST0036"], Ids(joined));
     }
 
     private static ResolutionDiagnostics Reporting(int preceding, IResolutionDiagnosticListener? listener, params Diagnostic[] reported)

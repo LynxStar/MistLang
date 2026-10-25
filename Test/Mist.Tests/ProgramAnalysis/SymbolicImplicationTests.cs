@@ -70,13 +70,13 @@ public sealed class SymbolicImplicationTests
 
     [Theory]
     [InlineData("weaker-demand-is-accepted", null)]
-    [InlineData("stronger-demand-is-strengthened", "MIST_PA_CONSTRAINT_STRENGTHENED")]
+    [InlineData("stronger-demand-is-strengthened", "MIST0283")]
     [InlineData("corresponding-parameter-demand", null)]
-    [InlineData("uncorresponded-parameter-demand", "MIST_PA_CONSTRAINT_STRENGTHENED")]
+    [InlineData("uncorresponded-parameter-demand", "MIST0283")]
     [InlineData("equivalent-by-reference", null)]
-    [InlineData("weaker-by-reference", "MIST_PA_CONSTRAINT_STRENGTHENED")]
+    [InlineData("weaker-by-reference", "MIST0283")]
     [InlineData("weaker-setter-demand", null)]
-    [InlineData("stronger-setter-demand", "MIST_PA_CONSTRAINT_STRENGTHENED")]
+    [InlineData("stronger-setter-demand", "MIST0283")]
     public void AnImplementationAcceptsTheSameOrWeakerParameterPredicate(string name, string? expected)
     {
         var below = Refine(Below(Read(count)));
@@ -100,11 +100,11 @@ public sealed class SymbolicImplicationTests
 
     [Theory]
     [InlineData("stronger-output-is-preserved", null)]
-    [InlineData("weaker-output-is-unproven", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("weaker-output-is-unproven", "MIST0284")]
     [InlineData("equivalent-reference-output", null)]
-    [InlineData("stronger-reference-output", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("stronger-reference-output", "MIST0284")]
     [InlineData("output-over-a-corresponding-parameter", null)]
-    [InlineData("output-over-an-uncorresponded-parameter", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("output-over-an-uncorresponded-parameter", "MIST0284")]
     public void AnImplementationPreservesTheOutputPromise(string name, string? expected)
     {
         var below = Refine(Below(Read(count)));

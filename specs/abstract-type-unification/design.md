@@ -539,7 +539,7 @@ public sealed class ConformanceMap
 | Condition | Diagnostic | Severity |
 |-----------|-----------|----------|
 | `interface` keyword encountered | "The 'interface' keyword has been removed. Use 'abstract' instead." | Error |
-| `static` on a method, property or indexer of an abstract type (Requirement 1.3, clarified 2026-10-21) | `MIST_PM_STATIC_ON_ABSTRACT_MEMBER`, at each offending member declaration | Error |
+| `static` on a method, property or indexer of an abstract type (Requirement 1.3, clarified 2026-10-21) | `MIST0048`, at each offending member declaration | Error |
 
 ### Phase 2 Errors
 

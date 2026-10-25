@@ -126,7 +126,7 @@ public sealed class PackBindingTests : ProgramModelProbe
             extraPreamble: "",
             out var diagnostics);
 
-        var error = Assert.Single(Errors(diagnostics, "MIST_VAR_0005"));
+        var error = Assert.Single(Errors(diagnostics, "MIST0411"));
         Assert.Contains("needs at least 2 type arguments", error.Message);
     }
 

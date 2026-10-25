@@ -26,7 +26,7 @@ public sealed class ImplicitConstructorArgumentBindingTests
         Assert.True(error.IsReported);
         Assert.Null(Assert.IsType<NewExpression>(Assert.Single(error.Children)).Constructor);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", diagnostic.Number.Value);
+        Assert.Equal("MIST0385", diagnostic.Number.Value);
         Assert.Equal("There is no overload of constructor 'Bag' accepting 1 argument(s). Declared arities: 0.", diagnostic.Message);
         Assert.Equal(41, diagnostic.Position().Start.Column);
     }
@@ -91,7 +91,7 @@ public sealed class ImplicitConstructorArgumentBindingTests
 
         _ = Assert.IsType<ErrorExpression>(f.Bind(creation));
 
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0385", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class ImplicitConstructorArgumentBindingTests
         }
 
         Assert.True(error.IsReported);
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0385", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static ConcreteType Bag(BindingFragments f, string shape)

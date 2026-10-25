@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class PurityInferenceTests
 {
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
+    private const string CallsImpure = "MIST0139";
 
     [Theory]
     [InlineData("helper-reading-a-readonly-static")]

@@ -397,7 +397,7 @@ if source is ConstructedType(defS, argsS) and target is ConstructedType(defT, ar
     // ... fall through to inheritance, interface, trait satisfaction ...
 ```
 
-The struct-generic rejection diagnostic (`MIST_TC_0058`) is produced by the Type Checker at the **widening site** (assignment, argument pass, return) rather than inside `IsAssignable`, because `IsAssignable` returns a bool and the user needs a specific explanation. The Type Checker inspects the source/target pair and, if the only thing preventing assignment is the struct-generic restriction, emits `MIST_TC_0058` instead of the generic type-mismatch diagnostic.
+The struct-generic rejection diagnostic (`MIST_TC_0058 (historical)`) is produced by the Type Checker at the **widening site** (assignment, argument pass, return) rather than inside `IsAssignable`, because `IsAssignable` returns a bool and the user needs a specific explanation. The Type Checker inspects the source/target pair and, if the only thing preventing assignment is the struct-generic restriction, emits `MIST_TC_0058 (historical)` instead of the generic type-mismatch diagnostic.
 
 Transitivity (Req 8.2) is already provided by the existing loop that traverses base types and interfaces — each recursive call to `IsAssignable` picks up the covariant rule on its own.
 
@@ -430,7 +430,7 @@ The rule is one-directional by construction: we only allow `argsT[i] is UnknownT
 The existing `IsDirectlyAssignable` helper in `TypeCheckerAnalyzer` is used by `CheckCastExpression` to determine "trivially-valid" casts. Two unknown-type rules are added:
 
 1. **Covariant Unknown Widening** (Req 8.4) — a cast expression from `List<int>` to `List<unknown>` is trivially valid without requiring a cast operator.
-2. **Top-type direct assignability** (Req 13.5, Task 26.2) — a cast `(unknown) expr` for any non-`void` `expr` is trivially valid. Before Task 26, this rule lived only in `IsAssignable`, which caused the cast-expression path to search for a `(unknown) from (T)` operator and emit `MIST_TC_0042` / `MIST_TC_0067` when none was found. The Task 26 addition mirrors the `IsAssignable` top-type clause in `IsDirectlyAssignable` so both paths agree.
+2. **Top-type direct assignability** (Req 13.5, Task 26.2) — a cast `(unknown) expr` for any non-`void` `expr` is trivially valid. Before Task 26, this rule lived only in `IsAssignable`, which caused the cast-expression path to search for a `(unknown) from (T)` operator and emit `MIST_TC_0042 (historical)` / `MIST_TC_0067 (historical)` when none was found. The Task 26 addition mirrors the `IsAssignable` top-type clause in `IsDirectlyAssignable` so both paths agree.
 
 ### Cast Operator Integration (Req 13.4, Req 15.4) — from `unknown` to `T`
 
@@ -446,7 +446,7 @@ class MyInt {
 }
 ```
 
-Because `UnknownType` has no member scope (Req 3.4), `CheckCastFromUnknown` searches only `T`'s member scope for `operator_implicit_{T}` / `operator_explicit_{T}` symbols. The unknown-source branch and the normal concrete→concrete branch differ in one respect: when no candidate is found, `CheckCastFromUnknown` emits the targeted `MIST_TC_0067` diagnostic ("no cast operator from `unknown` to T") rather than the generic `MIST_TC_0042`. The targeted diagnostic names `T` explicitly and suggests either declaring the operator or using an `is` pattern to narrow first, which matches the user-facing guidance in Req 16.4.
+Because `UnknownType` has no member scope (Req 3.4), `CheckCastFromUnknown` searches only `T`'s member scope for `operator_implicit_{T}` / `operator_explicit_{T}` symbols. The unknown-source branch and the normal concrete→concrete branch differ in one respect: when no candidate is found, `CheckCastFromUnknown` emits the targeted `MIST_TC_0067 (historical)` diagnostic ("no cast operator from `unknown` to T") rather than the generic `MIST_TC_0042 (historical)`. The targeted diagnostic names `T` explicitly and suggests either declaring the operator or using an `is` pattern to narrow first, which matches the user-facing guidance in Req 16.4.
 
 ### Casts **into `unknown`** (Req 13.5)
 
@@ -460,7 +460,7 @@ The Emitter's cast lowering branches on the resolved cast operator:
 | ------------ | ------------ | ----------------------------------- | ----------------------------------------- |
 | Any          | UnknownType  | No operator lookup                  | `(object)(expr)`                          |
 | UnknownType  | Concrete T   | Must resolve to user-defined operator | `T.op_Explicit(expr)` or `T.op_Implicit(expr)` |
-| UnknownType  | T, but no op | Diagnostic `MIST_TC_0067` emitted   | No emission (error)                       |
+| UnknownType  | T, but no op | Diagnostic `MIST_TC_0067 (historical)` emitted   | No emission (error)                       |
 
 ### Trait Satisfaction with UnknownType (Req 12)
 
@@ -479,10 +479,10 @@ Req 12.5 requires that the Reachability Analyzer's classifications also apply to
 
 Pattern matching infrastructure already exists. The only additions are compile-time rejections:
 
-1. `x is unknown u` — the Type Checker emits `MIST_TC_0063` because the pattern is tautologically true and the binding has no more specific type than the scrutinee (Req 11.3). (Reallocated from the originally-proposed `MIST_TC_0051`; see the Diagnostic ID Allocation note on numbering.)
-2. `x is Foo<unknown> fu` — the Type Checker emits `MIST_TC_0064` because the pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information (Req 11.4). (Reallocated from the originally-proposed `MIST_TC_0052`; see the same note.)
+1. `x is unknown u` — the Type Checker emits `MIST_TC_0063 (historical)` because the pattern is tautologically true and the binding has no more specific type than the scrutinee (Req 11.3). (Reallocated from the originally-proposed `MIST_TC_0051 (historical)`; see the Diagnostic ID Allocation note on numbering.)
+2. `x is Foo<unknown> fu` — the Type Checker emits `MIST_TC_0064 (historical)` because the pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information (Req 11.4). (Reallocated from the originally-proposed `MIST_TC_0052 (historical)`; see the same note.)
 
-Implementation: both checks happen in the existing `CheckPrimaryPattern` method of `TypeCheckerAnalyzer`, alongside the `PatternUndefinedType` (`MIST_TC_0050`) check. The order is:
+Implementation: both checks happen in the existing `CheckPrimaryPattern` method of `TypeCheckerAnalyzer`, alongside the `PatternUndefinedType` (`MIST_TC_0050 (historical)`) check. The order is:
 
 ```
 if patternType is null or IsErrorType(patternType):
@@ -510,8 +510,8 @@ Member access and operator application on a bare-`unknown`-typed operand are rej
 
 - `List<int>` assigns to `List<unknown>` without diagnostic.
 - `List<unknown>` does **not** assign to `List<int>`.
-- `x.M` where `x: unknown` emits MIST_TC_* (suggests `is` pattern).
-- `(int) x` where `x: unknown` requires an `implicit operator int(unknown)` declared somewhere; otherwise emits `MIST_TC_0067`.
+- `x.M` where `x: unknown` emits MIST_TC_* (historical scheme) (suggests `is` pattern).
+- `(int) x` where `x: unknown` requires an `implicit operator int(unknown)` declared somewhere; otherwise emits `MIST_TC_0067 (historical)`.
 - `x is unknown u` emits narrow-to-unknown diagnostic.
 - `x is List<unknown> lu` emits narrow-to-closed-with-unknown diagnostic.
 
@@ -559,7 +559,7 @@ Three possible strategies:
 1. Removes the invalid cast entirely. Assigning any value to a `dynamic` target is always accepted at compile time and succeeds at runtime with no coercion — `dynamic` is `object` plus DLR metadata.
 2. Routes member access on the widened receiver through the DLR, which dispatches against the receiver's actual runtime generic type. A call like `xs.Size()` on `dynamic xs` (underlying `List<int>`) dispatches to `List<int>.Size()` directly.
 3. Preserves reference identity (the underlying object never changes).
-4. The Reachability Analyzer's compile-time guarantee still holds — the DLR never sees a write-path member call on a Closed_Generic_With_Unknown receiver because the Mist type checker rejects those calls with `MIST_TC_0062`.
+4. The Reachability Analyzer's compile-time guarantee still holds — the DLR never sees a write-path member call on a Closed_Generic_With_Unknown receiver because the Mist type checker rejects those calls with `MIST_TC_0062 (historical)`.
 
 Concretely, the Emitter uses:
 
@@ -574,7 +574,7 @@ Concretely, the Emitter uses:
 // C#:    object x = 42;
 ```
 
-Note the distinction: bare `unknown` still lowers to `object` (not `dynamic`) because the type checker rejects member access and operator dispatch on a bare-`unknown` receiver at compile time (MIST_TC_0065 / MIST_TC_0066). The DLR never sees such a receiver, so `object` is sufficient. `dynamic` is reserved for Closed_Generic_With_Unknown receivers, where it is strictly necessary because read-path member access is permitted by the type checker (e.g., `xs.Size()` on `xs : List<unknown>`).
+Note the distinction: bare `unknown` still lowers to `object` (not `dynamic`) because the type checker rejects member access and operator dispatch on a bare-`unknown` receiver at compile time (MIST_TC_0065 (historical) / MIST_TC_0066 (historical)). The DLR never sees such a receiver, so `object` is sufficient. `dynamic` is reserved for Closed_Generic_With_Unknown receivers, where it is strictly necessary because read-path member access is permitted by the type checker (e.g., `xs.Size()` on `xs : List<unknown>`).
 
 **Requirement 15.2 restated under Option C.** The emitter no longer "inserts an explicit C# cast" at widening sites. Instead, it lowers the target's declared type to `dynamic` at every widening site involving a Closed_Generic_With_Unknown, and emits the operand unchanged. The implicit conversion from any reference/value type to `dynamic` is handled by the C# compiler.
 
@@ -639,54 +639,54 @@ Summary-table counts are updated.
 ## Diagnostic ID Allocation
 
 Existing ranges in use:
-- `MIST_SB_0030–0043` — Semantic Model Builder (intrinsics, operators, cast operators)
-- `MIST_TC_0031–0044` — Type Checker (overloads, cast operators)
+- `MIST_SB_0030 (historical)–0043` — Semantic Model Builder (intrinsics, operators, cast operators)
+- `MIST_TC_0031 (historical)–0044` — Type Checker (overloads, cast operators)
 
 New range allocated for UnknownType feature:
 
 | ID              | Requirement | Description                                                     | Emitted by              |
 | --------------- | ----------- | --------------------------------------------------------------- | ----------------------- |
-| `MIST_SB_0050`  | Req 5.1     | `unknown` used as field type                                    | SemanticModelBuilder    |
-| `MIST_SB_0051`  | Req 5.2     | `unknown` used as property type                                 | SemanticModelBuilder    |
-| `MIST_SB_0052`  | Req 5.3     | `unknown` used as indexer element type                          | SemanticModelBuilder    |
-| `MIST_SB_0053`  | Req 5.7     | Generic construction with `unknown` argument                    | SemanticModelBuilder    |
-| `MIST_SB_0054`  | Req 6.1–4   | `unknown` used as base or implemented type                      | SemanticModelBuilder    |
-| `MIST_SB_0055`  | Req 5.5     | `new unknown[n]` — `unknown` as array element in new expression | SemanticModelBuilder    |
-| `MIST_SB_0056`  | Req 5.4     | `new unknown(...)` — attempting to instantiate `unknown`        | SemanticModelBuilder    |
-| `MIST_SB_0057`  | Req 5.6     | `default(unknown)` — `unknown` has no default                   | SemanticModelBuilder    |
-| `MIST_TC_0062`  | Req 10.1–4, 7 | Member filtered on Closed_Generic_With_Unknown receiver       | TypeCheckerAnalyzer     |
-| `MIST_TC_0063`  | Req 11.3    | Narrowing to `unknown`                                          | TypeCheckerAnalyzer     |
-| `MIST_TC_0064`  | Req 11.4    | Narrowing to Closed_Generic_With_Unknown                        | TypeCheckerAnalyzer     |
-| `MIST_TC_0065`  | Req 13.1    | Member access on bare `unknown`                                 | TypeCheckerAnalyzer     |
-| `MIST_TC_0066`  | Req 13.2    | Operator applied to `unknown` operand                           | TypeCheckerAnalyzer     |
-| `MIST_TC_0067`  | Req 13.4    | No cast operator from `unknown` to T                            | TypeCheckerAnalyzer     |
-| `MIST_TC_0060`  | Req 4.4     | `unknown` value assigned to non-`unknown` target                | TypeCheckerAnalyzer     |
-| `MIST_TC_0061`  | Req 4.2     | `void` expression assigned to `unknown`                         | TypeCheckerAnalyzer     |
-| `MIST_TC_0058`  | Req 8.6     | Covariant `unknown` widening attempted on a struct generic      | TypeCheckerAnalyzer     |
+| `MIST_SB_0050 (historical)`  | Req 5.1     | `unknown` used as field type                                    | SemanticModelBuilder    |
+| `MIST_SB_0051 (historical)`  | Req 5.2     | `unknown` used as property type                                 | SemanticModelBuilder    |
+| `MIST_SB_0052 (historical)`  | Req 5.3     | `unknown` used as indexer element type                          | SemanticModelBuilder    |
+| `MIST_SB_0053 (historical)`  | Req 5.7     | Generic construction with `unknown` argument                    | SemanticModelBuilder    |
+| `MIST_SB_0054 (historical)`  | Req 6.1–4   | `unknown` used as base or implemented type                      | SemanticModelBuilder    |
+| `MIST_SB_0055 (historical)`  | Req 5.5     | `new unknown[n]` — `unknown` as array element in new expression | SemanticModelBuilder    |
+| `MIST_SB_0056 (historical)`  | Req 5.4     | `new unknown(...)` — attempting to instantiate `unknown`        | SemanticModelBuilder    |
+| `MIST_SB_0057 (historical)`  | Req 5.6     | `default(unknown)` — `unknown` has no default                   | SemanticModelBuilder    |
+| `MIST_TC_0062 (historical)`  | Req 10.1–4, 7 | Member filtered on Closed_Generic_With_Unknown receiver       | TypeCheckerAnalyzer     |
+| `MIST_TC_0063 (historical)`  | Req 11.3    | Narrowing to `unknown`                                          | TypeCheckerAnalyzer     |
+| `MIST_TC_0064 (historical)`  | Req 11.4    | Narrowing to Closed_Generic_With_Unknown                        | TypeCheckerAnalyzer     |
+| `MIST_TC_0065 (historical)`  | Req 13.1    | Member access on bare `unknown`                                 | TypeCheckerAnalyzer     |
+| `MIST_TC_0066 (historical)`  | Req 13.2    | Operator applied to `unknown` operand                           | TypeCheckerAnalyzer     |
+| `MIST_TC_0067 (historical)`  | Req 13.4    | No cast operator from `unknown` to T                            | TypeCheckerAnalyzer     |
+| `MIST_TC_0060 (historical)`  | Req 4.4     | `unknown` value assigned to non-`unknown` target                | TypeCheckerAnalyzer     |
+| `MIST_TC_0061 (historical)`  | Req 4.2     | `void` expression assigned to `unknown`                         | TypeCheckerAnalyzer     |
+| `MIST_TC_0058 (historical)`  | Req 8.6     | Covariant `unknown` widening attempted on a struct generic      | TypeCheckerAnalyzer     |
 
-> **Note on numbering:** The initial design proposed `MIST_TC_0056` and
-> `MIST_TC_0057` for the Req 4.4 and Req 4.2 assignability rejections, but
+> **Note on numbering:** The initial design proposed `MIST_TC_0056 (historical)` and
+> `MIST_TC_0057 (historical)` for the Req 4.4 and Req 4.2 assignability rejections, but
 > those codes were already allocated to the pattern-matching feature
 > (`PatternOrInconsistentVariables`, `PatternNotCannotBindVariable`). During
 > Task 9.2 the unknown-type assignability diagnostics were reallocated to
-> `MIST_TC_0060` / `MIST_TC_0061` to avoid overloading a diagnostic ID with
-> two distinct meanings. The struct-generic-widening code (`MIST_TC_0058`)
+> `MIST_TC_0060 (historical)` / `MIST_TC_0061 (historical)` to avoid overloading a diagnostic ID with
+> two distinct meanings. The struct-generic-widening code (`MIST_TC_0058 (historical)`)
 > was still free at the time of allocation and is retained as proposed.
 > During Task 21 the member-filtering code originally proposed as
-> `MIST_TC_0050` was similarly reallocated to `MIST_TC_0062` — the code
+> `MIST_TC_0050 (historical)` was similarly reallocated to `MIST_TC_0062 (historical)` — the code
 > was already in use by the pattern-matching feature's
 > `PatternUndefinedType` diagnostic. During Task 24 the pattern-narrowing
-> rejection codes originally proposed as `MIST_TC_0051` and `MIST_TC_0052`
-> were reallocated to `MIST_TC_0063` and `MIST_TC_0064` for the same
+> rejection codes originally proposed as `MIST_TC_0051 (historical)` and `MIST_TC_0052 (historical)`
+> were reallocated to `MIST_TC_0063 (historical)` and `MIST_TC_0064 (historical)` for the same
 > reason — those codes were already owned by the pattern-matching feature's
 > `PatternConstantTypeMismatch` and `PatternRelationalNonComparable`
 > diagnostics. During Task 25 the bare-unknown rejection codes originally
-> proposed as `MIST_TC_0053` and `MIST_TC_0054` were reallocated to
-> `MIST_TC_0065` and `MIST_TC_0066` for the same reason — those codes
+> proposed as `MIST_TC_0053 (historical)` and `MIST_TC_0054 (historical)` were reallocated to
+> `MIST_TC_0065 (historical)` and `MIST_TC_0066 (historical)` for the same reason — those codes
 > were already owned by the pattern-matching feature's
 > `PatternUndefinedProperty` and `PatternListRequiresArray` diagnostics.
 > During Task 26 the cast-from-unknown code originally proposed as
-> `MIST_TC_0055` was reallocated to `MIST_TC_0067` for the same reason —
+> `MIST_TC_0055 (historical)` was reallocated to `MIST_TC_0067 (historical)` for the same reason —
 > that code was already owned by the pattern-matching feature's
 > `PatternListTooManyElements` diagnostic (a warning). Merging an error
 > into the same ID as a warning would make filter rules and severity

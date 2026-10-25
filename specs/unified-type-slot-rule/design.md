@@ -139,7 +139,7 @@ case AssociatedTypeMemberMemberDeclarationNode:
 ### Abstract Member Dispatch
 
 The three cases collapse. The logic needs to handle:
-1. If modifiers are present → emit `MIST_AT_0005` diagnostic (modifiers not permitted on slots in old system)
+1. If modifiers are present → emit `MIST0039` diagnostic (modifiers not permitted on slots in old system)
 2. If no modifiers + has constraints → register constrained slot (old `RegisterAssociatedTypeSlotDeclaration` logic)
 3. If no modifiers + no constraints → register unconstrained slot (old `RegisterUnconstrainedAssociatedTypeSlotDeclaration` logic)
 

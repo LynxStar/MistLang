@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class DefaultConsistencyTests
 {
-    private const string NotConsistent = "MIST_PA_DEFAULT_NOT_CONSISTENT";
+    private const string NotConsistent = "MIST0143";
 
     [Theory]
     [InlineData("initializer-allocating-through-a-pure-constructor-of-a-pure-type")]

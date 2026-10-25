@@ -267,11 +267,11 @@ Add cases to `MistPrettyPrinter` for:
 
 | ID | Stage | Description |
 |----|-------|-------------|
-| `MIST_TC_0060` | TypeChecker | Tuple requires at least 2 elements |
-| `MIST_TC_0061` | TypeChecker | Tuple deconstruction arity mismatch |
-| `MIST_TC_0062` | TypeChecker | Tuple element type mismatch in deconstruction |
-| `MIST_TC_0063` | TypeChecker | Undefined tuple member access |
-| `MIST_TC_0064` | TypeChecker | RHS of tuple deconstruction is not a tuple type |
+| `MIST_TC_0060 (historical)` | TypeChecker | Tuple requires at least 2 elements |
+| `MIST_TC_0061 (historical)` | TypeChecker | Tuple deconstruction arity mismatch |
+| `MIST_TC_0062 (historical)` | TypeChecker | Tuple element type mismatch in deconstruction |
+| `MIST_TC_0063 (historical)` | TypeChecker | Undefined tuple member access |
+| `MIST_TC_0064 (historical)` | TypeChecker | RHS of tuple deconstruction is not a tuple type |
 
 ## Correctness Properties
 
@@ -329,10 +329,10 @@ Add cases to `MistPrettyPrinter` for:
 
 | Condition | Diagnostic | Message |
 |-----------|-----------|---------|
-| Deconstruction arity mismatch | `MIST_TC_0061` | "Tuple deconstruction has {N} targets but the tuple has {M} elements" |
-| Element type mismatch in typed deconstruction | `MIST_TC_0062` | "Cannot assign tuple element of type '{actual}' to '{declared}' at position {i}" |
-| Undefined member access on tuple | `MIST_TC_0063` | "Tuple type '{tupleType}' does not contain a member '{name}'" |
-| RHS of deconstruction is not a tuple | `MIST_TC_0064` | "Cannot deconstruct expression of type '{type}'; a tuple type is required" |
+| Deconstruction arity mismatch | `MIST_TC_0061 (historical)` | "Tuple deconstruction has {N} targets but the tuple has {M} elements" |
+| Element type mismatch in typed deconstruction | `MIST_TC_0062 (historical)` | "Cannot assign tuple element of type '{actual}' to '{declared}' at position {i}" |
+| Undefined member access on tuple | `MIST_TC_0063 (historical)` | "Tuple type '{tupleType}' does not contain a member '{name}'" |
+| RHS of deconstruction is not a tuple | `MIST_TC_0064 (historical)` | "Cannot deconstruct expression of type '{type}'; a tuple type is required" |
 
 ### Graceful Degradation
 

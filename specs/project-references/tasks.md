@@ -19,18 +19,18 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
 
 - [x] 3. Add project-reference diagnostic IDs to `DiagnosticId.cs`
   - Add the five new `DiagnosticId` constants to `Source/Mist/Common/Diagnostics/DiagnosticId.cs`:
-    - `ProjectReferenceMissingPath` → `"MIST_PROJECT_REFERENCE_MISSING_PATH"`
-    - `ProjectReferenceEmptyPath` → `"MIST_PROJECT_REFERENCE_EMPTY_PATH"`
-    - `ProjectReferenceNotFound` → `"MIST_PROJECT_REFERENCE_NOT_FOUND"`
-    - `ProjectReferenceNoProjectFile` → `"MIST_PROJECT_REFERENCE_NO_PROJECT_FILE"`
-    - `ProjectCircularReference` → `"MIST_PROJECT_CIRCULAR_REFERENCE"`
+    - `ProjectReferenceMissingPath` → `"MIST0060"`
+    - `ProjectReferenceEmptyPath` → `"MIST0061"`
+    - `ProjectReferenceNotFound` → `"MIST0062"`
+    - `ProjectReferenceNoProjectFile` → `"MIST0063"`
+    - `ProjectCircularReference` → `"MIST0064"`
   - _Requirements: 1.3, 1.4, 2.6, 2.7, 2.8, 4.1, 7.1–7.3_
 
 - [x] 4. Update `ProjectFileParser.Parse` to read `[[references]]`
   - After the existing `namespace_root` parsing (step 8), add step 9 to read the optional `[[references]]` TOML array-of-tables
   - If the key is absent → `References = ImmutableArray.Empty` (no error)
-  - If present but not a `TomlTableArray` → report `MIST_PROJECT_TOML_ERROR`, return `null`
-  - For each entry: check `path` key present and is a string (else `MIST_PROJECT_REFERENCE_MISSING_PATH`, return `null`); check non-empty/non-whitespace (else `MIST_PROJECT_REFERENCE_EMPTY_PATH`, return `null`)
+  - If present but not a `TomlTableArray` → report `MIST0051`, return `null`
+  - For each entry: check `path` key present and is a string (else `MIST0060`, return `null`); check non-empty/non-whitespace (else `MIST0061`, return `null`)
   - Normalize path: relative → `Path.GetFullPath(Path.Combine(projectFolder, rawPath))`; absolute → `Path.GetFullPath(rawPath)`; if normalized path is a directory → append `"mist.toml"`
   - Do NOT check existence here — deferred to resolver
   - Return `ProjectConfiguration(name, namespaceRoot, references.ToImmutable())`
@@ -38,8 +38,8 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
 
 - [x] 5. Unit tests for `ProjectFileParser` reference parsing
   - [x] 5.1 Add reference-parsing unit tests to `Test/Mist.Tests/Backend/ProjectFileParserTests.cs`
-    - Missing `path` field → `MIST_PROJECT_REFERENCE_MISSING_PATH`
-    - Empty string `path` → `MIST_PROJECT_REFERENCE_EMPTY_PATH`
+    - Missing `path` field → `MIST0060`
+    - Empty string `path` → `MIST0061`
     - No `[[references]]` section → `References` is empty, parse succeeds
     - `[[references]]` with a direct `mist.toml` path → path stored as-is (after canonicalization)
     - `[[references]]` with a directory path → `mist.toml` appended
@@ -56,7 +56,7 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
 
   - [x] 5.3 Write property test: whitespace path rejection (Property 2)
     - **Property 2: Empty/whitespace reference paths are rejected**
-    - Generator: strings of 1–64 whitespace characters; write `mist.toml` with that string as a `path` value; assert `MIST_PROJECT_REFERENCE_EMPTY_PATH` is reported and result is `null`
+    - Generator: strings of 1–64 whitespace characters; write `mist.toml` with that string as a `path` value; assert `MIST0061` is reported and result is `null`
     - No process spawning
     - Add to `Test/Mist.Tests/Backend/ProjectFileParserPropertyTests.cs`
     - **Validates: Requirements 1.4, 7.3**
@@ -72,8 +72,8 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
   - Create `Source/Mist/Driver/Contracts/ResolvedProjectReference.cs` with the `ResolvedProjectReference(string CanonicalTomlPath, string ProjectFolder, ProjectConfiguration Configuration, ImmutableArray<string> SourcePaths)` sealed record
   - Create `Source/Mist/Driver/ProjectReferenceResolver.cs` with a static `Resolve(string rootProjectFolder, ImmutableArray<ProjectReference> references, DiagnosticBag diagnostics)` method returning `ImmutableArray<ResolvedProjectReference>`
   - Implement DFS with `visited` (fully processed) and `inProgress` (on DFS stack) `HashSet<string>` for cycle detection and deduplication
-  - For each node: check existence (`File.Exists`), check filename is `mist.toml` (else `MIST_PROJECT_REFERENCE_NOT_FOUND`), check directory without `mist.toml` (else `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`)
-  - Cycle detection: if path is in `inProgress`, report `MIST_PROJECT_CIRCULAR_REFERENCE` with full chain string (e.g. `A → B → A`), return for that branch
+  - For each node: check existence (`File.Exists`), check filename is `mist.toml` (else `MIST0062`), check directory without `mist.toml` (else `MIST0063`)
+  - Cycle detection: if path is in `inProgress`, report `MIST0064` with full chain string (e.g. `A → B → A`), return for that branch
   - Post-order DFS: recurse into transitive references before adding current project to result (deepest-dependency-first)
   - Collect source paths via `Directory.GetFiles(projectFolder, "*.mist", SearchOption.AllDirectories)` sorted by `StringComparer.Ordinal`
   - Continue processing independent branches after errors (accumulate all diagnostics)
@@ -81,20 +81,20 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
 
 - [x] 7. Unit tests for `ProjectReferenceResolver`
   - [x] 7.1 Create `Test/Mist.Tests/Driver/ProjectReferenceResolverTests.cs` with example-based unit tests
-    - Non-existent path → `MIST_PROJECT_REFERENCE_NOT_FOUND`
-    - Directory without `mist.toml` → `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`
-    - File not named `mist.toml` → `MIST_PROJECT_REFERENCE_NOT_FOUND`
+    - Non-existent path → `MIST0062`
+    - Directory without `mist.toml` → `MIST0063`
+    - File not named `mist.toml` → `MIST0062`
     - Invalid referenced `mist.toml` → error propagated from inner parse
     - Diamond dependency (A→B, A→C, B→D, C→D) → each project appears exactly once in result
-    - Direct self-reference (A → A) → `MIST_PROJECT_CIRCULAR_REFERENCE`
-    - Two-node cycle (A → B → A) → `MIST_PROJECT_CIRCULAR_REFERENCE` with both nodes in message
+    - Direct self-reference (A → A) → `MIST0064`
+    - Two-node cycle (A → B → A) → `MIST0064` with both nodes in message
     - Multiple independent invalid references → all errors reported (not just first)
     - _Requirements: 2.6–2.8, 3.2, 3.3, 4.1–4.3, 7.1, 7.2, 7.4_
 
   - [x] 7.2 Write property test: cycle detection for cycles of any length (Property 4)
     - **Property 4: Cycle detection for cycles of any length**
     - Generator: cycle length N from 1 to 5; create N temp directories each with a `mist.toml` referencing the next, with the last referencing the first; call `ProjectReferenceResolver.Resolve` in-process
-    - Assert `MIST_PROJECT_CIRCULAR_REFERENCE` is reported and message contains all node paths in the cycle chain
+    - Assert `MIST0064` is reported and message contains all node paths in the cycle chain
     - No process spawning — resolver is pure in-process logic
     - Create `Test/Mist.Tests/Driver/ProjectReferencePropertyTests.cs`
     - **Validates: Requirements 4.1, 4.2, 4.3, 7.2**
@@ -129,7 +129,7 @@ Add multi-project support to the Mist compiler. A project declares dependencies 
 - [x] 10. Integration tests for `CompilerDriver` with references
   - [x] 10.1 Create `Test/Mist.Tests/Driver/CompilerDriverReferenceIntegrationTests.cs`
     - Single reference: A references B; B's types are visible in A (compilation succeeds, no undefined-type diagnostics for B's types)
-    - Invalid reference in A → compilation aborts with correct diagnostic (`MIST_PROJECT_REFERENCE_NOT_FOUND`)
+    - Invalid reference in A → compilation aborts with correct diagnostic (`MIST0062`)
     - Ordering: units from a referenced project C appear before units from B (which references C) in `compilation.Units`
     - _Requirements: 3.1, 3.2, 5.1–5.5_
 

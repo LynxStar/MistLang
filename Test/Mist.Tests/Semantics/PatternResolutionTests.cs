@@ -156,7 +156,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (u is int i && i > 0) { }");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (u is int i) { var probe = i; }");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (u is int i) { } else { var probe = i; }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var probe = i;", extraPreamble: "if (u is int i) { }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -188,8 +188,8 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (u is int i) { } if (u is string i) { }");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_DUPLICATE_LOCAL"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0367"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("while (u is int i) { var probe = i; u = \"done\"; }");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     // ── Comparing against a constant ─────────────────────────────────────
@@ -323,7 +323,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var conjunction = Assert.IsType<ConjunctionPattern>(PatternOf("var ok = u is int i and > 40;"));
 
-        Assert.Empty(Errors(BuildRun("var ok = u is int i and > 40;"), "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        Assert.Empty(Errors(BuildRun("var ok = u is int i and > 40;"), "MIST0348"));
         Assert.Equal("i", Assert.Single(conjunction.Operands.Take(1)).Binding?.Name);
     }
 
@@ -332,7 +332,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = u is int i or string;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     [Fact]
@@ -340,7 +340,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = u is not int i;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     /// <summary>
@@ -351,9 +351,9 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     public void TheBanOnBinding_ReachesNestedPatterns()
     {
         _ = Assert.Single(Errors(
-            BuildRun("var ok = u is (int i or string);"), "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+            BuildRun("var ok = u is (int i or string);"), "MIST0348"));
         _ = Assert.Single(Errors(
-            BuildRun("var ok = u is (int i or string) and not Dog;"), "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+            BuildRun("var ok = u is (int i or string) and not Dog;"), "MIST0348"));
     }
 
     /// <summary>
@@ -365,8 +365,8 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (u is int i or string) { var probe = i; }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     // ── Error recovery ───────────────────────────────────────────────────
@@ -376,7 +376,7 @@ public sealed class PatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = u is Nonexistent n;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0298"));
         _ = InitializerOf<ErrorExpression>("var ok = u is Nonexistent n;");
     }
 

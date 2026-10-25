@@ -13,9 +13,9 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS",
-        "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL", "MIST_PA_COALESCING_ASSIGNMENT_NOT_A_STATEMENT",
-        "MIST_PA_READONLY_LOCAL_REASSIGNED", "MIST_PA_STATIC_LAMBDA_CAPTURE", "MIST_PA_OPTIONAL_OF_OPTIONAL",
+        "MIST0200", "MIST0201", "MIST0202",
+        "MIST0205", "MIST0206",
+        "MIST0207", "MIST0211", "MIST0213",
     ];
 
     public OperatorDecisionTests()

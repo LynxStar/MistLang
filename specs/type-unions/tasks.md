@@ -85,21 +85,21 @@ This plan implements TypeScript-style type unions (`int | string`) across the fu
   - [x] 6.1 Implement assignability rules for union types in `TypeCheckerAnalyzer`
     - Constituent → union: valid
     - Union → wider union (all constituents present): valid
-    - Union → narrower union (missing constituents): error MIST_TC_0055
-    - Non-constituent → union: error MIST_TC_0050
-    - Union → non-union without narrowing: error MIST_TC_0051
+    - Union → narrower union (missing constituents): error MIST_TC_0055 (historical)
+    - Non-constituent → union: error MIST_TC_0050 (historical)
+    - Union → non-union without narrowing: error MIST_TC_0051 (historical)
     - Order-independent equality for same-constituent unions
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
   - [x] 6.2 Implement member access validation on union types
     - Allow access if member exists on ALL constituents with compatible signatures
     - Result type: union of member return types (or single type if all identical)
-    - Emit MIST_TC_0052 if member missing on any constituent
+    - Emit MIST_TC_0052 (historical) if member missing on any constituent
     - _Requirements: 7.1, 7.2, 7.3_
   - [x] 6.3 Implement pattern matching validation for union types
     - Type pattern with constituent type: valid, introduce variable with constituent type
-    - Type pattern with non-constituent: warning MIST_TC_0053
+    - Type pattern with non-constituent: warning MIST_TC_0053 (historical)
     - Var pattern: introduce variable with full union type
-    - Degenerate union warning MIST_TC_0054
+    - Degenerate union warning MIST_TC_0054 (historical)
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 12.1, 12.5_
   - [x] 6.4 Write property tests for type checker (Properties 7–12)
     - **Property 7: Constituent Assignability**
@@ -166,13 +166,13 @@ This plan implements TypeScript-style type unions (`int | string`) across the fu
 
 - [x] 13. Add error diagnostics unit tests
   - Write unit tests verifying diagnostic messages for:
-    - MIST_TC_0050: non-constituent assigned to union
-    - MIST_TC_0051: union assigned to non-union without narrowing
-    - MIST_TC_0052: member not present on all constituents
-    - MIST_TC_0053: pattern type not a constituent (warning)
-    - MIST_TC_0054: degenerate union (warning)
-    - MIST_TC_0055: union-to-union with incompatible constituents
-    - MIST_TC for unresolved constituent type
+    - MIST_TC_0050 (historical): non-constituent assigned to union
+    - MIST_TC_0051 (historical): union assigned to non-union without narrowing
+    - MIST_TC_0052 (historical): member not present on all constituents
+    - MIST_TC_0053 (historical): pattern type not a constituent (warning)
+    - MIST_TC_0054 (historical): degenerate union (warning)
+    - MIST_TC_0055 (historical): union-to-union with incompatible constituents
+    - MIST_TC (historical) for unresolved constituent type
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
 
 - [x] 14. Final checkpoint — Full integration

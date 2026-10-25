@@ -63,12 +63,12 @@ public sealed class MethodGroupBindingRefusalTests
         Assert.Equal(expectedCount, diagnostics.Length);
         Assert.All(diagnostics.Take(refusal == "generic-method-value-with-type-arguments-it-cannot-take" ? 2 : expectedCount), diagnostic =>
         {
-            Assert.Equal("MIST_PM_METHOD_GROUP_NOT_CONVERTED", diagnostic.Number.Value);
+            Assert.Equal("MIST0387", diagnostic.Number.Value);
             Assert.Equal(31, diagnostic.Position().Start.Column);
         });
         if(refusal == "generic-method-value-with-type-arguments-it-cannot-take")
         {
-            Assert.Equal("MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD", diagnostics[2].Number.Value);
+            Assert.Equal("MIST0388", diagnostics[2].Number.Value);
         }
 
         void refuse(Method method, IMistType target, IReadOnlyList<IMistType>? stated = null)

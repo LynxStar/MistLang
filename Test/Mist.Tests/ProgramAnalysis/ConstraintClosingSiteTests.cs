@@ -53,7 +53,7 @@ public sealed class ConstraintClosingSiteTests
         }
 
         var finding = Assert.Single(fragment.Run(new ConstraintAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Number.Value);
+        Assert.Equal("MIST0178", finding.Number.Value);
         Assert.Equal("hand-built.mist", finding.Location.Path);
         Assert.Equal(56, finding.Position().Start.Column);
     }

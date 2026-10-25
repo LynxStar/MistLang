@@ -4,7 +4,7 @@
 
 ## Overview
 
-This design specifies the internal compiler changes needed to make defaultability optional in Mist. Currently, the compiler forces every concrete type to be defaultable — emitting `MIST_DEFAULT_REQUIRES_BINDING` when a type has non-defaultable fields without type bindings, even when the type has user-defined constructors that properly initialize those fields.
+This design specifies the internal compiler changes needed to make defaultability optional in Mist. Currently, the compiler forces every concrete type to be defaultable — emitting `MIST_DEFAULT_REQUIRES_BINDING (historical)` when a type has non-defaultable fields without type bindings, even when the type has user-defined constructors that properly initialize those fields.
 
 The redesign separates two distinct concepts:
 - **Default (data)**: A precomputed, side-effect-free zero-value template. Types opt in via inference (all fields defaultable) or an explicit `default {}` block.
@@ -26,7 +26,7 @@ graph TD
 
 **Phase 1 — Parsing**: Add `DefaultConstraintConstraintNode` for `where T : default`. Add `IsDefault` flag on `EnumMemberDeclarationNode` for the `default` variant modifier.
 
-**Phase 2 — Semantic Model Construction**: Modify `ComputeDefaultabilityForType` to check whether the type has user-defined constructors. If it does and has no `default {}` block, classify it as `NotDefaultable` *without error*. The `MIST_DEFAULT_REQUIRES_BINDING` diagnostic only fires for constructor-less types that have non-defaultable fields. Add `HasDefaultConstraint` to `TypeParameterConstraints`. Add `IsDefault` to `EnumMemberInfo`. Compute union type defaultability based on void membership.
+**Phase 2 — Semantic Model Construction**: Modify `ComputeDefaultabilityForType` to check whether the type has user-defined constructors. If it does and has no `default {}` block, classify it as `NotDefaultable` *without error*. The `MIST_DEFAULT_REQUIRES_BINDING (historical)` diagnostic only fires for constructor-less types that have non-defaultable fields. Add `HasDefaultConstraint` to `TypeParameterConstraints`. Add `IsDefault` to `EnumMemberInfo`. Compute union type defaultability based on void membership.
 
 **Phase 3 — Type Checking**: Add definite assignment analysis for constructor bodies. Add constraint satisfaction checking for `where T : default`. Update `default(T)` validation to allow type parameters with the `default` constraint.
 
@@ -135,19 +135,19 @@ The analysis is a forward dataflow analysis:
 
 When validating `default(T)` where `T` is a `TypeParameterType`:
 - If `T.Constraints?.HasDefaultConstraint == true` → valid
-- Else → emit `MIST_DEFAULT_ON_TYPE_PARAMETER` (unchanged behavior)
+- Else → emit `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)` (unchanged behavior)
 
 When instantiating a generic with `where T : default`:
 - Check that the type argument is defaultable (using `IsTypeDefaultable`)
-- If not → emit new diagnostic `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED`
+- If not → emit new diagnostic `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED (historical)`
 
 **Enum default(E) validation:**
 - If `E` is `EnumType` with `Defaultability == Explicit` → valid
-- If `E` is `EnumType` with `Defaultability == NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED`
+- If `E` is `EnumType` with `Defaultability == NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED (historical)`
 
 **Union default(U) validation:**
 - If `U` is `UnionType` containing `VoidType` → valid
-- If `U` is `UnionType` without `VoidType` → emit `MIST_DEFAULT_NOT_SUPPORTED`
+- If `U` is `UnionType` without `VoidType` → emit `MIST_DEFAULT_NOT_SUPPORTED (historical)`
 
 ### Emitter Changes
 
@@ -200,17 +200,17 @@ Add `Defaultability` property and `DefaultMember` property.
 
 | ID | When |
 |----|------|
-| `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED` | Type argument doesn't satisfy `where T : default` |
-| `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` | Constructor doesn't assign a non-defaultable field |
-| `MIST_ENUM_MULTIPLE_DEFAULTS` | More than one variant has `default` modifier |
+| `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED (historical)` | Type argument doesn't satisfy `where T : default` |
+| `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` | Constructor doesn't assign a non-defaultable field |
+| `MIST_ENUM_MULTIPLE_DEFAULTS (historical)` | More than one variant has `default` modifier |
 
 ### Existing Diagnostics (behavior changes)
 
 | ID | Change |
 |----|--------|
-| `MIST_DEFAULT_REQUIRES_BINDING` | Only emitted for types WITHOUT constructors. Types with constructors get `NotDefaultable` silently. |
-| `MIST_DEFAULT_NOT_SUPPORTED` | Extended to cover enums without default variant and unions without void. |
-| `MIST_DEFAULT_ON_TYPE_PARAMETER` | Now has an escape: if `HasDefaultConstraint` is true, the expression is valid. |
+| `MIST_DEFAULT_REQUIRES_BINDING (historical)` | Only emitted for types WITHOUT constructors. Types with constructors get `NotDefaultable` silently. |
+| `MIST_DEFAULT_NOT_SUPPORTED (historical)` | Extended to cover enums without default variant and unions without void. |
+| `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)` | Now has an escape: if `HasDefaultConstraint` is true, the expression is valid. |
 
 ## Correctness Properties
 
@@ -242,7 +242,7 @@ Add `Defaultability` property and `DefaultMember` property.
 
 ### Property 5: Definite assignment error detection
 
-*For any* constructor body where at least one non-defaultable field (with no initializer) is NOT assigned on some control-flow path, the compiler SHALL emit a `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` diagnostic naming that field.
+*For any* constructor body where at least one non-defaultable field (with no initializer) is NOT assigned on some control-flow path, the compiler SHALL emit a `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` diagnostic naming that field.
 
 **Validates: Requirements 3.5, 11.2**
 
@@ -254,19 +254,19 @@ Add `Defaultability` property and `DefaultMember` property.
 
 ### Property 7: Default constraint satisfaction
 
-*For any* generic instantiation `G<A>` where `G` declares `where T : default`, if `A` is a defaultable type the instantiation SHALL produce no diagnostic, and if `A` is non-defaultable the compiler SHALL emit `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED`.
+*For any* generic instantiation `G<A>` where `G` declares `where T : default`, if `A` is a defaultable type the instantiation SHALL produce no diagnostic, and if `A` is non-defaultable the compiler SHALL emit `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED (historical)`.
 
 **Validates: Requirements 5.6, 9.2**
 
 ### Property 8: Enum default variant designation
 
-*For any* enum type with exactly one variant marked `default`, the compiler SHALL classify the enum as defaultable and `default(E)` SHALL be valid. *For any* enum with no `default` variant, `default(E)` SHALL produce `MIST_DEFAULT_NOT_SUPPORTED`.
+*For any* enum type with exactly one variant marked `default`, the compiler SHALL classify the enum as defaultable and `default(E)` SHALL be valid. *For any* enum with no `default` variant, `default(E)` SHALL produce `MIST_DEFAULT_NOT_SUPPORTED (historical)`.
 
 **Validates: Requirements 6.3, 6.4, 6.5, 6.6**
 
 ### Property 9: Union defaultability based on void membership
 
-*For any* union type, it is defaultable if and only if `void` is one of its constituents. `default(T | void)` SHALL be valid; `default(A | B)` where neither is void SHALL produce `MIST_DEFAULT_NOT_SUPPORTED`.
+*For any* union type, it is defaultable if and only if `void` is one of its constituents. `default(T | void)` SHALL be valid; `default(A | B)` where neither is void SHALL produce `MIST_DEFAULT_NOT_SUPPORTED (historical)`.
 
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 
@@ -284,7 +284,7 @@ Add `Defaultability` property and `DefaultMember` property.
 
 ### Property 12: Inheritance defaultability rules
 
-*For any* derived type with a `default {}` block whose base type is non-defaultable, the compiler SHALL emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE`. *For any* derived type with constructors (no default block) and a non-defaultable base, the compiler SHALL allow it without error.
+*For any* derived type with a `default {}` block whose base type is non-defaultable, the compiler SHALL emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)`. *For any* derived type with constructors (no default block) and a non-defaultable base, the compiler SHALL allow it without error.
 
 **Validates: Requirements 10.3, 10.4**
 
@@ -294,19 +294,19 @@ Add `Defaultability` property and `DefaultMember` property.
 
 | Scenario | Diagnostic | Message Pattern |
 |----------|-----------|-----------------|
-| Constructor-less type, non-defaultable field | `MIST_DEFAULT_REQUIRES_BINDING` | "Field '{name}' has type '{type}' which is not defaultable. Add a constructor to assign the field, or add a `default {}` block with a type binding." |
-| Constructor doesn't assign non-defaultable field | `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` | "Field '{name}' must be definitely assigned before constructor '{ctor}' completes. The field's type '{type}' is not defaultable and has no initializer." |
-| Type argument fails default constraint | `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED` | "Type '{arg}' does not satisfy the 'default' constraint on type parameter '{param}' of '{generic}'." |
-| Enum has multiple default variants | `MIST_ENUM_MULTIPLE_DEFAULTS` | "Enum '{name}' has multiple variants with the 'default' modifier. Only one variant may be designated as default." |
-| default(Enum) on enum without default variant | `MIST_DEFAULT_NOT_SUPPORTED` | "Enum '{name}' does not support the 'default' operator. Designate a default variant using `default VariantName,`." |
-| default(Union) on union without void | `MIST_DEFAULT_NOT_SUPPORTED` | "Union type '{type}' does not support the 'default' operator. Only union types containing 'void' are defaultable." |
-| Derived default block, non-defaultable base | `MIST_DEFAULT_BASE_NOT_DEFAULTABLE` | (existing message, unchanged) |
+| Constructor-less type, non-defaultable field | `MIST_DEFAULT_REQUIRES_BINDING (historical)` | "Field '{name}' has type '{type}' which is not defaultable. Add a constructor to assign the field, or add a `default {}` block with a type binding." |
+| Constructor doesn't assign non-defaultable field | `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` | "Field '{name}' must be definitely assigned before constructor '{ctor}' completes. The field's type '{type}' is not defaultable and has no initializer." |
+| Type argument fails default constraint | `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED (historical)` | "Type '{arg}' does not satisfy the 'default' constraint on type parameter '{param}' of '{generic}'." |
+| Enum has multiple default variants | `MIST_ENUM_MULTIPLE_DEFAULTS (historical)` | "Enum '{name}' has multiple variants with the 'default' modifier. Only one variant may be designated as default." |
+| default(Enum) on enum without default variant | `MIST_DEFAULT_NOT_SUPPORTED (historical)` | "Enum '{name}' does not support the 'default' operator. Designate a default variant using `default VariantName,`." |
+| default(Union) on union without void | `MIST_DEFAULT_NOT_SUPPORTED (historical)` | "Union type '{type}' does not support the 'default' operator. Only union types containing 'void' are defaultable." |
+| Derived default block, non-defaultable base | `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)` | (existing message, unchanged) |
 
 ### Recovery Strategy
 
 All new diagnostics are non-fatal (the compiler continues analysis). The semantic model marks the type as `NotDefaultable` and downstream checks that require defaultability will fail cleanly at their own validation points.
 
-### Updated Diagnostic Message for MIST_DEFAULT_REQUIRES_BINDING
+### Updated Diagnostic Message for MIST_DEFAULT_REQUIRES_BINDING (historical)
 
 The message should now suggest adding a constructor as an alternative to a type binding:
 

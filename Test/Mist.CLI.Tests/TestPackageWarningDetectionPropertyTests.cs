@@ -4,7 +4,7 @@
 // For any Mist program where at least one method has an attribute whose unqualified
 // name ends in Fact, Theory, Test, or TestMethod, and the project's package list does
 // not contain any package name matching "Test" or "xunit" (case-insensitive substring),
-// the system SHALL emit warning diagnostic MIST_TEST_0001. If the package list does
+// the system SHALL emit warning diagnostic MIST0102. If the package list does
 // contain such a package, no warning SHALL be emitted.
 
 using System.Collections.Immutable;
@@ -73,7 +73,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
     }
 
     /// <summary>
-    /// Determines whether the MIST_TEST_0001 warning should be emitted:
+    /// Determines whether the MIST0102 warning should be emitted:
     /// true when test-attributed methods exist AND no test framework package is present.
     /// </summary>
     private static bool ShouldEmitWarning(string sourceContent, ImmutableArray<NuGetPackageReference> packages)

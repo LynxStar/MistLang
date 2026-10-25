@@ -45,8 +45,8 @@ This plan implements C#-style `ref` semantics for the Mist programming language 
     - When processing `ParameterNode`, check for `refModifier` field presence → set `RefKind.Ref`
     - When processing method declarations, interpret `RefSpecifier` / `ReadonlyRefSpecifier` in `returnOwnership` as ref return → set `ReturnRefKind`
     - When processing variable declarations with `RefSpecifier` / `ReadonlyRefSpecifier` as ownership specifier, interpret as ref local → set `RefKind`
-    - Handle error case: `refModifier` and `owned` ownership specifier present → emit `MIST_REF_0004` (error), record `RefKind.Ref` and `OwnershipTier.Unrestricted`
-    - Handle warning case: `refModifier` and `borrowed`/`frozen` ownership specifier present → emit `MIST_REF_0013` (warning), record `RefKind.Ref` and `OwnershipTier.Unrestricted` (ownership specifier ignored as redundant)
+    - Handle error case: `refModifier` and `owned` ownership specifier present → emit `MIST_REF_0004 (historical)` (error), record `RefKind.Ref` and `OwnershipTier.Unrestricted`
+    - Handle warning case: `refModifier` and `borrowed`/`frozen` ownership specifier present → emit `MIST_REF_0013 (historical)` (warning), record `RefKind.Ref` and `OwnershipTier.Unrestricted` (ownership specifier ignored as redundant)
     - _Requirements: 7.1, 7.2, 7.3, 1.3, 1.4, 9.1_
 
   - [x] 3.4 Write property test for semantic model RefKind recording (Property 9)
@@ -58,45 +58,45 @@ This plan implements C#-style `ref` semantics for the Mist programming language 
   - [x] 4.1 Implement ref argument validation: assignable storage location check
     - In `TypeCheckerAnalyzer`, when visiting a call expression with `RefArgument` nodes, verify the argument expression is an assignable storage location (local variable, mutable field, array element)
     - Reject literals, temporaries, method return values, arithmetic results, readonly bindings, frozen variables, readonly-ref-ownership variables
-    - Emit `MIST_REF_0001` on failure
+    - Emit `MIST_REF_0001 (historical)` on failure
     - _Requirements: 2.5, 3.3, 9.4, 9.5, 10.4, 14.1_
 
   - [x] 4.2 Implement ref call-site annotation enforcement
-    - Verify that arguments for ref parameters have the `ref` keyword → emit `MIST_REF_0002` if missing
-    - Verify that `ref` does not appear on arguments for non-ref parameters → emit `MIST_REF_0003` if spurious
+    - Verify that arguments for ref parameters have the `ref` keyword → emit `MIST_REF_0002 (historical)` if missing
+    - Verify that `ref` does not appear on arguments for non-ref parameters → emit `MIST_REF_0003 (historical)` if spurious
     - _Requirements: 2.2, 2.3, 14.2, 14.3_
 
   - [x] 4.3 Implement ref type exact match validation
     - When a `RefArgument` is present, require exact type identity between argument and parameter (no implicit conversions, no subtype substitution)
-    - Emit `MIST_REF_0007` on mismatch
+    - Emit `MIST_REF_0007 (historical)` on mismatch
     - _Requirements: 3.4, 5.9, 14.7_
 
   - [x] 4.4 Implement ref readonly assignment prohibition
     - Detect assignments through `ref readonly` locals and `ref readonly` return values
-    - Emit `MIST_REF_0005` for ref readonly local assignment
-    - Emit `MIST_REF_0009` for ref readonly return value assignment
+    - Emit `MIST_REF_0005 (historical)` for ref readonly local assignment
+    - Emit `MIST_REF_0009 (historical)` for ref readonly return value assignment
     - _Requirements: 4.8, 5.6, 14.4, 14.9_
 
   - [x] 4.5 Implement ref return lifetime safety validation
     - For methods with `ReturnRefKind == Ref` or `RefReadonly`, verify the return expression references a storage location whose lifetime exceeds the method call
     - Permit: instance fields (via `this`), static fields, array elements via instance fields, ref parameters
     - Reject: local variables, non-ref parameters, literals, expression results
-    - Emit `MIST_REF_0006` on violation
+    - Emit `MIST_REF_0006 (historical)` on violation
     - _Requirements: 4.3, 4.5, 4.6, 6.2, 6.3, 6.4, 6.6, 6.8, 14.5_
 
   - [x] 4.6 Implement ref field storage prohibition
     - Detect attempts to assign a ref (parameter or local) to a field
-    - Emit `MIST_REF_0008`
+    - Emit `MIST_REF_0008 (historical)`
     - _Requirements: 6.5, 14.8_
 
   - [x] 4.7 Implement ref lambda capture prohibition
     - Detect ref locals captured by lambdas or closures
-    - Emit `MIST_REF_0011`
+    - Emit `MIST_REF_0011 (historical)`
     - _Requirements: 6.7, 14.11_
 
   - [x] 4.8 Implement ref local requires initializer validation
     - Detect `ref` local declarations without an initializer
-    - Emit `MIST_REF_0010`
+    - Emit `MIST_REF_0010 (historical)`
     - _Requirements: 5.7, 14.10_
 
   - [x] 4.9 Implement RefKind overload distinction
@@ -105,7 +105,7 @@ This plan implements C#-style `ref` semantics for the Mist programming language 
 
   - [x] 4.10 Implement RefKind interface and trait matching
     - When checking interface satisfaction and trait structural matching, require `RefKind` values to match exactly
-    - Emit `MIST_REF_0012` on mismatch
+    - Emit `MIST_REF_0012 (historical)` on mismatch
     - _Requirements: 7.5, 7.6_
 
   - [x] 4.11 Write property tests for type checker ref diagnostics (Properties 3–8, 10–11, 13–14)

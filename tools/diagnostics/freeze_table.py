@@ -62,7 +62,14 @@ def render(template, value_of, present):
                 out.append(value_of(name))
                 i = close + 1
                 continue
-            end = template.index('}', close)
+            depth, end = 1, close + 1
+            while depth > 0:
+                if template.startswith('{{', end) or template.startswith('}}', end):
+                    end += 2
+                    continue
+                depth += {'{': 1, '}': -1}.get(template[end], 0)
+                end += 1
+            end -= 1
             if present(name):
                 out.append(render(template[close + 1:end], value_of, present))
             i = end + 1

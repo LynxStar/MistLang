@@ -98,7 +98,7 @@ public sealed class StandardPipelineProgressTests
     [Fact]
     public void AResolutionWarningChangesNothing()
     {
-        resolution.Add(DiagnosticFixtures.Occurrence("MIST_PROBE", DiagnosticSeverity.Warning, PipelineStage.Driver, "probe", default, "probe.mist", null));
+        resolution.Add(DiagnosticFixtures.Occurrence("TEST_PROBE", DiagnosticSeverity.Warning, PipelineStage.Driver, "probe", default, "probe.mist", null));
 
         var result = Pipeline().Execute(Input());
 
@@ -192,7 +192,7 @@ public sealed class StandardPipelineProgressTests
 
     private static Diagnostic Error()
     {
-        return DiagnosticFixtures.Occurrence("MIST_PROBE", DiagnosticSeverity.Error, PipelineStage.Driver, "probe", default, "probe.mist", null);
+        return DiagnosticFixtures.Occurrence("TEST_PROBE", DiagnosticSeverity.Error, PipelineStage.Driver, "probe", default, "probe.mist", null);
     }
 
     private sealed class Probe : IProgramAnalyzer

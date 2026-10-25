@@ -27,7 +27,7 @@ public sealed class RefinedReferenceContractDecisionTests
     [InlineData("public abstract IFactory<T> { ref T Make(); } public class Base<T> { protected T held; public ref T Make() { return ref held; } } public class Factory : Base<Strong>, IFactory<Positive> { }")]
     public void AReferenceReturnWithADifferentStorageRefinement_IsRefused(string declarations)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
+        Assert.Equal("MIST0284", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 
     [Theory]
@@ -37,6 +37,6 @@ public sealed class RefinedReferenceContractDecisionTests
     [InlineData("public abstract IWriter<T> { void Fill(ref T value); } public class Base<T> { public void Fill(ref T value) { } } public class Writer : Base<NonNegative>, IWriter<Positive> { }")]
     public void AReferenceParameterWithADifferentStorageRefinement_IsRefused(string declarations)
     {
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
+        Assert.Equal("MIST0283", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 }

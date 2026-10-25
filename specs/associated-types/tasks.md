@@ -54,14 +54,14 @@ The approach follows the existing multi-pass architecture and reuses established
     - Resolve constraint references to enclosing type's type parameters
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-  - [x] 2.3 Implement duplicate slot name detection (MIST_AT_0001)
+  - [x] 2.3 Implement duplicate slot name detection (MIST0038)
     - After registering all slots in an interface/trait, check for duplicate names
-    - Emit `MIST_AT_0001` diagnostic pointing to the second (duplicate) declaration
+    - Emit `MIST0038` diagnostic pointing to the second (duplicate) declaration
     - _Requirements: 2.7_
 
-  - [x] 2.4 Implement modifier validation (MIST_AT_0005) and wrong-context validation (MIST_AT_0006)
-    - Emit `MIST_AT_0005` if modifiers precede an associated type slot declaration
-    - Emit `MIST_AT_0006` if an abstract slot declaration appears in a class or struct body
+  - [x] 2.4 Implement modifier validation (MIST0039) and wrong-context validation (MIST_AT_0006 (historical))
+    - Emit `MIST0039` if modifiers precede an associated type slot declaration
+    - Emit `MIST_AT_0006 (historical)` if an abstract slot declaration appears in a class or struct body
     - _Requirements: 1.6, 1.8_
 
   - [x] 2.5 Write property test: Semantic registration records correct constraints (Property 5)
@@ -89,14 +89,14 @@ The approach follows the existing multi-pass architecture and reuses established
   - [x] 4.1 Extend `Pass1_ValidateInterfaceSatisfaction` to check associated type slot obligations
     - For each interface implemented by a class/struct, collect all `AssociatedTypeSlotType` members
     - Look up matching concrete type members in the implementor's scope (by name and arity)
-    - Emit `MIST_AT_0002` for missing concrete type members
+    - Emit `MIST_AT_0002 (historical)` for missing concrete type members
     - _Requirements: 3.1, 3.2, 3.9_
 
   - [x] 4.2 Implement constraint satisfaction validation for concrete type members
-    - Verify `struct` kind constraint (MIST_AT_0003 if not a struct)
-    - Verify `class` kind constraint (MIST_AT_0003 if not a class)
-    - Verify interface/trait constraint references (MIST_AT_0003 if not implemented)
-    - Verify `new()` constructor constraint (MIST_AT_0003 if no public parameterless constructor)
+    - Verify `struct` kind constraint (MIST_AT_0003 (historical) if not a struct)
+    - Verify `class` kind constraint (MIST_AT_0003 (historical) if not a class)
+    - Verify interface/trait constraint references (MIST_AT_0003 (historical) if not implemented)
+    - Verify `new()` constructor constraint (MIST_AT_0003 (historical) if no public parameterless constructor)
     - _Requirements: 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
 
   - [x] 4.3 Extend signature matching to handle associated type slot references in interface method signatures
@@ -127,8 +127,8 @@ The approach follows the existing multi-pass architecture and reuses established
     - Allow member access and method calls on values of type `T.SlotName` validated against the slot's constraints
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [x] 5.2 Implement invalid associated type reference diagnostic (MIST_AT_0004)
-    - When `T.X` is used in a type position and `X` is not an associated type slot of any constraining interface/trait, emit `MIST_AT_0004`
+  - [x] 5.2 Implement invalid associated type reference diagnostic (MIST_AT_0004 (historical))
+    - When `T.X` is used in a type position and `X` is not an associated type slot of any constraining interface/trait, emit `MIST_AT_0004 (historical)`
     - _Requirements: 5.4, 8.3_
 
   - [x] 5.3 Write property test: Generic context resolution (Property 9)
@@ -143,7 +143,7 @@ The approach follows the existing multi-pass architecture and reuses established
     - **Property 10: Invalid associated type reference emits diagnostic**
     - Create `Test/Mist.Tests/Analysis/AssociatedTypeUnresolvedRefPropertyTests.cs`
     - Generate generic type parameters constrained by interfaces, reference non-existent slot names
-    - Compile in-process, verify `MIST_AT_0004` is emitted
+    - Compile in-process, verify `MIST_AT_0004 (historical)` is emitted
     - Zero process spawns
     - **Validates: Requirements 5.4, 8.3**
 

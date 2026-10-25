@@ -43,7 +43,7 @@ public sealed class RegistryValidationTests
     [Fact]
     public void AFixtureIsNotInTheIndex()
     {
-        var fixture = DiagnosticFixtures.Descriptor("MIST_FIXTURE_PROBE", "probe");
+        var fixture = DiagnosticFixtures.Descriptor("FIXTURE_PROBE", "probe");
 
         Assert.False(DiagnosticRegistry.Index.TryGet(fixture.Number, out _));
     }
@@ -92,9 +92,9 @@ public sealed class RegistryValidationTests
 
     private static (RegistryEntry[] Entries, Tombstone[] Tombstones) Plant(string fault)
     {
-        var first = Entry("First", "MIST_PROBE_FIRST", "First probe", "Value '{0}' is probed.", "A probe found a value; remove it.");
-        var second = Entry("Second", "MIST_PROBE_SECOND", "Second probe", "Name '{name}' is probed.", "A probe found a name; rename it.", new Slot("name", SlotKind.Name));
-        Tombstone[] tombstones = [new Tombstone(DiagnosticNumber.Mint("MIST_PROBE_RETIRED"), "Retired probe", "0000000")];
+        var first = Entry("First", "MIST9001", "First probe", "Value '{0}' is probed.", "A probe found a value; remove it.");
+        var second = Entry("Second", "MIST9002", "Second probe", "Name '{name}' is probed.", "A probe found a name; rename it.", new Slot("name", SlotKind.Name));
+        Tombstone[] tombstones = [new Tombstone(DiagnosticNumber.Mint("MIST9099"), "Retired probe", "0000000")];
 
         var planted = fault switch
         {
@@ -114,7 +114,7 @@ public sealed class RegistryValidationTests
             "optional-error" => second with { Descriptor = second.Descriptor with { Policy = PolicyClass.Optional } },
             "ice-warning" => second with { Descriptor = second.Descriptor with { Category = DiagnosticCategory.Ice, DefaultSeverity = DiagnosticSeverity.Warning } },
             "conditional-on-non-optional" => second with { Descriptor = second.Descriptor with { Template = "Name{name? '{name}'}." } },
-            "related-unknown" => second with { Descriptor = Related(second.Descriptor, DiagnosticNumber.Mint("MIST_PROBE_NOWHERE")) },
+            "related-unknown" => second with { Descriptor = Related(second.Descriptor, DiagnosticNumber.Mint("MIST9998")) },
             _ => throw new ArgumentOutOfRangeException(nameof(fault)),
         };
 

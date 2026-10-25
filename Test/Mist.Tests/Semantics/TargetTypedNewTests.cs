@@ -30,8 +30,8 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "3")]
 public sealed class TargetTypedNewTests : IDisposable
 {
-    private const string NoTargetId = "MIST_PM_TARGET_TYPED_NEW_NO_TARGET";
-    private const string NotConstructibleId = "MIST_PM_TARGET_TYPE_NOT_CONSTRUCTIBLE";
+    private const string NoTargetId = "MIST0378";
+    private const string NotConstructibleId = "MIST0380";
 
     private const string Fixtures = """
         public class Point
@@ -199,7 +199,7 @@ public sealed class TargetTypedNewTests : IDisposable
 
     [Theory]
     [InlineData("var loose = new(1);", NoTargetId)]
-    [InlineData("var wide = Sink.Wide(new(1));", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    [InlineData("var wide = Sink.Wide(new(1));", "MIST0386")]
     public void AnUnsettledConstruction_ReportsTheOwningFailure(string statement, string diagnosticId)
     {
         var diagnostics = BuildRun(statement);

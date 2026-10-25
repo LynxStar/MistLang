@@ -160,27 +160,27 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
 
 - [x] 11. Type checker: validation rules
   - [x] 11.1 Implement lambda parameter validation in `TypeCheckerAnalyzer.cs`
-    - `MIST_TC_0115` mixed typed/untyped params; `MIST_TC_0116` cannot infer param types (no target type, implicit params); `MIST_TC_0117` inconsistent return types in block lambda; `MIST_TC_0118` missing return in non-void block lambda
+    - `MIST_TC_0115 (historical)` mixed typed/untyped params; `MIST_TC_0116 (historical)` cannot infer param types (no target type, implicit params); `MIST_TC_0117 (historical)` inconsistent return types in block lambda; `MIST_TC_0118 (historical)` missing return in non-void block lambda
     - _Requirements: 4.7, 4.8, 6.6, 6.7, 5.4_
 
   - [x] 11.2 Implement Func invocation validation in `TypeCheckerAnalyzer.cs`
-    - `MIST_TC_0119` argument count mismatch; `MIST_TC_0120` argument type mismatch; `MIST_TC_0121` ambiguous method group
+    - `MIST_TC_0119 (historical)` argument count mismatch; `MIST_TC_0120 (historical)` argument type mismatch; `MIST_TC_0121 (historical)` ambiguous method group
     - _Requirements: 7.8, 7.9, 7.10_
 
   - [x] 11.3 Implement static lambda validation in `TypeCheckerAnalyzer.cs`
-    - `MIST_TC_0113`: static lambda references enclosing variable, instance field, or `this`; permit own params, static fields, constants, type names
+    - `MIST_TC_0113 (historical)`: static lambda references enclosing variable, instance field, or `this`; permit own params, static fields, constants, type names
     - _Requirements: 8.2, 8.3, 8.4_
 
   - [x] 11.4 Implement async lambda validation in `TypeCheckerAnalyzer.cs`
-    - `MIST_TC_0114`: `await` in non-async lambda body; permit `await` in async bodies; validate `static async` combination
+    - `MIST_TC_0114 (historical)`: `await` in non-async lambda body; permit `await` in async bodies; validate `static async` combination
     - _Requirements: 9.5, 9.7_
 
   - [x] 11.5 Implement capture restriction validation in `TypeCheckerAnalyzer.cs`
-    - `MIST_TC_0110` ref struct capture; `MIST_TC_0111` owned-type capture; `MIST_TC_0112` borrowed/frozen/readonly-ref capture; permit unrestricted reference and value types
+    - `MIST_TC_0110 (historical)` ref struct capture; `MIST_TC_0111 (historical)` owned-type capture; `MIST_TC_0112 (historical)` borrowed/frozen/readonly-ref capture; permit unrestricted reference and value types
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
 
   - [x] 11.6 Write unit tests for lambda diagnostics and static-lambda isolation
-    - Cover each diagnostic (`MIST_TC_0110`–`MIST_TC_0121`) and static-lambda isolation; in-process (no `dotnet` spawning)
+    - Cover each diagnostic (`MIST_TC_0110 (historical)`–`MIST_TC_0121 (historical)`) and static-lambda isolation; in-process (no `dotnet` spawning)
     - **Property 4: Static Lambda Isolation**
     - **Validates: Requirements 8.2, 8.3, 8.4, 8.5**
 
@@ -308,7 +308,7 @@ Each task builds incrementally on the previous, ensuring no orphaned code.
 - **The guard fix** binds `WhenGuard.condition` and the four relational-pattern constants to the existing `VoidCoalescing` rule (not a new alias rule) so it reuses `ResolveVoidCoalescing`/`CheckVoidCoalescingNode`/`EmitVoidCoalescing` and keeps the change to a ~2-line grammar edit plus call-site redirects.
 - **Property-based tests** (Properties 6, 8, 9, 10) are parse-only / pretty-print round-trip and run fully in-process (no `dotnet` process spawning), per the test-process-spawning policy. Each is tagged `Feature: first-class-functions, Property {n}: {text}`. Properties 1, 2, 4, 7 are covered by in-process unit tests; Properties 3, 5 are exercised by the sample app (capture, async).
 - The `func` keyword follows the `int`/`string`/`void` pattern — a keyword alias for a stdlib type. The `Action` aliases use the existing type-alias mechanism. Closure generation is delegated entirely to C#.
-- Diagnostic IDs `MIST_TC_0110`–`MIST_TC_0121` are allocated for this feature; confirm no conflicts with IDs added between spec creation and implementation.
+- Diagnostic IDs `MIST_TC_0110 (historical)`–`MIST_TC_0121 (historical)` are allocated for this feature; confirm no conflicts with IDs added between spec creation and implementation.
 - The sample proof code (Requirement 20) is immutable during implementation — if it cannot be made to compile and produce the expected output, stop and report the gap rather than weakening it.
 
 ## Session State (for continuation)

@@ -69,12 +69,12 @@ This plan implements ValueTuple support across the Mist compiler pipeline. Tasks
   - [x] 6.2 Add tuple element access resolution
     - Resolve `tuple.ItemN` positional access (1-indexed) to the element type at position N
     - Resolve `tuple.name` named access to the element type of the matching named item
-    - Report `MIST_TC_0063` diagnostic for undefined member access
+    - Report `MIST_TC_0063 (historical)` diagnostic for undefined member access
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
   - [x] 6.3 Add tuple deconstruction validation
-    - Verify RHS has a `TupleType` (report `MIST_TC_0064` if not)
-    - Verify deconstruction target count matches tuple arity (report `MIST_TC_0061` on mismatch)
-    - For typed deconstructions, verify each element type is assignable (report `MIST_TC_0062` on mismatch)
+    - Verify RHS has a `TupleType` (report `MIST_TC_0064 (historical)` if not)
+    - Verify deconstruction target count matches tuple arity (report `MIST_TC_0061 (historical)` on mismatch)
+    - For typed deconstructions, verify each element type is assignable (report `MIST_TC_0062 (historical)` on mismatch)
     - For `var` deconstructions, infer each target's type from the corresponding element type
     - _Requirements: 4.3, 4.4, 4.5, 4.6_
   - [x] 6.4 Write property test for tuple assignability with name erasure (Property 3)

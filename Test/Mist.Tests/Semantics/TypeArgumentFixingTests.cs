@@ -11,8 +11,8 @@ namespace Mist.Tests.Semantics;
 
 public sealed class TypeArgumentFixingTests : ProgramModelProbe
 {
-    private const string ConflictId = "MIST_PM_TYPE_ARGUMENTS_CONFLICT";
-    private const string NotInferredId = "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED";
+    private const string ConflictId = "MIST0392";
+    private const string NotInferredId = "MIST0391";
 
     public TypeArgumentFixingTests()
         : base("MistTypeArgumentFixing_")

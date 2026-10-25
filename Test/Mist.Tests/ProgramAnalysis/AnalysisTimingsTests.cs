@@ -81,7 +81,7 @@ public sealed class AnalysisTimingsTests
         };
         clone.CastOperatorsList.Add(Conversion(clone, isImplicit: false));
         var unbound = Conversion(clone, isImplicit: true);
-        unbound.BindingFailure = DiagnosticFixtures.Occurrence("MIST_PROBE", DiagnosticSeverity.Error, PipelineStage.SemanticModelConstruction, "unbound", default, "source.mist", null);
+        unbound.BindingFailure = DiagnosticFixtures.Occurrence("TEST_PROBE", DiagnosticSeverity.Error, PipelineStage.SemanticModelConstruction, "unbound", default, "source.mist", null);
         clone.CastOperatorsList.Add(unbound);
         var unit = new CompilationUnit { SourcePath = "source.mist" };
         unit.Types.AddRange([source, clone]);

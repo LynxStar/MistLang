@@ -50,7 +50,7 @@ public sealed class FailedOverloadRetentionBindingTests
         }
 
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
+        Assert.Equal("MIST0390", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.Location.Path);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }
@@ -100,7 +100,7 @@ public sealed class FailedOverloadRetentionBindingTests
 
         Assert.Empty(f.Diagnostics.ToImmutableArray());
         Assert.False(error.IsReported);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Number.Value);
+        Assert.Equal("MIST0390", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Number.Value);
         Assert.Same(local, Assert.IsType<LocalReferenceExpression>(error.Children[1]).Local);
         Assert.Same(source, local.FailureSource);
         Assert.False(local.IsFailed);
@@ -128,7 +128,7 @@ public sealed class FailedOverloadRetentionBindingTests
         Assert.Null(constructor.ChainedConstructor);
         var error = Assert.IsType<ErrorExpression>(Assert.Single(constructor.ChainArgumentsList));
         Assert.Equal("Length", Assert.IsType<MemberAccessExpression>(Assert.Single(error.Children)).MemberName);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Number.Value);
+        Assert.Equal("MIST0390", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Number.Value);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 
@@ -153,7 +153,7 @@ public sealed class FailedOverloadRetentionBindingTests
         var error = Assert.IsType<ErrorExpression>(assignment.Value);
         Assert.Equal("Length", Assert.IsType<MemberAccessExpression>(Assert.Single(error.Children)).MemberName);
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
+        Assert.Equal("MIST0390", diagnostic.Number.Value);
         Assert.Equal(41, diagnostic.Position().Start.Column);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
@@ -172,13 +172,13 @@ public sealed class FailedOverloadRetentionBindingTests
         _ = Assert.IsType<ErrorExpression>(error.Children[1]);
         Assert.Equal("Length", Assert.IsType<MemberAccessExpression>(error.Children[2]).MemberName);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
+        Assert.Equal("MIST0296", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
-    [InlineData("arity", "MIST_PM_NO_APPLICABLE_OVERLOAD")]
-    [InlineData("ambiguity", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    [InlineData("arity", "MIST0385")]
+    [InlineData("ambiguity", "MIST0386")]
     public void SoundSelectionFailuresAreReportedImmediately(string failure, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -216,13 +216,13 @@ public sealed class FailedOverloadRetentionBindingTests
         var error = Assert.IsType<ErrorExpression>(Bind(f, "call", BindingFragments.Expression(BindingFragments.Identifier("value"))));
 
         Assert.True(error.IsReported);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0390", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         Assert.False(Assert.IsType<LocalReferenceExpression>(error.Children[1]).Local.IsFailed);
     }
 
     [Theory]
-    [InlineData("function-arity", "MIST_PM_FUNCTION_CALL_ARITY")]
-    [InlineData("non-callable", "MIST_PM_NOT_CALLABLE")]
+    [InlineData("function-arity", "MIST0362")]
+    [InlineData("non-callable", "MIST0363")]
     public void IndependentValueCallFailuresRetainTheReceiverAndUnjudgedArgument(string failure, string expected)
     {
         var f = new BindingFragments();

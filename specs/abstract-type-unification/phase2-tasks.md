@@ -162,7 +162,7 @@ grep -ni 'trait' Source/Mist/Semantics/ReadonlyInferenceEngine.cs
 - Remove `DiagnosticId.DefaultOnTrait`/`TargetNewTrait` usage
 - Remove `ConstructedTraitType` substitution logic in member access
 - Remove `baseConstraints.TraitConstraints` loops
-- Remove `MIST_TRAIT_UNSATISFIED` emission
+- Remove `MIST_TRAIT_UNSATISFIED (historical)` emission
 **Verify:**
 ```bash
 grep -ni 'trait' Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs

@@ -18,31 +18,31 @@ public sealed class CastRefusalTests
 {
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("cast-ambiguous-between-both-ends", "MIST_PA_AMBIGUOUS_CAST")]
-    [InlineData("cast-ambiguous-between-signed-and-unsigned-parameters", "MIST_PA_AMBIGUOUS_CAST")]
-    [InlineData("cast-ambiguous-between-two-parameters", "MIST_PA_AMBIGUOUS_CAST")]
-    [InlineData("cast-ambiguous-between-two-widening-results", "MIST_PA_AMBIGUOUS_CAST")]
-    [InlineData("cast-argument-narrowing", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("cast-argument-through-two-declared-implicits", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("cast-constant-fitting-no-operator", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("clone-conversion-through-a-renamed-field", "MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("constant-narrowing", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("constant-outside-a-refined-base", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("copy-conversion-through-a-self-typed-field", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("down-to-a-type-parameter", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("downcast", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("enum-from-a-narrowing-numeric", "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("enum-from-a-wider-integral-variable", "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("enum-from-an-enum-over-a-wider-base", "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("integral-narrowing-of-a-variable", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("mutable-class-newtype-from-a-source-with-no-copy", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("negative-constant-to-an-unsigned-type", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("numeric-narrowing", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("operator-declared-only-on-a-derived-type", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("union-to-one-constituent", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("unknown-to-a-concrete-type", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("unknown-to-a-type-parameter", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("unrelated-types", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("cast-ambiguous-between-both-ends", "MIST0155")]
+    [InlineData("cast-ambiguous-between-signed-and-unsigned-parameters", "MIST0155")]
+    [InlineData("cast-ambiguous-between-two-parameters", "MIST0155")]
+    [InlineData("cast-ambiguous-between-two-widening-results", "MIST0155")]
+    [InlineData("cast-argument-narrowing", "MIST0151")]
+    [InlineData("cast-argument-through-two-declared-implicits", "MIST0151")]
+    [InlineData("cast-constant-fitting-no-operator", "MIST0149")]
+    [InlineData("clone-conversion-through-a-renamed-field", "MIST0154")]
+    [InlineData("constant-narrowing", "MIST0149")]
+    [InlineData("constant-outside-a-refined-base", "MIST0149")]
+    [InlineData("copy-conversion-through-a-self-typed-field", "MIST0153")]
+    [InlineData("down-to-a-type-parameter", "MIST0149")]
+    [InlineData("downcast", "MIST0149")]
+    [InlineData("enum-from-a-narrowing-numeric", "MIST0150")]
+    [InlineData("enum-from-a-wider-integral-variable", "MIST0150")]
+    [InlineData("enum-from-an-enum-over-a-wider-base", "MIST0150")]
+    [InlineData("integral-narrowing-of-a-variable", "MIST0149")]
+    [InlineData("mutable-class-newtype-from-a-source-with-no-copy", "MIST0152")]
+    [InlineData("negative-constant-to-an-unsigned-type", "MIST0149")]
+    [InlineData("numeric-narrowing", "MIST0149")]
+    [InlineData("operator-declared-only-on-a-derived-type", "MIST0149")]
+    [InlineData("union-to-one-constituent", "MIST0149")]
+    [InlineData("unknown-to-a-concrete-type", "MIST0149")]
+    [InlineData("unknown-to-a-type-parameter", "MIST0149")]
+    [InlineData("unrelated-types", "MIST0149")]
     public void RefusedConversionKeepsItsDiagnostic(string caseName, string expected)
     {
         var input = Case(caseName);
@@ -60,17 +60,17 @@ public sealed class CastRefusalTests
         var clone = HandBuiltModel.Class("Cash");
         clone.CloneSource = source;
         clone.CloneSourceType = source;
-        Assert.True(OperatorBinder.AsFinding(clone, source)?.Number.Value == "MIST_PM_AS_NO_RELATIONSHIP", caseName);
+        Assert.True(OperatorBinder.AsFinding(clone, source)?.Number.Value == "MIST0403", caseName);
         Assert.Null(OperatorBinder.AsFinding(source, source));
     }
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData("downcast", "MIST_PA_CAST_HAS_NO_CONVERSION")]
-    [InlineData("cast-argument-narrowing", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("enum-from-a-wider-integral-variable", "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("cast-ambiguous-between-both-ends", "MIST_PA_AMBIGUOUS_CAST")]
-    [InlineData("copy-conversion-through-a-self-typed-field", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
+    [InlineData("downcast", "MIST0149")]
+    [InlineData("cast-argument-narrowing", "MIST0151")]
+    [InlineData("enum-from-a-wider-integral-variable", "MIST0150")]
+    [InlineData("cast-ambiguous-between-both-ends", "MIST0155")]
+    [InlineData("copy-conversion-through-a-self-typed-field", "MIST0153")]
     public void ConversionReportsAtTheWrittenCast(string caseName, string expected)
     {
         var input = Case(caseName);

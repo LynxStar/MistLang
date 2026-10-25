@@ -161,6 +161,6 @@ public sealed class LibraryOutputEmissionTests : IDisposable
         var result = Compile(top, ProjectOutputType.Library, entryPoint: "top-level");
 
         Assert.False(result.Succeeded);
-        Assert.Contains(result.Diagnostics, d => d.Number.Value == "MIST_EP_0008");
+        Assert.Contains(result.Diagnostics, d => d.Number.Value == "MIST0116");
     }
 }

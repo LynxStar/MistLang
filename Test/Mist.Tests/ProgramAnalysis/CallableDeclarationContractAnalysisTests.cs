@@ -12,10 +12,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class CallableDeclarationContractAnalysisTests
 {
     [Theory]
-    [InlineData("operator", "MIST_PA_DUPLICATE_OPERATOR_SIGNATURE")]
-    [InlineData("operator-return", "MIST_PA_DUPLICATE_OPERATOR_SIGNATURE")]
-    [InlineData("implicit", "MIST_PA_DUPLICATE_CAST_OPERATOR")]
-    [InlineData("explicit", "MIST_PA_DUPLICATE_CAST_OPERATOR")]
+    [InlineData("operator", "MIST0029")]
+    [InlineData("operator-return", "MIST0029")]
+    [InlineData("implicit", "MIST0030")]
+    [InlineData("explicit", "MIST0030")]
     public void ASourceDuplicateIsReportedOnceAtTheLaterDeclarationAndIdentifiesBoth(string kind, string expected)
     {
         var fragment = new DeclarationFragments();

@@ -84,34 +84,34 @@ This plan implements property support across the full Mist compiler pipeline: gr
     - Check block and expression accessor bodies for type correctness
     - Inject implicit `value` parameter for set/init accessor body checking
     - _Requirements: 13.1, 13.2, 13.3, 13.6, 13.7_
-  - [x] 5.2 Add MIST_TC_0019 (no accessible get) and MIST_TC_0020 (no accessible set/init) diagnostics
+  - [x] 5.2 Add MIST_TC_0019 (historical) (no accessible get) and MIST_TC_0020 (historical) (no accessible set/init) diagnostics
     - When a property is accessed for reading, verify a `get` accessor is accessible from the call site
     - When a property is assigned, verify a `set` or `init` accessor is accessible from the call site
     - _Requirements: 13.1, 13.2_
-  - [x] 5.3 Add MIST_TC_0021 (property type mismatch) diagnostic
+  - [x] 5.3 Add MIST_TC_0021 (historical) (property type mismatch) diagnostic
     - Verify assigned value type is compatible with the property's declared type
     - _Requirements: 13.3_
-  - [x] 5.4 Add MIST_TC_0022 (accessor modifier restrictiveness) diagnostic
+  - [x] 5.4 Add MIST_TC_0022 (historical) (accessor modifier restrictiveness) diagnostic
     - Verify accessor modifier is strictly more restrictive than the property's access level
     - _Requirements: 5.2, 5.3_
-  - [x] 5.5 Add MIST_TC_0023 (`field` outside accessor) and MIST_TC_0024 (`field` in computed property) diagnostics
+  - [x] 5.5 Add MIST_TC_0023 (historical) (`field` outside accessor) and MIST_TC_0024 (historical) (`field` in computed property) diagnostics
     - Report error when `field` keyword is used outside a property accessor body
     - Report error when `field` keyword is used in a computed property (no backing field)
     - _Requirements: 6.3, 9.3_
-  - [x] 5.6 Add MIST_TC_0025 (`init` outside constructor/initializer) diagnostic
+  - [x] 5.6 Add MIST_TC_0025 (historical) (`init` outside constructor/initializer) diagnostic
     - Report error when an init-only property is assigned outside a constructor or object initializer context
     - _Requirements: 13.5_
-  - [x] 5.7 Add MIST_TC_0026 (`this` in static accessor) and MIST_TC_0027 (static property via instance) diagnostics
+  - [x] 5.7 Add MIST_TC_0026 (historical) (`this` in static accessor) and MIST_TC_0027 (historical) (static property via instance) diagnostics
     - Report error when `this` is referenced in a static property accessor
     - Report error when a static property is accessed through an instance reference
     - _Requirements: 8.3, 8.4_
-  - [x] 5.8 Add MIST_TC_0028 (expression body type mismatch) diagnostic
+  - [x] 5.8 Add MIST_TC_0028 (historical) (expression body type mismatch) diagnostic
     - Verify expression body type is compatible with the property's declared type for expression-bodied get accessors and expression-bodied properties
     - _Requirements: 13.6_
-  - [x] 5.9 Add MIST_TC_0029 (duplicate indexer) diagnostic
+  - [x] 5.9 Add MIST_TC_0029 (historical) (duplicate indexer) diagnostic
     - Report error when a type declares more than one indexer with the same parameter types
     - _Requirements: 11.6_
-  - [x] 5.10 Add MIST_TC_0030 (missing interface property) diagnostic
+  - [x] 5.10 Add MIST_TC_0030 (historical) (missing interface property) diagnostic
     - Report error when an implementing type is missing a required interface property accessor
     - _Requirements: 10.5_
 

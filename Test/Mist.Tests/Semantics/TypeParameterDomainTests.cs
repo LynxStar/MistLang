@@ -92,7 +92,7 @@ public sealed class TypeParameterDomainTests : ProgramModelProbe
             statement: "", extraTypes: $"public class Bad<V:{keyword}> {{ }}", extraPreamble: "",
             out var diagnostics);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_DT_0001"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0407"));
     }
 
     [Fact]

@@ -57,7 +57,7 @@ public class DiagnosticFormatterTests
     [Fact]
     public void Format_WithEmptyPath_OmitsPathEntirely()
     {
-        var diagnostic = DiagnosticFixtures.Occurrence("MIST_PKG_002",
+        var diagnostic = DiagnosticFixtures.Occurrence("MIST0036",
             DiagnosticSeverity.Error,
             PipelineStage.Driver,
             "Package 'BadPkg' version 'not-valid' could not be found",
@@ -67,7 +67,7 @@ public class DiagnosticFormatterTests
 
         var result = DiagnosticFormatter.Format(diagnostic);
 
-        Assert.Equal("error MIST_PKG_002: Package 'BadPkg' version 'not-valid' could not be found", result);
+        Assert.Equal("error MIST0036: Package 'BadPkg' version 'not-valid' could not be found", result);
     }
 
     [Fact]

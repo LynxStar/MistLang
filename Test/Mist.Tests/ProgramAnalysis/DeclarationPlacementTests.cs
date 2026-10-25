@@ -70,7 +70,7 @@ public sealed class DeclarationPlacementTests
 
         var diagnostics = fragment.Run(new DeclarationPlacementAnalyzer());
 
-        Assert.Equal(["MIST_PM_STATIC_ON_ABSTRACT_MEMBER", "MIST_PM_STATIC_ON_ABSTRACT_MEMBER"], diagnostics.Select(d => d.Number.Value));
+        Assert.Equal(["MIST0048", "MIST0048"], diagnostics.Select(d => d.Number.Value));
         Assert.Equal([31, 51], diagnostics.Select(d => d.Position().Start.Column).Order());
         Assert.Contains(diagnostics, d => d.Message.Contains("method 'Make' of abstract type 'IMake'", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("property 'Count' of abstract type 'IMake'", StringComparison.Ordinal));
@@ -127,7 +127,7 @@ public sealed class DeclarationPlacementTests
 
         var diagnostic = Assert.Single(fragment.Run(new DeclarationPlacementAnalyzer()));
 
-        Assert.Equal("MIST_PM_READONLY_REF_ON_OPERATOR_PARAMETER", diagnostic.Number.Value);
+        Assert.Equal("MIST0042", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Position().Start.Column);
         Assert.Contains("parameter 'a' of the implicit cast operator to 'int'", diagnostic.Message, StringComparison.Ordinal);
     }
@@ -154,7 +154,7 @@ public sealed class DeclarationPlacementTests
 
         var diagnostics = fragment.Run(new DeclarationPlacementAnalyzer());
 
-        Assert.All(diagnostics, d => Assert.Equal("MIST_PM_REF_ON_OPERATOR_PARAMETER", d.Number.Value));
+        Assert.All(diagnostics, d => Assert.Equal("MIST0041", d.Number.Value));
         Assert.Equal([31, 41, 61], diagnostics.Select(d => d.Position().Start.Column).Order());
         Assert.Contains(diagnostics, d => d.Message.Contains("parameter 'b' of operator '+'", StringComparison.Ordinal));
         Assert.Contains(diagnostics, d => d.Message.Contains("parameter 'a' of the explicit cast operator to 'int'", StringComparison.Ordinal));

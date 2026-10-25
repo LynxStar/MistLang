@@ -64,7 +64,7 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
 
             // Verify no parse stub warnings (parser is fully functional)
             var stubs = parseBag.ToImmutableArray()
-                .Where(d => d.Number.Value == "MIST_PARSE_STUB")
+                .Where(d => d.Number.Value == "MIST0121")
                 .ToList();
 
             if(stubs.Count > 0)

@@ -258,7 +258,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     {
         _ = Assert.Single(Errors(
             BuildFixture("with Logger : INamed { GetLabel as Absent; }"),
-            "MIST_PM_CONFORMANCE_UNRESOLVED_SLOT"));
+            "MIST0401"));
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     {
         _ = Assert.Single(Errors(
             BuildFixture("with Logger : INamed { Absent as Name; }"),
-            "MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"));
+            "MIST0402"));
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
             BuildFixture(
                 "with Holder : INamed { Caption as Name; }",
                 "public class Holder { public string Caption { get; set; } }"),
-            "MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"));
+            "MIST0402"));
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
             BuildFixture(
                 "with Wide : INamed { Wrong as Name; }",
                 "public class Wide { public string Wrong(int extra) { return \"x\"; } }"),
-            "MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"));
+            "MIST0402"));
     }
 
     [Fact]
@@ -294,7 +294,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     {
         _ = Assert.Single(Errors(
             BuildFixture("with INamed : IOther { Name as Other; }", "public abstract IOther { string Other(); }"),
-            "MIST_PM_CONFORMANCE_NOT_CONCRETE"));
+            "MIST0396"));
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     {
         _ = Assert.Single(Errors(
             BuildFixture("with Logger : Logger { GetLabel as GetLabel; }"),
-            "MIST_PM_CONFORMANCE_NOT_ABSTRACT"));
+            "MIST0397"));
     }
 
     /// <summary>
@@ -330,8 +330,8 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildFixture("with Absent : INamed { Whatever as Name; }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_CONFORMANCE_NOT_CONCRETE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0298"));
+        Assert.Empty(Errors(diagnostics, "MIST0396"));
     }
 
     // ── Harness ──────────────────────────────────────────────────────────

@@ -27,16 +27,16 @@ public sealed class CountedReadRuleTests
 
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", diagnostic.Number.Value);
+        Assert.Equal("MIST0159", diagnostic.Number.Value);
         Assert.StartsWith(message, diagnostic.Message, StringComparison.Ordinal);
         Assert.Empty(Access(shape.Replace("private", "public", StringComparison.Ordinal)).Run(new AccessibilityAnalyzer()));
     }
 
     [Theory]
-    [InlineData("count-with-a-private-getter", "MIST_PA_INACCESSIBLE_ACCESSOR")]
-    [InlineData("range-indexer-without-a-getter-in-a-pattern", "MIST_PA_NO_GET_ACCESSOR")]
-    [InlineData("count-with-a-private-getter-read-from-the-end", "MIST_PA_INACCESSIBLE_ACCESSOR")]
-    [InlineData("count-with-a-private-getter-read-by-a-list-pattern", "MIST_PA_INACCESSIBLE_ACCESSOR")]
+    [InlineData("count-with-a-private-getter", "MIST0216")]
+    [InlineData("range-indexer-without-a-getter-in-a-pattern", "MIST0214")]
+    [InlineData("count-with-a-private-getter-read-from-the-end", "MIST0216")]
+    [InlineData("count-with-a-private-getter-read-by-a-list-pattern", "MIST0216")]
     public void AnAccessorACountedReadCallsMustBeReadable(string shape, string id)
     {
         var diagnostic = Assert.Single(Access(shape).Run(new AccessorAnalyzer()));
@@ -48,8 +48,8 @@ public sealed class CountedReadRuleTests
     [InlineData("1..3", null)]
     [InlineData("..", null)]
     [InlineData("1..^1", null)]
-    [InlineData("3..1", "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("^1..^3", "MIST_PA_CONSTRAINT_VIOLATED")]
+    [InlineData("3..1", "MIST0276")]
+    [InlineData("^1..^3", "MIST0276")]
     public void SlicesArgumentsAreTheOffsetsTheRangeDecodesAgainstTheCount(string range, string? id)
     {
         var h = new HandBuiltRefinements();
@@ -85,7 +85,7 @@ public sealed class CountedReadRuleTests
 
     [Theory]
     [InlineData(0L, null)]
-    [InlineData(1L, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData(1L, "MIST0277")]
     public void APatternSlicesArgumentsAreItsLeadingCountAndWhatTheMatchLeaves(long atLeast, string? id)
     {
         var h = new HandBuiltRefinements();
@@ -104,12 +104,12 @@ public sealed class CountedReadRuleTests
     }
 
     [Theory]
-    [InlineData("pure-method-slices-through-an-impure-slice", "MIST_PA_PURE_SCOPE_CALLS_IMPURE", "call 'Slice'")]
-    [InlineData("pure-method-slices-through-an-impure-count", "MIST_PA_PURE_SCOPE_CALLS_IMPURE", "read 'Count'")]
-    [InlineData("pure-method-matches-a-slice-through-an-impure-slice", "MIST_PA_PURE_SCOPE_CALLS_IMPURE", "call 'Slice'")]
-    [InlineData("readonly-method-slices-through-a-mutable-slice", "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", "'Slice'")]
-    [InlineData("readonly-method-matches-a-slice-through-a-mutable-slice", "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", "'Slice'")]
-    [InlineData("readonly-parameter-sliced-through-a-mutable-slice", "MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE", "'Slice'")]
+    [InlineData("pure-method-slices-through-an-impure-slice", "MIST0139", "call 'Slice'")]
+    [InlineData("pure-method-slices-through-an-impure-count", "MIST0139", "read 'Count'")]
+    [InlineData("pure-method-matches-a-slice-through-an-impure-slice", "MIST0139", "call 'Slice'")]
+    [InlineData("readonly-method-slices-through-a-mutable-slice", "MIST0257", "'Slice'")]
+    [InlineData("readonly-method-matches-a-slice-through-a-mutable-slice", "MIST0257", "'Slice'")]
+    [InlineData("readonly-parameter-sliced-through-a-mutable-slice", "MIST0253", "'Slice'")]
     public void TheSliceCallIsJudgedAsTheCallItIs(string fragment, string id, string named)
     {
         var finding = Assert.Single(new PurityFragments().Slices(fragment));

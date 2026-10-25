@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Storm source generator (`Source/Storm.SourceGenerator/`) reads `.storm` grammar files and generates C# AST node classes, a lexer, and a recursive-descent parser for consumer grammars like Mist. Two related bugs in the AST emitter and parser emitter cause generated AST nodes to lose data from grammar repetitions (`(COMMA X)*`) and optional groups containing sequences (`(EQUAL Expression)?`). This prevents the Mist compiler from correctly handling multi-parameter methods/constructors, multi-argument method calls, dotted qualified identifiers, and field initializer expressions — producing misleading downstream diagnostics like `MIST_UNDEFINED_IDENTIFIER`, `MIST_UNDEFINED_TYPE`, and `MIST_TC_0017`.
+The Storm source generator (`Source/Storm.SourceGenerator/`) reads `.storm` grammar files and generates C# AST node classes, a lexer, and a recursive-descent parser for consumer grammars like Mist. Two related bugs in the AST emitter and parser emitter cause generated AST nodes to lose data from grammar repetitions (`(COMMA X)*`) and optional groups containing sequences (`(EQUAL Expression)?`). This prevents the Mist compiler from correctly handling multi-parameter methods/constructors, multi-argument method calls, dotted qualified identifiers, and field initializer expressions — producing misleading downstream diagnostics like `MIST_UNDEFINED_IDENTIFIER (historical)`, `MIST_UNDEFINED_TYPE (historical)`, and `MIST_TC_0017 (historical)`.
 
 ## Bug Analysis
 

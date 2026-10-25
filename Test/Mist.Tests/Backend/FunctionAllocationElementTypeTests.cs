@@ -43,10 +43,10 @@ public sealed class FunctionAllocationElementTypeTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("new func<int, int>[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER")]
-    [InlineData("new Callback[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER")]
-    [InlineData("stackalloc func<int, int>[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE")]
-    [InlineData("stackalloc Callback[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE")]
+    [InlineData("new func<int, int>[2]", "MIST0225")]
+    [InlineData("new Callback[2]", "MIST0225")]
+    [InlineData("stackalloc func<int, int>[2]", "MIST0226")]
+    [InlineData("stackalloc Callback[2]", "MIST0226")]
     public void ProgramModelToAnalysis_FunctionElementsReachTheReferenceTypeStampabilityGate(string allocationSource, string diagnosticId)
     {
         var model = Build(Source($"var actual = {allocationSource};"), out var diagnostics);
@@ -71,7 +71,7 @@ public sealed class FunctionAllocationElementTypeTests : ProgramModelProbe
     {
         _ = Build(Source($"var actual = {allocationKind} func<Missing, int>[2];"), out var diagnostics);
 
-        var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        var error = Assert.Single(Errors(diagnostics, "MIST0298"));
         Assert.Contains("Missing", error.Message, StringComparison.Ordinal);
         Assert.NotEqual(error.Position().Start, error.Position().End);
     }

@@ -90,9 +90,9 @@ public sealed class LocalBindingContractBinderTests
     }
 
     [Theory]
-    [InlineData("new", "MIST_PM_TARGET_TYPED_NEW_NO_TARGET")]
-    [InlineData("default", "MIST_PM_DEFAULT_NO_TARGET")]
-    [InlineData("array", "MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET")]
+    [InlineData("new", "MIST0378")]
+    [InlineData("default", "MIST0379")]
+    [InlineData("array", "MIST0375")]
     public void AnInferredForInitializerDoesNotInheritAnUnrelatedTarget(string shape, string diagnostic)
     {
         var f = new BindingFragments();
@@ -116,7 +116,7 @@ public sealed class LocalBindingContractBinderTests
 
         Assert.True(counted.Local.IsFailed);
         Assert.True(PriorFailure.Of(counted.Initializer!));
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0298", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class LocalBindingContractBinderTests
         Assert.True(bound.Variable.IsDiscard);
         Assert.True(bound.Variable.IsReadonly);
         _ = Assert.IsType<ErrorExpression>(Assert.IsType<ExpressionStatement>(Assert.Single(bound.Body.Statements)).Expression);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("MIST0296", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static TypeReferenceNode Target(BindingFragments f, string shape)

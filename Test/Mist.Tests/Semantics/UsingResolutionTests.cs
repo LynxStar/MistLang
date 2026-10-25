@@ -10,7 +10,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "3")]
 public sealed class UsingResolutionTests : ProgramModelProbe
 {
-    private const string UndefinedGlobal = "MIST_GLOBAL_USING_UNDEFINED_NAMESPACE";
+    private const string UndefinedGlobal = "MIST0294";
 
     private const string Library = """
         namespace Library.Extensions;
@@ -123,7 +123,7 @@ public sealed class UsingResolutionTests : ProgramModelProbe
         _ = Build(Program("Int32 count = 1;", usings), Library, out var diagnostics);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(("MIST_UNDEFINED_NAMESPACE", DiagnosticSeverity.Error), (diagnostic.Number.Value, diagnostic.Severity));
+        Assert.Equal(("MIST0293", DiagnosticSeverity.Error), (diagnostic.Number.Value, diagnostic.Severity));
         Assert.Equal("The namespace 'No.Such.Namespace' could not be found.", diagnostic.Message);
         Assert.Equal(2, diagnostic.Position().Start.Line);
     }

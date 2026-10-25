@@ -318,7 +318,7 @@ public sealed class OwnedFieldTypeDecisionTests
 
         var diagnostic = Assert.Single(fragment.Run(new OwnedFieldTypeAnalyzer()));
 
-        Assert.Equal("MIST_PA_OWNED_FIELD_TYPE", diagnostic.Number.Value);
+        Assert.Equal("MIST0237", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.Location.Path);
         Assert.Equal(1, diagnostic.Position().Start.Line);
         Assert.Equal(38, diagnostic.Position().Start.Column);

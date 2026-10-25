@@ -54,14 +54,14 @@ This plan implements anonymous types for the Mist language, following C#'s seman
   - [x] 3.4 Integrate `AnonymousType` into the semantic model builder
     - Add handling in `SemanticModelBuilder.cs` for `AnonymousTypeExpressionPrimaryNode`
     - Resolve expression types for explicit properties, extract projected names from `Postfix` nodes
-    - Validate no duplicate property names (emit `MIST_ANON_DUPLICATE_PROP`)
-    - Validate projections resolve to identifiers or member accesses (emit `MIST_ANON_NO_PROJECTION_NAME`)
+    - Validate no duplicate property names (emit `MIST_ANON_DUPLICATE_PROP (historical)`)
+    - Validate projections resolve to identifiers or member accesses (emit `MIST_ANON_NO_PROJECTION_NAME (historical)`)
     - Construct `AnonymousType` and register in the type map
     - _Requirements: 2.5, 10.1, 10.2, 10.5_
 
   - [x] 3.5 Write property test for duplicate property detection
     - **Property 12: Duplicate property names are rejected**
-    - Generate anonymous type expressions with duplicate property names, assert diagnostic `MIST_ANON_DUPLICATE_PROP` is reported
+    - Generate anonymous type expressions with duplicate property names, assert diagnostic `MIST_ANON_DUPLICATE_PROP (historical)` is reported
     - **Validates: Requirements 10.1**
 
 - [x] 4. Type checker — property access and read-only enforcement
@@ -71,7 +71,7 @@ This plan implements anonymous types for the Mist language, following C#'s seman
     - _Requirements: 3.1, 3.2_
 
   - [x] 4.2 Implement read-only enforcement for anonymous type properties
-    - Detect assignments targeting `AnonymousType` properties and emit `MIST_ANON_READONLY`
+    - Detect assignments targeting `AnonymousType` properties and emit `MIST_ANON_READONLY (historical)`
     - _Requirements: 3.3, 10.4_
 
   - [x] 4.3 Write property tests for property access and read-only semantics
@@ -88,14 +88,14 @@ This plan implements anonymous types for the Mist language, following C#'s seman
     - _Requirements: 4.1, 4.2, 4.6_
 
   - [x] 5.2 Implement scope restriction diagnostics
-    - Report `MIST_ANON_ESCAPE_SIGNATURE` when `AnonymousType` appears as method return/parameter type annotation
-    - Report `MIST_ANON_ESCAPE_FIELD` when `AnonymousType` appears as field type annotation
-    - Report `MIST_ANON_ESCAPE_GENERIC` when `AnonymousType` appears as generic type argument
+    - Report `MIST_ANON_ESCAPE_SIGNATURE (historical)` when `AnonymousType` appears as method return/parameter type annotation
+    - Report `MIST_ANON_ESCAPE_FIELD (historical)` when `AnonymousType` appears as field type annotation
+    - Report `MIST_ANON_ESCAPE_GENERIC (historical)` when `AnonymousType` appears as generic type argument
     - _Requirements: 4.3, 4.4, 4.5, 4.7, 10.3_
 
   - [x] 5.3 Implement equality operator validation
     - Allow `==`/`!=` between values of the same `AnonymousType`
-    - Report `MIST_ANON_EQUALITY_MISMATCH` for different anonymous types
+    - Report `MIST_ANON_EQUALITY_MISMATCH (historical)` for different anonymous types
     - _Requirements: 9.1, 9.3_
 
   - [x] 5.4 Write property test for same-shape assignability

@@ -194,13 +194,13 @@ After resolving base types for classes, a new sub-pass resolves interface lists 
 3. For each interface symbol: resolve each interface name in the interface list to an `InterfaceType`. Store on `InterfaceType.Interfaces`.
 
 Diagnostics emitted:
-- `MIST_UNDEFINED_INTERFACE`: Interface name not found in scope
-- `MIST_NOT_AN_INTERFACE`: Name resolves to a class or struct, not an interface
+- `MIST_UNDEFINED_INTERFACE (historical)`: Interface name not found in scope
+- `MIST_NOT_AN_INTERFACE (historical)`: Name resolves to a class or struct, not an interface
 
 #### Pass 1c: Detect Interface Inheritance Cycles
 
 Walk each interface's `Interfaces` chain using a visited set. If a cycle is detected:
-- Emit `MIST_CIRCULAR_INTERFACE_INHERITANCE` diagnostic
+- Emit `MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)` diagnostic
 - Break the cycle by removing the back-edge from the `Interfaces` list
 
 #### Pass 1d: Validate Interface Satisfaction (new pass)
@@ -210,8 +210,8 @@ For each class and struct that implements interfaces:
 1. Collect all required methods by walking the interface hierarchy transitively (using a visited set to handle diamond inheritance).
 2. For each required method, search for a matching method in the implementing type's member scope. For classes, also walk the base type chain.
 3. A method matches if it has the same name, same return type, and same parameter types (count and types).
-4. Emit `MIST_MISSING_INTERFACE_METHOD` for each unmatched method.
-5. Emit `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH` if a method with the correct name exists but has a different signature.
+4. Emit `MIST_MISSING_INTERFACE_METHOD (historical)` for each unmatched method.
+5. Emit `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH (historical)` if a method with the correct name exists but has a different signature.
 
 #### Pass 2: Resolve Interface Type References
 
@@ -292,11 +292,11 @@ Add interface declaration name pattern:
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_UNDEFINED_INTERFACE` | SemanticModelConstruction | The interface type '{name}' could not be found. |
-| `MIST_NOT_AN_INTERFACE` | SemanticModelConstruction | '{name}' is not an interface; only interfaces can appear in an interface list. |
-| `MIST_CIRCULAR_INTERFACE_INHERITANCE` | SemanticModelConstruction | Circular interface inheritance detected: '{chain}'. |
-| `MIST_MISSING_INTERFACE_METHOD` | SemanticModelConstruction | '{typeName}' does not implement interface method '{interfaceName}.{methodName}'. |
-| `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH` | SemanticModelConstruction | '{typeName}.{methodName}' does not match the signature required by interface '{interfaceName}': expected '{expectedSig}', found '{actualSig}'. |
+| `MIST_UNDEFINED_INTERFACE (historical)` | SemanticModelConstruction | The interface type '{name}' could not be found. |
+| `MIST_NOT_AN_INTERFACE (historical)` | SemanticModelConstruction | '{name}' is not an interface; only interfaces can appear in an interface list. |
+| `MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)` | SemanticModelConstruction | Circular interface inheritance detected: '{chain}'. |
+| `MIST_MISSING_INTERFACE_METHOD (historical)` | SemanticModelConstruction | '{typeName}' does not implement interface method '{interfaceName}.{methodName}'. |
+| `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH (historical)` | SemanticModelConstruction | '{typeName}.{methodName}' does not match the signature required by interface '{interfaceName}': expected '{expectedSig}', found '{actualSig}'. |
 
 ## Data Models
 
@@ -384,25 +384,25 @@ The Storm source generator will produce these node types from the grammar rules:
 
 ### Property 4: Invalid interface reference diagnostic
 
-*For any* type declaration that references a name in its interface list where that name is either undefined or resolves to a class or struct (not an interface), the semantic model builder SHALL emit a diagnostic error. If the name is undefined, the diagnostic SHALL be `MIST_UNDEFINED_INTERFACE`. If the name resolves to a non-interface type, the diagnostic SHALL be `MIST_NOT_AN_INTERFACE`.
+*For any* type declaration that references a name in its interface list where that name is either undefined or resolves to a class or struct (not an interface), the semantic model builder SHALL emit a diagnostic error. If the name is undefined, the diagnostic SHALL be `MIST_UNDEFINED_INTERFACE (historical)`. If the name resolves to a non-interface type, the diagnostic SHALL be `MIST_NOT_AN_INTERFACE (historical)`.
 
 **Validates: Requirements 5.2, 5.3**
 
 ### Property 5: Interface inheritance cycle detection
 
-*For any* set of interfaces that form a circular inheritance chain (including self-inheritance), the semantic model builder SHALL emit a `MIST_CIRCULAR_INTERFACE_INHERITANCE` diagnostic and the compilation SHALL complete without infinite loops.
+*For any* set of interfaces that form a circular inheritance chain (including self-inheritance), the semantic model builder SHALL emit a `MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)` diagnostic and the compilation SHALL complete without infinite loops.
 
 **Validates: Requirements 6.1, 6.2, 6.3**
 
 ### Property 6: Interface satisfaction
 
-*For any* class or struct that implements one or more interfaces (directly or transitively through interface inheritance), if the implementing type (or, for classes, any of its base types) provides a method matching every required interface method's signature (name, return type, and parameter types), then the semantic model builder SHALL emit no `MIST_MISSING_INTERFACE_METHOD` diagnostics. Conversely, for each required method that is not provided, exactly one `MIST_MISSING_INTERFACE_METHOD` diagnostic SHALL be emitted.
+*For any* class or struct that implements one or more interfaces (directly or transitively through interface inheritance), if the implementing type (or, for classes, any of its base types) provides a method matching every required interface method's signature (name, return type, and parameter types), then the semantic model builder SHALL emit no `MIST_MISSING_INTERFACE_METHOD (historical)` diagnostics. Conversely, for each required method that is not provided, exactly one `MIST_MISSING_INTERFACE_METHOD (historical)` diagnostic SHALL be emitted.
 
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 
 ### Property 7: Interface method signature mismatch diagnostic
 
-*For any* class or struct that implements an interface and provides a method with the correct name but a mismatched return type or parameter types compared to the interface method, the semantic model builder SHALL emit a `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH` diagnostic.
+*For any* class or struct that implements an interface and provides a method with the correct name but a mismatched return type or parameter types compared to the interface method, the semantic model builder SHALL emit a `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH (historical)` diagnostic.
 
 **Validates: Requirements 7.5**
 
@@ -430,12 +430,12 @@ The Storm source generator will produce these node types from the grammar rules:
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Interface name in interface list not found | `MIST_UNDEFINED_INTERFACE` | Error | Skip interface, continue resolution |
-| Non-interface type in interface list | `MIST_NOT_AN_INTERFACE` | Error | Skip entry, continue resolution |
-| Circular interface inheritance | `MIST_CIRCULAR_INTERFACE_INHERITANCE` | Error | Break cycle by removing back-edge |
-| Missing interface method implementation | `MIST_MISSING_INTERFACE_METHOD` | Error | Report each missing method, continue |
-| Interface method signature mismatch | `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH` | Error | Report mismatch, continue |
-| Type not assignable to interface | `MIST_TC_0001` (existing) | Error | Existing type checker handling |
+| Interface name in interface list not found | `MIST_UNDEFINED_INTERFACE (historical)` | Error | Skip interface, continue resolution |
+| Non-interface type in interface list | `MIST_NOT_AN_INTERFACE (historical)` | Error | Skip entry, continue resolution |
+| Circular interface inheritance | `MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)` | Error | Break cycle by removing back-edge |
+| Missing interface method implementation | `MIST_MISSING_INTERFACE_METHOD (historical)` | Error | Report each missing method, continue |
+| Interface method signature mismatch | `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH (historical)` | Error | Report mismatch, continue |
+| Type not assignable to interface | `MIST_TC_0001 (historical)` (existing) | Error | Existing type checker handling |
 
 ### Error Recovery Strategy
 

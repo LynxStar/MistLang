@@ -15,7 +15,7 @@ namespace Mist.Tests.Semantics;
 
 public sealed class InferenceThroughOptionalsTests : ProgramModelProbe
 {
-    private const string NotInferredId = "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED";
+    private const string NotInferredId = "MIST0391";
 
     public InferenceThroughOptionalsTests()
         : base("MistInferenceThroughOptionals_")

@@ -75,10 +75,10 @@ resolution level**.
 ### Shared foundation (feeds both pipelines) - COMPLETE
 
 - [x] 1. Shared foundation: diagnostics, grammar surface, editor highlighting, and in-process test harness
-  - [x] 1.1 Add the `MIST_VAR_*` diagnostic descriptors
+  - [x] 1.1 Add the `MIST_VAR_* (historical scheme)` diagnostic descriptors
     - Create `Source/Mist/Common/Diagnostics/Descriptors/VariadicsDiagnostics.cs` defining
-      `MIST_VAR_0001` through `MIST_VAR_0011` with the stage and message from the design's Error
-      Handling table (`MIST_VAR_0001` Program model; `0002`-`0006`, `0009`, `0011` Type checker;
+      the variadics diagnostics (`MIST_VAR_0001` through `MIST_VAR_0011` before the reissue; `MIST0404`, `MIST0405` and the numbers `specs/diagnostics/crosswalk.md` lists for them) with the stage and message from the design's Error
+      Handling table (`MIST0404`/`MIST0405` Program model; `0002`-`0006`, `0009`, `0011` Type checker;
       `0007`, `0008` Program model; `0010` Backend)
     - Follow the existing `DiagnosticDescriptor` pattern used by `GenericsDiagnostics.cs`
     - _Requirements: 1.8, 3.5, 4.6, 6.3, 6.4, 6.6, 7.9, 8.7, 10.3, 10.5, 11.3, 12.5, 12.8, 13.5, 16.2, 16.4_
@@ -161,7 +161,7 @@ resolution level**.
     - _Requirements: 3.1, 3.2, 3.3_
 
   - [x] 4.2 Enforce one Unbracketed_Pack per type-parameter list and compute type-side arity
-    - Emit `MIST_VAR_0001` when a type-parameter list declares more than one Unbracketed_Pack
+    - Emit `MIST0404` when a type-parameter list declares more than one Unbracketed_Pack
     - Compute arity as the count of declared slots, counting each `Type[]:` slot as exactly one
       regardless of the number of types it later absorbs
     - _Requirements: 3.4, 3.5, 3.6_
@@ -182,7 +182,7 @@ resolution level**.
 
   - [x] 4.5 Write unit tests for pack classification and arity-in-slots
     - Cover `params`/`Type[]:` classification, inverse sugar, the arity-5 example, and the
-      `MIST_VAR_0001` duplicate-`params` case
+      `MIST0405` duplicate-`params` case
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
 - [x] 5. Program model (ProgramModel track): value side, spread-generated members, and declaration-kind coverage
@@ -195,7 +195,7 @@ resolution level**.
     - _Requirements: 7.1, 7.2, 7.7_
 
   - [x] 5.2 Enforce one value-side `params` per value-parameter list
-    - Emit `MIST_VAR_0001` when a value-parameter list declares more than one value-side `params`
+    - Emit `MIST0405` when a value-parameter list declares more than one value-side `params`
       parameter; require additional packs to be written as explicit `(TArgs...)` tuple parameters
     - _Requirements: 7.8, 7.9_
 
@@ -210,15 +210,15 @@ resolution level**.
       member of type `(TArgs...)` plus 1-based projections `Item1..ItemN`, taking the declaration's
       accessibility and member kind (field or property); handle empty and length-1 packs and
       correlated spreads of the same pack
-    - Reserve the stem namespace and emit `MIST_VAR_0007` on stem/name collision (or prefixing) and
-      `MIST_VAR_0008` on an empty stem
+    - Reserve the stem namespace and emit `MIST0412` on stem/name collision (or prefixing) and
+      `MIST_VAR_0008 (historical)` on an empty stem
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
 
   - [x] 5.5 Accept packs on methods and every declaration kind
     - Accept a pack type-parameter list on `class`, `struct`, `abstract` type, type alias, and
       newtype declarations and on method type-parameter lists (touching the respective builders:
       `TypeBuilder`, `AbstractTypeBuilder`, `TypeAliasBuilder`, `NewtypeBuilder`, `MethodBuilder`),
-      applying the same pack rules uniformly and emitting `MIST_VAR_0001` for a method list with more
+      applying the same pack rules uniformly and emitting `MIST0404` for a method list with more
       than one Unbracketed_Pack; a newtype clones the (possibly variadic) source type's members
     - _Requirements: 12.1, 12.4, 12.5, 22.1, 22.3_
 
@@ -231,7 +231,7 @@ resolution level**.
   - [x] 5.7 Write property test for one sugared pack per list (ProgramModel track)
     - **Property 9: One sugared pack per list**
     - Generate type-parameter, method type-parameter, and value-parameter lists with one versus two+
-      sugared `params` packs; assert exactly one is accepted and two or more raise `MIST_VAR_0001`,
+      sugared `params` packs; assert exactly one is accepted and two or more raise `MIST0405`,
       counting value packs and homogeneous `params T[]` alike
     - **Validates: Requirements 3.4, 3.5, 7.8, 7.9, 12.4, 12.5, 13.5**
 
@@ -243,8 +243,8 @@ resolution level**.
     - **Validates: Requirements 10.1, 10.6, 10.7, 10.8**
 
   - [x] 5.9 Write unit tests for value-side representation and spread-member edge cases
-    - Cover value pack single-slot arity, plain tuple parameter, empty stem (`MIST_VAR_0008`), stem
-      collision (`MIST_VAR_0007`), and the length-1 projection case
+    - Cover value pack single-slot arity, plain tuple parameter, empty stem (`MIST_VAR_0008 (historical)`), stem
+      collision (`MIST0412`), and the length-1 projection case
     - _Requirements: 7.1, 7.7, 10.4, 10.5, 10.7_
 
 - [x] 6. Checkpoint - ProgramModel model complete
@@ -255,7 +255,7 @@ resolution level**.
     - In `Construction/PackBinder.cs`, bind fixed scalar and Bracketed_Pack slots inward from both
       ends and assign the contiguous middle to the single Unbracketed_Pack (leading, middle, or
       trailing), allowing an empty pack; treat the flat and bracketed forms as the same type
-    - Emit `MIST_VAR_0005` when a flat argument list has too few arguments to fill the fixed and
+    - Emit `MIST0411` when a flat argument list has too few arguments to fill the fixed and
       bracketed slots; apply the same rule to value-parameter binding (collect the middle into
       `(TArgs...)`)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 7.4, 7.6_
@@ -264,7 +264,7 @@ resolution level**.
     - **Property 4: Binding determinism and totality**
     - Generate slot lists with at most one Unbracketed_Pack and argument lists; assert a unique
       assignment (ends bind inward, pack takes the middle) when length is at least fixed+bracketed,
-      and `MIST_VAR_0005` below that minimum
+      and `MIST0411` below that minimum
     - **Validates: Requirements 4, 3**
 
   - [x] 7.3 Write property test for flat/bracketed equivalence (ProgramModel track)
@@ -275,15 +275,15 @@ resolution level**.
 
   - [x] 7.4 Write unit tests for binding edge cases
     - Cover the arity-5 middle-and-bracketed construction, the `Between<TFirst, params TMid, TLast>`
-      example, and the too-few-arguments `MIST_VAR_0005` case
+      example, and the too-few-arguments `MIST0411` case
     - _Requirements: 4.5, 4.6_
 
 - [x] 8. Type resolution (ProgramModel track): the type-position capability ladder
   - [x] 8.1 Implement pack position semantics and the capability ladder (ProgramModel resolver)
     - In the ProgramModel resolver, treat a pack identifier in expression position as the comptime
       `Type[]` value (with `.Length`, iteration, spread available regardless of proven length); emit
-      `MIST_VAR_0002` in bare type position; emit `MIST_VAR_0003` for indexing an unknown-length
-      pack; allow `Type[N]` indexing in range and emit `MIST_VAR_0004` out of range; restore in-range
+      `MIST0406` in bare type position; emit `MIST0409` for indexing an unknown-length
+      pack; allow `Type[N]` indexing in range and emit `MIST0410` out of range; restore in-range
       indexing after guard narrowing to `Type[N]`
     - This is the type-position ladder only. The value-side and body-level semantics are deferred with
       the rest of the ProgramModel track; the classic pipeline carries them in Part 2 (task 13)
@@ -315,7 +315,7 @@ final checkpoint.
     - _Requirements: 3.1, 3.2, 3.3_
 
   - [x] 9.2 Enforce one Unbracketed_Pack per type-parameter list and compute type-side arity (semantic model)
-    - In `SemanticModelBuilder.cs`, emit `MIST_VAR_0001` when a type-parameter list declares more than
+    - In `SemanticModelBuilder.cs`, emit `MIST0404` when a type-parameter list declares more than
       one Unbracketed_Pack; compute arity as the count of declared slots, counting each `Type[]:` slot
       as exactly one regardless of the number of types it later absorbs
     - _Requirements: 3.4, 3.5, 3.6_
@@ -337,7 +337,7 @@ final checkpoint.
 
   - [x]* 9.5 Write unit tests for semantic pack classification and arity-in-slots
     - Cover `params`/`Type[]:` classification, inverse sugar, the arity-5 example, and the
-      `MIST_VAR_0001` duplicate-`params` case over the legacy semantic model
+      `MIST0405` duplicate-`params` case over the legacy semantic model
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
 - [x] 10. Classic semantic model: value side, spread-generated members, and declaration-kind coverage
@@ -350,7 +350,7 @@ final checkpoint.
     - _Requirements: 7.1, 7.2, 7.7_
 
   - [x] 10.2 Enforce one value-side `params` per value-parameter list (semantic model)
-    - In `SemanticModelBuilder.cs`, emit `MIST_VAR_0001` when a value-parameter list declares more
+    - In `SemanticModelBuilder.cs`, emit `MIST0405` when a value-parameter list declares more
       than one value-side `params` parameter; require additional packs to be written as explicit
       `(TArgs...)` tuple parameters
     - _Requirements: 7.8, 7.9_
@@ -366,14 +366,14 @@ final checkpoint.
       type `(TArgs...)` plus 1-based projections `Item1..ItemN`, taking the declaration's
       accessibility and member kind (field or property); handle empty and length-1 packs and
       correlated spreads of the same pack
-    - Reserve the stem namespace and emit `MIST_VAR_0007` on stem/name collision (or prefixing) and
-      `MIST_VAR_0008` on an empty stem
+    - Reserve the stem namespace and emit `MIST0412` on stem/name collision (or prefixing) and
+      `MIST_VAR_0008 (historical)` on an empty stem
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
 
   - [x] 10.5 Accept packs on methods and every declaration kind (semantic model)
     - In `SemanticModelBuilder.cs`, accept a pack type-parameter list on `class`, `struct`, `abstract`
       type, type alias, and newtype declarations and on method type-parameter lists, applying the same
-      pack rules uniformly and emitting `MIST_VAR_0001` for a method list with more than one
+      pack rules uniformly and emitting `MIST0404` for a method list with more than one
       Unbracketed_Pack; a newtype clones the (possibly variadic) source type's members
     - _Requirements: 12.1, 12.4, 12.5, 22.1, 22.3_
 
@@ -388,7 +388,7 @@ final checkpoint.
     - **Property 9: One sugared pack per list**
     - Via the classic `CompilerDriver`, generate type-parameter, method type-parameter, and
       value-parameter lists with one versus two+ sugared `params` packs; assert exactly one is
-      accepted and two or more raise `MIST_VAR_0001`, counting value packs and homogeneous
+      accepted and two or more raise `MIST0405`, counting value packs and homogeneous
       `params T[]` alike
     - **Validates: Requirements 3.4, 3.5, 7.8, 7.9, 12.4, 12.5, 13.5**
 
@@ -401,8 +401,8 @@ final checkpoint.
     - **Validates: Requirements 10.1, 10.6, 10.7, 10.8**
 
   - [x]* 10.9 Write unit tests for value-side representation and spread-member edge cases (semantic model)
-    - Cover value pack single-slot arity, plain tuple parameter, empty stem (`MIST_VAR_0008`), stem
-      collision (`MIST_VAR_0007`), and the length-1 projection case over the legacy model
+    - Cover value pack single-slot arity, plain tuple parameter, empty stem (`MIST_VAR_0008 (historical)`), stem
+      collision (`MIST0412`), and the length-1 projection case over the legacy model
     - _Requirements: 7.1, 7.7, 10.4, 10.5, 10.7_
 
 - [x] 11. Checkpoint - classic semantic-model boundary
@@ -414,7 +414,7 @@ final checkpoint.
       slots inward from both ends and assign the contiguous middle to the single Unbracketed_Pack
       (leading, middle, or trailing), allowing an empty pack; treat the flat and bracketed forms as
       the same type
-    - Emit `MIST_VAR_0005` when a flat argument list has too few arguments to fill the fixed and
+    - Emit `MIST0411` when a flat argument list has too few arguments to fill the fixed and
       bracketed slots; apply the same rule to value-parameter binding (collect the middle into
       `(TArgs...)`)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 7.4, 7.6_
@@ -423,7 +423,7 @@ final checkpoint.
     - **Property 4: Binding determinism and totality**
     - Generate slot lists with at most one Unbracketed_Pack and argument lists; assert a unique
       assignment (ends bind inward, pack takes the middle) when length is at least fixed+bracketed,
-      and `MIST_VAR_0005` below that minimum
+      and `MIST0411` below that minimum
     - **Validates: Requirements 4, 3**
 
   - [x]* 12.3 Write property test for flat/bracketed equivalence (classic pipeline)
@@ -434,15 +434,15 @@ final checkpoint.
 
   - [x]* 12.4 Write unit tests for binding edge cases (classic pipeline)
     - Cover the arity-5 middle-and-bracketed construction, the `Between<TFirst, params TMid, TLast>`
-      example, and the too-few-arguments `MIST_VAR_0005` case
+      example, and the too-few-arguments `MIST0411` case
     - _Requirements: 4.5, 4.6_
 
 - [x] 13. Classic type checker: position semantics, capability ladder, and spread positions
   - [x] 13.1 Implement pack position semantics and the capability ladder over `ISemanticModel`
     - In `TypeCheckerAnalyzer.cs`, treat a pack identifier in expression position as the comptime
       `Type[]` value (with `.Length`, iteration, spread available regardless of proven length); emit
-      `MIST_VAR_0002` in bare type position; emit `MIST_VAR_0003` for indexing an unknown-length pack;
-      allow `Type[N]` indexing in range and emit `MIST_VAR_0004` out of range; restore in-range
+      `MIST0406` in bare type position; emit `MIST0409` for indexing an unknown-length pack;
+      allow `Type[N]` indexing in range and emit `MIST0410` out of range; restore in-range
       indexing after guard narrowing to `Type[N]`
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
@@ -455,9 +455,9 @@ final checkpoint.
 
   - [x]* 13.3 Write property test for position-semantics soundness (classic pipeline)
     - **Property 10: Position-semantics soundness**
-    - Generate pack identifiers in each position; assert expression-position value, `MIST_VAR_0002`
-      bare-type, `MIST_VAR_0003` unknown-length index, `Type[N]` index accepted iff in range else
-      `MIST_VAR_0004`, and narrowing restores in-range indexing
+    - Generate pack identifiers in each position; assert expression-position value, `MIST0406`
+      bare-type, `MIST0409` unknown-length index, `Type[N]` index accepted iff in range else
+      `MIST0410`, and narrowing restores in-range indexing
     - **Validates: Requirements 6.1, 6.3, 6.4, 6.5, 6.6, 6.7**
 
   - [x]* 13.4 Write property test for spread-accepting positions (classic pipeline)
@@ -476,13 +476,13 @@ final checkpoint.
   - [x] 14.1 Implement value-side spread as general tuple decomposition
     - In `TypeCheckerAnalyzer.cs`, decompose any tuple value `x...` into argument slots (empty ->
       zero), well-typed iff the ordered element types are positionally assignable to the target slots,
-      else `MIST_VAR_0011`; treat `args...` as the pack-originated case; allow re-spread of
+      else `MIST0415`; treat `args...` as the pack-originated case; allow re-spread of
       spread-generated members (`Item...`)
     - _Requirements: 7.5, 8.2, 8.3, 8.4, 10.9_
 
   - [x] 14.2 Implement zip parallel expansion
     - Expand two operands element by element into N paired positions only when proven equal length
-      (same origin or otherwise established); emit `MIST_VAR_0006` otherwise
+      (same origin or otherwise established); emit `MIST_VAR_0006 (historical)` otherwise
     - _Requirements: 8.5, 8.6, 8.7_
 
   - [x]* 14.3 Write property test for spread width (classic pipeline)
@@ -494,13 +494,13 @@ final checkpoint.
   - [x]* 14.4 Write property test for tuple-decomposition well-typedness (classic pipeline)
     - **Property 11: Tuple-decomposition well-typedness**
     - Generate a tuple value and a target slot list; assert `x...` is well-typed iff element types are
-      positionally assignable, else `MIST_VAR_0011`, for every tuple whether or not pack-originated
+      positionally assignable, else `MIST0415`, for every tuple whether or not pack-originated
     - **Validates: Requirements 7.5, 8.4**
 
   - [x]* 14.5 Write property test for zip length proof (classic pipeline)
     - **Property 12: Zip requires provably-equal length**
     - Generate two spread operands; assert a zip is accepted iff proven equal length (yielding N
-      paired positions) and otherwise raises `MIST_VAR_0006`
+      paired positions) and otherwise raises `MIST_VAR_0006 (historical)`
     - **Validates: Requirements 8.5, 8.6, 8.7**
 
 - [x] 15. Checkpoint - classic type-checker core boundary
@@ -510,34 +510,34 @@ final checkpoint.
   - [x] 16.1 Implement whole-pack constraints elementwise
     - In `TypeCheckerAnalyzer.cs` (with `Model/Types/TypeParameterConstraints.cs`), require every
       element type to satisfy a `where TArgs : C` bound, permit constrained members on each element
-      and each `args[i]`, emit `MIST_VAR_0009` per failing element (treated as an error type so
+      and each `args[i]`, emit `MIST_VAR_0009 (historical)` per failing element (treated as an error type so
       analysis continues), and treat an empty pack as vacuously satisfying the constraint
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
   - [x] 16.2 Implement generic-body open-generic checking and provable forwarding
     - Check a variadic body once for every instantiation the signature permits; accept `args...`
       forwarding only into a destination provably `(TArgs...)`-compatible for every `TArgs` (another
-      `params TArgs` / `(TArgs...)` parameter or a `Func<TArgs..., R>` value); emit `MIST_VAR_0011`
+      `params TArgs` / `(TArgs...)` parameter or a `Func<TArgs..., R>` value); emit `MIST0415`
       when forwarding a symbolic pack into a fixed-arity destination
     - _Requirements: 12.2, 12.3, 12.6, 12.7, 12.8_
 
   - [x] 16.3 Implement value-pack narrowing that recovers forwarding
     - Narrow `args` to a concrete tuple type `T` inside an `args is T x` branch so that spreading
-      `x...` into a matching destination is well-typed there; emit `MIST_VAR_0011` for a wrong-shape
+      `x...` into a matching destination is well-typed there; emit `MIST0415` for a wrong-shape
       forward within such a branch; support different shapes in different branches
     - _Requirements: 12.9, 6.7_
 
   - [x]* 16.4 Write property test for whole-pack constraint enforcement (classic pipeline)
     - **Property 16: Whole-pack constraint enforcement**
     - Generate a pack with constraint C and a non-empty binding; assert well-typed iff every element
-      satisfies C (constrained members usable on each element and `args[i]`), else `MIST_VAR_0009` per
+      satisfies C (constrained members usable on each element and `args[i]`), else `MIST_VAR_0009 (historical)` per
       failing element
     - **Validates: Requirements 11.1, 11.2, 11.3**
 
   - [x]* 16.5 Write property test for generic destination enforcement (classic pipeline)
     - **Property 19: Spread respects destination typing (generic enforcement)**
     - Assert a symbolic `args...` is accepted iff the destination provably accepts `(TArgs...)` for
-      every `TArgs`, and rejected with `MIST_VAR_0011` for a fixed-arity destination (for example
+      every `TArgs`, and rejected with `MIST0415` for a fixed-arity destination (for example
       `Sum3(int, int, int)`) even though it would succeed for one instantiation
     - **Validates: Requirements 8.4, 12.6**
 
@@ -545,7 +545,7 @@ final checkpoint.
     - **Property 20: Narrowing recovers provable forwarding**
     - Assert that inside `args is T x` the pack narrows to `T` so `x...` into a matching destination is
       well-typed, that different-shape branches enable their own forwarding, and that a mismatched
-      forward inside a branch is still `MIST_VAR_0011`
+      forward inside a branch is still `MIST0415`
     - **Validates: Requirements 6.7, 12.9**
 
 - [x] 17. Classic type checker: inference, value-level params, Func invocation, and variadic abstract types
@@ -634,7 +634,7 @@ final checkpoint.
     - _Requirements: 13.6_
 
   - [x] 19.3 Implement the backend arity-ceiling diagnostic
-    - Emit `MIST_VAR_0010` when a construction exceeds target CLR capacity (`System.Func`/
+    - Emit `MIST0028` when a construction exceeds target CLR capacity (`System.Func`/
       `System.Action` over 16 inputs, or a non-nestable `System.ValueTuple` over 7), identifying the
       construction and exceeded capacity; impose no front-end limit and emit the C# shape when the
       construction fits
@@ -643,7 +643,7 @@ final checkpoint.
   - [x]* 19.4 Write property test for unbounded front end and backend ceiling (classic pipeline)
     - **Property 14: Unbounded front end, backend ceiling**
     - Generate packs of any element count; assert grammar/semantic-model/type-checker never reject on
-      length and only the backend emits `MIST_VAR_0010` (Func/Action over 16, non-nestable ValueTuple
+      length and only the backend emits `MIST0028` (Func/Action over 16, non-nestable ValueTuple
       over 7), while a nestable ValueTuple over 7 is represented by nesting
     - **Validates: Requirements 16.1, 16.2, 16.3, 16.4, 16.5**
 
@@ -651,11 +651,11 @@ final checkpoint.
     - **Property 13: Empty-pack coherence**
     - Assert an empty pack yields an arity-0 construction, zero spread slots, zero generated members,
       the zero-argument callable `Func<TResult>`, and vacuous whole-pack-constraint satisfaction (no
-      `MIST_VAR_0009`), verified end-to-end through the classic pipeline
+      `MIST_VAR_0009 (historical)`), verified end-to-end through the classic pipeline
     - **Validates: Requirements 4.3, 6.8, 10.6, 11.4, 15.4**
 
   - [x]* 19.6 Write unit tests for the arity ceiling and ValueTuple nesting (classic pipeline)
-    - Cover a 17-input `Func` (`MIST_VAR_0010`), an 8-element value pack nested into `ValueTuple`, and
+    - Cover a 17-input `Func` (`MIST0028`), an 8-element value pack nested into `ValueTuple`, and
       a boundary 16-input `Func` that emits cleanly
     - _Requirements: 16.2, 16.3_
 
@@ -707,7 +707,7 @@ final checkpoint.
   - [x] 23.1 Add the classic type-checker rejection test for the Requirement 21 Negative Proof Code
     - Add a test fixture containing the Requirement 21 Negative Proof Code verbatim (the
       `ForwardSumBad<params TArgs>` / `Sum3(args...)` case); compile in-process via the shared classic
-      `CompilerDriver` and assert compilation fails with `MIST_VAR_0011` reported on `Sum3(args...)`;
+      `CompilerDriver` and assert compilation fails with `MIST0415` reported on `Sum3(args...)`;
       the test fails if the fixture compiles successfully
     - Keep this fixture out of the runnable sample at `samples/Variadics/Program.mist`
     - _Requirements: 21.1, 21.2, 21.3_
@@ -845,7 +845,7 @@ final checkpoint.
   type-checker complete (18), backend + bootstrap (21), and a final checkpoint (26).
 - The variadic newtype (Requirement 22.3) is covered by the classic semantic model (task 10.5) and
   Property 21 (task 17.8); it is intentionally not placed in the runnable sample.
-- Diagnostics `MIST_VAR_0001` through `MIST_VAR_0011` follow the design's Error Handling table.
+- The variadics diagnostics (`MIST_VAR_0001` through `MIST_VAR_0011` before the reissue; see `specs/diagnostics/crosswalk.md`) follow the design's Error Handling table.
 - **Backend body-level monomorphization outstanding (task 27).** Tasks 9-18 (semantic model + type
   checker) and 19.2 / 19.3 (value-level `params` array emission and the arity-ceiling diagnostic) are
   complete, and the Requirement 18 sample type-checks. However, task 19.1 delivered only CLR type-name

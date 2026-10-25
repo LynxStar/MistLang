@@ -28,7 +28,7 @@ public sealed class RefinementSiteTests
         var h = new HandBuiltRefinements();
         var adult = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 18L, "AdultAge");
         var value = h.Literal(7L, offset: 24);
-        var expected = "MIST_PA_REFINEMENT_VIOLATED";
+        var expected = "MIST0271";
         object root;
         switch(site)
         {
@@ -50,7 +50,7 @@ public sealed class RefinementSiteTests
             case "cast": root = new CastExpression(HandBuiltModel.Node(24), h.Literal(7L, offset: 3), adult, [], adult); break;
             case "index":
                 root = h.At(h.Array(3L), h.Literal(3L, offset: 24), offset: 3);
-                expected = "MIST_PA_INDEX_OUT_OF_BOUNDS"; break;
+                expected = "MIST0274"; break;
             case "list-pattern":
                 var ledger = HandBuiltModel.Class("Ledger");
                 var constraint = h.Between(h.Int, 0L, 2L, null);
@@ -60,7 +60,7 @@ public sealed class RefinementSiteTests
                 elements.Add(new ListPatternElement(new CatchAllPattern(HandBuiltModel.Node(24), h.Int, new LocalVariable("last", h.Int)), false, h.Int));
                 var list = new ListPattern(HandBuiltModel.Node(3), elements, ledger) { Reads = new CountedIndexer(indexer, constraint, count) };
                 root = new IsPatternExpression(HandBuiltModel.Node(3), HandBuiltRefinements.Local(ledger), list, h.Bool);
-                expected = "MIST_PA_CONSTRAINT_VIOLATED"; break;
+                expected = "MIST0276"; break;
             default: throw new InvalidOperationException(site);
         }
 
@@ -83,7 +83,7 @@ public sealed class RefinementSiteTests
         var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
         var contract = fragments.Abstract("IFactory");
         var concrete = fragments.Class("Factory");
-        var expected = "MIST_PA_REFINEMENT_RETURN_UNPROVEN";
+        var expected = "MIST0284";
         if(site is "property" or "setter")
         {
             contract.PropertiesList.Add(new Property("Value", positive, DeclarationFragments.Public)
@@ -98,7 +98,7 @@ public sealed class RefinementSiteTests
                 Getter = site == "property" ? new PropertyAccessor { IsAuto = true } : null,
                 Setter = site == "setter" ? new PropertyAccessor { IsAuto = true } : null,
             });
-            if(site == "setter") { expected = "MIST_PA_CONSTRAINT_STRENGTHENED"; }
+            if(site == "setter") { expected = "MIST0283"; }
 
             concrete.BaseAbstractTypes.Add(contract);
         }
@@ -121,7 +121,7 @@ public sealed class RefinementSiteTests
             }
             else { concrete.BaseAbstractTypes.Add(contract); }
 
-            if(site == "parameter") { expected = "MIST_PA_CONSTRAINT_STRENGTHENED"; }
+            if(site == "parameter") { expected = "MIST0283"; }
         }
 
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
@@ -149,7 +149,7 @@ public sealed class RefinementSiteTests
         constructor.ChainArgumentsList.Add(h.Literal(0L, offset: 24));
         concrete.ConstructorsList.Add(constructor);
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
+        Assert.Equal("MIST0276", finding.Number.Value);
         Assert.Equal(25, finding.Position().Start.Column);
     }
 
@@ -167,7 +167,7 @@ public sealed class RefinementSiteTests
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltRefinements.Need(value, above)));
 
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Number.Value);
+        Assert.Equal("MIST0271", finding.Number.Value);
         Assert.Contains("'> -0.5'", finding.Message, StringComparison.Ordinal);
     }
 

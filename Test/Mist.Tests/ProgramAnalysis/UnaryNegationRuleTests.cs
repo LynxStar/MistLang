@@ -23,7 +23,7 @@ public sealed class UnaryNegationRuleTests
     {
         var operand = new HandBuiltModel().Type(type);
 
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(UnaryOperatorKind.Negate, operand)?.Number.Value);
+        Assert.Equal("MIST0200", OperatorDecision.Unary(UnaryOperatorKind.Negate, operand)?.Number.Value);
     }
 
     [Theory]
@@ -74,7 +74,7 @@ public sealed class UnaryNegationRuleTests
         };
 
         Assert.Null(OperatorAdmissibility.UnaryResultType(kind, operand));
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(kind, operand)?.Number.Value);
+        Assert.Equal("MIST0200", OperatorDecision.Unary(kind, operand)?.Number.Value);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class UnaryNegationRuleTests
 
         var finding = Assert.Single(fragment.Run(new OperatorAnalyzer()));
 
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", finding.Number.Value);
+        Assert.Equal("MIST0200", finding.Number.Value);
     }
 
     [Theory]
@@ -100,7 +100,7 @@ public sealed class UnaryNegationRuleTests
         var kind = negate ? UnaryOperatorKind.Negate : UnaryOperatorKind.LogicalNot;
 
         Assert.Null(OperatorAdmissibility.UnaryResultType(kind, UnknownType.Instance));
-        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_OPERATORS", OperatorDecision.Unary(kind, UnknownType.Instance)?.Number.Value);
+        Assert.Equal("MIST0201", OperatorDecision.Unary(kind, UnknownType.Instance)?.Number.Value);
     }
 
     [Theory]
@@ -183,11 +183,11 @@ public sealed class UnaryNegationRuleTests
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData(true, "class", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData(false, "class", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData(false, "Int32", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData(true, "unknown", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS")]
-    [InlineData(false, "unknown", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS")]
+    [InlineData(true, "class", "MIST0200")]
+    [InlineData(false, "class", "MIST0200")]
+    [InlineData(false, "Int32", "MIST0200")]
+    [InlineData(true, "unknown", "MIST0201")]
+    [InlineData(false, "unknown", "MIST0201")]
     public void AnUnsupportedUnary_IsRefusedAgainstItsOperand(bool negate, string type, string diagnosticId)
     {
         var built = new HandBuiltModel();
@@ -250,7 +250,7 @@ public sealed class UnaryNegationRuleTests
         var unary = new UnaryExpression(HandBuiltModel.Node(30),
             negate ? UnaryOperatorKind.Negate : UnaryOperatorKind.LogicalNot, operand, ErrorType.Instance);
 
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE",
+        Assert.Equal("MIST0200",
             Assert.Single(new HandBuiltModel().Analyze(new OperatorAnalyzer(), unary)).Number.Value);
     }
 }

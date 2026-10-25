@@ -274,13 +274,13 @@ The `with` declarations are collected during Pass 1 and processed in a dedicated
 
 Runs after all types are registered and interface lists are resolved. For each `WithDeclaration`:
 
-1. Resolve `typeName` to a `ClassType` or `StructType`. Emit `MIST_TRAIT_WITH_UNDEFINED_TYPE` if not found.
-2. Resolve `traitName` to a `TraitType`. Emit `MIST_TRAIT_WITH_UNDEFINED_TRAIT` if not found.
-3. Check for duplicate `with` blocks for the same type-trait pair. Emit `MIST_TRAIT_DUPLICATE_WITH` if found.
+1. Resolve `typeName` to a `ClassType` or `StructType`. Emit `MIST_TRAIT_WITH_UNDEFINED_TYPE (historical)` if not found.
+2. Resolve `traitName` to a `TraitType`. Emit `MIST_TRAIT_WITH_UNDEFINED_TRAIT (historical)` if not found.
+3. Check for duplicate `with` blocks for the same type-trait pair. Emit `MIST_TRAIT_DUPLICATE_WITH (historical)` if found.
 4. For each `MemberMapping`:
-   - Resolve `sourceName` to a public member on the type. Emit `MIST_TRAIT_WITH_UNDEFINED_SOURCE` if not found or not public.
-   - Resolve `targetName` to a member in the trait. Emit `MIST_TRAIT_WITH_UNDEFINED_TARGET` if not found.
-   - Check type compatibility between source and target. Emit `MIST_TRAIT_WITH_TYPE_MISMATCH` if incompatible.
+   - Resolve `sourceName` to a public member on the type. Emit `MIST_TRAIT_WITH_UNDEFINED_SOURCE (historical)` if not found or not public.
+   - Resolve `targetName` to a member in the trait. Emit `MIST_TRAIT_WITH_UNDEFINED_TARGET (historical)` if not found.
+   - Check type compatibility between source and target. Emit `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` if incompatible.
 5. Store validated mappings in a `WithBlockRegistry` for use by the satisfaction pass.
 
 #### New Sub-Pass: `Pass1_ResolveTraitSatisfaction`
@@ -449,15 +449,15 @@ Add `with` and `as` to keyword patterns:
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_TRAIT_WITH_UNDEFINED_TYPE` | SemanticModelConstruction | The type '{name}' in the `with` block could not be found. |
-| `MIST_TRAIT_WITH_UNDEFINED_TRAIT` | SemanticModelConstruction | The trait '{name}' in the `with` block could not be found. |
-| `MIST_TRAIT_DUPLICATE_WITH` | SemanticModelConstruction | Duplicate `with` block for type '{typeName}' and trait '{traitName}'. |
-| `MIST_TRAIT_WITH_UNDEFINED_SOURCE` | SemanticModelConstruction | The member '{name}' does not exist as a public member on type '{typeName}'. |
-| `MIST_TRAIT_WITH_UNDEFINED_TARGET` | SemanticModelConstruction | The member '{name}' does not exist in trait '{traitName}'. |
-| `MIST_TRAIT_WITH_TYPE_MISMATCH` | SemanticModelConstruction | Cannot map '{typeName}.{sourceName}' to '{traitName}.{targetName}': expected type '{expected}', found '{actual}'. |
-| `MIST_TRAIT_UNSATISFIED` | TypeChecker | Type '{typeName}' does not satisfy trait '{traitName}'. Missing members: {memberList}. |
-| `MIST_TRAIT_MEMBER_VISIBILITY` | SemanticModelConstruction | Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility. |
-| `MIST_TRAIT_WITH_UNSATISFIED` | SemanticModelConstruction | `with` block for '{typeName} : {traitName}' does not cover all trait members. Unsatisfied: {memberList}. |
+| `MIST_TRAIT_WITH_UNDEFINED_TYPE (historical)` | SemanticModelConstruction | The type '{name}' in the `with` block could not be found. |
+| `MIST_TRAIT_WITH_UNDEFINED_TRAIT (historical)` | SemanticModelConstruction | The trait '{name}' in the `with` block could not be found. |
+| `MIST_TRAIT_DUPLICATE_WITH (historical)` | SemanticModelConstruction | Duplicate `with` block for type '{typeName}' and trait '{traitName}'. |
+| `MIST_TRAIT_WITH_UNDEFINED_SOURCE (historical)` | SemanticModelConstruction | The member '{name}' does not exist as a public member on type '{typeName}'. |
+| `MIST_TRAIT_WITH_UNDEFINED_TARGET (historical)` | SemanticModelConstruction | The member '{name}' does not exist in trait '{traitName}'. |
+| `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` | SemanticModelConstruction | Cannot map '{typeName}.{sourceName}' to '{traitName}.{targetName}': expected type '{expected}', found '{actual}'. |
+| `MIST_TRAIT_UNSATISFIED (historical)` | TypeChecker | Type '{typeName}' does not satisfy trait '{traitName}'. Missing members: {memberList}. |
+| `MIST_TRAIT_MEMBER_VISIBILITY (historical)` | SemanticModelConstruction | Member '{typeName}.{memberName}' exists but is not public; trait matching requires public visibility. |
+| `MIST_TRAIT_WITH_UNSATISFIED (historical)` | SemanticModelConstruction | `with` block for '{typeName} : {traitName}' does not cover all trait members. Unsatisfied: {memberList}. |
 
 ## Data Models
 
@@ -617,7 +617,7 @@ flowchart TD
 
 ### Property 7: Trait member access
 
-*For any* trait-typed variable and *for any* member name, if the member name exists in the trait's member scope, `LookupMemberType` SHALL return the member's declared type without emitting a diagnostic. If the member name does not exist in the trait's member scope, `LookupMemberType` SHALL emit a `MIST_UNDEFINED_MEMBER` diagnostic.
+*For any* trait-typed variable and *for any* member name, if the member name exists in the trait's member scope, `LookupMemberType` SHALL return the member's declared type without emitting a diagnostic. If the member name does not exist in the trait's member scope, `LookupMemberType` SHALL emit a `MIST_UNDEFINED_MEMBER (historical)` diagnostic.
 
 **Validates: Requirements 8.1, 8.2, 8.3**
 
@@ -639,16 +639,16 @@ flowchart TD
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Undefined type in `with` block | `MIST_TRAIT_WITH_UNDEFINED_TYPE` | Error | Skip `with` block, continue |
-| Undefined trait in `with` block | `MIST_TRAIT_WITH_UNDEFINED_TRAIT` | Error | Skip `with` block, continue |
-| Duplicate `with` block | `MIST_TRAIT_DUPLICATE_WITH` | Error | Use first, ignore duplicate |
-| Undefined source member in mapping | `MIST_TRAIT_WITH_UNDEFINED_SOURCE` | Error | Skip mapping, continue |
-| Undefined target trait member in mapping | `MIST_TRAIT_WITH_UNDEFINED_TARGET` | Error | Skip mapping, continue |
-| Type mismatch in member mapping | `MIST_TRAIT_WITH_TYPE_MISMATCH` | Error | Skip mapping, continue |
-| Incomplete `with` block | `MIST_TRAIT_WITH_UNSATISFIED` | Error | Report missing members, continue |
-| Type not assignable to trait | `MIST_TRAIT_UNSATISFIED` | Error | Report unsatisfied members, continue |
-| Private member matches trait name | `MIST_TRAIT_MEMBER_VISIBILITY` | Error | Report visibility issue, continue |
-| Member not found on trait type | `MIST_UNDEFINED_MEMBER` (existing) | Error | Return `UnknownType`, continue |
+| Undefined type in `with` block | `MIST_TRAIT_WITH_UNDEFINED_TYPE (historical)` | Error | Skip `with` block, continue |
+| Undefined trait in `with` block | `MIST_TRAIT_WITH_UNDEFINED_TRAIT (historical)` | Error | Skip `with` block, continue |
+| Duplicate `with` block | `MIST_TRAIT_DUPLICATE_WITH (historical)` | Error | Use first, ignore duplicate |
+| Undefined source member in mapping | `MIST_TRAIT_WITH_UNDEFINED_SOURCE (historical)` | Error | Skip mapping, continue |
+| Undefined target trait member in mapping | `MIST_TRAIT_WITH_UNDEFINED_TARGET (historical)` | Error | Skip mapping, continue |
+| Type mismatch in member mapping | `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` | Error | Skip mapping, continue |
+| Incomplete `with` block | `MIST_TRAIT_WITH_UNSATISFIED (historical)` | Error | Report missing members, continue |
+| Type not assignable to trait | `MIST_TRAIT_UNSATISFIED (historical)` | Error | Report unsatisfied members, continue |
+| Private member matches trait name | `MIST_TRAIT_MEMBER_VISIBILITY (historical)` | Error | Report visibility issue, continue |
+| Member not found on trait type | `MIST_UNDEFINED_MEMBER (historical)` (existing) | Error | Return `UnknownType`, continue |
 
 ### Error Recovery Strategy
 

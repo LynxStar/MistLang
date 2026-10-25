@@ -16,7 +16,7 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class EnumRefinementDecisionTests
 {
     [Theory]
-    [InlineData("Red", 0L, "MIST_PA_REFINEMENT_VIOLATED")]
+    [InlineData("Red", 0L, "MIST0271")]
     [InlineData("Green", 1L, null)]
     [InlineData("Blue", 2L, null)]
     public void StoredConstantsProveOrViolateTheBound(string name, long number, string? expected)
@@ -39,7 +39,7 @@ public sealed class EnumRefinementDecisionTests
 
         Assert.Equal(100L, Requirement.Constant(high));
         Assert.Equal(-20L, Requirement.Constant(low));
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", EnumRefinementModel.Judge(low, model.AtLeast(color, high)));
+        Assert.Equal("MIST0271", EnumRefinementModel.Judge(low, model.AtLeast(color, high)));
         Assert.Null(EnumRefinementModel.Judge(high, model.AtLeast(color, low)));
     }
 
@@ -138,8 +138,8 @@ public sealed class EnumRefinementDecisionTests
         var bound = EnumRefinementModel.Member(color, "Bound", model.Number(color, 1L));
 
         Assert.Null(Requirement.Constant(first));
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", EnumRefinementModel.Judge(first, model.AtLeast(color, bound)));
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", EnumRefinementModel.Judge(bound, model.AtLeast(color, first)));
+        Assert.Equal("MIST0272", EnumRefinementModel.Judge(first, model.AtLeast(color, bound)));
+        Assert.Equal("MIST0272", EnumRefinementModel.Judge(bound, model.AtLeast(color, first)));
     }
 
     [Theory]
@@ -224,8 +224,8 @@ public sealed class EnumRefinementDecisionTests
 
         Assert.Null(Requirement.Constant(member));
         Assert.Null(Requirement.OfType(unreadable));
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", EnumRefinementModel.Judge(member, target));
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", EnumRefinementModel.Judge(bound, unreadable));
+        Assert.Equal("MIST0272", EnumRefinementModel.Judge(member, target));
+        Assert.Equal("MIST0272", EnumRefinementModel.Judge(bound, unreadable));
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class EnumRefinementDecisionTests
         Assert.Equal(Requirement.Constant(red), Requirement.Constant(high));
         Assert.Equal(ConversionKind.Explicit, ConversionClassifier.Classify(priority, color));
         Assert.Null(EnumRefinementModel.Judge(high, model.AtLeast(color, red)));
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assignability.Judge(high, model.AtLeast(color, red), model.Facts.Built.Interner)?.Number.Value);
+        Assert.Equal("MIST0157", Assignability.Judge(high, model.AtLeast(color, red), model.Facts.Built.Interner)?.Number.Value);
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class EnumRefinementDecisionTests
         var target = model.Facts.Refine(color, ComparisonKind.LessThanOrEqual, high);
 
         Assert.Null(Requirement.Constant(outside));
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", EnumRefinementModel.Judge(outside, target));
+        Assert.Equal("MIST0272", EnumRefinementModel.Judge(outside, target));
         Assert.Null(EnumRefinementModel.Judge(high, target));
     }
 }

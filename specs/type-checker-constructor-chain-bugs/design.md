@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Mist compiler's `TypeCheckerAnalyzer` has two bugs that surface during constructor chain validation. First, `CheckConstructorChain` calls `FindEnclosingType` which walks the scope chain and returns the first class/struct it encounters without verifying scope ownership, causing false positive `MIST_TC_0013` errors when multiple types exist in the same namespace. Second, `MakeDiagnostic` hardcodes `CompilationUnitPath: null` and uses raw offsets as column numbers with line 0, so all type checker diagnostics lack file paths and have incorrect line/column information.
+The Mist compiler's `TypeCheckerAnalyzer` has two bugs that surface during constructor chain validation. First, `CheckConstructorChain` calls `FindEnclosingType` which walks the scope chain and returns the first class/struct it encounters without verifying scope ownership, causing false positive `MIST_TC_0013 (historical)` errors when multiple types exist in the same namespace. Second, `MakeDiagnostic` hardcodes `CompilationUnitPath: null` and uses raw offsets as column numbers with line 0, so all type checker diagnostics lack file paths and have incorrect line/column information.
 
 The fix reuses the existing `FindDeclaringType` method (which already performs correct scope matching) for constructor chain resolution, and enhances `MakeDiagnostic` to accept the `ISemanticModel` so it can resolve the source file path and convert offsets to proper 1-based line/column positions via `SourceText.ToLinePositionSpan`.
 
@@ -10,7 +10,7 @@ The fix reuses the existing `FindDeclaringType` method (which already performs c
 
 - **Bug_Condition (C)**: The conditions that trigger each bug — (1) `CheckConstructorChain` calling `FindEnclosingType` instead of `FindDeclaringType`, causing wrong type resolution; (2) `MakeDiagnostic` producing diagnostics with null file path and incorrect line/column
 - **Property (P)**: The desired behavior — (1) constructor chain validation resolves the correct declaring type; (2) diagnostics include accurate file path and 1-based line/column positions
-- **Preservation**: Existing behavior that must remain unchanged — genuine `MIST_TC_0013` errors for truly mismatched constructor chains, all other diagnostic rules (MIST_TC_0001–0018), `CheckObjectCreation` constructor matching, and `FindDeclaringType` usage in `CheckMethodBody`/`CheckConstructorBody`
+- **Preservation**: Existing behavior that must remain unchanged — genuine `MIST_TC_0013 (historical)` errors for truly mismatched constructor chains, all other diagnostic rules (MIST_TC_0001 (historical)–0018), `CheckObjectCreation` constructor matching, and `FindDeclaringType` usage in `CheckMethodBody`/`CheckConstructorBody`
 - **`FindEnclosingType`**: The buggy static method at line 1671 in `TypeCheckerAnalyzer.cs` that walks the scope chain and returns the first class/struct without verifying `MemberScope` matches `ContainingScope`
 - **`FindDeclaringType`**: The correct static method at line 175 in `TypeCheckerAnalyzer.cs` that walks the parent scope and verifies `MemberScope` matches the member's `ContainingScope` via `ReferenceEquals`
 - **`MakeDiagnostic`**: The static helper at line 1689 in `TypeCheckerAnalyzer.cs` that creates `Diagnostic` records for all type checker errors
@@ -53,9 +53,9 @@ END FUNCTION
 
 ### Examples
 
-- **False positive MIST_TC_0013**: `Point() : this(0, 0)` — `FindEnclosingType` returns `Color` (first type in namespace scope), so the analyzer searches `Color`'s constructors for a match to `(int, int)`. `Color` has `Color(int, int, int)` which doesn't match, producing a false error: "No constructor on 'Color' matches the chained arguments". Expected: no error, because `Point(int, int)` exists and matches.
-- **Correct MIST_TC_0013 (should still fire)**: If `Point` had `Point() : this(0, 0, 0)` but no 3-parameter constructor, the error should fire with "No constructor on 'Point' matches the chained arguments".
-- **Missing file path**: Any type checker diagnostic (e.g., MIST_TC_0001 assignment error) reports `CompilationUnitPath: null` instead of the actual file path like `samples/AllFeatures/Point.mist`.
+- **False positive MIST_TC_0013* (historical scheme)*: `Point() : this(0, 0)` — `FindEnclosingType` returns `Color` (first type in namespace scope), so the analyzer searches `Color`'s constructors for a match to `(int, int)`. `Color` has `Color(int, int, int)` which doesn't match, producing a false error: "No constructor on 'Color' matches the chained arguments". Expected: no error, because `Point(int, int)` exists and matches.
+- **Correct MIST_TC_0013 (historical) (should still fire)**: If `Point` had `Point() : this(0, 0, 0)` but no 3-parameter constructor, the error should fire with "No constructor on 'Point' matches the chained arguments".
+- **Missing file path**: Any type checker diagnostic (e.g., MIST_TC_0001 (historical) assignment error) reports `CompilationUnitPath: null` instead of the actual file path like `samples/AllFeatures/Point.mist`.
 - **Wrong line/column**: A diagnostic for a node at offset 350 in a file reports `LinePosition(0, 350)` instead of the correct position like `LinePosition(15, 5)` (line 15, column 5).
 
 ## Expected Behavior
@@ -63,9 +63,9 @@ END FUNCTION
 ### Preservation Requirements
 
 **Unchanged Behaviors:**
-- Genuine `MIST_TC_0013` errors must continue to fire when a constructor chain truly has no matching constructor on the declaring type
-- `CheckObjectCreation` (MIST_TC_0011) must continue to correctly match constructors for `new Type(args)` expressions
-- All other type checker diagnostics (MIST_TC_0001 through MIST_TC_0018) must continue to fire with unchanged logic
+- Genuine `MIST_TC_0013 (historical)` errors must continue to fire when a constructor chain truly has no matching constructor on the declaring type
+- `CheckObjectCreation` (MIST_TC_0011 (historical)) must continue to correctly match constructors for `new Type(args)` expressions
+- All other type checker diagnostics (MIST_TC_0001 (historical) through MIST_TC_0018 (historical)) must continue to fire with unchanged logic
 - `FindDeclaringType` usage in `CheckMethodBody` and `CheckConstructorBody` for setting `_currentEnclosingType` must remain unchanged
 - Lexer and parser diagnostics with their own file paths and locations must pass through unchanged
 - The `AnalyzerRunner` crash-handling diagnostic (which uses `CompilationUnitPath: null`) is unaffected
@@ -107,7 +107,7 @@ _For any_ diagnostic emitted by `MakeDiagnostic` where the syntax node belongs t
 
 Property 3: Preservation — Genuine Constructor Chain Errors Still Fire
 
-_For any_ constructor chain where the declaring type genuinely has no matching constructor for the chained arguments, the fixed code SHALL produce the same `MIST_TC_0013` diagnostic as the original code (with the correct type name), preserving error detection for truly invalid constructor chains.
+_For any_ constructor chain where the declaring type genuinely has no matching constructor for the chained arguments, the fixed code SHALL produce the same `MIST_TC_0013 (historical)` diagnostic as the original code (with the correct type name), preserving error detection for truly invalid constructor chains.
 
 **Validates: Requirements 3.1**
 
@@ -165,13 +165,13 @@ The testing strategy follows a two-phase approach: first, surface counterexample
 **Test Plan**: Write tests that compile multi-type Mist programs with constructor chaining and inspect the emitted diagnostics. Run these tests on the UNFIXED code to observe false positives and missing location info.
 
 **Test Cases**:
-1. **False Positive Test**: Compile `Point.mist` and `Color.mist` together; assert that `MIST_TC_0013` is NOT emitted for `Point() : this(0, 0)` (will fail on unfixed code — false positive fires)
-2. **Wrong Type Name Test**: Compile the same files; if `MIST_TC_0013` fires, check that the error message references `Color` instead of `Point` (confirms wrong type resolution on unfixed code)
+1. **False Positive Test**: Compile `Point.mist` and `Color.mist` together; assert that `MIST_TC_0013 (historical)` is NOT emitted for `Point() : this(0, 0)` (will fail on unfixed code — false positive fires)
+2. **Wrong Type Name Test**: Compile the same files; if `MIST_TC_0013 (historical)` fires, check that the error message references `Color` instead of `Point` (confirms wrong type resolution on unfixed code)
 3. **Missing File Path Test**: Trigger any type checker diagnostic and assert `CompilationUnitPath` is non-null (will fail on unfixed code — always null)
 4. **Wrong Line Number Test**: Trigger a type checker diagnostic and assert `Location.Start.Line > 0` (will fail on unfixed code — line is always 0)
 
 **Expected Counterexamples**:
-- `MIST_TC_0013` fires with message "No constructor on 'Color' matches the chained arguments" for `Point`'s constructor chain
+- `MIST_TC_0013 (historical)` fires with message "No constructor on 'Color' matches the chained arguments" for `Point`'s constructor chain
 - All diagnostics have `CompilationUnitPath == null` and `Location.Start.Line == 0`
 - Possible causes confirmed: `FindEnclosingType` returns wrong type; `MakeDiagnostic` hardcodes null path and line 0
 
@@ -222,9 +222,9 @@ END FOR
 **Test Plan**: Observe behavior on UNFIXED code first for single-type compilations and genuine constructor mismatches, then write property-based tests capturing that behavior.
 
 **Test Cases**:
-1. **Genuine MIST_TC_0013 Preservation**: Compile a program where a constructor chain truly has no match (e.g., `Foo() : this(1, 2, 3)` with only `Foo(int)`) and verify the error still fires with the correct type name after the fix
+1. **Genuine MIST_TC_0013 (historical) Preservation**: Compile a program where a constructor chain truly has no match (e.g., `Foo() : this(1, 2, 3)` with only `Foo(int)`) and verify the error still fires with the correct type name after the fix
 2. **Single-Type Namespace Preservation**: Compile a program with only one type that has constructor chaining and verify behavior is identical before and after the fix
-3. **Other Diagnostic Preservation**: Trigger various non-constructor-chain diagnostics (MIST_TC_0001 assignment, MIST_TC_0008 return type, MIST_TC_0011 object creation) and verify the same diagnostic IDs and messages are produced
+3. **Other Diagnostic Preservation**: Trigger various non-constructor-chain diagnostics (MIST_TC_0001 (historical) assignment, MIST_TC_0008 (historical) return type, MIST_TC_0011 (historical) object creation) and verify the same diagnostic IDs and messages are produced
 4. **CheckObjectCreation Preservation**: Verify `new Type(args)` constructor matching continues to work correctly
 
 ### Unit Tests
@@ -234,12 +234,12 @@ END FOR
 - Test `MakeDiagnostic` produces correct 1-based line/column from `SourceText.ToLinePositionSpan`
 - Test `MakeDiagnostic` gracefully handles nodes with zero-length spans (location should be null)
 - Test `CheckConstructorChain` with matching constructor on correct type produces no diagnostic
-- Test `CheckConstructorChain` with genuinely mismatched arguments produces `MIST_TC_0013`
+- Test `CheckConstructorChain` with genuinely mismatched arguments produces `MIST_TC_0013 (historical)`
 
 ### Property-Based Tests
 
 - Generate random namespace configurations with 1–5 types, each with 0–3 constructors, and verify `FindDeclaringType` always returns the type whose `MemberScope` matches the constructor's `ContainingScope`
-- Generate random constructor chains with varying argument counts and types, and verify `MIST_TC_0013` fires if and only if no matching constructor exists on the declaring type
+- Generate random constructor chains with varying argument counts and types, and verify `MIST_TC_0013 (historical)` fires if and only if no matching constructor exists on the declaring type
 - Generate random source text with known line breaks and verify `SourceText.ToLinePositionSpan` produces correct 1-based positions for arbitrary offsets
 
 ### Integration Tests

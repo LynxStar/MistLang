@@ -11,7 +11,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class OwnedReturnProvenanceTests
 {
-    private const string NotOwned = "MIST_PA_OWNED_RETURN_NOT_OWNED";
+    private const string NotOwned = "MIST0263";
 
     [Theory]
     [InlineData("owned-return-of-this")]

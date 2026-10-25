@@ -303,11 +303,11 @@ Three updates to the TextMate grammar:
 
 | ID | Severity | Condition |
 |----|----------|-----------|
-| `MIST_SB_0080` | Error | Enum member value not assignable to explicit underlying type |
-| `MIST_SB_0081` | Error | Enum member value not assignable to inferred underlying type |
-| `MIST_SB_0082` | Error | Undefined enum member access (`EnumName.InvalidMember`) |
-| `MIST_SB_0083` | Error | Cannot assign underlying type value to enum type variable |
-| `MIST_SB_0084` | Error | Duplicate enum name in same scope |
+| `MIST_SB_0080 (historical)` | Error | Enum member value not assignable to explicit underlying type |
+| `MIST_SB_0081 (historical)` | Error | Enum member value not assignable to inferred underlying type |
+| `MIST_SB_0082 (historical)` | Error | Undefined enum member access (`EnumName.InvalidMember`) |
+| `MIST_SB_0083 (historical)` | Error | Cannot assign underlying type value to enum type variable |
+| `MIST_SB_0084 (historical)` | Error | Duplicate enum name in same scope |
 
 ### Error Recovery
 

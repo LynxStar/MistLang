@@ -27,8 +27,8 @@ public sealed class UnknownClosureRefusalTests
         var array = UnknownViewDecisionTests.Generic("Array<,>", null, "TValue", "Length");
         array.TypeParametersList[1].IsDependent = true;
 
-        Assert.Equal("MIST_PA_UNKNOWN_CLOSURE_CONSTRUCTED", UnknownClosureAnalyzer.Judge(new ConstructedType(box, [UnknownType.Instance]))?.Number.Value);
-        Assert.Equal("MIST_PA_UNKNOWN_CLOSURE_CONSTRUCTED", UnknownClosureAnalyzer.Judge(new ConstructedType(box, [new ConstructedType(box, [UnknownType.Instance])]))?.Number.Value);
+        Assert.Equal("MIST0203", UnknownClosureAnalyzer.Judge(new ConstructedType(box, [UnknownType.Instance]))?.Number.Value);
+        Assert.Equal("MIST0203", UnknownClosureAnalyzer.Judge(new ConstructedType(box, [new ConstructedType(box, [UnknownType.Instance])]))?.Number.Value);
         Assert.Null(UnknownClosureAnalyzer.Judge(new ConstructedType(box, [Int32])));
         Assert.Null(UnknownClosureAnalyzer.Judge(new ConstructedType(array, [Int32, UnknownType.Instance])));
         Assert.Null(UnknownClosureAnalyzer.Judge(box));
@@ -50,7 +50,7 @@ public sealed class UnknownClosureRefusalTests
             new ExpressionStatement(creation), new ExpressionStatement(defaulted), new ExpressionStatement(concrete)));
 
         Assert.Equal(
-            ["MIST_PA_UNKNOWN_CLOSURE_CONSTRUCTED", "MIST_PA_UNKNOWN_HAS_NO_DEFAULT"],
+            ["MIST0203", "MIST0204"],
             reported.Select(diagnostic => diagnostic.Number.Value));
         Assert.Contains("'Box<unknown>' cannot be constructed: its type argument for 'T' is 'unknown'", reported[0].Message, StringComparison.Ordinal);
     }
@@ -70,8 +70,8 @@ public sealed class UnknownClosureRefusalTests
         var toClosure = new TypeTestPattern(HandBuiltModel.Node(), closed, binding: null);
         var toConcrete = new TypeTestPattern(HandBuiltModel.Node(), concrete, binding: null);
 
-        Assert.Equal("MIST_PA_PATTERN_NARROWS_TO_UNKNOWN_CLOSURE", PatternAnalyzer.TypeFinding(toClosure, concrete, built.Interner)?.Number.Value);
-        Assert.Equal("MIST_PA_PATTERN_NARROWS_TO_UNKNOWN_CLOSURE", PatternAnalyzer.TypeFinding(toClosure, closed, built.Interner)?.Number.Value);
+        Assert.Equal("MIST0195", PatternAnalyzer.TypeFinding(toClosure, concrete, built.Interner)?.Number.Value);
+        Assert.Equal("MIST0195", PatternAnalyzer.TypeFinding(toClosure, closed, built.Interner)?.Number.Value);
         Assert.Null(PatternAnalyzer.TypeFinding(toClosure, UnknownType.Instance, built.Interner));
         Assert.Null(PatternAnalyzer.TypeFinding(toConcrete, closed, built.Interner));
         Assert.Null(PatternAnalyzer.TypeFinding(toConcrete, concrete, built.Interner));

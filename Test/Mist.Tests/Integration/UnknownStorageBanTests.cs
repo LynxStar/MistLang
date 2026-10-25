@@ -32,7 +32,7 @@ namespace Mist.Tests.Integration;
 [Trait("Tier", "3")]
 public sealed class UnknownStorageBanTests : IDisposable
 {
-    private const string StorageId = "MIST_PM_UNKNOWN_AT_STORAGE";
+    private const string StorageId = "MIST0394";
 
     private readonly string outputDir;
 

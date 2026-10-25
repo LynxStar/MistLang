@@ -252,12 +252,12 @@ Union_{Type1}_{Type2}_...
 
 | ID | Severity | Condition |
 |----|----------|-----------|
-| `MIST_TC_0050` | Error | Non-constituent assigned to union target |
-| `MIST_TC_0051` | Error | Union assigned to non-union without narrowing |
-| `MIST_TC_0052` | Error | Member not present on all union constituents |
-| `MIST_TC_0053` | Error | Pattern type is not a union constituent (never matches); reported as `MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT` |
-| `MIST_TC_0054` | Warning | Union has fewer than 2 distinct types after deduplication |
-| `MIST_TC_0055` | Error | Union-to-union assignment with incompatible constituents |
+| `MIST_TC_0050 (historical)` | Error | Non-constituent assigned to union target |
+| `MIST_TC_0051 (historical)` | Error | Union assigned to non-union without narrowing |
+| `MIST_TC_0052 (historical)` | Error | Member not present on all union constituents |
+| `MIST_TC_0053 (historical)` | Error | Pattern type is not a union constituent (never matches); reported as `MIST0345` |
+| `MIST_TC_0054 (historical)` | Warning | Union has fewer than 2 distinct types after deduplication |
+| `MIST_TC_0055 (historical)` | Error | Union-to-union assignment with incompatible constituents |
 
 ## Correctness Properties
 
@@ -353,24 +353,24 @@ Union_{Type1}_{Type2}_...
 
 When a constituent type in a union cannot be resolved (e.g., `int | Foo` where `Foo` is undefined):
 - The semantic model uses `ErrorType.Instance` for the unresolved constituent.
-- A `MIST_UNDEFINED_TYPE` diagnostic is emitted (existing behavior).
+- A `MIST_UNDEFINED_TYPE (historical)` diagnostic is emitted (existing behavior).
 - The union is still constructed with the remaining valid constituents + ErrorType.
 - The type checker treats any union containing `ErrorType` as "poisoned" — it suppresses further diagnostics on that union to avoid cascading errors.
 
 ### Degenerate Unions
 
-- `int | int` → deduplicated to `int` (not a union). Warning `MIST_TC_0054` emitted.
+- `int | int` → deduplicated to `int` (not a union). Warning `MIST_TC_0054 (historical)` emitted.
 - `(int | string) | int` → flattened to `int | string`. No warning (still 2 distinct types).
 - Single-type "union" after deduplication → reduced to the single type.
 
 ### Pattern Matching on Unions
 
-- Pattern type not a constituent → error `MIST_TC_0053` (the pattern can never match), so the program is refused and no check is emitted. A union narrows through its carrier's per-constituent accessor, and a type that is no constituent has none, so there is no test to lower.
+- Pattern type not a constituent → error `MIST_TC_0053 (historical)` (the pattern can never match), so the program is refused and no check is emitted. A union narrows through its carrier's per-constituent accessor, and a type that is no constituent has none, so there is no test to lower.
 
 > **Amendment note (2026-10-20, operator decision).** This section, the diagnostic table and Property 12
 > originally made a non-constituent type pattern a warning with a kept dead check. The owner chose the
 > error on 2026-10-20 ("I think the error for the dead arm is the best. Amend the spec to match."); see
-> requirements.md Requirements 8.3 and 12.5. `MIST_TC_0054` stays a warning.
+> requirements.md Requirements 8.3 and 12.5. `MIST_TC_0054 (historical)` stays a warning.
 
 ### C# Emission Edge Cases
 

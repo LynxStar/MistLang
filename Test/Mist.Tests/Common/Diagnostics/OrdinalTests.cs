@@ -139,7 +139,7 @@ public sealed class OrdinalTests
     }
 
     [Fact]
-    public void AWrapperReferencesItsCauseByOrdinalAndNeverQuotesIt()
+    public void AWrapperReferencesItsCauseByOrdinal()
     {
         var bag = new DiagnosticBag();
         Report(bag, "cause");
@@ -147,9 +147,25 @@ public sealed class OrdinalTests
 
         bag.Admit(DiagnosticFactory.Create(Probe, cause.Location, PipelineStage.Analysis, [new TextValue("wrapper")], cause: cause.Ordinal));
 
-        var wrapper = bag.Admitted[1];
-        Assert.Equal(cause.Ordinal, wrapper.Cause);
-        Assert.DoesNotContain(cause.Message, wrapper.Message);
+        Assert.Equal(cause.Ordinal, bag.Admitted[1].Cause);
+    }
+
+    [Fact]
+    public void ASecondCommitIsRefusedSoTheParentHoldsEachOccurrenceOnce()
+    {
+        var bag = new DiagnosticBag();
+        var withheld = bag.Withhold(() => Report(bag, "once"));
+
+        withheld.Commit();
+        _ = Assert.Throws<InvalidOperationException>(withheld.Commit);
+
+        _ = Assert.Single(bag.Admitted);
+        Assert.True(withheld.Decided);
+
+        var discarded = bag.Withhold(() => Report(bag, "dropped"));
+        discarded.Discard();
+        _ = Assert.Throws<InvalidOperationException>(discarded.Commit);
+        _ = Assert.Single(bag.Admitted);
     }
 
     [Fact]

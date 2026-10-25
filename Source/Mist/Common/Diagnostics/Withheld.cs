@@ -23,6 +23,11 @@ public sealed class Withheld
 
     public void Commit()
     {
+        if(Decided)
+        {
+            throw new InvalidOperationException("The withheld occurrences were already committed or discarded.");
+        }
+
         foreach(var occurrence in Occurrences)
         {
             parent.Add(occurrence);

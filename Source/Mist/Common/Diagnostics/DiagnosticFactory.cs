@@ -40,6 +40,8 @@ public static class DiagnosticFactory
         origin = origin.BoundsFault is null
             ? DiagnosticHelper.Place(origin.Location, origin.Frames)
             : origin with { Location = new Absent(AbsenceReason.OutOfBounds) };
+        var boundsFault = origin.BoundsFault;
+        related = ValidateRelated(related, ref boundsFault);
         var values = arguments.ToImmutableArray();
         var reason = Breach(descriptor, values);
         var occurrence = new Diagnostic(
@@ -56,7 +58,7 @@ public static class DiagnosticFactory
                 rendersFallback: false, legacyText: null));
         }
 
-        if(origin.BoundsFault is { } fault)
+        if(boundsFault is { } fault)
         {
             breaches.Add(new Diagnostic(
                 InternalDiagnostics.LocationOutOfBounds,
@@ -66,6 +68,24 @@ public static class DiagnosticFactory
         }
 
         return new Admission(occurrence, breaches.ToImmutable());
+    }
+
+    private static ImmutableArray<RelatedLocation> ValidateRelated(ImmutableArray<RelatedLocation> related, ref string? boundsFault)
+    {
+        if(related.IsDefaultOrEmpty)
+        {
+            return related;
+        }
+
+        var validated = ImmutableArray.CreateBuilder<RelatedLocation>(related.Length);
+        foreach(var item in related)
+        {
+            var placed = DiagnosticHelper.Place(item.Location);
+            boundsFault ??= placed.BoundsFault;
+            validated.Add(item with { Location = placed.Location });
+        }
+
+        return validated.MoveToImmutable();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "The span stays in the adapter's signature for the producers Phase 2 migrates; without the text it was computed against it cannot be placed.")]

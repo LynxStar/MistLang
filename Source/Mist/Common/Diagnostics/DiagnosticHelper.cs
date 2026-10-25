@@ -34,6 +34,8 @@ public static class DiagnosticHelper
         {
             SourceRange range => Fault(range.File.Text, range.Offset, range.Length),
             SourcePoint point => Fault(point.File.Text, point.Offset, 0),
+            ProjectLocation { KeySpan: { } range } => Fault(range.File.Text, range.Offset, range.Length),
+            GeneratedLocation { Mapped: { } range } => Fault(range.File.Text, range.Offset, range.Length),
             _ => null,
         };
 

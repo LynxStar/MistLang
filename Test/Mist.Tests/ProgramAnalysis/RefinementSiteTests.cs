@@ -65,7 +65,7 @@ public sealed class RefinementSiteTests
         }
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), root));
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
         Assert.Equal(25, finding.Location.Start.Column);
     }
@@ -125,7 +125,7 @@ public sealed class RefinementSiteTests
         }
 
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
         Assert.Equal(25, finding.Location.Start.Column);
     }
@@ -149,7 +149,7 @@ public sealed class RefinementSiteTests
         constructor.ChainArgumentsList.Add(h.Literal(0L, offset: 24));
         concrete.ConstructorsList.Add(constructor);
         var finding = Assert.Single(fragments.Run(new RefinementAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
         Assert.Equal(25, finding.Location.Start.Column);
     }
 
@@ -167,7 +167,7 @@ public sealed class RefinementSiteTests
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltRefinements.Need(value, above)));
 
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Number.Value);
         Assert.Contains("'> -0.5'", finding.Message, StringComparison.Ordinal);
     }
 

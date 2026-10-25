@@ -121,7 +121,7 @@ public sealed class RegexChainSelectionTests
     [Fact]
     public void AnImplicitSiteACastWouldReachThroughTheIntrinsicStep_SaysACastExists()
     {
-        Assert.Equal("MIST_PA_CAST_REQUIRED", Assert.Single(Errors("Feet needsCast = pattern;")).Id.Value);
+        Assert.Equal("MIST_PA_CAST_REQUIRED", Assert.Single(Errors("Feet needsCast = pattern;")).Number.Value);
     }
 
     [Fact]

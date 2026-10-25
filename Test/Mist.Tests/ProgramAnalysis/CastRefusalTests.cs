@@ -47,7 +47,7 @@ public sealed class CastRefusalTests
     {
         var input = Case(caseName);
         var finding = CastAnalyzer.Judge(input.Cast, input.Model.Interner, input.Refusals);
-        Assert.True(finding?.Id.Value == expected, $"{caseName}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == expected, $"{caseName}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -60,7 +60,7 @@ public sealed class CastRefusalTests
         var clone = HandBuiltModel.Class("Cash");
         clone.CloneSource = source;
         clone.CloneSourceType = source;
-        Assert.True(OperatorBinder.AsFinding(clone, source)?.Id.Value == "MIST_PM_AS_NO_RELATIONSHIP", caseName);
+        Assert.True(OperatorBinder.AsFinding(clone, source)?.Number.Value == "MIST_PM_AS_NO_RELATIONSHIP", caseName);
         Assert.Null(OperatorBinder.AsFinding(source, source));
     }
 
@@ -75,7 +75,7 @@ public sealed class CastRefusalTests
     {
         var input = Case(caseName);
         var finding = Assert.Single(input.Model.Analyze(new CastAnalyzer(), input.Cast));
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(41, finding.Location.Start.Column);
     }
 
@@ -212,7 +212,7 @@ public sealed class CastRefusalTests
                 var clone = new Method("Clone", lion, [], default) { DeclaringType = lion };
                 var conversion = new CastOperator(puma, new Parameter("value", lion), false, default) { DeclaringType = puma, ClonesThrough = clone };
                 selected = [new ConversionFunction(conversion, lion, puma)];
-                var failure = new Diagnostic(ProgramAnalysisDiagnostics.NoImplicitConversion.Id, DiagnosticSeverity.Error, default, "Mate does not hold", default, "hand-built.mist", null);
+                var failure = DiagnosticFixtures.Occurrence(ProgramAnalysisDiagnostics.NoImplicitConversion.Number.Value, DiagnosticSeverity.Error, default, "Mate does not hold", default, "hand-built.mist", null);
                 refusals = new Dictionary<CastOperator, ConversionRefusal> { [conversion] = new(failure, "Mate") };
                 source = lion; target = puma;
                 break;

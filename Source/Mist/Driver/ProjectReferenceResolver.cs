@@ -159,7 +159,7 @@ public static class ProjectReferenceResolver
             var cycleChain = string.Join(" → ", cycleNodes);
 
             diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectCircularReference.Id,
+                DriverDiagnostics.ProjectCircularReference.Number,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Circular project reference detected: {cycleChain}.",
@@ -182,10 +182,10 @@ public static class ProjectReferenceResolver
 
         var descriptor = DriverDiagnostics.ProjectReferenceNameMismatch;
         return new Diagnostic(
-            descriptor.Id,
+            descriptor.Number,
             descriptor.DefaultSeverity,
-            descriptor.Stage,
-            string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, key, producedName, Describe(kind), targetPath),
+            PipelineStage.Driver,
+            string.Format(CultureInfo.InvariantCulture, descriptor.Template, key, producedName, Describe(kind), targetPath),
             Location: default,
             CompilationUnitPath: targetPath,
             AnalyzerName: null);
@@ -254,7 +254,7 @@ public static class ProjectReferenceResolver
             else
             {
                 diagnostics.Add(new Diagnostic(
-                    DriverDiagnostics.ProjectReferenceNotFound.Id,
+                    DriverDiagnostics.ProjectReferenceNotFound.Number,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced project path '{canonicalTomlPath}' does not exist.",
@@ -270,7 +270,7 @@ public static class ProjectReferenceResolver
                  .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
         {
             diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectReferenceNotFound.Id,
+                DriverDiagnostics.ProjectReferenceNotFound.Number,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Referenced project path '{canonicalTomlPath}' does not exist.",

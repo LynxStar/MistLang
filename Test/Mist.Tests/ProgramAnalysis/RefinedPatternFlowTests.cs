@@ -75,7 +75,7 @@ public sealed class RefinedPatternFlowTests
 
         var findings = h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block(body));
 
-        Assert.True(expected is null ? findings.Count == 0 : findings.Count == 1 && findings[0].Id.Value == expected,
-            $"{name}: {string.Join(", ", findings.Select(finding => finding.Id.Value))}");
+        Assert.True(expected is null ? findings.Count == 0 : findings.Count == 1 && findings[0].Number.Value == expected,
+            $"{name}: {string.Join(", ", findings.Select(finding => finding.Number.Value))}");
     }
 }

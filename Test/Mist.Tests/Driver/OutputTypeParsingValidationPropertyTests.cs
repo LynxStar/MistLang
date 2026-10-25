@@ -159,7 +159,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
                 }
 
                 var hasOutputTypeError = diags.Any(d =>
-                    d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE");
+                    d.Number.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE");
                 if(hasOutputTypeError)
                 {
                     return false;
@@ -182,7 +182,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
             {
                 // Should produce an error diagnostic for the invalid output type
                 var hasOutputTypeError = diags.Any(d =>
-                    d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE" &&
+                    d.Number.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE" &&
                     d.Severity == DiagnosticSeverity.Error);
                 return hasOutputTypeError;
             }
@@ -245,7 +245,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
             Assert.NotNull(result);
             Assert.Equal(ProjectOutputType.Executable, result.OutputType);
             Assert.Empty(diagnostics.ToImmutableArray().Where(d =>
-                d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE"));
+                d.Number.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE"));
         }
         finally
         {

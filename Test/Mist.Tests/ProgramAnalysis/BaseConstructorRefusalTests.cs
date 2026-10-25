@@ -24,7 +24,7 @@ public sealed class BaseConstructorRefusalTests
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
-        Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Id.Value);
+        Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
         Assert.Equal("Base class 'Meter' requires constructor arguments that are not provided.", finding.Message);
     }
@@ -66,7 +66,7 @@ public sealed class BaseConstructorRefusalTests
         dial.BaseType = Base(fragment, "argument-taking");
 
         Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal("MIST_PA_BASE_NOT_DEFAULTABLE", Assert.Single(fragment.Run(new DefaultabilityAnalyzer())).Id.Value);
+        Assert.Equal("MIST_PA_BASE_NOT_DEFAULTABLE", Assert.Single(fragment.Run(new DefaultabilityAnalyzer())).Number.Value);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class BaseConstructorRefusalTests
         if(refused)
         {
             var finding = Assert.Single(findings);
-            Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Id.Value);
+            Assert.Equal("MIST_PA_BASE_CTOR_UNSATISFIED", finding.Number.Value);
             Assert.Equal(61, finding.Location.Start.Column);
             Assert.Contains("Meter", finding.Message, StringComparison.Ordinal);
         }

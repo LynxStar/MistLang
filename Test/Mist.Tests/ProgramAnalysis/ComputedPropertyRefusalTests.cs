@@ -18,7 +18,7 @@ public sealed class ComputedPropertyRefusalTests
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
-        Assert.Equal(ProgramAnalysisDiagnostics.FieldInComputedProperty.Id, finding.Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.FieldInComputedProperty.Number, finding.Number);
         Assert.Equal(DiagnosticSeverity.Error, finding.Severity);
         Assert.Equal(DiagnosticHelper.ResolveLocation(reference.Node).Location, finding.Location);
         Assert.Contains("'Value'", finding.Message, StringComparison.Ordinal);

@@ -63,7 +63,7 @@ public sealed class DeclarationShapeRefusalTests
             : new DeclarationShapeAnalyzer();
         var findings = fragment.Run(analyzer);
         Assert.Equal(count, findings.Count);
-        Assert.All(findings, finding => Assert.Equal(expected, finding.Id.Value));
+        Assert.All(findings, finding => Assert.Equal(expected, finding.Number.Value));
         Assert.All(findings, finding => Assert.Equal("hand-built.mist", finding.CompilationUnitPath));
     }
 

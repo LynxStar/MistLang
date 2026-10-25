@@ -194,7 +194,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("", declaration);
 
-        var info = Assert.Single(diagnostics, diagnostic => diagnostic.Id.Value == "MIST_PM_READONLY_IMPLIED_BY_PURE");
+        var info = Assert.Single(diagnostics, diagnostic => diagnostic.Number.Value == "MIST_PM_READONLY_IMPLIED_BY_PURE");
         Assert.Equal(DiagnosticSeverity.Info, info.Severity);
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
@@ -229,7 +229,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
         var diagnostics = BuildRun("", declaration);
 
         var error = Assert.Single(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal(id, error.Id.Value);
+        Assert.Equal(id, error.Number.Value);
     }
 
     private ConcreteType TypeIn(string declaration)

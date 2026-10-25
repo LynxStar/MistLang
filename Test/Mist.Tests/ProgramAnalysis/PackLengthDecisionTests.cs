@@ -53,7 +53,7 @@ public sealed class PackLengthDecisionTests
 
         var finding = Assert.Single(fragment.Run(new ConstraintAnalyzer()));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Number.Value);
         Assert.Contains("'Type[2]' constraint on type parameter 'TArgs'", finding.Message);
         Assert.Equal(56, finding.Location.Start.Column);
     }

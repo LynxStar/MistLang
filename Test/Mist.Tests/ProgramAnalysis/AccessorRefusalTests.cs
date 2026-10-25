@@ -60,7 +60,7 @@ public sealed class AccessorRefusalTests
     {
         var diagnostic = Assert.Single(new AccessorFragments(caseName).Decide());
 
-        Assert.True(diagnostic.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Id.Value}");
+        Assert.True(diagnostic.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Number.Value}");
     }
     [Fact]
     public void AdmittedAccessAndCoveredMemberFailuresRemainSilent()

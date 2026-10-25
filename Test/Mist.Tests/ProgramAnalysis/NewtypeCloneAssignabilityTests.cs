@@ -25,8 +25,8 @@ public sealed class NewtypeCloneAssignabilityTests
         puma.CloneSourceType = lion;
         var parameter = new Parameter("lion", lion);
         var decision = Assignability.Judge(new ThisExpression(HandBuiltModel.Node(40), puma), parameter.Type, built.Interner);
-        _ = Assert.NotNull(decision);
-        Assert.True(decision.Value.Id.Value == diagnosticId, refusal);
+        Assert.NotNull(decision);
+        Assert.True(decision.Number.Value == diagnosticId, refusal);
         Assert.Null(Assignability.Judge(new ThisExpression(HandBuiltModel.Node(40), lion), parameter.Type, built.Interner));
     }
 
@@ -68,7 +68,7 @@ public sealed class NewtypeCloneAssignabilityTests
     {
         var chain = new Chain();
 
-        Assert.Equal(expected, Assignability.Judge(chain[from], chain[to], chain.Built.Interner)?.Id.Value);
+        Assert.Equal(expected, Assignability.Judge(chain[from], chain[to], chain.Built.Interner)?.Number.Value);
     }
 
     [Theory]

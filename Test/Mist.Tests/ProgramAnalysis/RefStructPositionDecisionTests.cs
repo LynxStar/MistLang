@@ -50,7 +50,7 @@ public sealed class RefStructPositionDecisionTests
     {
         var field = new Field("Data", cursor, OwnershipKind.Unrestricted, new MemberModifiers { IsStatic = isStatic });
 
-        Assert.Equal(expected, RefStructPositions.Field(Container(container), field)?.Id.Value);
+        Assert.Equal(expected, RefStructPositions.Field(Container(container), field)?.Number.Value);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class RefStructPositionDecisionTests
     [InlineData("ref-struct", true, true, "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
     public void APropertyThatWouldHoldARefStructOffTheStackIsRefused(string container, bool isStatic, bool isAuto, string expected)
     {
-        Assert.Equal(expected, RefStructPositions.Property(Container(container), Property(isStatic, isAuto))?.Id.Value);
+        Assert.Equal(expected, RefStructPositions.Property(Container(container), Property(isStatic, isAuto))?.Number.Value);
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed class RefStructPositionDecisionTests
         cursor.BaseAbstractTypes.Add(thing);
         IMistType to = target == "abstract" ? thing : UnknownType.Instance;
 
-        Assert.Equal("MIST_PA_REF_STRUCT_BOXED", Assignability.Boxing(cursor, to, model.Interner)?.Id.Value);
+        Assert.Equal("MIST_PA_REF_STRUCT_BOXED", Assignability.Boxing(cursor, to, model.Interner)?.Number.Value);
     }
 
     [Theory]

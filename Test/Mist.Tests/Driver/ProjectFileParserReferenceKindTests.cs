@@ -65,7 +65,7 @@ public sealed class ProjectFileParserReferenceKindTests : IDisposable
         Assert.Null(ParseWith("../libs/Foo.txt", diagnostics));
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(DriverDiagnostics.ReferenceUnsupportedPath.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ReferenceUnsupportedPath.Number, diagnostic.Number);
         Assert.Equal(Path.Combine(app, ProjectFileParser.FileName), diagnostic.CompilationUnitPath);
         Assert.Equal($"Reference 'Ref' names '{notes}', which is not a mist.toml, a .csproj or a .dll.", diagnostic.Message);
     }

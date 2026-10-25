@@ -73,7 +73,7 @@ public sealed class OverloadBindingRefusalTests
         }
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }

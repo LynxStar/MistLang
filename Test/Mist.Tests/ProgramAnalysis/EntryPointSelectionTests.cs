@@ -200,8 +200,8 @@ public sealed class EntryPointSelectionTests
             EntryPointSelection.TopLevelStatements statements => $"statements {statements.File}",
             EntryPointSelection.Main main => $"main {main.Class}",
             EntryPointSelection.Refused refused =>
-                $"{refused.Descriptor.Id.Value}: "
-                + string.Format(CultureInfo.InvariantCulture, refused.Descriptor.MessageTemplate, [.. refused.Arguments]),
+                $"{refused.Descriptor.Number.Value}: "
+                + string.Format(CultureInfo.InvariantCulture, refused.Descriptor.Template, [.. refused.Arguments]),
             _ => "none",
         };
     }

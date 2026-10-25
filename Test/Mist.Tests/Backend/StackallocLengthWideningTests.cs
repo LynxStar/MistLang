@@ -48,7 +48,7 @@ public sealed class StackallocLengthWideningTests
 
         Assert.Empty(findings.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error
             && d.CompilationUnitPath == "Probe.mist"
-            && d.Id.Value is "MIST_PA_NO_IMPLICIT_CONVERSION" or "MIST_PA_CAST_REQUIRED"));
+            && d.Number.Value is "MIST_PA_NO_IMPLICIT_CONVERSION" or "MIST_PA_CAST_REQUIRED"));
     }
 
     [Theory]

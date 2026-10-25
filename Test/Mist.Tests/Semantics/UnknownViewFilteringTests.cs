@@ -176,6 +176,6 @@ public sealed class UnknownViewFilteringTests : ProgramModelProbe
         Assert.Equal(
             Errors(userFirst, Hidden).Select(diagnostic => diagnostic.Message),
             Errors(boxFirst, Hidden).Select(diagnostic => diagnostic.Message));
-        Assert.Empty(userFirst.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id.Value != Hidden));
+        Assert.Empty(userFirst.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Number.Value != Hidden));
     }
 }

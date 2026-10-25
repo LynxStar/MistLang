@@ -290,6 +290,6 @@ public sealed class AccessorDecisionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        Assert.Empty(findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value)));
+        Assert.Empty(findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value)));
     }
 }

@@ -301,7 +301,7 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     {
         Assert.Equal(
             "MIST_PA_INDEX_UNPROVEN",
-            Assert.Single(Analyse("var held = new Held();", $"public class Held {{ {members} }}")).Id.Value);
+            Assert.Single(Analyse("var held = new Held();", $"public class Held {{ {members} }}")).Number.Value);
     }
 
     [Theory]
@@ -512,6 +512,6 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

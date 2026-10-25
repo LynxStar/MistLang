@@ -52,7 +52,7 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
         Assert.Null(result.PrimaryOutputArtifactPath);
         Assert.False(Directory.Exists(options.BinDirectory));
 
-        var refusal = Assert.Single(result.Diagnostics, d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
+        var refusal = Assert.Single(result.Diagnostics, d => d.Number == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Number);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
         Assert.Contains("Standard.Math.Abs(int)", refusal.Message);
         Assert.EndsWith("Probe.mist", refusal.CompilationUnitPath);
@@ -75,7 +75,7 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
             BodyEmitter.EmitBlock(run.Body!, writer, diagnostics);
         }
 
-        Assert.DoesNotContain(diagnostics.ToImmutableArray(), d => d.Id == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Id);
+        Assert.DoesNotContain(diagnostics.ToImmutableArray(), d => d.Number == BackendDiagnostics.MissingIntrinsicEmissionTemplate.Number);
         Assert.Contains("System.Math.Abs(-1)", writer.ToString());
     }
 }

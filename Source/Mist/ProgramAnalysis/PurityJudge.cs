@@ -9,7 +9,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis;
 
-internal sealed record Finding(DiagnosticDescriptor Descriptor, SyntaxNode At, IReadOnlyList<Expression> About, object?[] Args);
+internal sealed record Finding(MistDiagnostic Descriptor, SyntaxNode At, IReadOnlyList<Expression> About, object?[] Args);
 
 internal readonly record struct ScopeDescription(string Text)
 {
@@ -516,7 +516,7 @@ internal static partial class PurityJudge
             return receiver is null ? origins.This : origins.Of(receiver);
         }
 
-        private void Refuse(DiagnosticDescriptor descriptor, SyntaxNode at, IReadOnlyList<Expression> about, params object?[] args)
+        private void Refuse(MistDiagnostic descriptor, SyntaxNode at, IReadOnlyList<Expression> about, params object?[] args)
         {
             Findings.Add(new Finding(descriptor, at, about, args));
 

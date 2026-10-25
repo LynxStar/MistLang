@@ -27,7 +27,7 @@ public sealed class CountedReadRuleTests
 
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", diagnostic.Number.Value);
         Assert.StartsWith(message, diagnostic.Message, StringComparison.Ordinal);
         Assert.Empty(Access(shape.Replace("private", "public", StringComparison.Ordinal)).Run(new AccessibilityAnalyzer()));
     }
@@ -41,7 +41,7 @@ public sealed class CountedReadRuleTests
     {
         var diagnostic = Assert.Single(Access(shape).Run(new AccessorAnalyzer()));
 
-        Assert.Equal(id, diagnostic.Id.Value);
+        Assert.Equal(id, diagnostic.Number.Value);
     }
 
     [Theory]
@@ -64,7 +64,7 @@ public sealed class CountedReadRuleTests
         else
         {
             var finding = Assert.Single(findings);
-            Assert.Equal(id, finding.Id.Value);
+            Assert.Equal(id, finding.Number.Value);
             Assert.EndsWith("on parameter 'length'.", finding.Message, StringComparison.Ordinal);
         }
     }
@@ -100,7 +100,7 @@ public sealed class CountedReadRuleTests
 
         var findings = h.Built.Analyze(new RefinementAnalyzer(), new IsPatternExpression(HandBuiltModel.Node(3), HandBuiltRefinements.Local(strip), list, h.Bool));
 
-        Assert.Equal(id, findings.SingleOrDefault()?.Id.Value);
+        Assert.Equal(id, findings.SingleOrDefault()?.Number.Value);
     }
 
     [Theory]
@@ -114,7 +114,7 @@ public sealed class CountedReadRuleTests
     {
         var finding = Assert.Single(new PurityFragments().Slices(fragment));
 
-        Assert.True(finding.Id.Value == id, $"{fragment}: expected {id}, got {finding.Id.Value}: {finding.Message}");
+        Assert.True(finding.Number.Value == id, $"{fragment}: expected {id}, got {finding.Number.Value}: {finding.Message}");
         Assert.Contains(named, finding.Message, StringComparison.Ordinal);
     }
 

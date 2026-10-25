@@ -231,6 +231,6 @@ public sealed class CompileFeedbackTests
 
     private static Diagnostic Error(string id, string message, string path = "")
     {
-        return new Diagnostic(new DiagnosticId(id), DiagnosticSeverity.Error, PipelineStage.Driver, message, default, path, null);
+        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, path, null);
     }
 }

@@ -468,7 +468,7 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun(statement, SignTypes + FailingTypes, "byte small = 2; var table = new Table();");
 
-        Assert.Equal(reportedId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
+        Assert.Equal(reportedId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Number.Value);
     }
 
     [Theory]
@@ -480,7 +480,7 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun(statement, extraPreamble: "unknown u = 1;");
 
-        Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Id.Value);
+        Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Number.Value);
     }
 
     /// <summary>

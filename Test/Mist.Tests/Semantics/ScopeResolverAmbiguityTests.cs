@@ -106,7 +106,7 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var diags = diagnostics.ToImmutableArray();
         Assert.True(
-            result is ErrorType || diags.Any(d => d.Id.Value == "MIST_PM_AMBIGUOUS_TYPE"),
+            result is ErrorType || diags.Any(d => d.Number.Value == "MIST_PM_AMBIGUOUS_TYPE"),
             $"{because} Got {result.GetType().Name} with {diags.Length} diagnostics.");
     }
 

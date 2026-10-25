@@ -11,1198 +11,1268 @@ public static partial class ProgramModelDiagnostics
 {
     // ── Internal / driver-level errors ────────────────────────────────────
 
-    /// <summary>An unexpected namespace declaration node type was encountered.</summary>
-    public static readonly DiagnosticDescriptor UnexpectedNamespaceNode = new(
-        new DiagnosticId("MIST_INTERNAL_UNEXPECTED_NS_NODE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: unexpected namespace declaration node type '{0}'.");
+    public static readonly MistDiagnostic UnexpectedNamespaceNode = new(
+        DiagnosticNumber.Mint("MIST_INTERNAL_UNEXPECTED_NS_NODE"),
+        Title: "Unexpected namespace node",
+        Template: "Internal compiler error: unexpected namespace declaration node type '{0}'.",
+        Description: "The program model builder met a namespace declaration whose node type it does not handle, which no valid source can produce. Report this as a compiler bug together with the source that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An unrecognized type declaration node was encountered during type registration.</summary>
-    public static readonly DiagnosticDescriptor UnknownTypeDeclaration = new(
-        new DiagnosticId("MIST_INTERNAL_UNKNOWN_TYPE_DECL"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: unrecognized type declaration node '{0}'.");
+    public static readonly MistDiagnostic UnknownTypeDeclaration = new(
+        DiagnosticNumber.Mint("MIST_INTERNAL_UNKNOWN_TYPE_DECL"),
+        Title: "Unrecognized type declaration node",
+        Template: "Internal compiler error: unrecognized type declaration node '{0}'.",
+        Description: "Type registration met a declaration node of a kind the model builder was never taught, which no valid source can produce. Report this as a compiler bug together with the source that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Namespace validation ─────────────────────────────────────────────
 
-    /// <summary>More than one file-scoped namespace in the same file.</summary>
-    public static readonly DiagnosticDescriptor DuplicateFileScopedNamespace = new(
-        new DiagnosticId("MIST0301"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Only one file-scoped namespace is permitted per file.");
+    public static readonly MistDiagnostic DuplicateFileScopedNamespace = new(
+        DiagnosticNumber.Mint("MIST0301"),
+        Title: "Multiple file-scoped namespaces",
+        Template: "Only one file-scoped namespace is permitted per file.",
+        Description: "A source file declares a second file-scoped namespace, but a file-scoped declaration already covers the whole file and so can appear only once. Remove the extra declaration, or switch to block namespaces if the file must span several.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>File-scoped and block namespaces mixed in the same file.</summary>
-    public static readonly DiagnosticDescriptor MixedNamespaceStyles = new(
-        new DiagnosticId("MIST0302"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "File-scoped and block namespaces cannot be mixed in the same file.");
+    public static readonly MistDiagnostic MixedNamespaceStyles = new(
+        DiagnosticNumber.Mint("MIST0302"),
+        Title: "Mixed namespace styles",
+        Template: "File-scoped and block namespaces cannot be mixed in the same file.",
+        Description: "A file uses both a file-scoped namespace and a block namespace, and the two forms cannot coexist because a file-scoped declaration already claims the whole file. Pick one style for the file.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>File-scoped namespace inside a block namespace.</summary>
-    public static readonly DiagnosticDescriptor FileScopedInsideBlock = new(
-        new DiagnosticId("MIST0305"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "File-scoped namespace declarations cannot appear inside a block namespace.");
+    public static readonly MistDiagnostic FileScopedInsideBlock = new(
+        DiagnosticNumber.Mint("MIST0305"),
+        Title: "File-scoped namespace inside block",
+        Template: "File-scoped namespace declarations cannot appear inside a block namespace.",
+        Description: "A file-scoped namespace declaration sits inside a block namespace, where there is no file left for it to scope. Move it to the top level of the file, or turn it into a block namespace.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor UndefinedNamespace = new(
-        new DiagnosticId("MIST_UNDEFINED_NAMESPACE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The namespace '{0}' could not be found.");
+    public static readonly MistDiagnostic UndefinedNamespace = new(
+        DiagnosticNumber.Mint("MIST_UNDEFINED_NAMESPACE"),
+        Title: "Unknown namespace",
+        Template: "The namespace '{0}' could not be found.",
+        Description: "A using directive or qualified name refers to a namespace that no project or referenced assembly in the compilation declares. Check the spelling, or add the reference that supplies it.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor GlobalUsingUndefinedNamespace = new(
-        new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
-        DiagnosticSeverity.Warning,
-        PipelineStage.SemanticModelConstruction,
-        "Global using namespace '{0}' in project '{1}' could not be found, so it imports nothing.");
+    public static readonly MistDiagnostic GlobalUsingUndefinedNamespace = new(
+        DiagnosticNumber.Mint("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
+        Title: "Global using names unknown namespace",
+        Template: "Global using namespace '{0}' in project '{1}' could not be found, so it imports nothing.",
+        Description: "A project's global using list names a namespace that nothing in the compilation declares, so the entry brings no names into scope. Correct the entry in the project configuration or remove it.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Promotable,
+        DefaultSeverity: DiagnosticSeverity.Warning);
 
     // ── Type resolution ──────────────────────────────────────────────────
 
-    /// <summary>A type with the same name already exists in this namespace.</summary>
-    public static readonly DiagnosticDescriptor DuplicateTypeName = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A type named '{0}' already exists in namespace '{1}'.");
+    public static readonly MistDiagnostic DuplicateTypeName = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_TYPE"),
+        Title: "Duplicate type name",
+        Template: "A type named '{0}' already exists in namespace '{1}'.",
+        Description: "Two type declarations in the same namespace share a name, so references to that name would have no single target. Rename one of them or move it to a different namespace.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A name in expression position resolved to nothing in any reachable scope. Covers a misspelling,
-    /// a name not in scope, and an instance member named from a static context -- the last of which is
-    /// excluded from the lookup rather than matched and rejected, so it arrives here as an ordinary
-    /// miss.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnresolvedIdentifier = new(
-        new DiagnosticId("MIST_PM_UNRESOLVED_IDENTIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The name '{0}' could not be found in this scope.");
+    public static readonly MistDiagnostic UnresolvedIdentifier = new(
+        DiagnosticNumber.Mint("MIST_PM_UNRESOLVED_IDENTIFIER"),
+        Title: "Unresolved identifier",
+        Template: "The name '{0}' could not be found in this scope.",
+        Description: "A name in expression position matched nothing in any reachable scope. This covers a misspelling, a name that is not in scope, and an instance member named from a static context, which is excluded from lookup rather than matched and rejected; check the spelling and scope, or qualify the name with an instance.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// <c>await</c> applied to something that is not a task. A language rule rather than a target one:
-    /// the operand has no result to unwrap, which is true of Mist before any backend sees it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor AwaitOfNonTask = new(
-        new DiagnosticId("MIST_PM_AWAIT_OF_NON_TASK"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'await' requires a task, but '{0}' is not one.");
+    public static readonly MistDiagnostic AwaitOfNonTask = new(
+        DiagnosticNumber.Mint("MIST_PM_AWAIT_OF_NON_TASK"),
+        Title: "Await of non-task",
+        Template: "'await' requires a task, but '{0}' is not one.",
+        Description: "The operand of 'await' is not a task, so it has no result to unwrap; this is a rule of the language rather than of any backend. Await a task-valued expression, or drop the 'await'.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A type reference could not be resolved in any reachable scope.</summary>
-    public static readonly DiagnosticDescriptor UnresolvedType = new(
-        new DiagnosticId("MIST_PM_UNRESOLVED_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The type '{0}' could not be found.");
+    public static readonly MistDiagnostic UnresolvedType = new(
+        DiagnosticNumber.Mint("MIST_PM_UNRESOLVED_TYPE"),
+        Title: "Unresolved type",
+        Template: "The type '{0}' could not be found.",
+        Description: "A type reference names a type that no reachable scope declares or imports. Check the spelling, add the using directive that brings it into scope, or reference the project that declares it.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A type name resolves to multiple distinct types from different imported namespaces at the same scope level.</summary>
-    public static readonly DiagnosticDescriptor AmbiguousType = new(
-        new DiagnosticId("MIST_PM_AMBIGUOUS_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The type name '{0}' is ambiguous between imported namespaces '{1}' and '{2}'. Use a fully-qualified name to disambiguate.");
+    public static readonly MistDiagnostic AmbiguousType = new(
+        DiagnosticNumber.Mint("MIST_PM_AMBIGUOUS_TYPE"),
+        Title: "Ambiguous type name",
+        Template: "The type name '{0}' is ambiguous between imported namespaces '{1}' and '{2}'. Use a fully-qualified name to disambiguate.",
+        Description: "A type name resolves to distinct types in two imported namespaces at the same scope level, so the reference has no single meaning. Qualify the name fully, or remove one of the imports.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A type alias's expansion reaches itself (e.g., <c>type A = B; type B = A;</c>), so no
-    /// finite target exists. Reported once, at the declaration where the on-demand build
-    /// re-entered itself; the alias resolves to an error type to stop the recursion.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CyclicTypeAlias = new(
-        new DiagnosticId("MIST_PM_CYCLIC_TYPE_ALIAS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type alias '{0}' forms a cycle.");
+    public static readonly MistDiagnostic CyclicTypeAlias = new(
+        DiagnosticNumber.Mint("MIST_PM_CYCLIC_TYPE_ALIAS"),
+        Title: "Cyclic type alias",
+        Template: "Type alias '{0}' forms a cycle.",
+        Description: "A type alias expands, directly or through other aliases, back to itself, so it names no finite target. It is reported once at the declaration where the expansion re-entered itself and the alias is treated as an error type; break the cycle by making one alias name a concrete type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A qualified member access named nothing on the receiver's type or its bases.</summary>
-    public static readonly DiagnosticDescriptor UnresolvedMember = new(
-        new DiagnosticId("MIST_PM_UNRESOLVED_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' has no member named '{1}'.");
+    public static readonly MistDiagnostic UnresolvedMember = new(
+        DiagnosticNumber.Mint("MIST_PM_UNRESOLVED_MEMBER"),
+        Title: "Unresolved member",
+        Template: "'{0}' has no member named '{1}'.",
+        Description: "A member access names something that neither the receiver's type nor any of its bases declares. Check the member name, or confirm the receiver has the type you expect.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A member name matched several equally close declarations, so no single declaration answers it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor AmbiguousMember = new(
-        new DiagnosticId("MIST_PM_AMBIGUOUS_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The member '{1}' on '{0}' is ambiguous between {2}.");
+    public static readonly MistDiagnostic AmbiguousMember = new(
+        DiagnosticNumber.Mint("MIST_PM_AMBIGUOUS_MEMBER"),
+        Title: "Ambiguous member",
+        Template: "The member '{1}' on '{0}' is ambiguous between {2}.",
+        Description: "A member name matched several equally close declarations on the receiver, so no single one answers it. Qualify the access through the declaring type, or rename one of the colliding members.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor AmbiguousIdentifier = new(
-        new DiagnosticId("MIST_PM_AMBIGUOUS_IDENTIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The identifier '{0}' is ambiguous between {1}.");
+    public static readonly MistDiagnostic AmbiguousIdentifier = new(
+        DiagnosticNumber.Mint("MIST_PM_AMBIGUOUS_IDENTIFIER"),
+        Title: "Ambiguous identifier",
+        Template: "The identifier '{0}' is ambiguous between {1}.",
+        Description: "A bare name matches more than one declaration at the same scope distance, so the reference cannot pick one. Qualify the name with its declaring type or namespace, or remove the import that introduces the duplicate.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An unrecognized type reference AST node was encountered.</summary>
-    public static readonly DiagnosticDescriptor UnknownTypeRefNode = new(
-        new DiagnosticId("MIST_PM_UNKNOWN_TYPE_REF_NODE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: unrecognized type reference node '{0}'.");
+    public static readonly MistDiagnostic UnknownTypeRefNode = new(
+        DiagnosticNumber.Mint("MIST_PM_UNKNOWN_TYPE_REF_NODE"),
+        Title: "Unrecognized type reference node",
+        Template: "Internal compiler error: unrecognized type reference node '{0}'.",
+        Description: "Type resolution met a type reference node of a kind it does not handle, which no valid source can produce. Report this as a compiler bug together with the source that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A tuple element is named with a reserved positional name (e.g., ItemN).</summary>
-    public static readonly DiagnosticDescriptor ReservedTupleElementName = new(
-        new DiagnosticId("MIST_PM_RESERVED_TUPLE_ELEMENT_NAME"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is a reserved tuple element name; it collides with the positional element accessors. Choose a different name.");
+    public static readonly MistDiagnostic ReservedTupleElementName = new(
+        DiagnosticNumber.Mint("MIST_PM_RESERVED_TUPLE_ELEMENT_NAME"),
+        Title: "Reserved tuple element name",
+        Template: "'{0}' is a reserved tuple element name; it collides with the positional element accessors. Choose a different name.",
+        Description: "A tuple element is given a name of the form the positional accessors already use, such as Item1, so the explicit name would shadow the positional one. Pick a name outside the reserved positional pattern.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Base type resolution ─────────────────────────────────────────────
 
-    /// <summary>A concrete type attempts to inherit from an incompatible kind.</summary>
-    public static readonly DiagnosticDescriptor BaseTypeKindMismatch = new(
-        new DiagnosticId("MIST_PM_BASE_TYPE_KIND_MISMATCH"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A {0} cannot inherit from a {1} ('{2}').");
+    public static readonly MistDiagnostic BaseTypeKindMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_BASE_TYPE_KIND_MISMATCH"),
+        Title: "Base type kind mismatch",
+        Template: "A {0} cannot inherit from a {1} ('{2}').",
+        Description: "A type's base list names a type of a kind it cannot derive from, for example a struct deriving from a class. Remove the entry, or change the declaration to a kind that can derive from it.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A concrete type appears in the abstract implementations list.</summary>
-    public static readonly DiagnosticDescriptor ConcreteInAbstractList = new(
-        new DiagnosticId("MIST_PM_CONCRETE_IN_ABSTRACT_LIST"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A concrete type ('{0}') cannot appear in the abstract implementations list. Only the first entry may be a concrete base type.");
+    public static readonly MistDiagnostic ConcreteInAbstractList = new(
+        DiagnosticNumber.Mint("MIST_PM_CONCRETE_IN_ABSTRACT_LIST"),
+        Title: "Concrete type in abstract list",
+        Template: "A concrete type ('{0}') cannot appear in the abstract implementations list. Only the first entry may be a concrete base type.",
+        Description: "A type's base list places a class or struct after the first position, where only abstract types may appear; a type has at most one concrete base and it must come first. Move the concrete base to the front or remove it.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A non-abstract type is used where only an abstract is permitted.</summary>
-    public static readonly DiagnosticDescriptor InvalidBaseType = new(
-        new DiagnosticId("MIST_PM_INVALID_BASE_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not an abstract and cannot be used as a base type.");
+    public static readonly MistDiagnostic InvalidBaseType = new(
+        DiagnosticNumber.Mint("MIST_PM_INVALID_BASE_TYPE"),
+        Title: "Invalid base type",
+        Template: "'{0}' is not an abstract and cannot be used as a base type.",
+        Description: "A base list entry names a type that is not an abstract and so cannot be conformed to, such as an enum or an alias of a primitive. Replace it with the abstract the declaration should conform to, or with a class it should derive from.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Member resolution ────────────────────────────────────────────────
 
-    /// <summary>An unrecognized abstract member declaration node.</summary>
-    public static readonly DiagnosticDescriptor UnknownAbstractMember = new(
-        new DiagnosticId("MIST_PM_UNKNOWN_ABSTRACT_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: unrecognized abstract member declaration node '{0}'.");
+    public static readonly MistDiagnostic UnknownAbstractMember = new(
+        DiagnosticNumber.Mint("MIST_PM_UNKNOWN_ABSTRACT_MEMBER"),
+        Title: "Unrecognized abstract member node",
+        Template: "Internal compiler error: unrecognized abstract member declaration node '{0}'.",
+        Description: "Member resolution met an abstract member declaration node of a kind it does not handle, which no valid source can produce. Report this as a compiler bug together with the source that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An unrecognized concrete member declaration node.</summary>
-    public static readonly DiagnosticDescriptor UnknownMember = new(
-        new DiagnosticId("MIST_PM_UNKNOWN_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Internal compiler error: unrecognized member declaration node '{0}'.");
+    public static readonly MistDiagnostic UnknownMember = new(
+        DiagnosticNumber.Mint("MIST_PM_UNKNOWN_MEMBER"),
+        Title: "Unrecognized member declaration node",
+        Template: "Internal compiler error: unrecognized member declaration node '{0}'.",
+        Description: "Member resolution met a concrete member declaration node of a kind it does not handle, which no valid source can produce. Report this as a compiler bug together with the source that triggered it.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A modifier on a getter accessor is not permitted.</summary>
-    public static readonly DiagnosticDescriptor GetterCannotHaveModifier = new(
-        new DiagnosticId("MIST_PM_GETTER_MODIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The getter on property '{0}' cannot have a modifier.");
+    public static readonly MistDiagnostic GetterCannotHaveModifier = new(
+        DiagnosticNumber.Mint("MIST_PM_GETTER_MODIFIER"),
+        Title: "Modifier on getter",
+        Template: "The getter on property '{0}' cannot have a modifier.",
+        Description: "A property's getter carries an accessibility modifier, but a getter always shares the accessibility of its property. Remove the modifier from the getter; narrow the setter instead if the two must differ.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>Only 'private' is permitted as a setter accessor modifier.</summary>
-    public static readonly DiagnosticDescriptor SetterModifierMustBePrivate = new(
-        new DiagnosticId("MIST_PM_SETTER_MODIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Only 'private' is permitted as a modifier on the setter of property '{0}'.");
+    public static readonly MistDiagnostic SetterModifierMustBePrivate = new(
+        DiagnosticNumber.Mint("MIST_PM_SETTER_MODIFIER"),
+        Title: "Non-private setter modifier",
+        Template: "Only 'private' is permitted as a modifier on the setter of property '{0}'.",
+        Description: "A setter carries an accessibility modifier other than 'private', and 'private' is the only narrowing a setter may declare relative to its property. Change the modifier to 'private' or remove it.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A property or indexer must declare at least one accessor.</summary>
-    public static readonly DiagnosticDescriptor EmptyAccessorList = new(
-        new DiagnosticId("MIST_PM_EMPTY_ACCESSORS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' must declare at least a getter or a setter.");
+    public static readonly MistDiagnostic EmptyAccessorList = new(
+        DiagnosticNumber.Mint("MIST_PM_EMPTY_ACCESSORS"),
+        Title: "Empty accessor list",
+        Template: "'{0}' must declare at least a getter or a setter.",
+        Description: "A property or indexer declares an accessor block with no getter and no setter in it, so it could be neither read nor written. Add at least one accessor.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An init accessor is not permitted on an indexer.</summary>
-    public static readonly DiagnosticDescriptor IndexerCannotHaveInit = new(
-        new DiagnosticId("MIST_PM_INDEXER_INIT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Indexers cannot declare init accessors.");
+    public static readonly MistDiagnostic IndexerCannotHaveInit = new(
+        DiagnosticNumber.Mint("MIST_PM_INDEXER_INIT"),
+        Title: "Init accessor on indexer",
+        Template: "Indexers cannot declare init accessors.",
+        Description: "An indexer declares an init accessor, but init accessors exist for object initializers and an indexer has no single member slot an initializer could target. Use a setter, or drop the accessor.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An abstract property accessor cannot have a modifier.</summary>
-    public static readonly DiagnosticDescriptor AbstractAccessorCannotHaveModifier = new(
-        new DiagnosticId("MIST_PM_ABSTRACT_ACCESSOR_MODIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Accessors on abstract property '{0}' cannot have modifiers.");
+    public static readonly MistDiagnostic AbstractAccessorCannotHaveModifier = new(
+        DiagnosticNumber.Mint("MIST_PM_ABSTRACT_ACCESSOR_MODIFIER"),
+        Title: "Modifier on abstract accessor",
+        Template: "Accessors on abstract property '{0}' cannot have modifiers.",
+        Description: "An accessor of a property declared on an abstract type carries a modifier, but abstract members state a contract and the conforming type decides accessibility. Remove the modifier.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An init accessor is not permitted on an abstract property.</summary>
-    public static readonly DiagnosticDescriptor AbstractPropertyInitAccessor = new(
-        new DiagnosticId("MIST_PM_ABSTRACT_INIT_ACCESSOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Abstract types cannot declare init accessors on property '{0}' because abstract types cannot be instantiated.");
+    public static readonly MistDiagnostic AbstractPropertyInitAccessor = new(
+        DiagnosticNumber.Mint("MIST_PM_ABSTRACT_INIT_ACCESSOR"),
+        Title: "Init accessor on abstract property",
+        Template: "Abstract types cannot declare init accessors on property '{0}' because abstract types cannot be instantiated.",
+        Description: "A property on an abstract type declares an init accessor, but init runs during construction and an abstract type is never constructed. Replace it with a setter or make the property getter-only.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor StaticPropertyInitAccessor = new(
-        new DiagnosticId("MIST_PM_STATIC_INIT_ACCESSOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Static property '{0}' cannot declare an init accessor: init runs while an instance is constructed, and a static property belongs to no instance.");
+    public static readonly MistDiagnostic StaticPropertyInitAccessor = new(
+        DiagnosticNumber.Mint("MIST_PM_STATIC_INIT_ACCESSOR"),
+        Title: "Init accessor on static property",
+        Template: "Static property '{0}' cannot declare an init accessor: init runs while an instance is constructed, and a static property belongs to no instance.",
+        Description: "A static property declares an init accessor, which only has meaning while a particular instance is being constructed. Use a setter instead.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Modifier validation ──────────────────────────────────────────────
 
-    /// <summary>Multiple substructural discipline modifiers (affine, linear, relevant) on the same declaration.</summary>
-    public static readonly DiagnosticDescriptor ConflictingDisciplineModifiers = new(
-        new DiagnosticId("MIST_PM_CONFLICTING_DISCIPLINE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A declaration cannot have more than one substructural discipline modifier. Specify at most one of 'affine', 'linear', or 'relevant'.");
+    public static readonly MistDiagnostic ConflictingDisciplineModifiers = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFLICTING_DISCIPLINE"),
+        Title: "Conflicting discipline modifiers",
+        Template: "A declaration cannot have more than one substructural discipline modifier. Specify at most one of 'affine', 'linear', or 'relevant'.",
+        Description: "A declaration names more than one of 'affine', 'linear' and 'relevant', but a value follows exactly one substructural discipline. Keep only the modifier that states how the value may be used.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor StampableRequiresStruct = new(
-        new DiagnosticId("MIST_PM_STAMPABLE_REQUIRES_STRUCT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The 'stampable' modifier is only valid on a non-ref struct declaration.");
+    public static readonly MistDiagnostic StampableRequiresStruct = new(
+        DiagnosticNumber.Mint("MIST_PM_STAMPABLE_REQUIRES_STRUCT"),
+        Title: "Stampable on non-struct",
+        Template: "The 'stampable' modifier is only valid on a non-ref struct declaration.",
+        Description: "The 'stampable' modifier appears on a declaration that is not a plain struct, but stamping copies a value's bits and only a non-ref struct has bits that can be copied that way. Remove the modifier or change the declaration to a struct.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PureAndLocal = new(
-        new DiagnosticId("MIST_PM_PURE_AND_LOCAL"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A declaration cannot be both 'pure' and 'local': 'local' allows a member to change its own instance, which 'pure' forbids.");
+    public static readonly MistDiagnostic PureAndLocal = new(
+        DiagnosticNumber.Mint("MIST_PM_PURE_AND_LOCAL"),
+        Title: "Pure combined with local",
+        Template: "A declaration cannot be both 'pure' and 'local': 'local' allows a member to change its own instance, which 'pure' forbids.",
+        Description: "A member is declared with both 'pure' and 'local', but 'local' grants the member the right to mutate its own instance while 'pure' forbids any mutation. Drop whichever modifier does not describe the member.",
+        Category: DiagnosticCategory.Eff,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ReadonlyImpliedByPure = new(
-        new DiagnosticId("MIST_PM_READONLY_IMPLIED_BY_PURE"),
-        DiagnosticSeverity.Info,
-        PipelineStage.SemanticModelConstruction,
-        "'readonly' is implied by 'pure' and can be omitted.");
+    public static readonly MistDiagnostic ReadonlyImpliedByPure = new(
+        DiagnosticNumber.Mint("MIST_PM_READONLY_IMPLIED_BY_PURE"),
+        Title: "Redundant readonly with pure",
+        Template: "'readonly' is implied by 'pure' and can be omitted.",
+        Description: "A member states 'readonly' alongside 'pure', but purity already forbids mutating the instance, so the extra modifier adds nothing. Remove 'readonly'.",
+        Category: DiagnosticCategory.Eff,
+        Policy: PolicyClass.Promotable,
+        DefaultSeverity: DiagnosticSeverity.Info);
 
-    public static readonly DiagnosticDescriptor LocalRequiresInstance = new(
-        new DiagnosticId("MIST_PM_LOCAL_REQUIRES_INSTANCE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'local' is only valid on an instance member: a static member or a constructor has no instance of its own.");
+    public static readonly MistDiagnostic LocalRequiresInstance = new(
+        DiagnosticNumber.Mint("MIST_PM_LOCAL_REQUIRES_INSTANCE"),
+        Title: "Local on non-instance member",
+        Template: "'local' is only valid on an instance member: a static member or a constructor has no instance of its own.",
+        Description: "The 'local' modifier is placed on a static member or a constructor, but it scopes mutation to the member's own instance and those declarations have none. Remove the modifier.",
+        Category: DiagnosticCategory.Eff,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PurityModifierPlacement = new(
-        new DiagnosticId("MIST_PM_PURITY_MODIFIER_PLACEMENT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not valid on {1}.{2}");
+    public static readonly MistDiagnostic PurityModifierPlacement = new(
+        DiagnosticNumber.Mint("MIST_PM_PURITY_MODIFIER_PLACEMENT"),
+        Title: "Purity modifier misplaced",
+        Template: "'{0}' is not valid on {1}.{2}",
+        Description: "A purity or scope modifier such as 'pure' or 'local' appears on a kind of declaration that cannot carry it. Remove the modifier, or move it to a declaration kind that accepts it.",
+        Category: DiagnosticCategory.Eff,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PureRequiresFunctionType = new(
-        new DiagnosticId("MIST_PM_PURE_REQUIRES_FUNCTION_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'pure' can only qualify a function type, and '{0}' is not one.");
+    public static readonly MistDiagnostic PureRequiresFunctionType = new(
+        DiagnosticNumber.Mint("MIST_PM_PURE_REQUIRES_FUNCTION_TYPE"),
+        Title: "Pure on non-function type",
+        Template: "'pure' can only qualify a function type, and '{0}' is not one.",
+        Description: "A type is qualified with 'pure', but purity is a property of callables and only a function type such as 'func<int, bool>' can carry it. Remove the qualifier, or apply it to the function type you meant.",
+        Category: DiagnosticCategory.Eff,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>The 'async' modifier is only valid on methods.</summary>
-    public static readonly DiagnosticDescriptor AsyncOnlyOnMethods = new(
-        new DiagnosticId("MIST_PM_ASYNC_NOT_ALLOWED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The 'async' modifier is only valid on methods.");
+    public static readonly MistDiagnostic AsyncOnlyOnMethods = new(
+        DiagnosticNumber.Mint("MIST_PM_ASYNC_NOT_ALLOWED"),
+        Title: "Async on non-method",
+        Template: "The 'async' modifier is only valid on methods.",
+        Description: "The 'async' modifier is placed on a declaration that is not a method, such as a field, property or type. Remove it; only a method body can suspend on 'await'.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>The 'intrinsic' modifier is not valid on fields or properties.</summary>
-    public static readonly DiagnosticDescriptor IntrinsicNotValidOnMember = new(
-        new DiagnosticId("MIST_PM_INTRINSIC_NOT_VALID"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The 'intrinsic' modifier is not valid on {0}.");
+    public static readonly MistDiagnostic IntrinsicNotValidOnMember = new(
+        DiagnosticNumber.Mint("MIST_PM_INTRINSIC_NOT_VALID"),
+        Title: "Intrinsic on unsupported member",
+        Template: "The 'intrinsic' modifier is not valid on {0}.",
+        Description: "The 'intrinsic' modifier marks a member of a kind the backend cannot supply a definition for. Remove the modifier and give the member an ordinary definition.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A non-intrinsic method on a concrete type must have a body.</summary>
-    public static readonly DiagnosticDescriptor MethodMustHaveBody = new(
-        new DiagnosticId("MIST_PM_METHOD_MUST_HAVE_BODY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Method '{0}' must have a body unless it is declared 'intrinsic' or is on an abstract type.");
+    public static readonly MistDiagnostic MethodMustHaveBody = new(
+        DiagnosticNumber.Mint("MIST_PM_METHOD_MUST_HAVE_BODY"),
+        Title: "Method without body",
+        Template: "Method '{0}' must have a body unless it is declared 'intrinsic' or is on an abstract type.",
+        Description: "A method on a concrete type ends in ';' with no body, and only abstract members and intrinsic members may omit one. Add a body, or mark the member 'intrinsic' if it belongs to the Standard library and the backend supplies it.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An intrinsic member must not have a body.</summary>
-    public static readonly DiagnosticDescriptor IntrinsicMemberCannotHaveBody = new(
-        new DiagnosticId("MIST_PM_INTRINSIC_HAS_BODY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Intrinsic member '{0}' must not have a body; use ';' to mark it as backend-provided.");
+    public static readonly MistDiagnostic IntrinsicMemberCannotHaveBody = new(
+        DiagnosticNumber.Mint("MIST_PM_INTRINSIC_HAS_BODY"),
+        Title: "Body on intrinsic member",
+        Template: "Intrinsic member '{0}' must not have a body; use ';' to mark it as backend-provided.",
+        Description: "A member marked 'intrinsic' also has a body, but the modifier says the backend provides the implementation. Remove the body or the modifier.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An intrinsic member must be inside a type that is itself intrinsic.</summary>
-    public static readonly DiagnosticDescriptor IntrinsicReservedForStandard = new(
-        new DiagnosticId("MIST_PM_INTRINSIC_RESERVED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The 'intrinsic' modifier on '{0}' is reserved for the Standard library. It says the backend supplies the declaration, and a backend has nothing to supply for a type declared outside it.");
+    public static readonly MistDiagnostic IntrinsicReservedForStandard = new(
+        DiagnosticNumber.Mint("MIST_PM_INTRINSIC_RESERVED"),
+        Title: "Intrinsic outside Standard library",
+        Template: "The 'intrinsic' modifier on '{0}' is reserved for the Standard library. It says the backend supplies the declaration, and a backend has nothing to supply for a type declared outside it.",
+        Description: "A type outside the Standard library uses 'intrinsic', which asks the backend to supply a declaration it only knows how to supply for the Standard library. Remove the modifier and implement the member in Mist.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor IntrinsicRequiresIntrinsicType = new(
-        new DiagnosticId("MIST_PM_INTRINSIC_NOT_IN_INTRINSIC_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{0}' is not intrinsic.");
+    public static readonly MistDiagnostic IntrinsicRequiresIntrinsicType = new(
+        DiagnosticNumber.Mint("MIST_PM_INTRINSIC_NOT_IN_INTRINSIC_TYPE"),
+        Title: "Intrinsic member in non-intrinsic type",
+        Template: "Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{0}' is not intrinsic.",
+        Description: "A member is marked 'intrinsic' inside a type that is not itself intrinsic, and the backend binds intrinsic members only through an intrinsic type. Mark the enclosing type 'intrinsic' or give the member a Mist body.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An intrinsic field, property, or indexer must be declared public.</summary>
-    public static readonly DiagnosticDescriptor IntrinsicMemberMustBePublic = new(
-        new DiagnosticId("MIST_PM_INTRINSIC_NOT_PUBLIC"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The 'intrinsic' modifier requires the member to be declared 'public'.");
+    public static readonly MistDiagnostic IntrinsicMemberMustBePublic = new(
+        DiagnosticNumber.Mint("MIST_PM_INTRINSIC_NOT_PUBLIC"),
+        Title: "Non-public intrinsic member",
+        Template: "The 'intrinsic' modifier requires the member to be declared 'public'.",
+        Description: "An intrinsic field, property or indexer is declared with an accessibility other than 'public', but a backend-supplied member has to be visible to the surface that maps onto it. Declare it 'public'.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An indexer cannot use auto-accessors (get; / set;) on a concrete type.</summary>
-    public static readonly DiagnosticDescriptor IndexerCannotHaveAutoAccessor = new(
-        new DiagnosticId("MIST_PM_INDEXER_AUTO_ACCESSOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Indexers cannot use auto-accessors; provide a body or expression for each accessor.");
+    public static readonly MistDiagnostic IndexerCannotHaveAutoAccessor = new(
+        DiagnosticNumber.Mint("MIST_PM_INDEXER_AUTO_ACCESSOR"),
+        Title: "Auto-accessor on indexer",
+        Template: "Indexers cannot use auto-accessors; provide a body or expression for each accessor.",
+        Description: "An indexer on a concrete type uses 'get;' or 'set;' without a body, but an indexer has no backing field for an auto-accessor to read or write. Give each accessor a body or an expression.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Cast operator validation ─────────────────────────────────────────
 
-    /// <summary>A cast operator must declare exactly one source parameter.</summary>
-    public static readonly DiagnosticDescriptor CastOperatorMissingParameter = new(
-        new DiagnosticId("MIST_PM_CAST_OP_MISSING_PARAM"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A cast operator must declare exactly one parameter (the source value).");
+    public static readonly MistDiagnostic CastOperatorMissingParameter = new(
+        DiagnosticNumber.Mint("MIST_PM_CAST_OP_MISSING_PARAM"),
+        Title: "Cast operator without parameter",
+        Template: "A cast operator must declare exactly one parameter (the source value).",
+        Description: "A cast operator is declared with no parameter, but a conversion needs the source value as its single parameter. Add a parameter of the type being converted from.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A cast operator has more than one parameter.</summary>
-    public static readonly DiagnosticDescriptor CastOperatorTooManyParameters = new(
-        new DiagnosticId("MIST_PM_CAST_OP_TOO_MANY_PARAMS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A cast operator must declare exactly one parameter; additional parameters are not permitted.");
+    public static readonly MistDiagnostic CastOperatorTooManyParameters = new(
+        DiagnosticNumber.Mint("MIST_PM_CAST_OP_TOO_MANY_PARAMS"),
+        Title: "Cast operator with extra parameters",
+        Template: "A cast operator must declare exactly one parameter; additional parameters are not permitted.",
+        Description: "A cast operator declares more than one parameter, but a conversion takes only the source value. Remove the extra parameters.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An operator or cast operator must be declared static.</summary>
-    public static readonly DiagnosticDescriptor OperatorMustBeStatic = new(
-        new DiagnosticId("MIST_PM_OPERATOR_MUST_BE_STATIC"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Operators must be declared 'static'.");
+    public static readonly MistDiagnostic OperatorMustBeStatic = new(
+        DiagnosticNumber.Mint("MIST_PM_OPERATOR_MUST_BE_STATIC"),
+        Title: "Non-static operator",
+        Template: "Operators must be declared 'static'.",
+        Description: "An operator or cast operator is declared without 'static', but operators are resolved on their operand types rather than on an instance. Add the 'static' modifier.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An operator has the wrong number of parameters for its kind.</summary>
-    public static readonly DiagnosticDescriptor OperatorWrongParameterCount = new(
-        new DiagnosticId("MIST_PM_OPERATOR_WRONG_PARAM_COUNT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Operator expects {0} parameter(s) but has {1}.");
+    public static readonly MistDiagnostic OperatorWrongParameterCount = new(
+        DiagnosticNumber.Mint("MIST_PM_OPERATOR_WRONG_PARAM_COUNT"),
+        Title: "Operator parameter count mismatch",
+        Template: "Operator expects {0} parameter(s) but has {1}.",
+        Description: "An operator declares a number of parameters that does not match its kind, for example a binary operator with one parameter. Give it exactly the parameters its kind requires.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A non-abstract operator must have a body.</summary>
-    public static readonly DiagnosticDescriptor OperatorMustHaveBody = new(
-        new DiagnosticId("MIST_PM_OPERATOR_MUST_HAVE_BODY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Operators must have a body unless declared on an abstract type.");
+    public static readonly MistDiagnostic OperatorMustHaveBody = new(
+        DiagnosticNumber.Mint("MIST_PM_OPERATOR_MUST_HAVE_BODY"),
+        Title: "Operator without body",
+        Template: "Operators must have a body unless declared on an abstract type.",
+        Description: "An operator on a concrete type ends without a body, and only operators declared on an abstract type may omit one. Add a body or an expression.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A member kind is not permitted on an abstract type.</summary>
-    public static readonly DiagnosticDescriptor MemberNotAllowedOnAbstract = new(
-        new DiagnosticId("MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "This member is not permitted on abstract types.");
+    public static readonly MistDiagnostic MemberNotAllowedOnAbstract = new(
+        DiagnosticNumber.Mint("MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT"),
+        Title: "Member not allowed on abstract",
+        Template: "This member is not permitted on abstract types.",
+        Description: "An abstract type declares a kind of member that abstract types cannot contain. Move the member to the concrete types that conform to the abstract.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A type slot is not permitted on a concrete type.</summary>
-    public static readonly DiagnosticDescriptor TypeSlotNotAllowedOnConcrete = new(
-        new DiagnosticId("MIST_PM_TYPE_SLOT_NOT_ALLOWED_ON_CONCRETE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type slots are only permitted on abstract types.");
+    public static readonly MistDiagnostic TypeSlotNotAllowedOnConcrete = new(
+        DiagnosticNumber.Mint("MIST_PM_TYPE_SLOT_NOT_ALLOWED_ON_CONCRETE"),
+        Title: "Type slot on concrete type",
+        Template: "Type slots are only permitted on abstract types.",
+        Description: "A class or struct declares a type slot, but slots are the abstract type's way of leaving a type for conformers to fill. Remove the slot, or move it to the abstract the type conforms to.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Default block validation ─────────────────────────────────────────
 
-    /// <summary>A type declares more than one default block.</summary>
-    public static readonly DiagnosticDescriptor DuplicateDefaultBlock = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_DEFAULT_BLOCK"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type '{0}' declares more than one default block; only one is permitted per type.");
+    public static readonly MistDiagnostic DuplicateDefaultBlock = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_DEFAULT_BLOCK"),
+        Title: "Duplicate default block",
+        Template: "Type '{0}' declares more than one default block; only one is permitted per type.",
+        Description: "A type contains two default blocks, and the defaults a type supplies live in a single block. Merge them into one.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Constraint resolution ────────────────────────────────────────────
 
-    /// <summary>A where clause names a type parameter that does not exist on the declaration.</summary>
-    public static readonly DiagnosticDescriptor UnresolvedConstraintTarget = new(
-        new DiagnosticId("MIST_PM_UNRESOLVED_CONSTRAINT_TARGET"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The constraint clause references type parameter '{0}', which is not declared on this type or method.");
+    public static readonly MistDiagnostic UnresolvedConstraintTarget = new(
+        DiagnosticNumber.Mint("MIST_PM_UNRESOLVED_CONSTRAINT_TARGET"),
+        Title: "Unknown constraint target",
+        Template: "The constraint clause references type parameter '{0}', which is not declared on this type or method.",
+        Description: "A where clause constrains a type parameter that the enclosing type or method does not declare. Check the spelling, or add the type parameter to the declaration.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>Mutually exclusive constraints are declared on the same type parameter.</summary>
-    public static readonly DiagnosticDescriptor ConflictingConstraints = new(
-        new DiagnosticId("MIST_PM_CONFLICTING_CONSTRAINTS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type parameter '{0}' has conflicting constraints: '{1}' and '{2}' are mutually exclusive.");
+    public static readonly MistDiagnostic ConflictingConstraints = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFLICTING_CONSTRAINTS"),
+        Title: "Conflicting constraints",
+        Template: "Type parameter '{0}' has conflicting constraints: '{1}' and '{2}' are mutually exclusive.",
+        Description: "A type parameter's where clause combines constraints that no type can satisfy at once. Remove one of them.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>The same constraint keyword appears more than once on a type parameter.</summary>
-    public static readonly DiagnosticDescriptor DuplicateConstraint = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_CONSTRAINT"),
-        DiagnosticSeverity.Warning,
-        PipelineStage.SemanticModelConstruction,
-        "Type parameter '{0}' has duplicate '{1}' constraint; the redundant occurrence has no effect.");
+    public static readonly MistDiagnostic DuplicateConstraint = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_CONSTRAINT"),
+        Title: "Duplicate constraint",
+        Template: "Type parameter '{0}' has duplicate '{1}' constraint; the redundant occurrence has no effect.",
+        Description: "A where clause repeats the same constraint keyword on one type parameter, which changes nothing. Delete the repeated occurrence.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Promotable,
+        DefaultSeverity: DiagnosticSeverity.Warning);
 
     // ── With clause resolution ───────────────────────────────────────────
 
-    /// <summary>A this-tier with clause is not valid on a constructor.</summary>
-    public static readonly DiagnosticDescriptor ThisTierOnConstructor = new(
-        new DiagnosticId("MIST_PM_THIS_TIER_ON_CONSTRUCTOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A 'with {tier}' clause is not valid on a constructor; constructors always produce an owned value.");
+    public static readonly MistDiagnostic ThisTierOnConstructor = new(
+        DiagnosticNumber.Mint("MIST_PM_THIS_TIER_ON_CONSTRUCTOR"),
+        Title: "This tier on constructor",
+        Template: "A 'with {{tier}}' clause is not valid on a constructor; constructors always produce an owned value.",
+        Description: "A constructor declares a 'with' clause that sets the access tier of 'this', but a constructor always yields an owned value and so has no tier to choose. Remove the clause.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Extension block validation ───────────────────────────────────────
 
-    /// <summary>Multiple extension blocks in the same namespace declare a member with the same name for the same receiver type.</summary>
-    public static readonly DiagnosticDescriptor DuplicateExtensionMember = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_EXTENSION_MEMBER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "An extension member named '{0}' is already declared for type '{1}' in this namespace.");
+    public static readonly MistDiagnostic DuplicateExtensionMember = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_EXTENSION_MEMBER"),
+        Title: "Duplicate extension member",
+        Template: "An extension member named '{0}' is already declared for type '{1}' in this namespace.",
+        Description: "Two extension blocks in the same namespace add a member of the same name to the same receiver type, so a call could not pick one. Rename or remove one of them.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An extension property cannot use auto-accessors because extension properties have no backing field.</summary>
-    public static readonly DiagnosticDescriptor ExtensionPropertyCannotHaveAutoAccessor = new(
-        new DiagnosticId("MIST_PM_EXTENSION_AUTO_ACCESSOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.");
+    public static readonly MistDiagnostic ExtensionPropertyCannotHaveAutoAccessor = new(
+        DiagnosticNumber.Mint("MIST_PM_EXTENSION_AUTO_ACCESSOR"),
+        Title: "Auto-accessor on extension property",
+        Template: "Extension property '{0}' cannot use auto-accessors (get; / set;); extension properties have no backing field.",
+        Description: "An extension property uses 'get;' or 'set;' without a body, but an extension adds no storage to its receiver for an auto-accessor to use. Write a body or an expression for each accessor.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// <c>field</c> named where there is no property whose storage it could mean. The grammar admits
-    /// it in any expression position, so the placement is refused here rather than left to a backend
-    /// that would have nothing to emit for it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor FieldKeywordOutsideAccessor = new(
-        new DiagnosticId("MIST_PM_FIELD_OUTSIDE_ACCESSOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'field' is only meaningful inside a property accessor, where it names that property's storage.");
+    public static readonly MistDiagnostic FieldKeywordOutsideAccessor = new(
+        DiagnosticNumber.Mint("MIST_PM_FIELD_OUTSIDE_ACCESSOR"),
+        Title: "Field keyword outside accessor",
+        Template: "'field' is only meaningful inside a property accessor, where it names that property's storage.",
+        Description: "The contextual keyword 'field' appears where no property accessor encloses it, so there is no backing storage for it to name; the grammar admits it in any expression and the model refuses the placement rather than leave a backend with nothing to emit. Move the expression into a property accessor or name a real variable.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A member shares its enclosing type's name. Refused for two independent reasons: C# rejects
-    /// the declaration as CS0542, so it cannot be emitted; and inside the type the bare name shadows
-    /// the type, so a type position there resolves to the member instead.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MemberNameMatchesEnclosingType = new(
-        new DiagnosticId("MIST_PM_MEMBER_NAME_IS_TYPE_NAME"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A member cannot have the same name as its enclosing type '{0}'. Rename the member.");
+    public static readonly MistDiagnostic MemberNameMatchesEnclosingType = new(
+        DiagnosticNumber.Mint("MIST_PM_MEMBER_NAME_IS_TYPE_NAME"),
+        Title: "Member named after enclosing type",
+        Template: "A member cannot have the same name as its enclosing type '{0}'. Rename the member.",
+        Description: "A member has the same name as the type that declares it. The backend rejects such a declaration outright, and inside the type the bare name would resolve to the member where a type was meant, so rename the member.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A pattern tests a union-typed scrutinee for a type no constituent of it can hold.
-    /// <para>
-    /// Reported by construction rather than deferred because it decides whether emission has anything
-    /// to write: narrowing a union goes through the carrier's accessor for the matching constituent, and
-    /// a type belonging to none names no accessor. So this is not "a test that will always fail" -- it is
-    /// a test with no lowering.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor PatternTypeNotAConstituent = new(
-        new DiagnosticId("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not one of the types '{1}' can hold, so this pattern can never match.");
+    public static readonly MistDiagnostic PatternTypeNotAConstituent = new(
+        DiagnosticNumber.Mint("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT"),
+        Title: "Pattern type not a constituent",
+        Template: "'{0}' is not one of the types '{1}' can hold, so this pattern can never match.",
+        Description: "A type pattern tests a union-typed value for a type that none of the union's constituents can hold. Narrowing a union goes through the accessor for the matching constituent, so a type outside the union has no lowering rather than merely a test that always fails; test for one of the constituent types instead.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A switch expression declares no arms. Reported rather than deferred because an expression must
-    /// have a type and there is no arm to take one from: the grammar admits <c>x switch { }</c>, and an
-    /// expression that can never produce a value has nothing for the model to say about it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor SwitchExpressionNeedsAnArm = new(
-        new DiagnosticId("MIST_PM_SWITCH_NO_ARMS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A switch expression must declare at least one arm, because its type comes from what its arms produce.");
+    public static readonly MistDiagnostic SwitchExpressionNeedsAnArm = new(
+        DiagnosticNumber.Mint("MIST_PM_SWITCH_NO_ARMS"),
+        Title: "Switch expression without arms",
+        Template: "A switch expression must declare at least one arm, because its type comes from what its arms produce.",
+        Description: "A switch expression has an empty arm list, so there is nothing to give the expression a type or a value. Add at least one arm.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A switch expression's arms produce different types and no target type says which one is wanted.
-    /// <para>
-    /// Reported rather than widened for the reason given on
-    /// <see cref="ArrayLiteralNoCommonElementType"/>: there is no conversion or numeric promotion
-    /// infrastructure to compute a best common type yet, so guessing would be worse than asking.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor SwitchArmsNoCommonType = new(
-        new DiagnosticId("MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The arms of the switch expression have no common type ('{0}' and '{1}'). Annotate the target with the type you want.");
+    public static readonly MistDiagnostic SwitchArmsNoCommonType = new(
+        DiagnosticNumber.Mint("MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"),
+        Title: "Switch arms lack common type",
+        Template: "The arms of the switch expression have no common type ('{0}' and '{1}'). Annotate the target with the type you want.",
+        Description: "The arms of a switch expression produce different types and no target type says which is wanted; the compiler does not yet compute a best common type by conversion or numeric promotion, so it asks rather than guesses. Annotate the target with the intended type, or convert the arms to one type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A pattern under <c>or</c> or <c>not</c> introduces a binding. Matching such a pattern does not
-    /// establish the binding -- a disjunction proves only that SOME operand matched, and a negation
-    /// proves that its operand did not -- so there is no value for the name to hold.
-    /// <para>
-    /// Reported rather than deferred to an analyzer because the model would otherwise be incoherent:
-    /// the local would be declared in the guarded block's scope while emission wrote no C# pattern to
-    /// produce it, so a branch reading the name would emit C# naming a variable that does not exist.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor PatternBindingNotEstablished = new(
-        new DiagnosticId("MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The pattern variable '{0}' cannot be introduced inside 'or' or 'not', because matching there does not establish a value for it.");
+    public static readonly MistDiagnostic PatternBindingNotEstablished = new(
+        DiagnosticNumber.Mint("MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"),
+        Title: "Binding inside or/not pattern",
+        Template: "The pattern variable '{0}' cannot be introduced inside 'or' or 'not', because matching there does not establish a value for it.",
+        Description: "A pattern nested under 'or' or 'not' declares a variable, but a disjunction only proves that some operand matched and a negation only proves its operand did not, so no value exists for the name to hold; allowing it would declare a local that no emitted pattern produces. Hoist the binding above the 'or' or 'not', or drop it.",
+        Category: DiagnosticCategory.Flw,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A property pattern's subpattern names something other than a field or a property. Its sibling
-    /// <see cref="InitializerTargetNotAssignable"/> is worded for assignment; this one is worded for
-    /// matching, since a method or a nested type holds no value for a subpattern to be tested against.
-    /// </summary>
-    public static readonly DiagnosticDescriptor PatternSubpatternNotStorage = new(
-        new DiagnosticId("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{1}' on '{0}' is not a field or a property, so a property pattern cannot match against it.");
+    public static readonly MistDiagnostic PatternSubpatternNotStorage = new(
+        DiagnosticNumber.Mint("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE"),
+        Title: "Subpattern target not storage",
+        Template: "'{1}' on '{0}' is not a field or a property, so a property pattern cannot match against it.",
+        Description: "A property pattern names a member of the scrutinee that is a method, nested type or other non-storage member, which holds no value for the subpattern to be tested against. Match against a field or a property instead.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PatternSubpatternNotInstance = new(
-        new DiagnosticId("MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{1}' on '{0}' is static, so a property pattern cannot match against it.");
+    public static readonly MistDiagnostic PatternSubpatternNotInstance = new(
+        DiagnosticNumber.Mint("MIST_PM_PATTERN_SUBPATTERN_NOT_INSTANCE"),
+        Title: "Subpattern target is static",
+        Template: "'{1}' on '{0}' is static, so a property pattern cannot match against it.",
+        Description: "A property pattern names a static member, but a pattern tests the state of the particular value being matched and a static member belongs to no instance. Match against an instance field or property.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A tuple pattern spells a different number of elements than the tuple it matches against holds.
-    /// Reported rather than deferred because the arity is what pairs each element pattern with the
-    /// element type it narrows, so a mismatch leaves every position after the first typed by nothing.
-    /// </summary>
-    public static readonly DiagnosticDescriptor TuplePatternArityMismatch = new(
-        new DiagnosticId("MIST_PM_TUPLE_PATTERN_ARITY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The pattern spells {2} elements but '{0}' holds {1}, so this pattern can never match.");
+    public static readonly MistDiagnostic TuplePatternArityMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_TUPLE_PATTERN_ARITY"),
+        Title: "Tuple pattern arity mismatch",
+        Template: "The pattern spells {2} elements but '{0}' holds {1}, so this pattern can never match.",
+        Description: "A tuple pattern lists a different number of element patterns than the matched tuple has elements; the arity pairs each element pattern with the type it narrows, so a mismatch leaves positions typed by nothing. Make the pattern's element count equal to the tuple's.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A tuple pattern matches against a scrutinee that is neither a tuple nor <c>unknown</c>. Mist has
-    /// no user-declared deconstruction, so unlike C# -- which would look for a <c>Deconstruct</c> method
-    /// -- there is nothing for the element positions to be read out of.
-    /// </summary>
-    public static readonly DiagnosticDescriptor TuplePatternScrutineeNotATuple = new(
-        new DiagnosticId("MIST_PM_TUPLE_PATTERN_SCRUTINEE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.");
+    public static readonly MistDiagnostic TuplePatternScrutineeNotATuple = new(
+        DiagnosticNumber.Mint("MIST_PM_TUPLE_PATTERN_SCRUTINEE"),
+        Title: "Tuple pattern on non-tuple",
+        Template: "'{0}' is not a tuple, so a tuple pattern has no elements to match against it.",
+        Description: "A tuple pattern is applied to a value that is neither a tuple nor 'unknown', and Mist has no user-declared deconstruction to read element positions out of other types. Match the value with a type or property pattern instead.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ReceiverNotSliceable = new(
-        new DiagnosticId("MIST_PM_RECEIVER_NOT_SLICEABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be sliced by a range. A sub-sequence comes from an array, a span or a string, or from a type with an int Length or Count and either a Range indexer or a Slice(int, int) method.");
+    public static readonly MistDiagnostic ReceiverNotSliceable = new(
+        DiagnosticNumber.Mint("MIST_PM_RECEIVER_NOT_SLICEABLE"),
+        Title: "Receiver not sliceable",
+        Template: "'{0}' cannot be sliced by a range. A sub-sequence comes from an array, a span or a string, or from a type with an int Length or Count and either a Range indexer or a Slice(int, int) method.",
+        Description: "A range index is applied to a value whose type offers no way to take a sub-sequence. Slice an array, span or string, or give the type an int Length or Count together with a Range indexer or a Slice(int, int) method.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ReceiverNotIndexable = new(
-        new DiagnosticId("MIST_PM_RECEIVER_NOT_INDEXABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be indexed because it declares no indexer and is not an array.");
+    public static readonly MistDiagnostic ReceiverNotIndexable = new(
+        DiagnosticNumber.Mint("MIST_PM_RECEIVER_NOT_INDEXABLE"),
+        Title: "Receiver not indexable",
+        Template: "'{0}' cannot be indexed because it declares no indexer and is not an array.",
+        Description: "An element access is applied to a value that is not an array and whose type declares no indexer. Index a collection type, or declare an indexer on the type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// An Index reaches an int indexer, and a list pattern reads its elements, only at positions counted
-    /// against the receiver's int Length or Count, as C#'s implicit Index support and list patterns
-    /// require. A receiver with neither has no count to position against, and admitting it would hand
-    /// the program to Roslyn to refuse.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ReceiverNotCountable = new(
-        new DiagnosticId("MIST_PM_RECEIVER_NOT_COUNTABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' has no int Length or Count, so it cannot be indexed from its end or matched by a list pattern.");
+    public static readonly MistDiagnostic ReceiverNotCountable = new(
+        DiagnosticNumber.Mint("MIST_PM_RECEIVER_NOT_COUNTABLE"),
+        Title: "Receiver not countable",
+        Template: "'{0}' has no int Length or Count, so it cannot be indexed from its end or matched by a list pattern.",
+        Description: "An index from the end or a list pattern is applied to a value whose type has no int Length or Count, so there is no count to position against; the model refuses it here rather than hand the program to the backend to reject. Add a Length or Count property to the type, or index from the front.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A list pattern matches against a scrutinee that yields no elements. Mist has no user-declared
-    /// deconstruction, so unlike a C# positional pattern there is nothing for the element positions to
-    /// be read out of, and the pattern's own arity would have nothing to constrain.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ListPatternScrutineeNotIndexable = new(
-        new DiagnosticId("MIST_PM_LIST_PATTERN_SCRUTINEE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be indexed, so a list pattern has no elements to match against it.");
+    public static readonly MistDiagnostic ListPatternScrutineeNotIndexable = new(
+        DiagnosticNumber.Mint("MIST_PM_LIST_PATTERN_SCRUTINEE"),
+        Title: "List pattern on non-indexable",
+        Template: "'{0}' cannot be indexed, so a list pattern has no elements to match against it.",
+        Description: "A list pattern is applied to a value that cannot be indexed, and Mist has no user-declared deconstruction, so the pattern has no elements to read and nothing for its arity to constrain. Match an array or an indexable type with a count.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A list pattern spells more than one slice. The minimum length a list pattern requires is its
-    /// fixed element count, and which elements are counted from the front and which from the back is
-    /// decided by where the single slice sits -- two slices leave that split undetermined, so the
-    /// pattern states no length constraint at all rather than a weaker one.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ListPatternMultipleSlices = new(
-        new DiagnosticId("MIST_PM_LIST_PATTERN_MULTIPLE_SLICES"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A list pattern can spell at most one '..' slice, because the slice is what divides the elements counted from the front from those counted from the back.");
+    public static readonly MistDiagnostic ListPatternMultipleSlices = new(
+        DiagnosticNumber.Mint("MIST_PM_LIST_PATTERN_MULTIPLE_SLICES"),
+        Title: "Multiple slices in list pattern",
+        Template: "A list pattern can spell at most one '..' slice, because the slice is what divides the elements counted from the front from those counted from the back.",
+        Description: "A list pattern contains more than one '..' slice. A single slice decides which elements count from the front and which from the back, so two slices leave the split undetermined and the pattern would state no length constraint at all; keep one slice.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A function type names no type arguments at all. The result occupies the last slot, so there is no
-    /// spelling of a function type without one -- <c>func&lt;bool&gt;</c> is the zero-parameter form.
-    /// </summary>
-    public static readonly DiagnosticDescriptor FunctionTypeNeedsAResult = new(
-        new DiagnosticId("MIST_PM_FUNCTION_TYPE_NO_RESULT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A function type must name its result as the last type argument, for example 'func<bool>' or 'func<int, bool>'.");
+    public static readonly MistDiagnostic FunctionTypeNeedsAResult = new(
+        DiagnosticNumber.Mint("MIST_PM_FUNCTION_TYPE_NO_RESULT"),
+        Title: "Function type without result",
+        Template: "A function type must name its result as the last type argument, for example 'func<bool>' or 'func<int, bool>'.",
+        Description: "A function type is written with no type arguments, but the result always occupies the last slot, so even the zero-parameter form names a result as in 'func<bool>'. Add the result type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A lambda declares a different number of parameters than the function type it is assigned to.</summary>
-    public static readonly DiagnosticDescriptor LambdaArityMismatch = new(
-        new DiagnosticId("MIST_PM_LAMBDA_ARITY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' takes {1} parameters but the lambda declares {2}.");
+    public static readonly MistDiagnostic LambdaArityMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_LAMBDA_ARITY"),
+        Title: "Lambda arity mismatch",
+        Template: "'{0}' takes {1} parameters but the lambda declares {2}.",
+        Description: "A lambda declares a different number of parameters than the function type it is assigned to takes. Match the lambda's parameter list to the target type, or change the target.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A lambda parameter is neither annotated nor supplied a type by a target. Reported rather than
-    /// inferred from the body: a parameter's type is what the body is read AGAINST, so there is nothing
-    /// to infer it from without circularity.
-    /// </summary>
-    public static readonly DiagnosticDescriptor LambdaParameterNeedsAType = new(
-        new DiagnosticId("MIST_PM_LAMBDA_PARAMETER_NO_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The type of lambda parameter '{0}' cannot be inferred. Annotate it, or assign the lambda to a function type.");
+    public static readonly MistDiagnostic LambdaParameterNeedsAType = new(
+        DiagnosticNumber.Mint("MIST_PM_LAMBDA_PARAMETER_NO_TYPE"),
+        Title: "Untyped lambda parameter",
+        Template: "The type of lambda parameter '{0}' cannot be inferred. Annotate it, or assign the lambda to a function type.",
+        Description: "A lambda parameter has no type annotation and no target function type supplies one; the body is checked against the parameter types, so inferring them from the body would be circular. Annotate the parameter, or assign the lambda to a function type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>The return statements of a block-bodied lambda produce different types.</summary>
-    public static readonly DiagnosticDescriptor LambdaReturnsNoCommonType = new(
-        new DiagnosticId("MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The lambda's returns have no common type ('{0}' and '{1}'). Annotate the target with a function type to select the result.");
+    public static readonly MistDiagnostic LambdaReturnsNoCommonType = new(
+        DiagnosticNumber.Mint("MIST_PM_LAMBDA_RETURNS_NO_COMMON_TYPE"),
+        Title: "Lambda returns lack common type",
+        Template: "The lambda's returns have no common type ('{0}' and '{1}'). Annotate the target with a function type to select the result.",
+        Description: "The return statements of a block-bodied lambda produce values of different types and nothing selects a result type. Assign the lambda to a function type that names the result, or convert the returns to one type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A call on a function-typed value passes a different number of arguments than it takes.</summary>
-    public static readonly DiagnosticDescriptor FunctionCallArityMismatch = new(
-        new DiagnosticId("MIST_PM_FUNCTION_CALL_ARITY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' takes {1} arguments but {2} were passed.");
+    public static readonly MistDiagnostic FunctionCallArityMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_FUNCTION_CALL_ARITY"),
+        Title: "Function call arity mismatch",
+        Template: "'{0}' takes {1} arguments but {2} were passed.",
+        Description: "A call through a function-typed value passes a number of arguments different from the number its type declares. Pass exactly as many arguments as the function type takes.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor NotCallable = new(
-        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called.");
+    public static readonly MistDiagnostic NotCallable = new(
+        DiagnosticNumber.Mint("MIST_PM_NOT_CALLABLE"),
+        Title: "Not callable",
+        Template: "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called.",
+        Description: "A call is made on something that is neither a method nor a value of function type. Call a method or a function-typed value, or check that the name resolves to what you intended.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor NotCallableExtensionNotImported = new(
-        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called. An extension method named '{0}' is declared in {2}, which is not imported here.");
+    public static readonly MistDiagnostic NotCallableExtensionNotImported = new(
+        DiagnosticNumber.Mint("MIST_PM_NOT_CALLABLE"),
+        Title: "Extension method not imported",
+        Template: "'{0}' is not a method, and its type '{1}' is not a function type, so it cannot be called. An extension method named '{0}' is declared in {2}, which is not imported here.",
+        Description: "A call targets something that is neither a method nor a function-typed value, while an extension method of that name exists in a namespace this file does not import. Add a using directive for the namespace that declares the extension.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ValueNotCallable = new(
-        new DiagnosticId("MIST_PM_NOT_CALLABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A value of type '{0}' is not a function, so it cannot be called.");
+    public static readonly MistDiagnostic ValueNotCallable = new(
+        DiagnosticNumber.Mint("MIST_PM_NOT_CALLABLE"),
+        Title: "Value not callable",
+        Template: "A value of type '{0}' is not a function, so it cannot be called.",
+        Description: "A call is applied to a value whose type is not a function type. Only methods and function-typed values can be invoked; check that the expression is the callable you meant.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A deconstruction declares a different number of targets than the tuple it reads holds.</summary>
-    public static readonly DiagnosticDescriptor DeconstructionArityMismatch = new(
-        new DiagnosticId("MIST_PM_DECONSTRUCTION_ARITY"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The deconstruction declares {2} targets but '{0}' holds {1} elements.");
+    public static readonly MistDiagnostic DeconstructionArityMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_DECONSTRUCTION_ARITY"),
+        Title: "Deconstruction arity mismatch",
+        Template: "The deconstruction declares {2} targets but '{0}' holds {1} elements.",
+        Description: "A deconstruction declares a different number of targets than the tuple it reads has elements. Declare exactly one target per element.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A deconstruction reads from something that is not a tuple. Mist has no user-declared
-    /// deconstruction, so unlike C# -- which would look for a <c>Deconstruct</c> method -- a
-    /// non-tuple has no elements to distribute among the targets.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DeconstructionSourceNotATuple = new(
-        new DiagnosticId("MIST_PM_DECONSTRUCTION_SOURCE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not a tuple, so it cannot be deconstructed.");
+    public static readonly MistDiagnostic DeconstructionSourceNotATuple = new(
+        DiagnosticNumber.Mint("MIST_PM_DECONSTRUCTION_SOURCE"),
+        Title: "Deconstruction of non-tuple",
+        Template: "'{0}' is not a tuple, so it cannot be deconstructed.",
+        Description: "A deconstruction reads from a value that is not a tuple, and Mist has no user-declared deconstruction, so a non-tuple has no elements to distribute among the targets. Deconstruct a tuple, or read the members individually.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A local variable with the same name is already declared in this scope.</summary>
-    public static readonly DiagnosticDescriptor DuplicateLocalVariable = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_LOCAL"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A variable named '{0}' is already declared in this scope.");
+    public static readonly MistDiagnostic DuplicateLocalVariable = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_LOCAL"),
+        Title: "Duplicate local variable",
+        Template: "A variable named '{0}' is already declared in this scope.",
+        Description: "A local variable is declared with a name already used by another local in the same scope. Rename one of them.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor DuplicateLocalFunction = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_LOCAL_FUNCTION"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A local function named '{0}' is already declared in this scope.");
+    public static readonly MistDiagnostic DuplicateLocalFunction = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_LOCAL_FUNCTION"),
+        Title: "Duplicate local function",
+        Template: "A local function named '{0}' is already declared in this scope.",
+        Description: "Two local functions in the same scope share a name, and local functions do not overload. Rename one of them.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A modifier a local function cannot carry: it has no accessibility to seal, no <c>this</c> of
-    /// its own to be readonly for, no discipline to declare, and no body the compiler supplies.
-    /// </summary>
-    public static readonly DiagnosticDescriptor LocalFunctionModifier = new(
-        new DiagnosticId("MIST_PM_LOCAL_FUNCTION_MODIFIER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A local function cannot be declared '{0}'.");
+    public static readonly MistDiagnostic LocalFunctionModifier = new(
+        DiagnosticNumber.Mint("MIST_PM_LOCAL_FUNCTION_MODIFIER"),
+        Title: "Modifier on local function",
+        Template: "A local function cannot be declared '{0}'.",
+        Description: "A local function carries a modifier it cannot have: it has no accessibility to restrict, no 'this' of its own to be readonly or local for, no discipline to declare, and no compiler-supplied body to mark intrinsic. Remove the modifier.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor LocalFunctionGeneric = new(
-        new DiagnosticId("MIST_PM_LOCAL_FUNCTION_GENERIC"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Local function '{0}' cannot declare type parameters.");
+    public static readonly MistDiagnostic LocalFunctionGeneric = new(
+        DiagnosticNumber.Mint("MIST_PM_LOCAL_FUNCTION_GENERIC"),
+        Title: "Generic local function",
+        Template: "Local function '{0}' cannot declare type parameters.",
+        Description: "A local function declares type parameters, which local functions do not support. Move the function onto a type as a generic method, or drop the type parameters.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Body binding ─────────────────────────────────────────────────────
 
-    /// <summary>A 'this' reference appears where there is no enclosing type.</summary>
-    public static readonly DiagnosticDescriptor ThisOutsideType = new(
-        new DiagnosticId("MIST_PM_THIS_OUTSIDE_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'this' is not valid here because there is no enclosing type. It is only valid inside an instance member of a type.");
+    public static readonly MistDiagnostic ThisOutsideType = new(
+        DiagnosticNumber.Mint("MIST_PM_THIS_OUTSIDE_TYPE"),
+        Title: "This outside a type",
+        Template: "'this' is not valid here because there is no enclosing type. It is only valid inside an instance member of a type.",
+        Description: "The 'this' keyword appears where no type encloses it, so there is no instance for it to name. Use it only inside an instance member of a type.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A 'this' reference appears in a static member.</summary>
-    public static readonly DiagnosticDescriptor ThisInStaticMember = new(
-        new DiagnosticId("MIST_PM_THIS_IN_STATIC"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'this' is not valid in a static member because a static member has no instance to refer to.");
+    public static readonly MistDiagnostic ThisInStaticMember = new(
+        DiagnosticNumber.Mint("MIST_PM_THIS_IN_STATIC"),
+        Title: "This in static member",
+        Template: "'this' is not valid in a static member because a static member has no instance to refer to.",
+        Description: "The 'this' keyword appears inside a static member, which runs without an instance. Make the member an instance member, or refer to static state instead.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Array literal inference ──────────────────────────────────────────
 
-    /// <summary>
-    /// A <c>foreach</c> over <c>var</c> whose collection is not a sequence, so there is no element
-    /// type to give the loop variable. Reported here because the binder cannot finish the loop
-    /// without one: the variable is declared into the body's scope, and every read of it downstream
-    /// resolves against whatever type it was given.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ForEachElementNotInferable = new(
-        new DiagnosticId("MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Cannot infer the element type of '{0}' because it is not an array and conforms to no IEnumerable. Iterate a sequence, or state the element type in place of 'var'.");
+    public static readonly MistDiagnostic ForEachElementNotInferable = new(
+        DiagnosticNumber.Mint("MIST_PM_FOREACH_ELEMENT_NOT_INFERABLE"),
+        Title: "Foreach element type not inferable",
+        Template: "Cannot infer the element type of '{0}' because it is not an array and conforms to no IEnumerable. Iterate a sequence, or state the element type in place of 'var'.",
+        Description: "A 'foreach' declares its variable with 'var' over a collection that is not an array and conforms to no IEnumerable, so there is no element type to give the variable; the binder cannot finish the loop without one, since every read of the variable resolves against that type. Iterate a sequence, or write the element type in place of 'var'.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>An empty array literal appears where no target array type supplies the element type.</summary>
-    public static readonly DiagnosticDescriptor RefLocalNeedsInitializer = new(
-        new DiagnosticId("MIST_PM_REF_LOCAL_NEEDS_INITIALIZER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Ref local '{0}' must be declared with an initializer: a reference names the storage it aliases where it is declared.");
+    public static readonly MistDiagnostic RefLocalNeedsInitializer = new(
+        DiagnosticNumber.Mint("MIST_PM_REF_LOCAL_NEEDS_INITIALIZER"),
+        Title: "Ref local without initializer",
+        Template: "Ref local '{0}' must be declared with an initializer: a reference names the storage it aliases where it is declared.",
+        Description: "A 'ref' local is declared without an initializer, but a reference binds to the storage it aliases at the point of declaration and cannot be left dangling. Initialize it with the variable or element it should refer to.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor EmptyArrayLiteralNeedsTargetType = new(
-        new DiagnosticId("MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The element type of an empty array literal cannot be inferred. Annotate the target with an array type, for example 'int[] x = [];'.");
+    public static readonly MistDiagnostic EmptyArrayLiteralNeedsTargetType = new(
+        DiagnosticNumber.Mint("MIST_PM_EMPTY_ARRAY_LITERAL_NO_TARGET"),
+        Title: "Empty array literal needs target",
+        Template: "The element type of an empty array literal cannot be inferred. Annotate the target with an array type, for example 'int[] x = [];'.",
+        Description: "An empty array literal appears where no target type supplies the element type, so the array's type cannot be inferred. Declare the receiving variable or parameter with an array type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>The elements of an array literal have no single common type.</summary>
-    public static readonly DiagnosticDescriptor ArrayLiteralNoCommonElementType = new(
-        new DiagnosticId("MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.");
+    public static readonly MistDiagnostic ArrayLiteralNoCommonElementType = new(
+        DiagnosticNumber.Mint("MIST_PM_ARRAY_LITERAL_NO_COMMON_TYPE"),
+        Title: "Array elements lack common type",
+        Template: "The elements of the array literal have no common type ('{0}' and '{1}'). Annotate the target with an array type to select the element type explicitly.",
+        Description: "The elements of an array literal have different types and no target type selects an element type; the compiler does not yet compute a best common type by conversion or numeric promotion, so it asks rather than guesses. Annotate the target with the array type you want.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor NumericLiteralOutOfRange = new(
-        new DiagnosticId("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The literal '{0}' is outside the range of '{1}'.");
+    public static readonly MistDiagnostic NumericLiteralOutOfRange = new(
+        DiagnosticNumber.Mint("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE"),
+        Title: "Numeric literal out of range",
+        Template: "The literal '{0}' is outside the range of '{1}'.",
+        Description: "A numeric literal does not fit the type given by its suffix or by its target. Use a wider type, or change the literal.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Target-typed new ─────────────────────────────────────────────────
 
-    /// <summary>
-    /// A <c>new(...)</c> appears where nothing supplies the type to construct.
-    /// <para>
-    /// Also reported where several overloads take this many arguments, because the parameter that
-    /// would supply the target cannot be picked without the argument types and this argument is one
-    /// of them. Hence a message asking for the type rather than one claiming none exists.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor TargetTypedNewNeedsTargetType = new(
-        new DiagnosticId("MIST_PM_TARGET_TYPED_NEW_NO_TARGET"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The type of 'new(...)' cannot be determined at this position. Name it, as in 'new Point(...)'.");
+    public static readonly MistDiagnostic TargetTypedNewNeedsTargetType = new(
+        DiagnosticNumber.Mint("MIST_PM_TARGET_TYPED_NEW_NO_TARGET"),
+        Title: "Target-typed new without target",
+        Template: "The type of 'new(...)' cannot be determined at this position. Name it, as in 'new Point(...)'.",
+        Description: "A 'new(...)' expression sits where nothing supplies the type to construct. This is also reported when several overloads accept the argument count, since the parameter that would supply the target cannot be chosen without the argument types and this is one of them; name the type explicitly.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A bare <c>default</c> appears where nothing supplies the type to default.</summary>
-    public static readonly DiagnosticDescriptor DefaultNeedsTargetType = new(
-        new DiagnosticId("MIST_PM_DEFAULT_NO_TARGET"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The type of 'default' cannot be determined at this position. Name it, as in 'default(int)'.");
+    public static readonly MistDiagnostic DefaultNeedsTargetType = new(
+        DiagnosticNumber.Mint("MIST_PM_DEFAULT_NO_TARGET"),
+        Title: "Default without target type",
+        Template: "The type of 'default' cannot be determined at this position. Name it, as in 'default(int)'.",
+        Description: "A bare 'default' appears where nothing supplies the type whose default value is meant. Write the type, as in 'default(int)', or place the expression where a target type is known.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>A <c>new(...)</c> is targeted at something no constructor can produce.</summary>
-    public static readonly DiagnosticDescriptor TargetTypeNotConstructible = new(
-        new DiagnosticId("MIST_PM_TARGET_TYPE_NOT_CONSTRUCTIBLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be constructed, so 'new(...)' has nothing to create here. Only a class or a struct can be.");
+    public static readonly MistDiagnostic TargetTypeNotConstructible = new(
+        DiagnosticNumber.Mint("MIST_PM_TARGET_TYPE_NOT_CONSTRUCTIBLE"),
+        Title: "Target type not constructible",
+        Template: "'{0}' cannot be constructed, so 'new(...)' has nothing to create here. Only a class or a struct can be.",
+        Description: "A 'new(...)' expression is targeted at a type that has no constructors to run, such as an abstract, an enum or a function type. Target a class or struct, or construct a concrete type that conforms to the target.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Object initializers ──────────────────────────────────────────────
 
-    public static readonly DiagnosticDescriptor InitializerTargetNotAssignable = new(
-        new DiagnosticId("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{1}' on '{0}' is not a field or a property, so an initializer block cannot assign to it.");
+    public static readonly MistDiagnostic InitializerTargetNotAssignable = new(
+        DiagnosticNumber.Mint("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE"),
+        Title: "Initializer target not assignable",
+        Template: "'{1}' on '{0}' is not a field or a property, so an initializer block cannot assign to it.",
+        Description: "An object initializer assigns to a member that is a method, nested type or other non-storage member. Assign only to fields and to properties with a setter or init accessor.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor InitializerTargetNotInstance = new(
-        new DiagnosticId("MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{1}' on '{0}' is static, so an initializer block cannot assign to it.");
+    public static readonly MistDiagnostic InitializerTargetNotInstance = new(
+        DiagnosticNumber.Mint("MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE"),
+        Title: "Initializer target is static",
+        Template: "'{1}' on '{0}' is static, so an initializer block cannot assign to it.",
+        Description: "An object initializer assigns to a static member, but an initializer sets state on the instance just constructed. Assign the static member in a separate statement, or make the member an instance member.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// An initializer block element is a bare expression, which is C#'s collection-initializer form.
-    /// Refused rather than passed through: it stands for a call to an <c>Add</c> overload nobody
-    /// resolved, so emitting it would hand Roslyn a member the model never chose.
-    /// </summary>
-    public static readonly DiagnosticDescriptor CollectionInitializerNotSupported = new(
-        new DiagnosticId("MIST_PM_COLLECTION_INITIALIZER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "An initializer block element must name a member and assign to it, as in 'Count = 1'. Collection initializers are not supported by the experimental pipeline; add the elements after construction.");
+    public static readonly MistDiagnostic CollectionInitializerNotSupported = new(
+        DiagnosticNumber.Mint("MIST_PM_COLLECTION_INITIALIZER"),
+        Title: "Collection initializer not supported",
+        Template: "An initializer block element must name a member and assign to it, as in 'Count = 1'. Collection initializers are not supported by the experimental pipeline; add the elements after construction.",
+        Description: "An initializer block contains a bare expression, which is the collection-initializer form that stands for a call to an 'Add' overload the model never resolved, so emitting it would hand the backend a member nobody chose. Write 'Member = value' entries instead, and add collection elements after construction.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Two assemblies in the same compilation share a name. An assembly's name is how a Mist
-    /// program refers to it, so two of them sharing one leaves references between projects
-    /// ambiguous with no way for the user to disambiguate.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DuplicateAssemblyName = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_ASSEMBLY_NAME"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Assembly name '{0}' is used by multiple projects in this compilation. Each referenced project must have a unique name.");
+    public static readonly MistDiagnostic DuplicateAssemblyName = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_ASSEMBLY_NAME"),
+        Title: "Duplicate assembly name",
+        Template: "Assembly name '{0}' is used by multiple projects in this compilation. Each referenced project must have a unique name.",
+        Description: "Two projects in one compilation produce assemblies with the same name, and since a Mist program refers to an assembly by name, references between them would be ambiguous with no way to disambiguate. Give each project a unique assembly name.",
+        Category: DiagnosticCategory.Dep,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A call supplies a number of arguments no overload of the named member takes. Unlike every other
-    /// mismatch, counting parameters needs no conversion relation, so this is decidable outright.
-    /// </summary>
-    public static readonly DiagnosticDescriptor NoApplicableOverload = new(
-        new DiagnosticId("MIST_PM_NO_APPLICABLE_OVERLOAD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "There is no overload of {0} accepting {1} argument(s). Declared arities: {2}.");
+    public static readonly MistDiagnostic NoApplicableOverload = new(
+        DiagnosticNumber.Mint("MIST_PM_NO_APPLICABLE_OVERLOAD"),
+        Title: "No overload with that arity",
+        Template: "There is no overload of {0} accepting {1} argument(s). Declared arities: {2}.",
+        Description: "A call passes a number of arguments that no overload of the named member accepts; counting parameters needs no conversion relation, so this is decided outright. Adjust the argument list to one of the declared arities.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Several overloads tie for a call, so choosing between them would be arbitrary.
-    /// <para>
-    /// Reported only among candidates already established as APPLICABLE, which is what makes a tie
-    /// safe to report from a partial conversion relation: it rests on a positive fact about each
-    /// candidate rather than on the absence of a conversion nobody looked for. A call the relation
-    /// cannot place at all is <see cref="UnresolvableOverload"/> instead, which is an absence rather
-    /// than a tie.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor AmbiguousOverload = new(
-        new DiagnosticId("MIST_PM_AMBIGUOUS_OVERLOAD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The call to {0} is ambiguous. These overloads are equally applicable: {1}. Cast an argument to choose one.");
+    public static readonly MistDiagnostic AmbiguousOverload = new(
+        DiagnosticNumber.Mint("MIST_PM_AMBIGUOUS_OVERLOAD"),
+        Title: "Ambiguous overload",
+        Template: "The call to {0} is ambiguous. These overloads are equally applicable: {1}. Cast an argument to choose one.",
+        Description: "Several overloads are applicable to the call and none is better than the rest, so choosing would be arbitrary; the tie is reported only among candidates already proven applicable, which is what makes it safe to decide from a partial conversion relation. Cast an argument so that one overload is preferred.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A method group reached a position that does not consume it. A group has two consumers, an
-    /// invocation and a conversion to a function type.
-    /// <para>
-    /// One message covers two situations -- a position that expects no function type at all, and one
-    /// whose function type no overload has the signature of, a generic overload the target leaves open
-    /// included -- so it states the rule rather than guessing which the program meant.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor MethodGroupNotConverted = new(
-        new DiagnosticId("MIST_PM_METHOD_GROUP_NOT_CONVERTED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' names a method group, which is only valid where it is invoked or where a function type is expected whose signature one of its overloads has.");
+    public static readonly MistDiagnostic MethodGroupNotConverted = new(
+        DiagnosticNumber.Mint("MIST_PM_METHOD_GROUP_NOT_CONVERTED"),
+        Title: "Method group not converted",
+        Template: "'{0}' names a method group, which is only valid where it is invoked or where a function type is expected whose signature one of its overloads has.",
+        Description: "A method group reached a position that neither invokes it nor converts it to a function type whose signature one of its overloads has, including a generic overload the target leaves open. Call the method, or assign it to a function type that one overload matches.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor TypeArgumentsOnANonMethod = new(
-        new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not a method, so it takes no type arguments.");
+    public static readonly MistDiagnostic TypeArgumentsOnANonMethod = new(
+        DiagnosticNumber.Mint("MIST_PM_TYPE_ARGUMENTS_ON_A_NON_METHOD"),
+        Title: "Type arguments on non-method",
+        Template: "'{0}' is not a method, so it takes no type arguments.",
+        Description: "An expression supplies type arguments to something that is not a method, such as a field, property or local. Remove the type argument list, or apply it to the generic method you meant.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor MethodGroupAmbiguous = new(
-        new DiagnosticId("MIST_PM_METHOD_GROUP_AMBIGUOUS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' names more than one overload with the target function type, and none is more specific than the rest.");
+    public static readonly MistDiagnostic MethodGroupAmbiguous = new(
+        DiagnosticNumber.Mint("MIST_PM_METHOD_GROUP_AMBIGUOUS"),
+        Title: "Ambiguous method group conversion",
+        Template: "'{0}' names more than one overload with the target function type, and none is more specific than the rest.",
+        Description: "More than one overload of a method group matches the target function type and none is more specific than the others. Cast to a function type that singles one out, or wrap the call in a lambda.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Several overloads take the right number of arguments and no conversion could be established
-    /// to any of them.
-    /// <para>
-    /// Reported rather than guessed. A partial conversion relation licenses declining to refuse a
-    /// program, which is not the same licence as inventing a selection: with every candidate
-    /// eliminated the relation has contributed nothing to choose on, so picking one would record a
-    /// call the program does not make and hand the emitter a member the user never named.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnresolvableOverload = new(
-        new DiagnosticId("MIST_PM_UNRESOLVABLE_OVERLOAD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The call to {0} matches no overload. No conversion is known from the given arguments to any of: {1}.");
+    public static readonly MistDiagnostic UnresolvableOverload = new(
+        DiagnosticNumber.Mint("MIST_PM_UNRESOLVABLE_OVERLOAD"),
+        Title: "No convertible overload",
+        Template: "The call to {0} matches no overload. No conversion is known from the given arguments to any of: {1}.",
+        Description: "Several overloads accept the argument count but no conversion is known from the given arguments to any of them. The compiler declines to guess, since with every candidate eliminated it has nothing to choose on; convert the arguments to the parameter types of the overload you intend.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Refused rather than left open, unlike the two failures resting on the partial conversion
-    /// relation. An undetermined parameter is a missing TYPE, not a missing preference: binding anyway
-    /// emits C# naming a type parameter where a type belongs, which puts the error on a generated file
-    /// instead of on the call.
-    /// </summary>
-    public static readonly DiagnosticDescriptor TypeArgumentsNotInferred = new(
-        new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Cannot infer the type arguments of {0} from the arguments. State all of them explicitly at the call: {1}.");
+    public static readonly MistDiagnostic TypeArgumentsNotInferred = new(
+        DiagnosticNumber.Mint("MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED"),
+        Title: "Type arguments not inferred",
+        Template: "Cannot infer the type arguments of {0} from the arguments. State all of them explicitly at the call: {1}.",
+        Description: "A call to a generic method leaves at least one type parameter undetermined by the arguments; binding anyway would emit code naming a type parameter where a type belongs and move the error onto a generated file. State every type argument explicitly at the call.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor TypeArgumentsConflict = new(
-        new DiagnosticId("MIST_PM_TYPE_ARGUMENTS_CONFLICT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Cannot infer the type arguments of {0}: the arguments give {1} the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.");
+    public static readonly MistDiagnostic TypeArgumentsConflict = new(
+        DiagnosticNumber.Mint("MIST_PM_TYPE_ARGUMENTS_CONFLICT"),
+        Title: "Conflicting type argument inference",
+        Template: "Cannot infer the type arguments of {0}: the arguments give {1} the types {2}, and none of them is a type the others all convert to. State all of them explicitly at the call: {3}.",
+        Description: "The arguments of a generic call give one type parameter several different types, none of which the others all convert to. State the type arguments explicitly at the call, or convert the arguments to a single type.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor TypeArgumentCountMismatch = new(
-        new DiagnosticId("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "The call to {0} states the wrong number of type arguments. Declared type parameter counts: {1}.");
+    public static readonly MistDiagnostic TypeArgumentCountMismatch = new(
+        DiagnosticNumber.Mint("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH"),
+        Title: "Type argument count mismatch",
+        Template: "The call to {0} states the wrong number of type arguments. Declared type parameter counts: {1}.",
+        Description: "A call states a number of type arguments that no overload of the method declares. Supply exactly as many as the overload you intend has type parameters.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── The unknown top type ─────────────────────────────────────────────
 
-    /// <summary>
-    /// <c>unknown</c> is the declared type of writable storage, directly or through a type
-    /// argument, union constituent or tuple element.
-    /// <para>
-    /// Storage is banned because it is the one position that would let a value LEAVE the top type
-    /// without a pattern: write an <c>int</c> into an <c>unknown</c>-typed slot and read it back
-    /// through a concretely-typed view of the same slot, and the narrowing rule has been bypassed
-    /// without any assignment having broken it.
-    /// </para>
-    /// <para>
-    /// A getter-only property is refused along with the rest. The ban is on the declaration, not on
-    /// the presence of a setter, because it is the declared type that decides what the slot admits
-    /// -- and a property that is read-only today is one edit away from not being.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnknownAtStoragePosition = new(
-        new DiagnosticId("MIST_PM_UNKNOWN_AT_STORAGE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "{0} cannot have type '{1}': 'unknown' is not permitted as the declared type of writable storage. Use a concrete type, or accept 'unknown' as a parameter and pattern-match it.");
+    public static readonly MistDiagnostic UnknownAtStoragePosition = new(
+        DiagnosticNumber.Mint("MIST_PM_UNKNOWN_AT_STORAGE"),
+        Title: "Unknown as storage type",
+        Template: "{0} cannot have type '{1}': 'unknown' is not permitted as the declared type of writable storage. Use a concrete type, or accept 'unknown' as a parameter and pattern-match it.",
+        Description: "Writable storage, directly or through a type argument, union constituent or tuple element, is declared with type 'unknown'. Storage is the one position that would let a value leave the top type without a pattern, and a getter-only property is refused too because the declared type decides what the slot admits; declare a concrete type, or take 'unknown' as a parameter and pattern-match it.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The member-not-found of a receiver closed with <c>unknown</c> (unknown-type Requirement 10.7):
-    /// the member exists, and this receiver hides it, because the storage it would write is typed by a
-    /// parameter the receiver binds to the top type while the runtime object holds a concrete argument.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnknownViewHidesWriter = new(
-        new DiagnosticId("MIST_PM_UNKNOWN_VIEW_HIDES_WRITER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{1}' cannot be {2} on '{0}': it would write to storage typed by '{3}', which '{0}' closes with 'unknown'. Narrow the receiver with an 'is' pattern to a concrete construction first.");
+    public static readonly MistDiagnostic UnknownViewHidesWriter = new(
+        DiagnosticNumber.Mint("MIST_PM_UNKNOWN_VIEW_HIDES_WRITER"),
+        Title: "Unknown view hides writer",
+        Template: "'{1}' cannot be {2} on '{0}': it would write to storage typed by '{3}', which '{0}' closes with 'unknown'. Narrow the receiver with an 'is' pattern to a concrete construction first.",
+        Description: "A member exists on the receiver but is hidden because the receiver closes a type parameter with 'unknown' while the runtime object holds a concrete argument, so the write would store into concretely typed storage through a top-typed view. Narrow the receiver with an 'is' pattern to a concrete construction before writing.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
     // ── Retroactive conformance ──────────────────────────────────────────
 
-    /// <summary>
-    /// An abstract is excluded too: it declares its conformances in its own base list, and no other
-    /// kind of type has members to map. None of these four counts slots -- coverage is a judgement on
-    /// a completed model.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ConformanceSourceNotConcrete = new(
-        new DiagnosticId("MIST_PM_CONFORMANCE_NOT_CONCRETE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be declared to conform retroactively: only a class or a struct can be the subject of a with block.");
+    public static readonly MistDiagnostic ConformanceSourceNotConcrete = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFORMANCE_NOT_CONCRETE"),
+        Title: "Conformance subject not concrete",
+        Template: "'{0}' cannot be declared to conform retroactively: only a class or a struct can be the subject of a with block.",
+        Description: "A 'with' block declares retroactive conformance for a type that is not a class or struct. An abstract declares its conformances in its own base list and no other kind of type has members to map, so apply the block to a class or struct.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ConformanceTargetNotAbstract = new(
-        new DiagnosticId("MIST_PM_CONFORMANCE_NOT_ABSTRACT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is not an abstract type, so '{1}' cannot be declared to conform to it.");
+    public static readonly MistDiagnostic ConformanceTargetNotAbstract = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFORMANCE_NOT_ABSTRACT"),
+        Title: "Conformance target not abstract",
+        Template: "'{0}' is not an abstract type, so '{1}' cannot be declared to conform to it.",
+        Description: "A 'with' block declares conformance to a type that is not an abstract, and only an abstract has slots to conform to. Name an abstract type, or use inheritance if a concrete base was meant.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Reported at construction because it stops the variant getting a value at all, which every
-    /// later stage depends on having -- not because a finished program is judged wrong on inspection.
-    /// </summary>
-    public static readonly DiagnosticDescriptor EnumVariantValueNotInferable = new(
-        new DiagnosticId("MIST_PM_ENUM_VALUE_NOT_INFERABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Enum variant '{0}' needs an explicit value: none can be inferred over base type '{1}'. Only a string base, which uses the variant name, and an integral base, which counts up from the previous variant, can supply one.");
+    public static readonly MistDiagnostic EnumVariantValueNotInferable = new(
+        DiagnosticNumber.Mint("MIST_PM_ENUM_VALUE_NOT_INFERABLE"),
+        Title: "Enum variant value not inferable",
+        Template: "Enum variant '{0}' needs an explicit value: none can be inferred over base type '{1}'. Only a string base, which uses the variant name, and an integral base, which counts up from the previous variant, can supply one.",
+        Description: "An enum variant has no explicit value and its base type offers no rule to supply one; only a string base, which uses the variant's name, and an integral base, which counts up from the previous variant, can. Give the variant an explicit value, since every later stage depends on it having one.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Counting on needs the previous variant's constant, and a written value the binder cannot fold
-    /// -- a const reference, arithmetic -- withholds it. Refused rather than guessed: the classic
-    /// pipeline restarts counting at zero here, silently merging variants the author believes are
-    /// distinct, since variants sharing a value are aliases under this lowering.
-    /// </summary>
-    public static readonly DiagnosticDescriptor EnumVariantValueNotCountable = new(
-        new DiagnosticId("MIST_PM_ENUM_VALUE_NOT_COUNTABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Enum variant '{0}' needs an explicit value: the previous variant's value is not a compile-time constant this phase can count on from.");
+    public static readonly MistDiagnostic EnumVariantValueNotCountable = new(
+        DiagnosticNumber.Mint("MIST_PM_ENUM_VALUE_NOT_COUNTABLE"),
+        Title: "Enum variant value not countable",
+        Template: "Enum variant '{0}' needs an explicit value: the previous variant's value is not a compile-time constant this phase can count on from.",
+        Description: "An enum variant has no explicit value and the previous variant's value is not a constant this phase can fold, such as a const reference or arithmetic. The compiler refuses rather than restarting the count at zero, which would silently merge variants into aliases; give this variant an explicit value.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The compiler's own arithmetic walked outside the base type. Reported in Mist terms because the
-    /// author wrote no value here -- an overflow error against generated C# would name a number they
-    /// never typed.
-    /// </summary>
-    public static readonly DiagnosticDescriptor EnumVariantValueOutOfRange = new(
-        new DiagnosticId("MIST_PM_ENUM_VALUE_OUT_OF_RANGE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Enum variant '{0}' would take inferred value {1}, which does not fit base type '{2}'. Give it an explicit value, or widen the base type.");
+    public static readonly MistDiagnostic EnumVariantValueOutOfRange = new(
+        DiagnosticNumber.Mint("MIST_PM_ENUM_VALUE_OUT_OF_RANGE"),
+        Title: "Enum variant value out of range",
+        Template: "Enum variant '{0}' would take inferred value {1}, which does not fit base type '{2}'. Give it an explicit value, or widen the base type.",
+        Description: "Counting up from the previous variant produced a value that does not fit the enum's base type; it is reported in Mist terms because the author wrote no number here. Give the variant an explicit value, or widen the base type.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ConformanceUnresolvedSlot = new(
-        new DiagnosticId("MIST_PM_CONFORMANCE_UNRESOLVED_SLOT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Abstract type '{0}' declares no member named '{1}'.");
+    public static readonly MistDiagnostic ConformanceUnresolvedSlot = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFORMANCE_UNRESOLVED_SLOT"),
+        Title: "Unknown conformance slot",
+        Template: "Abstract type '{0}' declares no member named '{1}'.",
+        Description: "A 'with' block maps a slot that the abstract type does not declare. Check the slot name against the abstract's members.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// One descriptor for every way a mapping's two ends fail to pair: the remedy is the same in
-    /// each, and the message names both ends.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ConformanceMappingUnsatisfied = new(
-        new DiagnosticId("MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "No member named '{0}' on '{1}' can answer slot '{2}' of '{3}'. A mapping needs a member of the same kind, and for a method one taking the same number of parameters.");
+    public static readonly MistDiagnostic ConformanceMappingUnsatisfied = new(
+        DiagnosticNumber.Mint("MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED"),
+        Title: "Conformance mapping unsatisfied",
+        Template: "No member named '{0}' on '{1}' can answer slot '{2}' of '{3}'. A mapping needs a member of the same kind, and for a method one taking the same number of parameters.",
+        Description: "A 'with' block maps an abstract's slot to a member of the conforming type, but no member of that name has the same kind and, for a method, the same parameter count; one diagnostic covers every way the two ends fail to pair since the remedy is the same. Point the mapping at a member that matches the slot, or add one.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// An <c>as</c> names a target the source can never reach, in either direction. Reported by
-    /// construction rather than deferred because the classification is what gives the expression its
-    /// TYPE: an unreachable target leaves nothing to answer with, neither the bare type a provable
-    /// conversion yields nor the optional a checked one does.
-    /// <para>
-    /// A void end reaches here too, and so does a newtype against its source, rather than through a message
-    /// of its own. Nothing converts to or from the unit type, and a newtype converts freely without ever
-    /// being its source, so what both have in common -- neither is ever the other -- is what the message
-    /// states, and a second descriptor would only word it more specifically.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor AsConversionNoRelationship = new(
-        new DiagnosticId("MIST_PM_AS_NO_RELATIONSHIP"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A value of type '{0}' can never be '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.");
+    public static readonly MistDiagnostic AsConversionNoRelationship = new(
+        DiagnosticNumber.Mint("MIST_PM_AS_NO_RELATIONSHIP"),
+        Title: "As conversion has no relationship",
+        Template: "A value of type '{0}' can never be '{1}', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.",
+        Description: "An 'as' names a target type that the source can never be, in either direction, so the expression has no result type, neither the bare type of a provable conversion nor the optional of a checked one. This also covers a void end and a newtype tested against its source; make one type contain the other, or test a union or unknown that can hold the target.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A type parameter list declares more than one bracket-free pack. Two of them cannot divide a
-    /// flat argument list between themselves -- any split would do -- so the list is ambiguous by
-    /// construction rather than merely unsupported. Brackets are the way to declare a second pack.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MultipleUnbracketedPacks = new(
-        new DiagnosticId("MIST_VAR_0001"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is a second bracket-free pack after '{1}'. Only one pack can absorb a flat argument list; declare this one as 'Type[]:{0}' and supply it in brackets.");
+    public static readonly MistDiagnostic MultipleUnbracketedPacks = new(
+        DiagnosticNumber.Mint("MIST_VAR_0001"),
+        Title: "Multiple bracket-free packs",
+        Template: "'{0}' is a second bracket-free pack after '{1}'. Only one pack can absorb a flat argument list; declare this one as 'Type[]:{0}' and supply it in brackets.",
+        Description: "A type parameter list declares two packs without brackets, and two of them could divide a flat argument list any number of ways, so the list is ambiguous by construction. Declare the second pack with a 'Type[]' domain and supply its arguments in brackets.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The value-parameter side of <see cref="MultipleUnbracketedPacks"/>, under the same id because the
-    /// variadics spec states them as one rule (Requirements 7.9 and 13.5): a `params` parameter is where a
-    /// caller may write a flat list, whichever of a tuple or an array collects it, and a list has one.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MultipleParamsParameters = new(
-        new DiagnosticId("MIST_VAR_0001"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is a second 'params' parameter after '{1}'. Only one parameter of a value-parameter list can absorb a flat argument list; declare this one without 'params' and pass it as one tuple or array.");
+    public static readonly MistDiagnostic MultipleParamsParameters = new(
+        DiagnosticNumber.Mint("MIST_VAR_0001"),
+        Title: "Multiple params parameters",
+        Template: "'{0}' is a second 'params' parameter after '{1}'. Only one parameter of a value-parameter list can absorb a flat argument list; declare this one without 'params' and pass it as one tuple or array.",
+        Description: "A parameter list declares a second 'params' parameter, but a caller's flat argument list can be absorbed by only one parameter whichever of a tuple or an array collects it; the variadics spec states this and the pack rule as one rule. Declare the second parameter without 'params' and pass it as a single tuple or array.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PackInTypePosition = new(
-        new DiagnosticId("MIST_VAR_0002"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is a pack, a list of types, and this position needs one type. Spread it with '{0}...' where a list is accepted: a type-argument list, a tuple type, or a member declaration.");
+    public static readonly MistDiagnostic PackInTypePosition = new(
+        DiagnosticNumber.Mint("MIST_VAR_0002"),
+        Title: "Pack used as single type",
+        Template: "'{0}' is a pack, a list of types, and this position needs one type. Spread it with '{0}...' where a list is accepted: a type-argument list, a tuple type, or a member declaration.",
+        Description: "A pack, which is a list of types, is written where exactly one type is needed. Spread it with '...' in a position that accepts a list, such as a type-argument list, a tuple type or a member declaration.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A dependent parameter's domain is outside the set whose values can carry type identity. The
-    /// line is drawn at equality: a construction is identified BY its argument, so a domain whose
-    /// equality is partial or approximate would make type identity the same, which is why the
-    /// floating-point types are out however convenient they look.
-    /// </summary>
-    public static readonly DiagnosticDescriptor DisallowedDependentDomain = new(
-        new DiagnosticId("MIST_DT_0001"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.");
+    public static readonly MistDiagnostic DisallowedDependentDomain = new(
+        DiagnosticNumber.Mint("MIST_DT_0001"),
+        Title: "Disallowed dependent domain",
+        Template: "Type '{0}' cannot be used as a dependent type parameter. Only primitive integral types, bool, and char are allowed.",
+        Description: "A dependent type parameter is declared over a type whose values cannot carry type identity. A construction is identified by its argument, so the domain's equality must be total and exact, which excludes the floating-point types however convenient they look; use a primitive integral type, bool or char.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor DuplicateTypeParameter = new(
-        new DiagnosticId("MIST_PM_DUPLICATE_TYPE_PARAMETER"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "Type parameter '{0}' is declared more than once in the same type parameter list.");
+    public static readonly MistDiagnostic DuplicateTypeParameter = new(
+        DiagnosticNumber.Mint("MIST_PM_DUPLICATE_TYPE_PARAMETER"),
+        Title: "Duplicate type parameter",
+        Template: "Type parameter '{0}' is declared more than once in the same type parameter list.",
+        Description: "A type parameter list declares the same name twice. Rename one of the parameters.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A pack indexed in a type position where its length is not fixed. A declaration is judged for
-    /// every instantiation, and one of them is the empty pack, so no index is provably inside a
-    /// <c>Type[]</c>; only a <c>Type[N]</c> domain fixes the length the index is held to.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnprovenPackIndex = new(
-        new DiagnosticId("MIST_VAR_0003"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}[{1}]' indexes a pack whose length is not known here, so it may hold no element {1}. Only a pack declared with a fixed size, 'Type[N]:{0}', or the binding of a guard proving its size, 'if ({0} is Type[N] fixed)', can be indexed in a type position.");
+    public static readonly MistDiagnostic UnprovenPackIndex = new(
+        DiagnosticNumber.Mint("MIST_VAR_0003"),
+        Title: "Unproven pack index",
+        Template: "'{0}[{1}]' indexes a pack whose length is not known here, so it may hold no element {1}. Only a pack declared with a fixed size, 'Type[N]:{0}', or the binding of a guard proving its size, 'if ({0} is Type[N] fixed)', can be indexed in a type position.",
+        Description: "A pack is indexed in a type position where its length is not fixed; a declaration is judged for every instantiation, including the empty pack, so no index is provably inside a 'Type[]' pack. Declare the pack with a fixed size 'Type[N]', or index it under a guard that proves the size.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor PackIndexOutOfBounds = new(
-        new DiagnosticId("MIST_VAR_0004"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}[{1}]' is outside the pack: '{0}' is declared to hold exactly {2} element(s), indexed from 0.");
+    public static readonly MistDiagnostic PackIndexOutOfBounds = new(
+        DiagnosticNumber.Mint("MIST_VAR_0004"),
+        Title: "Pack index out of bounds",
+        Template: "'{0}[{1}]' is outside the pack: '{0}' is declared to hold exactly {2} element(s), indexed from 0.",
+        Description: "A pack is indexed at a position at or beyond the fixed number of elements it is declared to hold, counted from zero. Use an index below the declared size.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A flat type-argument list cannot reach the fixed slots even with the pack absorbing nothing.
-    /// A pack makes the count flexible UPWARD only: the slots around it still each need an
-    /// argument, so there is a floor and this is it.
-    /// </summary>
-    public static readonly DiagnosticDescriptor TooFewTypeArgumentsForPack = new(
-        new DiagnosticId("MIST_VAR_0005"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' needs at least {1} type arguments to fill the slots around its pack, but {2} were given.");
+    public static readonly MistDiagnostic TooFewTypeArgumentsForPack = new(
+        DiagnosticNumber.Mint("MIST_VAR_0005"),
+        Title: "Too few type arguments",
+        Template: "'{0}' needs at least {1} type arguments to fill the slots around its pack, but {2} were given.",
+        Description: "A flat type-argument list is too short to fill the fixed slots around a pack even with the pack absorbing nothing; a pack makes the count flexible upward only. Supply at least one argument for each non-pack slot.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A member name that a spread already owns. A spread declares a FAMILY -- the aggregate and
-    /// every indexed projection -- and how many of the latter there are is not known where the
-    /// declaration is written, so the whole prefixed namespace has to be reserved rather than the
-    /// names that happen to exist for one instantiation.
-    /// </summary>
-    public static readonly DiagnosticDescriptor SpreadStemCollision = new(
-        new DiagnosticId("MIST_VAR_0007"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' collides with the spread member '{1}', which owns that name and every '{1}' followed by an index.");
+    public static readonly MistDiagnostic SpreadStemCollision = new(
+        DiagnosticNumber.Mint("MIST_VAR_0007"),
+        Title: "Spread member name collision",
+        Template: "'{0}' collides with the spread member '{1}', which owns that name and every '{1}' followed by an index.",
+        Description: "A member's name falls inside the family a spread member owns, which is the aggregate and every indexed projection of it. How many projections exist is unknown where the declaration is written, so the whole prefixed name space is reserved; rename the member.",
+        Category: DiagnosticCategory.Nam,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A homogeneous `params T[]` that is not the last parameter. The call site supplies its
-    /// arguments by running off the end of the fixed ones, which only the last slot can do -- where
-    /// a value PACK binds inward from both ends and so may sit anywhere.
-    /// <para>
-    /// A RULE OF THE LANGUAGE, so it is decided here and not by whatever the program is emitted
-    /// into. The declaration is not well-formed Mist, which stays true when the backend is not C#;
-    /// leaving it to the target would mean each new backend rediscovering the same rule, and only
-    /// for as long as the target happened to share it.
-    /// </para>
-    /// </summary>
-    public static readonly DiagnosticDescriptor ParamsArrayNotLast = new(
-        new DiagnosticId("MIST_VAR_0012"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is declared 'params' but is not the last parameter. A 'params' collection collects the arguments after the fixed ones, so nothing may follow it.");
+    public static readonly MistDiagnostic ParamsArrayNotLast = new(
+        DiagnosticNumber.Mint("MIST_VAR_0012"),
+        Title: "Params parameter not last",
+        Template: "'{0}' is declared 'params' but is not the last parameter. A 'params' collection collects the arguments after the fixed ones, so nothing may follow it.",
+        Description: "A homogeneous 'params' collection parameter is followed by other parameters, but it gathers the arguments that run past the fixed ones, which only the last slot can do; a value pack, which binds inward from both ends, may sit anywhere. This is a rule of Mist rather than of any backend, so move the 'params' parameter to the end.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor ParamsParameterMalformed = new(
-        new DiagnosticId("MIST_VAR_0013"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is declared 'params' but {1}. A 'params' parameter is a value pack, 'params TArgs {0}', or a collection a flat list is gathered into -- an array, 'params T[] {0}', a span, a list, or an enumerable interface -- passed by value.");
+    public static readonly MistDiagnostic ParamsParameterMalformed = new(
+        DiagnosticNumber.Mint("MIST_VAR_0013"),
+        Title: "Malformed params parameter",
+        Template: "'{0}' is declared 'params' but {1}. A 'params' parameter is a value pack, 'params TArgs {0}', or a collection a flat list is gathered into -- an array, 'params T[] {0}', a span, a list, or an enumerable interface -- passed by value.",
+        Description: "A parameter is marked 'params' but its type or passing mode is not one a flat argument list can be gathered into. Declare it as a value pack, or as a by-value array, span, list or enumerable collection.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A spread whose expansion is not known. The suffix promises a definite number of arguments,
-    /// so an operand whose arity is not fixed cannot stand where arguments go -- and the promise is
-    /// what the call was checked against, which is why this is refused rather than deferred.
-    /// </summary>
-    public static readonly DiagnosticDescriptor UnprovableSpread = new(
-        new DiagnosticId("MIST_VAR_0011"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot be spread here: its length is not known at this point, so the number of arguments it stands for is not either.");
+    public static readonly MistDiagnostic UnprovableSpread = new(
+        DiagnosticNumber.Mint("MIST_VAR_0011"),
+        Title: "Unprovable spread",
+        Template: "'{0}' cannot be spread here: its length is not known at this point, so the number of arguments it stands for is not either.",
+        Description: "A '...' spread is applied to an operand whose length is not known at this point, but the spread promises a definite number of arguments and the call was checked against that promise. Spread a pack or value whose arity is fixed here, or prove its size with a guard first.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A projected anonymous member that ends in no name, as <c>new { f() }</c> does. The member has
-    /// to be called something, and a projection says what only by ending in the name it borrows.
-    /// </summary>
-    public static readonly DiagnosticDescriptor AnonymousMemberNotNameable = new(
-        new DiagnosticId("MIST_PM_ANONYMOUS_MEMBER_NOT_NAMEABLE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "This anonymous type member has no name. Write one with 'Name = ', or project something that ends in a name.");
+    public static readonly MistDiagnostic AnonymousMemberNotNameable = new(
+        DiagnosticNumber.Mint("MIST_PM_ANONYMOUS_MEMBER_NOT_NAMEABLE"),
+        Title: "Unnamed anonymous type member",
+        Template: "This anonymous type member has no name. Write one with 'Name = ', or project something that ends in a name.",
+        Description: "An anonymous type projects an expression that ends in no name, such as a call, so the member has nothing to be called; a projection names its member only by borrowing the name it ends in. Write 'Name = expression', or project a field, property or variable.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor AbstractConstructed = new(
-        new DiagnosticId("MIST_PM_ABSTRACT_CONSTRUCTED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' is an abstract and cannot be constructed. Construct a class or a struct that conforms to it.");
+    public static readonly MistDiagnostic AbstractConstructed = new(
+        DiagnosticNumber.Mint("MIST_PM_ABSTRACT_CONSTRUCTED"),
+        Title: "Abstract type constructed",
+        Template: "'{0}' is an abstract and cannot be constructed. Construct a class or a struct that conforms to it.",
+        Description: "A 'new' expression names an abstract type, which has no constructor to run because it describes a contract rather than a value. Construct a class or struct that conforms to it.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A member of a newtype's clone that does not bind once its source's name means the newtype,
-    /// though it binds in the source -- a body passing `this` where the source type is required.
-    /// Reported at the newtype, since the source is not wrong.
-    /// </summary>
-    public static readonly DiagnosticDescriptor NewtypeCloneInvalid = new(
-        new DiagnosticId("MIST_PM_NEWTYPE_CLONE_INVALID"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "'{0}' cannot clone '{1}', whose member '{2}' does not hold for '{0}': {3}");
+    public static readonly MistDiagnostic NewtypeCloneInvalid = new(
+        DiagnosticNumber.Mint("MIST_PM_NEWTYPE_CLONE_INVALID"),
+        Title: "Invalid newtype clone",
+        Template: "'{0}' cannot clone '{1}', whose member '{2}' does not hold for '{0}': {3}",
+        Description: "A newtype clones a source type whose member no longer holds once the source's name means the newtype, for example a body passing 'this' where the source type is required. The source itself is not wrong, so the error is reported at the newtype; adjust the source member so it stays valid under the newtype, or choose a different source.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor NewtypeSourceNotSupported = new(
-        new DiagnosticId("MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED"),
-        DiagnosticSeverity.Error,
-        PipelineStage.SemanticModelConstruction,
-        "A newtype over '{0}' is not supported: a newtype clones a class or a struct declared in Mist.");
+    public static readonly MistDiagnostic NewtypeSourceNotSupported = new(
+        DiagnosticNumber.Mint("MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED"),
+        Title: "Unsupported newtype source",
+        Template: "A newtype over '{0}' is not supported: a newtype clones a class or a struct declared in Mist.",
+        Description: "A newtype names a source that is not a class or struct declared in Mist, and a newtype works by cloning its source's Mist members. Clone a Mist class or struct instead.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 }

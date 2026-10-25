@@ -207,7 +207,7 @@ public sealed class CallableArgumentInferenceTests : ProgramModelProbe
     {
         var error = Assert.Single(AllErrors(BuildRun(statement)));
 
-        Assert.Equal(id, error.Id.Value);
+        Assert.Equal(id, error.Number.Value);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class ProjectedCallableArgumentInferenceTests
         Assert.Null(choice.Selected);
         Assert.Equal(methods, choice.Unresolvable);
         OverloadFailure.Report(choice, methods, arguments, "method 'Where'", HandBuiltModel.Node(), f.Diagnostics);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

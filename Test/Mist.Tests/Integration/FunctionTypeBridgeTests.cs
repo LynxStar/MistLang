@@ -118,7 +118,7 @@ public sealed class FunctionTypeBridgeTests : IDisposable
     {
         var errors = Compile(UsesFuncAsAFunction)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 
         Assert.True(
@@ -137,9 +137,9 @@ public sealed class FunctionTypeBridgeTests : IDisposable
     {
         var modelErrors = Compile(ForwardsAPackIntoFunc)
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Where(d => d.Id.Value.StartsWith("MIST_PM_", StringComparison.Ordinal)
-                || d.Id.Value.StartsWith("MIST_VAR_", StringComparison.Ordinal))
-            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .Where(d => d.Number.Value.StartsWith("MIST_PM_", StringComparison.Ordinal)
+                || d.Number.Value.StartsWith("MIST_VAR_", StringComparison.Ordinal))
+            .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 
         Assert.True(

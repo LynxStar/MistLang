@@ -37,7 +37,7 @@ public sealed class AccessorPromiseRefusalTests
         }
 
         var finding = Assert.Single(reported);
-        Assert.True(finding.Id.Value == expected, $"{caseName}: expected {expected}, got {finding.Id.Value}");
+        Assert.True(finding.Number.Value == expected, $"{caseName}: expected {expected}, got {finding.Number.Value}");
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -52,7 +52,7 @@ public sealed class AccessorPromiseRefusalTests
     {
         var finding = Assert.Single(new AccessorPromiseFragments().Analyze(caseName));
 
-        Assert.True(finding.Id.Value == expected, $"{caseName}: expected {expected}, got {finding.Id.Value}");
+        Assert.True(finding.Number.Value == expected, $"{caseName}: expected {expected}, got {finding.Number.Value}");
         Assert.Contains(scope, finding.Message, StringComparison.Ordinal);
     }
 

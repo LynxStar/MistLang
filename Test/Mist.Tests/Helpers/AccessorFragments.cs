@@ -60,9 +60,9 @@ internal sealed class AccessorFragments
 
     public Accessibility MemberAccessibility { get; }
 
-    public IReadOnlyList<DiagnosticDescriptor> Decide()
+    public IReadOnlyList<MistDiagnostic> Decide()
     {
-        var diagnostics = new List<DiagnosticDescriptor>();
+        var diagnostics = new List<MistDiagnostic>();
         if(Reads && AccessorDecision.Read(Getter, Owner, MistAssembly.Synthetic, MemberAccessibility, Declaring) is { } read)
         {
             diagnostics.Add(read);

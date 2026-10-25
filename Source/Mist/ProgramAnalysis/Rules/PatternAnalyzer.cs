@@ -202,7 +202,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
     {
         var tested = test.Constituent ?? test.NarrowedType;
 
@@ -240,15 +240,15 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     {
         if(ComparisonFinding(comparison, input, context.Model.TypeInterner) is { } descriptor)
         {
-            var expressions = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id ? new[] { about } : [about, comparison.Bound];
-            var args = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id
+            var expressions = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number ? new[] { about } : [about, comparison.Bound];
+            var args = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number
                 ? new object?[] { TypeDisplay.Mist(input) }
                 : [TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input)];
             context.Report(descriptor, comparison.Node, expressions, args);
         }
     }
 
-    internal static DiagnosticDescriptor? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
     {
         if(Comparability.IsIndeterminate(input) || input is UnionType || comparison.Bound.Type is ErrorType)
         {
@@ -295,7 +295,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? ArmFinding(IReadOnlyList<Pattern> earlier, Pattern later, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? ArmFinding(IReadOnlyList<Pattern> earlier, Pattern later, IMistType input, TypeInterner interner)
     {
         return earlier.Any(pattern => Covers(pattern, later, interner)) || MatchedValues.Covered(earlier, later, input)
             ? ProgramAnalysisDiagnostics.SwitchArmUnreachable

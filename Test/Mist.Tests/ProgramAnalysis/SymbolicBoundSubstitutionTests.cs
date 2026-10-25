@@ -150,6 +150,6 @@ public sealed class SymbolicBoundSubstitutionTests
 
     private static string? Single(IReadOnlyList<Diagnostic> findings)
     {
-        return findings.Count == 0 ? null : Assert.Single(findings).Id.Value;
+        return findings.Count == 0 ? null : Assert.Single(findings).Number.Value;
     }
 }

@@ -68,7 +68,7 @@ public sealed class CompoundRefinementBindingTests
         _ = Bind(compound);
 
         Assert.Contains(fragments.Diagnostics.ToImmutableArray(),
-            diagnostic => diagnostic.Id == ProgramModelDiagnostics.PatternBindingNotEstablished.Id);
+            diagnostic => diagnostic.Number == ProgramModelDiagnostics.PatternBindingNotEstablished.Number);
     }
 
     private Pattern? Bind(CompoundRefinementPredicateRefinementPredicateNode compound)

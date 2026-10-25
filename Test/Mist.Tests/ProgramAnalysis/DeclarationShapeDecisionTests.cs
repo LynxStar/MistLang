@@ -482,7 +482,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse(statement, extraTypes, Library));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Id.Value);
+        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Number.Value);
     }
 
     [Fact]
@@ -508,7 +508,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse("int n = Open.Quiet();", referenced: Library));
 
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Id.Value);
+        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", finding.Number.Value);
     }
 
     [Fact]
@@ -666,7 +666,7 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
     {
         const string shapes = "public class Shapes { public static int Sides<T>(T shape) where T : IShape { return 4; } }";
 
-        Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Id.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED"));
+        Assert.Equal(findings, Analyse(statement, shapes).Count(d => d.Number.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED"));
     }
 
     private const string Closings = """
@@ -791,6 +791,6 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

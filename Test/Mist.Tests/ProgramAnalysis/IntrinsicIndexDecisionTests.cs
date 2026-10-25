@@ -96,7 +96,7 @@ public sealed class IntrinsicIndexDecisionTests
 
     private static void AssertOnlyBoundsJudged(string statement)
     {
-        Assert.DoesNotContain(Errors(Analyse(statement)), diagnostic => !BoundsIds.Contains(diagnostic.Id.Value));
+        Assert.DoesNotContain(Errors(Analyse(statement)), diagnostic => !BoundsIds.Contains(diagnostic.Number.Value));
     }
 
     private static List<Diagnostic> Analyse(string statement)

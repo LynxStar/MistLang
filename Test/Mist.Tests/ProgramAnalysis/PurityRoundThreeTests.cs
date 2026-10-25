@@ -175,7 +175,7 @@ public sealed class PurityRoundThreeTests
         var findings = new PurityFragments().RoundThree("pure-method-passes-params-elements-through-an-impure-conversion");
 
         Assert.Equal(2, findings.Count);
-        Assert.All(findings, finding => Assert.Equal(CallsImpure, finding.Id.Value));
+        Assert.All(findings, finding => Assert.Equal(CallsImpure, finding.Number.Value));
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public sealed class PurityRoundThreeTests
     {
         var finding = Assert.Single(new PurityFragments().RoundThree(fragment));
 
-        Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}: {finding.Message}");
+        Assert.True(finding.Number.Value == expected, $"{fragment}: expected {expected}, got {finding.Number.Value}: {finding.Message}");
         Assert.Contains(named, finding.Message, StringComparison.Ordinal);
     }
 

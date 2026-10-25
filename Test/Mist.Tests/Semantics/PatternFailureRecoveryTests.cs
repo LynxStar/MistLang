@@ -58,7 +58,7 @@ public sealed class PatternFailureRecoveryTests
         Assert.Equal(failed ? 0 : names.Length, f.Diagnostics.ToImmutableArray().Length);
         Assert.All(f.Diagnostics.ToImmutableArray(), diagnostic =>
         {
-            Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Id.Value);
+            Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
             AssertLocation(diagnostic, 60);
         });
     }
@@ -75,7 +75,7 @@ public sealed class PatternFailureRecoveryTests
         _ = Consume(f, "kept");
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Number.Value);
         AssertLocation(diagnostic, 30);
     }
 
@@ -126,7 +126,7 @@ public sealed class PatternFailureRecoveryTests
 
         Assert.False(f.Scope.Locals.ContainsKey("kept"));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED", diagnostic.Number.Value);
         AssertLocation(diagnostic, 40);
     }
 
@@ -146,7 +146,7 @@ public sealed class PatternFailureRecoveryTests
         _ = Consume(f, "kept");
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(member == "Missing" ? "MIST_PM_UNRESOLVED_MEMBER" : "MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE", diagnostic.Id.Value);
+        Assert.Equal(member == "Missing" ? "MIST_PM_UNRESOLVED_MEMBER" : "MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE", diagnostic.Number.Value);
         AssertLocation(diagnostic, 45);
     }
 
@@ -182,7 +182,7 @@ public sealed class PatternFailureRecoveryTests
         _ = Consume(f, "kept");
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Number.Value);
         AssertLocation(diagnostic, 40);
     }
 
@@ -209,7 +209,7 @@ public sealed class PatternFailureRecoveryTests
         Assert.True(f.Scope.Locals["kept"].IsFailed);
         _ = Consume(f, "kept");
 
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

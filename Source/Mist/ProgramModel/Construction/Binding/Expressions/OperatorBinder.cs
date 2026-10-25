@@ -177,7 +177,7 @@ internal static class OperatorBinder
         if(kind is not { } classified)
         {
             context.Diagnostics.ReportAtNode(
-                AsFinding(operand.Type, target)!.Value, node, null,
+                AsFinding(operand.Type, target)!, node, null,
                 operand.Type.Name, target.Name);
 
             return new ErrorExpression(node);
@@ -213,7 +213,7 @@ internal static class OperatorBinder
     /// So admitting them here would report nothing and emit C# that Roslyn rejects.
     /// </para>
     /// </summary>
-    internal static DiagnosticDescriptor? AsFinding(IMistType source, IMistType target)
+    internal static MistDiagnostic? AsFinding(IMistType source, IMistType target)
     {
         return Classify(source, target).Kind is null ? ProgramModelDiagnostics.AsConversionNoRelationship : null;
     }

@@ -32,7 +32,7 @@ public sealed class DeclaredTypeFailureBindingTests
         Assert.True(local.IsFailed);
         Assert.Same(ErrorType.Instance, local.Type);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 19), new LinePosition(1, 20)), diagnostic.Location);
 
@@ -58,7 +58,7 @@ public sealed class DeclaredTypeFailureBindingTests
         Assert.Same(ErrorType.Instance, local.Type);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
         ReportOverload(f, local);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]
@@ -110,7 +110,7 @@ public sealed class DeclaredTypeFailureBindingTests
         Assert.True(resolution.IsFailed);
         var function = Assert.IsType<FunctionType>(resolution.Type);
         Assert.Same(ErrorType.Instance, Assert.Single(function.ParameterTypes));
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class DeclaredTypeFailureBindingTests
 
         Assert.True(resolution.IsFailed);
         Assert.Same(ErrorType.Instance, resolution.Type);
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

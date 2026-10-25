@@ -68,7 +68,7 @@ public sealed class ExtensionReceiverScopeTests : ProgramModelProbe
             """);
 
         var error = Assert.Single(errors);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Number.Value);
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ public sealed class ExtensionReceiverScopeTests : ProgramModelProbe
             """);
 
         var error = Assert.Single(errors);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Number.Value);
     }
 
     [Fact]
@@ -102,6 +102,6 @@ public sealed class ExtensionReceiverScopeTests : ProgramModelProbe
             """);
 
         var error = Assert.Single(errors);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", error.Number.Value);
     }
 }

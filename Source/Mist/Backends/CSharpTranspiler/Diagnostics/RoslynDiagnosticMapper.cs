@@ -39,7 +39,7 @@ public sealed partial class RoslynDiagnosticMapper
             new LinePosition(lineNum, colNum));
 
         return new Diagnostic(
-            new DiagnosticId(code),
+            DiagnosticNumber.Mint(code),
             severity,
             PipelineStage.Backend,
             message,

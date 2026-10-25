@@ -34,7 +34,7 @@ public sealed class DependentDomainAccessibilityTests
         var refusal = AccessibilityAnalyzer.DecideNaming(naming);
 
         _ = Assert.NotNull(refusal);
-        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", refusal.Value.Descriptor.Id.Value);
+        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", refusal.Value.Descriptor.Number.Value);
         Assert.Same(domain, refusal.Value.Blocking);
     }
 }

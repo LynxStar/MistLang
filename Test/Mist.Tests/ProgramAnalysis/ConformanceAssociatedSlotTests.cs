@@ -24,8 +24,8 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
-        Assert.All(findings.Where(finding => finding.Id.Value == "MIST_PA_SLOT_SIGNATURE_MISMATCH"),
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
+        Assert.All(findings.Where(finding => finding.Number.Value == "MIST_PA_SLOT_SIGNATURE_MISMATCH"),
             finding => Assert.Contains("slot 'string Get()'", finding.Message, StringComparison.Ordinal));
     }
 
@@ -40,7 +40,7 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
         Assert.All(findings, finding => Assert.Contains("requires 'IShow' of type parameter 'U'", finding.Message, StringComparison.Ordinal));
     }
 
@@ -55,7 +55,7 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
         Assert.All(findings, finding => Assert.Contains("'IBag.Element'", finding.Message, StringComparison.Ordinal));
     }
 

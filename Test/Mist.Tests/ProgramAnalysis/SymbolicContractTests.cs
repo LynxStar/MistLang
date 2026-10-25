@@ -40,7 +40,7 @@ public sealed class SymbolicContractTests
     public void ASelectedFillerMeetsTheSlotOnlyOverTheSymbolsItAnswers(string route, string bound, string expected)
     {
         var fragment = route == "generic" ? Generic(bound) : Build(route, bound);
-        var found = fragment.Run(new RefinementAnalyzer()).Select(diagnostic => diagnostic.Id.Value).Order(StringComparer.Ordinal);
+        var found = fragment.Run(new RefinementAnalyzer()).Select(diagnostic => diagnostic.Number.Value).Order(StringComparer.Ordinal);
         Assert.Equal(expected.Split(',', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal), found);
     }
 

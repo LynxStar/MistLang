@@ -87,7 +87,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     private static void AssertSingle(ImmutableArray<Diagnostic> diagnostics, string expectedId)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expectedId, diagnostic.Id.Value);
+        Assert.Equal(expectedId, diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
     }
 

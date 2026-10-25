@@ -175,7 +175,7 @@ public sealed class FrameworkReferenceResolverTests
             Assert.Equal(1, result.FailureCount);
 
             var diag = Assert.Single(diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_FWREF_001", diag.Id.Value);
+            Assert.Equal("MIST_FWREF_001", diag.Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
             Assert.Contains(AspNetCore, diag.Message);
             Assert.Contains(TargetFramework, diag.Message);
@@ -257,7 +257,7 @@ public sealed class FrameworkReferenceResolverTests
             Assert.Equal(1, result.FailureCount);
 
             var diag = Assert.Single(diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_FWREF_001", diag.Id.Value);
+            Assert.Equal("MIST_FWREF_001", diag.Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
             Assert.Contains(AspNetCore, diag.Message);
             Assert.Contains(unavailableTfm, diag.Message);
@@ -286,7 +286,7 @@ public sealed class FrameworkReferenceResolverTests
         Assert.Equal(1, result.FailureCount);
 
         var diag = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_FWREF_002", diag.Id.Value);
+        Assert.Equal("MIST_FWREF_002", diag.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains(unknown, diag.Message);
     }
@@ -318,7 +318,7 @@ public sealed class FrameworkReferenceResolverTests
 
         // The unknown framework always fails with MIST_FWREF_002.
         var diags = diagnostics.ToImmutableArray();
-        Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_002" && d.Message.Contains(unknown, StringComparison.Ordinal));
+        Assert.Contains(diags, d => d.Number.Value == "MIST_FWREF_002" && d.Message.Contains(unknown, StringComparison.Ordinal));
 
         if(aspNetInstalled)
         {
@@ -334,7 +334,7 @@ public sealed class FrameworkReferenceResolverTests
             Assert.Empty(result.AssemblyPaths);
             Assert.Equal(2, result.FailureCount);
             Assert.Equal(2, diags.Length);
-            Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_001" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
+            Assert.Contains(diags, d => d.Number.Value == "MIST_FWREF_001" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
         }
     }
 }

@@ -408,13 +408,13 @@ public sealed class PatternAssignmentTests
 
     private static void AssertRead(Diagnostic diagnostic, string name)
     {
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", diagnostic.Number.Value);
         Assert.Equal($"Local variable '{name}' is read before being definitely assigned.", diagnostic.Message);
     }
 
     private static void AssertEntry(Diagnostic diagnostic, string name)
     {
-        Assert.Equal("MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED", diagnostic.Number.Value);
         Assert.Contains($"reads '{name}'", diagnostic.Message, StringComparison.Ordinal);
     }
 }

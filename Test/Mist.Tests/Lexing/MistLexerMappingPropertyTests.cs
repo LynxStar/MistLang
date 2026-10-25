@@ -64,14 +64,13 @@ public class MistLexerMappingPropertyTests
                 new LinePosition(entry.Line, entry.Column))
             : default;
 
-        var diagnostic = new Diagnostic(
-            new DiagnosticId("MIST_LEX_ERROR"),
+        var diagnostic = DiagnosticFixtures.Occurrence("MIST_LEX_ERROR",
             DiagnosticSeverity.Error,
             PipelineStage.Lexing,
             entry.Message,
-            Location: location,
-            CompilationUnitPath: entry.FilePath ?? sourcePath,
-            AnalyzerName: null);
+            location: location,
+            compilationUnitPath: entry.FilePath ?? sourcePath,
+            analyzerName: null);
 
         // Verify: Location.Start.Line == entry.Line
         if(diagnostic.Location == default)

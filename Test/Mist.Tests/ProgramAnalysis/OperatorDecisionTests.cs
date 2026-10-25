@@ -160,6 +160,6 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

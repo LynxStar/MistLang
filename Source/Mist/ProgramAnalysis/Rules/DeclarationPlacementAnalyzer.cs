@@ -81,7 +81,7 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
             : $"operator '{((Operator)callable).Symbol}'";
     }
 
-    private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)
+    private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params object?[] args)
     {
         if(at is not null)
         {

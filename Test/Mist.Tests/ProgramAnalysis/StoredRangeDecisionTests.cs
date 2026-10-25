@@ -68,7 +68,7 @@ public sealed class StoredRangeDecisionTests
     {
         var model = BuildResolved($"Range window = {before}; if(flag) {{ window = {assigned}; }} var slice = numbers[window]; var last = slice[{last}];");
 
-        Assert.Equal(id, Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed class StoredRangeDecisionTests
         Assert.Equal(bounds[0].Local.Name, bounds[1].Local.Name);
         Assert.NotSame(bounds[0].Local, bounds[1].Local);
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -131,7 +131,7 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
 
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -154,7 +154,7 @@ public sealed class StoredRangeDecisionTests
         });
 
         Assert.True(inspected);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
 
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -176,7 +176,7 @@ public sealed class StoredRangeDecisionTests
     {
         var model = BuildResolved($"Range window = 0..3; if(flag) {{ window = 0..3; }} {write} var slice = numbers[window]; var last = slice[2];", types);
 
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     private static ProgramModelClass BuildResolved(string statements, string types = "")

@@ -380,7 +380,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     [InlineData("owned var car = new Car(); var f = car.Front; Console.WriteLine(car.Front.Get());")]
     public void AnOwnedFieldReadOutOfAnOwnedHolder_IsAMoveOfThatField(string statement)
     {
-        Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -436,7 +436,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
         AssertTaskBound(statement, "v");
         var finding = Assert.Single(Analyse(statement));
 
-        Assert.Equal("MIST_PA_USE_AFTER_MOVE", finding.Id.Value);
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", finding.Number.Value);
     }
 
     private void AssertTaskBound(string statement, string name)
@@ -460,6 +460,6 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

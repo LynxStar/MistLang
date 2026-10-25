@@ -50,7 +50,7 @@ public sealed class RefinedReturnContractDecisionTests
     [InlineData("decimal", "> 0.0m", "")]
     public void AWeakerOrUnrefinedDeclaredReturn_IsRefused(string domain, string promised, string produced)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseFactory(domain, promised, produced)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseFactory(domain, promised, produced)).Number.Value);
     }
 
     [Theory]
@@ -71,7 +71,7 @@ public sealed class RefinedReturnContractDecisionTests
     [InlineData("BelowLimit", "int")]
     public void AnUnreadablePredicateWithoutRefinedIdentity_IsRefused(string promised, string produced)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseOpaqueFactory(promised, produced)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseOpaqueFactory(promised, produced)).Number.Value);
     }
 
     [Theory]
@@ -94,7 +94,7 @@ public sealed class RefinedReturnContractDecisionTests
     [InlineData("decimal", "public decimal Make() { return 1.0m; }")]
     public void AnInsufficientOrUnsupportedBodyLift_IsRefused(string domain, string member)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseMember(domain, member)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(AnalyseMember(domain, member)).Number.Value);
     }
 
     private static ImmutableArray<Diagnostic> AnalyseFactory(string domain, string promised, string produced)

@@ -24,8 +24,8 @@ public sealed class ClosedOperatorEffectTests
 
         Assert.Equal(findings, forward.Count);
         Assert.Equal(
-            forward.Select(finding => (finding.Id.Value, finding.Location.Start.Column)),
-            backward.Select(finding => (finding.Id.Value, finding.Location.Start.Column)));
+            forward.Select(finding => (finding.Number.Value, finding.Location.Start.Column)),
+            backward.Select(finding => (finding.Number.Value, finding.Location.Start.Column)));
         Assert.All(forward, finding => Assert.Equal(61, finding.Location.Start.Column));
     }
 

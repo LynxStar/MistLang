@@ -29,6 +29,6 @@ public sealed class PurityBindingRefusalTests : ProgramModelProbe
     {
         var error = Assert.Single(BuildRun(statement, types), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
 
-        Assert.True(error.Id.Value == expected, $"{caseName}: expected {expected}, got {error.Id.Value}");
+        Assert.True(error.Number.Value == expected, $"{caseName}: expected {expected}, got {error.Number.Value}");
     }
 }

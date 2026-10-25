@@ -121,7 +121,7 @@ public sealed class ThisBindingTests
         var body = new BindingContext(new BodyScope(new MethodScope(tag.Scope) { IsStatic = true }), null);
 
         _ = Assert.IsType<ErrorExpression>(Bind(body));
-        Assert.Equal("MIST_PM_THIS_IN_STATIC", Assert.Single(diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_THIS_IN_STATIC", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class ThisBindingTests
         var body = new BindingContext(new BodyScope(new MethodScope(new Scope(null))), null);
 
         _ = Assert.IsType<ErrorExpression>(Bind(body));
-        Assert.Equal("MIST_PM_THIS_OUTSIDE_TYPE", Assert.Single(diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_THIS_OUTSIDE_TYPE", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private Expression Bind(BindingContext body)

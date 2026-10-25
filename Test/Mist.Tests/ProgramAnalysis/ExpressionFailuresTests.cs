@@ -43,7 +43,7 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
-        Assert.Equal("INNER", diagnostic.Id.Value);
+        Assert.Equal("INNER", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 21), new LinePosition(1, 22)), diagnostic.Location);
     }
@@ -60,7 +60,7 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostics = bag.ToImmutableArray();
-        Assert.Equal(["LEFT", "RIGHT"], diagnostics.Select(diagnostic => diagnostic.Id.Value));
+        Assert.Equal(["LEFT", "RIGHT"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
         Assert.Equal([11, 21], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
     }
 
@@ -75,14 +75,14 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
-        Assert.Equal("INDEPENDENT", diagnostic.Id.Value);
+        Assert.Equal("INDEPENDENT", diagnostic.Number.Value);
         Assert.Equal(21, diagnostic.Location.Start.Column);
     }
 
     private static ErrorExpression Pending(string id, int offset, params Expression[] children)
     {
         var node = HandBuiltModel.Node(offset);
-        return new ErrorExpression(node, children, new Diagnostic(new DiagnosticId(id), DiagnosticSeverity.Error,
+        return new ErrorExpression(node, children, DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "Deferred failure.",
             new LinePositionSpan(new LinePosition(1, offset + 1), new LinePosition(1, offset + 2)), "hand-built.mist", null));
     }

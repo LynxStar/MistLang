@@ -12,6 +12,22 @@ public sealed class DiagnosticBag
 {
     private List<Diagnostic> diagnostics = [];
 
+    public DiagnosticBag()
+        : this(PipelineStage.Driver)
+    {
+    }
+
+    public DiagnosticBag(PipelineStage stage)
+    {
+        Stage = stage;
+    }
+
+    /// <summary>
+    /// The stage currently reporting into this bag. A stage announces itself as it starts, so an
+    /// occurrence records who produced it without the descriptor having to guess.
+    /// </summary>
+    public PipelineStage Stage { get; set; }
+
     /// <summary>
     /// Adds a diagnostic to the bag.
     /// </summary>
@@ -33,19 +49,19 @@ public sealed class DiagnosticBag
     /// </para>
     /// </summary>
     public void Report(
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         LinePositionSpan location,
         string compilationUnitPath,
         params ReadOnlySpan<object?> args)
     {
         var message = args.Length > 0
-            ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())
-            : descriptor.MessageTemplate;
+            ? string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray())
+            : descriptor.Template;
 
         diagnostics.Add(new Diagnostic(
-            descriptor.Id,
+            descriptor.Number,
             descriptor.DefaultSeverity,
-            descriptor.Stage,
+            Stage,
             message,
             location,
             compilationUnitPath,
@@ -74,7 +90,7 @@ public sealed class DiagnosticBag
 
     public bool Contains(Diagnostic diagnostic)
     {
-        return diagnostics.Exists(existing => existing.Id == diagnostic.Id
+        return diagnostics.Exists(existing => existing.Number == diagnostic.Number
             && existing.Location == diagnostic.Location
             && existing.CompilationUnitPath == diagnostic.CompilationUnitPath);
     }

@@ -54,7 +54,7 @@ public sealed class InitializerTargetBindingTests
         Assert.IsType(found, bound[1].Member);
         Assert.Null(bound[1].TargetType);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"'{name}' on 'Widget' is not a field or a property, so an initializer block cannot assign to it.", diagnostic.Message);
         Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
@@ -72,7 +72,7 @@ public sealed class InitializerTargetBindingTests
 
         Assert.Null(bound.TargetType);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
         Assert.Equal(TargetSpan, diagnostic.Location);
     }
@@ -103,7 +103,7 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.TargetType);
         Assert.True(bound.IsTargetFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
         Assert.Equal(TargetSpan, diagnostic.Location);
     }
@@ -121,7 +121,7 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.TargetType);
         Assert.True(bound.IsTargetFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Number.Value);
         Assert.Equal(TargetSpan, diagnostic.Location);
     }
 
@@ -165,7 +165,7 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.Add);
         Assert.Same(f.Built.Type("Int32"), bound.Value.Type);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(TargetSpan, diagnostic.Location);
     }
 

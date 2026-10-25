@@ -32,7 +32,7 @@ public sealed class PatternRefusalTests
         var fixture = Types();
         var pattern = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[tested], null);
         var finding = PatternAnalyzer.TypeFinding(pattern, fixture.Types[input], fixture.Model.Interner);
-        Assert.True(finding?.Id.Value == expected, $"{caseName}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == expected, $"{caseName}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -50,7 +50,7 @@ public sealed class PatternRefusalTests
             : HandBuiltModel.Literal(type, bound == "String" ? "a" : 3);
         var pattern = new ComparisonPattern(HandBuiltModel.Node(), fixture.Types[input], (ComparisonKind)comparison, value);
         var finding = PatternAnalyzer.ComparisonFinding(pattern, fixture.Types[input], fixture.Model.Interner);
-        Assert.True(finding?.Id.Value == expected, $"{caseName}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == expected, $"{caseName}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -62,7 +62,7 @@ public sealed class PatternRefusalTests
         var fixture = Types();
         var first = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[earlier], null);
         var next = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[later], null);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", PatternAnalyzer.ArmFinding([first], next, fixture.Types[earlier], fixture.Model.Interner)?.Id.Value);
+        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", PatternAnalyzer.ArmFinding([first], next, fixture.Types[earlier], fixture.Model.Interner)?.Number.Value);
         Assert.Null(PatternAnalyzer.ArmFinding([], next, fixture.Types[earlier], fixture.Model.Interner));
         Assert.NotEmpty(caseName);
     }
@@ -121,7 +121,7 @@ public sealed class PatternRefusalTests
         };
 
         var finding = PatternAnalyzer.ArmFinding([earlier], later, input, fixture.Model.Interner);
-        Assert.Equal(covered ? "MIST_PA_SWITCH_ARM_UNREACHABLE" : null, finding?.Id.Value);
+        Assert.Equal(covered ? "MIST_PA_SWITCH_ARM_UNREACHABLE" : null, finding?.Number.Value);
     }
 
     [Theory]
@@ -150,7 +150,7 @@ public sealed class PatternRefusalTests
     {
         var (input, earlier, later, interner) = RelationalArms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, interner);
-        Assert.True(finding?.Id.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -172,7 +172,7 @@ public sealed class PatternRefusalTests
     {
         var (input, earlier, later, interner) = RelationalArms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, interner);
-        Assert.True(finding is null, $"{shape}: {finding?.Id.Value}");
+        Assert.True(finding is null, $"{shape}: {finding?.Number.Value}");
     }
 
     [Theory]
@@ -198,7 +198,7 @@ public sealed class PatternRefusalTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
         Assert.Equal(38, finding.Location.Start.Column);
     }
 
@@ -221,7 +221,7 @@ public sealed class PatternRefusalTests
 
         var findings = h.Built.Analyze(new PatternAnalyzer(), new IsPatternExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(h.Int), pattern, h.Bool));
 
-        Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, findings.SingleOrDefault()?.Number.Value);
     }
 
     [Theory]
@@ -287,7 +287,7 @@ public sealed class PatternRefusalTests
             : new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(21, finding.Location.Start.Column);
         Assert.Contains($"'{judgedAgainst}'", finding.Message, StringComparison.Ordinal);
     }
@@ -377,7 +377,7 @@ public sealed class PatternRefusalTests
             ? new SwitchExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), [new SwitchArm(HandBuiltModel.Node(), pattern, null, HandBuiltModel.Literal(integer, 1))], integer)
             : new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
-        Assert.Equal("MIST_PA_PATTERN_NEVER_MATCHES", finding.Id.Value);
+        Assert.Equal("MIST_PA_PATTERN_NEVER_MATCHES", finding.Number.Value);
         Assert.Equal(21, finding.Location.Start.Column);
     }
 
@@ -404,7 +404,7 @@ public sealed class PatternRefusalTests
         var expression = new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(21, finding.Location.Start.Column);
     }
 
@@ -424,7 +424,7 @@ public sealed class PatternRefusalTests
             [arm(fixture.Types["Dog"]), arm(input), arm(fixture.Types["Cat"], 37)], integer);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
         Assert.Equal(38, finding.Location.Start.Column);
     }
 

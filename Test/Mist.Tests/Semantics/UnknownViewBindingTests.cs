@@ -32,7 +32,7 @@ public sealed class UnknownViewBindingTests
         var bound = f.Bind("sealedBox", MethodCall("Set", Reference("one")));
 
         var diagnostic = Assert.Single(f.Errors());
-        Assert.Equal(Hidden, diagnostic.Id.Value);
+        Assert.Equal(Hidden, diagnostic.Number.Value);
         Assert.Equal(
             "'Set' cannot be called on 'Sealed<unknown>': it would write to storage typed by 'T', which 'Sealed<unknown>' closes with 'unknown'. Narrow the receiver with an 'is' pattern to a concrete construction first.",
             diagnostic.Message);

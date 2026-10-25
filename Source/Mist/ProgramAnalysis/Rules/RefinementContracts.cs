@@ -12,14 +12,14 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class RefinementContracts
 {
-    public static DiagnosticDescriptor? ReturnFinding(
+    public static MistDiagnostic? ReturnFinding(
         IMistType produced, IMistType promised, bool byReference = false, Admitted? lifted = null, SymbolCorrespondence? symbols = null)
     {
         return (byReference ? ContractImplication.Invariant(produced, promised, symbols) : ContractImplication.Proves(produced, promised, lifted, symbols))
             ? null : ProgramAnalysisDiagnostics.RefinementReturnUnproven;
     }
 
-    public static DiagnosticDescriptor? ParameterFinding(IMistType promised, IMistType demanded, bool byReference = false, SymbolCorrespondence? symbols = null)
+    public static MistDiagnostic? ParameterFinding(IMistType promised, IMistType demanded, bool byReference = false, SymbolCorrespondence? symbols = null)
     {
         var proven = byReference ? ContractImplication.Invariant(promised, demanded, symbols)
             : RealRequirement.OfType(demanded) is { } realDemanded
@@ -31,7 +31,7 @@ internal static class RefinementContracts
         return proven ? null : ProgramAnalysisDiagnostics.ConstraintStrengthened;
     }
 
-    public static DiagnosticDescriptor? SetterFinding(IMistType promised, IMistType demanded, SymbolCorrespondence? symbols = null)
+    public static MistDiagnostic? SetterFinding(IMistType promised, IMistType demanded, SymbolCorrespondence? symbols = null)
     {
         return ContractImplication.Proves(promised, demanded, symbols: symbols) ? null : ProgramAnalysisDiagnostics.ConstraintStrengthened;
     }

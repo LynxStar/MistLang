@@ -23,7 +23,7 @@ public sealed class UnaryNegationRuleTests
     {
         var operand = new HandBuiltModel().Type(type);
 
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(UnaryOperatorKind.Negate, operand)?.Id.Value);
+        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(UnaryOperatorKind.Negate, operand)?.Number.Value);
     }
 
     [Theory]
@@ -74,7 +74,7 @@ public sealed class UnaryNegationRuleTests
         };
 
         Assert.Null(OperatorAdmissibility.UnaryResultType(kind, operand));
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(kind, operand)?.Id.Value);
+        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", OperatorDecision.Unary(kind, operand)?.Number.Value);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class UnaryNegationRuleTests
 
         var finding = Assert.Single(fragment.Run(new OperatorAnalyzer()));
 
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", finding.Number.Value);
     }
 
     [Theory]
@@ -100,7 +100,7 @@ public sealed class UnaryNegationRuleTests
         var kind = negate ? UnaryOperatorKind.Negate : UnaryOperatorKind.LogicalNot;
 
         Assert.Null(OperatorAdmissibility.UnaryResultType(kind, UnknownType.Instance));
-        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_OPERATORS", OperatorDecision.Unary(kind, UnknownType.Instance)?.Id.Value);
+        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_OPERATORS", OperatorDecision.Unary(kind, UnknownType.Instance)?.Number.Value);
     }
 
     [Theory]
@@ -203,7 +203,7 @@ public sealed class UnaryNegationRuleTests
 
         var diagnostic = Assert.Single(built.Analyze(new OperatorAnalyzer(), unary));
 
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
@@ -251,6 +251,6 @@ public sealed class UnaryNegationRuleTests
             negate ? UnaryOperatorKind.Negate : UnaryOperatorKind.LogicalNot, operand, ErrorType.Instance);
 
         Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE",
-            Assert.Single(new HandBuiltModel().Analyze(new OperatorAnalyzer(), unary)).Id.Value);
+            Assert.Single(new HandBuiltModel().Analyze(new OperatorAnalyzer(), unary)).Number.Value);
     }
 }

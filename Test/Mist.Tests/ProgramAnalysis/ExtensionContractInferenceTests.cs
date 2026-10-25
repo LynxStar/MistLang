@@ -34,7 +34,7 @@ public sealed class ExtensionContractInferenceTests
 
         var finding = Assert.Single(fixture.ThroughCaller(fixture.View(declaration)));
 
-        Assert.Equal("MIST_PA_PURE_SCOPE_CALLS_IMPURE", finding.Id.Value);
+        Assert.Equal("MIST_PA_PURE_SCOPE_CALLS_IMPURE", finding.Number.Value);
         Assert.Contains("Helper", finding.Message, StringComparison.Ordinal);
         Assert.Contains("Caller", finding.Message, StringComparison.Ordinal);
         Assert.Equal(38, finding.Location.Start.Column);
@@ -48,7 +48,7 @@ public sealed class ExtensionContractInferenceTests
 
         var finding = Assert.Single(fixture.Analyze(declaration));
 
-        Assert.Equal("MIST_PA_PURE_SCOPE_READS_MUTABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_PURE_SCOPE_READS_MUTABLE", finding.Number.Value);
         Assert.Equal(24, finding.Location.Start.Column);
         Assert.Empty(fixture.ThroughCaller(fixture.View(declaration)));
     }
@@ -123,7 +123,7 @@ public sealed class ExtensionContractInferenceTests
 
         var finding = Assert.Single(fixture.ThroughCaller(view));
 
-        Assert.Equal("MIST_PA_PURE_SCOPE_READS_MUTABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_PURE_SCOPE_READS_MUTABLE", finding.Number.Value);
         Assert.Contains("ambient", finding.Message, StringComparison.Ordinal);
         Assert.Contains("int", finding.Message, StringComparison.Ordinal);
         Assert.Empty(fixture.ThroughCaller(view, contexts: [new ContextBinding(fixture.Integer, "provided")]));

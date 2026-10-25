@@ -197,7 +197,7 @@ public sealed class RefStructPositionSiteTests
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Equal(38, diagnostic.Location.Start.Column);
     }
 }

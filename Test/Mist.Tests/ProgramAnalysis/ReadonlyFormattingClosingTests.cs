@@ -23,7 +23,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(read));
 
-        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(FormatsMutable, finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
         Assert.Equal(
             "Cannot use 'Box' as type argument 'T': readonly method 'Read' formats it, and the 'ToString' of 'Box' is not readonly.",
@@ -39,7 +39,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(read));
 
-        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(FormatsMutable, finding.Number.Value);
         Assert.Contains("type argument 'T'", finding.Message, StringComparison.Ordinal);
         Assert.Contains("the 'ToString' of 'Box' is not readonly", finding.Message, StringComparison.Ordinal);
     }
@@ -78,7 +78,7 @@ public sealed class ReadonlyFormattingClosingTests
         Assert.Equal(findings, found.Count);
         Assert.All(found, finding =>
         {
-            Assert.Equal(FormatsMutable, finding.Id.Value);
+            Assert.Equal(FormatsMutable, finding.Number.Value);
             Assert.Equal(61, finding.Location.Start.Column);
         });
     }
@@ -126,7 +126,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(show, direct));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
         Assert.Contains("Cannot call 'ToString' from readonly method 'Direct'", finding.Message, StringComparison.Ordinal);
     }
@@ -141,7 +141,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(show, open));
 
-        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(FormatsMutable, finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
         Assert.Contains("readonly method 'Open' formats it", finding.Message, StringComparison.Ordinal);
     }
@@ -154,7 +154,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(read, direct));
 
-        Assert.Equal(FormatsMutable, finding.Id.Value);
+        Assert.Equal(FormatsMutable, finding.Number.Value);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(show, f.CallsThrough("Look", show, derived, offset: 60)));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
     }
 
@@ -192,7 +192,7 @@ public sealed class ReadonlyFormattingClosingTests
         var found = f.Analyze(f.Indexes("Peek", slot, f.Constructed(shelf, mutable ? f.Box : f.Calm), offset: 60));
 
         Assert.Equal(findings, found.Count);
-        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Id.Value));
+        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Number.Value));
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class ReadonlyFormattingClosingTests
 
         var finding = Assert.Single(f.Analyze(deep));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Contains("Cannot call 'ToString' from readonly method 'Deep'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -221,7 +221,7 @@ public sealed class ReadonlyFormattingClosingTests
         var maybe = f.FormatsOptional("Maybe", isReadonly: true);
         _ = f.Call(maybe, f.Box, FormattingFragments.Value(f.Box), offset: 60);
 
-        Assert.Equal(FormatsMutable, Assert.Single(f.Analyze(maybe)).Id.Value);
+        Assert.Equal(FormatsMutable, Assert.Single(f.Analyze(maybe)).Number.Value);
     }
 
     [Theory]
@@ -240,7 +240,7 @@ public sealed class ReadonlyFormattingClosingTests
         var found = f.Analyze(f.Interpolates("Shown", formatted));
 
         Assert.Equal(findings, found.Count);
-        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Id.Value));
+        Assert.All(found, finding => Assert.Equal(CallsMutable, finding.Number.Value));
     }
 
     [Theory]
@@ -256,7 +256,7 @@ public sealed class ReadonlyFormattingClosingTests
         Assert.Equal(findings, found.Count);
         Assert.All(found, finding =>
         {
-            Assert.Equal(CallsMutable, finding.Id.Value);
+            Assert.Equal(CallsMutable, finding.Number.Value);
             Assert.Equal(61, finding.Location.Start.Column);
         });
     }
@@ -273,7 +273,7 @@ public sealed class ReadonlyFormattingClosingTests
             f.Applies("Look", plus, boxes, TypeSubstitution.ForPath(null, [f.Constructed(shown, f.Box)], interner: null), offset: 60),
             f.Applies("Settle", plus, calms, TypeSubstitution.ForPath(null, [f.Constructed(shown, f.Calm)], interner: null), offset: 80)));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Equal(61, finding.Location.Start.Column);
     }
 
@@ -291,7 +291,7 @@ public sealed class ReadonlyFormattingClosingTests
         Assert.Equal(findings, found.Count);
         Assert.All(found, finding =>
         {
-            Assert.Equal(CallsMutable, finding.Id.Value);
+            Assert.Equal(CallsMutable, finding.Number.Value);
             Assert.Equal(61, finding.Location.Start.Column);
         });
     }
@@ -301,6 +301,6 @@ public sealed class ReadonlyFormattingClosingTests
     {
         var finding = Assert.Single(f.Analyze(f.Interpolates("Shown", f.Box)));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
     }
 }

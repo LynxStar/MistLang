@@ -179,7 +179,7 @@ public sealed class AssignabilitySiteTests
 
         var diagnostic = Assert.Single(input.Analyze(new AssignabilityAnalyzer(), root, declarations));
 
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(1, diagnostic.Location.Start.Line);
         Assert.Equal(38, diagnostic.Location.Start.Column);
@@ -196,7 +196,7 @@ public sealed class AssignabilitySiteTests
 
         var diagnostic = Assert.Single(input.Model.Analyze(new AssignabilityAnalyzer(), converted));
 
-        Assert.Equal("MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_AMBIGUOUS_IMPLICIT_CONVERSION", diagnostic.Number.Value);
         Assert.Equal(38, diagnostic.Location.Start.Column);
     }
 

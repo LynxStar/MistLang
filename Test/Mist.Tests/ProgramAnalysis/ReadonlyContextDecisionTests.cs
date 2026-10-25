@@ -249,7 +249,7 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
 
         Assert.Equal(
             ["MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX"],
-            Analyse("var m = new Meter();", extraTypes).Select(d => d.Id.Value).Order());
+            Analyse("var m = new Meter();", extraTypes).Select(d => d.Number.Value).Order());
     }
 
     private List<Diagnostic> Analyse(string statement, string extraTypes)
@@ -259,6 +259,6 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

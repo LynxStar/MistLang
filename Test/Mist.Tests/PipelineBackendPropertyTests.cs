@@ -76,8 +76,7 @@ public class PipelineBackendPropertyTests
     {
         public TokenStream Lex(SourceText source, DiagnosticBag diagnostics)
         {
-            diagnostics.Add(new Diagnostic(
-                new DiagnosticId("MIST_LEX_ERROR"),
+            diagnostics.Add(DiagnosticFixtures.Occurrence("MIST_LEX_ERROR",
                 DiagnosticSeverity.Error,
                 PipelineStage.Lexing,
                 "Simulated lex error for testing",

@@ -133,7 +133,7 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
     {
         var finding = Assert.Single(Analyse("int x; void Set() { x = 1; } Set(); var r = x;"));
 
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Id.Value);
+        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Number.Value);
     }
 
     [Fact]
@@ -172,6 +172,6 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

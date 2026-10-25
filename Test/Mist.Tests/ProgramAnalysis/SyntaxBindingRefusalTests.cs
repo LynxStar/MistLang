@@ -117,7 +117,7 @@ public sealed class SyntaxBindingRefusalTests
         }
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         if(refusal == "local-after-local-function-of-the-same-name")
         {
             Assert.Equal("<unknown>", diagnostic.CompilationUnitPath);

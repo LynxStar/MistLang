@@ -49,6 +49,6 @@ internal sealed class EnumRefinementModel
     public static string? Judge(Expression value, IMistType target)
     {
         var known = Requirement.Constant(value) is { } constant ? Admitted.Exactly(constant) : Admitted.Everything;
-        return RefinementDecision.Judge(value, target, known)?.Id.Value;
+        return RefinementDecision.Judge(value, target, known)?.Number.Value;
     }
 }

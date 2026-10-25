@@ -139,7 +139,7 @@ public sealed class OptionalLambdaBindingTests
         }
 
         _ = Assert.IsType<ErrorExpression>(ExpressionBinder.BindExpression(syntax, f.Binding.Binding, f.Binding.Builder));
-        Assert.Equal("MIST_PM_LAMBDA_ARITY", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_LAMBDA_ARITY", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]
@@ -154,7 +154,7 @@ public sealed class OptionalLambdaBindingTests
 
         Assert.True(lambda.IsLocal);
         Assert.True(((IFunctionType)lambda.Type).IsPure);
-        Assert.Equal("MIST_PM_PURE_AND_LOCAL", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_PURE_AND_LOCAL", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]
@@ -173,7 +173,7 @@ public sealed class OptionalLambdaBindingTests
         };
 
         _ = Assert.IsType<ErrorExpression>(ExpressionBinder.BindExpression(OptionalLambdaFragments.Lambda(false), f.Binding.Binding, f.Binding.Builder));
-        Assert.Equal("MIST_PM_LAMBDA_PARAMETER_NO_TYPE", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_LAMBDA_PARAMETER_NO_TYPE", Assert.Single(f.Binding.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

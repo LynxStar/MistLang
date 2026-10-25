@@ -120,7 +120,7 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("float Take(FloatTenth p) { return p; } var value = Take(0.1f);", "MIST_PA_REFINEMENT_VIOLATED")]
     public void AConstantThatFailsThePredicate_IsRefusedAsViolated(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -138,14 +138,14 @@ public sealed class LiteralPredicateDecisionTests : ProgramModelProbe
     [InlineData("LetterOrDigit value = inputText;")]
     public void AValueWithoutASoundLiteralProof_IsStillUnproven(string statement)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Fact]
     public void ARegexThatExceedsTheEvaluationBudget_RemainsUnproven()
     {
         var input = new string('a', 10000);
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse($"Slow value = \"{input}\";")).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(Analyse($"Slow value = \"{input}\";")).Number.Value);
     }
 
     private ImmutableArray<Diagnostic> Analyse(string statement)

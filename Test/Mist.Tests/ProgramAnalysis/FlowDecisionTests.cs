@@ -99,7 +99,7 @@ public sealed class FlowDecisionTests : ProgramModelProbe
             }
             """));
 
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Id.Value);
+        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Number.Value);
     }
 
     [Theory]
@@ -248,7 +248,7 @@ public sealed class FlowDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 
     private List<Diagnostic> AnalyseStruct(string statement, string extraTypes = "")

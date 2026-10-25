@@ -39,7 +39,7 @@ public sealed class RefinementMemberRefusalTests
             var body = name.EndsWith("unproven", StringComparison.Ordinal)
                 ? HandBuiltModel.Block(HandBuiltRefinements.Evaluate(call))
                 : HandBuiltModel.Block(HandBuiltRefinements.Give(span, h.Array(4L, "Span", erased: true)), HandBuiltRefinements.Evaluate(call));
-            Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), body)).Id.Value);
+            Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), body)).Number.Value);
             return;
         }
 
@@ -95,6 +95,6 @@ public sealed class RefinementMemberRefusalTests
             root = new IndexExpression(HandBuiltModel.Node(), receiverValue, h.Literal(position), h.Int) { Indexer = indexer, ParameterType = target };
         }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), root)).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), root)).Number.Value);
     }
 }

@@ -14,6 +14,7 @@ public sealed class MistParser : IParser
 {
     public ParseResult Parse(TokenStream tokens, DiagnosticBag diagnostics)
     {
+        diagnostics.Stage = PipelineStage.Parsing;
         // Pre-process the token stream to reclassify keyword tokens as IDENTIFIER
         // when they appear as segments in dotted qualified identifiers following
         // `using` or `namespace`. This allows CLR namespaces containing keyword-

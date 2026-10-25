@@ -45,7 +45,7 @@ public sealed class RejectedLocalFunctionBindingTests
             Assert.True(PriorFailure.Of(value));
         });
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_LOCAL_FUNCTION_GENERIC", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_LOCAL_FUNCTION_GENERIC", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 51), new LinePosition(1, 52)), diagnostic.Location);
         Assert.Empty(body.Function.TypeParametersList);
@@ -67,9 +67,9 @@ public sealed class RejectedLocalFunctionBindingTests
         Assert.Equal(2, call.Children.Count);
         var diagnostics = f.Diagnostics.ToImmutableArray();
         Assert.Equal(6, diagnostics.Length);
-        _ = Assert.Single(diagnostics, diagnostic => diagnostic.Id.Value == "MIST_PM_LOCAL_FUNCTION_GENERIC");
-        Assert.Equal(3, diagnostics.Count(diagnostic => diagnostic.Id.Value == "MIST_PM_UNRESOLVED_TYPE"));
-        Assert.Equal(2, diagnostics.Count(diagnostic => diagnostic.Id.Value == "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(diagnostics, diagnostic => diagnostic.Number.Value == "MIST_PM_LOCAL_FUNCTION_GENERIC");
+        Assert.Equal(3, diagnostics.Count(diagnostic => diagnostic.Number.Value == "MIST_PM_UNRESOLVED_TYPE"));
+        Assert.Equal(2, diagnostics.Count(diagnostic => diagnostic.Number.Value == "MIST_PM_UNRESOLVED_IDENTIFIER"));
         Assert.Contains(diagnostics, diagnostic => diagnostic.Message.Contains("MissingArgument", StringComparison.Ordinal));
         Assert.Contains(diagnostics, diagnostic => diagnostic.Message.Contains("missingBody", StringComparison.Ordinal));
         Assert.Contains(diagnostics, diagnostic => diagnostic.Message.Contains("missingArgument", StringComparison.Ordinal));
@@ -92,7 +92,7 @@ public sealed class RejectedLocalFunctionBindingTests
         Assert.True(body.Parameters[0].IsFailed);
         Assert.False(body.Parameters[1].IsFailed);
         Assert.Equal(new[] { "MIST_PM_LOCAL_FUNCTION_GENERIC", "MIST_PM_NOT_CALLABLE" },
-            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
         Assert.Contains("number", f.Diagnostics.ToImmutableArray()[1].Message, StringComparison.Ordinal);
     }
 
@@ -108,7 +108,7 @@ public sealed class RejectedLocalFunctionBindingTests
         _ = f.Bind(BindingFragments.Identifier("T"));
 
         Assert.Equal(new[] { "MIST_PM_LOCAL_FUNCTION_GENERIC", "MIST_PM_UNRESOLVED_IDENTIFIER" },
-            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class RejectedLocalFunctionBindingTests
         Assert.Same(f.Built.Type("Int32"), Assert.Single(argument.Parameters).Type);
         _ = Assert.IsType<ErrorExpression>(argument.Result);
         Assert.Equal(new[] { "MIST_PM_LOCAL_FUNCTION_GENERIC", "MIST_PM_UNRESOLVED_IDENTIFIER" },
-            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+            f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     [Theory]
@@ -155,7 +155,7 @@ public sealed class RejectedLocalFunctionBindingTests
 
         Assert.True(PriorFailure.Of(returned!));
         Assert.True(PriorFailure.Of(call.Children[1]));
-        Assert.Equal("MIST_PM_LOCAL_FUNCTION_GENERIC", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_LOCAL_FUNCTION_GENERIC", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class RejectedLocalFunctionBindingTests
         _ = LocalFunctionBinder.BindBody(node, f.Binding, f.Builder);
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", diagnostic.Number.Value);
         Assert.Equal("local-function.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(2, 9), new LinePosition(2, 10)), diagnostic.Location);
     }

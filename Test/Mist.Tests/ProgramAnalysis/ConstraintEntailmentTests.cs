@@ -325,7 +325,7 @@ public sealed class ConstraintEntailmentTests
 
     private string? Judge(TypeArgumentClosing closing, TypeParameterConstraint declared)
     {
-        return ConstraintEntailment.Decide(closing, declared, built.Interner)?.Id.Value;
+        return ConstraintEntailment.Decide(closing, declared, built.Interner)?.Number.Value;
     }
 
     private static TypeParameter Parameter(string name, int ordinal = 0)

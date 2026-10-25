@@ -33,18 +33,14 @@ internal partial class Program
         var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
         var csprojPath = Path.Combine(cliArgs.OutputDirectory, $"{config!.Name}.csproj");
 
-        // Check for test-attributed methods without test framework packages (MIST_TEST_0001).
         if(HasTestAttributedMethods(sourceFiles) && !HasTestFrameworkPackage(config))
         {
-            var warning = new Diagnostic(
-                new DiagnosticId("MIST_TEST_0001"),
-                DiagnosticSeverity.Warning,
-                PipelineStage.Driver,
-                "Test-attributed methods found but no test framework package is referenced. Add xUnit, NUnit, or MSTest packages to [packages] in mist.toml.",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null);
-            Console.Error.WriteLine(DiagnosticFormatter.Format(warning));
+            var warnings = new DiagnosticBag();
+            warnings.Report(DriverDiagnostics.TestFrameworkPackageMissing, default, "<unknown>");
+            foreach(var warning in warnings.ToImmutableArray())
+            {
+                Console.Error.WriteLine(DiagnosticFormatter.Format(warning));
+            }
         }
 
         return RunDotnetTest(csprojPath);

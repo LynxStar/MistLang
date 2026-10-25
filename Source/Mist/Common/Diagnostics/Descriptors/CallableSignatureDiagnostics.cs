@@ -4,15 +4,21 @@ namespace Mist.Common.Diagnostics;
 
 public static class CallableSignatureDiagnostics
 {
-    public static readonly DiagnosticDescriptor DuplicateOperatorSignature = new(
-        new DiagnosticId("MIST_PA_DUPLICATE_OPERATOR_SIGNATURE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Analysis,
-        "Type '{0}' already declares operator '{1}' with parameter types {2}; the return type does not distinguish overloads. Earlier declaration: {3}({4},{5}).");
+    public static readonly MistDiagnostic DuplicateOperatorSignature = new(
+        DiagnosticNumber.Mint("MIST_PA_DUPLICATE_OPERATOR_SIGNATURE"),
+        Title: "Duplicate operator signature",
+        Template: "Type '{0}' already declares operator '{1}' with parameter types {2}; the return type does not distinguish overloads. Earlier declaration: {3}({4},{5}).",
+        Description: "A type declares the same operator twice over the same parameter types, and operators overload only on their parameters, so the second declaration can never be chosen. Remove one of the two or change a parameter type.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly DiagnosticDescriptor DuplicateCastSignature = new(
-        new DiagnosticId("MIST_PA_DUPLICATE_CAST_OPERATOR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Analysis,
-        "Type '{0}' already declares an {1} cast operator from '{2}' to '{3}'. Earlier declaration: {4}({5},{6}).");
+    public static readonly MistDiagnostic DuplicateCastSignature = new(
+        DiagnosticNumber.Mint("MIST_PA_DUPLICATE_CAST_OPERATOR"),
+        Title: "Duplicate cast operator",
+        Template: "Type '{0}' already declares an {1} cast operator from '{2}' to '{3}'. Earlier declaration: {4}({5},{6}).",
+        Description: "A type declares two cast operators of the same kind between the same source and target types, so a cast could not choose between them. Remove one, or make one of them implicit and the other explicit if both conversions are meant to exist.",
+        Category: DiagnosticCategory.Dec,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 }

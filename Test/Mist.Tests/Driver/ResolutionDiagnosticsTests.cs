@@ -137,13 +137,12 @@ public sealed class ResolutionDiagnosticsTests
 
     private static IEnumerable<string> Ids(CompilerResult result)
     {
-        return result.Diagnostics.Select(diagnostic => diagnostic.Id.Value);
+        return result.Diagnostics.Select(diagnostic => diagnostic.Number.Value);
     }
 
     private static Diagnostic Error(string id, string message = "probe")
     {
-        return new Diagnostic(
-            new DiagnosticId(id), DiagnosticSeverity.Error, PipelineStage.Driver, message, default, "probe.mist", null);
+        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, "probe.mist", null);
     }
 
     private sealed class RecordingListener : IResolutionDiagnosticListener

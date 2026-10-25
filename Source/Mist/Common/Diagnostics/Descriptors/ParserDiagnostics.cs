@@ -7,87 +7,78 @@ namespace Mist.Common.Diagnostics;
 /// </summary>
 public static class ParserDiagnostics
 {
-    /// <summary>
-    /// The Storm-generated parser is skeletal and has not yet implemented parse methods.
-    /// Source was lexed but not parsed.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ParseStub = new(
-        new DiagnosticId("MIST_PARSE_STUB"),
-        DiagnosticSeverity.Warning,
-        PipelineStage.Parsing,
-        "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.");
+    public static readonly MistDiagnostic ParseStub = new(
+        DiagnosticNumber.Mint("MIST_PARSE_STUB"),
+        Title: "Parser not implemented",
+        Template: "Parser is not yet implemented (Storm-generated parser is skeletal). Source file was lexed but not parsed.",
+        Description: "The parser Storm generated for this grammar is still a skeleton without parse methods, so the source was tokenized but produced no syntax tree. Regenerate or complete the parser before expecting any semantic results.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Promotable,
+        DefaultSeverity: DiagnosticSeverity.Warning);
 
-    /// <summary>
-    /// A parse error was reported by the Storm parser runtime.
-    /// The message is provided by the Storm parser diagnostics.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ParseError = new(
-        new DiagnosticId("MIST_PARSE_ERROR"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "{0}");
+    public static readonly MistDiagnostic ParseError = new(
+        DiagnosticNumber.Mint("MIST_PARSE_ERROR"),
+        Title: "Parse error",
+        Template: "{0}",
+        Description: "The Storm parser runtime rejected the token sequence at this position and the message is the runtime's own. Correct the syntax it names; later analysis runs only on what parsed.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The parser did not consume all input tokens; unparseable content remains.
-    /// </summary>
-    public static readonly DiagnosticDescriptor ParseIncomplete = new(
-        new DiagnosticId("MIST_PARSE_INCOMPLETE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "Parser did not consume all input. Unparseable content begins at line {0}.");
+    public static readonly MistDiagnostic ParseIncomplete = new(
+        DiagnosticNumber.Mint("MIST_PARSE_INCOMPLETE"),
+        Title: "Parser stopped before end of file",
+        Template: "Parser did not consume all input. Unparseable content begins at line {0}.",
+        Description: "Parsing succeeded for a prefix of the file, but tokens remain from the stated line onward that no grammar rule accepts. Look at that line for an unbalanced brace or a stray token, since it usually marks the real mistake.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A <c>stackalloc</c> expression is missing the required bracketed size
-    /// (e.g. <c>stackalloc T[n]</c>).
-    /// </summary>
-    public static readonly DiagnosticDescriptor StackallocSize = new(
-        new DiagnosticId("MIST_PARSE_STACKALLOC_SIZE"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "A 'stackalloc' expression requires an element type and a bracketed size, "
-            + "for example 'stackalloc T[n]'.");
+    public static readonly MistDiagnostic StackallocSize = new(
+        DiagnosticNumber.Mint("MIST_PARSE_STACKALLOC_SIZE"),
+        Title: "Stackalloc without size",
+        Template: "A 'stackalloc' expression requires an element type and a bracketed size, "
+            + "for example 'stackalloc T[n]'.",
+        Description: "A stackalloc expression names an element type but omits the bracketed count saying how many elements to allocate. Write the count in brackets after the type, as in stackalloc byte[16].",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The <c>interface</c> keyword has been removed from Mist.
-    /// Users should use <c>abstract</c> instead.
-    /// </summary>
-    public static readonly DiagnosticDescriptor RemovedInterfaceKeyword = new(
-        new DiagnosticId("MIST_REMOVED_INTERFACE_KEYWORD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "The 'interface' keyword has been removed. Use 'abstract' instead.");
+    public static readonly MistDiagnostic RemovedInterfaceKeyword = new(
+        DiagnosticNumber.Mint("MIST_REMOVED_INTERFACE_KEYWORD"),
+        Title: "Removed interface keyword",
+        Template: "The 'interface' keyword has been removed. Use 'abstract' instead.",
+        Description: "Mist no longer has interfaces as a distinct construct; abstract types serve that purpose. Declare the type with abstract in place of interface.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// The <c>trait</c> keyword has been removed from Mist.
-    /// Users should use <c>abstract</c> with nominal typing or a <c>with</c> block.
-    /// </summary>
-    public static readonly DiagnosticDescriptor RemovedTraitKeyword = new(
-        new DiagnosticId("MIST_REMOVED_TRAIT_KEYWORD"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance.");
+    public static readonly MistDiagnostic RemovedTraitKeyword = new(
+        DiagnosticNumber.Mint("MIST_REMOVED_TRAIT_KEYWORD"),
+        Title: "Removed trait keyword",
+        Template: "The 'trait' keyword has been removed. Use 'abstract' with nominal typing (': AbstractType') or a 'with' block for retroactive conformance.",
+        Description: "Mist no longer has traits as a distinct construct; abstract types cover both nominal and retroactive conformance. Declare an abstract type and either list it in the conforming type's base list or attach it afterwards with a with block.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A property slot in an abstract type has a default implementation (body),
-    /// which is not allowed. Only methods may have default implementations.
-    /// </summary>
-    public static readonly DiagnosticDescriptor AbstractPropertyDefault = new(
-        new DiagnosticId("MIST_ABSTRACT_PROPERTY_DEFAULT"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "Property slots cannot have default implementations. Only methods can have defaults.");
+    public static readonly MistDiagnostic AbstractPropertyDefault = new(
+        DiagnosticNumber.Mint("MIST_ABSTRACT_PROPERTY_DEFAULT"),
+        Title: "Property slot with default body",
+        Template: "Property slots cannot have default implementations. Only methods can have defaults.",
+        Description: "A property declared in an abstract type carries an implementation, but only method slots may supply a default; every conforming type must fill a property slot itself. Remove the body from the property.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// A declaration has more than one access modifier (e.g. <c>public private</c>).
-    /// Mist has four standalone access levels — <c>public</c>, <c>private</c>,
-    /// <c>protected</c>, and <c>internal</c> — and no combined levels. Exactly one
-    /// access modifier is allowed per declaration.
-    /// </summary>
-    public static readonly DiagnosticDescriptor MultipleAccessModifiers = new(
-        new DiagnosticId("MIST_PARSE_MULTIPLE_ACCESS"),
-        DiagnosticSeverity.Error,
-        PipelineStage.Parsing,
-        "A declaration cannot have multiple access modifiers. "
+    public static readonly MistDiagnostic MultipleAccessModifiers = new(
+        DiagnosticNumber.Mint("MIST_PARSE_MULTIPLE_ACCESS"),
+        Title: "Multiple access modifiers",
+        Template: "A declaration cannot have multiple access modifiers. "
             + "Mist supports four standalone levels (public, private, protected, internal) "
-            + "and no combined levels. Use exactly one.");
+            + "and no combined levels. Use exactly one.",
+        Description: "A declaration lists more than one access modifier, but Mist has only four standalone visibility levels and no combinations such as protected internal, so a single modifier fully determines visibility. Keep exactly one of public, private, protected or internal.",
+        Category: DiagnosticCategory.Syn,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error);
 }

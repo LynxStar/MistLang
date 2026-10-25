@@ -45,7 +45,7 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     break;
 
                 case AssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } assignment:
-                    context.Report(PositionDecision.Reassignment(target.Local)!.Value, assignment.Node, [target], target.Local.Name);
+                    context.Report(PositionDecision.Reassignment(target.Local)!, assignment.Node, [target], target.Local.Name);
                     break;
 
                 case AssignmentExpression { Target: not LocalReferenceExpression and var target } assignment
@@ -117,7 +117,7 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
     }
 
     private static void JudgeCaptures(
-        AnalysisContext context, DiagnosticDescriptor descriptor, HashSet<LocalVariable> own, IReadOnlyList<object> inside)
+        AnalysisContext context, MistDiagnostic descriptor, HashSet<LocalVariable> own, IReadOnlyList<object> inside)
     {
         foreach(var node in inside)
         {

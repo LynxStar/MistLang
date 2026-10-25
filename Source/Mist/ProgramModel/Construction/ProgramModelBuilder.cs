@@ -28,6 +28,7 @@ public sealed class ProgramModelBuilder
         DiagnosticBag diagnostics,
         IAmbientTypeProvider ambientProvider)
     {
+        diagnostics.Stage = PipelineStage.SemanticModelConstruction;
         var programModel = new Model.ProgramModel();
 
         // Phase 0: Establish the compilation's declaration boundaries before any type is

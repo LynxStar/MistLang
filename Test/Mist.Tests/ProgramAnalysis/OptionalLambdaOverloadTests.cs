@@ -126,7 +126,7 @@ public sealed class OptionalLambdaOverloadTests
 
         _ = Call(f, OptionalLambdaFragments.Lambda(false, BindingFragments.Expression(new TrueLiteralExpressionPrimaryNode())));
 
-        Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class OptionalLambdaOverloadTests
             OptionalLambdaFragments.Lambda(false, BindingFragments.Expression(BindingFragments.Identifier("missing")))));
 
         Assert.Same(chosen, call.Method);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

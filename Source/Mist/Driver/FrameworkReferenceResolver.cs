@@ -82,7 +82,7 @@ public static class FrameworkReferenceResolver
             if(!KnownFrameworks.Contains(framework.Name))
             {
                 diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.FrameworkReferenceUnknownName.Id,
+                    CommonDiagnostics.FrameworkReferenceUnknownName.Number,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Framework reference '{framework.Name}' is not a known shared framework.",
@@ -104,7 +104,7 @@ public static class FrameworkReferenceResolver
                 // for the target framework: report MIST_FWREF_001, naming the
                 // framework, the target framework, and the pack path searched.
                 diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.FrameworkReferenceNotInstalled.Id,
+                    CommonDiagnostics.FrameworkReferenceNotInstalled.Number,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Framework reference '{framework.Name}' is not installed for {targetFramework}. Searched: {DescribeSearchedPath(dotnetRoot, framework.Name, targetFramework)}.",

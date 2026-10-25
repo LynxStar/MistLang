@@ -84,7 +84,7 @@ public sealed class GeneralUnionLambdaBindingTests
             OptionalLambdaFragments.Lambda(false, BindingFragments.Expression(new TrueLiteralExpressionPrimaryNode())),
             f.Binding, f.Builder));
 
-        Assert.Equal("MIST_PM_LAMBDA_PARAMETER_NO_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_LAMBDA_PARAMETER_NO_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class GeneralUnionLambdaBindingTests
 
         Assert.Same(signature, lambda.Type);
         Assert.True(lambda.IsLocal);
-        Assert.Equal("MIST_PM_PURE_AND_LOCAL", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_PURE_AND_LOCAL", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public sealed class GeneralUnionLambdaBindingTests
                 })),
             }));
 
-        Assert.Equal("MIST_PM_NOT_CALLABLE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_NOT_CALLABLE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static (TypeReferenceNode Syntax, IMistType Target, FunctionType Signature) Target(BindingFragments f, bool includesVoid, bool pure)

@@ -15,7 +15,7 @@ public static class DiagnosticBagExtensions
     /// </summary>
     public static void ReportAtNode(
         this DiagnosticBag bag,
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         SyntaxNode node,
         string? analyzerName,
         params ReadOnlySpan<object?> args)
@@ -25,7 +25,7 @@ public static class DiagnosticBagExtensions
 
     public static void ReportAtNode(
         this DiagnosticBag bag,
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         SyntaxNode node,
         SourceSpan span,
         string? analyzerName,
@@ -34,13 +34,13 @@ public static class DiagnosticBagExtensions
         var (path, location, _) = DiagnosticHelper.ResolveLocation(node, span);
 
         var message = args.Length > 0
-            ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())
-            : descriptor.MessageTemplate;
+            ? string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray())
+            : descriptor.Template;
 
         bag.Add(new Diagnostic(
-            descriptor.Id,
+            descriptor.Number,
             descriptor.DefaultSeverity,
-            descriptor.Stage,
+            bag.Stage,
             message,
             location,
             path,

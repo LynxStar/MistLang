@@ -77,7 +77,7 @@ public static class StdlibLoader
         catch(Exception ex)
         {
             diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.StdlibParse.Id,
+                CommonDiagnostics.StdlibParse.Number,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to load Standard Library source: {stdlibRoot}: {ex.Message}",
@@ -101,7 +101,7 @@ public static class StdlibLoader
             catch(Exception ex)
             {
                 diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.StdlibParse.Id,
+                    CommonDiagnostics.StdlibParse.Number,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Failed to load Standard Library source: {path}: {ex.Message}",

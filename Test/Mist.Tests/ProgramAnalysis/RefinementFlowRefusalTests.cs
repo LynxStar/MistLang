@@ -66,7 +66,7 @@ public sealed class RefinementFlowRefusalTests
             case "narrowing-does-not-reach-else-branch":
                 statements.Add(new IfStatement(h.Binary(local, BinaryOperatorKind.GreaterThanOrEqual, h.Literal(18L)), HandBuiltModel.Block(),
                     HandBuiltModel.Block(HandBuiltRefinements.Need(local, target))));
-                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
             case "narrowing-lost-on-reassignment":
                 guard = h.Binary(local, BinaryOperatorKind.GreaterThanOrEqual, h.Literal(18L));
                 inside.Add(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(local, HandBuiltRefinements.Local(h.Int, "replacement")))); break;
@@ -172,7 +172,7 @@ public sealed class RefinementFlowRefusalTests
                 if(name.Contains("cast", StringComparison.Ordinal))
                 {
                     statements.Add(HandBuiltRefinements.Evaluate(new CastExpression(HandBuiltModel.Node(), value, target, [], target)));
-                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
                 }
 
                 break;
@@ -225,7 +225,7 @@ public sealed class RefinementFlowRefusalTests
         if(guard is null) { statements.AddRange(inside); }
         else { statements.Add(HandBuiltRefinements.If(guard, [.. inside])); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(Regex.InfiniteMatchTimeout), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(Regex.InfiniteMatchTimeout), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
     [Fact]
@@ -236,6 +236,6 @@ public sealed class RefinementFlowRefusalTests
         var body = HandBuiltModel.Block(
             HandBuiltRefinements.Give(text, h.Literal(new string('a', 64))), HandBuiltRefinements.Need(text, h.Regex("(a+)+b", "Catastrophic")));
 
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(TimeSpan.FromMilliseconds(1)), body)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(TimeSpan.FromMilliseconds(1)), body)).Number.Value);
     }
 }

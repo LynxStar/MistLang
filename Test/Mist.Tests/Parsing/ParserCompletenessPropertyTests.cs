@@ -133,7 +133,7 @@ public class ParserCompletenessPropertyTests
 
         // If the parser is skeletal (MIST_PARSE_STUB), the completeness check cannot
         // be exercised; treat as vacuously satisfied.
-        if(diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Number.Value == "MIST_PARSE_STUB"))
         {
             return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
         }
@@ -147,7 +147,7 @@ public class ParserCompletenessPropertyTests
 
         // (1) MIST_PARSE_INCOMPLETE must be present (Requirement 3.1)
         var incompleteDiag = diagnostics.FirstOrDefault(d =>
-            d.Id.Value == "MIST_PARSE_INCOMPLETE");
+            d.Number.Value == "MIST_PARSE_INCOMPLETE");
 
         var hasDiag = incompleteDiag is not null;
 
@@ -181,7 +181,7 @@ public class ParserCompletenessPropertyTests
                 + $"expectedLine={expectedLine}, "
                 + $"filePath={incompleteDiag?.CompilationUnitPath}\n"
                 + $"lastPos={lastPos}, tokenCount={defaultTokens.Length}\n"
-                + $"all diagnostics: [{string.Join("; ", diagnostics.Select(d => $"{d.Id.Value}@L{d.Location.Start.Line}"))}]\n"
+                + $"all diagnostics: [{string.Join("; ", diagnostics.Select(d => $"{d.Number.Value}@L{d.Location.Start.Line}"))}]\n"
                 + $"source:\n{scenario.CombinedSource}");
     }
 }

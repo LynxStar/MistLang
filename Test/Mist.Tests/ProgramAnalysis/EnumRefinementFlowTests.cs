@@ -183,7 +183,7 @@ public sealed class EnumRefinementFlowTests
         }
         else
         {
-            Assert.Equal(expected, Assert.Single(findings).Id.Value);
+            Assert.Equal(expected, Assert.Single(findings).Number.Value);
         }
     }
 }

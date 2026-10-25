@@ -109,7 +109,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static (MistType Blocking, DiagnosticDescriptor Descriptor)? DecideNaming(TypeNaming naming)
+    internal static (MistType Blocking, MistDiagnostic Descriptor)? DecideNaming(TypeNaming naming)
     {
         return AccessDomains.Blocking(naming.Owner, naming.Assembly, naming.Named) is { } blocking
             ? (blocking, ProgramAnalysisDiagnostics.InaccessibleType)

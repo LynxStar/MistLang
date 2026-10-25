@@ -19,7 +19,7 @@ public sealed class OwnedReturnProvenanceTests
     [InlineData("owned-return-of-a-static-field")]
     public void AnOwnedReturnOfWhatTheBodyDoesNotOwn_IsRefused(string member)
     {
-        Assert.Equal(NotOwned, Assert.Single(new PuritySpecFragments().Analyze(member)).Id.Value);
+        Assert.Equal(NotOwned, Assert.Single(new PuritySpecFragments().Analyze(member)).Number.Value);
     }
 
     [Theory]

@@ -83,7 +83,7 @@ public sealed class ClrConstantReadingTests
         var constraint = h.Refine(Long, positive ? ComparisonKind.GreaterThan : ComparisonKind.LessThan, h.Literal(0L, Long), name: null);
         var known = Requirement.Constant(argument) is { } value ? Admitted.Exactly(value) : Admitted.Everything;
 
-        Assert.Equal(expected, RefinementDecision.Judge(argument, constraint, known, onConstraint: true)?.Id.Value);
+        Assert.Equal(expected, RefinementDecision.Judge(argument, constraint, known, onConstraint: true)?.Number.Value);
     }
 
     private IMistType Long => h.Built.Type("Int64");

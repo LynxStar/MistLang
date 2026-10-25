@@ -92,14 +92,13 @@ public class DiagnosticFormatterPropertyTests
             _ => "<unknown>",
         };
 
-        return new Diagnostic(
-            new DiagnosticId(input.IdValue),
+        return DiagnosticFixtures.Occurrence(input.IdValue,
             input.Severity,
             input.Stage,
             input.Message,
-            Location: location,
-            CompilationUnitPath: compilationUnitPath,
-            AnalyzerName: null);
+            location: location,
+            compilationUnitPath: compilationUnitPath,
+            analyzerName: null);
     }
 
     /// <summary>

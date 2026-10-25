@@ -40,8 +40,7 @@ public sealed class PackageRestoreDeliveryTests
     {
         var listener = new RecordingListener();
         var resolution = new ResolutionDiagnostics(0, listener);
-        var framework = new Diagnostic(
-            new DiagnosticId("MIST_FWREF_003"), DiagnosticSeverity.Warning, PipelineStage.Driver, "Framework 'C' probe.", default, "", null);
+        var framework = DiagnosticFixtures.Occurrence("MIST_FWREF_003", DiagnosticSeverity.Warning, PipelineStage.Driver, "Framework 'C' probe.", default, "", null);
 
         _ = PackageResolver.ResolvePackages(
             [new NuGetPackageReference("BadPkg", "not-valid"), new NuGetPackageReference("Bogus", "35.5.0")],

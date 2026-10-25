@@ -32,7 +32,7 @@ public sealed class StablePureGetterTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(members));
 
-        Assert.Equal(OverMutable, finding.Id.Value);
+        Assert.Equal(OverMutable, finding.Number.Value);
         Assert.Contains("Both", finding.Message, StringComparison.Ordinal);
     }
 }

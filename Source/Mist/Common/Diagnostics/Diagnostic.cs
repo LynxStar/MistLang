@@ -6,7 +6,7 @@ namespace Mist.Common.Diagnostics;
 /// A single diagnostic message produced by a compiler pipeline stage.
 /// </summary>
 public sealed record Diagnostic(
-    DiagnosticId Id,
+    DiagnosticNumber Number,
     DiagnosticSeverity Severity,
     PipelineStage Stage,
     string Message,

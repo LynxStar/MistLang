@@ -108,8 +108,7 @@ public sealed class RestoreCommandInProcessTests
             [new ResolvedPackageInfo("Analyzers", "1.0.0", "", 0), new ResolvedPackageInfo("Lib", "2.0.0", "net8.0", 1)],
             FailureCount: 1);
         var frameworks = new FrameworkResolutionResult([], [new ResolvedFrameworkInfo("Microsoft.AspNetCore.App", "10.0.0")], FailureCount: 0);
-        var failure = new Diagnostic(
-            new DiagnosticId("MIST_PKG_001"), DiagnosticSeverity.Error, PipelineStage.Driver, "Package 'Old' does not support net10.0.", default, "", null);
+        var failure = DiagnosticFixtures.Occurrence("MIST_PKG_001", DiagnosticSeverity.Error, PipelineStage.Driver, "Package 'Old' does not support net10.0.", default, "", null);
         using var output = new StringWriter();
         using var error = new StringWriter();
 

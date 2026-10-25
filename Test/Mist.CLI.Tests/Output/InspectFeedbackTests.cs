@@ -83,6 +83,6 @@ public sealed class InspectFeedbackTests
 
     private static Diagnostic Make(string id, DiagnosticSeverity severity, string message)
     {
-        return new Diagnostic(new DiagnosticId(id), severity, PipelineStage.Driver, message, default, "", null);
+        return DiagnosticFixtures.Occurrence(id, severity, PipelineStage.Driver, message, default, "", null);
     }
 }

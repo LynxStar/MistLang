@@ -125,7 +125,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
         }
     }
 
-    public static DiagnosticDescriptor? DependentFinding(TypeParameter parameter, IMistType argument)
+    public static MistDiagnostic? DependentFinding(TypeParameter parameter, IMistType argument)
     {
         if(DomainFinding(parameter, argument) is { } mismatch)
         {
@@ -147,7 +147,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
         };
     }
 
-    public static DiagnosticDescriptor? DomainFinding(TypeParameter parameter, IMistType argument)
+    public static MistDiagnostic? DomainFinding(TypeParameter parameter, IMistType argument)
     {
         if(parameter is not { IsDependent: true, IsPack: false, Domain: { } domain } || DependentDomains.Primitive(domain) is null)
         {

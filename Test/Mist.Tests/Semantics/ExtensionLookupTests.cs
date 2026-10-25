@@ -154,7 +154,7 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
 
         var errors = BuildRun("var chosen = new Duo<int, long>().Same();");
 
-        Assert.Contains(errors, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+        Assert.Contains(errors, d => d.Number.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
         var missing = BuildRun("var chosen = maybe?.NoSuchMember();", extraPreamble: "Dog? maybe = dog;");
 
         Assert.DoesNotContain(found, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(missing, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+        Assert.Contains(missing, d => d.Number.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 
     [Fact]
@@ -172,6 +172,6 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
     {
         var errors = BuildRun("var chosen = dog.NoSuchMember();");
 
-        Assert.Contains(errors, d => d.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+        Assert.Contains(errors, d => d.Number.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 }

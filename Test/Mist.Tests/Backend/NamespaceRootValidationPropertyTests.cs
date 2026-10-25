@@ -160,7 +160,7 @@ public sealed class NamespaceRootValidationPropertyTests
 
             var diags = diagnostics.ToImmutableArray();
             return result is null
-                && diags.Any(d => d.Id.Value == "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
+                && diags.Any(d => d.Number.Value == "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
         }
         finally
         {
@@ -191,7 +191,7 @@ public sealed class NamespaceRootValidationPropertyTests
             // Should be rejected with either INVALID_NAMESPACE_ROOT or EMPTY_NAMESPACE_ROOT
             // (if the string happens to be whitespace-only after escaping)
             return result is null
-                && diags.Any(d => d.Id.Value is "MIST_PROJECT_INVALID_NAMESPACE_ROOT"
+                && diags.Any(d => d.Number.Value is "MIST_PROJECT_INVALID_NAMESPACE_ROOT"
                                or "MIST_PROJECT_EMPTY_NAMESPACE_ROOT");
         }
         finally

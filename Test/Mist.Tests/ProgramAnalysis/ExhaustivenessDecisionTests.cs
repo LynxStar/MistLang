@@ -135,6 +135,6 @@ public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => d.Id.Value == NotExhaustive)];
+        return [.. findings.ToImmutableArray().Where(d => d.Number.Value == NotExhaustive)];
     }
 }

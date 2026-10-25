@@ -57,7 +57,7 @@ public sealed class LambdaBindingRefusalTests
         call.Arguments = BindingFragments.Arguments(arguments);
         _ = f.Bind(BindingFragments.Identifier("api"), call);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 

@@ -259,7 +259,7 @@ public class CompletenessSilencePropertyTests
         var diagnostics = ParseAndGetDiagnostics(scenario.Source);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST_PARSE_INCOMPLETE")
             .ToList();
 
         return incompleteDiags.Count == 0;
@@ -315,7 +315,7 @@ public class CompletenessSilencePropertyTests
         {
             var diagnostics = ParseAndGetDiagnostics(source);
             var incompleteDiags = diagnostics
-                .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+                .Where(d => d.Number.Value == "MIST_PARSE_INCOMPLETE")
                 .ToList();
 
             Assert.True(

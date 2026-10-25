@@ -188,7 +188,7 @@ public sealed class PurityJudgeTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.True(finding.Id.Value == expected, $"{member}: expected {expected}, got {finding.Id.Value}");
+        Assert.True(finding.Number.Value == expected, $"{member}: expected {expected}, got {finding.Number.Value}");
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 }

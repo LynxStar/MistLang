@@ -38,7 +38,7 @@ public sealed class DefaultConsistencyTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(declaration));
 
-        Assert.Equal(NotConsistent, finding.Id.Value);
+        Assert.Equal(NotConsistent, finding.Number.Value);
         Assert.Contains($"'{field}'", finding.Message, StringComparison.Ordinal);
         Assert.Contains("Box", finding.Message, StringComparison.Ordinal);
     }

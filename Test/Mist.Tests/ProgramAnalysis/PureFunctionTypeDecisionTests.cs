@@ -43,6 +43,6 @@ public sealed class PureFunctionTypeDecisionTests
     {
         var refused = Assignability.Judge(plain, promised, model.Interner);
 
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", refused?.Id.Value);
+        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", refused?.Number.Value);
     }
 }

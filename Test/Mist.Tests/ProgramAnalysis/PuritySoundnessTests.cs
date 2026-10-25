@@ -23,7 +23,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-writes-through-an-owned-field-of-a-struct-parameter"));
 
-        Assert.Equal(Writes, finding.Id.Value);
+        Assert.Equal(Writes, finding.Number.Value);
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -32,7 +32,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-writes-the-result-of-a-clone-returning-this"));
 
-        Assert.StartsWith(PureScope, finding.Id.Value, StringComparison.Ordinal);
+        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -41,7 +41,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("field-initializer-judged-under-a-pure-constructor"));
 
-        Assert.StartsWith(PureScope, finding.Id.Value, StringComparison.Ordinal);
+        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
         Assert.Contains("Box", finding.Message, StringComparison.Ordinal);
     }
 
@@ -50,7 +50,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-allocates-through-an-unmarked-constructor-with-an-impure-initializer"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("'Make'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -59,7 +59,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-local-function-reads-a-captured-mutable-object"));
 
-        Assert.Equal(ReadsMutable, finding.Id.Value);
+        Assert.Equal(ReadsMutable, finding.Number.Value);
         Assert.Contains("'F'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -68,7 +68,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("local-function-reading-a-captured-mutable-object-to-pure-func"));
 
-        Assert.Contains(finding.Id.Value, new[] { FunctionRequired, ReadsMutable });
+        Assert.Contains(finding.Number.Value, new[] { FunctionRequired, ReadsMutable });
     }
 
     [Theory]
@@ -76,7 +76,7 @@ public sealed class PuritySoundnessTests
     [InlineData("pure-lambda-captures-a-struct-assigned-before-the-capture")]
     public void APureLambdaCapturingAStructWhoseFieldIsAssigned_IsRefused(string fragment)
     {
-        Assert.Equal(ReadsMutable, Assert.Single(Analyze(fragment)).Id.Value);
+        Assert.Equal(ReadsMutable, Assert.Single(Analyze(fragment)).Number.Value);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class PuritySoundnessTests
     {
         var finding = Assert.Single(Analyze("pure-method-sets-an-extension-property-whose-setter-writes-a-static"));
 
-        Assert.StartsWith(PureScope, finding.Id.Value, StringComparison.Ordinal);
+        Assert.StartsWith(PureScope, finding.Number.Value, StringComparison.Ordinal);
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -103,7 +103,7 @@ public sealed class PuritySoundnessTests
     [Fact]
     public void AReadonlyBlockInsideAPureBody_IsReportedOnce()
     {
-        Assert.Equal(Writes, Assert.Single(Analyze("readonly-block-inside-a-pure-body")).Id.Value);
+        Assert.Equal(Writes, Assert.Single(Analyze("readonly-block-inside-a-pure-body")).Number.Value);
         Assert.Empty(Analyze("readonly-block-inside-a-pure-body-under-the-readonly-rules"));
     }
 

@@ -272,9 +272,9 @@ public sealed class NewtypeCloneTests : ProgramModelProbe
             type Puma = new Lion;
             """);
 
-        var cloneFailure = Assert.Single(findings, finding => finding.Id.Value == "MIST_PM_NEWTYPE_CLONE_INVALID");
+        var cloneFailure = Assert.Single(findings, finding => finding.Number.Value == "MIST_PM_NEWTYPE_CLONE_INVALID");
         Assert.Contains("'Puma' cannot clone 'Lion', whose member 'Enroll'", cloneFailure.Message, StringComparison.Ordinal);
-        _ = Assert.Single(findings, finding => finding.Id.Value == "MIST_PA_NO_IMPLICIT_CONVERSION");
+        _ = Assert.Single(findings, finding => finding.Number.Value == "MIST_PA_NO_IMPLICIT_CONVERSION");
     }
 
     [Fact]

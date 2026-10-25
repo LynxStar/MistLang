@@ -35,7 +35,7 @@ internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? Judge(IMistType constructed)
+    internal static MistDiagnostic? Judge(IMistType constructed)
     {
         return UnknownViews.IsClosedWithUnknown(constructed) ? ProgramAnalysisDiagnostics.UnknownClosureConstructed : null;
     }

@@ -127,7 +127,7 @@ public sealed class OwnershipRefusalTests
     {
         var diagnostic = Assert.Single(new OwnershipFragments().Analyze(caseName));
 
-        Assert.True(diagnostic.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Id.Value}");
+        Assert.True(diagnostic.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Number.Value}");
     }
 
     [Theory]
@@ -195,7 +195,7 @@ public sealed class OwnershipRefusalTests
     {
         var diagnostic = Assert.Single(new OwnershipFragments().Analyze(caseName));
 
-        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", diagnostic.Number.Value);
         Assert.Contains($"from {scope}:", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -239,7 +239,7 @@ public sealed class OwnershipRefusalTests
     [InlineData("this-lend-readonly-ref-to-frozen")]
     public void ThisLentPastItsDeclaredTier_IsRefusedAtTheLendAndTheDeclaration(string caseName)
     {
-        var ids = new OwnershipFragments().Analyze(caseName).Select(diagnostic => diagnostic.Id.Value).Order().ToList();
+        var ids = new OwnershipFragments().Analyze(caseName).Select(diagnostic => diagnostic.Number.Value).Order().ToList();
 
         Assert.Equal(new[] { "MIST_PA_INCOMPATIBLE_LEND", "MIST_PA_THIS_TIER_INSUFFICIENT" }, ids);
     }
@@ -299,7 +299,7 @@ public sealed class OwnershipRefusalTests
 
         Assert.All(
             [linear, affine],
-            body => Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body)).Id.Value));
+            body => Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body)).Number.Value));
     }
 
     [Fact]

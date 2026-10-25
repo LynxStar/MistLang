@@ -23,7 +23,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(implementation));
 
-        Assert.Equal(ContractNotMet, finding.Id.Value);
+        Assert.Equal(ContractNotMet, finding.Number.Value);
         Assert.Contains(member, finding.Message, StringComparison.Ordinal);
     }
 
@@ -44,7 +44,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(test));
 
-        Assert.Equal(Untestable, finding.Id.Value);
+        Assert.Equal(Untestable, finding.Number.Value);
         Assert.Contains("pure func<", finding.Message, StringComparison.Ordinal);
     }
 
@@ -53,7 +53,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("plain-function-in-an-object-cast-to-a-pure-function-type"));
 
-        Assert.Equal(NoConversion, finding.Id.Value);
+        Assert.Equal(NoConversion, finding.Number.Value);
         Assert.Contains("pure func<", finding.Message, StringComparison.Ordinal);
     }
 

@@ -29,7 +29,7 @@ public sealed class FlattenedArgumentRefinementTests
     {
         var finding = Assert.Single(Analyze(slot, arguments));
 
-        Assert.Equal(("MIST_PA_REFINEMENT_VIOLATED", column), (finding.Id.Value, finding.Location.Start.Column));
+        Assert.Equal(("MIST_PA_REFINEMENT_VIOLATED", column), (finding.Number.Value, finding.Location.Start.Column));
     }
 
     [Theory]
@@ -47,7 +47,7 @@ public sealed class FlattenedArgumentRefinementTests
     {
         var finding = Assert.Single(Analyze("array-of-adults", "20, 30, 5", tailIsNamed: false));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
         Assert.Contains("on parameter 'tail'", finding.Message);
     }
 

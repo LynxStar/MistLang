@@ -65,6 +65,6 @@ public sealed class PurityRefusalTests
     {
         var diagnostic = Assert.Single(new PurityFragments().Analyze(caseName));
 
-        Assert.True(diagnostic.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Id.Value}");
+        Assert.True(diagnostic.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic.Number.Value}");
     }
 }

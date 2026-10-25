@@ -132,7 +132,7 @@ public sealed class ProjectReferenceGraphTests
 
         Assert.Equal(["Left", "Right"], result.Select(project => project.Configuration.Name));
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(DriverDiagnostics.ProjectMissingName.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ProjectMissingName.Number, diagnostic.Number);
         Assert.Equal(failed.Path, diagnostic.CompilationUnitPath);
         Assert.All(graph.LoadCounts.Values, count => Assert.Equal(1, count));
         Assert.Equal(3, graph.LoadCounts.Count);
@@ -239,7 +239,7 @@ public sealed class ProjectReferenceGraphTests
 
     private static void AssertMismatch(Diagnostic diagnostic, string declaredName, string actualName, string path)
     {
-        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(PipelineStage.Driver, diagnostic.Stage);
         Assert.Equal(path, diagnostic.CompilationUnitPath);
@@ -248,7 +248,7 @@ public sealed class ProjectReferenceGraphTests
 
     private static void AssertCycle(Diagnostic diagnostic, params string[] chain)
     {
-        Assert.Equal(DriverDiagnostics.ProjectCircularReference.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ProjectCircularReference.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(chain[^1], diagnostic.CompilationUnitPath);
         Assert.Equal($"Circular project reference detected: {string.Join(" \u2192 ", chain)}.", diagnostic.Message);

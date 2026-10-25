@@ -173,7 +173,7 @@ public sealed class FrameEscapeSiteTests
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected, string message)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal);
         Assert.Equal(38, diagnostic.Location.Start.Column);
     }

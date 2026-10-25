@@ -101,7 +101,7 @@ public sealed class LocalBindingContractBinderTests
         var counted = BindFor(f, "_", null, Value(shape));
 
         Assert.True(counted.Local.IsFailed);
-        Assert.Equal(diagnostic, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal(diagnostic, Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         Assert.Same(f.Built.Type("Int32"), f.Binding.TargetType);
     }
 
@@ -116,7 +116,7 @@ public sealed class LocalBindingContractBinderTests
 
         Assert.True(counted.Local.IsFailed);
         Assert.True(PriorFailure.Of(counted.Initializer!));
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class LocalBindingContractBinderTests
         Assert.True(bound.Variable.IsDiscard);
         Assert.True(bound.Variable.IsReadonly);
         _ = Assert.IsType<ErrorExpression>(Assert.IsType<ExpressionStatement>(Assert.Single(bound.Body.Statements)).Expression);
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static TypeReferenceNode Target(BindingFragments f, string shape)

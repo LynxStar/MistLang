@@ -146,7 +146,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
         return Judge(cast, context.Model.TypeInterner, context.ConversionRefusals) is null;
     }
 
-    internal static DiagnosticDescriptor? Judge(
+    internal static MistDiagnostic? Judge(
         CastExpression cast, TypeInterner interner, IReadOnlyDictionary<CastOperator, ConversionRefusal> refusals)
     {
         if(cast.AmbiguousOperators.Count > 0)
@@ -262,7 +262,7 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
     /// A conditional conversion's operand is judged by what it holds when it is present: absence
     /// short-circuits past the operator rather than reaching its parameter.
     /// </summary>
-    private static DiagnosticDescriptor? JudgeOperand(CastExpression cast, IMistType parameter, TypeInterner interner)
+    private static MistDiagnostic? JudgeOperand(CastExpression cast, IMistType parameter, TypeInterner interner)
     {
         return cast.IsConditional
             ? Assignability.Judge(OptionalLifting.NonVoidPortion(cast.Operand.Type, interner), parameter, interner)

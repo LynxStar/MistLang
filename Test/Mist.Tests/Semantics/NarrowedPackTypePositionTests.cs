@@ -43,7 +43,7 @@ public sealed class NarrowedPackTypePositionTests
         var resolved = Resolve(Indexed("narrowed", 2), Guarded());
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_VAR_0004", diagnostic.Id.Value);
+        Assert.Equal("MIST_VAR_0004", diagnostic.Number.Value);
         Assert.Equal("'narrowed[2]' is outside the pack: 'narrowed' is declared to hold exactly 2 element(s), indexed from 0.", diagnostic.Message);
         Assert.Same(ErrorType.Instance, resolved);
     }
@@ -55,7 +55,7 @@ public sealed class NarrowedPackTypePositionTests
 
         _ = Resolve(Indexed("narrowed", 0), f.Scope);
 
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class NarrowedPackTypePositionTests
 
         _ = Resolve(Indexed("types", 0), branch);
 
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class NarrowedPackTypePositionTests
         _ = Resolve(Indexed("TArgs", 0), Guarded());
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_VAR_0003", diagnostic.Id.Value);
+        Assert.Equal("MIST_VAR_0003", diagnostic.Number.Value);
         Assert.Contains("'if (TArgs is Type[N] fixed)'", diagnostic.Message);
     }
 

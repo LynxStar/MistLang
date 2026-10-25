@@ -23,7 +23,7 @@ public sealed class InitializerEntryRefinementTests
     {
         var finding = Findings(Bag(Element(h.Literal(element, offset: 24), PositiveAdd()))).SingleOrDefault();
 
-        Assert.Equal(expected, finding?.Id.Value);
+        Assert.Equal(expected, finding?.Number.Value);
 
         if(finding is not null)
         {
@@ -48,7 +48,7 @@ public sealed class InitializerEntryRefinementTests
     {
         var finding = Assert.Single(Findings(Bag(Element(HandBuiltRefinements.Local(h.Int, "m", offset: 24), PositiveAdd()))));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_UNPROVEN", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_UNPROVEN", finding.Number.Value);
         Assert.Equal(25, finding.Location.Start.Column);
     }
 
@@ -61,7 +61,7 @@ public sealed class InitializerEntryRefinementTests
             Element(h.Literal("a", offset: 10), text),
             Element(h.Literal(-3L, offset: 24), PositiveAdd()))));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
         Assert.Equal(25, finding.Location.Start.Column);
     }
 
@@ -75,7 +75,7 @@ public sealed class InitializerEntryRefinementTests
 
         var finding = Assert.Single(Findings(Bag(Element(h.Literal(-1L, offset: 24), add, positive))));
 
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", finding.Number.Value);
         Assert.Contains("'Positive'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -125,7 +125,7 @@ public sealed class InitializerEntryRefinementTests
 
         var finding = Findings(Bag(entry)).SingleOrDefault();
 
-        Assert.Equal(expected, finding?.Id.Value);
+        Assert.Equal(expected, finding?.Number.Value);
         Assert.Equal(expected is null ? null : 25, finding?.Location.Start.Column);
     }
 
@@ -137,7 +137,7 @@ public sealed class InitializerEntryRefinementTests
 
         var finding = Assert.Single(Findings(outer));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_VIOLATED", finding.Number.Value);
         Assert.Equal(25, finding.Location.Start.Column);
     }
 

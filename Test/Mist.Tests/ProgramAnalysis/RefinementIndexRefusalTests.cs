@@ -165,7 +165,7 @@ public sealed class RefinementIndexRefusalTests
                 statements.Add(new WhileStatement(h.Binary(loop, BinaryOperatorKind.LessThanOrEqual, h.Literal(3L)),
                     HandBuiltModel.Block(HandBuiltRefinements.Evaluate(h.At(array, loop)),
                         HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(loop, h.Binary(loop, BinaryOperatorKind.Add, h.Literal(1L), h.Int))))));
-                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value);
+                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);
                 return;
         }
 
@@ -176,7 +176,7 @@ public sealed class RefinementIndexRefusalTests
         if(guard is null) { statements.AddRange(inside); }
         else { statements.Add(HandBuiltRefinements.If(guard, [.. inside])); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
     private static Expression Invalidation(HandBuiltRefinements h, string name, Expression array, string sequence)

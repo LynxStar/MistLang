@@ -64,7 +64,7 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     break;
 
                 case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
-                    context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!.Value, [access.Receiver], access.MemberName);
+                    context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!, [access.Receiver], access.MemberName);
                     break;
             }
         }

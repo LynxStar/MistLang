@@ -74,7 +74,7 @@ public sealed class DependentNameConflictTests
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
 
-        Assert.Equal("MIST_DT_0005", finding.Id.Value);
+        Assert.Equal("MIST_DT_0005", finding.Number.Value);
         Assert.Equal(11, finding.Location.Start.Column);
         Assert.Contains("'N' conflicts with member 'N' declared in type 'Box'", finding.Message, StringComparison.Ordinal);
     }

@@ -109,7 +109,7 @@ public sealed class NumericLiteralBindingTests
 
         _ = Assert.IsType<ErrorType>(Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope)));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(OutOfRange, diagnostic.Id.Value);
+        Assert.Equal(OutOfRange, diagnostic.Number.Value);
         Assert.EndsWith($"'{widest}'.", diagnostic.Message, StringComparison.Ordinal);
     }
 

@@ -34,7 +34,7 @@ public sealed class ContextualExpressionStorageContractTests
         Assert.True(subpattern.Pattern.IsFailed);
         Assert.True(f.Scope.Locals["kept"].IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Location);
     }
@@ -50,7 +50,7 @@ public sealed class ContextualExpressionStorageContractTests
 
         Assert.True(bound.IsFailed);
         _ = Assert.IsType<EnumMemberResult>(Assert.Single(bound.Subpatterns).Member);
-        Assert.Equal("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]

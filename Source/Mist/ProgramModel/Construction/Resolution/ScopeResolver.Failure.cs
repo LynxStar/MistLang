@@ -57,7 +57,7 @@ internal sealed partial class ScopeResolver
     }
 
     private void ReportResolutionFailure(
-        DiagnosticDescriptor descriptor, SyntaxNode node, string? analyzerName, params ReadOnlySpan<object?> arguments)
+        MistDiagnostic descriptor, SyntaxNode node, string? analyzerName, params ReadOnlySpan<object?> arguments)
     {
         context.Diagnostics.ReportAtNode(descriptor, node, analyzerName, arguments);
         MarkResolutionFailure();

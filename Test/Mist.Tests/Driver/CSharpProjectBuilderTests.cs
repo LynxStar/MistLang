@@ -32,7 +32,7 @@ public sealed class CSharpProjectBuilderTests
         var diagnostics = Build(new DotnetOutcome(1, $"  {error}\n\nBuild FAILED.\n  {error}\n", "", TimedOut: false));
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(DriverDiagnostics.CSharpProjectBuildFailed.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.CSharpProjectBuildFailed.Number, diagnostic.Number);
         Assert.Equal(Manifest, diagnostic.CompilationUnitPath);
         Assert.Equal($"Building C# project '{Project}' for reference 'App.Migrations' failed: {error}", diagnostic.Message);
         _ = Assert.Single(invocations);
@@ -52,7 +52,7 @@ public sealed class CSharpProjectBuilderTests
         var diagnostics = Build(new DotnetOutcome(-1, "", "", TimedOut: true));
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(DriverDiagnostics.CSharpProjectBuildFailed.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.CSharpProjectBuildFailed.Number, diagnostic.Number);
         Assert.EndsWith("failed: dotnet build timed out after 600 seconds.", diagnostic.Message);
     }
 

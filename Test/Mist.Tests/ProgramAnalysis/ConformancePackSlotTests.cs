@@ -41,7 +41,7 @@ public sealed class ConformancePackSlotTests
     {
         var diagnostic = Assert.Single(Build(bound, written, returns).Run(new ConformanceAnalyzer()));
 
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Contains($"slot '{signature}' of 'IApplier'", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -57,7 +57,7 @@ public sealed class ConformancePackSlotTests
         _ = DeclarationFragments.Method(Conformer(fragment), "Apply", integer, integer, positive);
 
         Assert.Empty(fragment.Run(new ConformanceAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", Assert.Single(fragment.Run(new RefinementAnalyzer())).Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", Assert.Single(fragment.Run(new RefinementAnalyzer())).Number.Value);
     }
 
     private static ClassType Conformer(DeclarationFragments fragment)

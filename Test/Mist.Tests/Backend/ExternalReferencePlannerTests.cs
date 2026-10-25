@@ -70,7 +70,7 @@ public sealed class ExternalReferencePlannerTests
         Assert.True(plan.Failed);
         Assert.Empty(plan.Facades);
         var cycle = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_REFERENCE_CYCLE", cycle.Id.Value);
+        Assert.Equal("MIST_REFERENCE_CYCLE", cycle.Number.Value);
         Assert.Contains("'Bridge'", cycle.Message, StringComparison.Ordinal);
     }
 
@@ -85,7 +85,7 @@ public sealed class ExternalReferencePlannerTests
         Assert.True(plan.Failed);
         Assert.Equal([PackageJson, BridgeOutput], plan.Paths.AsEnumerable());
         var conflict = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_REFERENCE_ASSEMBLY_CONFLICT", conflict.Id.Value);
+        Assert.Equal("MIST_REFERENCE_ASSEMBLY_CONFLICT", conflict.Number.Value);
         Assert.Contains(ClosureJson, conflict.Message, StringComparison.Ordinal);
         Assert.Contains(PackageJson, conflict.Message, StringComparison.Ordinal);
     }
@@ -126,7 +126,7 @@ public sealed class ExternalReferencePlannerTests
 
         Assert.True(plan.Failed);
         var missing = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_REFERENCE_FRAMEWORK_MISSING", missing.Id.Value);
+        Assert.Equal("MIST_REFERENCE_FRAMEWORK_MISSING", missing.Number.Value);
         Assert.Contains("Microsoft.AspNetCore.App", missing.Message, StringComparison.Ordinal);
     }
 

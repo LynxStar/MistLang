@@ -43,7 +43,7 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? Finding(SwitchExpression switchExpression, TypeInterner? interner = null)
+    internal static MistDiagnostic? Finding(SwitchExpression switchExpression, TypeInterner? interner = null)
     {
         return Missing(switchExpression, interner) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
     }

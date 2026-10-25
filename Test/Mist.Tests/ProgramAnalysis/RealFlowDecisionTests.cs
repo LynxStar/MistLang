@@ -123,7 +123,7 @@ public sealed class RealFlowDecisionTests
     [InlineData("if(input > limit) { Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
     public void AnInsufficientGuardOrUnsupportedProof_RemainsUnproven(string body, string id)
     {
-        Assert.Equal(id, Assert.Single(Analyse(body)).Id.Value);
+        Assert.Equal(id, Assert.Single(Analyse(body)).Number.Value);
     }
 
     [Theory]
@@ -131,13 +131,13 @@ public sealed class RealFlowDecisionTests
     [InlineData("if(amount >= 0.0m && amount <= 1.0m) { double converted = (double)amount; Unit value = converted; }")]
     public void UnsupportedNumericCasts_DoNotTransferTheirSourceFacts(string body)
     {
-        Assert.Equal(["MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_REFINEMENT_UNPROVEN"], Analyse(body).Select(diagnostic => diagnostic.Id.Value).Order());
+        Assert.Equal(["MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_REFINEMENT_UNPROVEN"], Analyse(body).Select(diagnostic => diagnostic.Number.Value).Order());
     }
 
     [Fact]
     public void AReassignmentToAKnownViolatingValue_IsStillViolated()
     {
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", Assert.Single(Analyse("if(input > 0.0) { input = -1.0; Positive value = input; }")).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", Assert.Single(Analyse("if(input > 0.0) { input = -1.0; Positive value = input; }")).Number.Value);
     }
 
     private static ImmutableArray<Diagnostic> Analyse(string body)

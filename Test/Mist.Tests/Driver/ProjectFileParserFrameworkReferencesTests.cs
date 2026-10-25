@@ -161,7 +161,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -189,7 +189,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -221,7 +221,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("Microsoft.AspNetCore.App", diags[0].Message);
         }
@@ -252,7 +252,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -286,7 +286,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Number.Value);
         }
         finally
         {
@@ -317,7 +317,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -347,7 +347,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -380,7 +380,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("256", diags[0].Message);
         }

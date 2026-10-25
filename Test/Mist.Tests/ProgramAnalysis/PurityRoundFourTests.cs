@@ -340,7 +340,7 @@ public sealed class PurityRoundFourTests
     {
         var finding = Assert.Single(new PurityFragments().RoundFour(fragment));
 
-        Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}: {finding.Message}");
+        Assert.True(finding.Number.Value == expected, $"{fragment}: expected {expected}, got {finding.Number.Value}: {finding.Message}");
         Assert.Contains(named, finding.Message, StringComparison.Ordinal);
     }
 

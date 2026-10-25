@@ -27,7 +27,7 @@ public sealed class ReferenceKeyMismatchTests
         var diagnostic = ProjectReferenceResolver.KeyMismatch("Migrations", kind, "App.Migrations", target);
 
         Assert.NotNull(diagnostic);
-        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(target, diagnostic.CompilationUnitPath);
         Assert.Equal($"Reference key 'Migrations' does not match 'App.Migrations', the name the {kindText} '{target}' produces.", diagnostic.Message);

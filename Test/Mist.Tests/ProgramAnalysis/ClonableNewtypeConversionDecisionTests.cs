@@ -210,7 +210,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("Rung aReadonlySourceNoLongerLeavesImplicitly = step;", "MIST_PA_CAST_REQUIRED")]
     public void ACastWithNoCopyThatHolds_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
+        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
     }
 
     [Theory]
@@ -218,7 +218,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("var aCloneTestedAgainstAMutableSourceByAs = jaguar as Tiger;", "MIST_PM_AS_NO_RELATIONSHIP")]
     public void ATypeTestBetweenACloneAndASourceThatDefinesItsOwnCopy_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
+        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
     }
 
     [Fact]

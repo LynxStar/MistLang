@@ -109,7 +109,7 @@ public sealed class MemberBindingRefusalTests
         }
 
 
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 
@@ -134,7 +134,7 @@ public sealed class MemberBindingRefusalTests
         var root = HandBuiltModel.Block(declared, new ExpressionStatement(assignment), bad);
         Assert.Empty(f.Built.Analyze(new DefiniteAssignmentAnalyzer(), root));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.True(diagnostic.Id.Value == "MIST_PM_UNRESOLVED_MEMBER", refusal);
+        Assert.True(diagnostic.Number.Value == "MIST_PM_UNRESOLVED_MEMBER", refusal);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 

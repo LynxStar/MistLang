@@ -32,7 +32,7 @@ public sealed class FieldFactRetentionTests
         var guard = f.H.Binary(f.H.Length(f.ItemsRead), BinaryOperatorKind.GreaterThan, f.H.Literal(0L));
         var body = HandBuiltModel.Block(HandBuiltRefinements.If(guard, Between(f, between), HandBuiltRefinements.Evaluate(f.H.At(f.ItemsRead, f.H.Literal(0L)))));
 
-        Assert.Equal(expected, f.H.Built.Analyze(new RefinementAnalyzer(), body).SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, f.H.Built.Analyze(new RefinementAnalyzer(), body).SingleOrDefault()?.Number.Value);
     }
 
     [Theory]
@@ -46,7 +46,7 @@ public sealed class FieldFactRetentionTests
             f.H.Binary(slot, BinaryOperatorKind.LessThan, f.H.Length(f.ItemsRead)));
         var body = HandBuiltModel.Block(HandBuiltRefinements.If(guard, Between(f, between), HandBuiltRefinements.Evaluate(f.H.At(f.ItemsRead, slot))));
 
-        Assert.Equal(expected, f.H.Built.Analyze(new RefinementAnalyzer(), body).SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, f.H.Built.Analyze(new RefinementAnalyzer(), body).SingleOrDefault()?.Number.Value);
     }
 
     private static Statement Between(FieldEffectFragments f, string between)

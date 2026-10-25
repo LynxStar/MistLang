@@ -48,7 +48,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
     public void UnknownDifferentAndInvalidIndexes_RemainRefused(string statements, string id)
     {
-        Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Number.Value);
     }
 
     [Theory]
@@ -56,7 +56,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("Index end = ^1; end = 4;")]
     public void AnIntegerAssignment_DoesNotInventAnImplicitIndexConversion(string statements)
     {
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assert.Single(Findings(Build(statements))).Id.Value);
+        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assert.Single(Findings(Build(statements))).Number.Value);
     }
 
     [Theory]
@@ -85,7 +85,7 @@ public sealed class RangeIndexMemberDecisionTests
     {
         var model = Build("var holder = new Holder();" + statements + "var slice = numbers[window]; var last = slice[0];", "public class Holder { " + members + " }");
 
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -109,7 +109,7 @@ public sealed class RangeIndexMemberDecisionTests
         }
         else
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
     }
 
@@ -123,7 +123,7 @@ public sealed class RangeIndexMemberDecisionTests
 
         if(id is not null)
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
         else
         {
@@ -145,7 +145,7 @@ public sealed class RangeIndexMemberDecisionTests
         }
         else
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
     }
 

@@ -32,7 +32,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "second", failed: true);
 
         string[] expected = diagnosticId is null ? [] : [diagnosticId];
-        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(d => d.Id.Value));
+        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(d => d.Number.Value));
         Assert.Equal(typed ? "Int32" : "<error>", f.Scope.Locals["first"].Type.Name);
         if(diagnosticId is not null)
         {
@@ -63,7 +63,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "second", failed: true);
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(DeclarationPath, diagnostic.CompilationUnitPath);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
@@ -95,7 +95,7 @@ public sealed class DeconstructionRecoveryBindingTests
         _ = Assert.IsType<UnsupportedStatement>(Bind(f, Declaration(typed, "source", "same", "same")));
         ReadAndCall(f, "same", failed: true);
 
-        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         _ = Assert.Single(f.Scope.Locals, pair => pair.Key == "same");
     }
 
@@ -121,7 +121,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "second", failed: false);
 
         string[] expected = reported || typed ? [] : ["MIST_PM_UNRESOLVABLE_OVERLOAD"];
-        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(d => d.Id.Value));
+        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(d => d.Number.Value));
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class DeconstructionRecoveryBindingTests
         ReadAndCall(f, "first", failed: true);
         ReadAndCall(f, "second", failed: false);
 
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static void ReadAndCall(BindingFragments f, string name, bool failed)

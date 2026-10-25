@@ -71,7 +71,7 @@ public sealed class ReadonlyParameterReceiverTests
     {
         var finding = Assert.Single(Analyze(shape, ParameterKind.Readonly));
 
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(message, finding.Message);
         Assert.Equal(38, finding.Location.Start.Column);
     }
@@ -88,7 +88,7 @@ public sealed class ReadonlyParameterReceiverTests
     [Fact]
     public void AFieldWriteThroughAReadonlyRefParameterIsRefusedAtAnyDepth()
     {
-        Assert.Equal(FieldAssigned, Assert.Single(Analyze("c.Inner.Count = 1", ParameterKind.ReadonlyRef)).Id.Value);
+        Assert.Equal(FieldAssigned, Assert.Single(Analyze("c.Inner.Count = 1", ParameterKind.ReadonlyRef)).Number.Value);
     }
 
     [Theory]
@@ -124,7 +124,7 @@ public sealed class ReadonlyParameterReceiverTests
     {
         var finding = Assert.Single(Analyze("c.Inner.Bump()", ParameterKind.Readonly, readonlyMember: true));
 
-        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", finding.Number.Value);
     }
 
     private enum ParameterKind

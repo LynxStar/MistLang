@@ -114,7 +114,7 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void Report(AnalysisContext context, Use use, Slot slot, DiagnosticDescriptor descriptor, PropertyAccessor? accessor, string keyword)
+    private static void Report(AnalysisContext context, Use use, Slot slot, MistDiagnostic descriptor, PropertyAccessor? accessor, string keyword)
     {
         if(descriptor == ProgramAnalysisDiagnostics.InaccessibleAccessor)
         {

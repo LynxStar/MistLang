@@ -29,7 +29,7 @@ public sealed class PurityInferenceTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(helper));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("Helper", finding.Message, StringComparison.Ordinal);
         Assert.Contains("'Caller'", finding.Message, StringComparison.Ordinal);
     }
@@ -51,7 +51,7 @@ public sealed class PurityInferenceTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("abstract-member-with-an-impure-implementation"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("Area", finding.Message, StringComparison.Ordinal);
     }
 
@@ -88,7 +88,7 @@ public sealed class PurityInferenceTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("auto-getter-over-mutable-storage-read-through-an-external-receiver"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("Level", finding.Message, StringComparison.Ordinal);
     }
 
@@ -109,6 +109,6 @@ public sealed class PurityInferenceTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("undeclared-constructor-writing-a-static"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
     }
 }

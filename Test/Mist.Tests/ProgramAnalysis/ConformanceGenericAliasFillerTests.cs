@@ -51,8 +51,8 @@ public sealed class ConformanceGenericAliasFillerTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
-        Assert.All(findings.Where(finding => finding.Id.Value == "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED"),
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
+        Assert.All(findings.Where(finding => finding.Number.Value == "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED"),
             finding => Assert.Contains("Nested type 'Holder' does not satisfy constraint", finding.Message, StringComparison.Ordinal));
     }
 

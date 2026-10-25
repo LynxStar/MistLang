@@ -27,7 +27,7 @@ internal static class CloneConversionRefusals
             var boundary = AnalysisBoundary.ForBody(root);
             var failure = conversion.BindingFailure
                 ?? analyze(root).FirstOrDefault(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error
-                    && diagnostic.Id != ProgramAnalysisDiagnostics.InaccessibleMember.Id
+                    && diagnostic.Number != ProgramAnalysisDiagnostics.InaccessibleMember.Number
                     && boundary.Contains(diagnostic));
 
             if(failure is not null)

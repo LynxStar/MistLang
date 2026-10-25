@@ -22,7 +22,7 @@ internal abstract record EntryPointSelection
 
     public sealed record None : EntryPointSelection;
 
-    public sealed record Refused(DiagnosticDescriptor Descriptor, ImmutableArray<string> Arguments) : EntryPointSelection;
+    public sealed record Refused(MistDiagnostic Descriptor, ImmutableArray<string> Arguments) : EntryPointSelection;
 
     public static EntryPointSelection Of(MistAssembly assembly)
     {
@@ -117,7 +117,7 @@ internal abstract record EntryPointSelection
             : new Main(chosen);
     }
 
-    private static Refused Refuse(DiagnosticDescriptor descriptor, params ImmutableArray<string> arguments)
+    private static Refused Refuse(MistDiagnostic descriptor, params ImmutableArray<string> arguments)
     {
         return new Refused(descriptor, arguments);
     }

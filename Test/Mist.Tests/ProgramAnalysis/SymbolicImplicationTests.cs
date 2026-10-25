@@ -95,7 +95,7 @@ public sealed class SymbolicImplicationTests
             _ => RefinementContracts.SetterFinding(atMost, below),
         };
 
-        Assert.Equal(expected, finding?.Id.Value);
+        Assert.Equal(expected, finding?.Number.Value);
     }
 
     [Theory]
@@ -121,7 +121,7 @@ public sealed class SymbolicImplicationTests
             _ => RefinementContracts.ReturnFinding(Refine(Below(Named(filler))), Refine(Below(Named(slot)))),
         };
 
-        Assert.Equal(expected, finding?.Id.Value);
+        Assert.Equal(expected, finding?.Number.Value);
     }
 
     [Fact]

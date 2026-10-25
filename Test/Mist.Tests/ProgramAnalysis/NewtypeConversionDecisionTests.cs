@@ -231,7 +231,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("var aSourceTestedAgainstItsCloneByAs = point as Position;", "MIST_PM_AS_NO_RELATIONSHIP")]
     public void ATypeTestBetweenACloneAndItsSource_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -262,7 +262,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("Packed<int, string> aPackConvertsNothing = (Packed<int, string>)new Tagged<int, string>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -358,7 +358,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("var onAnInstanceOfAGenericNewtype = kept.Doubled();")]
     public void AnExtensionDeclaredForTheSource_IsNotTheNewtypes(string statement)
     {
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Fact]
@@ -431,6 +431,6 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. buildDiagnostics.Concat(findings.ToImmutableArray()).Where(d => Ids.Contains(d.Id.Value))];
+        return [.. buildDiagnostics.Concat(findings.ToImmutableArray()).Where(d => Ids.Contains(d.Number.Value))];
     }
 }

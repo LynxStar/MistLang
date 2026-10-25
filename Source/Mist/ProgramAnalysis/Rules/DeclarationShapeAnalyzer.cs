@@ -285,7 +285,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         }
     }
 
-    public static DiagnosticDescriptor? PredicateRead(LookupResult member, PurityInference? purity)
+    public static MistDiagnostic? PredicateRead(LookupResult member, PurityInference? purity)
     {
         if(member is PropertyResult { Property.Getter: null })
         {
@@ -295,7 +295,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         return StableMembers.IsStable(member, purity) ? null : ProgramAnalysisDiagnostics.RefinementOverMutableMember;
     }
 
-    private static IEnumerable<(PropertySubpattern Read, DiagnosticDescriptor Refusal)> RefusedReads(Pattern? predicate, PurityInference purity)
+    private static IEnumerable<(PropertySubpattern Read, MistDiagnostic Refusal)> RefusedReads(Pattern? predicate, PurityInference purity)
     {
         var operands = predicate switch
         {
@@ -489,7 +489,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload);
 
-    private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)
+    private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params object?[] args)
     {
         if(at is not null)
         {

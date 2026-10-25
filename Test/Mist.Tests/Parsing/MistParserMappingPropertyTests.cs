@@ -60,14 +60,13 @@ public class MistParserMappingPropertyTests
                 new LinePosition(entry.Line, entry.Column))
             : default;
 
-        var diagnostic = new Diagnostic(
-            new DiagnosticId("MIST_PARSE_ERROR"),
+        var diagnostic = DiagnosticFixtures.Occurrence("MIST_PARSE_ERROR",
             DiagnosticSeverity.Error,
             PipelineStage.Parsing,
             entry.Message,
-            Location: location,
-            CompilationUnitPath: entry.FilePath ?? fallbackPath,
-            AnalyzerName: null);
+            location: location,
+            compilationUnitPath: entry.FilePath ?? fallbackPath,
+            analyzerName: null);
 
         // Verify: Location.Start.Line == entry.Line
         if(diagnostic.Location == default)

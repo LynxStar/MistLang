@@ -12,7 +12,7 @@ public sealed class PureFunctionTypeRefusalTests
     {
         var error = Assert.Single(new PurityFragments().Analyze("plain-func-to-pure-func"));
 
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", error.Id.Value);
+        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", error.Number.Value);
         Assert.Contains("pure func<", error.Message, StringComparison.Ordinal);
     }
 
@@ -21,7 +21,7 @@ public sealed class PureFunctionTypeRefusalTests
     {
         var error = Assert.Single(PureFunctionTypeFragments.Analyze("cast-to-a-pure-function-type"));
 
-        Assert.Equal("MIST_PA_CAST_HAS_NO_CONVERSION", error.Id.Value);
+        Assert.Equal("MIST_PA_CAST_HAS_NO_CONVERSION", error.Number.Value);
         Assert.Contains("pure func<", error.Message, StringComparison.Ordinal);
     }
 
@@ -30,6 +30,6 @@ public sealed class PureFunctionTypeRefusalTests
     {
         var error = Assert.Single(PureFunctionTypeFragments.Analyze("overloads-differing-only-in-purity"));
 
-        Assert.Equal("MIST_PA_DUPLICATE_SIGNATURE", error.Id.Value);
+        Assert.Equal("MIST_PA_DUPLICATE_SIGNATURE", error.Number.Value);
     }
 }

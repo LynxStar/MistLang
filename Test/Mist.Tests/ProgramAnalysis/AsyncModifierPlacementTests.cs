@@ -24,7 +24,7 @@ public sealed class AsyncModifierPlacementTests
         _ = Declare(f, Member(declaration));
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 

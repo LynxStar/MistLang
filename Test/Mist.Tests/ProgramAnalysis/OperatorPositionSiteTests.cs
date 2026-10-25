@@ -130,7 +130,7 @@ public sealed class OperatorPositionSiteTests
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(1, diagnostic.Location.Start.Line);
         Assert.Equal(38, diagnostic.Location.Start.Column);

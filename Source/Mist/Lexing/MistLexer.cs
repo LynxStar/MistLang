@@ -15,6 +15,7 @@ public sealed class MistLexer : ILexer
 {
     public TokenStream Lex(SourceText source, DiagnosticBag diagnostics)
     {
+        diagnostics.Stage = PipelineStage.Lexing;
         var stormSource = new Storm.Runtime.SourceText(source.Path, source.Contents);
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
 

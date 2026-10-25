@@ -313,7 +313,7 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
 
             foreach(var finding in PurityJudge.Judge(root, ScopeKind.Pure, scope, noInputs, inference.Of))
             {
-                var reason = string.Format(CultureInfo.InvariantCulture, finding.Descriptor.MessageTemplate, finding.Args);
+                var reason = string.Format(CultureInfo.InvariantCulture, finding.Descriptor.Template, finding.Args);
 
                 context.Report(
                     ProgramAnalysisDiagnostics.DefaultNotConsistent, finding.At, finding.About,

@@ -37,7 +37,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_FILE_NOT_FOUND", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_FILE_NOT_FOUND", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -60,7 +60,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_MISSING_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_MISSING_NAME", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -83,7 +83,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_TOML_ERROR", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_TOML_ERROR", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -129,7 +129,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_NAME_TOO_LONG", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_NAME_TOO_LONG", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -159,7 +159,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_MISSING_PATH", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_REFERENCE_MISSING_PATH", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("mist.toml", diags[0].Message);
         }
@@ -188,7 +188,7 @@ public sealed class ProjectFileParserTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Id.Value);
+            Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("mist.toml", diags[0].Message);
         }

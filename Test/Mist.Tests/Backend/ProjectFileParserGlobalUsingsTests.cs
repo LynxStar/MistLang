@@ -128,7 +128,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_MISSING_NAMESPACES", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_MISSING_NAMESPACES", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -157,7 +157,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -186,7 +186,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_EMPTY_NAMESPACE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -215,7 +215,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_NAMESPACE", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_INVALID_NAMESPACE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -244,7 +244,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
         }
@@ -273,7 +273,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Null(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_INVALID_FORMAT", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("index 1", diags[0].Message);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
@@ -309,7 +309,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE", diags[0].Id.Value);
+            Assert.Equal("MIST_GLOBAL_USING_DUPLICATE_NAMESPACE", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Warning, diags[0].Severity);
             Assert.Contains("System", diags[0].Message);
             Assert.Contains(GetTomlPath(projectDir), diags[0].Message);
@@ -396,7 +396,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             var diags = diagnostics.ToImmutableArray();
             Assert.NotEmpty(diags);
 
-            var diag = diags.First(d => d.Id.Value == expectedDiagnosticId);
+            var diag = diags.First(d => d.Number.Value == expectedDiagnosticId);
             Assert.Contains(GetTomlPath(projectDir), diag.Message);
         }
         finally
@@ -424,7 +424,7 @@ public sealed class ProjectFileParserGlobalUsingsTests
             var diags = diagnostics.ToImmutableArray();
             Assert.NotEmpty(diags);
 
-            var diag = diags.First(d => d.Id.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE");
+            var diag = diags.First(d => d.Number.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE");
             Assert.Contains(GetTomlPath(projectDir), diag.Message);
         }
         finally

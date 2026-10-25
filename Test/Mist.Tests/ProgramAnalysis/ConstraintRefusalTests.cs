@@ -43,8 +43,8 @@ public sealed class ConstraintRefusalTests
         var built = new HandBuiltModel();
         var (closing, constraint) = Build(built, name);
         var decision = ConstraintAnalyzer.Decide(closing, constraint, built.Interner);
-        _ = Assert.NotNull(decision);
-        Assert.Equal(expected, decision.Value.Id.Value);
+        Assert.NotNull(decision);
+        Assert.Equal(expected, decision.Number.Value);
     }
 
     [Theory]
@@ -83,7 +83,7 @@ public sealed class ConstraintRefusalTests
         var constraint = new ConstructorConstraint([]);
         var closing = new TypeArgumentClosing(parameter, product, HandBuiltModel.Node(), TypeSubstitution.Empty.With(parameter, product));
 
-        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Id.Value);
+        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Number.Value);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class ConstraintRefusalTests
         var closing = new TypeArgumentClosing(pack, argument, HandBuiltModel.Node(25), closed.With(pack, argument));
         var constraint = new TypeConstraint(built.Interner.GetOrCreateConstructedType(all, [new TupleType([new SpreadType(pack)])]));
 
-        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Id.Value);
+        Assert.Equal(expected, ConstraintAnalyzer.Decide(closing, constraint, built.Interner)?.Number.Value);
     }
 
     // A type constraint asks what the argument is (generic-constraints spec): a Dog is an Animal, and a

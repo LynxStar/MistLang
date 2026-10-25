@@ -192,8 +192,7 @@ public sealed class StandardPipelineProgressTests
 
     private static Diagnostic Error()
     {
-        return new Diagnostic(
-            new DiagnosticId("MIST_PROBE"), DiagnosticSeverity.Error, PipelineStage.Driver, "probe", default, "probe.mist", null);
+        return DiagnosticFixtures.Occurrence("MIST_PROBE", DiagnosticSeverity.Error, PipelineStage.Driver, "probe", default, "probe.mist", null);
     }
 
     private sealed class Probe : IProgramAnalyzer

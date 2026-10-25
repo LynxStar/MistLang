@@ -71,7 +71,7 @@ public sealed class PredicateDeclarationRefusalTests
         var fragment = name.StartsWith("refinement-not-comparable-", StringComparison.Ordinal) ? Misordered(name)
             : name.StartsWith("refinement-constant-mismatch-", StringComparison.Ordinal) ? Mismatched(name) : Unstable(name);
         var diagnostic = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }

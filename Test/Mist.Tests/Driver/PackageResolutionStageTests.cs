@@ -163,7 +163,7 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         // But the MIST_PKG_002 diagnostic still surfaces (Requirement 1.9).
         Assert.Contains(result.Diagnostics,
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST_PKG_002");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -225,7 +225,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         // The MIST_PKG_002 diagnostic appears in the compilation result
         // regardless of verbose setting.
         var diag = result.Diagnostics.FirstOrDefault(
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST_PKG_002");
         Assert.NotNull(diag);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("BadPkg", diag.Message);
@@ -245,7 +245,7 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         // The MIST_PKG_002 diagnostic appears in the compilation result.
         var diag = result.Diagnostics.FirstOrDefault(
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST_PKG_002");
         Assert.NotNull(diag);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("BadPkg", diag.Message);
@@ -270,7 +270,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
         Assert.False(result.Succeeded, "The source uses nothing from the package, and the build still fails on it.");
         Assert.Null(result.PrimaryOutputArtifactPath);
-        Assert.Equal(["MIST_PKG_002"], result.Diagnostics.Select(d => d.Id.Value));
+        Assert.Equal(["MIST_PKG_002"], result.Diagnostics.Select(d => d.Number.Value));
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.False(result.Succeeded);
         Assert.Equal(
             ["MIST_PKG_002", "MIST_UNDEFINED_NAMESPACE", "MIST_PM_UNRESOLVED_TYPE"],
-            result.Diagnostics.Select(d => d.Id.Value));
+            result.Diagnostics.Select(d => d.Number.Value));
         Assert.Contains("SomePackage.Models", result.Diagnostics[1].Message);
         Assert.Contains("Widget", result.Diagnostics[2].Message);
     }
@@ -325,7 +325,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.False(result.Succeeded);
         Assert.Equal(
             ["MIST_FILE_ERROR", "MIST_PKG_002", "MIST_PARSE_INCOMPLETE"],
-            result.Diagnostics.Select(d => d.Id.Value));
+            result.Diagnostics.Select(d => d.Number.Value));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -423,7 +423,7 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         public void Receive(Diagnostic diagnostic)
         {
-            Events.Add($"receive {diagnostic.Id.Value}");
+            Events.Add($"receive {diagnostic.Number.Value}");
             Received.Add(diagnostic);
         }
     }

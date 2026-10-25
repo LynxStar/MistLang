@@ -78,7 +78,7 @@ public sealed class PackageResolverDiagnosticsTests
             diagnostics);
 
         var diag = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PKG_002", diag.Id.Value);
+        Assert.Equal("MIST_PKG_002", diag.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("SomePackage", diag.Message);
 
@@ -107,7 +107,7 @@ public sealed class PackageResolverDiagnosticsTests
 
         var diags = diagnostics.ToImmutableArray();
         Assert.Equal(2, diags.Length);
-        Assert.All(diags, d => Assert.Equal("MIST_PKG_002", d.Id.Value));
+        Assert.All(diags, d => Assert.Equal("MIST_PKG_002", d.Number.Value));
         Assert.Contains(diags, d => d.Message.Contains("FirstBad", StringComparison.Ordinal));
         Assert.Contains(diags, d => d.Message.Contains("SecondBad", StringComparison.Ordinal));
 
@@ -136,7 +136,7 @@ public sealed class PackageResolverDiagnosticsTests
 
         // The invalid version package should produce a diagnostic.
         var invalidVersionDiag = diagnostics.ToImmutableArray()
-            .FirstOrDefault(d => d.Id.Value == "MIST_PKG_002" && d.Message.Contains("BadPackage"));
+            .FirstOrDefault(d => d.Number.Value == "MIST_PKG_002" && d.Message.Contains("BadPackage"));
         Assert.NotNull(invalidVersionDiag);
 
         // The failure count includes the invalid version package.

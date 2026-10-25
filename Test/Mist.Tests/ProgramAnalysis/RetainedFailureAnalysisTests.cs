@@ -38,7 +38,7 @@ public sealed class RetainedFailureAnalysisTests
         var diagnostics = Analyze(f, root);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
         Assert.Equal(12, diagnostic.Location.Start.Column);
         Assert.Equal("operator-and-positional-checks", diagnostic.AnalyzerName);
@@ -55,7 +55,7 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostics = Analyze(f, root);
 
-        Assert.Equal(["MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS"], diagnostics.Select(diagnostic => diagnostic.Id.Value));
+        Assert.Equal(["MIST_PA_OPERATOR_NOT_APPLICABLE", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
         Assert.Equal([12, 22], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
     }
 
@@ -80,7 +80,7 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostic = Assert.Single(Analyze(f, root));
 
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Equal(shape is "optional" or "unfinished" ? 41 : 12, diagnostic.Location.Start.Column);
     }
 
@@ -96,7 +96,7 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostic = Assert.Single(Analyze(f, root));
 
-        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
         Assert.Equal(12, diagnostic.Location.Start.Column);
         Assert.False(local.IsFailed);
     }
@@ -110,7 +110,7 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostic = Assert.Single(Analyze(f, root));
 
-        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_UNKNOWN_HAS_NO_MEMBERS", diagnostic.Number.Value);
         Assert.Equal(12, diagnostic.Location.Start.Column);
     }
 
@@ -126,7 +126,7 @@ public sealed class RetainedFailureAnalysisTests
 
         var diagnostic = Assert.Single(Analyze(f, root));
 
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", diagnostic.Number.Value);
         Assert.Equal(41, diagnostic.Location.Start.Column);
     }
 
@@ -156,7 +156,7 @@ public sealed class RetainedFailureAnalysisTests
     private static ErrorExpression Pending(string id, int offset, params Expression[] children)
     {
         var node = HandBuiltModel.Node(offset);
-        return new ErrorExpression(node, children, new Diagnostic(new DiagnosticId(id), DiagnosticSeverity.Error,
+        return new ErrorExpression(node, children, DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "Deferred failure.",
             new LinePositionSpan(new LinePosition(1, offset + 1), new LinePosition(1, offset + 2)),
             "hand-built.mist", null));

@@ -33,7 +33,7 @@ public sealed class ReadonlyOwnedWritesTests
     {
         var finding = Assert.Single(new ReadonlyContextFragments().Analyze(fragment));
 
-        Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}");
+        Assert.True(finding.Number.Value == expected, $"{fragment}: expected {expected}, got {finding.Number.Value}");
     }
 
     [Theory]
@@ -44,7 +44,7 @@ public sealed class ReadonlyOwnedWritesTests
     {
         var finding = Assert.Single(new ReadonlyContextFragments().Analyze(fragment));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Equal(
             $"Cannot call '{member}' from readonly method 'Poke': it is not readonly. A non-readonly call requires a local member on an owned receiver.",
             finding.Message);

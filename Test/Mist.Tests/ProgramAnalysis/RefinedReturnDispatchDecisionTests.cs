@@ -58,7 +58,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } int Text(); } public class Factory { public int Make() { return -1; } public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
     public void ASelectedMethodLosingItsClosedReturnContract_IsRefused(string declarations)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 
     [Theory]
@@ -83,7 +83,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public int Value { get { return -1; } } } with Factory : IFactory<PositiveInt> { Value as Value; }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
     public void APropertyLosingEitherAccessorContract_IsRefused(string declarations, string diagnostic)
     {
-        Assert.Equal(diagnostic, Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Id.Value);
+        Assert.Equal(diagnostic, Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 
     [Theory]
@@ -105,7 +105,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("Outer<PositiveInt>.Token", "Outer<int>.Token")]
     public void AnEmbeddedRefinedReturnWithADifferentClosedType_IsRefused(string promised, string produced)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(Embedded(promised, produced)).Id.Value);
+        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(Embedded(promised, produced)).Number.Value);
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("PositiveInt | string", "int | string")]
     public void AStructurallyDifferentEmbeddedReturn_RemainsRefusedBySignatureMatching(string promised, string produced)
     {
-        Assert.Equal("MIST_PA_SLOT_SIGNATURE_MISMATCH", Assert.Single(Embedded(promised, produced)).Id.Value);
+        Assert.Equal("MIST_PA_SLOT_SIGNATURE_MISMATCH", Assert.Single(Embedded(promised, produced)).Number.Value);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class RefinedReturnDispatchDecisionTests
             }
             """);
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", finding.Number.Value);
         Assert.Contains("< Bound", finding.Message, StringComparison.Ordinal);
     }
 

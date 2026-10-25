@@ -110,7 +110,7 @@ internal sealed class AnalysisContext(
     /// <see cref="ExpressionFailures"/> and report when no owner exists.
     /// </summary>
     public void Report(
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         SyntaxNode at,
         IReadOnlyList<Expression> about,
         params ReadOnlySpan<object?> args)
@@ -130,7 +130,7 @@ internal sealed class AnalysisContext(
 
     public void Refuse(
         Expression expression,
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         IReadOnlyList<Expression> about,
         params ReadOnlySpan<object?> args)
     {
@@ -152,13 +152,13 @@ internal sealed class AnalysisContext(
         }
     }
 
-    public void ReportAtProject(DiagnosticDescriptor descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
+    public void ReportAtProject(MistDiagnostic descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
     {
         diagnostics.Add(new Diagnostic(
-            descriptor.Id,
+            descriptor.Number,
             descriptor.DefaultSeverity,
-            descriptor.Stage,
-            string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray()),
+            diagnostics.Stage,
+            string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray()),
             Location: default,
             CompilationUnitPath: project.ProjectPath ?? project.Name,
             AnalyzerName: analyzerId));

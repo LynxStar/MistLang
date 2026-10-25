@@ -97,7 +97,7 @@ public sealed class StaticExtensionInvocationBindingTests
 
         _ = fixture.Call("Int32", explicitMethodArguments: false);
 
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(fixture.Fragments.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(fixture.Fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]
@@ -118,7 +118,7 @@ public sealed class StaticExtensionInvocationBindingTests
         if(isStatic)
         {
             _ = Assert.IsType<ErrorExpression>(expression);
-            Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Id.Value);
+            Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
         }
         else
         {

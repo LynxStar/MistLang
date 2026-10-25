@@ -113,7 +113,7 @@ public sealed partial class GeneratedProjectNullabilityTests : IDisposable
             ProjectName: "Nullability",
             NamespaceRoot: "Nullability"));
 
-        var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Id.Value}: {d.Message}");
+        var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Number.Value}: {d.Message}");
         Assert.True(!errors.Any(), string.Join("\n", errors));
 
         var (exitCode, log) = Build(Path.Combine(output, "Nullability.csproj"));

@@ -23,7 +23,7 @@ public sealed class SpanLengthResolutionTests
     {
         Assert.DoesNotContain(
             DiagnosticsFor(statement),
-            diagnostic => diagnostic.Id.Value == "MIST_PM_AMBIGUOUS_MEMBER");
+            diagnostic => diagnostic.Number.Value == "MIST_PM_AMBIGUOUS_MEMBER");
     }
 
     [Theory]
@@ -33,7 +33,7 @@ public sealed class SpanLengthResolutionTests
     {
         Assert.DoesNotContain(
             DiagnosticsFor(statement),
-            diagnostic => diagnostic.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+            diagnostic => diagnostic.Number.Value == "MIST_PM_UNRESOLVED_MEMBER");
     }
 
     private static ImmutableArray<Diagnostic> DiagnosticsFor(string statement)

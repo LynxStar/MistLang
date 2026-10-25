@@ -86,7 +86,7 @@ public sealed class PackPositionTests : ProgramModelProbe
     {
         Assert.DoesNotContain(
             Errors("public struct Pair<Type[2]:TArgs> { public void Use(TArgs[1] second) { } }"),
-            error => error.Id.Value == "MIST_VAR_0002");
+            error => error.Number.Value == "MIST_VAR_0002");
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public sealed class PackPositionTests : ProgramModelProbe
     {
         var error = Assert.Single(Errors(declaration));
 
-        Assert.Equal("MIST_VAR_0002", error.Id.Value);
+        Assert.Equal("MIST_VAR_0002", error.Number.Value);
     }
 
     private List<Diagnostic> Errors(string declaration)

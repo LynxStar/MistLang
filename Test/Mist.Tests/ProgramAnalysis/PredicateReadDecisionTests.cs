@@ -21,7 +21,7 @@ public sealed class PredicateReadDecisionTests
     {
         var refusal = DeclarationShapeAnalyzer.PredicateRead(Member(member), purity: null);
 
-        Assert.Equal(expected, refusal?.Id.Value);
+        Assert.Equal(expected, refusal?.Number.Value);
     }
 
     private static LookupResult Member(string member)

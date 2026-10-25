@@ -141,7 +141,7 @@ public sealed class ProjectFileParserPropertyTests
                 Assert.Null(result);
                 var diags = diagnostics.ToImmutableArray();
                 _ = Assert.Single(diags);
-                Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Id.Value);
+                Assert.Equal("MIST_PROJECT_REFERENCE_EMPTY_PATH", diags[0].Number.Value);
                 Assert.Contains("mist.toml", diags[0].Message);
             }
             finally
@@ -195,7 +195,7 @@ public sealed class ProjectFileParserPropertyTests
 
                 Assert.False(diagnostics.HasErrors,
                     $"Parse reported errors for path='{path}', fields=[{string.Join(", ", fields.Select(f => $"{f.First}={f.Second}"))}], toml:\n{toml}\n" +
-                    string.Join("; ", diagnostics.ToImmutableArray().Select(d => $"{d.Id.Value}: {d.Message}")));
+                    string.Join("; ", diagnostics.ToImmutableArray().Select(d => $"{d.Number.Value}: {d.Message}")));
                 Assert.NotNull(result);
                 _ = Assert.Single(result.References);
 

@@ -86,7 +86,7 @@ public sealed class PackTuplePatternBindingTests
         var bound = Bind(type, Var("a"), Var("b"), Var("c"));
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_TUPLE_PATTERN_ARITY", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_TUPLE_PATTERN_ARITY", diagnostic.Number.Value);
         Assert.Equal(message, diagnostic.Message);
         Assert.True(bound.IsFailed);
     }

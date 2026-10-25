@@ -136,6 +136,6 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 
         Assert.False(result.Succeeded);
         Assert.Contains(result.Diagnostics,
-            d => d.Id.Value == "MIST_PROJECT_REFERENCE_NOT_FOUND");
+            d => d.Number.Value == "MIST_PROJECT_REFERENCE_NOT_FOUND");
     }
 }

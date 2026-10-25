@@ -57,8 +57,8 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, bag);
         var diagnostics = bag.ToImmutableArray().Where(diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
-        Assert.True(diagnostics is [var only] && only.Id.Value == expected,
-            $"{caseName}: expected only {expected}; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Id.Value))}");
+        Assert.True(diagnostics is [var only] && only.Number.Value == expected,
+            $"{caseName}: expected only {expected}; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Number.Value))}");
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
             "MIST_PA_UNKNOWN_HAS_NO_MEMBERS", "MIST_PA_OPERATOR_NOT_APPLICABLE",
             "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL", "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL",
         ];
-        Assert.Equal(expected, diagnostics.Select(finding => finding.Id.Value));
+        Assert.Equal(expected, diagnostics.Select(finding => finding.Number.Value));
         var owners = SourceBodies.Of(model).SelectMany(root => BodyWalker.DescendantsAndSelf(root.Root))
             .OfType<Expression>().Where(expression => expression is BinaryExpression
                 or MemberAccessExpression { IsConditional: true }
@@ -122,7 +122,7 @@ public sealed class BindingToAnalysisBoundaryTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, bag);
         var diagnostics = bag.ToImmutableArray().Where(diagnostic => diagnostic.Severity is DiagnosticSeverity.Error or DiagnosticSeverity.Warning).ToArray();
-        Assert.True(diagnostics is [{ Id.Value: "MIST_PM_UNRESOLVED_TYPE" }],
-            $"expected only MIST_PM_UNRESOLVED_TYPE; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Id.Value))}");
+        Assert.True(diagnostics is [{ Number.Value: "MIST_PM_UNRESOLVED_TYPE" }],
+            $"expected only MIST_PM_UNRESOLVED_TYPE; got {string.Join(", ", diagnostics.Select(diagnostic => diagnostic.Number.Value))}");
     }
 }

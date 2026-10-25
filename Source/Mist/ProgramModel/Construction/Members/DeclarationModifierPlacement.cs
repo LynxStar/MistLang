@@ -15,14 +15,14 @@ namespace Mist.ProgramModel.Construction.Members;
 /// </summary>
 internal static class DeclarationModifierPlacement
 {
-    public static IEnumerable<DiagnosticDescriptor> Refusals(SyntaxNode declaration, ImmutableArray<ModifierNode> modifiers)
+    public static IEnumerable<MistDiagnostic> Refusals(SyntaxNode declaration, ImmutableArray<ModifierNode> modifiers)
     {
         return modifiers.IsDefaultOrEmpty
             ? []
-            : modifiers.Select(modifier => Refusal(declaration, modifier, modifiers)).OfType<DiagnosticDescriptor>().Distinct();
+            : modifiers.Select(modifier => Refusal(declaration, modifier, modifiers)).OfType<MistDiagnostic>().Distinct();
     }
 
-    private static DiagnosticDescriptor? Refusal(SyntaxNode declaration, ModifierNode modifier, ImmutableArray<ModifierNode> modifiers)
+    private static MistDiagnostic? Refusal(SyntaxNode declaration, ModifierNode modifier, ImmutableArray<ModifierNode> modifiers)
     {
         return (declaration, modifier) switch
         {

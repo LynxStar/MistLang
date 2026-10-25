@@ -72,6 +72,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     public CompilerResult Emit()
     {
+        diagnostics.Stage = PipelineStage.Backend;
         if(Transpile() is not { } startup)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());

@@ -66,7 +66,7 @@ public sealed class NewtypeLiteralDecisionTests
     [InlineData("Small tooLarge = 300;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
     public void ALiteralAnywhereElse_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Id.Value);
+        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
     }
 
     [Fact]

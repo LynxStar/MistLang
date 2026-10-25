@@ -256,7 +256,7 @@ internal static class SlotLift
     }
 
     private static void Report(
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         MemberType type,
         DiagnosticBag diagnostics,
         params object?[] arguments)

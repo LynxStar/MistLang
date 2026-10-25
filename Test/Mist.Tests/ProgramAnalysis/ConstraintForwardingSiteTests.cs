@@ -25,7 +25,7 @@ public sealed class ConstraintForwardingSiteTests
         fragment.Built.Model.ConstructorConstraintClosures.RecordType(gate, [forwarded], HandBuiltModel.Node(55));
 
         var finding = Assert.Single(fragment.Run(new ConstraintAnalyzer()));
-        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Number.Value);
         Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
         Assert.Equal(56, finding.Location.Start.Column);
     }

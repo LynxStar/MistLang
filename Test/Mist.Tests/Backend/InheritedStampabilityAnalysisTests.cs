@@ -30,7 +30,7 @@ public sealed class InheritedStampabilityAnalysisTests : ProgramModelProbe
         ProgramAnalysisRunner.Run(model, findings);
 
         var finding = Assert.Single(findings.ToImmutableArray(), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal(diagnosticId, finding.Id.Value);
+        Assert.Equal(diagnosticId, finding.Number.Value);
         Assert.Contains("field 'owner'", finding.Message, StringComparison.Ordinal);
     }
 }

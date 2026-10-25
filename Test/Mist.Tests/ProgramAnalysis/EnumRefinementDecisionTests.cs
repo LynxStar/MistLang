@@ -257,7 +257,7 @@ public sealed class EnumRefinementDecisionTests
         Assert.Equal(Requirement.Constant(red), Requirement.Constant(high));
         Assert.Equal(ConversionKind.Explicit, ConversionClassifier.Classify(priority, color));
         Assert.Null(EnumRefinementModel.Judge(high, model.AtLeast(color, red)));
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assignability.Judge(high, model.AtLeast(color, red), model.Facts.Built.Interner)?.Id.Value);
+        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assignability.Judge(high, model.AtLeast(color, red), model.Facts.Built.Interner)?.Number.Value);
     }
 
     [Fact]

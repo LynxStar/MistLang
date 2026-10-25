@@ -102,7 +102,7 @@ public sealed class SpanLengthDecisionTests
         var model = Build($"public static int Read({type} span, {type} other, int i) {{ {body} }}", out var nodes);
 
         Assert.NotEmpty(nodes.OfType<IndexExpression>());
-        Assert.Equal(id, Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]

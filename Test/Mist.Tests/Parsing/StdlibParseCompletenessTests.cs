@@ -59,7 +59,7 @@ public sealed class StdlibParseCompletenessTests
         Assert.NotNull(root);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST_PARSE_INCOMPLETE")
             .ToList();
 
         Assert.True(
@@ -78,7 +78,7 @@ public sealed class StdlibParseCompletenessTests
         Assert.NotNull(root);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST_PARSE_INCOMPLETE")
             .ToList();
 
         Assert.True(

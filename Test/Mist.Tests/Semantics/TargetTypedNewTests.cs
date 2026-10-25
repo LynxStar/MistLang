@@ -245,7 +245,7 @@ public sealed class TargetTypedNewTests : IDisposable
 
     private static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
     {
-        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value == id);
+        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Number.Value == id);
     }
 
     private NewExpression SingleNew(string statement, string extraTypes = "")

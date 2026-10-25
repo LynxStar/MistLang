@@ -40,7 +40,7 @@ public sealed class RangeCaptureDecisionTests
     [Fact]
     public void AReceiverWrite_DoesNotReinterpretAnEarlierLengthCapture()
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("int end = numbers.Length; Range window = 0..end; numbers = [10]; var slice = numbers[window]; var last = slice[0];"))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("int end = numbers.Length; Range window = 0..end; numbers = [10]; var slice = numbers[window]; var last = slice[0];"))).Number.Value);
     }
 
     [Theory]
@@ -67,19 +67,19 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("int end = 3; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];")]
     public void LaterFactsAndAliasedWrites_DoNotProveAnEarlierUnknownCapture(string statements)
     {
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(Build(statements, Unknown))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(Build(statements, Unknown))).Number.Value);
     }
 
     [Fact]
     public void AReconstructedRange_UsesTheNewCapturedBound()
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("int start = 1; Range window = start..3; start = 4; window = start..; var slice = numbers[window]; var last = slice[1];"))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("int start = 1; Range window = start..3; start = 4; window = start..; var slice = numbers[window]; var last = slice[1];"))).Number.Value);
     }
 
     [Fact]
     public void NonExactCapturedOffsets_NeverAssumeCorrelationFromSymbolIdentity()
     {
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(Build("int point = Pick.Begin(flag); Range window = point..point; var slice = numbers[window]; var last = slice[0];", Intervals))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(Build("int point = Pick.Begin(flag); Range window = point..point; var slice = numbers[window]; var last = slice[0];", Intervals))).Number.Value);
     }
 
     [Theory]
@@ -107,7 +107,7 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("^1..3")]
     public void DefinitelyInvalidSliceEndpoints_AreRefusedOnce(string bounds)
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build($"Range window = {bounds}; var slice = numbers[window]; var last = slice[0];"))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build($"Range window = {bounds}; var slice = numbers[window]; var last = slice[0];"))).Number.Value);
     }
 
     [Theory]
@@ -118,13 +118,13 @@ public sealed class RangeCaptureDecisionTests
         var model = Build($"int start = Pick.Begin(flag); int end = Pick.End(flag); Range window = {bounds}; var slice = numbers[window]; var last = slice[0];", Intervals,
             "bool flag = true; int[] numbers = [10, 20, 30];");
 
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Fact]
     public void DirectInvalidSlicing_IsRefusedBeforeAChainedAccess()
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("var last = numbers[6..7][0];"))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("var last = numbers[6..7][0];"))).Number.Value);
     }
 
     [Theory]
@@ -132,7 +132,7 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("Range window = 0..6; var bad = numbers[window]; var other = bad; if(flag) { other = bad; } else { other = bad; } var last = other[0];")]
     public void ADefinitelyInvalidSlice_DoesNotCascadeThroughCopiesOrBothPaths(string statements)
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build(statements))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build(statements))).Number.Value);
     }
 
     [Theory]
@@ -175,14 +175,14 @@ public sealed class RangeCaptureDecisionTests
         }
         else
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
     }
 
     [Fact]
     public void ZeroFromEnd_IsAnEndpointButNotAnElementIndex()
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("var slice = numbers[^0..^0]; var last = numbers[^0];"))).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(Build("var slice = numbers[^0..^0]; var last = numbers[^0];"))).Number.Value);
     }
 
     [Theory]
@@ -203,7 +203,7 @@ public sealed class RangeCaptureDecisionTests
         var model = Build("var counter = new Counter(); if(counter == 3) { Range window = 0..counter; var slice = numbers[window]; var last = slice[2]; }",
             "public class Counter { public static bool operator ==(Counter counter, int value) { return true; } public static bool operator !=(Counter counter, int value) { return false; } public static implicit operator Index(Counter counter) { return ^3; } }");
 
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Number.Value);
     }
 
     private static ProgramModelClass Build(string statements, string types = "", string preamble = Preamble)

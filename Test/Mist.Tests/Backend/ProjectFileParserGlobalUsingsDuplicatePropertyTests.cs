@@ -130,7 +130,7 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
 
                 // Assert: at least one MIST_GLOBAL_USING_DUPLICATE_NAMESPACE warning is produced
                 var duplicateWarnings = diags
-                    .Where(d => d.Id.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE")
+                    .Where(d => d.Number.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE")
                     .ToList();
                 Assert.NotEmpty(duplicateWarnings);
 

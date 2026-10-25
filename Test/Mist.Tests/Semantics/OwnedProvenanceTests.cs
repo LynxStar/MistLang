@@ -76,7 +76,7 @@ public sealed class OwnedProvenanceTests
 
         var findings = types.Model.Analyze(new OwnershipAnalyzer(), body, [], probe, run);
 
-        Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, findings.SingleOrDefault()?.Number.Value);
     }
 
     /// <summary>

@@ -150,7 +150,7 @@ public sealed class OptionalLambdaGenericCallTests
 
         _ = Call(f, null, [.. arguments]);
 
-        Assert.Equal(diagnosticId, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal(diagnosticId, Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         Assert.Null(f.Binding.TargetType);
         Assert.Same(f.Scope, f.Binding.Scope);
     }

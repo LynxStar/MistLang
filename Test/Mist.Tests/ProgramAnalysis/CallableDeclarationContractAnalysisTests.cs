@@ -33,7 +33,7 @@ public sealed class CallableDeclarationContractAnalysisTests
         }
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(PipelineStage.Analysis, finding.Stage);
         Assert.Equal("declaration-shape-checks", finding.AnalyzerName);
         Assert.Equal("hand-built.mist", finding.CompilationUnitPath);

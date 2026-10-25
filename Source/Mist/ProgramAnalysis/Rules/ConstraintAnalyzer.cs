@@ -140,7 +140,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
+    internal static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
     {
         if(closing.Argument is ErrorType || Closed(declared, closing.Closing, interner) is not { } constraint)
         {

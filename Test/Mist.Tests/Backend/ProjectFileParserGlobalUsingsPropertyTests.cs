@@ -190,7 +190,7 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
                     "MIST_GLOBAL_USING_INVALID_NAMESPACE"
                 };
 
-                Assert.Contains(relevantDiag.Id.Value, validIds);
+                Assert.Contains(relevantDiag.Number.Value, validIds);
                 Assert.Equal(DiagnosticSeverity.Error, relevantDiag.Severity);
             }
             finally

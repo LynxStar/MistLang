@@ -68,7 +68,7 @@ public class PropertyRoundTripPropertyTests
 
         // If the parser is skeletal (MIST_PARSE_STUB warning), verify determinism instead
         var hasStubWarning = bag.ToImmutableArray()
-            .Any(d => d.Id.Value == "MIST_PARSE_STUB");
+            .Any(d => d.Number.Value == "MIST_PARSE_STUB");
 
         if(hasStubWarning)
         {

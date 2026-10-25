@@ -37,7 +37,7 @@ public sealed class OperatorPositionRefusalTests
         var dog = HandBuiltModel.Class("Dog");
         dog.Assembly = new MistAssembly("Probe", MistAssemblyKind.Self);
         var union = model.Interner.GetOrCreateUnionType([integer, text]);
-        DiagnosticDescriptor? binary(BinaryOperatorKind kind, IMistType left, IMistType right)
+        MistDiagnostic? binary(BinaryOperatorKind kind, IMistType left, IMistType right)
         {
             return OperatorDecision.Binary(kind, left, right, type => model.Type(type.Name));
         }
@@ -58,7 +58,7 @@ public sealed class OperatorPositionRefusalTests
             _ => PositionDecision.Reassignment(new LocalVariable("each", caseName == "converted-foreach-variable-reassigned" ? HandBuiltModel.Class("Level") : integer) { IsReadonly = true }),
         };
 
-        Assert.True(diagnostic?.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Id.Value ?? "silence"}");
+        Assert.True(diagnostic?.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Number.Value ?? "silence"}");
     }
 
     [Fact]

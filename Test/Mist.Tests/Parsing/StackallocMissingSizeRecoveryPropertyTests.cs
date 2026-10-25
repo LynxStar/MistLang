@@ -52,14 +52,14 @@ public class StackallocMissingSizeRecoveryPropertyTests
 
         // If the parser is skeletal (MIST_PARSE_STUB), the malformed-size behavior cannot
         // be exercised; treat as vacuously satisfied so the suite stays meaningful elsewhere.
-        if(diagnostics.Any(d => d.Id.Value == "MIST_PARSE_STUB"))
+        if(diagnostics.Any(d => d.Number.Value == "MIST_PARSE_STUB"))
         {
             return true.ToProperty().Label("parser skeletal (MIST_PARSE_STUB)");
         }
 
         // (1) The specific recovery diagnostic MUST be emitted (R3.4 / R3.5).
         var hasStackallocSizeDiagnostic = diagnostics.Any(d =>
-            d.Id.Value == "MIST_PARSE_STACKALLOC_SIZE"
+            d.Number.Value == "MIST_PARSE_STACKALLOC_SIZE"
             && d.Severity == DiagnosticSeverity.Error);
 
         // (2) No StackallocExpression node may be produced (R3.4 / R3.5).
@@ -78,7 +78,7 @@ public class StackallocMissingSizeRecoveryPropertyTests
                 $"scenario: {scenario.Description}\n"
                 + $"hasStackallocSizeDiagnostic={hasStackallocSizeDiagnostic}, "
                 + $"stackallocNodeCount={stackallocNodeCount}\n"
-                + $"diagnostics: {string.Join("; ", diagnostics.Select(d => d.Id.Value))}\n"
+                + $"diagnostics: {string.Join("; ", diagnostics.Select(d => d.Number.Value))}\n"
                 + $"source:\n{scenario.Source}");
     }
 

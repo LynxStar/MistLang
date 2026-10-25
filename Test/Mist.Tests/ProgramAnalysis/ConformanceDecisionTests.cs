@@ -185,7 +185,7 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
             """);
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_CONFORMANCE_SLOT_UNANSWERED", finding.Id.Value);
+        Assert.Equal("MIST_PA_CONFORMANCE_SLOT_UNANSWERED", finding.Number.Value);
         Assert.Contains("string", finding.Message);
     }
 
@@ -203,6 +203,6 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

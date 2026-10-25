@@ -46,7 +46,7 @@ public sealed class PackElementDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Id.Value));
+        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Number.Value));
     }
 
     [Theory]
@@ -63,7 +63,7 @@ public sealed class PackElementDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refusal is null ? [] : [refusal], findings.Select(finding => finding.Id.Value));
+        Assert.Equal(refusal is null ? [] : [refusal], findings.Select(finding => finding.Number.Value));
     }
 
     private static TypeParameter Pack(ConcreteType owner, string name)

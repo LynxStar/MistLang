@@ -23,7 +23,7 @@ public sealed class DelegateInvocationSignatureTests
         var call = Call(integer, [HandBuiltModel.Literal(integer, 1L, 37)], [Parameter(integer, direction)]);
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), call));
-        Assert.Equal("MIST_PA_REF_NOT_A_LOCATION", diagnostic.Id.Value);
+        Assert.Equal("MIST_PA_REF_NOT_A_LOCATION", diagnostic.Number.Value);
         Assert.Equal(38, diagnostic.Location.Start.Column);
     }
 
@@ -55,7 +55,7 @@ public sealed class DelegateInvocationSignatureTests
 
         if(isReadonly)
         {
-            Assert.Equal("MIST_PA_READONLY_REF_WRITTEN", Assert.Single(diagnostics).Id.Value);
+            Assert.Equal("MIST_PA_READONLY_REF_WRITTEN", Assert.Single(diagnostics).Number.Value);
         }
         else
         {

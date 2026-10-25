@@ -19,7 +19,7 @@ public sealed class DeclarationModifierPlacementTests
     {
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(Declaration(declaration), [Modifier("async")]));
 
-        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", refusal.Id.Value);
+        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", refusal.Number.Value);
     }
 
     [Theory]
@@ -30,7 +30,7 @@ public sealed class DeclarationModifierPlacementTests
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(
             Declaration("operator"), [.. written.Split(' ').Select(Modifier)]));
 
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", refusal.Id.Value);
+        Assert.Equal("MIST_PM_REF_ON_OPERATOR", refusal.Number.Value);
     }
 
     [Theory]
@@ -43,7 +43,7 @@ public sealed class DeclarationModifierPlacementTests
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(Declaration("operator"),
             [Modifier("public"), Modifier("static"), Modifier(modifier), Modifier(modifier)]));
 
-        Assert.Equal(expected, refusal.Id.Value);
+        Assert.Equal(expected, refusal.Number.Value);
     }
 
     [Theory]
@@ -66,7 +66,7 @@ public sealed class DeclarationModifierPlacementTests
         var refusal = Assert.Single(DeclarationModifierPlacement.Refusals(
             Declaration("field"), [.. written.Split(' ').Select(Modifier)]));
 
-        Assert.Equal("MIST_PM_REF_ON_FIELD", refusal.Id.Value);
+        Assert.Equal("MIST_PM_REF_ON_FIELD", refusal.Number.Value);
     }
 
     [Fact]

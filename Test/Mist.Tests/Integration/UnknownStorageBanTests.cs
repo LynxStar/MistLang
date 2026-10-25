@@ -193,7 +193,7 @@ public sealed class UnknownStorageBanTests : IDisposable
 
     private static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
     {
-        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value == id);
+        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Number.Value == id);
     }
 
     private ImmutableArray<Diagnostic> BuildHolder(string member, string extraTypes = "")

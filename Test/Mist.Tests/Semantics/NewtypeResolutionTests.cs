@@ -91,7 +91,7 @@ public sealed class NewtypeResolutionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        _ = Assert.Single(findings.ToImmutableArray(), finding => finding.Id.Value == "MIST_PA_INACCESSIBLE_MEMBER");
+        _ = Assert.Single(findings.ToImmutableArray(), finding => finding.Number.Value == "MIST_PA_INACCESSIBLE_MEMBER");
     }
 
     [Fact]

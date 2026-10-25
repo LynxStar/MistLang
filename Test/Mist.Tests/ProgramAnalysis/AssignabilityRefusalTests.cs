@@ -89,7 +89,7 @@ public sealed class AssignabilityRefusalTests
             ? Assignability.JudgeSelection(2)
             : Assignability.Judge(input[from], input[to], input.Model.Interner, constant);
 
-        Assert.True(diagnostic?.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Id.Value ?? "silence"}");
+        Assert.True(diagnostic?.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Number.Value ?? "silence"}");
     }
     [Theory]
     [InlineData(0)]

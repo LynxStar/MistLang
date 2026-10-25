@@ -74,14 +74,13 @@ public class DiagnosticFormatterRoundTripPropertyTests
             new LinePosition(input.Line, input.Column),
             new LinePosition(input.Line, input.Column));
 
-        return new Diagnostic(
-            new DiagnosticId(input.IdValue),
+        return DiagnosticFixtures.Occurrence(input.IdValue,
             input.Severity,
             input.Stage,
             input.Message,
-            Location: location,
-            CompilationUnitPath: input.FilePath,
-            AnalyzerName: null);
+            location: location,
+            compilationUnitPath: input.FilePath,
+            analyzerName: null);
     }
 
     /// <summary>
@@ -103,7 +102,7 @@ public class DiagnosticFormatterRoundTripPropertyTests
         }
 
         return parsed.Severity == original.Severity
-            && parsed.Id.Value == original.Id.Value
+            && parsed.Number.Value == original.Number.Value
             && parsed.Message == original.Message;
     }
 }

@@ -20,10 +20,10 @@ public static class DiagnosticFormatter
         var hasPath = diagnostic.CompilationUnitPath is not ("" or "<unknown>");
 
         return hasLocation && hasPath
-            ? $"{diagnostic.CompilationUnitPath}({diagnostic.Location.Start.Line},{diagnostic.Location.Start.Column}): {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+            ? $"{diagnostic.CompilationUnitPath}({diagnostic.Location.Start.Line},{diagnostic.Location.Start.Column}): {severity} {diagnostic.Number.Value}: {diagnostic.Message}"
             : hasPath
-                ? $"{diagnostic.CompilationUnitPath}: {severity} {diagnostic.Id.Value}: {diagnostic.Message}"
-                : $"{severity} {diagnostic.Id.Value}: {diagnostic.Message}"
+                ? $"{diagnostic.CompilationUnitPath}: {severity} {diagnostic.Number.Value}: {diagnostic.Message}"
+                : $"{severity} {diagnostic.Number.Value}: {diagnostic.Message}"
                 ;
     }
 }

@@ -45,7 +45,7 @@ public sealed class FailureDependencyTests
     public void DeferredOwnershipSurvivesNestedRetentionAndLocalInitializerProvenance()
     {
         var node = HandBuiltModel.Node();
-        var pending = new Diagnostic(new DiagnosticId("MIST_PM_UNRESOLVABLE_OVERLOAD"), DiagnosticSeverity.Error,
+        var pending = DiagnosticFixtures.Occurrence("MIST_PM_UNRESOLVABLE_OVERLOAD", DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "No matching overload.", default, "hand-built.mist", null);
         var inner = new ErrorExpression(node, [new UnresolvedExpression(node)], pending);
         var local = new LocalVariable("result", ErrorType.Instance) { FailureSource = inner };

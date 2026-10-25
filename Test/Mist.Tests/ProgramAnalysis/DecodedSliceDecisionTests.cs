@@ -29,7 +29,7 @@ public sealed class DecodedSliceDecisionTests
     [InlineData("string text = \"a\\'b\"; if(flag) { text = \"a'b\"; } var last = text.ToCharArray()[3];")]
     public void SourceEscapeCharacters_DoNotJustifyAnExtraElement(string statements)
     {
-        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(statements)).Id.Value);
+        Assert.Equal("MIST_PA_INDEX_OUT_OF_BOUNDS", Assert.Single(Findings(statements)).Number.Value);
     }
 
     private static ImmutableArray<Diagnostic> Findings(string statements)

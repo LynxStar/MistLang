@@ -9,14 +9,14 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class RefinementDecision
 {
-    public static DiagnosticDescriptor? Judge(
+    public static MistDiagnostic? Judge(
         Expression value, IMistType target, Admitted known, LiteralValue? literal = null, RealSet? real = null,
         bool onConstraint = false)
     {
         return Judge(value, target, known, literal, real, onConstraint, LiteralPredicates.MatchLimit);
     }
 
-    internal static DiagnosticDescriptor? Judge(
+    internal static MistDiagnostic? Judge(
         Expression value, IMistType target, Admitted known, LiteralValue? literal, RealSet? real, bool onConstraint, TimeSpan matchLimit)
     {
         if(value.Type is ErrorType)

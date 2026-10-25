@@ -34,7 +34,7 @@ public sealed class ArmContainmentTests
     {
         var (input, earlier, later) = Arms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, h.Built.Interner);
-        Assert.True(finding?.Id.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -54,7 +54,7 @@ public sealed class ArmContainmentTests
     {
         var (input, earlier, later) = Arms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, h.Built.Interner);
-        Assert.True(finding is null, $"{shape}: {finding?.Id.Value}");
+        Assert.True(finding is null, $"{shape}: {finding?.Number.Value}");
     }
 
     [Theory]
@@ -82,7 +82,7 @@ public sealed class ArmContainmentTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Id.Value);
+        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Number.Value);
         Assert.Equal(42, finding.Location.Start.Column);
     }
 

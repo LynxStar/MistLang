@@ -23,7 +23,7 @@ public sealed class ModifierPlacementBuildTests
         _ = Build(declaration, diagnostics, new AsyncModifierModifierNode());
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_ASYNC_NOT_ALLOWED", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 
@@ -35,7 +35,7 @@ public sealed class ModifierPlacementBuildTests
         _ = Build("operator", diagnostics, new RefModifierModifierNode());
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", diagnostic.Id.Value);
+        Assert.Equal("MIST_PM_REF_ON_OPERATOR", diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
     }
 
@@ -58,7 +58,7 @@ public sealed class ModifierPlacementBuildTests
         _ = Build("operator", diagnostics, written);
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Equal(31, diagnostic.Location.Start.Column);
         Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
     }
@@ -70,7 +70,7 @@ public sealed class ModifierPlacementBuildTests
 
         _ = Build("operator", diagnostics, new ReadonlyModifierModifierNode(), new RefModifierModifierNode());
 
-        Assert.Equal("MIST_PM_REF_ON_OPERATOR", Assert.Single(diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST_PM_REF_ON_OPERATOR", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class ModifierPlacementBuildTests
 
         Assert.Equal(
             ["MIST_PM_PURITY_MODIFIER_PLACEMENT", "MIST_PM_ASYNC_NOT_ALLOWED"],
-            diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+            diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     private static MemberModifiers Build(string declaration, DiagnosticBag diagnostics, params ModifierNode[] modifiers)

@@ -167,7 +167,7 @@ public sealed class RefinementRangeRefusalTests
                     statements.Add(HandBuiltRefinements.If(comparison,
                         HandBuiltRefinements.Give(slice, new IndexExpression(HandBuiltModel.Node(), receiver, range, h.Sequence()) { ParameterType = h.Range }),
                         HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(access)))));
-                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
                 }
 
                 break;
@@ -191,7 +191,7 @@ public sealed class RefinementRangeRefusalTests
                     [h.Literal(0L), h.Literal(3L)], h.Sequence(), customMethod, [h.Int, h.Int]);
                 statements.Add(HandBuiltRefinements.Give(slice, customCall));
                 statements.Add(HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(2L))));
-                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
         }
 
         var sliced = new IndexExpression(HandBuiltModel.Node(), receiver, range, h.Sequence()) { ParameterType = h.Range };
@@ -206,7 +206,7 @@ public sealed class RefinementRangeRefusalTests
         }
         else if(!directlyRefused) { statements.Add(HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(access)))); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
     private static InvocationExpression Unsupported(HandBuiltRefinements h)

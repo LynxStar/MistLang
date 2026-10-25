@@ -34,6 +34,21 @@ public static class DependencyRestore
         return referenceErrors.Count > 0 ? 1 : exitCode;
     }
 
+    public static int Run(
+        string projectFolder,
+        ProjectConfiguration? configuration,
+        ImmutableArray<Diagnostic> manifestDiagnostics,
+        TextWriter output,
+        TextWriter error)
+    {
+        if(ManifestFeedback.Report(manifestDiagnostics, error) || configuration is null)
+        {
+            return 1;
+        }
+
+        return Run(projectFolder, configuration, output, error);
+    }
+
     internal static List<string> RestoreReferences(
         string projectFolder,
         ImmutableArray<ProjectReference> references,

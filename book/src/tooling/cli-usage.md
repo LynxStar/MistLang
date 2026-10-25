@@ -27,7 +27,7 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 
 `build`, `run` and `test` discover all `.mist` source files recursively within the project folder, clean the output and binary directories (Stage 0), and run the full compilation pipeline. If compilation fails, diagnostics are printed, the command exits with code 1, and `run` and `test` launch nothing. Otherwise `run` exits with the program's exit code and `test` with `dotnet test`'s.
 
-`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. `restore` and `inspect` exit non-zero when any dependency fails to resolve, and both print the dependency diagnostics; see [.NET Interop](../advanced/dotnet-interop.md) for `restore`'s output and the diagnostics.
+`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. Like a build, both print every diagnostic the `mist.toml` raises, warnings included, to standard error once each, and exit 1 before resolving anything when one is an error. `restore` and `inspect` exit non-zero when any dependency fails to resolve, and both print the dependency diagnostics; see [.NET Interop](../advanced/dotnet-interop.md) for `restore`'s output and the diagnostics.
 
 ## Flags
 

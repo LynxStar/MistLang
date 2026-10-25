@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 
 using Mist.Common.Source;
 
@@ -29,11 +28,19 @@ public sealed class DiagnosticBag
     public PipelineStage Stage { get; set; }
 
     /// <summary>
-    /// Adds a diagnostic to the bag.
+    /// Forwards an occurrence the factory already built.
     /// </summary>
     public void Add(Diagnostic diagnostic)
     {
         diagnostics.Add(diagnostic);
+    }
+
+    public void Admit(Admission admission)
+    {
+        foreach(var occurrence in admission.Occurrences)
+        {
+            Add(occurrence);
+        }
     }
 
     /// <summary>
@@ -54,18 +61,7 @@ public sealed class DiagnosticBag
         string compilationUnitPath,
         params ReadOnlySpan<object?> args)
     {
-        var message = args.Length > 0
-            ? string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray())
-            : descriptor.Template;
-
-        diagnostics.Add(new Diagnostic(
-            descriptor.Number,
-            descriptor.DefaultSeverity,
-            Stage,
-            message,
-            location,
-            compilationUnitPath,
-            AnalyzerName: null));
+        Admit(DiagnosticFactory.Create(descriptor, location, compilationUnitPath, Stage, LegacyArguments.For(descriptor, args).AsSpan()));
     }
 
     /// <summary>

@@ -101,8 +101,9 @@ public class DiagnosticFormatterRoundTripPropertyTests
             return false;
         }
 
-        return parsed.Severity == original.Severity
-            && parsed.Number.Value == original.Number.Value
+        return parsed.Native is { } native
+            && native.NativeSeverity == original.Severity
+            && native.Code == original.Number.Value
             && parsed.Message == original.Message;
     }
 }

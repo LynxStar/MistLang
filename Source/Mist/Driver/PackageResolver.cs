@@ -104,14 +104,13 @@ public static class PackageResolver
         {
             if(!NuGetVersion.TryParse(pkg.Version, out _))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNotFound.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed (https://api.nuget.org/v3/index.json); the version string is not a valid NuGet version.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
                 failureCount++;
                 continue;
             }
@@ -151,14 +150,13 @@ public static class PackageResolver
             var assetsPath = Path.Combine(tempDir, "obj", "project.assets.json");
             if(!File.Exists(assetsPath))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNetworkError.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.PackageNetworkError,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     "Package restore completed but project.assets.json was not generated.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
                 return new PackageResolutionResult(
                     ImmutableArray<string>.Empty,
                     ImmutableArray<ResolvedPackageInfo>.Empty,
@@ -170,14 +168,13 @@ public static class PackageResolver
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.PackageNetworkError.Number,
+            diagnostics.Add(DiagnosticFactory.Legacy(
+                CommonDiagnostics.PackageNetworkError,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to create temporary restore project: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
+                default,
+                string.Empty));
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
@@ -277,28 +274,26 @@ public static class PackageResolver
                 || combinedOutput.Contains("certificate", StringComparison.OrdinalIgnoreCase)
                 || combinedOutput.Contains("signature", StringComparison.OrdinalIgnoreCase))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNetworkError.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.PackageNetworkError,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Connection or network failure while restoring packages: {stderr.Trim()}",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
             }
             else
             {
                 // Generic failure — report each package individually
                 foreach(var pkg in validPackages)
                 {
-                    diagnostics.Add(new Diagnostic(
-                        CommonDiagnostics.PackageNotFound.Number,
+                    diagnostics.Add(DiagnosticFactory.Legacy(
+                        CommonDiagnostics.PackageNotFound,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                        Location: default,
-                        CompilationUnitPath: string.Empty,
-                        AnalyzerName: null));
+                        default,
+                        string.Empty));
                 }
             }
 
@@ -316,14 +311,13 @@ public static class PackageResolver
         {
             if(packageFailures.Contains(pkg.Name))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNotFound.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.PackageNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
                 newFailures++;
             }
         }
@@ -355,14 +349,13 @@ public static class PackageResolver
         }
         catch(Exception ex) when(ex is JsonException or IOException)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.PackageNetworkError.Number,
+            diagnostics.Add(DiagnosticFactory.Legacy(
+                CommonDiagnostics.PackageNetworkError,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to parse project.assets.json: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
+                default,
+                string.Empty));
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
@@ -519,14 +512,13 @@ public static class PackageResolver
             {
                 if(!resolvedDeclaredPackages.Contains(pkg.Name))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        CommonDiagnostics.PackageNotFound.Number,
+                    diagnostics.Add(DiagnosticFactory.Legacy(
+                        CommonDiagnostics.PackageNotFound,
                         DiagnosticSeverity.Error,
                         PipelineStage.Driver,
                         $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                        Location: default,
-                        CompilationUnitPath: string.Empty,
-                        AnalyzerName: null));
+                        default,
+                        string.Empty));
                     failureCount++;
                 }
             }

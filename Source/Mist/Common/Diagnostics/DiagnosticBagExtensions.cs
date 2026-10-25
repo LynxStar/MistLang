@@ -1,4 +1,3 @@
-using System.Globalization;
 using SourceSpan = Storm.Runtime.SourceSpan;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -33,17 +32,7 @@ public static class DiagnosticBagExtensions
     {
         var (path, location, _) = DiagnosticHelper.ResolveLocation(node, span);
 
-        var message = args.Length > 0
-            ? string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray())
-            : descriptor.Template;
-
-        bag.Add(new Diagnostic(
-            descriptor.Number,
-            descriptor.DefaultSeverity,
-            bag.Stage,
-            message,
-            location,
-            path,
-            analyzerName));
+        bag.Admit(DiagnosticFactory.Create(
+            descriptor, location, path, bag.Stage, LegacyArguments.For(descriptor, args).AsSpan(), analyzerName));
     }
 }

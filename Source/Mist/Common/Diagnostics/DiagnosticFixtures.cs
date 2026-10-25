@@ -37,6 +37,8 @@ internal static class DiagnosticFixtures
         string compilationUnitPath = "",
         string? analyzerName = null)
     {
-        return new Diagnostic(DiagnosticNumber.Mint(code), severity, stage, message, location, compilationUnitPath, analyzerName);
+        var descriptor = Descriptor(code, message.Replace("{", "{{").Replace("}", "}}"), severity);
+
+        return DiagnosticFactory.Create(descriptor, location, compilationUnitPath, stage, [], analyzerName).Occurrence;
     }
 }

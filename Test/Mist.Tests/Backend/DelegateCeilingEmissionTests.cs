@@ -37,7 +37,7 @@ public sealed class DelegateCeilingEmissionTests
     [Fact]
     public void AFunctionWrittenPastTheCeiling_IsRefusedAtItsDeclaration_ThoughNothingInstantiatesIt()
     {
-        var diagnostics = new DiagnosticBag();
+        var diagnostics = new DiagnosticBag(PipelineStage.Backend);
 
         using(DelegateCeiling.Enter(Model.Value, diagnostics))
         {
@@ -76,7 +76,7 @@ public sealed class DelegateCeilingEmissionTests
     private static IReadOnlyList<Diagnostic> Emit(string typeName, int width)
     {
         var model = Model.Value;
-        var diagnostics = new DiagnosticBag();
+        var diagnostics = new DiagnosticBag(PipelineStage.Backend);
         var anyEmitted = false;
         var declared = model.TypesByFQN.Values.OfType<MemberType>()
             .Single(type => type.NamespaceName == "Probe" && MistType.StripArity(type.Name) == typeName);

@@ -52,7 +52,6 @@ internal static class ProgramAnalysisRunner
 
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics, AnalysisTimings? timings = null)
     {
-        diagnostics.Stage = PipelineStage.Analysis;
         timings ??= new AnalysisTimings();
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
         var projectStarted = Stopwatch.GetTimestamp();

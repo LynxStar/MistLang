@@ -81,14 +81,13 @@ public static class FrameworkReferenceResolver
             // attempt to locate a pack (we have no canonical pack name to search).
             if(!KnownFrameworks.Contains(framework.Name))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.FrameworkReferenceUnknownName.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.FrameworkReferenceUnknownName,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Framework reference '{framework.Name}' is not a known shared framework.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
                 failureCount++;
                 continue;
             }
@@ -103,14 +102,13 @@ public static class FrameworkReferenceResolver
                 // Known shared framework, but its reference pack is not installed
                 // for the target framework: report MIST_FWREF_001, naming the
                 // framework, the target framework, and the pack path searched.
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.FrameworkReferenceNotInstalled.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.FrameworkReferenceNotInstalled,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Framework reference '{framework.Name}' is not installed for {targetFramework}. Searched: {DescribeSearchedPath(dotnetRoot, framework.Name, targetFramework)}.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                    default,
+                    string.Empty));
                 failureCount++;
                 continue;
             }

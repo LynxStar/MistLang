@@ -158,14 +158,13 @@ public static class ProjectReferenceResolver
             cycleNodes.Add(canonicalTomlPath);
             var cycleChain = string.Join(" → ", cycleNodes);
 
-            diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectCircularReference.Number,
+            diagnostics.Add(DiagnosticFactory.Legacy(
+                DriverDiagnostics.ProjectCircularReference,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Circular project reference detected: {cycleChain}.",
-                Location: default,
-                CompilationUnitPath: canonicalTomlPath,
-                AnalyzerName: null));
+                default,
+                canonicalTomlPath));
         }
     }
 
@@ -181,14 +180,13 @@ public static class ProjectReferenceResolver
         }
 
         var descriptor = DriverDiagnostics.ProjectReferenceNameMismatch;
-        return new Diagnostic(
-            descriptor.Number,
+        return DiagnosticFactory.Legacy(
+            descriptor,
             descriptor.DefaultSeverity,
             PipelineStage.Driver,
             string.Format(CultureInfo.InvariantCulture, descriptor.Template, key, producedName, Describe(kind), targetPath),
-            Location: default,
-            CompilationUnitPath: targetPath,
-            AnalyzerName: null);
+            default,
+            targetPath);
     }
 
     internal static string Describe(ReferenceKind kind)
@@ -253,14 +251,13 @@ public static class ProjectReferenceResolver
             }
             else
             {
-                diagnostics.Add(new Diagnostic(
-                    DriverDiagnostics.ProjectReferenceNotFound.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    DriverDiagnostics.ProjectReferenceNotFound,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                    Location: default,
-                    CompilationUnitPath: canonicalTomlPath,
-                    AnalyzerName: null));
+                    default,
+                    canonicalTomlPath));
             }
 
             return null;
@@ -269,14 +266,13 @@ public static class ProjectReferenceResolver
         if(!Path.GetFileName(canonicalTomlPath)
                  .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
         {
-            diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectReferenceNotFound.Number,
+            diagnostics.Add(DiagnosticFactory.Legacy(
+                DriverDiagnostics.ProjectReferenceNotFound,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                Location: default,
-                CompilationUnitPath: canonicalTomlPath,
-                AnalyzerName: null));
+                default,
+                canonicalTomlPath));
             return null;
         }
 

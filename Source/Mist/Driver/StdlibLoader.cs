@@ -76,14 +76,13 @@ public static class StdlibLoader
         }
         catch(Exception ex)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.StdlibParse.Number,
+            diagnostics.Add(DiagnosticFactory.Legacy(
+                CommonDiagnostics.StdlibParse,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"Failed to load Standard Library source: {stdlibRoot}: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: stdlibRoot,
-                AnalyzerName: null));
+                default,
+                stdlibRoot));
             return ImmutableArray<CompilationUnit>.Empty;
         }
 
@@ -100,14 +99,13 @@ public static class StdlibLoader
             }
             catch(Exception ex)
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.StdlibParse.Number,
+                diagnostics.Add(DiagnosticFactory.Legacy(
+                    CommonDiagnostics.StdlibParse,
                     DiagnosticSeverity.Error,
                     PipelineStage.Driver,
                     $"Failed to load Standard Library source: {path}: {ex.Message}",
-                    Location: default,
-                    CompilationUnitPath: path,
-                    AnalyzerName: null));
+                    default,
+                    path));
                 continue;
             }
 

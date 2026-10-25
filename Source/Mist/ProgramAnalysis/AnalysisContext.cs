@@ -1,4 +1,3 @@
-using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
@@ -26,6 +25,8 @@ internal sealed class AnalysisContext(
     ExpressionFailures? failures = null)
 {
     private readonly ExpressionFailures failures = failures ?? new();
+
+    private readonly DiagnosticBag diagnostics = Announce(diagnostics);
 
     public AnalysisModel Model { get; } = scopedModel ?? new AnalysisModel(model, scope, sourcePaths);
 
@@ -55,6 +56,12 @@ internal sealed class AnalysisContext(
         : [.. model.Assemblies.Where(assembly => assembly.Kind is MistAssemblyKind.Self or MistAssemblyKind.Reference)];
 
     public IReadOnlyDictionary<CastOperator, ConversionRefusal> ConversionRefusals { get; } = conversionRefusals;
+
+    private static DiagnosticBag Announce(DiagnosticBag diagnostics)
+    {
+        diagnostics.Stage = PipelineStage.Analysis;
+        return diagnostics;
+    }
 
     /// <summary>
     /// The type whose declaration a body node sits inside, or null for top-level statements, an
@@ -154,13 +161,8 @@ internal sealed class AnalysisContext(
 
     public void ReportAtProject(MistDiagnostic descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
     {
-        diagnostics.Add(new Diagnostic(
-            descriptor.Number,
-            descriptor.DefaultSeverity,
-            diagnostics.Stage,
-            string.Format(CultureInfo.InvariantCulture, descriptor.Template, args.ToArray()),
-            Location: default,
-            CompilationUnitPath: project.ProjectPath ?? project.Name,
-            AnalyzerName: analyzerId));
+        diagnostics.Admit(DiagnosticFactory.Create(
+            descriptor, default, project.ProjectPath ?? project.Name, diagnostics.Stage,
+            LegacyArguments.For(descriptor, args).AsSpan(), analyzerId));
     }
 }

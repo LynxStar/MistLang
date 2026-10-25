@@ -97,7 +97,6 @@ public static partial class ProjectFileParser
             return null;
         }
 
-        // 3.5. [diagnostics] table, before anything the policy should already govern
         if(ReadDiagnosticsPolicy(model, filePath, diagnostics) is not { } policy)
         {
             return null;

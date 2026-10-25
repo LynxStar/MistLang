@@ -47,7 +47,9 @@ public sealed record Diagnostic
 
     public DiagnosticSeverity DefaultSeverity => Descriptor.DefaultSeverity;
 
-    public DiagnosticSeverity Severity { get; init; }
+    public DiagnosticSeverity Severity { get; private set; }
+
+    public string? SeverityReason { get; private set; }
 
     public PipelineStage Stage { get; }
 
@@ -69,9 +71,11 @@ public sealed record Diagnostic
 
     public string Message => DiagnosticRenderer.Render(this);
 
-    internal void Admit(int ordinal)
+    internal void Admit(int ordinal, DiagnosticSeverity effective, string? reason)
     {
         Ordinal = ordinal;
+        Severity = effective;
+        SeverityReason = reason;
     }
 
     public bool Equals(Diagnostic? other)
@@ -82,6 +86,7 @@ public sealed record Diagnostic
             && Descriptor == other.Descriptor
             && Arguments.SequenceEqual(other.Arguments)
             && Severity == other.Severity
+            && SeverityReason == other.SeverityReason
             && Stage == other.Stage
             && Location == other.Location
             && Related.SequenceEqual(other.Related)

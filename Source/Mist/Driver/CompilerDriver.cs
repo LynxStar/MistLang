@@ -341,7 +341,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         var parseBag = new DiagnosticBag(allDiagnostics.Operation);
-        var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, parseBag);
+        var projectConfig = ProjectFileParser.ParseRoot(options.ProjectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())
         {

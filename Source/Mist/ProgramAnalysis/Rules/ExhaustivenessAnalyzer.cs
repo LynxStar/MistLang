@@ -28,6 +28,8 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 {
     public string Id => "exhaustiveness-checking";
 
+    public MistDiagnostic? OptionalRule => ProgramAnalysisDiagnostics.SwitchNotExhaustive;
+
     public void Analyze(AnalysisContext context)
     {
         foreach(var node in context.Nodes)

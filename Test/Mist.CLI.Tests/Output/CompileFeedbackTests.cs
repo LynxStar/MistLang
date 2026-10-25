@@ -131,7 +131,7 @@ public sealed class CompileFeedbackTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
-        var warning = Error("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE", "Namespace 'Gone' is not defined.") with { Severity = DiagnosticSeverity.Warning };
+        var warning = Warning("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE", "Namespace 'Gone' is not defined.");
         var built = new CompilerResult(true, "bin/Probe.dll", [warning]);
         CompilerResult? handedOn = null;
 
@@ -154,7 +154,7 @@ public sealed class CompileFeedbackTests
     public void AWarningDeliveredDuringASucceededBuildIsNotRepeated()
     {
         using var error = new StringWriter();
-        var warning = PackageA with { Severity = DiagnosticSeverity.Warning };
+        var warning = Warning(PackageA.Number.Value, PackageA.Message, PackageA.Location.Path ?? "");
 
         var exit = new CompileFeedback(NullProgressReporter.Instance, error).Run(
             listener =>
@@ -232,5 +232,10 @@ public sealed class CompileFeedbackTests
     private static Diagnostic Error(string id, string message, string path = "")
     {
         return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, path, null);
+    }
+
+    private static Diagnostic Warning(string id, string message, string path = "")
+    {
+        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Warning, PipelineStage.Driver, message, default, path, null);
     }
 }

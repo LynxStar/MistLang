@@ -507,4 +507,54 @@ public static class DriverDiagnostics
         Category: DiagnosticCategory.Cfg,
         Policy: PolicyClass.Promotable,
         DefaultSeverity: DiagnosticSeverity.Warning);
+
+    public static readonly MistDiagnostic DiagnosticsTableExpected = new(
+        DiagnosticNumber.Mint("MIST_DIAGNOSTICS_TABLE_EXPECTED"),
+        Title: "Diagnostics field not a table",
+        Template: "The 'diagnostics' field in '{path}' must be a table ([diagnostics]).",
+        Description: "The manifest sets 'diagnostics' to something other than a table, so the policy it meant to declare cannot be read. Write the policy as a [diagnostics] table with the keys warnings_as_errors, disable and enable.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("path", SlotKind.Path)]);
+
+    public static readonly MistDiagnostic DiagnosticsKeyUnknown = new(
+        DiagnosticNumber.Mint("MIST_DIAGNOSTICS_KEY_UNKNOWN"),
+        Title: "Unknown diagnostics key",
+        Template: "'{key}' in '[diagnostics]' of '{path}' is not a key the table takes; it takes warnings_as_errors, disable and enable.",
+        Description: "The [diagnostics] table carries a key the compiler does not read, most often a misspelling of one of its three keys. Remove the key or correct it to warnings_as_errors, disable or enable.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("key", SlotKind.Name), new Slot("path", SlotKind.Path)]);
+
+    public static readonly MistDiagnostic DiagnosticsValueInvalid = new(
+        DiagnosticNumber.Mint("MIST_DIAGNOSTICS_VALUE_INVALID"),
+        Title: "Invalid diagnostics value",
+        Template: "'{key}' in '[diagnostics]' of '{path}' must be {expected}.",
+        Description: "A key of the [diagnostics] table holds a value of the wrong shape. warnings_as_errors takes true, false or an array of diagnostic numbers; disable and enable take an array of diagnostic numbers, each written as a string.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("key", SlotKind.Name), new Slot("path", SlotKind.Path), new Slot("expected", SlotKind.Text)]);
+
+    public static readonly MistDiagnostic DiagnosticsNumberUnknown = new(
+        DiagnosticNumber.Mint("MIST_DIAGNOSTICS_NUMBER_UNKNOWN"),
+        Title: "Unknown diagnostic number",
+        Template: "'{number}' in '{key}' of '[diagnostics]' in '{path}' is not a diagnostic number the compiler knows.",
+        Description: "A [diagnostics] entry names a number that is not in the compiler's registry, so there is no rule for it to act on. Check the number against the diagnostics catalog and correct or remove the entry.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("number", SlotKind.Name), new Slot("key", SlotKind.Name), new Slot("path", SlotKind.Path)]);
+
+    public static readonly MistDiagnostic DiagnosticsNumberNotOptional = new(
+        DiagnosticNumber.Mint("MIST_DIAGNOSTICS_NUMBER_NOT_OPTIONAL"),
+        Title: "Diagnostic cannot be switched",
+        Template: "'{number}' in '{key}' of '[diagnostics]' in '{path}' is a {class} diagnostic, which cannot be disabled or enabled; only an Optional rule can be switched.",
+        Description: "A disable or enable entry names a diagnostic whose policy class is Fixed or Promotable, and neither class can be switched off: a Fixed diagnostic reports a violated contract and a Promotable one can only be raised. Remove the entry, or list the number under warnings_as_errors if raising it was the intent.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("number", SlotKind.Name), new Slot("key", SlotKind.Name), new Slot("path", SlotKind.Path), new Slot("class", SlotKind.Enum)]);
 }

@@ -13,6 +13,7 @@ The table below summarizes all available fields:
 | `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
 | `[references]` | No | Table | Declares dependencies on other Mist projects, C# projects and compiled assemblies. Each key is the referenced assembly's name mapping to a table with a `path` field. |
 | `[global_usings]` | No | Table | Declares namespaces implicitly imported into every source file in the project. |
+| `[diagnostics]` | No | Table | Declares diagnostic policy: which warnings become errors and which optional rules run. |
 
 ## The `name` Field
 
@@ -235,6 +236,43 @@ All error diagnostics halt compilation. The duplicate warning is non-fatal — t
 
 All diagnostics include the path to the `mist.toml` file for orientation.
 
+## The `[diagnostics]` Table
+
+The optional `[diagnostics]` table sets the project's diagnostic policy. Policy can only raise a severity or switch an optional rule off and on; nothing in it can lower a severity or hide a diagnostic, so an invalid program never compiles because of it. The policy applies to the project being compiled; a referenced project's `[diagnostics]` table does not reach the program that references it.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `warnings_as_errors` | Boolean or array of strings | `true` raises every warning to an error. An array raises only the listed diagnostic numbers, which may include diagnostics that default to a note. |
+| `disable` | Array of strings | Optional rules that do not run for this project. |
+| `enable` | Array of strings | Optional rules that are off by default and run for this project. |
+
+Every entry is a diagnostic number written as a string, for example `"MIST_PA_SWITCH_NOT_EXHAUSTIVE"`. Each diagnostic has one of three policy classes: a *fixed* diagnostic reports a violated contract and no policy touches it; a *promotable* diagnostic is a warning or note that `warnings_as_errors` may raise; an *optional* diagnostic is a rule that `disable` and `enable` may switch and that `warnings_as_errors` may also raise. When a rule is disabled it does not run at all.
+
+```toml
+[diagnostics]
+warnings_as_errors = true
+disable = ["MIST_PA_SWITCH_NOT_EXHAUSTIVE"]
+```
+
+```toml
+[diagnostics]
+warnings_as_errors = ["MIST_GLOBAL_USING_DUPLICATE_NAMESPACE"]
+```
+
+A promoted warning fails the build exactly where an error would, and the build summary counts it as an error.
+
+### Error Behavior
+
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| `diagnostics` is not a table | `MIST_DIAGNOSTICS_TABLE_EXPECTED` | Error |
+| A key other than `warnings_as_errors`, `disable` or `enable` | `MIST_DIAGNOSTICS_KEY_UNKNOWN` | Error |
+| A value of the wrong shape | `MIST_DIAGNOSTICS_VALUE_INVALID` | Error |
+| An entry naming a number the compiler does not know | `MIST_DIAGNOSTICS_NUMBER_UNKNOWN` | Error |
+| A `disable` or `enable` entry naming a fixed or promotable diagnostic | `MIST_DIAGNOSTICS_NUMBER_NOT_OPTIONAL` | Error |
+
+Every entry is checked against the compiler's registry before compilation starts, and any of these errors fails the command.
+
 ## Example Configurations
 
 ### Minimal Configuration
@@ -349,3 +387,5 @@ The compiler validates `mist.toml` strictly and halts compilation on any error:
 | Invalid characters in namespace entry | `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error |
 | `namespaces` is not an array or contains non-strings | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
 | Duplicate namespace entry | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning |
+| `diagnostics` is not a table, or a `[diagnostics]` key or value is invalid | `MIST_DIAGNOSTICS_TABLE_EXPECTED`, `MIST_DIAGNOSTICS_KEY_UNKNOWN`, `MIST_DIAGNOSTICS_VALUE_INVALID` | Error |
+| A `[diagnostics]` entry names an unknown number, or switches a fixed or promotable diagnostic | `MIST_DIAGNOSTICS_NUMBER_UNKNOWN`, `MIST_DIAGNOSTICS_NUMBER_NOT_OPTIONAL` | Error |

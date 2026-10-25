@@ -11,6 +11,8 @@ public sealed class DiagnosticOperation
 
     public int Admitted => admitted;
 
+    public DiagnosticPolicy Policy { get; set; } = DiagnosticPolicy.Default;
+
     internal int Next()
     {
         return Interlocked.Increment(ref admitted);

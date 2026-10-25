@@ -48,6 +48,22 @@ public static partial class ProjectFileParser
     /// </summary>
     public static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics)
     {
+        return Parse(projectFolder, diagnostics, root: false);
+    }
+
+    /// <summary>
+    /// Parses the manifest of the project being compiled, whose <c>[diagnostics]</c> table is the
+    /// policy of the whole operation: it is handed to <paramref name="diagnostics"/>' operation before
+    /// the rest of the manifest is read, so the manifest's own warnings already obey it. A referenced
+    /// project's manifest goes through <see cref="Parse(string, DiagnosticBag)"/> and sets no policy.
+    /// </summary>
+    public static ProjectConfiguration? ParseRoot(string projectFolder, DiagnosticBag diagnostics)
+    {
+        return Parse(projectFolder, diagnostics, root: true);
+    }
+
+    private static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics, bool root)
+    {
         var filePath = Path.Combine(projectFolder, FileName);
 
         // 1. File existence check
@@ -79,6 +95,17 @@ public static partial class ProjectFileParser
         {
             diagnostics.Report(DriverDiagnostics.ProjectTomlError, default, filePath, (object?)filePath, ex.Message);
             return null;
+        }
+
+        // 3.5. [diagnostics] table, before anything the policy should already govern
+        if(ReadDiagnosticsPolicy(model, filePath, diagnostics) is not { } policy)
+        {
+            return null;
+        }
+
+        if(root)
+        {
+            diagnostics.Operation.Policy = policy;
         }
 
         // 4. name field presence check
@@ -507,7 +534,100 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType);
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType, policy);
+    }
+
+    internal static DiagnosticPolicy? ReadDiagnosticsPolicy(TomlTable model, string filePath, DiagnosticBag diagnostics)
+    {
+        if(!model.TryGetValue("diagnostics", out var value))
+        {
+            return DiagnosticPolicy.Default;
+        }
+
+        if(value is not TomlTable table)
+        {
+            diagnostics.Report(DriverDiagnostics.DiagnosticsTableExpected, default, filePath, (object?)filePath);
+            return null;
+        }
+
+        var faults = 0;
+        var promoteAll = false;
+        var promoted = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+        var disabled = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+        var enabled = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+
+        foreach(var (key, entry) in table)
+        {
+            switch(key)
+            {
+                case "warnings_as_errors" when entry is bool all:
+                    promoteAll = all;
+                    break;
+
+                case "warnings_as_errors" when entry is TomlArray numbers:
+                    faults += Numbers(numbers, key, filePath, diagnostics, switchable: false, promoted);
+                    break;
+
+                case "warnings_as_errors":
+                    diagnostics.Report(DriverDiagnostics.DiagnosticsValueInvalid, default, filePath, (object?)key, filePath, "true, false or an array of diagnostic numbers");
+                    faults++;
+                    break;
+
+                case "disable" or "enable" when entry is TomlArray numbers:
+                    faults += Numbers(numbers, key, filePath, diagnostics, switchable: true, key == "disable" ? disabled : enabled);
+                    break;
+
+                case "disable" or "enable":
+                    diagnostics.Report(DriverDiagnostics.DiagnosticsValueInvalid, default, filePath, (object?)key, filePath, "an array of diagnostic numbers");
+                    faults++;
+                    break;
+
+                default:
+                    diagnostics.Report(DriverDiagnostics.DiagnosticsKeyUnknown, default, filePath, (object?)key, filePath);
+                    faults++;
+                    break;
+            }
+        }
+
+        return faults > 0 ? null : new DiagnosticPolicy(promoteAll, promoted.ToImmutable(), disabled.ToImmutable(), enabled.ToImmutable());
+    }
+
+    private static int Numbers(
+        TomlArray numbers,
+        string key,
+        string filePath,
+        DiagnosticBag diagnostics,
+        bool switchable,
+        ImmutableHashSet<DiagnosticNumber>.Builder into)
+    {
+        var faults = 0;
+        foreach(var item in numbers)
+        {
+            if(item is not string code)
+            {
+                diagnostics.Report(DriverDiagnostics.DiagnosticsValueInvalid, default, filePath, (object?)key, filePath, "an array of diagnostic numbers written as strings");
+                faults++;
+                continue;
+            }
+
+            if(DiagnosticRegistry.Index.Find(code) is not { } descriptor)
+            {
+                diagnostics.Report(DriverDiagnostics.DiagnosticsNumberUnknown, default, filePath, (object?)code, key, filePath);
+                faults++;
+                continue;
+            }
+
+            if(switchable && descriptor.Policy != PolicyClass.Optional)
+            {
+                diagnostics.Report(DriverDiagnostics.DiagnosticsNumberNotOptional, default, filePath, (object?)code, key, filePath, descriptor.Policy.ToString());
+                faults++;
+                continue;
+            }
+
+            _ = into.Add(descriptor.Number);
+        }
+
+        return faults;
     }
 
     private static ProjectReference? ReferenceTo(string refName, string normalizedPath)

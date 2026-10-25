@@ -277,7 +277,7 @@ public static class ProjectReferenceResolver
         }
 
         var projectFolder = Path.GetDirectoryName(canonicalTomlPath)!;
-        var parseBag = new DiagnosticBag();
+        var parseBag = new DiagnosticBag(diagnostics.Operation);
         var config = ProjectFileParser.Parse(projectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())

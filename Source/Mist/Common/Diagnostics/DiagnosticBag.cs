@@ -43,7 +43,8 @@ public sealed class DiagnosticBag
     {
         if(diagnostic.Ordinal == 0)
         {
-            diagnostic.Admit(Operation.Next());
+            var (effective, reason) = SeverityPolicy.Apply(diagnostic.Descriptor, Operation.Policy);
+            diagnostic.Admit(Operation.Next(), effective, reason);
         }
 
         diagnostics.Add(diagnostic);
@@ -108,7 +109,7 @@ public sealed class DiagnosticBag
     }
 
     /// <summary>
-    /// Returns <c>true</c> if any diagnostic with <see cref="DiagnosticSeverity.Error"/> severity has been added.
+    /// Returns <c>true</c> if any admitted occurrence has the effective severity <see cref="DiagnosticSeverity.Error"/>.
     /// </summary>
     public bool HasErrors => diagnostics.Exists(d => d.Severity == DiagnosticSeverity.Error);
 

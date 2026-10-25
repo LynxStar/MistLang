@@ -12,7 +12,7 @@ public sealed class ResolutionDiagnosticsTests
     {
         var built = new CompilerResult(true, "bin/Probe.dll", []);
 
-        var joined = Reporting(0, null, Error("MIST_PKG_002") with { Severity = DiagnosticSeverity.Warning }).JoinInto(built);
+        var joined = Reporting(0, null, Warning("MIST_PKG_002")).JoinInto(built);
 
         Assert.True(joined.Succeeded);
         Assert.Equal("bin/Probe.dll", joined.PrimaryOutputArtifactPath);
@@ -143,6 +143,11 @@ public sealed class ResolutionDiagnosticsTests
     private static Diagnostic Error(string id, string message = "probe")
     {
         return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, "probe.mist", null);
+    }
+
+    private static Diagnostic Warning(string id, string message = "probe")
+    {
+        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Warning, PipelineStage.Driver, message, default, "probe.mist", null);
     }
 
     private sealed class RecordingListener : IResolutionDiagnosticListener

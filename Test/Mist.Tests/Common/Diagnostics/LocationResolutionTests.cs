@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
@@ -11,6 +12,7 @@ public sealed class LocationResolutionTests
     private const string Lf = "ab\ncd\nef";
     private const string CrLf = "ab\r\ncd\r\nef";
     private const string Cr = "ab\rcd\ref";
+    private static readonly MistDiagnostic Probe = DiagnosticFixtures.Descriptor("FIXTURE_PLACE", "placed");
 
     [Theory]
     [InlineData(Lf, 0, 1, 1, 1, 1, 2)]
@@ -69,6 +71,66 @@ public sealed class LocationResolutionTests
         Assert.Same(InternalDiagnostics.LocationOutOfBounds, admitted[1].Descriptor);
         Assert.Contains(ProgramModelDiagnostics.UnresolvedIdentifier.Number.Value, admitted[1].Message);
         Assert.Contains("SemanticModelConstruction", admitted[1].Message);
+    }
+
+    [Theory]
+    [InlineData(-1, 1)]
+    [InlineData(0, -1)]
+    [InlineData(7, 2)]
+    [InlineData(9, 0)]
+    [InlineData(int.MaxValue, 1)]
+    [InlineData(1, int.MaxValue)]
+    public void AHandBuiltRangeThatDoesNotFitIsAbsentOutOfBoundsThroughTheFactory(int start, int length)
+    {
+        var file = new SourceIdentity(new Text("probe.mist", Lf));
+        var bag = new DiagnosticBag(PipelineStage.Parsing);
+
+        bag.ReportAt(Probe, new SourceRange(file, start, length));
+
+        var admitted = bag.ToImmutableArray();
+        Assert.Equal(2, admitted.Length);
+        Assert.Equal(new Absent(AbsenceReason.OutOfBounds), admitted[0].Location);
+        Assert.Equal("error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admitted[0]));
+        Assert.Same(InternalDiagnostics.LocationOutOfBounds, admitted[1].Descriptor);
+        Assert.Contains("FIXTURE_PLACE", admitted[1].Message);
+        Assert.Contains("Parsing", admitted[1].Message);
+        Assert.Contains($"[{start}, +{length})", admitted[1].Message);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(9)]
+    [InlineData(int.MaxValue)]
+    public void AHandBuiltPointThatDoesNotFitIsAbsentOutOfBoundsThroughTheFactory(int offset)
+    {
+        var file = new SourceIdentity(new Text("probe.mist", Lf));
+        ImmutableArray<Frame> frames = [new SynthesisFrame("lowering")];
+
+        var admission = DiagnosticFactory.Create(Probe, new SourcePoint(file, offset), PipelineStage.Analysis, [], frames: frames);
+
+        Assert.Equal(new Absent(AbsenceReason.OutOfBounds), admission.Occurrence.Location);
+        Assert.Equal(frames, admission.Occurrence.Frames);
+        Assert.Equal("error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admission.Occurrence));
+        var breach = Assert.Single(admission.Breaches);
+        Assert.Same(InternalDiagnostics.LocationOutOfBounds, breach.Descriptor);
+        Assert.Contains("Analysis", breach.Message);
+    }
+
+    [Fact]
+    public void AHandBuiltRangeOrPointThatFitsIsKeptAsSupplied()
+    {
+        var file = new SourceIdentity(new Text("probe.mist", Lf));
+        var first = new SourceRange(file, 0, 1);
+        var endOfFile = new SourcePoint(file, 8);
+        var bag = new DiagnosticBag(PipelineStage.Parsing);
+
+        bag.ReportAt(Probe, first);
+        bag.ReportAt(Probe, endOfFile);
+
+        var admitted = bag.ToImmutableArray();
+        Assert.Equal([first, endOfFile], admitted.Select(occurrence => occurrence.Location));
+        Assert.Equal("probe.mist(1,1): error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admitted[0]));
+        Assert.Equal("probe.mist(3,3): error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admitted[1]));
     }
 
     [Fact]
@@ -154,6 +216,14 @@ public sealed class LocationResolutionTests
         Assert.False(outer.Contains(new SourceRange(two, 2, 2)));
         Assert.False(outer.Contains(new SourceRange(one, 0, 2)));
         Assert.False(outer.Contains(new SourceRange(one, 4, 2)));
+        Assert.True(outer.Contains(new SourcePoint(same, 3)));
+        Assert.True(outer.Contains(new SourcePoint(one, 1)));
+        Assert.True(outer.Contains(new SourcePoint(one, 5)));
+        Assert.False(outer.Contains(new SourcePoint(one, 0)));
+        Assert.False(outer.Contains(new SourcePoint(one, 6)));
+        Assert.False(outer.Contains(new SourcePoint(two, 3)));
+        Assert.True(new SourcePoint(one, 3).Contains(new SourcePoint(same, 3)));
+        Assert.False(new SourcePoint(one, 3).Contains(new SourceRange(one, 3, 1)));
         Assert.True(new Absent(AbsenceReason.TestOrigin).Contains(new Absent(AbsenceReason.TestOrigin)));
         Assert.False(new Absent(AbsenceReason.TestOrigin).Contains(new Absent(AbsenceReason.Unavailable)));
         Assert.False(outer.Contains(new FileOnly("one.mist")));

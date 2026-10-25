@@ -7,8 +7,9 @@ namespace Mist.Common.Diagnostics;
 /// does not says why it is absent. Offsets are authoritative; line and column are derived on
 /// demand from the text the range was computed against, so nothing stores them and nothing can
 /// fabricate them. Containment compares file identity together with the range, never line and
-/// column alone, and two absent positions are held to contain each other only when their
-/// reasons agree, which is what a hand-built model with no file relies on.
+/// column alone, with a point counted as a zero-width range; two absent positions are held to
+/// contain each other only when their reasons agree, which is what a hand-built model with no
+/// file relies on.
 /// </summary>
 public abstract record Location
 {
@@ -22,12 +23,22 @@ public abstract record Location
 
     public bool Contains(Location inner)
     {
-        if(this is SourceRange outer && inner is SourceRange range)
+        if(Extent(this) is not { } outer || Extent(inner) is not { } within)
         {
-            return outer.File.Equals(range.File) && outer.Offset <= range.Offset && range.End <= outer.End;
+            return Equals(inner);
         }
 
-        return Equals(inner);
+        return outer.File.Equals(within.File) && outer.Start <= within.Start && within.End <= outer.End;
+    }
+
+    private static (SourceIdentity File, long Start, long End)? Extent(Location location)
+    {
+        return location switch
+        {
+            SourceRange range => (range.File, range.Offset, (long)range.Offset + range.Length),
+            SourcePoint point => (point.File, point.Offset, point.Offset),
+            _ => null,
+        };
     }
 }
 

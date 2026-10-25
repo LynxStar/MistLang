@@ -24,7 +24,7 @@ public static class DiagnosticFactory
         ProviderCode? native = null,
         string? analyzerName = null)
     {
-        return Create(descriptor, new OriginResolution(location, frames), stage, arguments, related, cause, native, analyzerName);
+        return Create(descriptor, DiagnosticHelper.Place(location, frames), stage, arguments, related, cause, native, analyzerName);
     }
 
     public static Admission Create(

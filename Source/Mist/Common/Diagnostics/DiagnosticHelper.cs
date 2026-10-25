@@ -4,10 +4,11 @@ using Mist.Common.Source;
 namespace Mist.Common.Diagnostics;
 
 /// <summary>
-/// Resolves where a node points by walking its origin chain to a parsed root. A span is valid only
-/// when it starts at or after zero, is not negative in length and ends at or before the end of its
-/// text, with the end computed in 64-bit arithmetic so no overflow can fake a fit; anything else
-/// resolves to an absent location and a bounds fault for the factory to report.
+/// Resolves where a node points by walking its origin chain to a parsed root, and places a range or
+/// point a producer built by hand under the same rule. A span is valid only when it starts at or
+/// after zero, is not negative in length and ends at or before the end of its text, with the end
+/// computed in 64-bit arithmetic so no overflow can fake a fit; anything else resolves to an absent
+/// location and a bounds fault for the factory to report.
 /// </summary>
 public static class DiagnosticHelper
 {
@@ -25,6 +26,20 @@ public static class DiagnosticHelper
             SyntheticOrigin synthetic => ResolveSyntheticChain(synthetic, sourceSpan),
             _ => new OriginResolution(new Absent(AbsenceReason.Unavailable), []),
         };
+    }
+
+    public static OriginResolution Place(Location location, ImmutableArray<Frame> frames = default)
+    {
+        var fault = location switch
+        {
+            SourceRange range => Fault(range.File.Text, range.Offset, range.Length),
+            SourcePoint point => Fault(point.File.Text, point.Offset, 0),
+            _ => null,
+        };
+
+        return fault is null
+            ? new OriginResolution(location, frames)
+            : new OriginResolution(new Absent(AbsenceReason.OutOfBounds), frames, fault);
     }
 
     private static OriginResolution ResolveSyntheticChain(SyntheticOrigin synthetic, Storm.Runtime.SourceSpan span)
@@ -67,15 +82,17 @@ public static class DiagnosticHelper
 
     private static OriginResolution Place(SourceText source, Storm.Runtime.SourceSpan span, ImmutableArray<Frame> frames)
     {
-        var end = (long)span.Start + span.Length;
-        if(span.Start < 0 || span.Length < 0 || end > source.Contents.Length)
-        {
-            return new OriginResolution(
-                new Absent(AbsenceReason.OutOfBounds),
-                frames,
-                $"span [{span.Start}, +{span.Length}) does not fit '{source.Path}' ({source.Contents.Length} characters)");
-        }
+        return Fault(source, span.Start, span.Length) is { } fault
+            ? new OriginResolution(new Absent(AbsenceReason.OutOfBounds), frames, fault)
+            : new OriginResolution(new SourceRange(new SourceIdentity(source), span.Start, span.Length), frames);
+    }
 
-        return new OriginResolution(new SourceRange(new SourceIdentity(source), span.Start, span.Length), frames);
+    private static string? Fault(SourceText source, int start, int length)
+    {
+        var end = (long)start + length;
+
+        return start < 0 || length < 0 || end > source.Contents.Length
+            ? $"span [{start}, +{length}) does not fit '{source.Path}' ({source.Contents.Length} characters)"
+            : null;
     }
 }

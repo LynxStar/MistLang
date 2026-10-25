@@ -1,6 +1,6 @@
 # Project Configuration
 
-Every Mist project is defined by a `mist.toml` file at the project root. This file tells the compiler the project's name, how to derive namespaces, and which other projects to include as dependencies.
+Every Mist project is defined by a `mist.toml` file at the project root. This file tells the compiler the project's name, how to derive namespaces, and which other projects and assemblies to include as dependencies.
 
 ## Fields
 
@@ -11,7 +11,7 @@ The table below summarizes all available fields:
 | `name` | Yes | String | The project name. Used as the default namespace root and output assembly name. |
 | `namespace_root` | No | String | Overrides the root segment for inferred namespaces. Defaults to `name` when omitted. |
 | `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
-| `[references]` | No | Table | Declares dependencies on other Mist projects. Each key is a project name mapping to a table with a `path` field. |
+| `[references]` | No | Table | Declares dependencies on other Mist projects, C# projects and compiled assemblies. Each key is the referenced assembly's name mapping to a table with a `path` field. |
 | `[global_usings]` | No | Table | Declares namespaces implicitly imported into every source file in the project. |
 
 ## The `name` Field
@@ -88,11 +88,11 @@ For full details on top-level statements and entry point rules, see [Top-Level S
 
 ## The `[references]` Table
 
-The `[references]` table declares dependencies on other Mist projects. Each entry is a key-value pair where the key is the referenced project's name and the value is a table containing a `path` field:
+The `[references]` table declares dependencies on other Mist projects, C# projects and compiled assemblies. Each entry is a key-value pair where the key is the referenced assembly's name and the value is a table containing a `path` field:
 
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
-| `path` | Yes | String | Path to the referenced project's directory or `mist.toml` file. |
+| `path` | Yes | String | Path to the referenced project's directory, or to its `mist.toml`, `.csproj` or `.dll` file. |
 
 There are two equivalent ways to declare references:
 
@@ -116,9 +116,40 @@ path = "../DataModels"
 
 Both forms produce identical results. The inline form is more compact for simple references; the expanded form may be preferred when additional fields are added in the future.
 
+### Reference Kinds
+
+An entry may name a Mist project, a C# project or a compiled assembly. The compiler decides which from `path` alone and does not read the file:
+
+| `path` names | Kind | What the compiler does |
+|--------------|------|------------------------|
+| a `mist.toml` | Mist project | Composes the project's source into this compilation. |
+| a `.csproj` | C# project | Builds it with `dotnet build` before compiling any Mist, references its output and copies the DLLs from its output folder into `bin/`. |
+| a `.dll` | Assembly | References the file and copies it into `bin/`. Nothing beside it is inferred, so a dependency of the assembly that the program needs is declared as its own reference or package. |
+
+```toml
+[references]
+"Lib" = { path = "../Lib/mist.toml" }
+"Bridge" = { path = "../Bridge/Bridge.csproj" }
+"Vendor.Tools" = { path = "../vendor/Vendor.Tools.dll" }
+```
+
+A path to a file with any other extension is `MIST_REFERENCE_UNSUPPORTED_PATH`, and a `.csproj` or `.dll` that does not exist is `MIST_REFERENCE_FILE_NOT_FOUND`.
+
+**A bare directory.** A `path` that names a directory is valid when that directory's own files hold exactly one `mist.toml`, `.csproj` or `.dll`; that file decides the kind. Subdirectories are never searched, so a project's `bin/`, `obj/` and `out/` never count, and extensions compare without regard to case. A directory with none of the three is `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`. A directory with two or more, of one kind or several, is `MIST_REFERENCE_AMBIGUOUS`: the message lists every candidate, and the fix is to name the intended file in `path`.
+
+```toml
+[references]
+"Lib" = { path = "../Lib" }
+"Bridge" = { path = "../Bridge" }
+```
+
+**The key names the produced assembly.** For every kind the key must equal the assembly the target produces, so a typo or a rename fails at build time. That is the manifest's `name` for a Mist project, the file name without its extension for a `.dll`, and, for a C# project, the file name of its built output, which is MSBuild's `AssemblyName` and need not equal the `.csproj` file's name. A mismatch is `MIST_PROJECT_REFERENCE_NAME_MISMATCH`; its message names the kind and the name the target produces.
+
+**Facades.** A C# project that depends on a Mist library was compiled against the library's own assembly, and the runtime resolves a type by assembly and name. The program, however, composes the library's source into its own DLL, so the same type lives in a different assembly and the C# project's methods would not accept it. When a referenced C# assembly was compiled against a Mist library that the program composes, the compiler therefore writes a small assembly named after that library into `bin/`, beside the program's DLL, holding nothing but type forwards to the program. The C# project and the program then agree on what each type is, and a signature that crosses the boundary works. No setting asks for this. The C# project reaches the Mist library through a hand-written MSBuild target that runs `mist build` on it; `samples/CSharpReferences` in the repository shows the whole arrangement.
+
 ### Reference Key Naming
 
-The reference key (e.g., `SharedLib` in the examples above) **must match the `name` field of the referenced project's `mist.toml` exactly** (case-sensitive). This ensures that dependency declarations are unambiguous and that typos or stale renames are caught at build time.
+The reference key (e.g., `SharedLib` in the examples above) **must match the `name` field of the referenced Mist project's `mist.toml` exactly** (case-sensitive); the other kinds follow the key rule under Reference Kinds. This ensures that dependency declarations are unambiguous and that typos or stale renames are caught at build time.
 
 For example, if `../SharedLib/mist.toml` contains `name = "SharedLib"`, then the reference key must be `SharedLib` — not `sharedlib`, `Shared-Lib`, or any other variation.
 
@@ -131,7 +162,7 @@ The reference key follows the same naming constraints as the `name` field:
 If the reference key does not match the target project's `name` field, the compiler reports a `ProjectReferenceNameMismatch` error:
 
 ```
-Reference key 'WrongName' does not match the target project's name 'SharedLib' in '/path/to/SharedLib/mist.toml'.
+Reference key 'WrongName' does not match 'SharedLib', the name the Mist project '/path/to/SharedLib/mist.toml' produces.
 ```
 
 When a name mismatch is detected, the mismatched reference is excluded from the build and its transitive dependencies are not traversed. The compiler continues resolving the remaining sibling references.
@@ -142,8 +173,8 @@ The `path` field accepts both relative and absolute paths:
 
 - **Relative paths** are resolved from the directory containing the current `mist.toml`
 - **Absolute paths** are used as-is
-- If the path points to a **directory**, the compiler automatically appends `mist.toml` (i.e., `"../SharedLib"` resolves to `../SharedLib/mist.toml`)
-- If the path already ends with `mist.toml`, it is used directly
+- If the path points to a **directory**, the compiler uses the one `mist.toml`, `.csproj` or `.dll` that directory holds (i.e., `"../SharedLib"` resolves to `../SharedLib/mist.toml` when that is the only candidate)
+- If the path points to a **file**, its extension decides the kind
 
 ### Circular Reference Detection
 
@@ -159,7 +190,7 @@ Self-references (a project referencing itself) are also detected and reported as
 
 If a referenced path does not exist, the compiler reports a diagnostic:
 
-- If the directory exists but contains no `mist.toml`: `Referenced directory '/path/to/dir' does not contain a 'mist.toml' file.`
+- If the directory exists but holds no `mist.toml`, `.csproj` or `.dll`: `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`
 - If the path does not exist at all: `Referenced project path '/path/to/file' does not exist.`
 
 ## The `[global_usings]` Section
@@ -308,6 +339,10 @@ The compiler validates `mist.toml` strictly and halts compilation on any error:
 | Reference entry missing `path` | `Reference entry is missing the required 'path' field.` | Error |
 | Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` | Error |
 | Referenced project not found | Reports the missing path | Error |
+| Reference `path` names a file other than `mist.toml`, `.csproj` or `.dll` | `MIST_REFERENCE_UNSUPPORTED_PATH` | Error |
+| Referenced `.csproj` or `.dll` does not exist | `MIST_REFERENCE_FILE_NOT_FOUND` | Error |
+| Referenced directory holds more than one `mist.toml`, `.csproj` or `.dll` | `MIST_REFERENCE_AMBIGUOUS` | Error |
+| Referenced C# project fails to build | `MIST_CSHARP_PROJECT_BUILD_FAILED` | Error |
 | Circular reference | Reports the full cycle chain | Error |
 | `[global_usings]` missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error |
 | Empty or whitespace namespace entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error |

@@ -15,7 +15,7 @@ public enum CliCommand
     Run,
     /// <summary>Compile and run tests.</summary>
     Test,
-    /// <summary>Install the bundled Mist steering files into the project's .kiro/steering/ directory.</summary>
+    /// <summary>Install the bundled Mist agent references into .mist/agents/ and point the project's AGENTS.md at them.</summary>
     Steering,
     /// <summary>Inspect a CLR type's projected and hidden members.</summary>
     Inspect,
@@ -39,7 +39,8 @@ public sealed record CliArguments(
     bool Verbose = false,
     string? InspectTypeName = null,
     string Pipeline = "standard",
-    TargetPlatform? Platform = null);
+    TargetPlatform? Platform = null,
+    string? RuntimeIdentifier = null);
 
 /// <summary>
 /// The compiler execution mode.

@@ -21,17 +21,38 @@ internal static class AmbientTypeProviderV2Factory
     /// <param name="additionalAssemblyPaths">Additional assembly paths from NuGet/framework resolution.</param>
     /// <param name="typeInterner">The type interner for creating constructed types.</param>
     /// <param name="diagnostics">Diagnostic bag for reporting assembly load failures.</param>
+    /// <param name="unregisteredAssemblyNames">
+    /// Simple names loaded for resolution and never registered: the composed Mist projects, whose standalone
+    /// copies would otherwise shadow or duplicate the declared types.
+    /// </param>
     /// <returns>A fully initialized <see cref="AmbientTypeProviderV2"/> instance.</returns>
     public static AmbientTypeProviderV2 Create(
         string targetFramework,
         ImmutableArray<string> additionalAssemblyPaths,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        ImmutableArray<string> resolverOnlyDirectories = default,
+        IEnumerable<string>? unregisteredAssemblyNames = null)
     {
         var assemblyPaths = ResolveSdkAndAdditionalPaths(targetFramework, additionalAssemblyPaths, diagnostics);
 
-        var resolver = new PathAssemblyResolver(assemblyPaths);
+        return CreateOver(assemblyPaths, resolverOnlyDirectories, unregisteredAssemblyNames, diagnostics);
+    }
+
+    internal static AmbientTypeProviderV2 CreateOver(
+        ImmutableArray<string> assemblyPaths,
+        ImmutableArray<string> resolverOnlyDirectories,
+        IEnumerable<string>? unregisteredAssemblyNames,
+        DiagnosticBag diagnostics)
+    {
+        var resolvable = resolverOnlyDirectories.IsDefaultOrEmpty
+            ? assemblyPaths
+            : [.. assemblyPaths
+                .Concat(resolverOnlyDirectories.Where(Directory.Exists).SelectMany(directory => Directory.GetFiles(directory, "*.dll")))
+                .Distinct(StringComparer.OrdinalIgnoreCase)];
+
+        var resolver = new PathAssemblyResolver(resolvable);
         var context = new MetadataLoadContext(resolver);
-        var loaded = LoadAssemblies(assemblyPaths, context, diagnostics);
+        var loaded = LoadAssemblies(assemblyPaths, context, diagnostics, unregisteredAssemblyNames);
 
         return new AmbientTypeProviderV2(loaded, context, diagnostics);
     }
@@ -81,15 +102,22 @@ internal static class AmbientTypeProviderV2Factory
     internal static ImmutableArray<LoadedAssemblyInfo> LoadAssemblies(
         ImmutableArray<string> assemblyPaths,
         MetadataLoadContext context,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IEnumerable<string>? unregisteredAssemblyNames = null)
     {
         var loaded = ImmutableArray.CreateBuilder<LoadedAssemblyInfo>();
+        var unregistered = (unregisteredAssemblyNames ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach(var path in assemblyPaths)
         {
             try
             {
                 var assembly = context.LoadFromAssemblyPath(path);
+                if(assembly.GetName().Name is { } name && unregistered.Contains(name))
+                {
+                    continue;
+                }
+
                 var info = new LoadedAssemblyInfo(path, assembly);
                 loaded.Add(info);
             }

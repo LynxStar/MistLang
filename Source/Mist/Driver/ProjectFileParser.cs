@@ -217,16 +217,14 @@ public static partial class ProjectFileParser
                 // 9d. Normalize path (unchanged logic)
                 var normalizedPath = Path.IsPathRooted(rawPath) ? Path.GetFullPath(rawPath) : Path.GetFullPath(Path.Combine(projectFolder, rawPath));
 
-                // If normalized path does not already end with "mist.toml",
-                // treat it as a directory and append "mist.toml".
-                // Existence checks are NOT performed here — deferred to resolver.
-                if(!Path.GetFileName(normalizedPath)
-                         .Equals(FileName, StringComparison.Ordinal))
+                // 9e. Classify: a directory or a missing path is left for the resolver to judge
+                if(ReferenceTo(refName, normalizedPath) is not { } reference)
                 {
-                    normalizedPath = Path.Combine(normalizedPath, FileName);
+                    diagnostics.Report(DriverDiagnostics.ReferenceUnsupportedPath, default, filePath, (object?)refName, normalizedPath);
+                    return null;
                 }
 
-                references.Add(new ProjectReference(refName, normalizedPath));
+                references.Add(reference);
             }
         }
 
@@ -510,5 +508,25 @@ public static partial class ProjectFileParser
         }
 
         return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType);
+    }
+
+    private static ProjectReference? ReferenceTo(string refName, string normalizedPath)
+    {
+        if(Path.GetFileName(normalizedPath).Equals(FileName, StringComparison.Ordinal))
+        {
+            return new ProjectReference(refName, normalizedPath);
+        }
+
+        if(Directory.Exists(normalizedPath))
+        {
+            return new ProjectReference(refName, Path.Combine(normalizedPath, FileName), IsDirectory: true);
+        }
+
+        if(ReferenceClassifier.Classify(normalizedPath, isDirectory: false, []) is ReferenceClassified classified)
+        {
+            return new ProjectReference(refName, classified.ResolvedPath, classified.Kind);
+        }
+
+        return File.Exists(normalizedPath) ? null : new ProjectReference(refName, Path.Combine(normalizedPath, FileName));
     }
 }

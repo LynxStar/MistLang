@@ -1,8 +1,4 @@
----
-inclusion: manual
----
-
-<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own steering files; any file containing it is treated as Mist-managed and may be deleted. -->
+<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own files; any file containing it is treated as Mist-managed and may be deleted. -->
 
 # Mist .gitignore
 
@@ -48,7 +44,7 @@ Commit your sources and configuration:
 
 - `mist.toml` (and any referenced projects' `mist.toml`)
 - All `.mist` source files
-- `.kiro/steering/` — including the Mist-managed steering files, so collaborators and Kiro get language awareness on clone
+- `.mist/agents/` and the Mist block in `AGENTS.md` (and `CLAUDE.md`, if it has one), so collaborators and their agents get language awareness on clone
 
 ## Notes
 

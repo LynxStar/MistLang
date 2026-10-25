@@ -39,7 +39,7 @@ Naming a path is itself an act of scoping, which is why it widens to every comme
 narrowing to the diff. When a request is ambiguous, choose the reading, say which you chose,
 and proceed rather than stopping to ask.
 
-Out of scope in every mode: `.kiro/`, `book/`, and generated output. In diff-scoped
+Out of scope in every mode: `specs/`, `book/`, and generated output. In diff-scoped
 modes, a pre-existing comment appearing in a hunk only because code moved beneath it is not in
 scope, though the delegate will still see it.
 

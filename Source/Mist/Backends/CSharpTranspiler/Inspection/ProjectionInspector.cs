@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.ProgramModel.Contracts.Types;
@@ -244,6 +245,7 @@ internal static class ProjectionInspector
         return lineage;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static IEnumerable<MemberInfo> ClrMembers(Type clrType)
     {
         foreach(var property in clrType.GetProperties(Everything))
@@ -270,6 +272,7 @@ internal static class ProjectionInspector
         return type.IsGenericType ? type.GetGenericTypeDefinition() : type;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static MemberInfo Definition(MemberInfo member)
     {
         if(member.DeclaringType is not { IsGenericType: true, IsGenericTypeDefinition: false } constructed)

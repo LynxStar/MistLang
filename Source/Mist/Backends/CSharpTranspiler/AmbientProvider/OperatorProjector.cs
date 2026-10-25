@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -40,6 +41,7 @@ internal static class OperatorProjector
     /// Regular operators go to <see cref="MemberType.OperatorsList"/>.
     /// Cast operators go to <see cref="ConcreteType.CastOperatorsList"/> (if applicable).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
         var methods = clrType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly);

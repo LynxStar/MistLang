@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -49,6 +50,7 @@ internal static class ExtensionProjector
     /// Scans a single static extension class for qualifying extension methods,
     /// projects each one, and registers it on the appropriate namespace.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static void ScanExtensionClass(
         Type extensionClass,
         AmbientTypeResolver resolver,

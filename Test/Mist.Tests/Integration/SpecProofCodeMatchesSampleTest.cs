@@ -53,7 +53,7 @@ public class SpecProofCodeMatchesSampleTest
     public void EveryProofCodeBlock_AppearsVerbatim_InItsDesignatedSample()
     {
         var repoRoot = FindRepoRoot();
-        var specsDir = Path.Combine(repoRoot, ".kiro", "specs");
+        var specsDir = Path.Combine(repoRoot, "specs");
         Assert.True(Directory.Exists(specsDir), $"Specs directory not found: {specsDir}");
 
         var checked_ = 0;
@@ -120,7 +120,7 @@ public class SpecProofCodeMatchesSampleTest
     public void EveryExpectedOutputBlock_AppearsAsASlice_OfTheBaseline()
     {
         var repoRoot = FindRepoRoot();
-        var specsDir = Path.Combine(repoRoot, ".kiro", "specs");
+        var specsDir = Path.Combine(repoRoot, "specs");
         var baselineFile = Path.Combine(repoRoot, "samples", "__baselines__", "AllFeaturesV2.out");
         Assert.True(File.Exists(baselineFile), $"Baseline not found: {baselineFile}");
 

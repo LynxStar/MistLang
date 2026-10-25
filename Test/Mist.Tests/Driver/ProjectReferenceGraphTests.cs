@@ -243,7 +243,7 @@ public sealed class ProjectReferenceGraphTests
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(PipelineStage.Driver, diagnostic.Stage);
         Assert.Equal(path, diagnostic.CompilationUnitPath);
-        Assert.Equal($"Reference key '{declaredName}' does not match the target project's name '{actualName}' in '{path}'.", diagnostic.Message);
+        Assert.Equal($"Reference key '{declaredName}' does not match '{actualName}', the name the Mist project '{path}' produces.", diagnostic.Message);
     }
 
     private static void AssertCycle(Diagnostic diagnostic, params string[] chain)

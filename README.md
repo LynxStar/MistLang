@@ -15,7 +15,7 @@ mist inspect <TypeName> [project-folder] [options]
 - `test` — Compile the project and run its tests via `dotnet test` on the emitted `.csproj`.
 - `restore` — Resolve `[packages]` and `[framework_references]` and print the resolver's detail, without compiling.
 - `inspect <TypeName>` — Show which members of a CLR type Mist projects and which it hides, and why. Resolves dependencies like a build but does not report their failures; use `restore` for those.
-- `steering` — Install the bundled Mist steering files into the project's `.kiro/steering/` directory so Kiro understands the language. Idempotent and safe to re-run; it never touches your own steering files. See [Steering Files](distribute/steering/README.md).
+- `steering` — Install the bundled Mist agent references into the project's `.mist/agents/` directory and add a Mist block pointing at them to its `AGENTS.md` (and to `CLAUDE.md`, if one exists that does not import `AGENTS.md`), so coding agents understand the language. Idempotent and safe to re-run; it never touches your own files or the text outside the block. See [Agent References](distribute/steering/README.md).
 - `version` — Print the compiler version.
 
 `build`, `run` and `test` compile; `run` and `test` launch nothing when compilation fails. `restore` and `inspect` only resolve dependencies.
@@ -65,7 +65,7 @@ mist restore ./my-project
 # Show package resolution detail during a build
 mist build --verbose
 
-# Install Mist steering files for Kiro into the current project
+# Install the Mist agent references into the current project
 mist steering
 
 # Omitting the command defaults to build

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Scopes;
@@ -7,6 +8,7 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 internal static class StorageProjector
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
         var fields = new List<StorageField>();

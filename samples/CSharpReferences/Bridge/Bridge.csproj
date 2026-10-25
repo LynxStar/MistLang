@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <MistProject>$(MSBuildThisFileDirectory)../Lib</MistProject>
+    <MistAssemblyName>Lib</MistAssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Update="native/osx-arm64/libbridge-native.dylib" CopyToOutputDirectory="PreserveNewest" Link="runtimes/osx-arm64/native/libbridge-native.dylib" />
+    <None Update="native/osx-x64/libbridge-native.dylib" CopyToOutputDirectory="PreserveNewest" Link="runtimes/osx-x64/native/libbridge-native.dylib" />
+    <None Update="native/linux-x64/libbridge-native.so" CopyToOutputDirectory="PreserveNewest" Link="runtimes/linux-x64/native/libbridge-native.so" />
+    <None Update="native/linux-arm64/libbridge-native.so" CopyToOutputDirectory="PreserveNewest" Link="runtimes/linux-arm64/native/libbridge-native.so" />
+    <None Update="native/win-x64/bridge-native.dll" CopyToOutputDirectory="PreserveNewest" Link="runtimes/win-x64/native/bridge-native.dll" />
+    <None Update="native/win-arm64/bridge-native.dll" CopyToOutputDirectory="PreserveNewest" Link="runtimes/win-arm64/native/bridge-native.dll" />
+  </ItemGroup>
+  <Import Project="MistProject.targets" />
+</Project>

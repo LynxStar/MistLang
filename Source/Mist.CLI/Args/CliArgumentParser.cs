@@ -30,6 +30,7 @@ public static class CliArgumentParser
         var verbose = false;
         var pipeline = "standard";
         TargetPlatform? platform = null;
+        string? runtimeIdentifier = null;
 
         for(var i = 0; i < args.Length; i++)
         {
@@ -136,6 +137,18 @@ public static class CliArgumentParser
                     {
                         errors.Add(new CliParseError($"Unknown platform: '{args[i]}'. Valid platforms: windows, linux, macos"));
                     }
+                }
+            }
+            else if(arg == "--rid")
+            {
+                i++;
+                if(i >= args.Length || string.IsNullOrWhiteSpace(args[i]))
+                {
+                    errors.Add(new CliParseError("Missing value for --rid flag."));
+                }
+                else
+                {
+                    runtimeIdentifier = args[i];
                 }
             }
             else if(arg.StartsWith("--"))
@@ -294,7 +307,7 @@ public static class CliArgumentParser
         }
 
         return new CliParseResult(
-            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline, platform),
+            new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline, platform, runtimeIdentifier),
             errors);
     }
 }

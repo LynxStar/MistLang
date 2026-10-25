@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -16,6 +17,7 @@ internal static class FieldProjector
     /// Projects all public and protected instance and static fields (excluding enum backing
     /// fields and compiler-generated fields) onto the given ConcreteType.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
         var fields = clrType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly);

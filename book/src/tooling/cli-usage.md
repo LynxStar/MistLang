@@ -22,7 +22,7 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 | `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST_TEST_0001` when it finds test-attributed methods but no test framework package. |
 | `restore` | No | — | Resolves `[packages]` and `[framework_references]` only, and always prints the resolver's detail and summary. It never lexes, type-checks or emits. |
 | `inspect <TypeName>` | No | — | Resolves the same assemblies a build would and prints a CLR type's projected and hidden members. It prints the same dependency diagnostics a build does to standard error, once each, and exits 1 without a report when one is an error. |
-| `steering` | No | — | Installs the bundled Mist steering files into the project's `.kiro/steering/` directory. |
+| `steering` | No | — | Installs the bundled Mist agent references into the project's `.mist/agents/` directory and adds a Mist block pointing at them to `AGENTS.md`, and to an existing `CLAUDE.md` that does not import `AGENTS.md`. |
 | `version` | No | — | Prints the compiler version. |
 
 `build`, `run` and `test` discover all `.mist` source files recursively within the project folder, clean the output and binary directories (Stage 0), and run the full compilation pipeline. If compilation fails, diagnostics are printed, the command exits with code 1, and `run` and `test` launch nothing. Otherwise `run` exits with the program's exit code and `test` with `dotnet test`'s.
@@ -38,7 +38,8 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 | `--bin` | — | `<dir>` | `<project>/bin` | Sets the directory where compiled binary artifacts are placed. |
 | `--mode` | — | `compile` \| `lex` | `compile` | Selects the compiler mode for `build`. `compile` runs the full pipeline; `lex` dumps token streams only. |
 | `--pipeline` | — | `standard` | `standard` | Selects the compilation pipeline. `standard` is the only pipeline, so the flag can be omitted; any other value is a parse error. |
-| `--platform` | — | `windows` \| `linux` \| `macos` | this machine | Sets the platform the program is compiled for, which decides the platform-specific startup code the compiler emits. |
+| `--platform` | — | `windows` \| `linux` \| `macos` | this machine | Sets the platform the program is compiled for, which decides the platform-specific startup code the compiler emits and the operating-system part of the target runtime identifier. |
+| `--rid` | — | `<rid>` | this machine's | Sets the target runtime identifier, such as `linux-x64`, which decides the native and runtime-specific files copied into `bin/`. It takes precedence over `--platform`; an identifier the SDK does not know fails with `MIST_RID_UNKNOWN`. See [Target runtime identifier](#target-runtime-identifier). |
 | `--verbose` | `-v` | — | off | Shows the progress of every stage, including Stage 1.5 package-resolution detail. |
 | `--quiet` | `-q` | — | off | Suppresses progress output during compilation, and the list of installed files for `steering`. |
 
@@ -48,6 +49,14 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 - The `--mode lex` option is not compatible with the `run` or `test` commands. Attempting to combine them produces an error.
 - The `--output` and `--bin` directories are cleaned (all contents deleted) at the start of every build.
 - Unknown flags produce an error with a usage hint.
+
+### Target runtime identifier
+
+A build deploys for one runtime identifier (RID): the machine's own by default, such as `osx-arm64`. `--platform` changes the operating-system part and keeps the machine's processor architecture; `--rid <rid>` names the whole identifier and wins over `--platform`. Packages and referenced C# projects supply native and runtime-specific files under `runtimes/<rid>/...`, one folder per identifier. The compiler picks, for each package and each kind of file, the first identifier along the target's fallback chain that has any, from most to least specific as the SDK's runtime identifier graph defines it (for `osx-arm64`: `osx-arm64`, then `osx`, then `unix`, ending at `any`). It copies those files flat into `bin/`, beside the program, where the .NET host looks for them, so a program that uses SQLite or another native library runs with `mist run` and no hand-staged copy. The same selection applies to the `runtimes/<rid>/native/` files in a referenced C# project's output folder.
+
+```bash
+mist build my-project --rid linux-x64
+```
 
 ## Output and Diagnostics
 

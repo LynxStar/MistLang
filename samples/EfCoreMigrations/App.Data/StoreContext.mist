@@ -1,0 +1,12 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace App.Data;
+
+public class StoreContext : DbContext
+{
+    public StoreContext(DbContextOptions options) : base(options)
+    {
+    }
+
+    public DbSet<Item> Items => Set<Item>();
+}

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -46,6 +47,7 @@ internal static class BaseTypeProjector
     /// Projects directly implemented/declared interfaces onto the MemberType's
     /// BaseAbstractTypes list.
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static void ProjectInterfaces(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
         var interfaces = clrType.GetInterfaces();
@@ -66,6 +68,8 @@ internal static class BaseTypeProjector
     /// Determines whether an interface is directly declared on a type
     /// (vs inherited from a base type or base interface).
     /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static bool IsDirectlyImplemented(Type type, Type iface)
     {
         // If the base type also implements this interface, it's inherited, not direct.

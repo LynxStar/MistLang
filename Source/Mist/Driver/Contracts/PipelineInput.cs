@@ -12,4 +12,8 @@ public sealed record PipelineInput(
     ImmutableArray<string> ResolvedAssemblyPaths,
     CompilerOptions Options,
     DiagnosticBag Diagnostics,
-    DiagnosticBag ResolutionDiagnostics);
+    DiagnosticBag ResolutionDiagnostics,
+    ImmutableArray<ExternalAssembly> ExternalAssemblies = default,
+    ImmutableArray<ComposedProject> ComposedProjects = default,
+    ImmutableArray<string> RuntimeIdentifiers = default,
+    ImmutableArray<RuntimeAsset> RuntimeAssets = default);

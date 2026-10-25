@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Types;
 
@@ -5,6 +6,7 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 internal static class AmbientTypeAvailability
 {
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Prepare(
         Dictionary<string, DeclaredType> shells,
         Dictionary<string, Type> clrTypes,

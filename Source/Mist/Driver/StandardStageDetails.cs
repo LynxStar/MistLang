@@ -32,13 +32,18 @@ internal static class StandardStageDetails
         return details;
     }
 
-    public static IReadOnlyList<string> Emission(int filesWritten, string? primaryArtifactPath)
+    public static IReadOnlyList<string> Emission(int filesWritten, string? primaryArtifactPath, int runtimeAssetsDeployed = 0)
     {
         var details = new List<string> { Invariant($"{filesWritten} .cs files written") };
 
         if(primaryArtifactPath is not null)
         {
             details.Add(primaryArtifactPath);
+        }
+
+        if(runtimeAssetsDeployed > 0)
+        {
+            details.Add(Invariant($"{runtimeAssetsDeployed} runtime assets deployed"));
         }
 
         return details;

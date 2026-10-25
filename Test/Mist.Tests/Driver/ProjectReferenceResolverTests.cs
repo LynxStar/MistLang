@@ -447,4 +447,212 @@ public sealed class ProjectReferenceResolverTests
             Directory.Delete(rootDir, recursive: true);
         }
     }
+
+    // --- C# project and assembly references ---------------------------------
+
+    private static ProjectReference DirectoryRef(string name, string directory)
+    {
+        return new ProjectReference(name, Path.Combine(directory, ProjectFileParser.FileName), IsDirectory: true);
+    }
+
+    private static string CreateFiles(string parent, string name, params string[] files)
+    {
+        var directory = Path.Combine(parent, name);
+        foreach(var file in files)
+        {
+            var path = Path.Combine(directory, file);
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, file.EndsWith(ProjectFileParser.FileName, StringComparison.Ordinal) ? $"name = \"{name}\"" : "");
+        }
+
+        return directory;
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ADirectoryWithOneCSharpProject_IsAnExternalReference_IgnoringItsBuildOutput()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var bridge = CreateFiles(rootDir, "Bridge", "Bridge.csproj", "Program.cs", "bin/Debug/net10.0/Bridge.dll", "obj/Bridge.dll");
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(rootDir, [DirectoryRef("Bridge", bridge)], diagnostics);
+
+            Assert.False(diagnostics.HasErrors);
+            Assert.Empty(result.Projects);
+            var external = Assert.Single(result.ExternalReferences);
+            Assert.Equal(
+                new ExternalReference("Bridge", Path.Combine(bridge, "Bridge.csproj"), ReferenceKind.CSharpProject, Path.Combine(rootDir, ProjectFileParser.FileName)),
+                external);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ADirectoryWithOneMistToml_IsAMistProjectAsBefore()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var lib = CreateFiles(rootDir, "Lib", "mist.toml", "Lib.mist");
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(rootDir, [DirectoryRef("Lib", lib)], diagnostics);
+
+            Assert.False(diagnostics.HasErrors);
+            Assert.Empty(result.ExternalReferences);
+            Assert.Equal(Path.Combine(lib, ProjectFileParser.FileName), Assert.Single(result.Projects).CanonicalTomlPath);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ADirectoryWithNoCandidate_SaysWhatItLacks()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var empty = CreateFiles(rootDir, "Empty", "README.md", "bin/Empty.dll");
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(rootDir, [DirectoryRef("Empty", empty)], diagnostics);
+
+            var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+            Assert.Equal("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE", diagnostic.Id.Value);
+            Assert.Equal($"Referenced directory '{empty}' holds no mist.toml, .csproj or .dll.", diagnostic.Message);
+            Assert.Empty(result.Projects);
+            Assert.Empty(result.ExternalReferences);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void ADirectoryWithTwoCandidates_IsAmbiguousAtTheReferencingManifest()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var both = CreateFiles(rootDir, "Both", "mist.toml", "Both.csproj");
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(rootDir, [DirectoryRef("Both", both)], diagnostics);
+
+            var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+            Assert.Equal(DriverDiagnostics.ReferenceAmbiguous.Id, diagnostic.Id);
+            Assert.Equal(Path.Combine(rootDir, ProjectFileParser.FileName), diagnostic.CompilationUnitPath);
+            Assert.Equal(
+                $"Reference 'Both' names directory '{both}', which holds more than one referenceable file: Both.csproj, mist.toml. Name the intended file in 'path'.",
+                diagnostic.Message);
+            Assert.Empty(result.Projects);
+            Assert.Empty(result.ExternalReferences);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AnAssemblyWhoseFileNameDiffersFromItsKey_IsANameMismatch()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var widgets = Path.Combine(CreateFiles(rootDir, "libs", "Widgets.dll"), "Widgets.dll");
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(
+                rootDir, [new ProjectReference("Gadgets", widgets, ReferenceKind.Assembly)], diagnostics);
+
+            var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+            Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Id, diagnostic.Id);
+            Assert.Equal($"Reference key 'Gadgets' does not match 'Widgets', the name the assembly '{widgets}' produces.", diagnostic.Message);
+            Assert.Empty(result.ExternalReferences);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData(ReferenceKind.CSharpProject, "Missing.csproj")]
+    [InlineData(ReferenceKind.Assembly, "Missing.dll")]
+    public void ANamedFileThatDoesNotExist_IsReportedWithItsKey(ReferenceKind kind, string fileName)
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            WriteToml(rootDir, """name = "Root" """);
+            var missing = Path.Combine(rootDir, "nowhere", fileName);
+
+            var diagnostics = new DiagnosticBag();
+            _ = ProjectReferenceResolver.ResolveAll(rootDir, [new ProjectReference("Missing", missing, kind)], diagnostics);
+
+            var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+            Assert.Equal(DriverDiagnostics.ReferenceFileNotFound.Id, diagnostic.Id);
+            Assert.Equal($"Reference 'Missing' names '{missing}', which does not exist.", diagnostic.Message);
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Tier", "3")]
+    public void AReferencedMistProjectsCSharpReferences_PrecedeTheRoots()
+    {
+        var rootDir = CreateTempDir();
+        try
+        {
+            var rootBridge = Path.Combine(CreateFiles(rootDir, "RootBridge", "RootBridge.csproj"), "RootBridge.csproj");
+            var libBridge = Path.Combine(CreateFiles(rootDir, "LibBridge", "LibBridge.csproj"), "LibBridge.csproj");
+            var lib = CreateFiles(rootDir, "Lib", "Lib.mist");
+            WriteToml(lib, """
+                name = "Lib"
+
+                [references]
+                LibBridge = { path = "../LibBridge/LibBridge.csproj" }
+                """);
+            WriteToml(rootDir, """name = "Root" """);
+
+            var diagnostics = new DiagnosticBag();
+            var result = ProjectReferenceResolver.ResolveAll(
+                rootDir,
+                [new ProjectReference("RootBridge", rootBridge, ReferenceKind.CSharpProject), DirectoryRef("Lib", lib)],
+                diagnostics);
+
+            Assert.False(diagnostics.HasErrors);
+            Assert.Equal([libBridge, rootBridge], result.ExternalReferences.Select(reference => reference.Path));
+            Assert.Equal(
+                [Path.Combine(lib, ProjectFileParser.FileName), Path.Combine(rootDir, ProjectFileParser.FileName)],
+                result.ExternalReferences.Select(reference => reference.DeclaringManifestPath));
+        }
+        finally
+        {
+            Directory.Delete(rootDir, recursive: true);
+        }
+    }
 }

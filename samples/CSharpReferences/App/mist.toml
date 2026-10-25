@@ -1,0 +1,5 @@
+name = "App"
+
+[references]
+"Lib" = { path = "../Lib" }
+"Bridge" = { path = "../Bridge" }

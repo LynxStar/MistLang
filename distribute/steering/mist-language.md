@@ -1,4 +1,4 @@
-<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own steering files; any file containing it is treated as Mist-managed and may be deleted. -->
+<!-- MIST-MANAGED-STEERING: installed by `mist steering`. Do not edit — this file is overwritten on every reinstall. Do not add this marker to your own files; any file containing it is treated as Mist-managed and may be deleted. -->
 
 # Mist Language Reference
 
@@ -23,17 +23,9 @@ public class Player
 }
 ```
 
-## Companion Steering Files
+## Companion References
 
-This file is always loaded. Deeper references live in separate manual-inclusion files in `.kiro/steering/`. Pull the relevant one into context (the user can reference it with `#`, or you can read the file directly) when a task touches its topic:
-
-| File | Read it when the task involves… |
-|------|----------------------------------|
-| `#mist-ownership` | `owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`, or `linear`/`affine`/`relevant` drop semantics |
-| `#mist-advanced-features` | abstract types, default implementations, `with` blocks (retroactive conformance), structured context (`with` clauses), refinement types, dependent types, associated types, extension blocks |
-| `#mist-interop` | adding NuGet packages, framework references, consuming C#/.NET types, named delegate types, delegate-func conversion, `mist inspect`, `mist restore`, or diagnosing dependency resolution |
-| `#mist-testing` | setting up test projects, writing `[Fact]`/`[Theory]` methods, `mist test` workflow, xUnit packages |
-| `#mist-gitignore` | setting up version control — what Mist generates and what to ignore |
+The other references sit beside this file in `.mist/agents/`. The Mist block in the project's AGENTS.md lists them and when to read each.
 
 ## Project Model
 
@@ -60,7 +52,7 @@ Newtonsoft.Json = "13.0.3"  # NuGet deps — exact versions, no ranges
 
 - Namespace is inferred from directory structure: `Models/Player.mist` → `{namespace_root}.Models`.
 - `Standard` is Mist's core namespace (the equivalent of `System`): `using Standard;` gives you `Console`, `List<T>`, etc.
-- `[packages]` adds NuGet dependencies (the equivalent of `<PackageReference>`); `[framework_references]` enables shared frameworks like ASP.NET Core. All .NET SDK types are available without any declaration. For consuming C#/.NET, see `#mist-interop`.
+- `[packages]` adds NuGet dependencies (the equivalent of `<PackageReference>`); `[framework_references]` enables shared frameworks like ASP.NET Core. All .NET SDK types are available without any declaration. For consuming C#/.NET, see `mist-interop.md`.
 - `output_type` controls the kind of project emitted. Valid values: `"executable"` (default when absent) produces an .exe and requires a Main entry point; `"library"` produces a .dll with no Main required. Library projects cannot have top-level statements. `mist run` only works on executable projects.
 
 CLI:
@@ -113,7 +105,7 @@ func<int, int, int> add = (a, b) => a + b;
 
 Lambdas, captures, method-group conversion, and `static` lambdas all behave as in C#. (`Action<T>` and `Func<...>` also exist as aliases if you prefer.)
 
-Named CLR delegates (e.g., `Predicate<T>`, `RequestDelegate`, `Comparison<T>`) are **not** collapsed to `func<...>`. They are preserved as distinct types with their CLR identity intact. A `func<...>` value or lambda is implicitly convertible to a signature-compatible named delegate, and a named delegate value is implicitly convertible back to its equivalent `func<...>` type. Two distinct named delegates are not convertible to each other, even when their signatures match. For full details, see `#mist-interop`.
+Named CLR delegates (e.g., `Predicate<T>`, `RequestDelegate`, `Comparison<T>`) are **not** collapsed to `func<...>`. They are preserved as distinct types with their CLR identity intact. A `func<...>` value or lambda is implicitly convertible to a signature-compatible named delegate, and a named delegate value is implicitly convertible back to its equivalent `func<...>` type. Two distinct named delegates are not convertible to each other, even when their signatures match. For full details, see `mist-interop.md`.
 
 ## Type Unions
 
@@ -151,7 +143,7 @@ if (input is AdultAge valid) { } // runtime validated
 int sum = age + 5;               // arithmetic widens back to the base type (int)
 ```
 
-A narrower refinement is assignable to a wider one (`int >= 21` → `int >= 18`). See `#mist-advanced-features.md`.
+A narrower refinement is assignable to a wider one (`int >= 21` → `int >= 18`). See `mist-advanced-features.md`.
 
 ## Dependent Types
 
@@ -164,7 +156,7 @@ public class FixedBuffer<Size:int> {
 var buf = new FixedBuffer<128>();
 ```
 
-`FixedBuffer<5>` and `FixedBuffer<10>` are distinct types. Allowed value kinds: the integer types, `bool`, and `char`. See `#mist-advanced-features.md`.
+`FixedBuffer<5>` and `FixedBuffer<10>` are distinct types. Allowed value kinds: the integer types, `bool`, and `char`. See `mist-advanced-features.md`.
 
 ## Enums Have Arbitrary Underlying Types
 
@@ -301,7 +293,7 @@ regex pattern = `[0-9]+`;
 
 Mist adds opt-in systems with no C# equivalent. These are documented in detail in companion files — include them when relevant:
 
-- **Ownership** (`owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`) and **substructural/drop semantics** (`linear`/`affine`/`relevant`): see `#mist-ownership.md`.
-- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, abstract types, default implementations, `with` blocks (retroactive conformance), associated types: see `#mist-advanced-features.md`.
+- **Ownership** (`owned`/`borrowed`/`frozen`/`readonly ref`, move semantics, lending, `IClonable`) and **substructural/drop semantics** (`linear`/`affine`/`relevant`): see `mist-ownership.md`.
+- **Structured context** (implicit parameter passing via `with` clauses), refinement and dependent type details, abstract types, default implementations, `with` blocks (retroactive conformance), associated types: see `mist-advanced-features.md`.
 
 By default, bindings are unrestricted and behave like ordinary C# references — you only deal with ownership when you opt in with these keywords.

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
@@ -12,7 +13,7 @@ internal sealed partial class AmbientTypeResolver
     private AmbientTypeResolver? storageResolver;
 
     private AmbientTypeResolver(AmbientTypeResolver source)
-        : this(new Dictionary<string, DeclaredType>(source.shells), source.wellKnownTypes, source.typeInterner, new DiagnosticBag())
+        : this(new Dictionary<string, DeclaredType>(source.shells), source.wellKnownTypes, source.typeInterner, new DiagnosticBag(), source.declaredTypes)
     {
         storageResolver = this;
         unavailable.UnionWith(source.unavailable);
@@ -33,6 +34,7 @@ internal sealed partial class AmbientTypeResolver
             : resolved;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2055", Justification = MetadataOnlyReflection.Justification)]
     private MistType ConstructStorageType(Type clrType, Scope scope)
     {
         var definitionClrType = clrType.GetGenericTypeDefinition();

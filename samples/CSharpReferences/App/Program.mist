@@ -1,0 +1,15 @@
+using Standard;
+using Lib;
+using Bridge;
+
+namespace App;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var widget = new Widget();
+        widget.Name = "widget-1";
+        Console.WriteLine(Gateway.Describe(widget));
+    }
+}

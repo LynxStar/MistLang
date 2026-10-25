@@ -532,10 +532,8 @@ internal partial class Program
     {
         try
         {
-            var startInfo = new ProcessStartInfo
+            var startInfo = new ProcessStartInfo("dotnet", [artifactPath])
             {
-                FileName = "dotnet",
-                Arguments = artifactPath,
                 UseShellExecute = false,
             };
 

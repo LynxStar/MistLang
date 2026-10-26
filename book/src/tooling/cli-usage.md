@@ -80,7 +80,8 @@ All six controls apply to `build`, `run`, `test`, `inspect` and `restore`. Lex m
 format, file and minimum severity only; `steering` and `version` accept none.
 JSON is one buffered document on stderr, completed before a run or test child starts.
 With `--diagnostic-file`, JSON goes to that UTF-8 file and stderr keeps text diagnostics.
-Program and test-runner output remains separate. JSON includes hidden diagnostics with
+Program and test-runner output remains separate. If the host fails after completing the document,
+it reports one text ICE on stderr and exits 1; the completed document is not rewritten. JSON includes hidden diagnostics with
 `visible: false`. Consumers must ignore unknown keys; additive schema changes raise the
 minor version, and removals or changed meanings raise the major version.
 

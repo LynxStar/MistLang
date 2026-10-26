@@ -428,5 +428,6 @@ internal static class TextFreezeTable
         ["ProgramModelDiagnostics.SpreadValueParameter"] = "'arg0' uses a spread suffix in a value-parameter declaration. Declare a value pack with 'params' instead: 'params TArgs arg0'.",
         ["ProgramModelDiagnostics.SpreadNonPackArgument"] = "'arg0...' cannot fill a fixed type-argument slot of 'arg1'. A symbolic spread requires a pack slot that accepts every permitted width.",
         ["HostDiagnostics.InvalidDiagnosticControl"] = "arg0",
+        ["HostDiagnostics.UnhandledException"] = "Internal compiler error: arg0. This is a compiler bug; please report it with the program that caused it.",
     };
 }

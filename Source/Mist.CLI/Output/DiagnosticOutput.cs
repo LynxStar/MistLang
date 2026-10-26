@@ -18,6 +18,7 @@ public sealed class DiagnosticOutput(
     private readonly HashSet<int> written = [];
     private readonly List<Diagnostic> diagnostics = [];
     private bool completed;
+    private bool fileFailed;
 
     public DiagnosticOperation Operation { get; } = new();
 
@@ -51,6 +52,16 @@ public sealed class DiagnosticOutput(
         WriteText(diagnostic);
     }
 
+    public void ReportHostFailure(Diagnostic diagnostic)
+    {
+        Collect([diagnostic]);
+        // A completed document cannot be amended after child launch; late host failures use stderr text.
+        if(completed && written.Add(diagnostic.Ordinal))
+        {
+            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        }
+    }
+
     public void Complete(bool succeeded, ImmutableArray<NativeDiagnostic> native = default, string? outcome = null)
     {
         if(completed)
@@ -63,14 +74,16 @@ public sealed class DiagnosticOutput(
             WriteText(diagnostic);
         }
 
-        if(format == DiagnosticFormat.Json || documentFile is not null)
+        if(!fileFailed && (format == DiagnosticFormat.Json || documentFile is not null))
         {
             var document = new DiagnosticDocument("mist 0.318.0", command, project,
                 outcome ?? (succeeded && !HasErrors ? "succeeded" : "failed"), [.. diagnostics], native.IsDefault ? [] : native, minimum);
             var bytes = DiagnosticJsonWriter.Serialize(document);
             if(documentFile is not null)
             {
+                fileFailed = true;
                 documentFile(bytes);
+                fileFailed = false;
             }
             else
             {

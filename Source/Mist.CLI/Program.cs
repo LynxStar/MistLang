@@ -16,8 +16,8 @@ internal partial class Program
 {
     private static int Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
-        return CliHost.Run(args, Dispatch, Console.Error);
+        return CliHost.Run(args, Dispatch, Console.Error,
+            initialize: () => Console.OutputEncoding = System.Text.Encoding.UTF8);
     }
 
     private static int Dispatch(CliArguments cliArgs, DiagnosticOutput output)

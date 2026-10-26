@@ -25,8 +25,9 @@ public sealed class CommandOutputSeamTests
                 listener.Receive(bag.Admitted[0]);
                 Assert.Equal("", stderr.ToString());
                 return new CompilerResult(true, "artifact", bag.ToImmutableArray());
-            }, Stopwatch.StartNew(), _ =>
+            }, Stopwatch.StartNew(), result =>
             {
+                Assert.Equal("artifact", result.PrimaryOutputArtifactPath);
                 using var json = JsonDocument.Parse(stderr.ToString());
                 Assert.Equal(command, json.RootElement.GetProperty("command").GetString());
                 _ = Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());

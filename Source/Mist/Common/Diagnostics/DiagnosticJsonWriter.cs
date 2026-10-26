@@ -132,7 +132,7 @@ public static partial class DiagnosticJsonWriter
             case NameValue name: writer.WriteStringValue(name.Name); break;
             case PathValue path: writer.WriteStringValue(path.Path); break;
             case TextValue text: writer.WriteStringValue(text.Text); break;
-            case EnumValue token: writer.WriteStringValue(token.Token); break;
+            case EnumValue token: writer.WriteStringValue(JsonNamingPolicy.CamelCase.ConvertName(token.Token)); break;
             case QuantityValue quantity: writer.WriteNumberValue(quantity.Value); break;
             case BooleanValue boolean: writer.WriteBooleanValue(boolean.Value); break;
             case TypeValue type: WriteIdentity(writer, type.Spelling, type.Identity); break;

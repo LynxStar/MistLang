@@ -51,11 +51,12 @@ public sealed class DiagnosticOutputTests
         var output = new DiagnosticOutput(error, DiagnosticFormat.Json);
         var bag = new DiagnosticBag(output.Operation);
         bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9001", "warning", DiagnosticSeverity.Warning), new Absent(AbsenceReason.TestOrigin));
-        output.Stream(bag.Admitted[0]);
+        bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9002", "second", DiagnosticSeverity.Warning), new Absent(AbsenceReason.TestOrigin));
+        output.Stream(bag.Admitted[1]);
         Assert.Equal("", error.ToString());
-        output.Collect(bag.Admitted);
+        output.CollectResult(bag.Admitted);
         output.Complete(true);
         using var json = JsonDocument.Parse(error.ToString());
-        _ = Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());
+        Assert.Equal([1, 2], json.RootElement.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("ordinal").GetInt32()));
     }
 }

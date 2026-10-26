@@ -48,7 +48,7 @@ public sealed class DiagnosticJsonWriterTests
         var bag = new DiagnosticBag();
         bag.Admit(DiagnosticFactory.Create(descriptor, location, PipelineStage.SemanticModelConstruction,
             [new NameValue("name"), new TypeValue("Standard.Int32", "int"), new SymbolValue("Owner.Member", "Member"), new PathValue("path"),
-             new QuantityValue(42), new BooleanValue(true), new EnumValue("someToken"), new TextValue("upstream"),
+             new QuantityValue(42), new BooleanValue(true), new EnumValue("SomeToken"), new TextValue("upstream"),
              new SequenceValue(SlotKind.Text, [new TextValue("one"), new TextValue("two")]),
              new OptionalValue(SlotKind.Name, null), new OptionalValue(SlotKind.Name, new NameValue("present"))],
             related: [new RelatedLocation(RelatedRole.PreviousDeclaration, new FileOnly("other.mist"))],

@@ -23,7 +23,7 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
     public static readonly LifetimePlan Empty = new(new Dictionary<LocalVariable, LocalDeclarationStatement>());
 
     private readonly HashSet<object> covered = new(ReferenceEqualityComparer.Instance);
-    private readonly HashSet<object> automatic = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> automatic = new(declarations.Keys.Where(local => LocalLifetimes.IsTracked(local.Type)), ReferenceEqualityComparer.Instance);
     private readonly HashSet<object> owed = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<object> changing = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Expression, List<LifetimeMark>> marks = new(ReferenceEqualityComparer.Instance);

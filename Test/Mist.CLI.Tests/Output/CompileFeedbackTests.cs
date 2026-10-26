@@ -12,6 +12,7 @@ namespace Mist.CLI.Tests.Output;
 [Trait("Tier", "2")]
 public sealed class CompileFeedbackTests
 {
+    private static readonly DiagnosticBag Admissions = new();
     private static readonly Diagnostic PackageA = Error("MIST0036", "Package 'A' version 'x' could not be found.");
     private static readonly Diagnostic PackageB = Error("MIST0036", "Package 'B' version 'y' could not be found.");
     private static readonly Diagnostic Framework = Error("MIST0035", "Framework reference 'C' is not a known shared framework.");
@@ -24,7 +25,7 @@ public sealed class CompileFeedbackTests
         var progress = new ConsoleProgressReporter(console);
         var launched = false;
 
-        var exit = new CompileFeedback(progress, console).Run(
+        var exit = new CompileFeedback(progress, new DiagnosticOutput(console)).Run(
             listener =>
             {
                 listener.Receive(PackageA);
@@ -51,7 +52,7 @@ public sealed class CompileFeedbackTests
         using var error = new StringWriter();
         var launched = false;
 
-        var exit = new CompileFeedback(new ConsoleProgressReporter(output), error).Run(
+        var exit = new CompileFeedback(new ConsoleProgressReporter(output), new DiagnosticOutput(error)).Run(
             listener =>
             {
                 listener.Receive(PackageA);
@@ -73,9 +74,9 @@ public sealed class CompileFeedbackTests
     public void AnEqualDiagnosticThatWasNotTheDeliveredInstanceIsStillWritten()
     {
         using var error = new StringWriter();
-        var copy = PackageA with { };
+        var copy = Error(PackageA.Number.Value, PackageA.Message);
 
-        _ = new CompileFeedback(NullProgressReporter.Instance, error).Run(
+        _ = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error)).Run(
             listener =>
             {
                 listener.Receive(PackageA);
@@ -91,9 +92,9 @@ public sealed class CompileFeedbackTests
     public void TwoEqualDiagnosticsDeliveredAreEachWrittenOnce()
     {
         using var error = new StringWriter();
-        var copy = PackageA with { };
+        var copy = Error(PackageA.Number.Value, PackageA.Message);
 
-        _ = new CompileFeedback(NullProgressReporter.Instance, error).Run(
+        _ = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error)).Run(
             listener =>
             {
                 listener.Receive(PackageA);
@@ -112,7 +113,7 @@ public sealed class CompileFeedbackTests
         using var error = new StringWriter();
         var launched = false;
 
-        var exit = new CompileFeedback(NullProgressReporter.Instance, error).Run(
+        var exit = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error)).Run(
             listener =>
             {
                 listener.Receive(PackageA);
@@ -135,7 +136,7 @@ public sealed class CompileFeedbackTests
         var built = new CompilerResult(true, "bin/Probe.dll", [warning]);
         CompilerResult? handedOn = null;
 
-        var exit = new CompileFeedback(new ConsoleProgressReporter(output), error).Run(
+        var exit = new CompileFeedback(new ConsoleProgressReporter(output), new DiagnosticOutput(error)).Run(
             _ => built,
             Stopwatch.StartNew(),
             result =>
@@ -156,7 +157,7 @@ public sealed class CompileFeedbackTests
         using var error = new StringWriter();
         var warning = Warning(PackageA.Number.Value, PackageA.Message, PackageA.Location.Path ?? "");
 
-        var exit = new CompileFeedback(NullProgressReporter.Instance, error).Run(
+        var exit = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error)).Run(
             listener =>
             {
                 listener.Receive(warning);
@@ -176,7 +177,7 @@ public sealed class CompileFeedbackTests
         var configuration = Error("TEST_TOML_PARSE", "mist.toml could not be parsed.", "mist.toml");
         var launched = false;
 
-        var exit = new CompileFeedback(NullProgressReporter.Instance, error).Run(
+        var exit = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error)).Run(
             _ => Failed(configuration),
             Stopwatch.StartNew(),
             _ => Launch(ref launched));
@@ -190,11 +191,11 @@ public sealed class CompileFeedbackTests
     public void EachRunWritesWhatItsOwnCompileReported_Once()
     {
         using var error = new StringWriter();
-        var feedback = new CompileFeedback(NullProgressReporter.Instance, error);
 
         for(var run = 0; run < 2; run++)
         {
-            var failure = PackageA with { };
+            var failure = Error(PackageA.Number.Value, PackageA.Message);
+            var feedback = new CompileFeedback(NullProgressReporter.Instance, new DiagnosticOutput(error));
             _ = feedback.Run(
                 listener =>
                 {
@@ -231,11 +232,15 @@ public sealed class CompileFeedbackTests
 
     private static Diagnostic Error(string id, string message, string path = "")
     {
-        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, path, null);
+        var diagnostic = DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error, PipelineStage.Driver, message, default, path, null);
+        Admissions.Add(diagnostic);
+        return diagnostic;
     }
 
     private static Diagnostic Warning(string id, string message, string path = "")
     {
-        return DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Warning, PipelineStage.Driver, message, default, path, null);
+        var diagnostic = DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Warning, PipelineStage.Driver, message, default, path, null);
+        Admissions.Add(diagnostic);
+        return diagnostic;
     }
 }

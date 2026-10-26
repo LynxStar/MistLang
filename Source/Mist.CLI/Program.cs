@@ -289,7 +289,7 @@ internal partial class Program
         Stopwatch totalStopwatch,
         Func<CompilerResult, int> afterSuccess)
     {
-        return new CompileFeedback(reporter, Console.Error).Run(
+        return new CompileFeedback(reporter, new DiagnosticOutput(Console.Error)).Run(
             listener => CompileProject(sourceFiles, cliArgs, reporter, listener),
             totalStopwatch,
             afterSuccess);

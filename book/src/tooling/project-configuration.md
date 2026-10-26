@@ -242,7 +242,7 @@ The optional `[diagnostics]` table sets the project's diagnostic policy. Policy 
 
 | Key | Type | Meaning |
 |-----|------|---------|
-| `warnings_as_errors` | Boolean or array of strings | `true` raises every warning to an error. An array raises only the listed diagnostic numbers, which may include diagnostics that default to a note. |
+| `warnings_as_errors` | Boolean or array of strings | `true` raises every promotable diagnostic, warning or note, to an error. An array raises only the listed diagnostic numbers, and may name notes as well as warnings. |
 | `disable` | Array of strings | Optional rules that do not run for this project. |
 | `enable` | Array of strings | Optional rules that are off by default and run for this project. |
 
@@ -259,7 +259,7 @@ disable = ["MIST0148"]
 warnings_as_errors = ["MIST0082"]
 ```
 
-A promoted warning fails the build exactly where an error would, and the build summary counts it as an error.
+A promoted warning or note fails the build exactly where an error would, and the build summary counts it as an error.
 
 ### Error Behavior
 

@@ -13,6 +13,8 @@ public sealed class DiagnosticOperation
 
     public DiagnosticPolicy Policy { get; set; } = DiagnosticPolicy.Default;
 
+    public DiagnosticPolicyOverrides Overrides { get; set; } = new();
+
     internal int Next()
     {
         return Interlocked.Increment(ref admitted);

@@ -13,6 +13,8 @@ public sealed record DiagnosticPolicy(
     ImmutableHashSet<DiagnosticNumber> Disabled,
     ImmutableHashSet<DiagnosticNumber> Enabled)
 {
+    public string PromotionSource { get; init; } = "mist.toml";
+
     public static readonly DiagnosticPolicy Default = new(false, [], [], []);
 
     public bool IsEnabled(MistDiagnostic descriptor)

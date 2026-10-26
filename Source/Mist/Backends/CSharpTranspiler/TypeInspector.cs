@@ -18,9 +18,11 @@ public static class TypeInspector
         string targetFramework,
         ImmutableArray<string> additionalAssemblyPaths,
         string typeName,
-        TextWriter output)
+        TextWriter output,
+        DiagnosticOperation? operation = null,
+        Action<Diagnostic>? report = null)
     {
-        return Inspect(targetFramework, additionalAssemblyPaths, typeName, output, Console.Error);
+        return Inspect(targetFramework, additionalAssemblyPaths, typeName, output, Console.Error, operation, report);
     }
 
     internal static int Inspect(
@@ -28,7 +30,9 @@ public static class TypeInspector
         ImmutableArray<string> additionalAssemblyPaths,
         string typeName,
         TextWriter output,
-        TextWriter error)
+        TextWriter error,
+        DiagnosticOperation? operation = null,
+        Action<Diagnostic>? report = null)
     {
         if(typeName.LastIndexOf('.') <= 0)
         {
@@ -36,14 +40,21 @@ public static class TypeInspector
             return 1;
         }
 
-        var diagnostics = new DiagnosticBag();
+        var diagnostics = new DiagnosticBag(operation ?? new DiagnosticOperation());
         using var provider = AmbientTypeProviderV2Factory.Create(targetFramework, additionalAssemblyPaths, diagnostics);
 
         if(diagnostics.HasErrors || !ProjectBesideStandard(provider, diagnostics))
         {
             foreach(var diagnostic in diagnostics.ToImmutableArray().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
             {
-                error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+                if(report is null)
+                {
+                    error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+                }
+                else
+                {
+                    report(diagnostic);
+                }
             }
 
             return 1;

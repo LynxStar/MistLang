@@ -8,7 +8,7 @@ using Mist.Driver.Contracts;
 
 internal partial class Program
 {
-    private static int RunTestCommand(CliArguments cliArgs)
+    private static int RunTestCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
         // For `test`, timing/progress output is hidden by default (clean stdout for test output).
         // Use --verbose to see it. --quiet still suppresses everything.
@@ -23,7 +23,7 @@ internal partial class Program
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => RunBuiltTests(sourceFiles, cliArgs));
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, _ => RunBuiltTests(sourceFiles, cliArgs));
     }
 
     private static int RunBuiltTests(IReadOnlyList<string> sourceFiles, CliArguments cliArgs)
@@ -55,8 +55,6 @@ internal partial class Program
                 FileName = "dotnet",
                 Arguments = $"test \"{csprojPath}\"",
                 UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
             };
 
             var process = Process.Start(startInfo);
@@ -66,26 +64,7 @@ internal partial class Program
                 return 1;
             }
 
-            // Stream stdout and stderr in real time using async reads
-            var stdoutTask = Task.Run(() =>
-            {
-                while(process.StandardOutput.ReadLine() is { } line)
-                {
-                    Console.WriteLine(line);
-                }
-            });
-
-            var stderrTask = Task.Run(() =>
-            {
-                while(process.StandardError.ReadLine() is { } line)
-                {
-                    Console.Error.WriteLine(line);
-                }
-            });
-
             process.WaitForExit();
-            stdoutTask.Wait();
-            stderrTask.Wait();
 
             return process.ExitCode;
         }

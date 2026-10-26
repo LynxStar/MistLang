@@ -67,7 +67,22 @@ Progress goes to stdout. Diagnostics go to stderr, one per line, as `path(line,c
 | `build` | Stages 0–6 and the summary; Stage 1.5 is silent unless something fails | Adds the Stage 1.5 detail | No progress and no summary |
 | `run`, `test` | No progress, so stdout belongs to the program or the test runner | Stages 0–6, Stage 1.5 detail and the summary | Same as the default |
 
-No flag hides a diagnostic. Most diagnostics are printed after the summary. A dependency failure is the exception: a package or framework reference that fails to resolve is printed as soon as Stage 1.5 ends, before Stage 2 begins, and is not repeated after the summary, though the summary counts it. Compilation still runs through analysis, so errors in your source are reported in the same run, and then fails before anything is emitted. [.NET Interop](../advanced/dotnet-interop.md#when-a-dependency-fails) shows an example.
+No option hides an error. `--min-severity` can hide warnings and notes while the summary still counts them. Most diagnostics are printed after the summary. A dependency failure is the exception: a package or framework reference that fails to resolve is printed as soon as Stage 1.5 ends, before Stage 2 begins, and is not repeated after the summary, though the summary counts it. Compilation still runs through analysis, so errors in your source are reported in the same run, and then fails before anything is emitted. [.NET Interop](../advanced/dotnet-interop.md#when-a-dependency-fails) shows an example.
+
+Diagnostic controls: `--diagnostic-format text|json` (default `text`),
+`--diagnostic-file <path>`, `--min-severity info|warning|error` (default `info`),
+`--warnings-as-errors [Number,...]`, `--disable <Number,...>` and `--enable <Number,...>`.
+Bare `--warnings-as-errors` promotes every Promotable diagnostic, including notes; a list
+selects which non-Fixed diagnostics to promote. Disable and enable apply only to Optional
+rules. CLI policy overrides the manifest. Unknown numbers and invalid values fail before execution.
+
+All six controls apply to `build`, `run`, `test`, `inspect` and `restore`. Lex mode accepts
+format, file and minimum severity only; `steering` and `version` accept none.
+JSON is one buffered document on stderr, completed before a run or test child starts.
+With `--diagnostic-file`, JSON goes to that UTF-8 file and stderr keeps text diagnostics.
+Program and test-runner output remains separate. JSON includes hidden diagnostics with
+`visible: false`. Consumers must ignore unknown keys; additive schema changes raise the
+minor version, and removals or changed meanings raise the major version.
 
 ## Positional Argument
 

@@ -10,7 +10,7 @@ public sealed record CliParseError(string Message);
 /// <summary>
 /// Result of CLI argument parsing.
 /// </summary>
-public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors);
+public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors, DiagnosticControls? Diagnostics = null, string? DiagnosticError = null);
 
 /// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
@@ -19,6 +19,21 @@ public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliPa
 public static class CliArgumentParser
 {
     public static CliParseResult Parse(string[] args)
+    {
+        var controls = DiagnosticControlParser.Parse(args);
+        var result = ParseCore([.. controls.Remaining]);
+        var command = result.Arguments?.Command ?? CliCommand.Build;
+        var mode = result.Arguments?.Mode ?? CompilerMode.Compile;
+        var error = DiagnosticControlParser.ValidateCommand(controls, command, mode);
+        return result with
+        {
+            Arguments = result.Arguments is { } arguments ? arguments with { Diagnostics = controls.Controls } : null,
+            Diagnostics = controls.Controls,
+            DiagnosticError = error,
+        };
+    }
+
+    private static CliParseResult ParseCore(string[] args)
     {
         var positionalArgs = new List<string>();
         var errors = new List<CliParseError>();

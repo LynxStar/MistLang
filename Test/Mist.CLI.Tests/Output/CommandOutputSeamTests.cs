@@ -29,7 +29,7 @@ public sealed class CommandOutputSeamTests
             {
                 using var json = JsonDocument.Parse(stderr.ToString());
                 Assert.Equal(command, json.RootElement.GetProperty("command").GetString());
-                Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());
+                _ = Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());
                 stdout.Write("child stdout");
                 stderr.Write("child stderr");
                 return 7;
@@ -55,7 +55,7 @@ public sealed class CommandOutputSeamTests
             var bytes = File.ReadAllBytes(path);
             Assert.Equal((byte)'{', bytes[0]);
             using var json = JsonDocument.Parse(bytes);
-            Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());
+            _ = Assert.Single(json.RootElement.GetProperty("diagnostics").EnumerateArray());
             Assert.Contains("warning MIST9001", stderr.ToString());
             Assert.DoesNotContain("schemaVersion", stderr.ToString());
             Assert.Contains("Build succeeded", stdout.ToString());

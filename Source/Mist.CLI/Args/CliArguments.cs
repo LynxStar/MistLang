@@ -40,7 +40,8 @@ public sealed record CliArguments(
     string? InspectTypeName = null,
     string Pipeline = "standard",
     TargetPlatform? Platform = null,
-    string? RuntimeIdentifier = null);
+    string? RuntimeIdentifier = null,
+    DiagnosticControls? Diagnostics = null);
 
 /// <summary>
 /// The compiler execution mode.

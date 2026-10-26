@@ -17,7 +17,7 @@ public sealed class CompileFeedback(ICompilationProgressReporter progress, Diagn
         Func<CompilerResult, int> afterSuccess)
     {
         var result = compile(this);
-        output.Collect(result.Diagnostics);
+        output.CollectResult(result.Diagnostics);
         var succeeded = result.Succeeded && !output.HasErrors;
         total.Stop();
         var counts = output.Counts;

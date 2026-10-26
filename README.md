@@ -34,12 +34,27 @@ mist inspect <TypeName> [project-folder] [options]
 | `--verbose`, `-v` | Off | Show every stage's progress, including Stage 1.5 package-resolution detail. |
 | `--quiet`, `-q` | Off | Suppress progress output. |
 
+Diagnostic controls: `--diagnostic-format text|json` (default `text`),
+`--diagnostic-file <path>`, `--min-severity info|warning|error` (default `info`),
+`--warnings-as-errors [Number,...]`, `--disable <Number,...>` and `--enable <Number,...>`.
+Bare `--warnings-as-errors` promotes every Promotable diagnostic, including notes; a list
+selects which non-Fixed diagnostics to promote. Disable and enable apply only to Optional
+rules. CLI policy overrides the manifest. Unknown numbers and invalid values fail before execution.
+
+All six controls apply to `build`, `run`, `test`, `inspect` and `restore`. Lex mode accepts
+format, file and minimum severity only; `steering` and `version` accept none.
+JSON is one buffered document on stderr, completed before a run or test child starts.
+With `--diagnostic-file`, JSON goes to that UTF-8 file and stderr keeps text diagnostics.
+Program and test-runner output remains separate. JSON includes hidden diagnostics with
+`visible: false`. Consumers must ignore unknown keys; additive schema changes raise the
+minor version, and removals or changed meanings raise the major version.
+
 > `--mode lex` is not compatible with the `run` or `test` commands, and `--verbose` and `--quiet` cannot be combined.
 
 ### Output
 
 Progress goes to stdout and diagnostics to stderr. `build` shows stage progress by default; `run` and
-`test` show it only with `--verbose`, leaving stdout to the program. No option hides a diagnostic. A
+`test` show it only with `--verbose`, leaving stdout to the program. No option hides an error. `--min-severity` can hide warnings and notes while the summary still counts them. A
 package or framework reference that fails to resolve is reported as Stage 1.5 ends, before lexing, and
 is not repeated with the diagnostics printed after the summary; compilation still runs through analysis
 and then fails. See [CLI Usage](book/src/tooling/cli-usage.md) in the book for details.

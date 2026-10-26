@@ -1,11 +1,5 @@
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Computes the effective severity of an occurrence once, at admission, from its descriptor's
-/// default and the operation's policy, and says why it changed when it did. Severity only ever
-/// rises: a Fixed descriptor keeps its default, and a warning becomes an error when its number or
-/// every warning is promoted.
-/// </summary>
 public static class SeverityPolicy
 {
     public static (DiagnosticSeverity Effective, string? Reason) Apply(MistDiagnostic descriptor, DiagnosticPolicy policy)
@@ -17,12 +11,12 @@ public static class SeverityPolicy
 
         if(policy.Promoted.Contains(descriptor.Number))
         {
-            return (DiagnosticSeverity.Error, $"promoted to an error by warnings_as_errors naming {descriptor.Number.Value} in mist.toml");
+            return (DiagnosticSeverity.Error, $"promoted to an error by warnings_as_errors naming {descriptor.Number.Value} in {policy.PromotionSource}");
         }
 
-        if(policy.PromoteAllWarnings && descriptor.DefaultSeverity == DiagnosticSeverity.Warning)
+        if(policy.PromoteAllWarnings)
         {
-            return (DiagnosticSeverity.Error, "promoted to an error by warnings_as_errors = true in mist.toml");
+            return (DiagnosticSeverity.Error, $"promoted to an error by warnings_as_errors = true in {policy.PromotionSource}");
         }
 
         return (descriptor.DefaultSeverity, null);

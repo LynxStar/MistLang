@@ -20,7 +20,7 @@ public sealed class SeverityPolicyTests
                 foreach(var shape in new[] { "none", "all", "listed", "other-listed" })
                 {
                     var promotable = policy != PolicyClass.Fixed;
-                    var promoted = promotable && (shape == "listed" || (shape == "all" && severity == DiagnosticSeverity.Warning));
+                    var promoted = promotable && (shape == "listed" || shape == "all");
                     data.Add(policy, severity, shape, promoted ? DiagnosticSeverity.Error : severity, promoted);
                 }
             }
@@ -76,7 +76,7 @@ public sealed class SeverityPolicyTests
     }
 
     [Fact]
-    public void HasErrorsReadsEffectiveSeverityAndAnInfoNeverCounts()
+    public void HasErrorsReadsEffectiveSeverityIncludingPromotedInfo()
     {
         var info = DiagnosticFixtures.Descriptor("FIXTURE_INFO", "note", DiagnosticSeverity.Info, policy: PolicyClass.Promotable);
         var warning = DiagnosticFixtures.Descriptor("FIXTURE_WARN", "warn", DiagnosticSeverity.Warning, policy: PolicyClass.Promotable);
@@ -85,7 +85,7 @@ public sealed class SeverityPolicyTests
 
         all.ReportAt(info, new Absent(AbsenceReason.Unavailable));
         none.ReportAt(warning, new Absent(AbsenceReason.Unavailable));
-        Assert.False(all.HasErrors);
+        Assert.True(all.HasErrors);
         Assert.False(none.HasErrors);
 
         all.ReportAt(warning, new Absent(AbsenceReason.Unavailable));

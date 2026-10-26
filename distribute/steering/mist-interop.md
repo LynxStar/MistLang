@@ -184,10 +184,10 @@ When the C# emitter encounters a func-to-named-delegate conversion at a call sit
 
 ## Build Output: Quiet by Default
 
-Builds are **quiet by default**. When packages or framework references are declared, the Package Resolution stage always runs (between Loading and Lexing), but its detail output is suppressed unless you opt in with `--verbose`. Error diagnostics (`MIST_PKG_*`, `MIST_FWREF_*`) always surface regardless of verbosity, `--quiet` included: one per failing dependency, on stderr, as soon as Stage 1.5 ends and before lexing begins. The compile still runs through analysis, so source errors are reported in the same run after the summary, which counts the dependency error without printing it again; then the build fails before emitting, and `run`/`test` launch nothing.
+Builds show **progress and a summary by default**. When packages or framework references are declared, the Package Resolution stage always runs (between Loading and Lexing), but its detail output is suppressed unless you opt in with `--verbose`. Error diagnostics (`MIST_PKG_*`, `MIST_FWREF_*`) always surface regardless of verbosity, `--quiet` included: one per failing dependency, on stderr, as soon as Stage 1.5 ends and before lexing begins. The compile still runs through analysis, so source errors are reported in the same run after the summary, which counts the dependency error without printing it again; then the build fails before emitting, and `run`/`test` launch nothing.
 
 ```bash
-mist build                 # quiet — no resolution output unless errors
+mist build                 # progress and summary; --verbose adds resolution details
 mist build --verbose       # prints Stage 1.5 header, per-package/framework detail, elapsed time
 mist run --verbose         # same for run (and test)
 ```

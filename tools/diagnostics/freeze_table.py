@@ -17,7 +17,8 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 REGISTRY = sorted(glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/Descriptors/*.cs'))) + \
-    [os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/ProgramModelDiagnostics.VariadicPositions.cs')]
+    [os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/ProgramModelDiagnostics.VariadicPositions.cs'),
+     os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/HostDiagnostics.cs')]
 OUTPUT = os.path.join(ROOT, 'Test/Mist.Tests/Common/Diagnostics/TextFreezeTable.cs')
 
 FIELD = re.compile(

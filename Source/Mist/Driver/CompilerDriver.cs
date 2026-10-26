@@ -57,7 +57,7 @@ public sealed class CompilerDriver : ICompilerDriver
             _ => throw new InvalidOperationException($"Unknown pipeline: {options.Pipeline}."),
         };
 
-        var operation = new DiagnosticOperation();
+        var operation = options.DiagnosticOperation ?? new DiagnosticOperation();
         var allDiagnostics = new DiagnosticBag(operation);
 
         if(options.Backend != BackendId.CSharp)
@@ -341,7 +341,7 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         var parseBag = new DiagnosticBag(allDiagnostics.Operation);
-        var projectConfig = ProjectFileParser.ParseRoot(options.ProjectFolder, parseBag);
+        var projectConfig = options.Configuration ?? ProjectFileParser.ParseRoot(options.ProjectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())
         {

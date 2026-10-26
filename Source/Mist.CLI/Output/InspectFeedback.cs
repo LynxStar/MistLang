@@ -8,8 +8,12 @@ namespace Mist.CLI.Output;
 /// <see cref="DiagnosticFormatter"/> text. An error withholds the report, which would describe assemblies the
 /// project does not resolve.
 /// </summary>
-public sealed class InspectFeedback(TextWriter error)
+public sealed class InspectFeedback(Action<Diagnostic> report)
 {
+    public InspectFeedback(TextWriter error) : this(diagnostic => error.WriteLine(DiagnosticFormatter.Format(diagnostic)))
+    {
+    }
+
     private int written;
 
     public bool Failed { get; private set; }
@@ -19,7 +23,7 @@ public sealed class InspectFeedback(TextWriter error)
         for(; written < reported.Length; written++)
         {
             var diagnostic = reported[written];
-            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            report(diagnostic);
             Failed |= diagnostic.Severity == DiagnosticSeverity.Error;
         }
     }

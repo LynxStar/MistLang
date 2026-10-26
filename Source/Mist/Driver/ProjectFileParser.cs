@@ -104,7 +104,7 @@ public static partial class ProjectFileParser
 
         if(root)
         {
-            diagnostics.Operation.Policy = policy;
+            diagnostics.Operation.Policy = diagnostics.Operation.Overrides.Apply(policy);
         }
 
         // 4. name field presence check

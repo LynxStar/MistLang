@@ -107,6 +107,7 @@ public static partial class DiagnosticJsonWriter
             writer.WriteStartObject();
             writer.WriteString("provider", native.Provider);
             writer.WriteString("code", native.Code);
+            writer.WriteString("severity", Token(native.NativeSeverity));
             writer.WriteEndObject();
         }
         else

@@ -36,13 +36,22 @@ public sealed class DiagnosticOutput(
         }
     }
 
+    public void CollectResult(IEnumerable<Diagnostic> occurrences)
+    {
+        var final = occurrences.DistinctBy(diagnostic => diagnostic.Ordinal).ToArray();
+        var ordinals = final.Select(diagnostic => diagnostic.Ordinal).ToHashSet();
+        _ = diagnostics.RemoveAll(diagnostic => ordinals.Contains(diagnostic.Ordinal));
+        diagnostics.AddRange(final);
+        collected.UnionWith(ordinals);
+    }
+
     public void Stream(Diagnostic diagnostic)
     {
         Collect([diagnostic]);
         WriteText(diagnostic);
     }
 
-    public void Complete(bool succeeded, ImmutableArray<NativeDiagnostic> native = default)
+    public void Complete(bool succeeded, ImmutableArray<NativeDiagnostic> native = default, string? outcome = null)
     {
         if(completed)
         {
@@ -57,7 +66,7 @@ public sealed class DiagnosticOutput(
         if(format == DiagnosticFormat.Json || documentFile is not null)
         {
             var document = new DiagnosticDocument("mist 0.318.0", command, project,
-                succeeded && !HasErrors ? "succeeded" : "failed", [.. diagnostics], native.IsDefault ? [] : native, minimum);
+                outcome ?? (succeeded && !HasErrors ? "succeeded" : "failed"), [.. diagnostics], native.IsDefault ? [] : native, minimum);
             var bytes = DiagnosticJsonWriter.Serialize(document);
             if(documentFile is not null)
             {

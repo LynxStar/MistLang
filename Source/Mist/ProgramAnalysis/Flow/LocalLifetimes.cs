@@ -343,7 +343,9 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
     {
         for(var i = 0; i < arguments.Count; i++)
         {
-            if(Source(arguments[i], state) is { } source && !Lends(parameters, i))
+            if(Source(arguments[i], state) is { } source && !Lends(parameters, i)
+                && (!IsScoped(arguments[i].Type)
+                    || (parameters is not null && i < parameters.Count && parameters[i].Modifier.Ownership == OwnershipKind.Owned)))
             {
                 yield return (source, false, Settled(arguments, i, parameters));
             }

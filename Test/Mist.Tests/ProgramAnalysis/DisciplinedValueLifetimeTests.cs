@@ -100,4 +100,25 @@ public sealed class DisciplinedValueLifetimeTests
         Assert.True(plan.NeedsFlag(source));
         Assert.Equal([new LifetimeMark(source, Owned: false, call)], plan.MarksAfter(handed));
     }
+
+    [Theory]
+    [InlineData("struct")]
+    [InlineData("ref-struct")]
+    [InlineData("constructed-struct")]
+    [InlineData("class")]
+    [Trait("Regression", "MIST-122")]
+    public void AnAffinePlainParameterPassKeepsTheExistingWithRelease(string shape)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);
+        var source = f.Local("source", type);
+        var passed = Ref(source);
+        var keep = new Method("Keep", f.Void, [new Parameter("value", type)], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };
+        var scope = With(Ref(source), HandBuiltModel.Block(Run(f.Call(keep, passed))));
+        var plan = LocalLifetimes.Plan(HandBuiltModel.Block(Declare(source, Fresh(type)), scope));
+
+        Assert.Equal((source, LifetimeRelease.AtExit), Assert.NotNull(plan.ReleaseAt(scope)));
+        Assert.Empty(plan.MarksAfter(passed));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(source));
+    }
 }

@@ -280,17 +280,6 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
                 yield return (source, false, returned);
                 break;
 
-            case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
-                foreach(var element in literal.Elements)
-                {
-                    if(Source(element, state) is { } stored)
-                    {
-                        yield return (stored, false, element);
-                    }
-                }
-
-                break;
-
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
                 foreach(var passed in Passed(invocation.Arguments, invocation.Parameters, state))
                 {

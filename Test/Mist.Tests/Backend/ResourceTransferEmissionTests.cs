@@ -44,7 +44,6 @@ public sealed class ResourceTransferEmissionTests
     [InlineData("struct", "initialize", 0)]
     [InlineData("struct", "owned-argument", 0)]
     [InlineData("struct", "owned-field", 0)]
-    [InlineData("struct", "array", 0)]
     public void AnAffineWithDoesNotReleaseWhatItsBodyConsumes(string shape, string operation, int drops)
     {
         var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);

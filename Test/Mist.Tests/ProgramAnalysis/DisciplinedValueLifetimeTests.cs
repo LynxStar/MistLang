@@ -17,7 +17,7 @@ public sealed class DisciplinedValueLifetimeTests
             var cases = new TheoryData<string, string>();
             foreach(var shape in new[] { "struct", "ref-struct", "constructed-struct", "class" })
             {
-                foreach(var operation in new[] { "initialize", "assign", "owned-argument", "owned-field", "array", "return", "drop" })
+                foreach(var operation in new[] { "initialize", "assign", "owned-argument", "owned-field", "return", "drop" })
                 {
                     cases.Add(shape, operation);
                 }

@@ -25,7 +25,7 @@ public sealed class OwnershipRefusalTests
             {
                 foreach(var discipline in new[] { SubstructuralDiscipline.Linear, SubstructuralDiscipline.Affine })
                 {
-                    foreach(var operation in new[] { "initialize", "assign", "owned-argument", "owned-receiver", "owned-field", "array", "drop" })
+                    foreach(var operation in new[] { "initialize", "assign", "owned-argument", "owned-receiver", "owned-field", "drop" })
                     {
                         cases.Add(shape, discipline, operation);
                     }
@@ -136,6 +136,42 @@ public sealed class OwnershipRefusalTests
         var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Declare(destination, LifetimeFragments.Ref(source)), LifetimeFragments.Run(f.Count(source)), LifetimeFragments.Run(f.Count(destination)));
 
         Assert.Empty(f.AnalyzeMoves(body));
+    }
+
+    [Theory]
+    [InlineData("struct", SubstructuralDiscipline.Linear, "literal", true)]
+    [InlineData("struct", SubstructuralDiscipline.Linear, "creation", true)]
+    [InlineData("struct", SubstructuralDiscipline.Affine, "literal", true)]
+    [InlineData("struct", SubstructuralDiscipline.Affine, "creation", true)]
+    [InlineData("class", SubstructuralDiscipline.Linear, "literal", true)]
+    [InlineData("class", SubstructuralDiscipline.Affine, "creation", true)]
+    [InlineData("constructed-struct", SubstructuralDiscipline.Linear, "literal", true)]
+    [InlineData("ref-struct", SubstructuralDiscipline.Linear, "literal", false)]
+    [InlineData("struct", SubstructuralDiscipline.Relevant, "literal", false)]
+    [InlineData("struct", SubstructuralDiscipline.Relevant, "creation", false)]
+    [InlineData("struct", SubstructuralDiscipline.None, "literal", false)]
+    [InlineData("class", SubstructuralDiscipline.None, "creation", false)]
+    public void AnArrayOfLinearOrAffineElementsIsRefusedAtTheArray(string shape, SubstructuralDiscipline discipline, string creation, bool refused)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type);
+        var array = f.Model.Interner.GetOrCreateConstructedType(f.Model.Type("Array<,>"), [type]);
+        Expression made = creation == "literal"
+            ? new ArrayLiteralExpression(HandBuiltModel.Node(37), type, [LifetimeFragments.Ref(source)], array)
+            : new ArrayCreationExpression(HandBuiltModel.Node(37), type, HandBuiltModel.Literal(f.Int32, 1), array);
+        var diagnostics = f.Model.Analyze(new DisciplineAnalyzer(), HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Run(made)));
+
+        if(!refused)
+        {
+            Assert.Empty(diagnostics);
+            return;
+        }
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("MIST_PA_ARRAY_ELEMENT_DISCIPLINE", diagnostic.Id.Value);
+        Assert.Contains($"cannot hold {DisciplineAnalyzer.Display(discipline)} elements", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(38, diagnostic.Location.Start.Column);
     }
 
     [Theory]

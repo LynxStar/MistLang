@@ -8,6 +8,8 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LifetimeFragments;
 
@@ -45,6 +47,33 @@ public sealed class ResourceTransferDecisionTests
     public void OwnershipTrackingDependsOnDisciplineAndReferenceOwnership(string shape, SubstructuralDiscipline discipline, OwnershipKind ownership, bool expected)
     {
         Assert.Equal(expected, OwnershipAnalyzer.Tracked(f.Local("value", f.DisciplinedValue(shape, discipline), ownership)));
+    }
+
+    public static TheoryData<string, SubstructuralDiscipline> ArrayElementCases
+    {
+        get
+        {
+            var cases = new TheoryData<string, SubstructuralDiscipline>();
+            foreach(var shape in new[] { "struct", "ref-struct", "constructed-struct", "class", "type-parameter" })
+            {
+                foreach(var discipline in Enum.GetValues<SubstructuralDiscipline>())
+                {
+                    cases.Add(shape, discipline);
+                }
+            }
+
+            return cases;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(ArrayElementCases))]
+    public void AnArrayRefusesOnlyLinearAndAffineElementsThatAreNotRefStructs(string shape, SubstructuralDiscipline discipline)
+    {
+        var element = shape == "type-parameter" ? Constrained(discipline) : f.DisciplinedValue(shape, discipline);
+        var refused = discipline is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine && shape != "ref-struct";
+
+        Assert.Equal(refused ? discipline : null, DisciplineAnalyzer.ArrayRefuses(element));
     }
 
     [Fact]
@@ -103,5 +132,24 @@ public sealed class ResourceTransferDecisionTests
 
         Assert.False(LocalLifetimes.IsTracked(ticket));
         Assert.True(LocalLifetimes.IsTracked(f.Holder));
+    }
+
+    private static TypeParameter Constrained(SubstructuralDiscipline discipline)
+    {
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        TypeParameterConstraintKind? kind = discipline switch
+        {
+            SubstructuralDiscipline.Linear => TypeParameterConstraintKind.Linear,
+            SubstructuralDiscipline.Affine => TypeParameterConstraintKind.Affine,
+            SubstructuralDiscipline.Relevant => TypeParameterConstraintKind.Relevant,
+            _ => null,
+        };
+
+        if(kind is { } constraint)
+        {
+            parameter.ConstraintsList.Add(new KeywordConstraint(constraint));
+        }
+
+        return parameter;
     }
 }

@@ -80,8 +80,6 @@ internal sealed partial class LifetimeFragments
                 return Run(new InvocationExpression(HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), value, consume.Name, Void), [], Void, consume, []));
             case "owned-field":
                 return Run(Store(new Field("Kept", source.Type, OwnershipKind.Owned, default) { DeclaringType = Sink }, value));
-            case "array":
-                return Run(new ArrayLiteralExpression(HandBuiltModel.Node(), source.Type, [value], Model.Interner.GetOrCreateConstructedType(Model.Type("Array<,>"), [source.Type])));
             case "return":
                 return Return(value);
             case "drop":

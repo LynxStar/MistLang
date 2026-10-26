@@ -568,6 +568,12 @@ public static partial class ProgramAnalysisDiagnostics
         PipelineStage.Analysis,
         "{0} type '{1}' cannot contain {2} field '{3}': {4}.");
 
+    public static readonly DiagnosticDescriptor ArrayElementDiscipline = new(
+        new DiagnosticId("MIST_PA_ARRAY_ELEMENT_DISCIPLINE"),
+        DiagnosticSeverity.Error,
+        PipelineStage.Analysis,
+        "An array cannot hold {0} elements of type '{1}': an array has no substructural discipline and cannot guarantee its elements' drops.");
+
     public static readonly DiagnosticDescriptor FieldTypeParameterUnconstrained = new(
         new DiagnosticId("MIST_PA_FIELD_TYPE_PARAMETER_UNCONSTRAINED"),
         DiagnosticSeverity.Error,

@@ -1,6 +1,8 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -13,7 +15,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// discipline already governs it, and the containment matrix -- a linear container holds anything, an
 /// affine one affine or unrestricted, a relevant one relevant or unrestricted, and every other container
 /// only unrestricted, a type parameter counting as what its constraint says and as nothing at all when
-/// it says nothing inside a disciplined container.
+/// it says nothing inside a disciplined container. An array is such an other container, judged where it is made.
 /// </summary>
 internal sealed class DisciplineAnalyzer : IProgramAnalyzer
 {
@@ -51,7 +53,25 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.OwnedSubstructuralBinding, initializer.Node, [initializer],
                     local.Name, Display(discipline), TypeDisplay.Mist(local.Type));
             }
+
+            var element = node switch
+            {
+                ArrayLiteralExpression literal => literal.ElementType,
+                ArrayCreationExpression creation => creation.ElementType,
+                _ => null,
+            };
+
+            if(element is not null && ArrayRefuses(element) is { } held && node is Expression array)
+            {
+                context.Report(ProgramAnalysisDiagnostics.ArrayElementDiscipline, array.Node, [array], Display(held), TypeDisplay.Mist(element));
+            }
         }
+    }
+
+    internal static SubstructuralDiscipline? ArrayRefuses(IMistType element)
+    {
+        var held = element is TypeParameter parameter ? Constrained(parameter) : OwnershipAnalyzer.Substructural(element);
+        return held is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine && !RefStructs.Is(element) ? held : null;
     }
 
     private static void JudgeContainer(AnalysisContext context, ConcreteType container)

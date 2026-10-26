@@ -457,13 +457,8 @@ internal partial class Program
         var parseDiagnostics = new DiagnosticBag();
         var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
 
-        if(config is null)
+        if(ManifestFeedback.Report(parseDiagnostics.ToImmutableArray(), Console.Error) || config is null)
         {
-            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
             return 1;
         }
 
@@ -530,27 +525,15 @@ internal partial class Program
         var parseDiagnostics = new DiagnosticBag();
         var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
 
-        if(config is null)
-        {
-            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
-            return 1;
-        }
-
-        return DependencyRestore.Run(projectFolder, config, Console.Out, Console.Error);
+        return DependencyRestore.Run(projectFolder, config, parseDiagnostics.ToImmutableArray(), Console.Out, Console.Error);
     }
 
     private static int RunArtifact(string artifactPath)
     {
         try
         {
-            var startInfo = new ProcessStartInfo
+            var startInfo = new ProcessStartInfo("dotnet", [artifactPath])
             {
-                FileName = "dotnet",
-                Arguments = artifactPath,
                 UseShellExecute = false,
             };
 

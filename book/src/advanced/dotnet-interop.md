@@ -144,7 +144,7 @@ Resolved Microsoft.AspNetCore.App 10.0.0
 2 succeeded, 0 failed
 ```
 
-`mist restore` always prints the full resolver detail (you don't need `--verbose`). It resolves packages and framework references but does not lex, type-check, or emit code. With no later stage to run, its diagnostics follow the summary on stderr. It exits with code 0 on success and non-zero if any dependency fails.
+`mist restore` always prints the full resolver detail (you don't need `--verbose`). It resolves packages and framework references but does not lex, type-check, or emit code. With no later stage to run, its diagnostics follow the summary on stderr. It exits with code 0 on success and non-zero if any dependency fails. A `mist.toml` diagnostic comes first, before any resolution, and an error among them stops the command with exit code 1 and no summary.
 
 ## Package Resolution Diagnostics
 

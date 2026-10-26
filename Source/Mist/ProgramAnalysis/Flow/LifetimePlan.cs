@@ -23,6 +23,7 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
     public static readonly LifetimePlan Empty = new(new Dictionary<LocalVariable, LocalDeclarationStatement>());
 
     private readonly HashSet<object> covered = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<object> automatic = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<object> owed = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<object> changing = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Expression, List<LifetimeMark>> marks = new(ReferenceEqualityComparer.Instance);
@@ -46,12 +47,19 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
 
     public LifetimeRelease ReleaseOf(object owner)
     {
-        if(!Covers(owner) || !owed.Contains(owner))
+        if(!Covers(owner) || !automatic.Contains(owner) || !owed.Contains(owner))
         {
             return LifetimeRelease.None;
         }
 
         return changing.Contains(owner) ? LifetimeRelease.Guarded : LifetimeRelease.AtExit;
+    }
+
+    public bool NeedsFlag(object owner)
+    {
+        return ReleaseOf(owner) is LifetimeRelease.Guarded
+            || scoped.Values.Any(scope => ReferenceEquals(scope.Owner, owner)
+                && (scope.Holding == (Holding.Owned | Holding.Unowned) || (changing.Contains(owner) && owed.Contains(owner))));
     }
 
     /// <summary>
@@ -78,13 +86,13 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
     public IReadOnlyList<LifetimeMark> MarksAfter(Expression node)
     {
         return marks.TryGetValue(node, out var found)
-            ? found.Where(mark => ReleaseOf(mark.Owner) == LifetimeRelease.Guarded).ToList()
+            ? found.Where(mark => NeedsFlag(mark.Owner)).ToList()
             : [];
     }
 
     public bool Gates(InvocationExpression call)
     {
-        return marks.Values.Any(found => found.Exists(mark => ReferenceEquals(mark.Gate, call) && ReleaseOf(mark.Owner) == LifetimeRelease.Guarded));
+        return marks.Values.Any(found => found.Exists(mark => ReferenceEquals(mark.Gate, call) && NeedsFlag(mark.Owner)));
     }
 
     public SyntaxNode? AcquiredAt(LocalDeclarationStatement declaration)
@@ -92,9 +100,14 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
         return declaration.Initializer?.Node ?? acquisitions.GetValueOrDefault(declaration.Local);
     }
 
-    internal void Cover(object owner)
+    internal void Cover(object owner, bool automaticallyDrops = true)
     {
         _ = covered.Add(owner);
+
+        if(automaticallyDrops)
+        {
+            _ = automatic.Add(owner);
+        }
     }
 
     internal void Owe(object owner)

@@ -12,6 +12,8 @@ The three substructural modifiers are:
 
 Types without a substructural modifier can still declare `Drop()` — it only fires inside `with` blocks (zero or more times).
 
+Linear and affine structs, including ref structs and constructed structs, follow the same single-holder moves as classes: initializing or assigning another local, passing an `owned` argument, calling a `with owned` receiver, storing into an owned field or array literal, returning, or calling `Drop()` consumes the source binding and makes later reads, writes, passes and member accesses errors; the destination retains any drop obligation, with affine automatic drops still confined to `with` blocks.
+
 ## Linear Types
 
 A `linear` type guarantees exactly-once cleanup. The compiler inserts a `Drop()` call at scope exit for every linear local that hasn't been moved or returned. This makes resource leaks structurally impossible.

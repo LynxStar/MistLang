@@ -1,6 +1,14 @@
 // Tier 2 (Functional): ownership, lease, escape, discipline, tier and readonly rules judge hand-built fragments.
 
+using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -8,6 +16,152 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class OwnershipRefusalTests
 {
+    public static TheoryData<string, SubstructuralDiscipline, string> DisciplinedMoves
+    {
+        get
+        {
+            var cases = new TheoryData<string, SubstructuralDiscipline, string>();
+            foreach(var shape in new[] { "struct", "ref-struct", "constructed-struct", "class" })
+            {
+                foreach(var discipline in new[] { SubstructuralDiscipline.Linear, SubstructuralDiscipline.Affine })
+                {
+                    foreach(var operation in new[] { "initialize", "assign", "owned-argument", "owned-receiver", "owned-field", "array", "drop" })
+                    {
+                        cases.Add(shape, discipline, operation);
+                    }
+                }
+            }
+
+            return cases;
+        }
+    }
+
+    public static TheoryData<string, SubstructuralDiscipline> DisciplinedShapes
+    {
+        get
+        {
+            var cases = new TheoryData<string, SubstructuralDiscipline>();
+            foreach(var shape in new[] { "struct", "ref-struct", "constructed-struct", "class" })
+            {
+                cases.Add(shape, SubstructuralDiscipline.Linear);
+                cases.Add(shape, SubstructuralDiscipline.Affine);
+            }
+
+            return cases;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(DisciplinedMoves))]
+    public void ADisciplinedMoveRefusesTheNextMemberReadAtItsUse(string shape, SubstructuralDiscipline discipline, string operation)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type);
+        var destination = f.Local("destination", type);
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), f.MoveValue(operation, source, destination), LifetimeFragments.Run(f.Count(source)));
+        var diagnostic = Assert.Single(f.AnalyzeMoves(body));
+
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", diagnostic.Id.Value);
+        Assert.Contains(operation == "drop" ? "has been dropped" : "has been moved", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [MemberData(nameof(DisciplinedShapes))]
+    public void AMovedDisciplinedBindingRefusesAMemberWrite(string shape, SubstructuralDiscipline discipline)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type);
+        var destination = f.Local("destination", type);
+        var write = new AssignmentExpression(HandBuiltModel.Node(37), f.Count(source), HandBuiltModel.Literal(f.Int32, 2), f.Int32);
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Declare(destination, LifetimeFragments.Ref(source)), LifetimeFragments.Run(write));
+        var diagnostic = Assert.Single(f.AnalyzeMoves(body));
+
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", diagnostic.Id.Value);
+        Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [MemberData(nameof(DisciplinedShapes))]
+    public void AMovedDisciplinedBindingRefusesAnotherPass(string shape, SubstructuralDiscipline discipline)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type);
+        var destination = f.Local("destination", type);
+        var take = new Method("Take", f.Void, [LifetimeFragments.Owned("value", type)], new MemberModifiers { IsStatic = true });
+        var use = new LocalReferenceExpression(HandBuiltModel.Node(37), source);
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Declare(destination, LifetimeFragments.Ref(source)), LifetimeFragments.Run(f.Call(take, use)));
+        var diagnostic = Assert.Single(f.AnalyzeMoves(body));
+
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", diagnostic.Id.Value);
+        Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
+    [Theory]
+    [MemberData(nameof(DisciplinedShapes))]
+    [Trait("Regression", "MIST-122")]
+    public void UseBeforeMoveReassignmentAndMIST122PlainParameterPassStayAdmitted(string shape, SubstructuralDiscipline discipline)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type);
+        var destination = f.Local("destination", type);
+        var plain = new Method("Keep", f.Void, [new Parameter("value", type)], new MemberModifiers { IsStatic = true });
+        var body = HandBuiltModel.Block(
+            LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Run(f.Count(source)), LifetimeFragments.Run(f.Call(plain, LifetimeFragments.Ref(source))), LifetimeFragments.Run(f.Count(source)),
+            LifetimeFragments.Declare(destination, LifetimeFragments.Ref(source)), LifetimeFragments.Run(LifetimeFragments.Assign(source, LifetimeFragments.Fresh(type))), LifetimeFragments.Run(f.Count(source)));
+
+        Assert.Empty(f.AnalyzeMoves(body));
+    }
+
+    [Theory]
+    [InlineData("struct", SubstructuralDiscipline.None, OwnershipKind.Unrestricted)]
+    [InlineData("ref-struct", SubstructuralDiscipline.None, OwnershipKind.Unrestricted)]
+    [InlineData("constructed-struct", SubstructuralDiscipline.None, OwnershipKind.Unrestricted)]
+    [InlineData("struct", SubstructuralDiscipline.None, OwnershipKind.Owned)]
+    [InlineData("ref-struct", SubstructuralDiscipline.None, OwnershipKind.Owned)]
+    [InlineData("constructed-struct", SubstructuralDiscipline.None, OwnershipKind.Owned)]
+    [InlineData("struct", SubstructuralDiscipline.Relevant, OwnershipKind.Unrestricted)]
+    [InlineData("ref-struct", SubstructuralDiscipline.Relevant, OwnershipKind.Unrestricted)]
+    [InlineData("constructed-struct", SubstructuralDiscipline.Relevant, OwnershipKind.Unrestricted)]
+    public void OrdinaryAndRelevantStructCopiesStayAdmitted(string shape, SubstructuralDiscipline discipline, OwnershipKind ownership)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, discipline);
+        var source = f.Local("source", type, ownership);
+        var destination = f.Local("destination", type, ownership);
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(type)), LifetimeFragments.Declare(destination, LifetimeFragments.Ref(source)), LifetimeFragments.Run(f.Count(source)), LifetimeFragments.Run(f.Count(destination)));
+
+        Assert.Empty(f.AnalyzeMoves(body));
+    }
+
+    [Theory]
+    [MemberData(nameof(DisciplinedShapes))]
+    public void ReturningADisciplinedValueLeavesItsSourceMoved(string shape, SubstructuralDiscipline discipline)
+    {
+        var f = new LifetimeFragments();
+        var source = f.Local("source", f.DisciplinedValue(shape, discipline));
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(source.Type)), LifetimeFragments.Return(LifetimeFragments.Ref(source)));
+        var diagnostics = new DiagnosticBag();
+        var context = f.Model.Context(new OwnershipAnalyzer(), diagnostics, body);
+        var flow = new OwnershipFlow(context, new ThisTiers(), new Dictionary<LocalVariable, Block>(),
+            new Dictionary<Block, LocalReferenceExpression>(), new Dictionary<object, object>(), owning: null);
+        var graph = FlowGraphBuilder.Build(body);
+        var returned = FlowSolution<OwnershipFlow.State>.Solve(graph, flow, OwnershipFlow.Nothing).At(graph.Exit);
+
+        Assert.True(returned.Moved.ContainsKey(Place.Of(source)));
+        Assert.False(returned.Moved[Place.Of(source)].Dropped);
+
+        var read = new LocalReferenceExpression(HandBuiltModel.Node(37), source);
+        flow.Judge(FlowGraphBuilder.Build(LifetimeFragments.Run(read)), returned);
+        var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST_PA_USE_AFTER_MOVE", diagnostic.Id.Value);
+        Assert.Equal(38, diagnostic.Location.Start.Column);
+    }
+
     [Theory]
     [InlineData("access-while-borrowed", "MIST_PA_LEASE_VIOLATION")]
     [InlineData("affine-declared-owned", "MIST_PA_CONFLICTING_DISCIPLINE")]
@@ -308,7 +462,7 @@ public sealed class OwnershipRefusalTests
         var f = new LifetimeFragments();
         var t = f.Local("t");
         var u = f.Local("u");
-        var v = f.Local("v", ownership: ProgramModel.Model.Enums.OwnershipKind.Frozen);
+        var v = f.Local("v", ownership: OwnershipKind.Frozen);
         var bodies = new[]
         {
             HandBuiltModel.Block(

@@ -30,9 +30,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// the call returns; from there on the holder may not move into an owned destination or be returned
 /// owned until it or that field is assigned afresh, and a plain use of it stays admitted. Two
 /// paths join by remembering either path's move, which is classic's verdict measured; a use once
-/// complained of settles the place, so one mistake is one complaint per path; and a struct is never
-/// tracked, since a copy of it is a value of its own. The rest of what classic admits here -- a call as
-/// no move for a linear value, a frozen lender lent borrowed by call -- remains under MIST-122 and
+/// complained of settles the place, so one mistake is one complaint per path. Linear and affine structs
+/// move like classes; ordinary structs copy even in owned bindings. The rest of what classic admits
+/// here -- a call as no move for a linear value, a frozen lender lent borrowed by call -- remains under MIST-122 and
 /// MIST-061 in Carbonek.
 /// </summary>
 internal sealed partial class OwnershipFlow(
@@ -186,10 +186,18 @@ internal sealed partial class OwnershipFlow(
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
                 foreach(var (target, value) in Deconstructions.Pairs(assignment))
                 {
+                    if(LocalStoragePath.Of(target) is { Receiver: not null } storage)
+                    {
+                        state = state with { Moved = state.Moved.Remove(Place.Of(storage.Local)) };
+                    }
+
                     state = Stored(state, target, value);
                 }
 
                 return state;
+
+            case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }:
+                return Place.Of(returned) is { } returnedPlace ? Move(state, returnedPlace, returned) : state;
 
             case { Kind: FlowStepKind.Evaluate, Node: TupleLiteralExpression tuple }:
                 return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple"));

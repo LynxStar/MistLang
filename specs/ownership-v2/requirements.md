@@ -86,7 +86,7 @@ This document specifies the requirements for **Ownership v2** — a second-gener
 
 1. WHEN assigning to a field of an instance held in an owned binding, THE Type_Checker SHALL require that the source expression yields an owned value: a move from an owned binding, a constructor call (`new`), or a call to a function returning `owned T`. Move semantics (Requirement 6) apply — including implicit cloning for non-owned sources that implement `IClonable<T>`.
 2. IF the source expression for a field assignment on an owned-bound instance is a reference type that is not owned and cannot be resolved via move semantics (Requirement 6), THEN THE Type_Checker SHALL report a compile error indicating that field assignment on an owned binding requires an owned source.
-3. WHEN the source expression is a value type (struct), THE Type_Checker SHALL permit the assignment without provenance restriction — value types are copied and cannot introduce aliasing.
+3. WHEN the source expression is a value type (struct), THE Type_Checker SHALL permit the assignment without provenance restriction — value types are copied and cannot introduce aliasing. Linear and affine structs instead obey the single-holder moves in [drop-semantics Requirement 1.8](../drop-semantics/requirements.md#requirement-1-substructural-type-modifiers).
 4. WHEN the source expression is a primitive type, THE Type_Checker SHALL permit the assignment without provenance restriction.
 
 ### Requirement 5: Owned Type Declaration — Cooperation Contract
@@ -740,6 +740,8 @@ public class AliasingDemo
 [aliasing] b=Widget(42, aliased)
 [aliasing] same object=True
 ```
+
+Linear and affine structs are the exception to copying across tiers: they obey [drop-semantics Requirement 1.8](../drop-semantics/requirements.md#requirement-1-substructural-type-modifiers).
 
 ```mist
 // ─── Value types satisfy all lending tiers ────────────────────────────────────

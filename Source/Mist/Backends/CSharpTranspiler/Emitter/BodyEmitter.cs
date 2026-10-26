@@ -850,6 +850,7 @@ internal static partial class BodyEmitter
         var plan = LifetimeLowering.Active;
         var owning = binding is not null && plan.Covers(binding) ? binding : null;
         var flag = owning is null ? null : LifetimeLowering.Flag(owning, owned: true, writer);
+        using var scopedFlag = LifetimeLowering.EnterScope(withBlock, writer);
         writer.WriteLine(keyed is null ? $"MistContext.Push<{type}>({bound});" : $"MistContext.Push({type}, {bound});");
         writer.WriteLine("try");
 

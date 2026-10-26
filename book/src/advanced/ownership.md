@@ -39,6 +39,8 @@ The `owned` specifier is not restricted to types that were designed for it. A pl
 
 Substructural types are the one exception. Types declared `linear`, `affine`, or `relevant` already carry their own usage discipline through drop semantics, so layering ownership tracking on top is neither necessary nor sound. Applying the `owned` binding specifier to a substructural type is a compile error.
 
+Linear and affine structs, including ref structs and constructed structs, move like their class counterparts: initialization or assignment to another local, an `owned` argument, a `with owned` receiver call, storage into an owned field or array literal, return, and `Drop()` consume the source binding, so later reads, writes, passes and member accesses are errors even though the backend physically copies the value.
+
 ## Method Visibility on Owned Bindings
 
 What you can *do* with a value held in an owned binding depends on whether the value's type opts into the ownership cooperation contract. This is where the distinction between an ordinary (non-owned) type and an `owned` type matters.

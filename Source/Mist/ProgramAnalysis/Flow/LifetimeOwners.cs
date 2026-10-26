@@ -145,12 +145,24 @@ internal sealed class LifetimeOwners
 
     public static bool Owns(IMistType type, bool isRef, OwnershipKind ownership)
     {
-        return LocalLifetimes.IsTracked(type) && !isRef && ownership is not (OwnershipKind.Frozen or OwnershipKind.Borrowed);
+        return (LocalLifetimes.IsTracked(type) || LocalLifetimes.IsScoped(type))
+            && !isRef && ownership is not (OwnershipKind.Frozen or OwnershipKind.Borrowed);
+    }
+
+    public static bool AutomaticallyDrops(object owner)
+    {
+        return owner switch
+        {
+            LocalVariable local => LocalLifetimes.IsTracked(local.Type),
+            Parameter parameter => LocalLifetimes.IsTracked(parameter.Type),
+            Field field => LocalLifetimes.IsTracked(field.Type),
+            _ => false,
+        };
     }
 
     public static bool IsView(Expression expression)
     {
-        return LocalLifetimes.IsTracked(expression.Type) && expression switch
+        return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
         {
             LocalReferenceExpression { Local: var local } => local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
                 || local.Parameter is { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } },
@@ -212,7 +224,7 @@ internal sealed class LifetimeOwners
 
     private void Declare(LocalDeclarationStatement declaration, object home)
     {
-        if(!LocalLifetimes.IsTracked(declaration.Local.Type))
+        if(!LocalLifetimes.IsTracked(declaration.Local.Type) && !LocalLifetimes.IsScoped(declaration.Local.Type))
         {
             return;
         }
@@ -239,6 +251,11 @@ internal sealed class LifetimeOwners
         else if(scope.Binding is { } binding && !IsView(scope.Value) && Owns(binding))
         {
             homes[binding] = scope.Body;
+
+            if(LocalLifetimes.IsScoped(binding.Type))
+            {
+                scopes[scope.Body] = (scope, binding);
+            }
         }
     }
 

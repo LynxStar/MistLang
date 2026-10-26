@@ -20,6 +20,71 @@ public sealed class ResourceTransferEmissionTests
 {
     private readonly LifetimeFragments f = new();
 
+    [Theory]
+    [InlineData("struct")]
+    [InlineData("ref-struct")]
+    [InlineData("constructed-struct")]
+    [InlineData("class")]
+    public void AnAffineValueIsAutomaticallyDroppedOnlyInsideWith(string shape)
+    {
+        var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);
+        var source = f.Local("source", type);
+        var unscoped = Emitted(HandBuiltModel.Block(Declare(source, Fresh(type))));
+        var scoped = Emitted(HandBuiltModel.Block(Declare(source, Fresh(type)), With(Ref(source), HandBuiltModel.Block())));
+
+        Assert.DoesNotContain(".Drop()", unscoped, StringComparison.Ordinal);
+        Assert.Equal(1, scoped.Split(".Drop()", StringSplitOptions.None).Length - 1);
+    }
+
+    [Theory]
+    [InlineData("struct", "drop", 1)]
+    [InlineData("ref-struct", "drop", 1)]
+    [InlineData("constructed-struct", "drop", 1)]
+    [InlineData("class", "drop", 1)]
+    [InlineData("struct", "initialize", 0)]
+    [InlineData("struct", "owned-argument", 0)]
+    [InlineData("struct", "owned-field", 0)]
+    [InlineData("struct", "array", 0)]
+    public void AnAffineWithDoesNotReleaseWhatItsBodyConsumes(string shape, string operation, int drops)
+    {
+        var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);
+        var source = f.Local("source", type);
+        var destination = f.Local("destination", type);
+        var scoped = With(Ref(source), HandBuiltModel.Block(f.MoveValue(operation, source, destination)));
+        var emitted = Emitted(HandBuiltModel.Block(Declare(source, Fresh(type)), scoped));
+
+        Assert.Equal(drops, emitted.Split(".Drop()", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void AnAffineScopeFlagEndsBeforeTheBindingIsReassignedAndScopedAgain()
+    {
+        var source = f.Local("source", f.DisciplinedValue("struct", SubstructuralDiscipline.Affine));
+        var first = With(Ref(source), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(source))))));
+        var second = With(Ref(source), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(source))))));
+        var emitted = Emitted(HandBuiltModel.Block(Declare(source, Fresh(source.Type)), first, Run(Assign(source, Fresh(source.Type))), second));
+
+        Assert.DoesNotContain("MistOwnership.Taken", emitted, StringComparison.Ordinal);
+        Assert.Equal(2, emitted.Split("MistOwnership.Handed", StringSplitOptions.None).Length - 1);
+        Assert.Equal(2, emitted.Split("= true;", StringSplitOptions.None).Length - 1);
+    }
+
+    [Fact]
+    public void AnAffineWithBindingAndAnAffineParameterUseTheSameScopedGuard()
+    {
+        var type = f.DisciplinedValue("struct", SubstructuralDiscipline.Affine);
+        var binding = f.Local("binding", type);
+        var parameter = Owned("parameter", type);
+        var boundScope = With(Fresh(type), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(binding))))), binding);
+        var passedScope = With(Ref(parameter), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(DropOf(Ref(parameter)))))));
+        var bound = Emitted(HandBuiltModel.Block(boundScope));
+        var passed = EmittedMethod(f.Function("Use", HandBuiltModel.Block(passedScope), parameter));
+
+        Assert.Contains("MistOwnership.Handed(binding, ref", bound, StringComparison.Ordinal);
+        Assert.Contains("MistOwnership.Handed(parameter, ref", passed, StringComparison.Ordinal);
+        Assert.Equal(2, passed.Split(".Drop()", StringSplitOptions.None).Length - 1);
+    }
+
     [Fact]
     public void AParameterDroppedOnOneBranchIsReleasedUnderItsFlag()
     {

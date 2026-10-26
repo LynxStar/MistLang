@@ -194,8 +194,8 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
     internal static bool Tracked(LocalVariable local)
     {
-        return !ThisTiers.IsValue(local.Type)
-            && (local.Ownership == OwnershipKind.Owned || Substructural(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine);
+        return (local.Ownership == OwnershipKind.Owned && !ThisTiers.IsValue(local.Type))
+            || Substructural(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 
     internal static SubstructuralDiscipline Substructural(IMistType type)

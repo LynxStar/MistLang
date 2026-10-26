@@ -123,6 +123,11 @@ internal sealed partial class OwnershipFlow
                 continue;
             }
 
+            if(LocalStoragePath.Of(target) is { Receiver: not null } storage && state.Moved.ContainsKey(Place.Of(storage.Local)))
+            {
+                JudgeRead(state, target, Place.Of(storage.Local));
+            }
+
             if(Place.Of(target) is { } slot)
             {
                 JudgeAction(state, slot, target, Action.Write, evaluated: false);

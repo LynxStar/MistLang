@@ -3,6 +3,7 @@
 // merely views a value someone else holds, and which types are tracked at all.
 
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -16,6 +17,35 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class ResourceTransferDecisionTests
 {
     private readonly LifetimeFragments f = new();
+
+    public static TheoryData<string, SubstructuralDiscipline, OwnershipKind, bool> TrackingCases
+    {
+        get
+        {
+            var cases = new TheoryData<string, SubstructuralDiscipline, OwnershipKind, bool>();
+            foreach(var shape in new[] { "struct", "ref-struct", "constructed-struct", "class" })
+            {
+                foreach(var discipline in Enum.GetValues<SubstructuralDiscipline>())
+                {
+                    foreach(var ownership in new[] { OwnershipKind.Unrestricted, OwnershipKind.Owned })
+                    {
+                        cases.Add(shape, discipline, ownership,
+                            discipline is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine
+                            || (shape == "class" && ownership == OwnershipKind.Owned));
+                    }
+                }
+            }
+
+            return cases;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(TrackingCases))]
+    public void OwnershipTrackingDependsOnDisciplineAndReferenceOwnership(string shape, SubstructuralDiscipline discipline, OwnershipKind ownership, bool expected)
+    {
+        Assert.Equal(expected, OwnershipAnalyzer.Tracked(f.Local("value", f.DisciplinedValue(shape, discipline), ownership)));
+    }
 
     [Fact]
     public void OnlyACallThatCanFailToBeginLeavesItsArgumentsWithTheCaller()

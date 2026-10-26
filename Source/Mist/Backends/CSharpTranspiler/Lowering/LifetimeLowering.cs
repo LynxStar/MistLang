@@ -142,7 +142,7 @@ internal static class LifetimeLowering
 
     public static string? Flag(object owner, bool owned, CSharpWriter writer)
     {
-        if(flags is null || Active.ReleaseOf(owner) is not LifetimeRelease.Guarded)
+        if(flags is null || !Active.NeedsFlag(owner))
         {
             return null;
         }
@@ -157,6 +157,17 @@ internal static class LifetimeLowering
     public static string? FlagOf(object owner)
     {
         return flags?.GetValueOrDefault(owner);
+    }
+
+    public static IDisposable? EnterScope(WithBlockStatement scope, CSharpWriter writer)
+    {
+        if(Active.ReleaseAt(scope) is not var (owner, _) || FlagOf(owner) is not null || !Active.NeedsFlag(owner))
+        {
+            return null;
+        }
+
+        _ = Flag(owner, owned: true, writer);
+        return new ScopeFlag(owner);
     }
 
     public static IReadOnlyList<(string Flag, bool Owned, string? Receiver)> MarksAfter(Expression node)
@@ -266,6 +277,14 @@ internal static class LifetimeLowering
             lending = null;
             renewed = null;
             receivers = null;
+        }
+    }
+
+    private sealed class ScopeFlag(object owner) : IDisposable
+    {
+        public void Dispose()
+        {
+            _ = flags?.Remove(owner);
         }
     }
 }

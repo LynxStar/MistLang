@@ -53,6 +53,12 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
             && PurityJudge.Drops(type, awaitable: false).Any();
     }
 
+    public static bool IsScoped(IMistType type)
+    {
+        return PurityJudge.DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Affine }
+            && PurityJudge.Drops(type, awaitable: false).Any();
+    }
+
     public static LifetimePlan Plan(object root, Method? method = null, ConcreteType? holder = null)
     {
         var owners = LifetimeOwners.Of(root, method, holder);
@@ -125,7 +131,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
     {
         foreach(var owner in owners.All)
         {
-            plan.Cover(owner);
+            plan.Cover(owner, LifetimeOwners.AutomaticallyDrops(owner));
         }
 
         Settle(graph, plan, entry);
@@ -272,6 +278,17 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } } when Source(returned, state) is { } source:
                 yield return (source, false, returned);
+                break;
+
+            case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
+                foreach(var element in literal.Elements)
+                {
+                    if(Source(element, state) is { } stored)
+                    {
+                        yield return (stored, false, element);
+                    }
+                }
+
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:

@@ -41,6 +41,7 @@ Additionally, with the corrected field containment matrix in place, the `MIST_TC
 5. WHEN an **owned** container (explicit `owned` keyword, no substructural modifier) declares a field, THE DropAnalyzer SHALL apply the same permissible-field rules as an unrestricted container (criteria 4), because `owned` alone provides no substructural drop guarantee.
 6. THE DropAnalyzer SHALL replace the current binary "is the container owned?" check with the discipline-compatibility matrix described by criteria 1–5.
 7. IF a container declares multiple fields with incompatible disciplines, THEN THE DropAnalyzer SHALL report one compile-time error for each incompatible field independently.
+8. An array is an unrestricted container. WHEN an array literal or an array creation has a linear or affine element type, including a type parameter constrained `linear` or `affine`, THE Compiler SHALL report `MIST_PA_ARRAY_ELEMENT_DISCIPLINE` at that expression. A ref struct element is refused by its own array-element rule instead.
 
 ### Requirement 2: Updated Diagnostic Messages
 

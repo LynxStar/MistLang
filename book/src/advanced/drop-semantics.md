@@ -12,7 +12,7 @@ The three substructural modifiers are:
 
 Types without a substructural modifier can still declare `Drop()` — it only fires inside `with` blocks (zero or more times).
 
-Linear and affine structs, including ref structs and constructed structs, follow the same single-holder moves as classes: initializing or assigning another local, passing an `owned` argument, calling a `with owned` receiver, storing into an owned field or array literal, returning, or calling `Drop()` consumes the source binding and makes later reads, writes, passes and member accesses errors; affine automatic drops remain confined to `with` blocks.
+Linear and affine structs, including ref structs and constructed structs, follow the same single-holder moves as classes: initializing or assigning another local, passing an `owned` argument, calling a `with owned` receiver, storing into an owned field, returning, or calling `Drop()` consumes the source binding and makes later reads, writes, passes and member accesses errors; affine automatic drops remain confined to `with` blocks. Neither a linear nor an affine value can be an array element: an array has no discipline of its own and cannot promise its elements their drops.
 
 ## Linear Types
 

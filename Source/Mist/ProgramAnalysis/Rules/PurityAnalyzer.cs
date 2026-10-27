@@ -1,4 +1,3 @@
-using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
@@ -112,8 +111,8 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.PureScopeReadsMutable, read, [],
-                        $"the storage of '{property.Name}'", ScopeDescription.Of(ScopeKind.Pure, property),
-                        "its setter can change it between reads, so an auto getter over it keeps local readonly at most");
+                        new NameValue($"the storage of '{property.Name}'"), new NameValue(ScopeDescription.Of(ScopeKind.Pure, property).Text),
+                        new NameValue("its setter can change it between reads, so an auto getter over it keeps local readonly at most"));
                 }
 
                 if(property is not { Setter: { IsAuto: true, IsInit: false } setter, DeclarationNode: { } at }
@@ -126,8 +125,8 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
 
                 context.Report(
                     ProgramAnalysisDiagnostics.PureScopeWrites, at, [],
-                    $"the storage of '{property.Name}'", ScopeDescription.Of(kind, property),
-                    $"an auto setter does nothing but write it, and a {ScopeDescription.Spell(kind)} setter writes nothing outside what it owns");
+                    new NameValue($"the storage of '{property.Name}'"), new NameValue(ScopeDescription.Of(kind, property).Text),
+                    new NameValue($"an auto setter does nothing but write it, and a {ScopeDescription.Spell(kind)} setter writes nothing outside what it owns"));
             }
         }
 
@@ -237,13 +236,13 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
-                    reference.Method.Name, TypeDisplay.Mist(reference.Type), promise.Display);
+                    new NameValue(reference.Method.Name), DiagnosticSnapshot.Type(reference.Type), new NameValue(promise.Display));
             }
             else if(reference.Method.DeclaredThisTier == ThisTier.Frozen && reference.Receiver is { } receiver && !Origins.IsUnchangeable(receiver.Type))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
-                    reference.Method.Name, TypeDisplay.Mist(reference.Type), "pure only while its receiver is frozen, a loan the function value outlives");
+                    new NameValue(reference.Method.Name), DiagnosticSnapshot.Type(reference.Type), new NameValue("pure only while its receiver is frozen, a loan the function value outlives"));
             }
             else if(reference.Method.ParametersList.Find(parameter => parameter.Modifier.Ownership is OwnershipKind.Frozen or OwnershipKind.Owned) is { } lent)
             {
@@ -251,23 +250,23 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
 
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
-                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
-                    $"pure only while its argument for '{lent.Name}' is {tier}, which a call through the function value never does");
+                    new NameValue(reference.Method.Name), DiagnosticSnapshot.Type(reference.Type),
+                    new NameValue($"pure only while its argument for '{lent.Name}' is {tier}, which a call through the function value never does"));
             }
             else if(reference.Method.ContextBindingsList is [var ambient, ..])
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
-                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
-                    $"pure only given the ambient '{TypeDisplay.Mist(ambient.ContextType)}' it reads, an input a call through the function value does not supply");
+                    new NameValue(reference.Method.Name), DiagnosticSnapshot.Type(reference.Type),
+                    new NameValue($"pure only given the ambient '{TypeDisplay.Mist(ambient.ContextType)}' it reads, an input a call through the function value does not supply"));
             }
             else if(reference.Method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType declaring }
                 && TypeInitializer.Of(declaring) is { IsPrecise: true } initializer && !inference.Of(initializer).Pure)
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PureFunctionRequired, reference.Node, [reference],
-                    reference.Method.Name, TypeDisplay.Mist(reference.Type),
-                    $"pure only once the static initializers of '{declaring.Name}' have run, and a call through the function value can be the first use of the type");
+                    new NameValue(reference.Method.Name), DiagnosticSnapshot.Type(reference.Type),
+                    new NameValue($"pure only once the static initializers of '{declaring.Name}' have run, and a call through the function value can be the first use of the type"));
             }
         }
 
@@ -313,11 +312,9 @@ internal sealed class PurityAnalyzer : IProgramAnalyzer
 
             foreach(var finding in PurityJudge.Judge(root, ScopeKind.Pure, scope, noInputs, inference.Of))
             {
-                var reason = string.Format(CultureInfo.InvariantCulture, finding.Descriptor.Template, finding.Args);
-
-                context.Report(
-                    ProgramAnalysisDiagnostics.DefaultNotConsistent, finding.At, finding.About,
-                    char.ToUpperInvariant(scope.Text[0]) + scope.Text[1..], type.Name, reason);
+                context.ReportWrapped(
+                    ProgramAnalysisDiagnostics.DefaultNotConsistent, finding,
+                    new NameValue(char.ToUpperInvariant(scope.Text[0]) + scope.Text[1..]), DiagnosticSnapshot.Type(type, type.Name));
             }
         }
 

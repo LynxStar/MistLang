@@ -3,7 +3,6 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -37,7 +36,7 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
             switch(node)
             {
                 case AssignmentExpression assignment when StorageLocations.NotAssignable(assignment.Target) is { } value:
-                    context.Report(ProgramAnalysisDiagnostics.NotAssignable, assignment.Target.Node, [assignment.Target], value);
+                    context.Report(ProgramAnalysisDiagnostics.NotAssignable, assignment.Target.Node, [assignment.Target], new NameValue(value));
                     break;
 
                 case AssignmentExpression { IsCoalescing: true } coalescing when PositionDecision.Coalescing(statementLevel.Contains(coalescing)) is { } positional:
@@ -45,12 +44,12 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     break;
 
                 case AssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } assignment:
-                    context.Report(PositionDecision.Reassignment(target.Local)!, assignment.Node, [target], target.Local.Name);
+                    context.Report(PositionDecision.Reassignment(target.Local)!, assignment.Node, [target], new NameValue(target.Local.Name));
                     break;
 
                 case AssignmentExpression { Target: not LocalReferenceExpression and var target } assignment
                     when PositionDecision.ReadonlyReference(target) is { } through:
-                    context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, assignment.Node, [target], through, "assigned to");
+                    context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, assignment.Node, [target], new NameValue(through), new EnumValue("assigned to"));
                     break;
 
                 case LocalDeclarationStatement { Local: { IsRef: true } local, Initializer: { } aliased }:
@@ -88,7 +87,7 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
             if(PositionDecision.Optional(application.Inner) is { } optional && context.IsInSource(application.Node))
             {
                 context.Report(
-                    optional, application.Node, [], TypeDisplay.Mist(application.Inner));
+                    optional, application.Node, [], DiagnosticSnapshot.Type(application.Inner));
             }
         }
     }
@@ -108,11 +107,11 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
     {
         if(StorageLocations.NotALocation(source) is { } what)
         {
-            context.Report(ProgramAnalysisDiagnostics.ReferenceToNonLocation, source.Node, [source], what, position);
+            context.Report(ProgramAnalysisDiagnostics.ReferenceToNonLocation, source.Node, [source], new NameValue(what), new EnumValue(position));
         }
         else if(writable && PositionDecision.ReadonlyReference(source) is { } through)
         {
-            context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, source.Node, [source], through, position);
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, source.Node, [source], new NameValue(through), new EnumValue(position));
         }
     }
 
@@ -124,16 +123,16 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
             switch(node)
             {
                 case LocalReferenceExpression reference when !own.Contains(reference.Local):
-                    context.Report(descriptor, reference.Node, [reference], "outer variable", reference.Local.Name);
+                    context.Report(descriptor, reference.Node, [reference], new EnumValue("outer variable"), new NameValue(reference.Local.Name));
                     break;
                 case ThisExpression self:
-                    context.Report(descriptor, self.Node, [self], "instance member", "this");
+                    context.Report(descriptor, self.Node, [self], new EnumValue("instance member"), new NameValue("this"));
                     break;
                 case FieldReferenceExpression { Field.Modifiers.IsStatic: false } field:
-                    context.Report(descriptor, field.Node, [field], "instance field", field.Field.Name);
+                    context.Report(descriptor, field.Node, [field], new EnumValue("instance field"), new NameValue(field.Field.Name));
                     break;
                 case PropertyReferenceExpression { Property.Modifiers.IsStatic: false } property:
-                    context.Report(descriptor, property.Node, [property], "instance property", property.Property.Name);
+                    context.Report(descriptor, property.Node, [property], new EnumValue("instance property"), new NameValue(property.Property.Name));
                     break;
             }
         }

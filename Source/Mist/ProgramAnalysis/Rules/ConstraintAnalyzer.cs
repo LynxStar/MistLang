@@ -37,7 +37,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintNotSatisfied, closing.Node, [],
-                    TypeDisplay.Mist(closing.Argument), $"Type[{closing.Parameter.PackLength}]", closing.Parameter.Name);
+                    DiagnosticSnapshot.Type(closing.Argument), new NameValue($"Type[{closing.Parameter.PackLength}]"), new NameValue(closing.Parameter.Name));
             }
 
             foreach(var constraint in closing.Parameter.ConstraintsList)
@@ -130,13 +130,13 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 descriptor, closing.Node, [],
-                TypeDisplay.Mist(argument), string.Join(", ", required.ParameterTypes.Select(TypeDisplay.Mist)), closing.Parameter.Name);
+                DiagnosticSnapshot.Type(argument), new SequenceValue(SlotKind.Type, [.. required.ParameterTypes.Select(DiagnosticSnapshot.Type)]), new NameValue(closing.Parameter.Name));
         }
         else
         {
             context.Report(
                 descriptor, closing.Node, [],
-                TypeDisplay.Mist(argument), Spelling(constraint), closing.Parameter.Name);
+                DiagnosticSnapshot.Type(argument), new NameValue(Spelling(constraint)), new NameValue(closing.Parameter.Name));
         }
     }
 

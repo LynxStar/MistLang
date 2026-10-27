@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using System.Globalization;
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -201,7 +201,7 @@ public sealed class EntryPointSelectionTests
             EntryPointSelection.Main main => $"main {main.Class}",
             EntryPointSelection.Refused refused =>
                 $"{refused.Descriptor.Number.Value}: "
-                + string.Format(CultureInfo.InvariantCulture, refused.Descriptor.Template, [.. refused.Arguments]),
+                + DiagnosticRenderer.Render(refused.Descriptor, refused.Arguments),
             _ => "none",
         };
     }

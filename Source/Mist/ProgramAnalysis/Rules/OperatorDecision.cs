@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -43,9 +44,14 @@ internal static class OperatorDecision
         return tied.Count > 1 ? ProgramModelDiagnostics.AmbiguousOverload : null;
     }
 
-    public static string Signatures(IReadOnlyList<ClosedOperator> tied)
+    public static SymbolValue Callee(IReadOnlyList<ClosedOperator> tied, string spelling)
     {
-        return string.Join(", ", tied.Select(OperatorSelection.Describe));
+        return new SymbolValue(string.Join("|", tied.Select(candidate => DiagnosticSnapshot.Symbol(candidate.Declaration, "").Identity)), spelling);
+    }
+
+    public static SequenceValue Signatures(IReadOnlyList<ClosedOperator> tied)
+    {
+        return new SequenceValue(SlotKind.Symbol, [.. tied.Select(candidate => DiagnosticSnapshot.Symbol(candidate.Declaration, OperatorSelection.Describe(candidate)))]);
     }
 
     public static MistDiagnostic? Conditional(IMistType receiver)

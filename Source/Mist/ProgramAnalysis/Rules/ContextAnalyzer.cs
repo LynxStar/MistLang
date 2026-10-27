@@ -75,12 +75,10 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
         {
             if((later.Node ?? method.DeclarationNode) is { } at)
             {
-                var resolved = DiagnosticHelper.ResolveLocation(earlier.Node ?? at).Location;
-                var (path, location) = (resolved.Path ?? "<unknown>", resolved.Lines ?? default);
-
-                context.Report(
+                context.ReportRelated(
                     ProgramAnalysisDiagnostics.DuplicateContextBinding, at, [],
-                    Kind(method), method.Name, TypeDisplay.Mist(later.ContextType), earlier.Identifier, $"{path}:{location.Start.Line}:{location.Start.Column}");
+                    [new RelatedLocation(RelatedRole.PreviousDeclaration, DiagnosticHelper.ResolveLocation(earlier.Node ?? at).Location)],
+                    new EnumValue(Kind(method)), new NameValue(method.Name), DiagnosticSnapshot.Type(later.ContextType), new NameValue(earlier.Identifier));
             }
         }
     }
@@ -100,7 +98,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ContextContractNotMet, node, [],
-                    answer.Member.Name, TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType), differences);
+                    new NameValue(answer.Member.Name), DiagnosticSnapshot.Type(concrete), DiagnosticSnapshot.Type(abstractType), new NameValue(differences));
             }
         }
     }
@@ -110,13 +108,13 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
         switch(node)
         {
             case AssignmentExpression { Target: LocalReferenceExpression { Local.IsContextBound: true } target } assignment:
-                context.Report(ProgramAnalysisDiagnostics.ContextVariableNotReassignable, assignment.Node, [target], target.Local.Name, "");
+                context.Report(ProgramAnalysisDiagnostics.ContextVariableNotReassignable, assignment.Node, [target], new NameValue(target.Local.Name), new NameValue(""));
                 break;
 
             case LocalDeclarationStatement { Local: { IsRef: true, IsReadonly: false } alias, Initializer: LocalReferenceExpression { Local.IsContextBound: true } aliased }:
                 context.Report(
                     ProgramAnalysisDiagnostics.ContextVariableNotReassignable, aliased.Node, [aliased],
-                    aliased.Local.Name, $", so it cannot be bound to ref local '{alias.Name}'");
+                    new NameValue(aliased.Local.Name), new NameValue($", so it cannot be bound to ref local '{alias.Name}'"));
                 break;
 
             case InvocationExpression { Method: { } callee } call:
@@ -129,7 +127,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
 
             case WithBlockStatement scope when !ContextKeys.IsNameable(scope.KeyType):
                 context.Report(
-                    ProgramAnalysisDiagnostics.ContextTypeNotNameable, scope.Value.Node, [scope.Value], TypeDisplay.Mist(scope.KeyType));
+                    ProgramAnalysisDiagnostics.ContextTypeNotNameable, scope.Value.Node, [scope.Value], DiagnosticSnapshot.Type(scope.KeyType));
                 break;
         }
     }
@@ -143,7 +141,7 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ContextVariableNotReassignable, passed.Node, [passed],
-                    passed.Local.Name, $", so it cannot be {position}");
+                    new NameValue(passed.Local.Name), new NameValue($", so it cannot be {position}"));
             }
         }
     }
@@ -171,9 +169,10 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
                     continue;
                 }
 
-                context.Report(
+                context.ReportRelated(
                     ProgramAnalysisDiagnostics.MissingContext, site.Node, site.About is null ? [] : [site.About],
-                    Kind(callee), callee.Name, TypeDisplay.Mist(key), (exposed.Node is null ? site : exposed).Location());
+                    [new RelatedLocation(RelatedRole.Instantiation, (exposed.Node is null ? site : exposed).Location())],
+                    new EnumValue(Kind(callee)), new NameValue(callee.Name), DiagnosticSnapshot.Type(key));
             }
         }
     }

@@ -22,7 +22,7 @@ internal abstract record EntryPointSelection
 
     public sealed record None : EntryPointSelection;
 
-    public sealed record Refused(MistDiagnostic Descriptor, ImmutableArray<string> Arguments) : EntryPointSelection;
+    public sealed record Refused(MistDiagnostic Descriptor, ImmutableArray<SlotValue> Arguments) : EntryPointSelection;
 
     public static EntryPointSelection Of(MistAssembly assembly)
     {
@@ -39,7 +39,7 @@ internal abstract record EntryPointSelection
         IReadOnlyList<TopLevelFile> topLevelFiles, IReadOnlyList<string> mains, string? setting, bool isLibrary)
     {
         var files = topLevelFiles.OrderBy(file => file.Path, StringComparer.Ordinal).ToList();
-        var paths = string.Join(", ", files.Select(file => file.Path));
+        var paths = new SequenceValue(SlotKind.Path, [.. files.Select(file => new PathValue(file.Path))]);
         var classes = mains.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
 
         if(isLibrary && files.Count > 0)
@@ -63,24 +63,24 @@ internal abstract record EntryPointSelection
         {
             if(files.Count == 1)
             {
-                return Refuse(EntryPointDiagnostics.ClassEntryPointBesideTopLevelStatements, setting);
+                return Refuse(EntryPointDiagnostics.ClassEntryPointBesideTopLevelStatements, new NameValue(setting));
             }
 
             return classes.Contains(setting)
                 ? MainOf(setting, mains, isLibrary)
-                : Refuse(EntryPointDiagnostics.EntryPointClassNotFound, setting);
+                : Refuse(EntryPointDiagnostics.EntryPointClassNotFound, new NameValue(setting));
         }
 
         if(files.Count == 1)
         {
             return classes.Count == 0
                 ? StatementsOf(files[0])
-                : Refuse(EntryPointDiagnostics.TopLevelStatementsBesideMain, files[0].Path, string.Join("', '", classes));
+                : Refuse(EntryPointDiagnostics.TopLevelStatementsBesideMain, new PathValue(files[0].Path), new SequenceValue(SlotKind.Name, [.. classes.Select(name => new NameValue(name))], Separator: "', '"));
         }
 
         if(classes.Count > 1 && !isLibrary)
         {
-            return Refuse(EntryPointDiagnostics.MultipleMains, string.Join(", ", classes), classes[0]);
+            return Refuse(EntryPointDiagnostics.MultipleMains, new SequenceValue(SlotKind.Name, [.. classes.Select(name => new NameValue(name))]), new NameValue(classes[0]));
         }
 
         return classes.Count == 1 ? MainOf(classes[0], mains, isLibrary) : new None();
@@ -101,8 +101,9 @@ internal abstract record EntryPointSelection
 
         var declared = file.BlockNamespaces
             .Distinct(StringComparer.Ordinal)
-            .Select(name => $"namespace {name} {{ ... }}");
-        return Refuse(EntryPointDiagnostics.TopLevelStatementsWithBlockNamespace, file.Path, string.Join(", ", declared));
+            .Select(name => new NameValue(name));
+        return Refuse(EntryPointDiagnostics.TopLevelStatementsWithBlockNamespace, new PathValue(file.Path),
+            new SequenceValue(SlotKind.Name, [.. declared], ItemPrefix: "namespace ", ItemSuffix: " { ... }"));
     }
 
     private static EntryPointSelection MainOf(string chosen, IReadOnlyList<string> mains, bool isLibrary)
@@ -113,11 +114,11 @@ internal abstract record EntryPointSelection
         }
 
         return mains.Count(declaring => declaring == chosen) > 1
-            ? Refuse(EntryPointDiagnostics.DuplicateEntryPoint, chosen)
+            ? Refuse(EntryPointDiagnostics.DuplicateEntryPoint, new NameValue(chosen))
             : new Main(chosen);
     }
 
-    private static Refused Refuse(MistDiagnostic descriptor, params ImmutableArray<string> arguments)
+    private static Refused Refuse(MistDiagnostic descriptor, params ImmutableArray<SlotValue> arguments)
     {
         return new Refused(descriptor, arguments);
     }

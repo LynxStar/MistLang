@@ -116,7 +116,7 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, node, [],
-                    filler.Name, "value", TypeDisplay.Mist(promised), TypeDisplay.Mist(produced));
+                    new NameValue(filler.Name), new NameValue("value"), new NameValue(TypeDisplay.Mist(promised)), new NameValue(TypeDisplay.Mist(produced)));
             }
         }
     }
@@ -143,7 +143,7 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(TypeDisplay.Mist(promisedType)), new NameValue(TypeDisplay.Mist(demandedType)));
 
                 continue;
             }
@@ -154,7 +154,7 @@ internal static class RefinementContracts
 
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    filler.Name, filler.ParametersList[i].Name, realPromised, realDemanded);
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(realPromised.ToString()), new NameValue(realDemanded.ToString()));
 
                 continue;
             }
@@ -163,7 +163,7 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    filler.Name, filler.ParametersList[i].Name, TypeDisplay.Mist(promisedType), TypeDisplay.Mist(demandedType));
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(TypeDisplay.Mist(promisedType)), new NameValue(TypeDisplay.Mist(demandedType)));
 
                 continue;
             }
@@ -172,9 +172,9 @@ internal static class RefinementContracts
 
             context.Report(
                 ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                filler.Name, filler.ParametersList[i].Name,
-                demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString(),
-                demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString());
+                new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name),
+                new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString()),
+                new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString()));
         }
     }
 
@@ -183,7 +183,7 @@ internal static class RefinementContracts
     {
         context.Report(
             ProgramAnalysisDiagnostics.RefinementReturnUnproven, at, [],
-            member, TypeDisplay.Mist(produced), TypeDisplay.Mist(promised), TypeDisplay.Mist(abstractType));
+            new NameValue(member), DiagnosticSnapshot.Type(produced), new NameValue(TypeDisplay.Mist(promised)), new NameValue(TypeDisplay.Mist(abstractType)));
     }
 
     private sealed record Conformed(

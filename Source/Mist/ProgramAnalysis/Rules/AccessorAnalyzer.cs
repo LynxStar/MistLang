@@ -119,11 +119,11 @@ internal sealed class AccessorAnalyzer : IProgramAnalyzer
         if(descriptor == ProgramAnalysisDiagnostics.InaccessibleAccessor)
         {
             context.Report(descriptor, use.At, use.About,
-                keyword, slot.Name, accessor!.Accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessor.Accessibility));
+                new EnumValue(keyword), new NameValue(slot.Name), new EnumValue(accessor!.Accessibility.ToString().ToLowerInvariant()), new NameValue(AccessDomains.Where(accessor.Accessibility)));
         }
         else
         {
-            context.Report(descriptor, use.At, use.About, slot.Name);
+            context.Report(descriptor, use.At, use.About, new NameValue(slot.Name));
         }
     }
 

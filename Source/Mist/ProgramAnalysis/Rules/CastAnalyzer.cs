@@ -3,6 +3,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -38,12 +39,12 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
 
                 case CastExpression { ParameterType: null } cast
                     when Assignability.Boxing(cast.Operand.Type, cast.TargetType, context.Model.TypeInterner) is { } boxed:
-                    context.Report(boxed, cast.Node, [cast, cast.Operand], TypeDisplay.Mist(cast.Operand.Type), TypeDisplay.Mist(cast.TargetType));
+                    context.Report(boxed, cast.Node, [cast, cast.Operand], DiagnosticSnapshot.Type(cast.Operand.Type), DiagnosticSnapshot.Type(cast.TargetType));
                     break;
 
                 case AsExpression converted
                     when Assignability.Boxing(converted.Operand.Type, converted.TargetType, context.Model.TypeInterner) is { } boxed:
-                    context.Report(boxed, converted.Node, [converted, converted.Operand], TypeDisplay.Mist(converted.Operand.Type), TypeDisplay.Mist(converted.TargetType));
+                    context.Report(boxed, converted.Node, [converted, converted.Operand], DiagnosticSnapshot.Type(converted.Operand.Type), DiagnosticSnapshot.Type(converted.TargetType));
                     break;
 
                 case CastExpression cast when Tests(context, cast) && HidesPurity(cast.Operand.Type, cast.TargetType):
@@ -137,8 +138,8 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
             ProgramAnalysisDiagnostics.PureFunctionTypeUntestable,
             at.Node,
             [at, operand],
-            TypeDisplay.Mist(operand.Type),
-            TypeDisplay.Mist(target));
+            DiagnosticSnapshot.Type(operand.Type),
+            DiagnosticSnapshot.Type(target));
     }
 
     internal static bool Converts(AnalysisContext context, CastExpression cast)
@@ -187,25 +188,25 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                 ProgramAnalysisDiagnostics.AmbiguousCast,
                 cast.Node,
                 [cast, cast.Operand],
-                TypeDisplay.Mist(cast.Operand.Type),
-                TypeDisplay.Mist(cast.TargetType),
-                string.Join(", ", cast.AmbiguousOperators.Select(Signature)));
+                DiagnosticSnapshot.Type(cast.Operand.Type),
+                DiagnosticSnapshot.Type(cast.TargetType),
+                new SequenceValue(SlotKind.Symbol, [.. cast.AmbiguousOperators.Select(candidate => DiagnosticSnapshot.Symbol(candidate, Signature(candidate)))]));
         }
         else if(cast.ParameterType is { } parameter)
         {
             if(JudgeOperand(cast, parameter, context.Model.TypeInterner) is null
                 && CloneRefusal(context, cast) is { } refusal && cast.Operator is { ClonesThrough: { } body })
             {
-                context.Report(
+                context.ReportCaused(
                     ProgramAnalysisDiagnostics.CloneConversionDoesNotHold,
                     cast.Node,
                     [cast, cast.Operand],
-                    TypeDisplay.Mist(cast.Operand.Type),
-                    TypeDisplay.Mist(cast.TargetType),
-                    $"{TypeDisplay.Mist(body.DeclaringType!)}.{body.Name}",
-                    TypeDisplay.Mist(parameter),
-                    refusal.Member,
-                    refusal.Failure.Message);
+                    refusal.Failure,
+                    DiagnosticSnapshot.Type(cast.Operand.Type),
+                    DiagnosticSnapshot.Type(cast.TargetType),
+                    DiagnosticSnapshot.Symbol(body, $"{TypeDisplay.Mist(body.DeclaringType!)}.{body.Name}"),
+                    DiagnosticSnapshot.Type(parameter),
+                    new NameValue(refusal.Member));
             }
             else if(cast.Operator is { } called)
             {
@@ -213,10 +214,10 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.CastArgumentMismatch,
                     cast.Node,
                     [cast, cast.Operand],
-                    TypeDisplay.Mist(cast.Operand.Type),
-                    TypeDisplay.Mist(cast.TargetType),
-                    Signature(called),
-                    TypeDisplay.Mist(parameter));
+                    DiagnosticSnapshot.Type(cast.Operand.Type),
+                    DiagnosticSnapshot.Type(cast.TargetType),
+                    DiagnosticSnapshot.Symbol(called, Signature(called)),
+                    DiagnosticSnapshot.Type(parameter));
             }
             else
             {
@@ -224,9 +225,9 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.EnumCastArgumentMismatch,
                     cast.Node,
                     [cast, cast.Operand],
-                    TypeDisplay.Mist(cast.Operand.Type),
-                    TypeDisplay.Mist(cast.TargetType),
-                    TypeDisplay.Mist(parameter));
+                    DiagnosticSnapshot.Type(cast.Operand.Type),
+                    DiagnosticSnapshot.Type(cast.TargetType),
+                    DiagnosticSnapshot.Type(parameter));
             }
         }
         else if(!UnheldCopies.Report(context, cast.Operand.Type, cast.TargetType, cast.Node, [cast, cast.Operand]))
@@ -243,9 +244,9 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                 ProgramAnalysisDiagnostics.NewtypeSourceDefinesNoCopy,
                 cast.Node,
                 [cast, cast.Operand],
-                TypeDisplay.Mist(cast.Operand.Type),
-                TypeDisplay.Mist(cast.TargetType),
-                TypeDisplay.Mist(source));
+                DiagnosticSnapshot.Type(cast.Operand.Type),
+                DiagnosticSnapshot.Type(cast.TargetType),
+                DiagnosticSnapshot.Type(source));
         }
         else
         {
@@ -253,8 +254,8 @@ internal sealed class CastAnalyzer : IProgramAnalyzer
                 ProgramAnalysisDiagnostics.CastHasNoConversion,
                 cast.Node,
                 [cast, cast.Operand],
-                TypeDisplay.Mist(cast.Operand.Type),
-                TypeDisplay.Mist(cast.TargetType));
+                DiagnosticSnapshot.Type(cast.Operand.Type),
+                DiagnosticSnapshot.Type(cast.TargetType));
         }
     }
 

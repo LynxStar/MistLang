@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -197,7 +198,7 @@ public sealed class ExtensionSignatureDecisionTests
 public sealed class ExtensionSignatureAnalysisTests
 {
     [Fact]
-    public void AnalysisReportsLaterLocationAndEarlierLocationInMessage()
+    public void AnalysisReportsLaterLocationAndRelatedEarlierDeclaration()
     {
         var f = new ExtensionSignatureFragments();
         var block = f.Block(f.Integer);
@@ -207,7 +208,9 @@ public sealed class ExtensionSignatureAnalysisTests
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
         Assert.Equal("MIST0134", finding.Number.Value);
         Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
-        Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(finding.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal(earlier.DeclarationNode!.Span.Start + 1, previous.Location.Lines!.Value.Start.Column);
     }
 
     [Fact]
@@ -221,6 +224,8 @@ public sealed class ExtensionSignatureAnalysisTests
         var finding = Assert.Single(f.Built.Analyze(new DeclarationShapeAnalyzer(), extensions: [block]));
         Assert.Equal("MIST0135", finding.Number.Value);
         Assert.Equal(later.DeclarationNode!.Span.Start + 1, finding.Position().Start.Column);
-        Assert.Contains($"hand-built.mist:1:{earlier.DeclarationNode!.Span.Start + 1}", finding.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(finding.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal(earlier.DeclarationNode!.Span.Start + 1, previous.Location.Lines!.Value.Start.Column);
     }
 }

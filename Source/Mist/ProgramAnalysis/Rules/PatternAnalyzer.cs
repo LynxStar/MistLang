@@ -168,8 +168,8 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
             context.Report(
                 ProgramAnalysisDiagnostics.PureFunctionTypeUntestableClosing, closing.Node, [],
-                closing.Parameter.Name, GenericName(closing.Parameter, context), TypeDisplay.Mist(closing.Argument),
-                GenericName(test.Parameter, context), TypeDisplay.Mist(test.From), TypeDisplay.Mist(test.To), TypeDisplay.Mist(promised));
+                new NameValue(closing.Parameter.Name), new NameValue(GenericName(closing.Parameter, context)), DiagnosticSnapshot.Type(closing.Argument),
+                new NameValue(GenericName(test.Parameter, context)), DiagnosticSnapshot.Type(test.From), DiagnosticSnapshot.Type(test.To), DiagnosticSnapshot.Type(promised));
         }
     }
 
@@ -198,7 +198,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         {
             var held = OptionalLifting.NonVoidPortion(input, context.Model.TypeInterner);
             var described = ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held) ? held : input;
-            context.Report(descriptor, test.Node, [about], TypeDisplay.Mist(described), TypeDisplay.Mist(tested));
+            context.Report(descriptor, test.Node, [about], DiagnosticSnapshot.Type(described), DiagnosticSnapshot.Type(tested));
         }
     }
 
@@ -242,8 +242,8 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         {
             var expressions = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number ? new[] { about } : [about, comparison.Bound];
             var args = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number
-                ? new object?[] { TypeDisplay.Mist(input) }
-                : [TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input)];
+                ? new SlotValue[] { DiagnosticSnapshot.Type(input) }
+                : [DiagnosticSnapshot.Type(comparison.Bound.Type), DiagnosticSnapshot.Type(input)];
             context.Report(descriptor, comparison.Node, expressions, args);
         }
     }

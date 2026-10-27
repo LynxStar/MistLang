@@ -51,7 +51,7 @@ internal sealed partial class EscapeAnalyzer
             case ReturnStatement { IsRef: true, Value: { } value }
                 when StorageLocations.NotALocation(value) is null && PositionDecision.ReadonlyReference(value) is null
                     && FrameScopes.Referent(value, state) is { } origin:
-                context.Report(ProgramAnalysisDiagnostics.RefReturnEscapes, value.Node, [value], Describe(value), origin);
+                context.Report(ProgramAnalysisDiagnostics.RefReturnEscapes, value.Node, [value], new NameValue(Describe(value)), new NameValue(origin));
                 break;
 
             case ReturnStatement { IsRef: false, Value: { } value }:
@@ -63,7 +63,7 @@ internal sealed partial class EscapeAnalyzer
                     && FrameScopes.Destination(assignment.Target, state) is { } destination:
                 context.Report(
                     ProgramAnalysisDiagnostics.StackSpanStored, assignment.Value.Node, [assignment.Value],
-                    TypeDisplay.Mist(assignment.Value.Type), origin, destination.Where, destination.Why);
+                    DiagnosticSnapshot.Type(assignment.Value.Type), new NameValue(origin), new NameValue(destination.Where), new NameValue(destination.Why));
                 break;
 
             case InvocationExpression call:
@@ -88,7 +88,7 @@ internal sealed partial class EscapeAnalyzer
     {
         if(RefStructs.Is(value.Type) && FrameScopes.Value(value, state) is { } origin)
         {
-            context.Report(ProgramAnalysisDiagnostics.StackSpanReturned, value.Node, [value], TypeDisplay.Mist(value.Type), origin);
+            context.Report(ProgramAnalysisDiagnostics.StackSpanReturned, value.Node, [value], DiagnosticSnapshot.Type(value.Type), new NameValue(origin));
         }
     }
 
@@ -129,7 +129,7 @@ internal sealed partial class EscapeAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.StackSpanPassed, argument.Node, [argument],
-                    TypeDisplay.Mist(argument.Type), origin, callee!.Name, destination.Where, destination.Why);
+                    DiagnosticSnapshot.Type(argument.Type), new NameValue(origin), new NameValue(callee!.Name), new NameValue(destination.Where), new NameValue(destination.Why));
             }
         }
     }

@@ -24,13 +24,13 @@ internal sealed class InitializerAnalyzer : IProgramAnalyzer
 
             foreach(var repeated in Repeated(creation.Initializer))
             {
-                context.Report(ProgramAnalysisDiagnostics.InitializerMemberRepeated, repeated.Node, [], repeated.MemberName!);
+                context.Report(ProgramAnalysisDiagnostics.InitializerMemberRepeated, repeated.Node, [], new NameValue(repeated.MemberName!));
             }
 
             foreach(var stray in Mixed(creation.Initializer))
             {
                 context.Report(
-                    ProgramAnalysisDiagnostics.InitializerKindsMixed, stray.Node, [], Does(stray), Does(creation.Initializer[0]));
+                    ProgramAnalysisDiagnostics.InitializerKindsMixed, stray.Node, [], new EnumValue(Does(stray)), new EnumValue(Does(creation.Initializer[0])));
             }
         }
     }

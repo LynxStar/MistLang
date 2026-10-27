@@ -172,6 +172,8 @@ public sealed class CloneAnalysisIsolationTests
         Assert.Equal("use.mist", finding.Location.Path);
         Assert.Equal(91, finding.Position().Start.Column);
         Assert.Contains("at 'Mate'", finding.Message);
+        Assert.Equal(refused.Failure.Ordinal, finding.Cause);
+        Assert.DoesNotContain(refused.Failure.Message, finding.Message);
     }
 
     [Fact]
@@ -346,10 +348,10 @@ public sealed class CloneAnalysisIsolationTests
         var root = fixture.Conversion(member);
         var diagnostics = new DiagnosticBag();
         var context = fixture.Context(Fixture.BodyScope(root), new ConstraintAnalyzer(), diagnostics);
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], "S", "class", "T");
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
         context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node,
-            [new ErrorExpression(member.Node)], "S", "class", "T");
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], "S", "class", "T");
+            [new ErrorExpression(member.Node)], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
 
         Assert.Equal(31, Assert.Single(diagnostics.ToImmutableArray()).Position().Start.Column);
     }

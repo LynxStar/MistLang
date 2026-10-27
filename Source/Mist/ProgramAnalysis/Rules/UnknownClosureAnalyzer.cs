@@ -25,7 +25,7 @@ internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
             switch(node)
             {
                 case NewExpression creation when Judge(creation.Type) is { } finding:
-                    context.Report(finding, creation.Node, [creation], TypeDisplay.Mist(creation.Type), UnknownPositions(creation.Type));
+                    context.Report(finding, creation.Node, [creation], DiagnosticSnapshot.Type(creation.Type), UnknownPositions(creation.Type));
                     break;
 
                 case DefaultExpression { Type: UnknownType } defaulted:
@@ -44,9 +44,9 @@ internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
     /// The type parameters the construction binds to <c>unknown</c>, named for the diagnostic, which
     /// has to say WHERE the top type sits in a long argument list.
     /// </summary>
-    internal static string UnknownPositions(IMistType constructed)
+    internal static SequenceValue UnknownPositions(IMistType constructed)
     {
-        var names = new List<string>();
+        var names = new List<SlotValue>();
 
         for(var current = Ancestry.Unwrap(constructed) as ConstructedType; current is not null; current = current.Enclosing)
         {
@@ -61,11 +61,11 @@ internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
                     && parameter.Ordinal < current.TypeArguments.Count
                     && TypeParameterOccurrences.BearsUnknown(current.TypeArguments[parameter.Ordinal]))
                 {
-                    names.Add($"'{parameter.Name}'");
+                    names.Add(new NameValue(parameter.Name));
                 }
             }
         }
 
-        return string.Join(" and ", names);
+        return new SequenceValue(SlotKind.Name, [.. names], Separator: " and ", ItemPrefix: "'", ItemSuffix: "'");
     }
 }

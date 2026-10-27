@@ -61,7 +61,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.FieldNotDefinitelyAssigned, constructor.DeclarationNode!, [],
-                    NameOf(member), constructor.Name, TypeDisplay.Mist(TypeOf(member)));
+                    new NameValue(NameOf(member)), new NameValue(constructor.Name), DiagnosticSnapshot.Type(TypeOf(member)));
             }
         }
     }
@@ -164,14 +164,14 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
             {
                 case Expression expression when LocalStoragePath.Of(expression) is { } read
                     && slots.Tracks(read) && !slots.Required(read).All(state.Contains):
-                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, expression.Node, [expression], read.Name);
+                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, expression.Node, [expression], new NameValue(read.Name));
                     break;
 
                 case MemberAccessExpression { Receiver: ThisExpression } access
                     when Storage(access.Member) is { } member && storage.Contains(member) && !state.Contains(member):
                     context.Report(
                         ProgramAnalysisDiagnostics.FieldReadBeforeAssignment, access.Node, [access],
-                        NameOf(member), constructor!.Name);
+                        new NameValue(NameOf(member)), new NameValue(constructor!.Name));
                     break;
 
                 case LambdaExpression or AsyncBlockExpression when graph.Nested.TryGetValue(step.Node, out var nested):
@@ -191,7 +191,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.LocalFunctionReadsUnassigned, ((Expression)step.Node).Node,
-                            [(Expression)step.Node], function.Name, read.Name);
+                            [(Expression)step.Node], new NameValue(function.Name), new NameValue(read.Name));
                     }
 
                     break;

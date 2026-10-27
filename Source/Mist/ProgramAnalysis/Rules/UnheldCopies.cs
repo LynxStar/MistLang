@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -35,12 +36,12 @@ internal static class UnheldCopies
             ProgramAnalysisDiagnostics.CopyConversionDoesNotHold,
             at,
             about,
-            TypeDisplay.Mist(from),
-            TypeDisplay.Mist(to),
-            unheld.Member,
-            TypeDisplay.Mist(substitution.Apply(unheld.Declared, interner: null)),
-            TypeDisplay.Mist(substitution.Apply(unheld.Renamed, interner: null)),
-            TypeDisplay.Mist(source));
+            DiagnosticSnapshot.Type(from),
+            DiagnosticSnapshot.Type(to),
+            new NameValue(unheld.Member),
+            DiagnosticSnapshot.Type(substitution.Apply(unheld.Declared, interner: null)),
+            DiagnosticSnapshot.Type(substitution.Apply(unheld.Renamed, interner: null)),
+            DiagnosticSnapshot.Type(source));
 
         return true;
     }

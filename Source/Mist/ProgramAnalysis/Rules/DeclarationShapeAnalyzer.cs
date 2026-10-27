@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -42,7 +41,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             {
                 foreach(var parameter in DependentNameConflicts(member))
                 {
-                    Report(context, member.DeclarationNode, ProgramAnalysisDiagnostics.DependentParameterConflictsWithMember, parameter.Name, TypeDisplay.Mist(member));
+                    Report(context, member.DeclarationNode, ProgramAnalysisDiagnostics.DependentParameterConflictsWithMember, new NameValue(parameter.Name), DiagnosticSnapshot.Type(member));
                 }
             }
 
@@ -51,7 +50,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 case ConcreteType { CloneSource: { } source, NewtypeDeclaration: { } newtypeDeclaration }:
                     if(Declarations.IsSealed(source))
                     {
-                        Report(context, newtypeDeclaration, ProgramAnalysisDiagnostics.NewtypeOverSealedType, TypeDisplay.Mist(source));
+                        Report(context, newtypeDeclaration, ProgramAnalysisDiagnostics.NewtypeOverSealedType, DiagnosticSnapshot.Type(source));
                     }
 
                     break;
@@ -59,7 +58,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 case ConcreteType { BaseType: { } baseType } concrete:
                     if(Declarations.IsSealed(baseType))
                     {
-                        Report(context, concrete.DeclarationNode, ProgramAnalysisDiagnostics.SealedBaseType, TypeDisplay.Mist(baseType));
+                        Report(context, concrete.DeclarationNode, ProgramAnalysisDiagnostics.SealedBaseType, DiagnosticSnapshot.Type(baseType));
                     }
 
                     CheckDefaults(context, concrete);
@@ -80,7 +79,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     break;
 
                 case Newtype { SourceType: { } source } newtype when Declarations.IsSealed(source):
-                    Report(context, newtype.DeclarationNode, ProgramAnalysisDiagnostics.NewtypeOverSealedType, TypeDisplay.Mist(source));
+                    Report(context, newtype.DeclarationNode, ProgramAnalysisDiagnostics.NewtypeOverSealedType, DiagnosticSnapshot.Type(source));
                     break;
 
                 case TypeAlias { Modifiers.IsSealed: true } alias:
@@ -95,22 +94,22 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
         foreach(var repeat in ExtensionSignatureDecision.Repeats(context.Extensions))
         {
-            var (path, location) = Spelled(DiagnosticHelper.ResolveLocation(repeat.Earlier).Location);
+            var related = new RelatedLocation(RelatedRole.PreviousDeclaration, DiagnosticHelper.ResolveLocation(repeat.Earlier).Location);
             if(repeat.IsProperty)
             {
-                context.Report(ProgramAnalysisDiagnostics.DuplicateExtensionProperty, repeat.Later, [],
-                    repeat.Name, repeat.Receiver, path, location.Start.Line, location.Start.Column);
+                context.ReportRelated(ProgramAnalysisDiagnostics.DuplicateExtensionProperty, repeat.Later, [], [related],
+                    new NameValue(repeat.Name), DiagnosticSnapshot.Type(repeat.Receiver));
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.DuplicateExtensionMethod, repeat.Later, [],
-                    repeat.Name, repeat.Receiver, repeat.Signature, path, location.Start.Line, location.Start.Column);
+                context.ReportRelated(ProgramAnalysisDiagnostics.DuplicateExtensionMethod, repeat.Later, [], [related],
+                    new NameValue(repeat.Name), DiagnosticSnapshot.Type(repeat.Receiver), new NameValue(repeat.Signature));
             }
         }
 
         foreach(var backing in context.Nodes.OfType<BackingFieldReferenceExpression>().Where(backing => ComputedPropertyDecision.RefusesField(backing.Property)))
         {
-            Report(context, backing.Node, ProgramAnalysisDiagnostics.FieldInComputedProperty, backing.Property.Name);
+            Report(context, backing.Node, ProgramAnalysisDiagnostics.FieldInComputedProperty, new NameValue(backing.Property.Name));
         }
 
         var purity = new PurityInference(context);
@@ -147,7 +146,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
             foreach(var constituent in constituents.Where(constituent => !Declarations.IsReadonly(constituent) && constituent is not ErrorType))
             {
-                Report(context, enumType.DeclarationNode, ProgramAnalysisDiagnostics.EnumBaseNotReadonly, enumType.Name, TypeDisplay.Mist(constituent));
+                Report(context, enumType.DeclarationNode, ProgramAnalysisDiagnostics.EnumBaseNotReadonly, DiagnosticSnapshot.Type(enumType, enumType.Name), DiagnosticSnapshot.Type(constituent));
             }
         }
 
@@ -164,7 +163,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             {
                 Report(
                     context, (SyntaxNode?)variant.DeclarationNode ?? enumType.DeclarationNode,
-                    ProgramAnalysisDiagnostics.EnumDuplicateValue, variant.Name, first, enumType.Name);
+                    ProgramAnalysisDiagnostics.EnumDuplicateValue, new NameValue(variant.Name), new NameValue(first), DiagnosticSnapshot.Type(enumType, enumType.Name));
             }
             else
             {
@@ -205,7 +204,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                     _ => null,
                 };
 
-                Report(context, at, ProgramAnalysisDiagnostics.DefaultEntryNotAField, entry.FieldName, type.Name);
+                Report(context, at, ProgramAnalysisDiagnostics.DefaultEntryNotAField, new NameValue(entry.FieldName), DiagnosticSnapshot.Type(type, type.Name));
                 continue;
             }
 
@@ -232,19 +231,19 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         {
             if(op.Modifiers.Accessibility != Accessibility.Public)
             {
-                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotPublic, op.Symbol);
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotPublic, new NameValue(op.Symbol));
             }
 
             if(op.Kind is OperatorKind.LogicalAnd or OperatorKind.LogicalOr
                 && type.FullyQualifiedName != WellKnownTypes.Boolean.FullyQualifiedName)
             {
-                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.LogicalOperatorDeclared, op.Symbol);
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.LogicalOperatorDeclared, new NameValue(op.Symbol));
                 continue;
             }
 
             if(!op.ParametersList.Exists(parameter => Names(parameter.Type, type)))
             {
-                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotOnDeclaringType, op.Symbol, TypeDisplay.Mist(type));
+                Report(context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorNotOnDeclaringType, new NameValue(op.Symbol), DiagnosticSnapshot.Type(type));
             }
 
             if(Complements.TryGetValue(op.Kind, out var complement)
@@ -252,7 +251,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             {
                 Report(
                     context, op.DeclarationNode, ProgramAnalysisDiagnostics.OperatorUnpaired,
-                    op.Symbol, TypeDisplay.Mist(type), Operator.SymbolOf(complement));
+                    new NameValue(op.Symbol), DiagnosticSnapshot.Type(type), new NameValue(Operator.SymbolOf(complement)));
             }
         }
     }
@@ -263,25 +262,25 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         {
             Report(
                 context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
-                constrained, TypeDisplay.Mist(comparison.NarrowedType));
+                new NameValue(constrained), DiagnosticSnapshot.Type(comparison.NarrowedType));
         }
 
         if(Comparability.Mismatched(predicate, context.Model.TypeInterner) is { } mismatched)
         {
             Report(
                 context, mismatched.Node, ProgramAnalysisDiagnostics.RefinementConstantMismatch,
-                constrained, TypeDisplay.Mist(mismatched.Bound.Type), TypeDisplay.Mist(mismatched.NarrowedType));
+                new NameValue(constrained), DiagnosticSnapshot.Type(mismatched.Bound.Type), DiagnosticSnapshot.Type(mismatched.NarrowedType));
         }
 
         foreach(var (read, refusal) in RefusedReads(predicate, purity))
         {
             if(refusal == ProgramAnalysisDiagnostics.NoGetAccessor)
             {
-                Report(context, read.Node, refusal, read.MemberName);
+                Report(context, read.Node, refusal, new NameValue(read.MemberName));
             }
             else
             {
-                Report(context, read.Node, refusal, constrained, read.MemberName);
+                Report(context, read.Node, refusal, new NameValue(constrained), new NameValue(read.MemberName));
             }
         }
     }
@@ -346,19 +345,18 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         foreach(var repeat in CallableSignatureDecision.Operators(type.OperatorsList)
             .Concat(CallableSignatureDecision.Casts(type.CastOperatorsList)))
         {
-            var (path, location) = Spelled(DiagnosticHelper.ResolveLocation(repeat.Earlier.DeclarationNode!).Location);
+            var related = new RelatedLocation(RelatedRole.PreviousDeclaration, DiagnosticHelper.ResolveLocation(repeat.Earlier.DeclarationNode!).Location);
             if(repeat.Later is CastOperator cast)
             {
-                Report(context, cast.DeclarationNode, CallableSignatureDiagnostics.DuplicateCastSignature,
-                    TypeDisplay.Mist(type), cast.IsImplicit ? "implicit" : "explicit",
-                    TypeDisplay.Mist(cast.SourceParameter.Type), TypeDisplay.Mist(cast.TargetType),
-                    path, location.Start.Line, location.Start.Column);
+                context.ReportRelated(CallableSignatureDiagnostics.DuplicateCastSignature, cast.DeclarationNode!, [], [related],
+                    DiagnosticSnapshot.Type(type), new EnumValue(cast.IsImplicit ? "implicit" : "explicit"),
+                    DiagnosticSnapshot.Type(cast.SourceParameter.Type), DiagnosticSnapshot.Type(cast.TargetType));
             }
             else if(repeat.Later is Operator op)
             {
-                Report(context, op.DeclarationNode, CallableSignatureDiagnostics.DuplicateOperatorSignature,
-                    TypeDisplay.Mist(type), op.Symbol, OverloadFailure.DescribeSignatures([op]),
-                    path, location.Start.Line, location.Start.Column);
+                context.ReportRelated(CallableSignatureDiagnostics.DuplicateOperatorSignature, op.DeclarationNode!, [], [related],
+                    DiagnosticSnapshot.Type(type), new NameValue(op.Symbol),
+                    new SequenceValue(SlotKind.Type, [.. op.ParametersList.Select(parameter => DiagnosticSnapshot.Type(parameter.Type))]));
             }
         }
     }
@@ -387,7 +385,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
                 Report(
                     context, member.Node, ProgramAnalysisDiagnostics.MemberRedeclaration,
-                    TypeDisplay.Mist(type), member.Name, TypeDisplay.Mist(ancestor));
+                    DiagnosticSnapshot.Type(type), new NameValue(member.Name), DiagnosticSnapshot.Type(ancestor));
             }
         }
     }
@@ -399,12 +397,12 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             if(ImplicitChains.UnsatisfiedStructBase(constructor) is { } structBase)
             {
                 Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.StructBaseConstructorRequired,
-                    TypeDisplay.Mist(structBase), TypeDisplay.Mist(type));
+                    DiagnosticSnapshot.Type(structBase), DiagnosticSnapshot.Type(type));
             }
 
             if(ImplicitChains.UnsatisfiedBase(constructor) is { } baseType)
             {
-                Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.BaseConstructorUnsatisfied, TypeDisplay.Mist(baseType));
+                Report(context, constructor.DeclarationNode, ProgramAnalysisDiagnostics.BaseConstructorUnsatisfied, DiagnosticSnapshot.Type(baseType));
             }
         }
     }
@@ -465,7 +463,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
             Report(
                 context, later.DeclarationNode, ProgramAnalysisDiagnostics.DuplicateSignature,
-                TypeDisplay.Mist(type), description, OverloadFailure.DescribeSignatures([later]));
+                DiagnosticSnapshot.Type(type), new NameValue(description), new SequenceValue(SlotKind.Type, [.. later.ParametersList.Select(parameter => DiagnosticSnapshot.Type(parameter.Type))], ItemPrefix: "", ItemSuffix: ""));
         }
     }
 
@@ -490,12 +488,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload);
 
-    private static (string Path, LinePositionSpan Lines) Spelled(Location location)
-    {
-        return (location.Path ?? "<unknown>", location.Lines ?? default);
-    }
-
-    private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params object?[] args)
+    private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params SlotValue[] args)
     {
         if(at is not null)
         {

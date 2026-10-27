@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
@@ -121,14 +122,66 @@ internal sealed class AnalysisContext(
         MistDiagnostic descriptor,
         SyntaxNode at,
         IReadOnlyList<Expression> about,
-        params ReadOnlySpan<object?> args)
+        params ReadOnlySpan<SlotValue> args)
     {
         if(about.Any(expression => expression.Type is ErrorType || failures.Of(expression)) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
         {
             return;
         }
 
-        diagnostics.ReportAtNode(descriptor, at, analyzerId, args);
+        diagnostics.ReportAtNodeTyped(descriptor, at, analyzerId, args);
+    }
+
+    public void ReportRelated(
+        MistDiagnostic descriptor,
+        SyntaxNode at,
+        IReadOnlyList<Expression> about,
+        ImmutableArray<RelatedLocation> related,
+        params ReadOnlySpan<SlotValue> args)
+    {
+        if(about.Any(expression => expression.Type is ErrorType || failures.Of(expression)) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
+        {
+            return;
+        }
+
+        diagnostics.AdmitOwned(at, DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(at), diagnostics.Stage, args, related, analyzerName: analyzerId));
+    }
+
+    public void ReportCaused(
+        MistDiagnostic descriptor,
+        SyntaxNode at,
+        IReadOnlyList<Expression> about,
+        Diagnostic cause,
+        params ReadOnlySpan<SlotValue> args)
+    {
+        if(about.Any(expression => expression.Type is ErrorType || failures.Of(expression)) || (scope.Boundary is { } boundary && !boundary.Contains(at)))
+        {
+            return;
+        }
+
+        if(cause.Ordinal == 0)
+        {
+            var withheld = diagnostics.Withhold(() => diagnostics.Add(cause));
+            withheld.Discard();
+        }
+
+        diagnostics.AdmitOwned(at, DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(at), diagnostics.Stage, args, cause: cause.Ordinal, analyzerName: analyzerId));
+    }
+
+    public void ReportWrapped(MistDiagnostic descriptor, Finding cause, params ReadOnlySpan<SlotValue> args)
+    {
+        var admission = DiagnosticFactory.Create(
+            cause.Descriptor, DiagnosticHelper.ResolveLocation(cause.At), diagnostics.Stage, cause.Args, analyzerName: analyzerId);
+        var withheld = diagnostics.Withhold(() => diagnostics.AdmitOwned(cause.At, admission));
+        withheld.Discard();
+        foreach(var breach in admission.Breaches)
+        {
+            diagnostics.Replay(breach);
+        }
+
+        ReportCaused(descriptor, cause.At, cause.About, withheld.Occurrences[0], args);
     }
 
     public bool HasFailure(Expression expression)
@@ -140,7 +193,7 @@ internal sealed class AnalysisContext(
         Expression expression,
         MistDiagnostic descriptor,
         IReadOnlyList<Expression> about,
-        params ReadOnlySpan<object?> args)
+        params ReadOnlySpan<SlotValue> args)
     {
         if(about.Any(value => value.Type is ErrorType || failures.Of(value))
             || (scope.Boundary is { } boundary && !boundary.Contains(expression.Node)))
@@ -148,7 +201,7 @@ internal sealed class AnalysisContext(
             return;
         }
 
-        diagnostics.ReportAtNode(descriptor, expression.Node, analyzerId, args);
+        diagnostics.ReportAtNodeTyped(descriptor, expression.Node, analyzerId, args);
         failures.Record(expression);
     }
 
@@ -160,10 +213,10 @@ internal sealed class AnalysisContext(
         }
     }
 
-    public void ReportAtProject(MistDiagnostic descriptor, MistAssembly project, params ReadOnlySpan<object?> args)
+    public void ReportAtProject(MistDiagnostic descriptor, MistAssembly project, params ReadOnlySpan<SlotValue> args)
     {
         diagnostics.Admit(DiagnosticFactory.Create(
-            descriptor, LegacyLocation.Map(project.ProjectPath ?? project.Name), diagnostics.Stage,
-            LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerId));
+            descriptor, project.ProjectPath is { } path ? new ProjectLocation(path, null) : new Absent(AbsenceReason.Unavailable), diagnostics.Stage,
+            args, analyzerName: analyzerId));
     }
 }

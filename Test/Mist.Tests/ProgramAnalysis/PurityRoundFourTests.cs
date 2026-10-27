@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -315,7 +316,12 @@ public sealed class PurityRoundFourTests
     [Fact]
     public void GenericDefinitionsFieldInitializerIsHeldToADefaultsConsistency()
     {
-        Refused("generic-definitions-field-initializer-is-a-default-of-every-instantiation", "MIST0143", "'Note'");
+        var finding = Assert.Single(new PurityFragments().RoundFour("generic-definitions-field-initializer-is-a-default-of-every-instantiation"));
+
+        Assert.Equal("MIST0143", finding.Number.Value);
+        Assert.Equal("The initializer of field 'Stamp' of 'PBox<>'", Assert.IsType<NameValue>(finding.Arguments[0]).Name);
+        Assert.Equal("PBox<>", Assert.IsType<TypeValue>(finding.Arguments[1]).Spelling);
+        Assert.True(finding.Cause is > 0 && finding.Cause < finding.Ordinal);
     }
 
     [Fact]

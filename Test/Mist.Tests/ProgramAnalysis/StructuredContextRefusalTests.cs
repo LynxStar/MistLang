@@ -1,5 +1,6 @@
 // Tier 2 (Functional): the structured-context rule judges hand-built bodies and the calls between them.
 
+using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -37,7 +38,10 @@ public sealed class StructuredContextRefusalTests
 
         Assert.True(diagnostic.Number.Value == "MIST0129", $"{caseName}: got {diagnostic.Number.Value}");
         Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
-        Assert.EndsWith($"hand-built.mist:1:{StructuredContextFragments.Site + 1}.", diagnostic.Message, StringComparison.Ordinal);
+        var reachedAt = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.Instantiation, reachedAt.Role);
+        Assert.Equal("hand-built.mist", reachedAt.Location.Path);
+        Assert.Equal(StructuredContextFragments.Site + 1, reachedAt.Location.Lines!.Value.Start.Column);
     }
 
     [Theory]
@@ -78,7 +82,10 @@ public sealed class StructuredContextRefusalTests
 
         Assert.True(diagnostic.Number.Value == "MIST0129", $"{caseName}: got {diagnostic.Number.Value}");
         Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
-        Assert.EndsWith($"hand-built.mist:1:{StructuredContextFragments.Outer + 1}.", diagnostic.Message, StringComparison.Ordinal);
+        var reachedAt = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.Instantiation, reachedAt.Role);
+        Assert.Equal("hand-built.mist", reachedAt.Location.Path);
+        Assert.Equal(StructuredContextFragments.Outer + 1, reachedAt.Location.Lines!.Value.Start.Column);
     }
 
     [Theory]
@@ -163,7 +170,8 @@ public sealed class StructuredContextRefusalTests
         var owed = Assert.Single(new StructuredContextFragments().Analyze("call-with-no-context"));
         var built = Assert.Single(new StructuredContextFragments().Analyze("constructor-with-no-context"));
 
-        Assert.StartsWith("Method 'Read' requires context of type 'string', but no matching context declaration is in scope at ", owed.Message, StringComparison.Ordinal);
+        Assert.Equal("Method 'Read' requires context of type 'string', but no matching context declaration is in scope.", owed.Message);
+        Assert.Equal(RelatedRole.Instantiation, Assert.Single(owed.Related).Role);
         Assert.StartsWith("Constructor 'Greeter' requires context of type 'string',", built.Message, StringComparison.Ordinal);
     }
 
@@ -208,7 +216,11 @@ public sealed class StructuredContextRefusalTests
 
         Assert.Equal("MIST0130", diagnostic.Number.Value);
         Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
-        Assert.EndsWith("'c0' already binds it at hand-built.mist:1:1.", diagnostic.Message, StringComparison.Ordinal);
+        Assert.EndsWith("'c0' already binds it.", diagnostic.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal("hand-built.mist", previous.Location.Path);
+        Assert.Equal(1, previous.Location.Lines!.Value.Start.Column);
     }
 
     [Fact]

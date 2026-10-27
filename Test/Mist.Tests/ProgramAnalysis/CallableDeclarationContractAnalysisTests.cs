@@ -39,7 +39,10 @@ public sealed class CallableDeclarationContractAnalysisTests
         Assert.Equal("hand-built.mist", finding.Location.Path);
         Assert.Equal(31, finding.Position().Start.Column);
         Assert.Contains("Money", finding.Message, StringComparison.Ordinal);
-        Assert.Contains("hand-built.mist(1,21)", finding.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(finding.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal("hand-built.mist", previous.Location.Path);
+        Assert.Equal(21, previous.Location.Lines!.Value.Start.Column);
         Assert.Contains(kind.StartsWith("operator", StringComparison.Ordinal) ? "'+'" : $"an {kind} cast operator from 'Money' to 'int'", finding.Message, StringComparison.Ordinal);
     }
 

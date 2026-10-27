@@ -261,16 +261,8 @@ internal sealed record ContextSite(
         return false;
     }
 
-    public string Location()
+    public Location Location()
     {
-        if(Node is null)
-        {
-            return "<unknown>";
-        }
-
-        var resolved = DiagnosticHelper.ResolveLocation(Node).Location;
-        var location = resolved.Lines ?? default;
-
-        return $"{resolved.Path ?? "<unknown>"}:{location.Start.Line}:{location.Start.Column}";
+        return Node is null ? new Absent(AbsenceReason.Unavailable) : DiagnosticHelper.ResolveLocation(Node).Location;
     }
 }

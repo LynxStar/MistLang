@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -28,6 +29,14 @@ public sealed class ClosedOperatorRefusalTests
 
         Assert.Equal("MIST0386", finding.Number.Value);
         Assert.Equal(38, finding.Position().Start.Column);
+        var callee = Assert.IsType<SymbolValue>(finding.Arguments[0]);
+        Assert.Equal("operator '+'", callee.Spelling);
+        Assert.Contains("Left", callee.Identity, StringComparison.Ordinal);
+        Assert.Contains("Right", callee.Identity, StringComparison.Ordinal);
+        var candidates = Assert.IsType<SequenceValue>(finding.Arguments[1]);
+        Assert.Equal(SlotKind.Symbol, candidates.ElementKind);
+        Assert.Equal(2, candidates.Items.Length);
+        Assert.NotEqual(Assert.IsType<SymbolValue>(candidates.Items[0]).Identity, Assert.IsType<SymbolValue>(candidates.Items[1]).Identity);
         Assert.Equal(
             "The call to operator '+' is ambiguous. These overloads are equally applicable: "
             + "Left.operator +(Left, Right), Right.operator +(Left, Right). Cast an argument to choose one.",
@@ -48,6 +57,14 @@ public sealed class ClosedOperatorRefusalTests
 
         Assert.Equal("MIST0386", finding.Number.Value);
         Assert.Equal(38, finding.Position().Start.Column);
+        var callee = Assert.IsType<SymbolValue>(finding.Arguments[0]);
+        Assert.Equal("operator '-'", callee.Spelling);
+        Assert.Contains("Base", callee.Identity, StringComparison.Ordinal);
+        Assert.Contains("Shape", callee.Identity, StringComparison.Ordinal);
+        var candidates = Assert.IsType<SequenceValue>(finding.Arguments[1]);
+        Assert.Equal(SlotKind.Symbol, candidates.ElementKind);
+        Assert.Equal(2, candidates.Items.Length);
+        Assert.NotEqual(Assert.IsType<SymbolValue>(candidates.Items[0]).Identity, Assert.IsType<SymbolValue>(candidates.Items[1]).Identity);
         Assert.Contains("operator '-'", finding.Message, StringComparison.Ordinal);
     }
 

@@ -40,7 +40,7 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.SwitchNotExhaustive,
                     switchExpression.Node,
                     [switchExpression.Scrutinee],
-                    string.Join(", ", missing));
+                    new SequenceValue(SlotKind.Name, [.. missing.Select(item => new NameValue(item))]));
             }
         }
     }

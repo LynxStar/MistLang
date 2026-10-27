@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -80,7 +81,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
                     var accessibility = target.Modifiers.Accessibility;
                     context.Report(
                         ProgramAnalysisDiagnostics.InaccessibleMember, constructor.ChainNode!, [],
-                        target.Name, accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+                        new NameValue(target.Name), new EnumValue(accessibility.ToString().ToLowerInvariant()), new NameValue(AccessDomains.Where(accessibility)));
                 }
             }
         }
@@ -104,7 +105,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 
                 context.Report(
                     refusal.Descriptor, naming.Node, [],
-                    Qualified(blocking), accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+                    DiagnosticSnapshot.Type(blocking, Qualified(blocking)), new EnumValue(accessibility.ToString().ToLowerInvariant()), new NameValue(AccessDomains.Where(accessibility)));
             }
         }
     }
@@ -172,13 +173,13 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.InaccessibleMember, at, [],
-                    name, accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(accessibility));
+                    new NameValue(name), new EnumValue(accessibility.ToString().ToLowerInvariant()), new NameValue(AccessDomains.Where(accessibility)));
             }
             else if(!Declarations.IsAtLeast(accessibility, site.Reach))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
-                    storage.Kind, $"{TypeDisplay.Mist(declaring)}.{name}", site.Kind, site.Name);
+                    new EnumValue(storage.Kind), new NameValue($"{TypeDisplay.Mist(declaring)}.{name}"), new EnumValue(site.Kind), new NameValue(site.Name));
             }
         }
     }
@@ -222,7 +223,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.InaccessibleMember, at, about,
-                name, modifiers.Accessibility.ToString().ToLowerInvariant(), AccessDomains.Where(modifiers.Accessibility));
+                new NameValue(name), new EnumValue(modifiers.Accessibility.ToString().ToLowerInvariant()), new NameValue(AccessDomains.Where(modifiers.Accessibility)));
         }
     }
 
@@ -295,7 +296,7 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
-                exposedKind, TypeDisplay.Mist(exposed), memberKind, memberName);
+                new EnumValue(exposedKind), new NameValue(TypeDisplay.Mist(exposed)), new EnumValue(memberKind), new NameValue(memberName));
         }
     }
 }

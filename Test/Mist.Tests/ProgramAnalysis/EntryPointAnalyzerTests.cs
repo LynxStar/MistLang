@@ -37,7 +37,7 @@ public sealed class EntryPointAnalyzerTests
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
         Assert.Equal(PipelineStage.Analysis, refusal.Stage);
         Assert.Equal("entry-point-resolution", refusal.AnalyzerName);
-        Assert.Equal(new FileOnly("Probe"), refusal.Location);
+        Assert.Equal(new Absent(AbsenceReason.Unavailable), refusal.Location);
         Assert.Equal(
             "Project 'Probe' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.",
             refusal.Message);
@@ -90,9 +90,9 @@ public sealed class EntryPointAnalyzerTests
 
     [Fact]
     [Trait("Tier", "2")]
-    public void ARefusalIsReportedAgainstTheCompiledProjectByName()
+    public void ARefusalIsReportedAgainstTheCompiledProjectsManifest()
     {
-        var self = hand.Model.AddSelfAssembly("Probe");
+        var self = hand.Model.AddSelfAssembly("Probe", projectPath: "/probe/mist.toml");
         TopLevelFile(self, "Program.mist");
         Main(self, "A");
 
@@ -100,7 +100,7 @@ public sealed class EntryPointAnalyzerTests
 
         Assert.Equal("MIST0110", refusal.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
-        Assert.Equal("Probe", refusal.Location.Path);
+        Assert.Equal(new ProjectLocation("/probe/mist.toml", null), refusal.Location);
         Assert.Equal(
             "Project has both top-level statements (in 'Program.mist') and a static void Main (in 'Probe.A'). "
             + "Add entry_point = \"top-level\" to mist.toml to resolve this conflict.",
@@ -123,13 +123,14 @@ public sealed class EntryPointAnalyzerTests
     [Trait("Tier", "2")]
     public void TheBlockNamespacesRecordedOnTheStatementsFileReachTheDecision()
     {
-        var self = hand.Model.AddSelfAssembly("Probe", entryPointSetting: "top-level");
+        var self = hand.Model.AddSelfAssembly("Probe", entryPointSetting: "top-level", projectPath: "/probe/mist.toml");
         TopLevelFile(self, "Program.mist", blockNamespaces: ["Foo", "Baz"]);
         Main(self, "A");
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal(("MIST0114", "Probe"), (refusal.Number.Value, refusal.Location.Path));
+        Assert.Equal("MIST0114", refusal.Number.Value);
+        Assert.Equal(new ProjectLocation("/probe/mist.toml", null), refusal.Location);
         Assert.StartsWith(
             "File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }, namespace Baz { ... }. ",
             refusal.Message,

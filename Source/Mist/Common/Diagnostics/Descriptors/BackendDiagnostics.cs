@@ -260,4 +260,14 @@ public static class BackendDiagnostics
         Category: DiagnosticCategory.Bck,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
+
+    public static readonly MistDiagnostic EmissionFallback = new(
+        DiagnosticNumber.Mint("MIST0424"),
+        Title: "Unhandled emission",
+        Template: "Internal compiler error: no emission for {kind} '{detail}'. This is a compiler bug; please report it with the program that caused it.",
+        Description: "The backend reached a model shape it cannot emit and stopped artifact production. Report the compiler bug with the source program.",
+        Category: DiagnosticCategory.Ice,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("kind", SlotKind.Enum), new Slot("detail", SlotKind.Name)]);
 }

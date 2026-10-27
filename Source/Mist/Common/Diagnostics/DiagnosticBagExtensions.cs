@@ -34,4 +34,27 @@ public static class DiagnosticBagExtensions
             descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
             LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerName));
     }
+
+    public static void ReportAtNodeTyped(
+        this DiagnosticBag bag,
+        MistDiagnostic descriptor,
+        SyntaxNode node,
+        string? analyzerName,
+        params ReadOnlySpan<SlotValue> arguments)
+    {
+        bag.ReportAtNodeTyped(descriptor, node, node.Span, analyzerName, arguments);
+    }
+
+    public static void ReportAtNodeTyped(
+        this DiagnosticBag bag,
+        MistDiagnostic descriptor,
+        SyntaxNode node,
+        SourceSpan span,
+        string? analyzerName,
+        params ReadOnlySpan<SlotValue> arguments)
+    {
+        bag.Admit(DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
+            arguments, analyzerName: analyzerName));
+    }
 }

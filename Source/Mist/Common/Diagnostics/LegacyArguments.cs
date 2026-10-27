@@ -61,11 +61,12 @@ internal static class LegacyArguments
         };
     }
 
-    private static long Quantity(object? arg)
+    private static Int128 Quantity(object? arg)
     {
         return arg switch
         {
-            string text => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
+            Int128 value => value,
+            string text => Int128.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0,
             IConvertible convertible => convertible.ToInt64(CultureInfo.InvariantCulture),
             _ => 0,
         };

@@ -35,7 +35,7 @@ public sealed record PathValue(string Path) : SlotValue
     public override SlotKind Kind => SlotKind.Path;
 }
 
-public sealed record QuantityValue(long Value) : SlotValue
+public sealed record QuantityValue(Int128 Value) : SlotValue
 {
     public override SlotKind Kind => SlotKind.Quantity;
 }
@@ -55,7 +55,9 @@ public sealed record TextValue(string Text) : SlotValue
     public override SlotKind Kind => SlotKind.Text;
 }
 
-public sealed record SequenceValue(SlotKind ElementKind, ImmutableArray<SlotValue> Items) : SlotValue
+public sealed record SequenceValue(
+    SlotKind ElementKind, ImmutableArray<SlotValue> Items,
+    string Separator = ", ", string ItemPrefix = "", string ItemSuffix = "") : SlotValue
 {
     public override SlotKind Kind => SlotKind.Sequence;
 }

@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Contracts;
@@ -67,6 +68,8 @@ internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParamete
 
     // CLR declarations can reserve names even when their members cannot be projected into Mist.
     public HashSet<string> UnprojectedMemberNames { get; } = new(StringComparer.Ordinal);
+
+    public List<WithholdingFrame> WithheldMembers { get; } = [];
 
     public List<Operator> OperatorsList { get; } = [];
 

@@ -50,6 +50,16 @@ public sealed class DiagnosticBag
         diagnostics.Add(diagnostic);
     }
 
+    public void Replay(Diagnostic occurrence)
+    {
+        Add(occurrence);
+    }
+
+    public void ReportTyped(MistDiagnostic descriptor, Location location, params ReadOnlySpan<SlotValue> arguments)
+    {
+        Admit(DiagnosticFactory.Create(descriptor, location, Stage, arguments));
+    }
+
     public IReadOnlyList<Diagnostic> Admitted => diagnostics;
 
     public void Admit(Admission admission)

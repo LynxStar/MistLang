@@ -100,11 +100,11 @@ internal sealed class CSharpEmitterV2
 
         if(!compileResult.Succeeded)
         {
-            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+            return new CompilerResult(false, null, diagnostics.ToImmutableArray(), compileResult.Native);
         }
 
         RuntimeAssetsDeployed = compileResult.RuntimeAssetsDeployed;
-        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
+        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray(), compileResult.Native);
     }
 
     /// <summary>

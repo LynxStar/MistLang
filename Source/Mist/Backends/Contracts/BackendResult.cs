@@ -11,4 +11,5 @@ public sealed record BackendResult(
     string? PrimaryArtifactPath,
     ImmutableArray<Diagnostic> Diagnostics,
     int EmittedFileCount = 0,
-    int RuntimeAssetsDeployed = 0);
+    int RuntimeAssetsDeployed = 0,
+    ImmutableArray<NativeDiagnostic> Native = default);

@@ -21,3 +21,5 @@ public sealed record SynthesisFrame(string Reason) : Frame;
 public sealed record OperationFrame(string Project, ImmutableArray<string> ReferenceChain, string? Package) : Frame;
 
 public sealed record TruncatedFrame(int Depth, bool Cyclic) : Frame;
+
+public sealed record WithholdingFrame(SymbolValue Member, EnumValue Reason, TypeValue? Offending = null) : Frame;

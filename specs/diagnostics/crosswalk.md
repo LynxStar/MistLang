@@ -438,3 +438,5 @@ Rows: 430 fields; 421 numbered, 7 retired, 1 held back, 1 merged. Frozen history
 | `ProgramModelDiagnostics.NewtypeSourceNotSupported` | `MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED` | numbered | `MIST0419` | Unsupported newtype source | DEC |
 | `ProgramModelDiagnostics.SpreadValueParameter` | `MIST_PM_SPREAD_VALUE_PARAMETER` | numbered | `MIST0420` | Spread suffix on value parameter | TYP |
 | `ProgramModelDiagnostics.SpreadNonPackArgument` | `MIST_PM_SPREAD_NON_PACK_ARGUMENT` | numbered | `MIST0421` | Spread into non-pack slot | TYP |
+
+| `BackendDiagnostics.EmissionFallback` | none | new producer | MIST0424 | Unhandled emission | ICE |

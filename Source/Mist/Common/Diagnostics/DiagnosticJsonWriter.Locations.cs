@@ -100,6 +100,22 @@ public static partial class DiagnosticJsonWriter
                 writer.WriteEndArray();
                 writer.WriteString("package", operation.Package);
                 break;
+            case WithholdingFrame withheld:
+                writer.WriteString("kind", "withholding");
+                writer.WritePropertyName("member");
+                WriteSlot(writer, withheld.Member);
+                writer.WriteString("reason", withheld.Reason.Token);
+                writer.WritePropertyName("offending");
+                if(withheld.Offending is { } offending)
+                {
+                    WriteSlot(writer, offending);
+                }
+                else
+                {
+                    writer.WriteNullValue();
+                }
+
+                break;
             case TruncatedFrame truncated:
                 writer.WriteString("kind", "truncated");
                 writer.WriteNumber("depth", truncated.Depth);

@@ -64,7 +64,7 @@ public static class DiagnosticRenderer
             BooleanValue boolean => boolean.Value ? "true" : "false",
             EnumValue token => token.Token,
             TextValue text => text.Text,
-            SequenceValue sequence => string.Join(", ", sequence.Items.Select(Render)),
+            SequenceValue sequence => string.Join(sequence.Separator, sequence.Items.Select(item => sequence.ItemPrefix + Render(item) + sequence.ItemSuffix)),
             OptionalValue optional => optional.Value is null ? "" : Render(optional.Value),
             _ => "",
         };
@@ -104,7 +104,7 @@ public static class DiagnosticRenderer
                         return false;
                     }
 
-                    if(carrier is OptionalValue { Value: null })
+                    if(carrier is OptionalValue { Value: null } or SequenceValue { Items.IsEmpty: true })
                     {
                         break;
                     }

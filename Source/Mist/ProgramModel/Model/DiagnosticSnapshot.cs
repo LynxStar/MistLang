@@ -66,6 +66,11 @@ internal static class DiagnosticSnapshot
             return $"function({string.Join(",", function.ParameterTypes.Select(parameter => TypeIdentity(parameter, signatureOwner)))})->{TypeIdentity(function.ReturnType, signatureOwner)}:pure={function.IsPure}";
         }
 
+        if(type is PackElementType element)
+        {
+            return $"{TypeIdentity(element.Pack, signatureOwner)}[{element.Index}]";
+        }
+
         if(type is TypeParameter { DeclaringMethod: { } method } parameter)
         {
             if(ReferenceEquals(method, signatureOwner))
@@ -76,6 +81,11 @@ internal static class DiagnosticSnapshot
             var owner = method.DeclaringType is { } declaring ? TypeIdentity(declaring) : $"{type.Assembly.ProjectPath ?? type.Assembly.Name}:<local>";
             var signature = string.Join(",", method.ParametersList.Select(item => $"{item.Modifier}:{TypeIdentity(item.Type, method)}"));
             return $"{owner}.{method.Name}`{method.TypeParametersList.Count}({signature}):!!{parameter.Ordinal}:{parameter.Name}";
+        }
+
+        if(type is TypeParameter { DeclaringType: { } declaringType } typeParameter)
+        {
+            return $"{TypeIdentity(declaringType, signatureOwner)}:!{typeParameter.Ordinal}:{typeParameter.Name}";
         }
 
         return $"{type.Assembly.ProjectPath ?? type.Assembly.Name}:{type.FullyQualifiedName}";

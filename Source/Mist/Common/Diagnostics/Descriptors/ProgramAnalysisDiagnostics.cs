@@ -137,12 +137,12 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic InconsistentAccessibility = new(
         DiagnosticNumber.Mint("MIST0161"),
         Title: "Inconsistent accessibility",
-        Template: "Inconsistent accessibility: {exposedKind} '{exposed}' is less accessible than {ownerKind} '{owner}'.",
+        Template: "Inconsistent accessibility: {exposedKind} '{exposed}{exposedMember}' is less accessible than {ownerKind} '{owner}'.",
         Description: "A declaration exposes a type that is less accessible than the declaration itself, so some callers could see the member but not its type. Widen the type's accessibility, or narrow the member's to match.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("exposedKind", SlotKind.Enum), new Slot("exposed", SlotKind.Name), new Slot("ownerKind", SlotKind.Enum), new Slot("owner", SlotKind.Name)]);
+        Slots: [new Slot("exposedKind", SlotKind.Enum), new Slot("exposed", SlotKind.Optional, SlotKind.Type), new Slot("exposedMember", SlotKind.Optional, SlotKind.Symbol), new Slot("ownerKind", SlotKind.Enum), new Slot("owner", SlotKind.Name)]);
 
     public static readonly MistDiagnostic SealedBaseType = new(
         DiagnosticNumber.Mint("MIST0162"),

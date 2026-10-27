@@ -135,12 +135,12 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic ConstraintStrengthened = new(
         DiagnosticNumber.Mint("MIST0283"),
         Title: "Implementation strengthens constraint",
-        Template: "'{member}' constrains parameter '{parameter}' more than the member it implements: '{known}' does not imply '{required}'.",
+        Template: "'{member}' constrains parameter '{parameter}' more than the member it implements: '{known}{knownPredicate}' does not imply '{required}{requiredPredicate}'.",
         Description: "The implementing member places a refinement constraint on a parameter that the member it implements does not, so a caller through the base could pass a value the implementation rejects. Weaken the constraint, or add it to the implemented member.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("member", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("known", SlotKind.Name), new Slot("required", SlotKind.Name)]);
+        Slots: [new Slot("member", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("known", SlotKind.Optional, SlotKind.Type), new Slot("knownPredicate", SlotKind.Optional, SlotKind.Name), new Slot("required", SlotKind.Optional, SlotKind.Type), new Slot("requiredPredicate", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic RefinementReturnUnproven = new(
         DiagnosticNumber.Mint("MIST0284"),
@@ -150,7 +150,7 @@ public static partial class ProgramAnalysisDiagnostics
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("predicate", SlotKind.Name), new Slot("slot", SlotKind.Name)]);
+        Slots: [new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("predicate", SlotKind.Type), new Slot("slot", SlotKind.Type)]);
 
     public static readonly MistDiagnostic BaseConstructorUnsatisfied = new(
         DiagnosticNumber.Mint("MIST0285"),

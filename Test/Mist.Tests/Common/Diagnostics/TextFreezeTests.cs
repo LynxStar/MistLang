@@ -74,6 +74,30 @@ public sealed class TextFreezeTests
             yield break;
         }
 
+        if(entry.Field == "ProgramAnalysisDiagnostics.InconsistentAccessibility")
+        {
+            yield return (entry.Field,
+            [new EnumValue("arg0"), new OptionalValue(SlotKind.Type, new TypeValue("arg1", "arg1")),
+             new OptionalValue(SlotKind.Symbol, null), new EnumValue("arg2"), new NameValue("arg3")]);
+            yield return (entry.Field,
+            [new EnumValue("arg0"), new OptionalValue(SlotKind.Type, null),
+             new OptionalValue(SlotKind.Symbol, new SymbolValue("arg1", "arg1")), new EnumValue("arg2"), new NameValue("arg3")]);
+            yield break;
+        }
+
+        if(entry.Field == "ProgramAnalysisDiagnostics.ConstraintStrengthened")
+        {
+            yield return (entry.Field,
+            [new NameValue("arg0"), new NameValue("arg1"),
+             new OptionalValue(SlotKind.Type, new TypeValue("arg2", "arg2")), new OptionalValue(SlotKind.Name, null),
+             new OptionalValue(SlotKind.Type, new TypeValue("arg3", "arg3")), new OptionalValue(SlotKind.Name, null)]);
+            yield return (entry.Field,
+            [new NameValue("arg0"), new NameValue("arg1"),
+             new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("arg2")),
+             new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("arg3"))]);
+            yield break;
+        }
+
         if(descriptor.Slots.IsEmpty)
         {
             Assert.True(TemplateSyntax.TryParse(descriptor.Template, out var segments, out _));

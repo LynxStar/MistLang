@@ -30,6 +30,18 @@ internal static class DiagnosticSnapshot
         return new SymbolValue($"{owner}.{name}`{member.TypeParametersList.Count}({parameters})", spelling);
     }
 
+    public static SymbolValue Symbol(Field member, string spelling)
+    {
+        var owner = member.DeclaringType is { } type ? TypeIdentity(type) : "<local>";
+        return new SymbolValue($"{owner}.field:{member.Name}", spelling);
+    }
+
+    public static SymbolValue Symbol(Property member, string spelling)
+    {
+        var owner = member.DeclaringType is { } type ? TypeIdentity(type) : "<local>";
+        return new SymbolValue($"{owner}.property:{member.Name}", spelling);
+    }
+
     private static string TypeIdentity(IMistType type, Method? signatureOwner = null)
     {
         if(type is ConstructedType constructed)

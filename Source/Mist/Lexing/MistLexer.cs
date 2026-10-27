@@ -24,7 +24,7 @@ public sealed class MistLexer : ILexer
         // Map Storm diagnostics to Mist diagnostics
         foreach(var entry in stormDiagnostics.Entries)
         {
-            diagnostics.ReportAt(LexerDiagnostics.LexError, StormEntryLocation.Of(source, entry.FilePath, entry.Line, entry.Column), entry.Message);
+            StormLexerDiagnostics.Report(source, entry.Message, entry.FilePath, entry.Line, entry.Column, stormTokenStream.AllTokens, diagnostics);
         }
 
         return new TokenStream(source, stormTokenStream.AllTokens);

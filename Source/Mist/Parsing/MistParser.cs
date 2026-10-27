@@ -37,13 +37,13 @@ public sealed class MistParser : IParser
         {
             // The Storm-generated parser is skeletal — parse methods are not yet implemented.
             // This is expected during early development. Return null root gracefully.
-            diagnostics.Report(ParserDiagnostics.ParseStub, default, tokens.Source.Path);
+            diagnostics.ReportTyped(ParserDiagnostics.ParseStub, new FileOnly(tokens.Source.Path));
         }
 
         // Map Storm diagnostics to Mist diagnostics.
         foreach(var entry in stormDiagnostics.Entries)
         {
-            diagnostics.ReportAt(ParserDiagnostics.ParseError, StormEntryLocation.Of(tokens.Source, entry.FilePath, entry.Line, entry.Column), entry.Message);
+            diagnostics.ReportTyped(ParserDiagnostics.ParseError, StormEntryLocation.Of(tokens.Source, entry.FilePath, entry.Line, entry.Column), new TextValue(entry.Message));
         }
 
         // The Storm-generated parser is a backtracking PEG parser: when the
@@ -78,15 +78,12 @@ public sealed class MistParser : IParser
         // it relies on the semantic modifier list attached to each declaration node.
         if(root is not null)
         {
+            AssignOrigin(root, new ParsedOrigin(tokens.Source));
             ValidateAccessModifierCombinations(root, diagnostics);
         }
 
-        // Assign ParsedOrigin to every node in the tree so diagnostics
-        // can resolve source locations without span-containment heuristics.
         if(root is not null)
         {
-            AssignOrigin(root, new ParsedOrigin(tokens.Source));
-
             // Completeness check: verify the parser consumed all default-channel tokens.
             // The CompilationUnit rule does not consume the EOF sentinel, so we exclude it
             // from the comparison — only flag genuinely unconsumed content tokens.
@@ -101,7 +98,7 @@ public sealed class MistParser : IParser
             {
                 var unconsumedToken = defaultTokens[lastPos];
 
-                diagnostics.ReportAt(ParserDiagnostics.ParseIncomplete, TokenLocation(tokens.Source, unconsumedToken, point: true), unconsumedToken.Start.Line);
+                diagnostics.ReportTyped(ParserDiagnostics.ParseIncomplete, TokenLocation(tokens.Source, unconsumedToken, point: true), new QuantityValue(unconsumedToken.Start.Line));
             }
         }
 
@@ -142,10 +139,7 @@ public sealed class MistParser : IParser
     {
         if(AccessModifierSyntax.CountAccessModifiers(node.Modifiers) > 1)
         {
-            diagnostics.ReportAtNode(
-                ParserDiagnostics.MultipleAccessModifiers,
-                (Storm.Runtime.SyntaxNode)node,
-                null);
+            diagnostics.ReportAtNodeTyped(ParserDiagnostics.MultipleAccessModifiers, (Storm.Runtime.SyntaxNode)node, null);
         }
     }
 
@@ -210,16 +204,11 @@ public sealed class MistParser : IParser
         SourceText source,
         DiagnosticBag diagnostics)
     {
-        diagnostics.ReportAt(ParserDiagnostics.StackallocSize, TokenLocation(source, stackallocToken, point: false));
+        diagnostics.ReportTyped(ParserDiagnostics.StackallocSize, TokenLocation(source, stackallocToken, point: false));
     }
 
     private static Location TokenLocation(SourceText source, Storm.Runtime.Token token, bool point)
     {
-        if(token.Start.Line <= 0 || token.Start.Column <= 0 || token.Span.Start < 0 || token.Span.End > source.Contents.Length)
-        {
-            return new FileOnly(source.Path);
-        }
-
         var identity = new SourceIdentity(source);
         return point ? new SourcePoint(identity, token.Span.Start) : new SourceRange(identity, token.Span.Start, token.Span.Length);
     }
@@ -243,7 +232,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "interface")
             {
-                diagnostics.ReportAt(ParserDiagnostics.RemovedInterfaceKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
+                diagnostics.ReportTyped(ParserDiagnostics.RemovedInterfaceKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -268,7 +257,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "trait")
             {
-                diagnostics.ReportAt(ParserDiagnostics.RemovedTraitKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
+                diagnostics.ReportTyped(ParserDiagnostics.RemovedTraitKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -473,7 +462,7 @@ public sealed class MistParser : IParser
         SourceText source,
         DiagnosticBag diagnostics)
     {
-        diagnostics.ReportAt(ParserDiagnostics.AbstractPropertyDefault, TokenLocation(source, token, point: false));
+        diagnostics.ReportTyped(ParserDiagnostics.AbstractPropertyDefault, TokenLocation(source, token, point: false));
     }
 
     /// <summary>

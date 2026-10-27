@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -96,6 +97,12 @@ internal static class TypeNameEmitter
         return UnionSpecialization.IsClosed(closed) ? UnionSpecialization.Name(method.Name, closed) : null;
     }
 
+    public static string Emit(IMistType type, DiagnosticBag diagnostics)
+    {
+        using var emission = EmissionDiagnostics.Enter(diagnostics);
+        return Emit(type);
+    }
+
     public static string Emit(IMistType type)
     {
         type = Closed(type);
@@ -115,8 +122,8 @@ internal static class TypeNameEmitter
             TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
             RefinedType refined => Emit(refined.BaseType),
             TypeAlias { AliasedType: { } aliased } => Emit(aliased),
-            ErrorType => "/* error */",
-            AnonymousType => "/* anonymous */",
+            ErrorType => EmissionDiagnostics.Fallback("type", nameof(ErrorType), "/* error */"),
+            AnonymousType => EmissionDiagnostics.Fallback("type", nameof(AnonymousType), "/* anonymous */"),
             UnknownType => "object",
             _ => type.Name,
         };

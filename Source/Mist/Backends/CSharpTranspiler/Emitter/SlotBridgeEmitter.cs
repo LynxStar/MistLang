@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -71,12 +72,12 @@ internal static class SlotBridgeEmitter
         {
             if(SlotLift.Erased(parameter.Type) is not null && definition.DeclarationNode is { } node)
             {
-                diagnostics.ReportAtNode(
+                diagnostics.ReportAtNodeTyped(
                     BackendDiagnostics.ParameterizedTypeSlotInParameter, node, null,
-                    parameter.Name,
-                    TypeDisplay.Mist(definition),
-                    method.Name,
-                    TypeDisplay.Mist(SlotLift.Definition(parameter.Type)));
+                    new NameValue(parameter.Name),
+                    DiagnosticSnapshot.Type(definition),
+                    new NameValue(method.Name),
+                    DiagnosticSnapshot.Type(SlotLift.Definition(parameter.Type)));
             }
         }
     }

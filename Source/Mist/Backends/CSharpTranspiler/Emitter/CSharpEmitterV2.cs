@@ -113,6 +113,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     internal Startup? Transpile()
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics);
         if(Startup.Of(programModel, options) is not { } startup)
         {
             return null;
@@ -287,12 +288,12 @@ internal sealed class CSharpEmitterV2
                 continue;
             }
 
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.ForeignConformance,
                 conformance.DeclarationNode,
                 null,
-                TypeDisplay.Mist(conformance.ConformingType),
-                TypeDisplay.Mist(conformance.AbstractType));
+                DiagnosticSnapshot.Type(conformance.ConformingType),
+                DiagnosticSnapshot.Type(conformance.AbstractType));
         }
     }
 

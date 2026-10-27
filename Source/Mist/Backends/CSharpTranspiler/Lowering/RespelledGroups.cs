@@ -46,7 +46,7 @@ internal static class RespelledGroups
 
         var captured = receiver is null ? null : Bound;
         var callArguments = DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType, reference.ContextTypes)
-            .Select(argument => argument ?? "/* unsupported: default constraint */").Concat(PackArguments(reference, arguments));
+            .Select(argument => argument ?? EmissionDiagnostics.Fallback("default constraint witness", method.Name, "/* unsupported: default constraint */")).Concat(PackArguments(reference, arguments));
         var target = captured ?? (method.Modifiers.IsStatic
             ? method.DeclaringType is { } declaring
                 ? TypeNameEmitter.Emit(receiverType is null ? declaring : UnsafeReach.ClosedOwner(declaring, receiverType))

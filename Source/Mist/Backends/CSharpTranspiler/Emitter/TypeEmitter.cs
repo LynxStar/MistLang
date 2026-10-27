@@ -62,7 +62,8 @@ internal static class TypeEmitter
         DiagnosticBag diagnostics,
         ref bool anyEmitted)
     {
-        using var emitting = DelegateCeiling.Emitting(Declarations.NodeOf(type), MistType.StripArity(type.Name));
+        using var emission = EmissionDiagnostics.Enter(diagnostics, Declarations.NodeOf(type));
+        using var emitting = DelegateCeiling.Emitting(Declarations.NodeOf(type), MistType.StripArity(type.Name), DiagnosticSnapshot.Type(type).Identity);
 
         switch(type)
         {
@@ -106,6 +107,7 @@ internal static class TypeEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics, type.DeclarationNode);
         var closedConstraints = closures.For(type);
 
         if(type.DeclaringType is null)
@@ -515,7 +517,7 @@ internal static class TypeEmitter
     private static void EmitMethod(
         Method method, MemberType type, bool emitReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        using var emitting = DelegateCeiling.Emitting(method.DeclarationNode, $"{MistType.StripArity(type.Name)}.{method.Name}");
+        using var emitting = DelegateCeiling.Emitting(method.DeclarationNode, $"{MistType.StripArity(type.Name)}.{method.Name}", DiagnosticSnapshot.Symbol(method, method.Name).Identity);
         MethodEmitter.ReportReadonlyRefReturn(method, type.DeclarationNode, diagnostics);
 
         if(type is AbstractType abstractType)

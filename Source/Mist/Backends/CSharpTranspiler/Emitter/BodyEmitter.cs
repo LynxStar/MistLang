@@ -54,6 +54,7 @@ internal static partial class BodyEmitter
     public static void EmitBlock(
         Block block, IEnumerable<string> parameterNames, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics, block.Node);
         using var names = LocalNames.Enter(block, parameterNames);
         using var lifetimes = LifetimeLowering.Enter(block);
         using var reach = UnitHoisting.Enter(block);
@@ -357,6 +358,7 @@ internal static partial class BodyEmitter
 
     internal static void EmitStatement(Statement statement, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics);
         switch(statement)
         {
             case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional }
@@ -451,13 +453,12 @@ internal static partial class BodyEmitter
                 break;
 
             case UnsupportedStatement unsupported:
-                diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedStatement, unsupported.Node, null);
+                diagnostics.ReportAtNodeTyped(BackendDiagnostics.UnsupportedStatement, unsupported.Node, null);
                 writer.WriteLine($"/* unsupported statement: {unsupported.Node.GetType().Name} */");
                 break;
 
             default:
-                // Unreported because it is not a language gap: reaching here means the model gained a
-                // statement kind the emitter was never taught, which no user can act on.
+                EmissionDiagnostics.Report(diagnostics, "statement", statement.GetType().Name);
                 writer.WriteLine($"/* unsupported statement: {statement.GetType().Name} */");
                 break;
         }
@@ -547,7 +548,7 @@ internal static partial class BodyEmitter
 
         foreach(var missing in witnesses.Where(witness => witness is null))
         {
-            diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedExpression, invocation.Node, null);
+            EmissionDiagnostics.Report(diagnostics, "default constraint witness", method.Name, invocation.Node);
         }
 
         writer.Append(string.Join(", ", witnesses.Select(
@@ -722,8 +723,10 @@ internal static partial class BodyEmitter
     {
         foreach(var unplaced in hoisting.Unplaced)
         {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnhoistedUnitCall, unplaced.Call.Node, null, unplaced.Call.Method?.Name ?? "The call", unplaced.Reason);
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.UnhoistedUnitCall, unplaced.Call.Node, null, unplaced.Call.Method is { } called
+                    ? DiagnosticSnapshot.Symbol(called, called.Name)
+                    : new SymbolValue("<value-call>", "The call"), new EnumValue(unplaced.Reason));
         }
 
         foreach(var step in hoisting.Steps)
@@ -1143,6 +1146,7 @@ internal static partial class BodyEmitter
 
     internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics, expression.Node);
         if(LifetimeLowering.Captured(expression) is { } receiver)
         {
             writer.Append("MistOwnership.Present(");
@@ -1294,7 +1298,7 @@ internal static partial class BodyEmitter
 
             case InvocationExpression { Method: { Modifiers.IsIntrinsic: true } unsupplied } missing
                 when !IntrinsicSupply.Supplies(unsupplied):
-                ReportMissingIntrinsic(IntrinsicSupply.Describe(unsupplied), missing.Node, writer, diagnostics);
+                ReportMissingIntrinsic(DiagnosticSnapshot.Symbol(unsupplied, IntrinsicSupply.Describe(unsupplied)), missing.Node, writer, diagnostics);
                 break;
 
             case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } extended } extension
@@ -1656,8 +1660,8 @@ internal static partial class BodyEmitter
                 break;
 
             case MethodGroupExpression methodGroup:
-                diagnostics.ReportAtNode(
-                    BackendDiagnostics.MethodGroupReachedEmission, methodGroup.Node, null, methodGroup.MemberName);
+                diagnostics.ReportAtNodeTyped(
+                    BackendDiagnostics.MethodGroupReachedEmission, methodGroup.Node, null, new NameValue(methodGroup.MemberName));
                 writer.Append($"/* unresolved method group: {methodGroup.MemberName} */");
                 break;
 
@@ -1736,7 +1740,7 @@ internal static partial class BodyEmitter
                     : expression.GetType().Name
                     ;
 
-                diagnostics.ReportAtNode(BackendDiagnostics.UnsupportedExpression, expression.Node, null);
+                diagnostics.ReportAtNodeTyped(BackendDiagnostics.UnsupportedExpression, expression.Node, null);
                 writer.Append($"/* unsupported: {unsupportedKind} */");
                 break;
         }
@@ -2038,8 +2042,8 @@ internal static partial class BodyEmitter
 
         if(PatternConstituent(isPattern.Pattern) is not { } constituent)
         {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnsupportedUnionPattern, isPattern.Node, null, union.Name);
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.UnsupportedUnionPattern, isPattern.Node, null, DiagnosticSnapshot.Type(union, union.Name));
             writer.Append($"/* unsupported: pattern against union {union.Name} */");
             return;
         }
@@ -2169,8 +2173,8 @@ internal static partial class BodyEmitter
 
         if(PatternConstituent(pattern) is not { } constituent)
         {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnsupportedUnionPattern, pattern.Node, null, union.Name);
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.UnsupportedUnionPattern, pattern.Node, null, DiagnosticSnapshot.Type(union, union.Name));
             writer.Append($"var _ /* unsupported: pattern against union {union.Name} */");
             return;
         }
@@ -2270,10 +2274,10 @@ internal static partial class BodyEmitter
     }
 
     private static void ReportMissingIntrinsic(
-        string member, Storm.Runtime.SyntaxNode node, CSharpWriter writer, DiagnosticBag diagnostics)
+        SymbolValue member, Storm.Runtime.SyntaxNode node, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        diagnostics.ReportAtNode(BackendDiagnostics.MissingIntrinsicEmissionTemplate, node, null, member);
-        writer.Append($"/* missing intrinsic: {member} */");
+        diagnostics.ReportAtNodeTyped(BackendDiagnostics.MissingIntrinsicEmissionTemplate, node, null, member);
+        writer.Append($"/* missing intrinsic: {member.Spelling} */");
     }
 
     [ThreadStatic]
@@ -2426,9 +2430,9 @@ internal static partial class BodyEmitter
     {
         if(typeTest.NarrowedType is RefinedType unbound && typeTest.Refinement is null)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.UnboundRefinementPredicate, typeTest.Node, null,
-                unbound.Name, unbound.BaseType.Name);
+                DiagnosticSnapshot.Type(unbound, unbound.Name), DiagnosticSnapshot.Type(unbound.BaseType, unbound.BaseType.Name));
         }
 
         if(typeTest.TestsAbsence)
@@ -2478,8 +2482,8 @@ internal static partial class BodyEmitter
     {
         if(ErasedShape.UnstatedElements(type) is { } sequence)
         {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.UnsupportedSizedElementTest, node, null, TypeDisplay.Mist(sequence));
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.UnsupportedSizedElementTest, node, null, DiagnosticSnapshot.Type(sequence));
         }
     }
 
@@ -2560,9 +2564,9 @@ internal static partial class BodyEmitter
     {
         if(slice is not null && UnsafeReach.Unreached(slice, receiverType) is { } member)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.UnsupportedImplicitSlice, node, null,
-                TypeDisplay.Mist(receiverType), member, "a conversion run through a Clone body cannot reach it from the newtype");
+                DiagnosticSnapshot.Type(receiverType), BackendFacts.Symbol(receiverType, member), new EnumValue("a conversion run through a Clone body cannot reach it from the newtype"));
         }
     }
 
@@ -2571,9 +2575,9 @@ internal static partial class BodyEmitter
     {
         if(list.Slice is { Method: { } promoted } && AsyncPromotion.IsPromoted(promoted))
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.UnsupportedImplicitSlice, list.Node, null,
-                TypeDisplay.Mist(list.NarrowedType), promoted.Name, "it waits on a task a list pattern has no place to wait for");
+                DiagnosticSnapshot.Type(list.NarrowedType), DiagnosticSnapshot.Symbol(promoted, promoted.Name), new EnumValue("it waits on a task a list pattern has no place to wait for"));
         }
 
         ReportUnreachedSlice(list.Slice, list.NarrowedType, list.Node, diagnostics);
@@ -2626,9 +2630,9 @@ internal static partial class BodyEmitter
     {
         if(comparison.Bound.Type is EnumType)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.UnsupportedEnumPattern, comparison.Node, null,
-                VariantName(comparison.Bound));
+                BackendFacts.Symbol(comparison.Bound.Type, VariantName(comparison.Bound)));
             writer.Append("/* unsupported: enum variant in a C# pattern */");
             return;
         }
@@ -2723,7 +2727,7 @@ internal static partial class BodyEmitter
     {
         if(hoisted is null)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.UnsupportedUnknownPropertyPattern, property.Node, null);
             writer.Append("/* unsupported: property pattern on unknown under or/not */");
             return;
@@ -2781,7 +2785,7 @@ internal static partial class BodyEmitter
         if(newExpression.Constructor is { Modifiers.IsIntrinsic: true } constructor
             && !IntrinsicSupply.Supplies(constructor))
         {
-            ReportMissingIntrinsic(IntrinsicSupply.Describe(constructor), newExpression.Node, writer, diagnostics);
+            ReportMissingIntrinsic(DiagnosticSnapshot.Symbol(constructor, IntrinsicSupply.Describe(constructor)), newExpression.Node, writer, diagnostics);
             return;
         }
 
@@ -2939,7 +2943,7 @@ internal static partial class BodyEmitter
         if(memberAccess.Member is PropertyResult { Property: { Modifiers.IsIntrinsic: true } property }
             && !IntrinsicSupply.Supplies(property))
         {
-            ReportMissingIntrinsic(IntrinsicSupply.Describe(property), memberAccess.Node, writer, diagnostics);
+            ReportMissingIntrinsic(BackendFacts.Symbol(property.DeclaringType, property.Name, IntrinsicSupply.Describe(property)), memberAccess.Node, writer, diagnostics);
             return;
         }
 
@@ -3352,7 +3356,7 @@ internal static partial class BodyEmitter
             BinaryOperatorKind.LogicalAnd => "&&",
             BinaryOperatorKind.LogicalOr => "||",
             BinaryOperatorKind.Concatenate => "+",
-            _ => "/* unknown op */",
+            _ => EmissionDiagnostics.Fallback("binary operator", kind.ToString(), "/* unknown op */"),
         };
     }
 
@@ -3363,7 +3367,7 @@ internal static partial class BodyEmitter
             UnaryOperatorKind.Negate => "-",
             UnaryOperatorKind.LogicalNot => "!",
             UnaryOperatorKind.FromEnd => "^",
-            _ => "/* unknown unary */",
+            _ => EmissionDiagnostics.Fallback("unary operator", kind.ToString(), "/* unknown unary */"),
         };
     }
 }

@@ -17,6 +17,7 @@ internal static class ParameterEmitter
     public static string Emit(
         IReadOnlyList<Parameter> parameters, DiagnosticBag diagnostics, Func<Parameter, string>? spell = null)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics);
         if(parameters.Count == 0)
         {
             return "";

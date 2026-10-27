@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -235,9 +236,9 @@ internal sealed class StructFlattener
 
             if(declaringStruct.DeclarationNode is { } node)
             {
-                diagnostics.ReportAtNode(
+                diagnostics.ReportAtNodeTyped(
                     BackendDiagnostics.StructInheritanceFieldCollision, node, null,
-                    field.Name, existing.DeclaringStruct.Name, declaringStruct.Name);
+                    new NameValue(field.Name), DiagnosticSnapshot.Type(existing.DeclaringStruct, existing.DeclaringStruct.Name), DiagnosticSnapshot.Type(declaringStruct, declaringStruct.Name));
             }
 
             return;
@@ -321,7 +322,7 @@ internal sealed class StructFlattener
             return;
         }
 
-        diagnostics.ReportAtNode(
-            BackendDiagnostics.IntrinsicStructBase, node, null, structType.Name, declared.Name);
+        diagnostics.ReportAtNodeTyped(
+            BackendDiagnostics.IntrinsicStructBase, node, null, DiagnosticSnapshot.Type(structType, structType.Name), DiagnosticSnapshot.Type(declared, declared.Name));
     }
 }

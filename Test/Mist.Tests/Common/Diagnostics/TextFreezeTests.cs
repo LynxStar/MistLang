@@ -85,16 +85,15 @@ public sealed class TextFreezeTests
             yield break;
         }
 
-        if(entry.Field == "ProgramAnalysisDiagnostics.ConstraintStrengthened")
+        if(entry.Field is "ProgramAnalysisDiagnostics.ConstraintStrengthened"
+            or "ProgramAnalysisDiagnostics.ConstraintNotSatisfied"
+            or "ProgramAnalysisDiagnostics.SlotConstraintStrengthened"
+            or "ProgramAnalysisDiagnostics.TypeSlotConstraintNotSatisfied"
+            or "ProgramAnalysisDiagnostics.DependentArgumentNotAssignable"
+            or "ProgramAnalysisDiagnostics.DependentForwardNotConvertible")
         {
-            yield return (entry.Field,
-            [new NameValue("arg0"), new NameValue("arg1"),
-             new OptionalValue(SlotKind.Type, new TypeValue("arg2", "arg2")), new OptionalValue(SlotKind.Name, null),
-             new OptionalValue(SlotKind.Type, new TypeValue("arg3", "arg3")), new OptionalValue(SlotKind.Name, null)]);
-            yield return (entry.Field,
-            [new NameValue("arg0"), new NameValue("arg1"),
-             new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("arg2")),
-             new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("arg3"))]);
+            yield return (entry.Field, Alternatives(descriptor, types: true));
+            yield return (entry.Field, Alternatives(descriptor, types: false));
             yield break;
         }
 
@@ -112,6 +111,27 @@ public sealed class TextFreezeTests
         {
             yield return ($"{entry.Field}|absent:{absent.Name}", [.. descriptor.Slots.Select((slot, index) => Frozen(slot.Kind, slot.ElementKind, index, present: slot.Name != absent.Name))]);
         }
+    }
+
+    private static ImmutableArray<SlotValue> Alternatives(MistDiagnostic descriptor, bool types)
+    {
+        var arguments = ImmutableArray.CreateBuilder<SlotValue>();
+        var originalIndex = 0;
+        for(var i = 0; i < descriptor.Slots.Length; i++, originalIndex++)
+        {
+            var slot = descriptor.Slots[i];
+            if(slot is { Kind: SlotKind.Optional, ElementKind: SlotKind.Type })
+            {
+                arguments.Add(Frozen(SlotKind.Optional, SlotKind.Type, originalIndex, present: types));
+                arguments.Add(Frozen(SlotKind.Optional, descriptor.Slots[++i].ElementKind, originalIndex, present: !types));
+            }
+            else
+            {
+                arguments.Add(Frozen(slot.Kind, slot.ElementKind, originalIndex, present: true));
+            }
+        }
+
+        return arguments.ToImmutable();
     }
 
     private static SlotValue Frozen(SlotKind kind, SlotKind? elementKind, int index, bool present)

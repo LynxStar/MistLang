@@ -105,22 +105,22 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic DependentArgumentNotAssignable = new(
         DiagnosticNumber.Mint("MIST0280"),
         Title: "Dependent argument not assignable",
-        Template: "Dependent type argument '{argument}' of type '{argumentType}' is not assignable to dependent parameter '{parameter}' of type '{parameterType}'.",
+        Template: "Dependent type argument '{argument}{argumentValue}' of type '{argumentType}' is not assignable to dependent parameter '{parameter}' of type '{parameterType}'.",
         Description: "The dependent type argument has a type that does not convert to the dependent parameter's declared type. Pass an argument of the parameter's type.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("argument", SlotKind.Name), new Slot("argumentType", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("parameterType", SlotKind.Type)]);
+        Slots: [new Slot("argument", SlotKind.Optional, SlotKind.Type), new Slot("argumentValue", SlotKind.Optional, SlotKind.Name), new Slot("argumentType", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("parameterType", SlotKind.Type)]);
 
     public static readonly MistDiagnostic DependentForwardNotConvertible = new(
         DiagnosticNumber.Mint("MIST0281"),
         Title: "Dependent forwarding not convertible",
-        Template: "Dependent type parameter '{parameter}' of type '{type}' on '{source}' cannot be forwarded to parameter '{targetParameter}' of type '{targetType}' on '{target}' because '{type}' is not implicitly convertible to '{targetType}'.",
+        Template: "Dependent type parameter '{parameter}' of type '{type}' on '{source}{sourceName}' cannot be forwarded to parameter '{targetParameter}' of type '{targetType}' on '{target}{targetName}' because '{type}' is not implicitly convertible to '{targetType}'.",
         Description: "The dependent parameter being forwarded has a type that does not implicitly convert to the type of the callee's dependent parameter. Convert the value explicitly, or align the two parameter types.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("source", SlotKind.Name), new Slot("targetParameter", SlotKind.Name), new Slot("targetType", SlotKind.Type), new Slot("target", SlotKind.Name)]);
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("source", SlotKind.Optional, SlotKind.Type), new Slot("sourceName", SlotKind.Optional, SlotKind.Name), new Slot("targetParameter", SlotKind.Name), new Slot("targetType", SlotKind.Type), new Slot("target", SlotKind.Optional, SlotKind.Type), new Slot("targetName", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic DependentParameterConflictsWithMember = new(
         DiagnosticNumber.Mint("MIST0282"),

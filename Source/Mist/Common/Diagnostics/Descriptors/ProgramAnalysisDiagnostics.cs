@@ -306,12 +306,12 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic ConstraintNotSatisfied = new(
         DiagnosticNumber.Mint("MIST0178"),
         Title: "Constraint not satisfied",
-        Template: "Type argument '{argument}' does not satisfy the '{constraint}' constraint on type parameter '{parameter}'.",
+        Template: "Type argument '{argument}' does not satisfy the '{constraint}{constraintDescription}' constraint on type parameter '{parameter}'.",
         Description: "The type argument supplied for a generic parameter lacks a conformance or discipline the parameter's constraint demands. Supply a type that meets the constraint, or relax the constraint on the declaration.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("argument", SlotKind.Type), new Slot("constraint", SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
+        Slots: [new Slot("argument", SlotKind.Type), new Slot("constraint", SlotKind.Optional, SlotKind.Type), new Slot("constraintDescription", SlotKind.Optional, SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
 
     public static readonly MistDiagnostic ConstructorConstraintNotSatisfied = new(
         DiagnosticNumber.Mint("MIST0179"),
@@ -376,12 +376,12 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic SlotConstraintStrengthened = new(
         DiagnosticNumber.Mint("MIST0185"),
         Title: "Slot constraint strengthened",
-        Template: "'{type}' does not fill slot '{slot}' of '{abstractType}': its '{member}' requires '{constraint}' of type parameter '{parameter}', which the slot does not promise.",
+        Template: "'{type}' does not fill slot '{slot}' of '{abstractType}': its '{member}' requires '{constraint}{constraintDescription}' of type parameter '{parameter}', which the slot does not promise.",
         Description: "The member filling a slot places a constraint on a type parameter that the abstract slot does not promise, so a caller going through the abstract type could pass an argument the member rejects. Remove the extra constraint, or add it to the slot.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("type", SlotKind.Type), new Slot("slot", SlotKind.Name), new Slot("abstractType", SlotKind.Type), new Slot("member", SlotKind.Name), new Slot("constraint", SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
+        Slots: [new Slot("type", SlotKind.Type), new Slot("slot", SlotKind.Name), new Slot("abstractType", SlotKind.Type), new Slot("member", SlotKind.Name), new Slot("constraint", SlotKind.Optional, SlotKind.Type), new Slot("constraintDescription", SlotKind.Optional, SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
 
     public static readonly MistDiagnostic SlotReturnNotOwned = new(
         DiagnosticNumber.Mint("MIST0186"),
@@ -446,10 +446,10 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic TypeSlotConstraintNotSatisfied = new(
         DiagnosticNumber.Mint("MIST0192"),
         Title: "Type slot constraint not satisfied",
-        Template: "Nested type '{type}' does not satisfy constraint '{constraint}' of associated type slot '{abstractType}.{slot}'.",
+        Template: "Nested type '{type}' does not satisfy constraint '{constraint}{constraintDescription}' of associated type slot '{abstractType}.{slot}'.",
         Description: "The nested type filling an associated type slot does not meet the constraint the slot declares. Make the nested type conform, or choose a different nested type.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("type", SlotKind.Type), new Slot("constraint", SlotKind.Name), new Slot("abstractType", SlotKind.Type), new Slot("slot", SlotKind.Name)]);
+        Slots: [new Slot("type", SlotKind.Type), new Slot("constraint", SlotKind.Optional, SlotKind.Type), new Slot("constraintDescription", SlotKind.Optional, SlotKind.Name), new Slot("abstractType", SlotKind.Type), new Slot("slot", SlotKind.Name)]);
 }

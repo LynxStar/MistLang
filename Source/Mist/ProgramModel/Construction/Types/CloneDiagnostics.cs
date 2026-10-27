@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -18,17 +19,27 @@ internal static class CloneDiagnostics
         foreach(var clone in clones)
         {
             var newtype = DiagnosticHelper.ResolveLocation(clone.NewtypeDeclaration!);
-            var withheld = bag.Withhold(() => step(clone));
+            var sourceOrdinals = bag.Admitted.Select(occurrence => occurrence.Ordinal).ToHashSet();
+            Withheld withheld;
+            using(bag.ReplayOwnedFailures())
+            {
+                withheld = bag.Withhold(() => step(clone));
+            }
 
             foreach(var occurrence in withheld.Occurrences)
             {
+                if(sourceOrdinals.Contains(occurrence.Ordinal))
+                {
+                    continue;
+                }
+
                 if(newtype.Location.Contains(occurrence.Location))
                 {
                     withheld.Replay(occurrence);
                     continue;
                 }
 
-                if(occurrence.Severity != DiagnosticSeverity.Error || AlreadyReported(bag, occurrence))
+                if(occurrence.Severity != DiagnosticSeverity.Error)
                 {
                     continue;
                 }
@@ -37,23 +48,16 @@ internal static class CloneDiagnostics
                     ProgramModelDiagnostics.NewtypeCloneInvalid,
                     newtype,
                     bag.Stage,
-                    LegacyArguments.For(ProgramModelDiagnostics.NewtypeCloneInvalid,
                     [
-                        TypeDisplay.Mist(clone),
-                        TypeDisplay.Mist(clone.CloneSourceType ?? clone.CloneSource!),
-                        MemberAt(clone, occurrence.Location) ?? TypeDisplay.Mist(clone.CloneSource!),
-                        occurrence.Message,
-                    ]).AsSpan(),
+                        DiagnosticSnapshot.Type(clone),
+                        DiagnosticSnapshot.Type(clone.CloneSourceType ?? clone.CloneSource!),
+                        new NameValue(MemberAt(clone, occurrence.Location) ?? TypeDisplay.Mist(clone.CloneSource!)),
+                    ],
                     cause: occurrence.Ordinal));
             }
 
             withheld.Discard();
         }
-    }
-
-    private static bool AlreadyReported(DiagnosticBag bag, Diagnostic occurrence)
-    {
-        return bag.Admitted.Any(existing => existing.Number == occurrence.Number && existing.Location == occurrence.Location);
     }
 
     private static string? MemberAt(ConcreteType clone, Location location)

@@ -18,12 +18,11 @@ namespace Mist.Tests.Backend;
 
 public sealed class MissingIntrinsicRefusalTests : IDisposable
 {
-    private readonly string outputDir =
-        Path.Combine(Path.GetTempPath(), "mist-missing-intrinsic-" + Guid.NewGuid().ToString("N"));
+    private string? outputDir;
 
     public void Dispose()
     {
-        if(Directory.Exists(outputDir))
+        if(outputDir is not null && Directory.Exists(outputDir))
         {
             Directory.Delete(outputDir, recursive: true);
         }
@@ -33,6 +32,7 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
     [Trait("Tier", "3")]
     public void AnUnsuppliedIntrinsicIsRefusedByDeclaringTypeAndMemberWithNoArtifact()
     {
+        var outputDir = OutputDirectory();
         var (model, _) = Model();
 
         var options = new CompilerOptions(
@@ -83,6 +83,7 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
     [Trait("Tier", "3")]
     public void AnInternalEmissionFallbackPreventsArtifactCreation()
     {
+        var outputDir = OutputDirectory();
         var (model, run) = Model();
         run.Body!.Statements = [new LocalDeclarationStatement(new LocalVariable("invalid", ErrorType.Instance),
             HandBuiltModel.Literal(ErrorType.Instance, 0L))];
@@ -102,6 +103,11 @@ public sealed class MissingIntrinsicRefusalTests : IDisposable
         Assert.Null(result.PrimaryOutputArtifactPath);
         Assert.False(Directory.Exists(options.BinDirectory));
         Assert.Equal(BackendDiagnostics.EmissionFallback.Number, Assert.Single(result.Diagnostics).Number);
+    }
+
+    private string OutputDirectory()
+    {
+        return outputDir ??= Path.Combine(Path.GetTempPath(), "mist-missing-intrinsic-" + Guid.NewGuid().ToString("N"));
     }
 
     private static (ProgramModel.Model.ProgramModel Model, Method Run) Model()

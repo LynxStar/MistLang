@@ -34,51 +34,59 @@ public static class TypeInspector
         DiagnosticOperation? operation = null,
         Action<Diagnostic>? report = null)
     {
+        var diagnostics = new DiagnosticBag(operation ?? new DiagnosticOperation());
+        var receive = report ?? (diagnostic => error.WriteLine(DiagnosticFormatter.Format(diagnostic)));
         if(typeName.LastIndexOf('.') <= 0)
         {
-            error.WriteLine($"error: Could not resolve type '{typeName}'. Provide a fully-qualified CLR type name (e.g., System.Text.Encoding).");
+            diagnostics.ReportTyped(CommandDiagnostics.InspectTypeNotQualified, new Absent(AbsenceReason.Unavailable), new NameValue(typeName));
+            _ = Drain(diagnostics.Admitted, receive);
             return 1;
         }
 
-        var diagnostics = new DiagnosticBag(operation ?? new DiagnosticOperation());
         using var provider = AmbientTypeProviderV2Factory.Create(targetFramework, additionalAssemblyPaths, diagnostics);
-
-        if(diagnostics.HasErrors || !ProjectBesideStandard(provider, diagnostics))
-        {
-            foreach(var diagnostic in diagnostics.ToImmutableArray().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
-            {
-                if(report is null)
-                {
-                    error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-                }
-                else
-                {
-                    report(diagnostic);
-                }
-            }
-
-            return 1;
-        }
-
-        return Report(provider, typeName, output, error);
+        var projected = !diagnostics.HasErrors && ProjectBesideStandard(provider, diagnostics);
+        var failed = Drain(diagnostics.Admitted, receive);
+        return !projected || failed ? 1 : Report(provider, typeName, output, error, diagnostics, receive);
     }
 
-    internal static int Report(AmbientTypeProviderV2 provider, string typeName, TextWriter output, TextWriter error)
+    internal static int Report(
+        AmbientTypeProviderV2 provider, string typeName, TextWriter output, TextWriter error,
+        DiagnosticBag? diagnostics = null, Action<Diagnostic>? receive = null)
     {
+        diagnostics ??= new DiagnosticBag();
+        receive ??= diagnostic => error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        var reported = diagnostics.Admitted.Count;
+        var failed = false;
         if(provider.FindClrType(typeName) is not { } clrType)
         {
-            error.WriteLine($"error: Could not resolve type '{typeName}' from any loaded assembly.");
-            return 1;
+            diagnostics.ReportTyped(CommandDiagnostics.InspectTypeNotFound, new Absent(AbsenceReason.Unavailable), new NameValue(typeName));
+            failed = true;
         }
-
-        if(provider.ProjectionOf(clrType) is not DeclaredType projection)
+        else if(provider.ProjectionOf(clrType) is not DeclaredType projection)
         {
-            error.WriteLine($"error: Could not resolve type '{typeName}': it is not projected into Mist.");
-            return 1;
+            diagnostics.ReportTyped(CommandDiagnostics.InspectTypeNotProjected,
+                new ExternalLocation(clrType.Assembly.GetName().Name ?? "", clrType.FullName ?? clrType.Name), new NameValue(typeName));
+            failed = true;
+        }
+        else
+        {
+            ProjectionInspector.Inspect(provider, typeName, clrType, projection).Write(output);
         }
 
-        ProjectionInspector.Inspect(provider, typeName, clrType, projection).Write(output);
-        return 0;
+        var hasErrors = Drain(diagnostics.Admitted.Skip(reported), receive);
+        return failed || hasErrors ? 1 : 0;
+    }
+
+    internal static bool Drain(IEnumerable<Diagnostic> diagnostics, Action<Diagnostic> receive)
+    {
+        var failed = false;
+        foreach(var diagnostic in diagnostics)
+        {
+            receive(diagnostic);
+            failed |= diagnostic.Severity == DiagnosticSeverity.Error;
+        }
+
+        return failed;
     }
 
     /// <summary>

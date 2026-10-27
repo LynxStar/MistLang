@@ -33,7 +33,7 @@ internal partial class Program
             case CliCommand.Build: return RunBuildPipeline(cliArgs, output);
             case CliCommand.Run: return RunRunCommand(cliArgs, output);
             case CliCommand.Test: return RunTestCommand(cliArgs, output);
-            case CliCommand.Steering: return RunSteeringCommand(cliArgs);
+            case CliCommand.Steering: return RunSteeringCommand(cliArgs, output);
             case CliCommand.Inspect: return RunInspectCommand(cliArgs, output);
             case CliCommand.Restore: return RunRestoreCommand(cliArgs, output);
             default: return 1;
@@ -48,7 +48,7 @@ internal partial class Program
         var totalStopwatch = Stopwatch.StartNew();
 
         var layout = LayoutOf(cliArgs);
-        var sourceFiles = DiscoverSourcesAndClean(layout, reporter);
+        var sourceFiles = DiscoverSourcesAndClean(layout, reporter, output);
         if(sourceFiles is null)
         {
             return 1;
@@ -66,11 +66,12 @@ internal partial class Program
         return new ProjectLayout(cliArgs.ProjectFolder, cliArgs.OutputDirectory, cliArgs.BinDirectory, Directory.GetCurrentDirectory());
     }
 
-    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter)
+    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter, DiagnosticOutput output)
     {
         if(layout.DirectoryHoldingProject() is { } holdingDirectory)
         {
-            Console.Error.WriteLine($"error: '{holdingDirectory}' is or contains the project folder '{layout.ProjectFolder}'; cleaning it would delete the project.");
+            CommandFeedback.Report(output, CommandDiagnostics.UnsafeCleanDirectory, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null),
+                new PathValue(holdingDirectory), new PathValue(layout.ProjectFolder));
             return null;
         }
 
@@ -78,7 +79,7 @@ internal partial class Program
 
         if(sourceFiles.Count == 0)
         {
-            Console.Error.WriteLine("error: No .mist source files found.");
+            CommandFeedback.Report(output, CommandDiagnostics.SourceFilesMissing, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null));
             return null;
         }
 
@@ -91,10 +92,10 @@ internal partial class Program
             CleanDirectory(layout.OutputDirectory);
             CleanDirectory(layout.BinDirectory);
         }
-        catch(IOException ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
             reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, []);
-            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
+            CommandFeedback.Report(output, CommandDiagnostics.CleanDirectoriesFailed, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null), new TextValue(ex.Message));
             return null;
         }
 
@@ -123,9 +124,9 @@ internal partial class Program
             {
                 source = File.ReadAllText(filePath);
             }
-            catch(Exception ex)
+            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {
-                Console.Error.WriteLine($"error: Failed to read '{filePath}': {ex.Message}");
+                CommandFeedback.Report(output, DriverDiagnostics.FileError, new FileOnly(filePath), new PathValue(filePath), new TextValue(ex.Message));
                 hasErrors = true;
                 continue;
             }
@@ -134,13 +135,10 @@ internal partial class Program
             var diags = new DiagnosticBag(output.Operation);
             var tokenStream = lexer.Lex(sourceText, diags);
 
-            if(diags.HasErrors)
+            hasErrors |= diags.HasErrors;
+            foreach(var diagnostic in diags.Admitted)
             {
-                hasErrors = true;
-                foreach(var d in diags.ToImmutableArray())
-                {
-                    output.Stream(d);
-                }
+                output.Stream(diagnostic);
             }
 
             // Build the output: hidden tokens render as their literal content,
@@ -180,23 +178,16 @@ internal partial class Program
             if(reconstructed != source)
             {
                 hasErrors = true;
-                Console.Error.WriteLine($"error: Lexer round-trip failed for '{filePath}' — reconstructed source differs from original.");
-
-                // Find first difference for debugging
-                var minLen = Math.Min(source.Length, reconstructed.Length);
-                for(var i = 0; i < minLen; i++)
+                var offset = 0;
+                while(offset < Math.Min(source.Length, reconstructed.Length) && source[offset] == reconstructed[offset])
                 {
-                    if(source[i] != reconstructed[i])
-                    {
-                        Console.Error.WriteLine($"  First difference at offset {i}: expected '{Escape(source[i])}' got '{Escape(reconstructed[i])}'");
-                        break;
-                    }
+                    offset++;
                 }
 
-                if(source.Length != reconstructed.Length)
-                {
-                    Console.Error.WriteLine($"  Length mismatch: original={source.Length} reconstructed={reconstructed.Length}");
-                }
+                CommandFeedback.Report(output, CommandDiagnostics.LexerRoundTripFailed, new FileOnly(filePath),
+                    new PathValue(filePath), new QuantityValue(source.Length), new QuantityValue(reconstructed.Length), new QuantityValue(offset),
+                    new OptionalValue(SlotKind.Name, offset < source.Length ? new NameValue(Escape(source[offset])) : null),
+                    new OptionalValue(SlotKind.Name, offset < reconstructed.Length ? new NameValue(Escape(reconstructed[offset])) : null));
             }
 
             Console.WriteLine($"Lexed {filePath} -> {artifacts.TokensPath}, {artifacts.SourcePath}");
@@ -212,12 +203,14 @@ internal partial class Program
         ICompilationProgressReporter reporter,
         Stopwatch totalStopwatch,
         Func<CompilerResult, int> afterSuccess,
-        ProjectConfiguration? configuration = null)
+        ProjectConfiguration? configuration = null,
+        Func<CompilerResult, CompilerResult>? beforeCompletion = null)
     {
         return new CompileFeedback(reporter, output).Run(
             listener => CompileProject(sourceFiles, cliArgs, output, reporter, listener, configuration),
             totalStopwatch,
-            afterSuccess);
+            afterSuccess,
+            beforeCompletion);
     }
 
     private static CompilerResult CompileProject(
@@ -284,7 +277,7 @@ internal partial class Program
 
         if(configuration.OutputType == ProjectOutputType.Library)
         {
-            Console.Error.WriteLine("error: 'mist run' can only be used with executable projects. This project has output_type = \"library\".");
+            CommandFeedback.Report(output, CommandDiagnostics.RunLibraryProject, new ProjectLocation(Path.Combine(cliArgs.ProjectFolder, "mist.toml"), null));
             return 1;
         }
 
@@ -295,34 +288,30 @@ internal partial class Program
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter, output);
         if(sourceFiles is null)
         {
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, RunBuiltArtifact, configuration);
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
     }
 
-    private static int RunBuiltArtifact(CompilerResult result)
+    private static int RunBuiltArtifact(CompilerResult result, DiagnosticOutput output)
     {
-        if(result.PrimaryOutputArtifactPath is null)
-        {
-            Console.Error.WriteLine("error: Build succeeded but no executable artifact was produced.");
-            return 1;
-        }
-
-        return RunArtifact(result.PrimaryOutputArtifactPath);
+        return RunArtifact(result.PrimaryOutputArtifactPath!, output);
     }
 
-    private static int RunSteeringCommand(CliArguments cliArgs)
+    private static int RunSteeringCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
         var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
         var result = SteeringInstaller.Install(projectFolder);
 
         if(!result.Succeeded)
         {
-            Console.Error.WriteLine($"error: {result.Error}");
+            var bag = new DiagnosticBag(output.Operation);
+            bag.Admit(result.FailureDiagnostic!.Value);
+            output.Collect(bag.Admitted);
             return 1;
         }
 
@@ -365,8 +354,7 @@ internal partial class Program
     {
         if(cliArgs.InspectTypeName is null)
         {
-            Console.Error.WriteLine("Usage: mist inspect <TypeName>");
-            Console.Error.WriteLine("  <TypeName> is the fully-qualified CLR type name to inspect.");
+            CommandFeedback.Report(output, CommandDiagnostics.InspectTypeRequired, new Absent(AbsenceReason.Unavailable));
             return 1;
         }
 
@@ -375,7 +363,7 @@ internal partial class Program
 
         if(!File.Exists(projectFilePath))
         {
-            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            CommandFeedback.Report(output, DriverDiagnostics.ProjectFileNotFound, new ProjectLocation(projectFilePath, null), new PathValue(projectFilePath));
             return 1;
         }
 
@@ -395,13 +383,13 @@ internal partial class Program
 
         var referenceDiagnostics = new DiagnosticBag(output.Operation);
         var references = ProjectReferenceLoader.Load(projectFolder, config.References, config.TargetFramework, referenceDiagnostics);
+        foreach(var diagnostic in referenceDiagnostics.Admitted)
+        {
+            output.Stream(diagnostic);
+        }
+
         if(referenceDiagnostics.HasErrors)
         {
-            foreach(var diagnostic in referenceDiagnostics.ToImmutableArray())
-            {
-                output.Stream(diagnostic);
-            }
-
             return 1;
         }
 
@@ -448,7 +436,7 @@ internal partial class Program
 
         if(!File.Exists(projectFilePath))
         {
-            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            CommandFeedback.Report(output, DriverDiagnostics.ProjectFileNotFound, new ProjectLocation(projectFilePath, null), new PathValue(projectFilePath));
             return 1;
         }
 
@@ -459,30 +447,9 @@ internal partial class Program
         return DependencyRestore.Run(projectFolder, config, parseDiagnostics.ToImmutableArray(), Console.Out, Console.Error, output.Operation, output.Stream);
     }
 
-    private static int RunArtifact(string artifactPath)
+    private static int RunArtifact(string artifactPath, DiagnosticOutput output)
     {
-        try
-        {
-            var startInfo = new ProcessStartInfo("dotnet", [artifactPath])
-            {
-                UseShellExecute = false,
-            };
-
-            var process = Process.Start(startInfo);
-            if(process is null)
-            {
-                Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-                return 1;
-            }
-
-            process.WaitForExit();
-            return process.ExitCode;
-        }
-        catch(Exception ex)
-        {
-            Console.Error.WriteLine($"error: Failed to launch 'dotnet': {ex.Message}");
-            return 1;
-        }
+        return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", [artifactPath]) { UseShellExecute = false }, output);
     }
 
     /// <summary>

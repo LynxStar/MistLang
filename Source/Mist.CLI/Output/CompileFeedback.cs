@@ -14,9 +14,11 @@ public sealed class CompileFeedback(ICompilationProgressReporter progress, Diagn
     public int Run(
         Func<IResolutionDiagnosticListener, CompilerResult> compile,
         Stopwatch total,
-        Func<CompilerResult, int> afterSuccess)
+        Func<CompilerResult, int> afterSuccess,
+        Func<CompilerResult, CompilerResult>? beforeCompletion = null)
     {
         var result = compile(this);
+        result = beforeCompletion?.Invoke(result) ?? result;
         output.CollectResult(result.Diagnostics);
         var succeeded = result.Succeeded && !output.HasErrors;
         total.Stop();

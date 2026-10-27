@@ -73,6 +73,11 @@ public sealed class DiagnosticBag
         Add(occurrence);
     }
 
+    public void Replay(Diagnostic occurrence, object owner)
+    {
+        AdmitOwned(owner, new Admission(occurrence, []));
+    }
+
     public void ReportTyped(MistDiagnostic descriptor, Location location, params ReadOnlySpan<SlotValue> arguments)
     {
         Admit(DiagnosticFactory.Create(descriptor, location, Stage, arguments));

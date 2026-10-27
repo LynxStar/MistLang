@@ -7,7 +7,8 @@ TextFreezeTests fails on any drift until the table is regenerated on purpose.
 
 Positional placeholders {n} render as "argn". A named slot at schema position i renders as "argi"
 for Name, Type, Symbol, Path, Enum, Text, as the single element of a Sequence and as the carried
-value of an Optional; Integer renders as 7 and Boolean as true. A descriptor with Optional slots
+value of an Optional. Quantity and Boolean use render-only argi sentinels to preserve the
+frozen text independently of schema migration. A descriptor with Optional slots
 gets one extra row per Optional slot with that slot absent, keyed "Field|absent:slot".
 """
 import glob
@@ -16,14 +17,13 @@ import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-REGISTRY = sorted(glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/Descriptors/*.cs'))) + \
-    [os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/ProgramModelDiagnostics.VariadicPositions.cs'),
-     os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/HostDiagnostics.cs')]
+REGISTRY = sorted(glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/Descriptors/*.cs')) +
+                  glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/*Diagnostics*.cs')))
 OUTPUT = os.path.join(ROOT, 'Test/Mist.Tests/Common/Diagnostics/TextFreezeTable.cs')
 
 FIELD = re.compile(
     r'public static readonly MistDiagnostic (\w+) = new\(\s*DiagnosticNumber\.Mint\("[^"]+"\),\s*'
-    r'Title: "(?:[^"\\]|\\.)*",\s*Template: ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+),(.*?)\);', re.S)
+    r'Title: "(?:[^"\\]|\\.)*",\s*Template: ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+),(.*?)\);(?=\n|$)', re.S)
 SLOT = re.compile(r'new Slot\("(\w+)", SlotKind\.(\w+)(?:, SlotKind\.(\w+))?\)')
 
 
@@ -92,6 +92,12 @@ def rows():
             field, template, rest = m.group(1), template_text(m.group(2)), m.group(3)
             slots = SLOT.findall(rest)
             key = f'{cls}.{field}'
+            if key in ('CommonDiagnostics.PackageNotFound', 'CommonDiagnostics.PackageNetworkError'):
+                yield key, 'arg0'
+                continue
+            if key == 'DriverDiagnostics.ReferenceCycle':
+                yield key, render(template, lambda n: 'arg0', lambda n: n == 'chain')
+                continue
             if not slots:
                 yield key, render(template, lambda n: f'arg{n}', lambda n: True)
                 continue
@@ -102,8 +108,7 @@ def rows():
                 kind, element = kinds[name]
                 if kind == 'Optional' and name == absent:
                     return ''
-                leaf = element if kind in ('Optional', 'Sequence') else kind
-                return {'Quantity': '7', 'Boolean': 'true'}.get(leaf, f'arg{index[name]}')
+                return f'arg{index[name]}'
 
             yield key, render(template, lambda n: value(n), lambda n: True)
             for name, kind, element in slots:

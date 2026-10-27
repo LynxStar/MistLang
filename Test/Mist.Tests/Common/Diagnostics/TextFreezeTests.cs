@@ -48,6 +48,32 @@ public sealed class TextFreezeTests
     private static IEnumerable<(string Key, ImmutableArray<SlotValue> Arguments)> Variants(RegistryEntry entry)
     {
         var descriptor = entry.Descriptor;
+        if(entry.Field == "CommonDiagnostics.PackageNotFound")
+        {
+            yield return (entry.Field,
+            [new OptionalValue(SlotKind.Name, null), new OptionalValue(SlotKind.Name, null),
+             new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Boolean, null),
+             new OptionalValue(SlotKind.Boolean, null), new OptionalValue(SlotKind.Boolean, new BooleanValue(true)), new TextValue("arg0")]);
+            yield break;
+        }
+
+        if(entry.Field == "CommonDiagnostics.PackageNetworkError")
+        {
+            yield return (entry.Field,
+            [new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Path, null),
+             new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Boolean, null),
+             new OptionalValue(SlotKind.Boolean, new BooleanValue(true)), new TextValue("arg0")]);
+            yield break;
+        }
+
+        if(entry.Field == "DriverDiagnostics.ReferenceCycle")
+        {
+            yield return (entry.Field,
+            [new SequenceValue(SlotKind.Name, [new NameValue("arg0")]),
+             new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Name, null)]);
+            yield break;
+        }
+
         if(descriptor.Slots.IsEmpty)
         {
             Assert.True(TemplateSyntax.TryParse(descriptor.Template, out var segments, out _));
@@ -68,8 +94,8 @@ public sealed class TextFreezeTests
     {
         return kind switch
         {
-            SlotKind.Quantity => new QuantityValue(7),
-            SlotKind.Boolean => new BooleanValue(true),
+            SlotKind.Quantity => new TextValue($"arg{index}"),
+            SlotKind.Boolean => new TextValue($"arg{index}"),
             SlotKind.Name => new NameValue($"arg{index}"),
             SlotKind.Type => new TypeValue($"arg{index}", $"arg{index}"),
             SlotKind.Symbol => new SymbolValue($"arg{index}", $"arg{index}"),

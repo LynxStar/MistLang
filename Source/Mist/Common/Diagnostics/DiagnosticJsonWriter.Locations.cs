@@ -100,6 +100,11 @@ public static partial class DiagnosticJsonWriter
                 writer.WriteEndArray();
                 writer.WriteString("package", operation.Package);
                 break;
+            case InvariantFrame invariant:
+                writer.WriteString("kind", "invariant");
+                writer.WriteString("operation", invariant.Operation.Token);
+                writer.WriteString("detail", invariant.Detail.Name);
+                break;
             case StormEntryFrame entry:
                 writer.WriteString("kind", "stormEntry");
                 writer.WriteNumber("offset", entry.Offset);

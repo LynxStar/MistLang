@@ -41,7 +41,10 @@ internal sealed class DiagnosticOwnership
             findings.Add(occurrence.Descriptor, occurrences);
         }
 
-        occurrences.Add(occurrence);
+        if(!occurrences.Any(existing => existing.Ordinal == occurrence.Ordinal))
+        {
+            occurrences.Add(occurrence);
+        }
     }
 
     private sealed class ReplayScope(DiagnosticOwnership ownership, ReplayScope? enclosing, HashSet<int> admitted) : IDisposable

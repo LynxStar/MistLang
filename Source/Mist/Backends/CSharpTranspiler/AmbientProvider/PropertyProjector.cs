@@ -26,9 +26,13 @@ internal static class PropertyProjector
                 continue;
             }
 
-            if(Judge(prop, memberType, resolver, out _) is { } projected)
+            if(Judge(prop, memberType, resolver, out var withheld) is { } projected)
             {
                 memberType.PropertiesList.Add(projected);
+            }
+            else if(withheld is { } reason)
+            {
+                memberType.WithheldMembers.Add(reason.Snapshot(prop));
             }
         }
     }

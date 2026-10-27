@@ -18,16 +18,14 @@ public sealed class PackageRestoreDeliveryTests
         var resolution = new ResolutionDiagnostics(0, listener);
         string[]? heldAtRestore = null;
 
-        var result = PackageResolver.ResolvePackages(
+        var result = PackageResolver.ResolveValidated(
             [new NuGetPackageReference("BadPkg", "not-valid"), new NuGetPackageReference("Bogus", "35.5.0")],
-            [],
-            "net10.0",
             resolution.Reported,
             resolution.Deliver,
-            (_, _) =>
+            packages =>
             {
                 heldAtRestore = [.. listener.Received.Select(diagnostic => diagnostic.Message)];
-                return (1, "error NU1101: Unable to find package Bogus.", "");
+                return NuGetRestoreFailure.Report(packages, "error NU1101: Unable to find package Bogus.", "", resolution.Reported);
             });
 
         var held = Assert.Single(heldAtRestore!);
@@ -42,13 +40,11 @@ public sealed class PackageRestoreDeliveryTests
         var resolution = new ResolutionDiagnostics(0, listener);
         var framework = DiagnosticFixtures.Occurrence("TEST_FWREF_003", DiagnosticSeverity.Warning, PipelineStage.Driver, "Framework 'C' probe.", default, "", null);
 
-        _ = PackageResolver.ResolvePackages(
+        _ = PackageResolver.ResolveValidated(
             [new NuGetPackageReference("BadPkg", "not-valid"), new NuGetPackageReference("Bogus", "35.5.0")],
-            [],
-            "net10.0",
             resolution.Reported,
             resolution.Deliver,
-            (_, _) => (1, "error NU1101: Unable to find package Bogus.", ""));
+            packages => NuGetRestoreFailure.Report(packages, "error NU1101: Unable to find package Bogus.", "", resolution.Reported));
         resolution.Reported.Add(framework);
         resolution.Deliver();
         resolution.Deliver();
@@ -68,16 +64,14 @@ public sealed class PackageRestoreDeliveryTests
         var resolution = new ResolutionDiagnostics(0, listener);
         var restored = false;
 
-        _ = PackageResolver.ResolvePackages(
+        _ = PackageResolver.ResolveValidated(
             [new NuGetPackageReference("BadPkg", "not-valid")],
-            [],
-            "net10.0",
             resolution.Reported,
             resolution.Deliver,
-            (_, _) =>
+            _ =>
             {
                 restored = true;
-                return (0, "", "");
+                return new PackageResolutionResult([], [], 0);
             });
 
         Assert.False(restored);

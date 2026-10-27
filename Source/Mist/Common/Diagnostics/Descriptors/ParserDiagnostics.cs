@@ -19,20 +19,22 @@ public static class ParserDiagnostics
     public static readonly MistDiagnostic ParseError = new(
         DiagnosticNumber.Mint("MIST0122"),
         Title: "Parse error",
-        Template: "{0}",
+        Template: "{message}",
         Description: "The Storm parser runtime rejected the token sequence at this position and the message is the runtime's own. Correct the syntax it names; later analysis runs only on what parsed.",
         Category: DiagnosticCategory.Syn,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("message", SlotKind.Text)]);
 
     public static readonly MistDiagnostic ParseIncomplete = new(
         DiagnosticNumber.Mint("MIST0123"),
         Title: "Parser stopped before end of file",
-        Template: "Parser did not consume all input. Unparseable content begins at line {0}.",
+        Template: "Parser did not consume all input. Unparseable content begins at line {line}.",
         Description: "Parsing succeeded for a prefix of the file, but tokens remain from the stated line onward that no grammar rule accepts. Look at that line for an unbalanced brace or a stray token, since it usually marks the real mistake.",
         Category: DiagnosticCategory.Syn,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("line", SlotKind.Quantity)]);
 
     public static readonly MistDiagnostic StackallocSize = new(
         DiagnosticNumber.Mint("MIST0124"),

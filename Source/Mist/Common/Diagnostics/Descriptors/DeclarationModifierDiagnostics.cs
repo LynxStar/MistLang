@@ -16,20 +16,22 @@ public static class DeclarationModifierDiagnostics
     public static readonly MistDiagnostic RefOnOperatorParameter = new(
         DiagnosticNumber.Mint("MIST0041"),
         Title: "Ref parameter on operator",
-        Template: "The 'ref' modifier is not valid on parameter '{0}' of {1}: an operator is applied without an argument list, so no use of it can write the 'ref' a reference argument needs. Take the parameter by value.",
+        Template: "The 'ref' modifier is not valid on parameter '{parameter}' of {operator}: an operator is applied without an argument list, so no use of it can write the 'ref' a reference argument needs. Take the parameter by value.",
         Description: "An operator parameter is declared by reference, but an operator is invoked through its symbol rather than a call, so no use site has a place to mark an operand as a reference argument. Declare the parameter by value.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("operator", SlotKind.Name)]);
 
     public static readonly MistDiagnostic ReadonlyRefOnOperatorParameter = new(
         DiagnosticNumber.Mint("MIST0042"),
         Title: "Readonly ref parameter on operator",
-        Template: "The 'readonly ref' modifier is not valid on parameter '{0}' of {1}: an operator takes its operands by value. Take the parameter by value.",
+        Template: "The 'readonly ref' modifier is not valid on parameter '{parameter}' of {operator}: an operator takes its operands by value. Take the parameter by value.",
         Description: "An operator parameter is declared as a read-only reference, but operands reach an operator as copies and the syntax of an operator application has no place to pass an alias. Declare the parameter by value.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("operator", SlotKind.Name)]);
 
     public static readonly MistDiagnostic SealedOnOperator = new(
         DiagnosticNumber.Mint("MIST0043"),
@@ -79,9 +81,10 @@ public static class DeclarationModifierDiagnostics
     public static readonly MistDiagnostic StaticOnAbstractMember = new(
         DiagnosticNumber.Mint("MIST0048"),
         Title: "Static member on abstract type",
-        Template: "The 'static' modifier is not valid on {0} '{1}' of abstract type '{2}': an abstract type declares the instance members a conforming type supplies, and a static member is no part of that contract. Declare it on a concrete type instead.",
+        Template: "The 'static' modifier is not valid on {kind} '{member}' of abstract type '{type}': an abstract type declares the instance members a conforming type supplies, and a static member is no part of that contract. Declare it on a concrete type instead.",
         Description: "An abstract type declares a static member, but an abstract type exists only to list the instance members a conforming type must provide, so there is no conforming type for a static member to bind to. Move the member to a concrete type, or make it an instance member of the abstract type.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("kind", SlotKind.Enum), new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 }

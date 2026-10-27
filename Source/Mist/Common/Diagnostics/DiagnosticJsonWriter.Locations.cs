@@ -100,6 +100,12 @@ public static partial class DiagnosticJsonWriter
                 writer.WriteEndArray();
                 writer.WriteString("package", operation.Package);
                 break;
+            case StormEntryFrame entry:
+                writer.WriteString("kind", "stormEntry");
+                writer.WriteNumber("offset", entry.Offset);
+                writer.WriteNumber("length", entry.Length);
+                writer.WriteString("spelling", entry.Spelling);
+                break;
             case WithholdingFrame withheld:
                 writer.WriteString("kind", "withholding");
                 writer.WritePropertyName("member");

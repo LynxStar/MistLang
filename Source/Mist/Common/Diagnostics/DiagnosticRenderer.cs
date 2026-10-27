@@ -104,7 +104,7 @@ public static class DiagnosticRenderer
                         return false;
                     }
 
-                    if(carrier is OptionalValue { Value: null } or SequenceValue { Items.IsEmpty: true })
+                    if(carrier is OptionalValue { Value: null })
                     {
                         break;
                     }

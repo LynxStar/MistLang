@@ -23,3 +23,5 @@ public sealed record OperationFrame(string Project, ImmutableArray<string> Refer
 public sealed record TruncatedFrame(int Depth, bool Cyclic) : Frame;
 
 public sealed record WithholdingFrame(SymbolValue Member, EnumValue Reason, TypeValue? Offending = null) : Frame;
+
+public sealed record StormEntryFrame(int Offset, int Length, string Spelling) : Frame;

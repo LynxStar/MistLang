@@ -30,7 +30,7 @@ public static class DiagnosticBagExtensions
         string? analyzerName,
         params ReadOnlySpan<object?> args)
     {
-        bag.Admit(DiagnosticFactory.Create(
+        bag.AdmitOwned(node, DiagnosticFactory.Create(
             descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
             LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerName));
     }
@@ -53,7 +53,7 @@ public static class DiagnosticBagExtensions
         string? analyzerName,
         params ReadOnlySpan<SlotValue> arguments)
     {
-        bag.Admit(DiagnosticFactory.Create(
+        bag.AdmitOwned(node, DiagnosticFactory.Create(
             descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
             arguments, analyzerName: analyzerName));
     }

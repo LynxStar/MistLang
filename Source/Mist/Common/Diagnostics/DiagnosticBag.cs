@@ -10,6 +10,7 @@ namespace Mist.Common.Diagnostics;
 public sealed class DiagnosticBag
 {
     private List<Diagnostic> diagnostics = [];
+    private readonly DiagnosticOwnership ownership = new();
 
     public DiagnosticBag()
         : this(new DiagnosticOperation(), PipelineStage.Driver)
@@ -48,6 +49,23 @@ public sealed class DiagnosticBag
         }
 
         diagnostics.Add(diagnostic);
+    }
+
+    public IDisposable ReplayOwnedFailures()
+    {
+        return ownership.Replaying(diagnostics.Select(occurrence => occurrence.Ordinal).ToHashSet());
+    }
+
+    public void AdmitOwned(object owner, Admission admission)
+    {
+        if(admission.Breaches.IsEmpty && ownership.Previous(owner, admission.Occurrence.Descriptor) is { } previous)
+        {
+            Add(previous);
+            return;
+        }
+
+        Admit(admission);
+        ownership.Record(owner, admission.Occurrence);
     }
 
     public void Replay(Diagnostic occurrence)

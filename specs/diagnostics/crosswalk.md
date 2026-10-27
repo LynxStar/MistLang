@@ -440,3 +440,36 @@ Rows: 430 fields; 421 numbered, 7 retired, 1 held back, 1 merged. Frozen history
 | `ProgramModelDiagnostics.SpreadNonPackArgument` | `MIST_PM_SPREAD_NON_PACK_ARGUMENT` | numbered | `MIST0421` | Spread into non-pack slot | TYP |
 
 | `BackendDiagnostics.EmissionFallback` | none | new producer | MIST0424 | Unhandled emission | ICE |
+| `CommandDiagnostics.MissingFlagValue` | none | new producer | MIST0425 | Missing flag value | CFG |
+| `CommandDiagnostics.UnknownMode` | none | new producer | MIST0426 | Unknown compiler mode | CFG |
+| `CommandDiagnostics.UnknownPipeline` | none | new producer | MIST0427 | Unknown compiler pipeline | CFG |
+| `CommandDiagnostics.UnknownPlatform` | none | new producer | MIST0428 | Unknown target platform | CFG |
+| `CommandDiagnostics.UnknownFlag` | none | new producer | MIST0429 | Unknown command flag | CFG |
+| `CommandDiagnostics.ConflictingVerbosity` | none | new producer | MIST0430 | Conflicting verbosity flags | CFG |
+| `CommandDiagnostics.LexCommandIncompatible` | none | new producer | MIST0431 | Command does not support lex mode | CFG |
+| `CommandDiagnostics.MultipleProjectFolders` | none | new producer | MIST0432 | Multiple project folders | CFG |
+| `CommandDiagnostics.IndividualFileUnsupported` | none | new producer | MIST0433 | Individual source path unsupported | CFG |
+| `CommandDiagnostics.ProjectDirectoryMissing` | none | new producer | MIST0434 | Project directory missing | CFG |
+| `CommandDiagnostics.SteeringBundleReadFailed` | none | new producer | MIST0435 | Steering bundle read failed | IOX |
+| `CommandDiagnostics.SteeringBundleMissing` | none | new producer | MIST0436 | Steering bundle missing | IOX |
+| `CommandDiagnostics.SteeringBlockReadFailed` | none | new producer | MIST0437 | Steering block read failed | IOX |
+| `CommandDiagnostics.SteeringInstructionsReadFailed` | none | new producer | MIST0438 | Project instructions read failed | IOX |
+| `CommandDiagnostics.SteeringMarkersMalformed` | none | new producer | MIST0439 | Instruction markers malformed | CFG |
+| `CommandDiagnostics.SteeringDirectoryCreateFailed` | none | new producer | MIST0440 | Steering directory create failed | IOX |
+| `CommandDiagnostics.SteeringFileInstallFailed` | none | new producer | MIST0441 | Steering file install failed | IOX |
+| `CommandDiagnostics.SteeringInstructionsWriteFailed` | none | new producer | MIST0442 | Project instructions write failed | IOX |
+| `CommandDiagnostics.SteeringFilesEnumerateFailed` | none | new producer | MIST0443 | Installed steering enumeration failed | IOX |
+| `CommandDiagnostics.SteeringFileReadFailed` | none | new producer | MIST0444 | Installed steering read failed | IOX |
+| `CommandDiagnostics.SteeringFileRemoveFailed` | none | new producer | MIST0445 | Managed steering remove failed | IOX |
+| `CommandDiagnostics.UnsafeCleanDirectory` | none | new producer | MIST0446 | Unsafe clean directory | CFG |
+| `CommandDiagnostics.SourceFilesMissing` | none | new producer | MIST0447 | No source files | CFG |
+| `CommandDiagnostics.CleanDirectoriesFailed` | none | new producer | MIST0448 | Build cleanup failed | IOX |
+| `CommandDiagnostics.LexerRoundTripFailed` | none | new producer | MIST0449 | Lexer round trip failed | ICE |
+| `CommandDiagnostics.RunLibraryProject` | none | new producer | MIST0450 | Cannot run a library | CFG |
+| `CommandDiagnostics.ExecutableArtifactMissing` | none | new producer | MIST0451 | Executable artifact missing | IOX |
+| `CommandDiagnostics.InspectTypeRequired` | none | new producer | MIST0452 | Inspection type required | CFG |
+| `CommandDiagnostics.InspectTypeNotQualified` | none | new producer | MIST0453 | Inspection type is not qualified | CFG |
+| `CommandDiagnostics.InspectTypeNotFound` | none | new producer | MIST0454 | Inspection type not found | IOX |
+| `CommandDiagnostics.InspectTypeNotProjected` | none | new producer | MIST0455 | Inspection type not projected | IOX |
+| `CommandDiagnostics.ProcessStartFailed` | none | new producer | MIST0456 | Child process start failed | IOX |
+| `CommandDiagnostics.ProcessLaunchFailed` | none | new producer | MIST0457 | Child process launch failed | IOX |

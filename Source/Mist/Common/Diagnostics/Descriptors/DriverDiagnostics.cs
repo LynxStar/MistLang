@@ -132,29 +132,32 @@ public static class DriverDiagnostics
     public static readonly MistDiagnostic ProjectReferenceNotFound = new(
         DiagnosticNumber.Mint("MIST0062"),
         Title: "Referenced project path missing",
-        Template: "Referenced project path '{0}' does not exist.",
+        Template: "Referenced project path '{path}' does not exist.",
         Description: "The 'path' of a [references] entry was resolved relative to the project file, but nothing is on disk at that location. Check the spelling and relative position of the path, and make sure the referenced project is checked out.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("path", SlotKind.Path)]);
 
     public static readonly MistDiagnostic ProjectReferenceNoProjectFile = new(
         DiagnosticNumber.Mint("MIST0063"),
         Title: "Referenced directory has no project",
-        Template: "Referenced directory '{0}' holds no mist.toml, .csproj or .dll.",
+        Template: "Referenced directory '{directory}' holds no mist.toml, .csproj or .dll.",
         Description: "A reference points at a directory that exists but contains none of the files the compiler can consume as a dependency. Point the path at the project's own directory, or name the project file or assembly directly.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("directory", SlotKind.Path)]);
 
     public static readonly MistDiagnostic ProjectCircularReference = new(
         DiagnosticNumber.Mint("MIST0064"),
         Title: "Circular project reference",
-        Template: "Circular project reference detected: {0}.",
+        Template: "Circular project reference detected: {chain}.",
         Description: "Following [references] from this Mist project leads back to itself along the chain shown, so no build order exists. Break the cycle by removing one of the references or moving the shared code into a third project.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("chain", SlotKind.Sequence, SlotKind.Path)]);
 
     public static readonly MistDiagnostic ProjectReferenceInvalidFormat = new(
         DiagnosticNumber.Mint("MIST0065"),
@@ -209,11 +212,12 @@ public static class DriverDiagnostics
     public static readonly MistDiagnostic ProjectReferenceNameMismatch = new(
         DiagnosticNumber.Mint("MIST0070"),
         Title: "Reference key mismatch",
-        Template: "Reference key '{0}' does not match '{1}', the name the {2} '{3}' produces.",
+        Template: "Reference key '{key}' does not match '{produced}', the name the {kind} '{path}' produces.",
         Description: "The key chosen for a [references] entry differs from the name the referenced mist.toml, .csproj or .dll actually produces, and the compiler uses the key to identify the dependency. Rename the key to the name shown, or point the path at the intended project.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("key", SlotKind.Name), new Slot("produced", SlotKind.Name), new Slot("kind", SlotKind.Enum), new Slot("path", SlotKind.Path)]);
 
     public static readonly MistDiagnostic ReferenceUnsupportedPath = new(
         DiagnosticNumber.Mint("MIST0071"),
@@ -227,20 +231,22 @@ public static class DriverDiagnostics
     public static readonly MistDiagnostic ReferenceFileNotFound = new(
         DiagnosticNumber.Mint("MIST0072"),
         Title: "Referenced file not found",
-        Template: "Reference '{0}' names '{1}', which does not exist.",
+        Template: "Reference '{name}' names '{path}', which does not exist.",
         Description: "A [references] entry names a specific file, but once the path is resolved against the referencing mist.toml no such file is on disk. Fix the path, or build the referenced project so the file exists.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name), new Slot("path", SlotKind.Path)]);
 
     public static readonly MistDiagnostic ReferenceAmbiguous = new(
         DiagnosticNumber.Mint("MIST0073"),
         Title: "Reference directory ambiguous",
-        Template: "Reference '{0}' names directory '{1}', which holds more than one referenceable file: {2}. Name the intended file in 'path'.",
+        Template: "Reference '{name}' names directory '{directory}', which holds more than one referenceable file: {candidates}. Name the intended file in 'path'.",
         Description: "A [references] entry points at a directory holding several files the compiler could treat as the dependency, so it cannot pick one. Extend the path to the specific mist.toml, .csproj or .dll that is meant.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name), new Slot("directory", SlotKind.Path), new Slot("candidates", SlotKind.Sequence, SlotKind.Path)]);
 
     public static readonly MistDiagnostic CSharpProjectBuildFailed = new(
         DiagnosticNumber.Mint("MIST0074"),
@@ -254,11 +260,12 @@ public static class DriverDiagnostics
     public static readonly MistDiagnostic ReferenceCycle = new(
         DiagnosticNumber.Mint("MIST0075"),
         Title: "Reference cycle",
-        Template: "Reference cycle: {0}.",
+        Template: "Reference cycle: {chain}{referencingPath? ({referencingPath})}{target? references '{target}', the project being compiled}.",
         Description: "The graph of Mist, C# and assembly references contains a loop, shown as the chain of names, so the projects cannot be built in order. Remove one of the references in the chain.",
         Category: DiagnosticCategory.Dep,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("chain", SlotKind.Sequence, SlotKind.Name), new Slot("referencingPath", SlotKind.Optional, SlotKind.Path), new Slot("target", SlotKind.Optional, SlotKind.Name)]);
 
     // ── Global using diagnostics ─────────────────────────────────────────
 
@@ -507,11 +514,12 @@ public static class DriverDiagnostics
     public static readonly MistDiagnostic FileError = new(
         DiagnosticNumber.Mint("MIST0101"),
         Title: "Source file unreadable",
-        Template: "Failed to read source file '{0}': {1}",
+        Template: "Failed to read source file '{path}': {message}",
         Description: "A source file listed for compilation could not be read; the trailing message is the operating system's I/O error. Check that the file exists, that it is readable and that no other process holds it locked.",
         Category: DiagnosticCategory.Iox,
         Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error);
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("path", SlotKind.Path), new Slot("message", SlotKind.Text)]);
 
     public static readonly MistDiagnostic TestFrameworkPackageMissing = new(
         DiagnosticNumber.Mint("MIST0102"),

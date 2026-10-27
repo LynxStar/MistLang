@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -67,7 +68,9 @@ internal static class IndexBinder
             if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
             {
                 var pending = context.Diagnostics.Withhold(() => ReportNotIndexable(receiver.Type, node, context));
-                return new ErrorExpression(node, [receiver, index], pending.Occurrences.Single());
+                var diagnostic = pending.Occurrences.Single();
+                pending.Discard();
+                return new ErrorExpression(node, [receiver, index], diagnostic);
             }
 
             ReportNotIndexable(receiver.Type, node, context);
@@ -102,8 +105,7 @@ internal static class IndexBinder
             }
             else
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ReceiverNotCountable, node, null, TypeDisplay.Mist(receiver.Type));
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ReceiverNotCountable, node, null, DiagnosticSnapshot.Type(receiver.Type));
             }
         }
 
@@ -118,8 +120,8 @@ internal static class IndexBinder
 
     private static void ReportNotIndexable(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)
     {
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.ReceiverNotIndexable, node, null, TypeDisplay.Mist(receiverType));
+        ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.ReceiverNotIndexable, node,
+            ProjectedWithholding.Frames(receiverType, "Item"), DiagnosticSnapshot.Type(receiverType));
     }
 
     private static Expression BindSlice(
@@ -139,7 +141,9 @@ internal static class IndexBinder
         if(FailureDependency.NeedsAnalysis(receiver) || FailureDependency.NeedsAnalysis(index))
         {
             var pending = context.Diagnostics.Withhold(() => ReportNotSliceable(receiver.Type, node, context));
-            return new ErrorExpression(node, [receiver, index], pending.Occurrences.Single());
+            var diagnostic = pending.Occurrences.Single();
+            pending.Discard();
+            return new ErrorExpression(node, [receiver, index], diagnostic);
         }
 
         ReportNotSliceable(receiver.Type, node, context);
@@ -148,7 +152,7 @@ internal static class IndexBinder
 
     private static void ReportNotSliceable(IMistType receiverType, IndexSuffixPostfixSuffixNode node, BuilderContext context)
     {
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.ReceiverNotSliceable, node, null, TypeDisplay.Mist(receiverType));
+        ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.ReceiverNotSliceable, node,
+            ProjectedWithholding.Frames(receiverType, "Item"), DiagnosticSnapshot.Type(receiverType));
     }
 }

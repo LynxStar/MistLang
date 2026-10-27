@@ -45,7 +45,7 @@ internal sealed class ExpressionFailures
         {
             if(!error.Children.Any(Of))
             {
-                diagnostics.Add(pending);
+                diagnostics.Replay(pending, error.Node);
             }
 
             Record(error);

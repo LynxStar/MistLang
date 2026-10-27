@@ -15,7 +15,7 @@ internal sealed class ContextualExpressionTrials(BindingContext ctx, BuilderCont
             Expression bound = null!;
             var trial = context.Diagnostics.Withhold(() => bound = context.ProgramModel.Discarding(
                 () => BindAgainst(expression, target, ctx, context)));
-            fits = !trial.Occurrences.Any(diagnostic => diagnostic.DefaultSeverity == DiagnosticSeverity.Error)
+            fits = !trial.Occurrences.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
                 && !PriorFailure.Of(bound)
                 && AcceptsConstruction(bound)
                 && ConversionClassifier.IsImplicit(bound.Type, target, context.ProgramModel.TypeInterner);

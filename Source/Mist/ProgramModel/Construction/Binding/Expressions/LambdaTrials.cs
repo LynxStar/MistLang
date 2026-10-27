@@ -124,7 +124,7 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
     {
         T bound = default!;
         var withheld = context.Diagnostics.Withhold(() => bound = context.ProgramModel.Discarding(trial));
-        var failed = withheld.Occurrences.Any(diagnostic => diagnostic.DefaultSeverity == DiagnosticSeverity.Error);
+        var failed = withheld.Occurrences.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
         withheld.Discard();
 
         return (bound, failed);

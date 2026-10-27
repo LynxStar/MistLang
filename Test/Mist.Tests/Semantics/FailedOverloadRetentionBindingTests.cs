@@ -51,6 +51,7 @@ public sealed class FailedOverloadRetentionBindingTests
 
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
         Assert.Equal("MIST0390", diagnostic.Number.Value);
+        Assert.True(diagnostic.Ordinal > 0);
         Assert.Equal("hand-built.mist", diagnostic.Location.Path);
         Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }

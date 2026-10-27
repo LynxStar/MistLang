@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -29,7 +30,9 @@ internal static class OverloadFailure
         if(retained.Any(FailureDependency.NeedsAnalysis))
         {
             var pending = diagnostics.Withhold(() => Report(choice, candidates, arguments, description, node, diagnostics));
-            return new ErrorExpression(node, retained, pending.Occurrences.Single());
+            var diagnostic = pending.Occurrences.Single();
+            pending.Discard();
+            return new ErrorExpression(node, retained, diagnostic);
         }
 
         Report(choice, candidates, arguments, description, node, diagnostics);
@@ -68,18 +71,20 @@ internal static class OverloadFailure
 
         if(choice.NoArityMatch)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 ProgramModelDiagnostics.NoApplicableOverload, node, null,
-                description, arguments.Count, DescribeArities(candidates));
+                SnapshotCallee(candidates, description), new QuantityValue(arguments.Count),
+                new SequenceValue(SlotKind.Quantity, [.. candidates.Select(candidate => candidate.ParametersList.Count).Distinct().Order().Select(arity => (SlotValue)new QuantityValue(arity))]));
 
             return;
         }
 
         if(choice.TypeArgumentMismatch.Count > 0)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 ProgramModelDiagnostics.TypeArgumentCountMismatch, node, null,
-                description, DescribeTypeArities(choice.TypeArgumentMismatch));
+                SnapshotCallee(candidates, description),
+                new SequenceValue(SlotKind.Quantity, [.. choice.TypeArgumentMismatch.Select(candidate => candidate.TypeParametersList.Count).Distinct().Order().Select(arity => (SlotValue)new QuantityValue(arity))]));
 
             return;
         }
@@ -87,38 +92,38 @@ internal static class OverloadFailure
         if(choice.UninferredConflict is { } conflict)
         {
             var declared = choice.Uninferred[0].TypeParametersList;
-            var spelled = TypeDisplay.Distinguished([conflict.Parameter, .. conflict.Bounds, .. declared])
-                .Select(spelling => $"'{spelling}'").ToList();
-            diagnostics.ReportAtNode(
+            var spelled = TypeDisplay.Distinguished([conflict.Parameter, .. conflict.Bounds, .. declared]);
+            diagnostics.ReportAtNodeTyped(
                 ProgramModelDiagnostics.TypeArgumentsConflict, node, null,
-                description, spelled[0],
-                string.Join(", ", spelled.Skip(1).Take(conflict.Bounds.Count)),
-                string.Join(", ", spelled.Skip(1 + conflict.Bounds.Count)));
+                SnapshotCallee(candidates, description), DiagnosticSnapshot.Type(conflict.Parameter, spelled[0]),
+                new SequenceValue(SlotKind.Type, [.. conflict.Bounds.Select((type, index) => (SlotValue)DiagnosticSnapshot.Type(type, spelled[index + 1]))], ItemPrefix: "'", ItemSuffix: "'"),
+                new SequenceValue(SlotKind.Type, [.. declared.Select((type, index) => (SlotValue)DiagnosticSnapshot.Type(type, spelled[index + 1 + conflict.Bounds.Count]))], ItemPrefix: "'", ItemSuffix: "'"));
 
             return;
         }
 
         if(choice.Uninferred.Count > 0)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 ProgramModelDiagnostics.TypeArgumentsNotInferred, node, null,
-                description, DescribeTypeParameters(choice.Uninferred));
+                SnapshotCallee(candidates, description),
+                new SequenceValue(SlotKind.Type, [.. choice.Uninferred[0].TypeParametersList.Select(parameter => (SlotValue)DiagnosticSnapshot.Type(parameter, parameter.Name))], ItemPrefix: "'", ItemSuffix: "'"));
 
             return;
         }
 
         if(choice.Unresolvable.Count > 0)
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 ProgramModelDiagnostics.UnresolvableOverload, node, null,
-                description, DescribeSignatures(choice.Unresolvable));
+                SnapshotCallee(candidates, description), SnapshotSignatures(choice.Unresolvable));
 
             return;
         }
 
-        diagnostics.ReportAtNode(
+        diagnostics.ReportAtNodeTyped(
             ProgramModelDiagnostics.AmbiguousOverload, node, null,
-            description, DescribeSignatures(choice.Ambiguous));
+            SnapshotCallee(candidates, description), SnapshotSignatures(choice.Ambiguous));
     }
 
     /// <summary>
@@ -136,44 +141,17 @@ internal static class OverloadFailure
         return string.Join(", ", signatures);
     }
 
-    /// <summary>
-    /// The parameter counts on offer, ascending and deduplicated, for a diagnostic that would
-    /// otherwise say the call was wrong without saying what would be right.
-    /// </summary>
-    private static string DescribeArities<T>(IReadOnlyList<T> candidates)
+    private static SymbolValue SnapshotCallee<T>(IReadOnlyList<T> candidates, string description)
         where T : class, IOverload
     {
-        var arities = new SortedSet<int>();
-        foreach(var candidate in candidates)
-        {
-            _ = arities.Add(candidate.ParametersList.Count);
-        }
-
-        return string.Join(", ", arities);
+        return new SymbolValue(string.Join("|", candidates.Select(candidate => DiagnosticSnapshot.Symbol(candidate, "").Identity)), description);
     }
 
-    private static string DescribeTypeArities<T>(IReadOnlyList<T> candidates)
+    private static SequenceValue SnapshotSignatures<T>(IReadOnlyList<T> candidates)
         where T : class, IOverload
     {
-        var arities = new SortedSet<int>();
-        foreach(var candidate in candidates)
-        {
-            _ = arities.Add(candidate.TypeParametersList.Count);
-        }
-
-        return string.Join(", ", arities);
-    }
-
-    /// <summary>
-    /// Every type parameter the first candidate declares, determined or not, because a call states all
-    /// of a method's type arguments or none and so all of them are what the user has to write. Which
-    /// ones went undetermined is therefore not worth carrying out of selection.
-    /// </summary>
-    private static string DescribeTypeParameters<T>(IReadOnlyList<T> candidates)
-        where T : class, IOverload
-    {
-        var names = candidates[0].TypeParametersList.Select(parameter => $"'{parameter.Name}'");
-
-        return string.Join(", ", names);
+        return new SequenceValue(SlotKind.Symbol,
+            [.. candidates.Select(candidate => DiagnosticSnapshot.Symbol(candidate,
+                $"({string.Join(", ", candidate.ParametersList.Select(parameter => TypeDisplay.Mist(parameter.Type)))})"))]);
     }
 }

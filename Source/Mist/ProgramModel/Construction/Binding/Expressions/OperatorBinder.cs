@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -176,9 +177,9 @@ internal static class OperatorBinder
 
         if(kind is not { } classified)
         {
-            context.Diagnostics.ReportAtNode(
+            context.Diagnostics.ReportAtNodeTyped(
                 AsFinding(operand.Type, target)!, node, null,
-                operand.Type.Name, target.Name);
+                DiagnosticSnapshot.Type(operand.Type, operand.Type.Name), DiagnosticSnapshot.Type(target, target.Name));
 
             return new ErrorExpression(node);
         }
@@ -379,13 +380,13 @@ internal static class OperatorBinder
 
                         if(FailureDependency.NeedsAnalysis(operand))
                         {
-                            var pending = context.Diagnostics.Withhold(() => context.Diagnostics.ReportAtNode(
-                                ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name));
-                            return new ErrorExpression(node, [operand], pending.Occurrences.Single());
+                            var pending = context.Diagnostics.Withhold(() => context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AwaitOfNonTask, node, null, DiagnosticSnapshot.Type(operand.Type, operand.Type.Name)));
+                            var diagnostic = pending.Occurrences.Single();
+                            pending.Discard();
+                            return new ErrorExpression(node, [operand], diagnostic);
                         }
 
-                        context.Diagnostics.ReportAtNode(
-                            ProgramModelDiagnostics.AwaitOfNonTask, node, null, operand.Type.Name);
+                        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AwaitOfNonTask, node, null, DiagnosticSnapshot.Type(operand.Type, operand.Type.Name));
                         return new ErrorExpression(node, [operand]);
                     }
 

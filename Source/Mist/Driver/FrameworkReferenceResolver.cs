@@ -81,13 +81,8 @@ public static class FrameworkReferenceResolver
             // attempt to locate a pack (we have no canonical pack name to search).
             if(!KnownFrameworks.Contains(framework.Name))
             {
-                diagnostics.Add(DiagnosticFactory.Legacy(
-                    CommonDiagnostics.FrameworkReferenceUnknownName,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Framework reference '{framework.Name}' is not a known shared framework.",
-                    default,
-                    string.Empty));
+                diagnostics.ReportTyped(CommonDiagnostics.FrameworkReferenceUnknownName, new Absent(AbsenceReason.Unavailable),
+                    new NameValue(framework.Name));
                 failureCount++;
                 continue;
             }
@@ -102,13 +97,9 @@ public static class FrameworkReferenceResolver
                 // Known shared framework, but its reference pack is not installed
                 // for the target framework: report MIST0034, naming the
                 // framework, the target framework, and the pack path searched.
-                diagnostics.Add(DiagnosticFactory.Legacy(
-                    CommonDiagnostics.FrameworkReferenceNotInstalled,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Framework reference '{framework.Name}' is not installed for {targetFramework}. Searched: {DescribeSearchedPath(dotnetRoot, framework.Name, targetFramework)}.",
-                    default,
-                    string.Empty));
+                diagnostics.ReportTyped(CommonDiagnostics.FrameworkReferenceNotInstalled, new Absent(AbsenceReason.Unavailable),
+                    new NameValue(framework.Name), new NameValue(targetFramework),
+                    new PathValue(DescribeSearchedPath(dotnetRoot, framework.Name, targetFramework)));
                 failureCount++;
                 continue;
             }

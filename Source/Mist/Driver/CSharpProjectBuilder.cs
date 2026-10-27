@@ -60,7 +60,7 @@ public static class CSharpProjectBuilder
             var producedName = Path.GetFileNameWithoutExtension(output.Path);
             if(ProjectReferenceResolver.KeyMismatch(reference.Name, ReferenceKind.CSharpProject, producedName, reference.Path) is { } mismatch)
             {
-                diagnostics.Add(mismatch);
+                diagnostics.Admit(mismatch);
                 continue;
             }
 

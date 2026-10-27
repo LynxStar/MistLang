@@ -24,9 +24,11 @@ public sealed class ReferenceKeyMismatchTests
     {
         const string target = "/work/App.Migrations/App.Migrations.csproj";
 
-        var diagnostic = ProjectReferenceResolver.KeyMismatch("Migrations", kind, "App.Migrations", target);
+        var admission = ProjectReferenceResolver.KeyMismatch("Migrations", kind, "App.Migrations", target);
 
-        Assert.NotNull(diagnostic);
+        _ = Assert.NotNull(admission);
+        Assert.Empty(admission.Value.Breaches);
+        var diagnostic = admission.Value.Occurrence;
         Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(target, diagnostic.Location.Path);
@@ -36,6 +38,6 @@ public sealed class ReferenceKeyMismatchTests
     [Fact]
     public void KeysCompareWithCase()
     {
-        Assert.NotNull(ProjectReferenceResolver.KeyMismatch("app.data", ReferenceKind.Assembly, "App.Data", "/work/libs/App.Data.dll"));
+        _ = Assert.NotNull(ProjectReferenceResolver.KeyMismatch("app.data", ReferenceKind.Assembly, "App.Data", "/work/libs/App.Data.dll"));
     }
 }

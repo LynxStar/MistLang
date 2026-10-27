@@ -116,7 +116,9 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, node, [],
-                    new NameValue(filler.Name), new NameValue("value"), new NameValue(TypeDisplay.Mist(promised)), new NameValue(TypeDisplay.Mist(produced)));
+                    new NameValue(filler.Name), new NameValue("value"),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(promised)), new OptionalValue(SlotKind.Name, null),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(produced)), new OptionalValue(SlotKind.Name, null));
             }
         }
     }
@@ -143,7 +145,9 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(TypeDisplay.Mist(promisedType)), new NameValue(TypeDisplay.Mist(demandedType)));
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(promisedType)), new OptionalValue(SlotKind.Name, null),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(demandedType)), new OptionalValue(SlotKind.Name, null));
 
                 continue;
             }
@@ -154,7 +158,9 @@ internal static class RefinementContracts
 
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(realPromised.ToString()), new NameValue(realDemanded.ToString()));
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name),
+                    new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue(realPromised.ToString())),
+                    new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue(realDemanded.ToString())));
 
                 continue;
             }
@@ -163,7 +169,9 @@ internal static class RefinementContracts
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
-                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name), new NameValue(TypeDisplay.Mist(promisedType)), new NameValue(TypeDisplay.Mist(demandedType)));
+                    new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(promisedType)), new OptionalValue(SlotKind.Name, null),
+                    new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(demandedType)), new OptionalValue(SlotKind.Name, null));
 
                 continue;
             }
@@ -173,8 +181,10 @@ internal static class RefinementContracts
             context.Report(
                 ProgramAnalysisDiagnostics.ConstraintStrengthened, at, [],
                 new NameValue(filler.Name), new NameValue(filler.ParametersList[i].Name),
-                new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString()),
-                new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString()));
+                new OptionalValue(SlotKind.Type, null),
+                new OptionalValue(SlotKind.Name, new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(promised) : promised.Values.ToString())),
+                new OptionalValue(SlotKind.Type, null),
+                new OptionalValue(SlotKind.Name, new NameValue(demanded.Bounds.Length > 0 ? RefinementFindings.Describe(demanded) : demanded.Values.ToString())));
         }
     }
 
@@ -183,7 +193,7 @@ internal static class RefinementContracts
     {
         context.Report(
             ProgramAnalysisDiagnostics.RefinementReturnUnproven, at, [],
-            new NameValue(member), DiagnosticSnapshot.Type(produced), new NameValue(TypeDisplay.Mist(promised)), new NameValue(TypeDisplay.Mist(abstractType)));
+            new NameValue(member), DiagnosticSnapshot.Type(produced), DiagnosticSnapshot.Type(promised), DiagnosticSnapshot.Type(abstractType));
     }
 
     private sealed record Conformed(

@@ -177,9 +177,18 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
             }
             else if(!Declarations.IsAtLeast(accessibility, site.Reach))
             {
+                var spelling = $"{TypeDisplay.Mist(declaring)}.{name}";
+                var exposed = member switch
+                {
+                    FieldResult found => DiagnosticSnapshot.Symbol(found.Field, spelling),
+                    PropertyResult found => DiagnosticSnapshot.Symbol(found.Property, spelling),
+                    _ => null,
+                };
+
                 context.Report(
                     ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
-                    new EnumValue(storage.Kind), new NameValue($"{TypeDisplay.Mist(declaring)}.{name}"), new EnumValue(site.Kind), new NameValue(site.Name));
+                    new EnumValue(storage.Kind), new OptionalValue(SlotKind.Type, null),
+                    new OptionalValue(SlotKind.Symbol, exposed), new EnumValue(site.Kind), new NameValue(site.Name));
             }
         }
     }
@@ -296,7 +305,8 @@ internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.InconsistentAccessibility, at, [],
-                new EnumValue(exposedKind), new NameValue(TypeDisplay.Mist(exposed)), new EnumValue(memberKind), new NameValue(memberName));
+                new EnumValue(exposedKind), new OptionalValue(SlotKind.Type, DiagnosticSnapshot.Type(exposed)),
+                new OptionalValue(SlotKind.Symbol, null), new EnumValue(memberKind), new NameValue(memberName));
         }
     }
 }

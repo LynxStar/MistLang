@@ -198,7 +198,9 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             context.Report(
                 ProgramAnalysisDiagnostics.SlotConstraintStrengthened, at, [],
                 DiagnosticSnapshot.Type(concrete), new NameValue(SlotSignatures.Display(slot, substitution, interner)), DiagnosticSnapshot.Type(abstractType),
-                new NameValue(answer.Member.Name), new NameValue(Spelled(constraint)), new NameValue(parameter.Name));
+                new NameValue(answer.Member.Name),
+                new OptionalValue(SlotKind.Type, constraint is TypeConstraint typed ? DiagnosticSnapshot.Type(typed.ConstraintType) : null),
+                new OptionalValue(SlotKind.Name, constraint is TypeConstraint ? null : new NameValue(Spelled(constraint))), new NameValue(parameter.Name));
             found = true;
         }
 
@@ -209,7 +211,6 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     {
         return constraint switch
         {
-            TypeConstraint typed => TypeDisplay.Mist(typed.ConstraintType),
             ConstructorConstraint constructor => $"new({string.Join(", ", constructor.ParameterTypes.Select(TypeDisplay.Mist))})",
             _ => constraint.Kind.ToString().ToLowerInvariant(),
         };
@@ -337,23 +338,24 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             foreach(var constraint in slot.ConstraintsList)
             {
-                var (satisfied, spelling) = constraint switch
+                var satisfied = constraint switch
                 {
-                    TypeConstraint typed => (
-                        ConversionClassifier.Classify(judged, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
-                            is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
-                        TypeDisplay.Mist(typed.ConstraintType)),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => (kind is not StructType, "class"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => (kind is not ClassType, "struct"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => (Stampability.IsStampable(judged), "stampable"),
-                    _ => (true, ""),
+                    TypeConstraint typed => ConversionClassifier.Classify(judged, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
+                        is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => kind is not StructType,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => kind is not ClassType,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => Stampability.IsStampable(judged),
+                    _ => true,
                 };
 
                 if(!satisfied)
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.TypeSlotConstraintNotSatisfied, at, [],
-                        DiagnosticSnapshot.Type(filler), new NameValue(spelling), DiagnosticSnapshot.Type(abstractType), new NameValue(MistType.StripArity(slot.Name)));
+                        DiagnosticSnapshot.Type(filler),
+                        new OptionalValue(SlotKind.Type, constraint is TypeConstraint typed ? DiagnosticSnapshot.Type(typed.ConstraintType) : null),
+                        new OptionalValue(SlotKind.Name, constraint is TypeConstraint ? null : new NameValue(constraint.Kind.ToString().ToLowerInvariant())),
+                        DiagnosticSnapshot.Type(abstractType), new NameValue(MistType.StripArity(slot.Name)));
                 }
             }
         }

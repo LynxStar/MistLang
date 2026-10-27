@@ -348,10 +348,10 @@ public sealed class CloneAnalysisIsolationTests
         var root = fixture.Conversion(member);
         var diagnostics = new DiagnosticBag();
         var context = fixture.Context(Fixture.BodyScope(root), new ConstraintAnalyzer(), diagnostics);
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
         context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node,
-            [new ErrorExpression(member.Node)], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], DiagnosticSnapshot.Type(fixture.Source), new NameValue("class"), new NameValue("T"));
+            [new ErrorExpression(member.Node)], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
 
         Assert.Equal(31, Assert.Single(diagnostics.ToImmutableArray()).Position().Start.Column);
     }

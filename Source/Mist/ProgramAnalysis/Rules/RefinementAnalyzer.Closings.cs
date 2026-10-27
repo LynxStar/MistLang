@@ -20,14 +20,16 @@ internal sealed partial class RefinementAnalyzer
         {
             context.Report(
                 finding, at, [],
-                new NameValue(argument is LiftedType lifted ? DependentDomains.Spell(lifted.Value) : TypeDisplay.Mist(argument)),
+                new OptionalValue(SlotKind.Type, argument is LiftedType ? null : DiagnosticSnapshot.Type(argument)),
+                new OptionalValue(SlotKind.Name, argument is LiftedType lifted ? new NameValue(DependentDomains.Spell(lifted.Value)) : null),
                 ArgumentDomain(context, argument),
                 new NameValue(parameter.Name), DiagnosticSnapshot.Type(parameter.Domain!));
         }
         else if(finding == ProgramAnalysisDiagnostics.DependentForwardNotConvertible && argument is TypeParameter { Domain: { } from } source)
         {
             context.Report(
-                finding, at, [], new NameValue(source.Name), DiagnosticSnapshot.Type(from), new NameValue(Owner(source)), new NameValue(parameter.Name), DiagnosticSnapshot.Type(parameter.Domain!), new NameValue(Owner(parameter)));
+                finding, at, [], new NameValue(source.Name), DiagnosticSnapshot.Type(from),
+                Owner(source), OwnerName(source), new NameValue(parameter.Name), DiagnosticSnapshot.Type(parameter.Domain!), Owner(parameter), OwnerName(parameter));
         }
         else if(Demanded(parameter) is { } required)
         {
@@ -111,9 +113,14 @@ internal sealed partial class RefinementAnalyzer
         return lifted.Value is ulong ? Admitted.Exactly(long.MaxValue) : Requirement.ValuesOf(lifted);
     }
 
-    private static string Owner(TypeParameter parameter)
+    private static OptionalValue Owner(TypeParameter parameter)
     {
-        return parameter.DeclaringType is { } owner ? TypeDisplay.Mist(owner) : parameter.Name;
+        return new OptionalValue(SlotKind.Type, parameter.DeclaringType is { } owner ? DiagnosticSnapshot.Type(owner) : null);
+    }
+
+    private static OptionalValue OwnerName(TypeParameter parameter)
+    {
+        return new OptionalValue(SlotKind.Name, parameter.DeclaringType is null ? new NameValue(parameter.Name) : null);
     }
 
     private static Requirement? Demanded(TypeParameter parameter)

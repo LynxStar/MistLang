@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Construction.Members;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -46,8 +47,7 @@ internal sealed class NewtypeBuilder
 
         if(IsUnsupported(typeDef.SourceType))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NewtypeSourceNotSupported, decl, null, TypeDisplay.Mist(typeDef.SourceType!));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.NewtypeSourceNotSupported, decl, null, DiagnosticSnapshot.Type(typeDef.SourceType!));
         }
     }
 

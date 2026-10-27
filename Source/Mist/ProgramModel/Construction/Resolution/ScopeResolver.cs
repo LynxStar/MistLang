@@ -151,7 +151,7 @@ internal sealed partial class ScopeResolver
 
         if(name is not null && IsReservedTupleElementName(name))
         {
-            ReportResolutionFailure(ProgramModelDiagnostics.ReservedTupleElementName, element, null, name);
+            ReportResolutionFailure(ProgramModelDiagnostics.ReservedTupleElementName, element, null, new NameValue(name));
 
             // Drop the reserved name so it does not collide with the positional field.
             name = null;
@@ -465,8 +465,7 @@ internal sealed partial class ScopeResolver
                 || TypeMemberLookup.Find(declaring, LookupRequest.Member(lookupName, MemberVisibility.None, node))
                     is not TypeResult { Type: DeclaredType member } found)
             {
-                ReportResolutionFailure(
-                    ProgramModelDiagnostics.UnresolvedType, node, null, $"{TypeDisplay.Mist(current)}.{name}");
+                ReportResolutionFailure(ProgramModelDiagnostics.UnresolvedType, node, null, new NameValue($"{TypeDisplay.Mist(current)}.{name}"));
 
                 return ErrorType.Instance;
             }
@@ -627,9 +626,7 @@ internal sealed partial class ScopeResolver
             return bound;
         }
 
-        ReportResolutionFailure(
-            ProgramModelDiagnostics.TooFewTypeArgumentsForPack, locationNode, null,
-            MistType.StripArity(baseType.Name), parameters.Count - 1, typeArgs.Count);
+        ReportResolutionFailure(ProgramModelDiagnostics.TooFewTypeArgumentsForPack, locationNode, null, DiagnosticSnapshot.Type(baseType, MistType.StripArity(baseType.Name)), new QuantityValue(parameters.Count - 1), new QuantityValue(typeArgs.Count));
 
         return typeArgs;
     }
@@ -780,7 +777,7 @@ internal sealed partial class ScopeResolver
                 break;
 
             default:
-                ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, arg.GetType().Name);
+                ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, arg, null, new NameValue(arg.GetType().Name));
                 args.Add(ErrorType.Instance);
                 break;
         }
@@ -844,7 +841,7 @@ internal sealed partial class ScopeResolver
 
         var widest = negated ? WellKnownTypes.Int64 : WellKnownTypes.UInt64;
         ReportResolutionFailure(
-            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, negated ? $"-{lexeme}" : lexeme, widest.Keyword ?? widest.Name);
+            ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, new TextValue(negated ? $"-{lexeme}" : lexeme), new TypeValue(widest.FullyQualifiedName, widest.Keyword ?? widest.Name));
         return ErrorType.Instance;
     }
 
@@ -906,19 +903,15 @@ internal sealed partial class ScopeResolver
                 return typeResult.Type;
 
             case AmbiguousResult:
-                ReportResolutionFailure(
-                    ProgramModelDiagnostics.AmbiguousType, locationNode, null,
-                    name, "<scope>", "<scope>");
+                ReportResolutionFailure(ProgramModelDiagnostics.AmbiguousType, locationNode, null, new NameValue(name), new NameValue("<scope>"), new NameValue("<scope>"));
                 return ErrorType.Instance;
 
             case VariableResult:
-                ReportResolutionFailure(
-                    ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
+                ReportResolutionFailure(ProgramModelDiagnostics.UnresolvedType, locationNode, null, new NameValue(name));
                 return ErrorType.Instance;
 
             default:
-                ReportResolutionFailure(
-                    ProgramModelDiagnostics.UnresolvedType, locationNode, null, name);
+                ReportResolutionFailure(ProgramModelDiagnostics.UnresolvedType, locationNode, null, new NameValue(name));
                 return ErrorType.Instance;
         }
     }
@@ -1024,7 +1017,7 @@ internal sealed partial class ScopeResolver
             if(length is null)
             {
                 ReportResolutionFailure(
-                    ProgramModelDiagnostics.NumericLiteralOutOfRange, sized, null, sized.Size.Lexeme, WellKnownTypes.Int32.Keyword ?? WellKnownTypes.Int32.Name);
+                    ProgramModelDiagnostics.NumericLiteralOutOfRange, sized, null, new TextValue(sized.Size.Lexeme), new TypeValue(WellKnownTypes.Int32.FullyQualifiedName, WellKnownTypes.Int32.Keyword ?? WellKnownTypes.Int32.Name));
                 return ErrorType.Instance;
             }
         }
@@ -1032,8 +1025,7 @@ internal sealed partial class ScopeResolver
         var arrayType = ConstructArray(elementType, length);
         if(arrayType is ErrorType)
         {
-            ReportResolutionFailure(
-                ProgramModelDiagnostics.UnresolvedType, singleRef, null, WellKnownTypes.Array.FullyQualifiedName);
+            ReportResolutionFailure(ProgramModelDiagnostics.UnresolvedType, singleRef, null, new NameValue(WellKnownTypes.Array.FullyQualifiedName));
         }
 
         return arrayType;
@@ -1055,13 +1047,13 @@ internal sealed partial class ScopeResolver
             return new SpreadType(resolved);
         }
 
-        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, name);
+        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, spread, null, new NameValue(name));
         return ErrorType.Instance;
     }
 
     private IMistType ReportUnsupported(SingleTypeRefNode node)
     {
-        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, node.GetType().Name);
+        ReportResolutionFailure(ProgramModelDiagnostics.UnknownTypeRefNode, node, null, new NameValue(node.GetType().Name));
         return ErrorType.Instance;
     }
 }

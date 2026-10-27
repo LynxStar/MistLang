@@ -32,8 +32,7 @@ internal sealed partial class ScopeResolver
             }
 
             var node = nodes[i] is TypeReferenceTypeArgumentTypeArgumentNode type ? type.Type.First : (Storm.Runtime.SyntaxNode)nodes[i];
-            ReportResolutionFailure(ProgramModelDiagnostics.SpreadNonPackArgument, node, null,
-                spread.Operand.Name, MistType.StripArity(definition.Name));
+            ReportResolutionFailure(ProgramModelDiagnostics.SpreadNonPackArgument, node, null, new NameValue(spread.Operand.Name), new NameValue(MistType.StripArity(definition.Name)));
             arguments[i] = ErrorType.Instance;
         }
 

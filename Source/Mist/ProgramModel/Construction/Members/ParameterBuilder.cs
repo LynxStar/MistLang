@@ -46,8 +46,7 @@ internal sealed class ParameterBuilder
         {
             if(ParamsModifiers.WhyMalformed(parameters[i]) is { } reason)
             {
-                diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ParamsParameterMalformed, nodes[i], null, parameters[i].Name, reason);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ParamsParameterMalformed, nodes[i], null, new NameValue(parameters[i].Name), new TextValue(reason));
             }
         }
 
@@ -55,9 +54,7 @@ internal sealed class ParameterBuilder
         // a list left with two absorbing slots has no reading a call could be bound or judged against.
         foreach(var surplus in ParamsModifiers.Surplus(parameters))
         {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.MultipleParamsParameters, nodes[surplus], null,
-                parameters[surplus].Name, parameters[absorbing!.Value].Name);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MultipleParamsParameters, nodes[surplus], null, new NameValue(parameters[surplus].Name), new NameValue(parameters[absorbing!.Value].Name));
 
             parameters[surplus].IsFlattened = false;
         }
@@ -70,8 +67,7 @@ internal sealed class ParameterBuilder
             if(parameters[i].IsFlattened && ValuePack.PackParameterOf(parameters[i]) is null
                 && ParamsModifiers.WhyMalformed(parameters[i]) is null)
             {
-                diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ParamsArrayNotLast, nodes[i], null, parameters[i].Name);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ParamsArrayNotLast, nodes[i], null, new NameValue(parameters[i].Name));
             }
         }
 
@@ -119,7 +115,7 @@ internal sealed class ParameterBuilder
     {
         if(parameter.Type.First is SpreadSingleTypeRefSingleTypeRefNode)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.SpreadValueParameter, parameter, null, parameter.Name.Lexeme);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SpreadValueParameter, parameter, null, new NameValue(parameter.Name.Lexeme));
             return new TypeResolution(ErrorType.Instance, IsFailed: true);
         }
 

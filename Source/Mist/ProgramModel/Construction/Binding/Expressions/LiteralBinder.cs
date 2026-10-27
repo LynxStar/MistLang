@@ -2,6 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
@@ -52,8 +53,8 @@ internal static class LiteralBinder
     {
         if(value is null)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, lexeme, wellKnown.Keyword ?? wellKnown.Name);
+            context.Diagnostics.ReportAtNodeTyped(
+                ProgramModelDiagnostics.NumericLiteralOutOfRange, node, null, new TextValue(lexeme), new TypeValue(wellKnown.FullyQualifiedName, wellKnown.Keyword ?? wellKnown.Name));
             return new ErrorExpression(node);
         }
 
@@ -225,7 +226,7 @@ internal static class LiteralBinder
 
         if(elementType is null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyArrayLiteralNeedsTargetType, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EmptyArrayLiteralNeedsTargetType, node, null);
             return new ErrorExpression(node);
         }
 
@@ -257,8 +258,7 @@ internal static class LiteralBinder
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(elements);
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, first.Name, other.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, DiagnosticSnapshot.Type(first, first.Name), DiagnosticSnapshot.Type(other, other.Name));
         }
 
         return common;

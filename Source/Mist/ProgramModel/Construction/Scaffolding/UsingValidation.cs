@@ -24,8 +24,7 @@ internal static class UsingValidation
         {
             if(!programModel.IsKnownNamespace(pending.NamespaceName))
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UndefinedNamespace, pending.Directive, null, pending.NamespaceName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UndefinedNamespace, pending.Directive, null, new NameValue(pending.NamespaceName));
             }
         }
 
@@ -51,12 +50,11 @@ internal static class UsingValidation
 
         foreach(var name in undefined)
         {
-            context.Diagnostics.Report(
-                ProgramModelDiagnostics.GlobalUsingUndefinedNamespace,
-                default,
-                assembly.ProjectPath ?? "<unknown>",
-                name,
-                assembly.Name);
+            var location = assembly.ProjectPath is { } path ? (Location)new ProjectLocation(path, null)
+                : new ExternalLocation(assembly.Name, "global using");
+            context.Diagnostics.ReportTyped(
+                ProgramModelDiagnostics.GlobalUsingUndefinedNamespace, location,
+                new NameValue(name), new NameValue(assembly.Name));
 
             scope.WithdrawImport(name);
         }

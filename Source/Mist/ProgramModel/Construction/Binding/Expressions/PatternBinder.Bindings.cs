@@ -39,8 +39,7 @@ internal static partial class PatternBinder
     {
         if(!bindingsPermitted)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternBindingNotEstablished, node, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternBindingNotEstablished, node, null, new NameValue(name));
 
             return null;
         }

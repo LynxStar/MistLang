@@ -21,7 +21,7 @@ internal static class PackPosition
             return named;
         }
 
-        diagnostics.ReportAtNode(ProgramModelDiagnostics.PackInTypePosition, node, null, named.Name);
+        diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PackInTypePosition, node, null, new NameValue(named.Name));
         reportFailure?.Invoke();
 
         return ErrorType.Instance;

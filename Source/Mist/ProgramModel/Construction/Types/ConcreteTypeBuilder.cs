@@ -70,8 +70,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         // pairing rule already requiring an intrinsic container (spec Req 5.6, 5.13 and 5.15).
         if(modifiers.IsIntrinsic && typeDef.Assembly.Kind != MistAssemblyKind.Standard && typeDef.CloneSource is null)
         {
-            Context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, typeDef.Name);
+            Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, new NameValue(typeDef.Name));
         }
 
         if(typeDef.Scope.Parent is CloneScope { Arguments: { } arguments } cloneScope)
@@ -148,7 +147,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
                 break;
 
             case AssociatedTypeMemberMemberDeclarationNode:
-                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeSlotNotAllowedOnConcrete, member, null);
+                Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TypeSlotNotAllowedOnConcrete, member, null);
                 break;
 
             default:
@@ -175,7 +174,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         if(modifiers.IsAsync)
         {
-            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, fieldDecl, null);
+            Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, fieldDecl, null);
         }
 
         if(modifiers.IsIntrinsic)
@@ -204,7 +203,7 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
     {
         if(typeDef.DefaultBlock is not null)
         {
-            Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateDefaultBlock, blockDecl, null, typeDef.Name);
+            Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateDefaultBlock, blockDecl, null, new NameValue(typeDef.Name));
             return;
         }
 

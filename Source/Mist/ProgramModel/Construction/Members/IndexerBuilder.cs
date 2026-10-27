@@ -45,7 +45,7 @@ internal sealed class IndexerBuilder
 
         if(modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, indexerDecl, null);
         }
 
         if(modifiers.IsIntrinsic)
@@ -103,7 +103,7 @@ internal sealed class IndexerBuilder
 
         if(getter is null && setter is null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, indexerDecl, null, "indexer");
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EmptyAccessorList, indexerDecl, null, new NameValue("indexer"));
         }
 
         context.Attributes.Build(indexerDecl.Attributes, indexer.DeclaredAttributesList, memberType.Scope);
@@ -114,7 +114,7 @@ internal sealed class IndexerBuilder
     {
         if(!allowAutoAccessors)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoGet, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoGet, null);
         }
 
         return accessorBuilder.BuildGetter(autoGet.Promise, autoGet.AccessorModifier, site, autoGet, isAuto: true, body: null, expression: null);
@@ -124,7 +124,7 @@ internal sealed class IndexerBuilder
     {
         if(!allowAutoAccessors)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoSet, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IndexerCannotHaveAutoAccessor, autoSet, null);
         }
 
         return accessorBuilder.BuildSetter(autoSet.Promise, autoSet.AccessorModifier, site, autoSet, isAuto: true, isInit: false, body: null, expression: null);
@@ -162,13 +162,13 @@ internal sealed class IndexerBuilder
     {
         if(site.Owner.IsIntrinsic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, accessor, null, "indexer");
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, accessor, null, new NameValue("indexer"));
         }
     }
 
     private PropertyAccessor? RejectInitAccessor(Storm.Runtime.SyntaxNode locationNode)
     {
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IndexerCannotHaveInit, locationNode, null);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IndexerCannotHaveInit, locationNode, null);
         return null;
     }
 }

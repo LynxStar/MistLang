@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
@@ -31,8 +32,7 @@ internal static class PureFunctionReference
 
         if(expanded is not ErrorType)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PureRequiresFunctionType, node, null, TypeDisplay.Mist(expanded));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PureRequiresFunctionType, node, null, DiagnosticSnapshot.Type(expanded));
             reportFailure?.Invoke();
         }
 

@@ -27,9 +27,7 @@ internal static class LambdaBinder
 
         if(target is not null && target.ParameterTypes.Count != DeclaredParameterCount(node))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.LambdaArityMismatch, node, null,
-                target.Name, target.ParameterTypes.Count, DeclaredParameterCount(node));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LambdaArityMismatch, node, null, DiagnosticSnapshot.Type(target, target.Name), new QuantityValue(target.ParameterTypes.Count), new QuantityValue(DeclaredParameterCount(node)));
 
             return new ErrorExpression(node);
         }
@@ -81,7 +79,7 @@ internal static class LambdaBinder
 
         if(promises.IsLocal && (promises.IsPure || promises.TargetIsPure))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PureAndLocal, node, null);
         }
 
         var enclosing = ctx.Scope;
@@ -250,8 +248,7 @@ internal static class LambdaBinder
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(values);
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.LambdaReturnsNoCommonType, node, null, first.Name, other.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LambdaReturnsNoCommonType, node, null, DiagnosticSnapshot.Type(first, first.Name), DiagnosticSnapshot.Type(other, other.Name));
             return ErrorType.Instance;
         }
 
@@ -401,8 +398,7 @@ internal static class LambdaBinder
 
             if(type is null)
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.LambdaParameterNeedsAType, declared[i].Node, null, declared[i].Name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LambdaParameterNeedsAType, declared[i].Node, null, new NameValue(declared[i].Name));
 
                 return null;
             }

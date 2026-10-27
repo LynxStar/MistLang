@@ -82,8 +82,7 @@ internal static class AnonymousObjectBinder
             return name;
         }
 
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.AnonymousMemberNotNameable, projection, null);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AnonymousMemberNotNameable, projection, null);
 
         return null;
     }

@@ -43,7 +43,8 @@ public sealed class ProgramModelBuilder
             options.ProjectName,
             compilation.GlobalUsings,
             compilation.EntryPoint,
-            compilation.OutputType == ProjectOutputType.Library);
+            compilation.OutputType == ProjectOutputType.Library,
+            string.IsNullOrEmpty(options.ProjectFolder) ? null : Path.Combine(options.ProjectFolder, "mist.toml"));
 
         if(compilation.HasStandardLibrary)
         {
@@ -202,8 +203,10 @@ public sealed class ProgramModelBuilder
 
             if(!seen.Add(assembly.Name))
             {
-                diagnostics.Report(
-                    ProgramModelDiagnostics.DuplicateAssemblyName, default, "", assembly.Name);
+                diagnostics.ReportTyped(
+                    ProgramModelDiagnostics.DuplicateAssemblyName,
+                    assembly.ProjectPath is { } path ? new ProjectLocation(path, null) : new Absent(AbsenceReason.Unavailable),
+                    new NameValue(assembly.Name));
             }
         }
     }

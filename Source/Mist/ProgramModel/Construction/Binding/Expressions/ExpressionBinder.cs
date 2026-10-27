@@ -190,7 +190,7 @@ internal static class ExpressionBinder
 
         if(ctx.TargetType is not { } target || target is ErrorType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DefaultNeedsTargetType, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DefaultNeedsTargetType, node, null);
             return new ErrorExpression(node);
         }
 
@@ -201,7 +201,7 @@ internal static class ExpressionBinder
     {
         if(ctx.EnclosingProperty is not { } property)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FieldKeywordOutsideAccessor, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.FieldKeywordOutsideAccessor, node, null);
             return new ErrorExpression(node);
         }
 
@@ -230,11 +230,11 @@ internal static class ExpressionBinder
                 return new ThisExpression(node, receiver.Type);
 
             case StaticReceiverResult:
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisInStaticMember, node, null);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ThisInStaticMember, node, null);
                 return new ErrorExpression(node);
 
             default:
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisOutsideType, node, null);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ThisOutsideType, node, null);
                 return new ErrorExpression(node);
         }
     }
@@ -320,8 +320,7 @@ internal static class ExpressionBinder
 
         if((type as ConstructedType)?.Definition is AbstractType || type is AbstractType)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.AbstractConstructed, node, null, TypeDisplay.Mist(type));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AbstractConstructed, node, null, DiagnosticSnapshot.Type(type));
             return new ErrorExpression(node);
         }
 
@@ -345,15 +344,13 @@ internal static class ExpressionBinder
 
         if(ctx.TargetType is not { } target || target is ErrorType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TargetTypedNewNeedsTargetType, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TargetTypedNewNeedsTargetType, node, null);
             return new ErrorExpression(node);
         }
 
         if(Definition(target) is not ConcreteType)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.TargetTypeNotConstructible, node, null,
-                MistType.StripArity(target.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TargetTypeNotConstructible, node, null, DiagnosticSnapshot.Type(target, MistType.StripArity(target.Name)));
 
             return new ErrorExpression(node);
         }

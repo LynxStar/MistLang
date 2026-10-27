@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -91,17 +92,13 @@ internal static class EnumMemberBinder
 
         if(!IntegralConstant.IsIntegral(underlying))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.EnumVariantValueNotInferable, node, null,
-                member.Name, TypeDisplay.Mist(underlying));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EnumVariantValueNotInferable, node, null, new NameValue(member.Name), DiagnosticSnapshot.Type(underlying));
             return null;
         }
 
         if(!countable)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.EnumVariantValueNotCountable, node, null,
-                member.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EnumVariantValueNotCountable, node, null, new NameValue(member.Name));
             return null;
         }
 
@@ -109,9 +106,7 @@ internal static class EnumMemberBinder
 
         if(IntegralConstant.Box(value, underlying) is not { } boxed)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.EnumVariantValueOutOfRange, node, null,
-                member.Name, value, TypeDisplay.Mist(underlying));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EnumVariantValueOutOfRange, node, null, new NameValue(member.Name), new QuantityValue(value), DiagnosticSnapshot.Type(underlying));
             return null;
         }
 

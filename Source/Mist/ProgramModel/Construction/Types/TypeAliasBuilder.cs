@@ -42,9 +42,7 @@ internal sealed class TypeAliasBuilder
 
         if(!building.Add(typeDef))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.CyclicTypeAlias, typeDef.DeclarationNode, null,
-                MistType.StripArity(typeDef.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.CyclicTypeAlias, typeDef.DeclarationNode, null, new NameValue(MistType.StripArity(typeDef.Name)));
             typeDef.AliasedType = ErrorType.Instance;
             typeDef.IsFailed = true;
             return;

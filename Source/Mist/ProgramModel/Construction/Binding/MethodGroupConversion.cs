@@ -173,9 +173,9 @@ internal static class MethodGroupConversion
     {
         if(target is not null)
         {
-            context.Diagnostics.ReportAtNode(
+            context.Diagnostics.ReportAtNodeTyped(
                 ambiguous ? ProgramModelDiagnostics.MethodGroupAmbiguous : ProgramModelDiagnostics.MethodGroupNotConverted,
-                group.Node, null, group.MemberName);
+                group.Node, null, new NameValue(group.MemberName));
         }
 
         return new ErrorExpression(group.Node);

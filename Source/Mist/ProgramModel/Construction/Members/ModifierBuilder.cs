@@ -112,14 +112,14 @@ internal static class ModifierBuilder
 
         if(result.IsStampable && (result.IsRef || node is not TypeBodyDeclarationNode { Keyword: StructKeywordTypeKeywordNode }))
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.StampableRequiresStruct, node, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.StampableRequiresStruct, node, null);
         }
 
         ValidatePurity(node, diagnostics, modifiers, result);
 
         foreach(var refusal in DeclarationModifierPlacement.Refusals(node, modifiers))
         {
-            diagnostics.ReportAtNode(refusal, node, null);
+            diagnostics.ReportAtNodeTyped(refusal, node, null);
         }
 
         return result;
@@ -148,11 +148,11 @@ internal static class ModifierBuilder
         {
             if(modifiers.IsLocal && !modifiers.IsPure)
             {
-                diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PureAndLocal, node, null);
             }
             else if(!modifiers.IsPure && Wrote<ReadonlyModifierModifierNode>(node.Modifiers))
             {
-                diagnostics.ReportAtNode(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
             }
 
             return modifiers with { IsPure = true, IsReadonly = true };
@@ -184,17 +184,17 @@ internal static class ModifierBuilder
 
         if(wrotePure && wroteLocal)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, node, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PureAndLocal, node, null);
         }
 
         if(wrotePure && Wrote<ReadonlyModifierModifierNode>(modifiers))
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ReadonlyImpliedByPure, node, null);
         }
 
         if(wrotePure && Misplaced(node, isLocal: false) is { } purePlace)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, node, null, "pure", purePlace, AliasHint(node));
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PurityModifierPlacement, node, null, new EnumValue("pure"), new TextValue(purePlace), new TextValue(AliasHint(node)));
         }
 
         if(!wroteLocal)
@@ -204,11 +204,11 @@ internal static class ModifierBuilder
 
         if(Misplaced(node, isLocal: true) is { } localPlace)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, node, null, "local", localPlace, string.Empty);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PurityModifierPlacement, node, null, new EnumValue("local"), new TextValue(localPlace), new TextValue(string.Empty));
         }
         else if(node is ConstructorDeclarationNode || result.IsStatic)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalRequiresInstance, node, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LocalRequiresInstance, node, null);
         }
     }
 
@@ -298,7 +298,7 @@ internal static class ModifierBuilder
     {
         if(HasMultipleDisciplines(modifiers))
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.ConflictingDisciplineModifiers, locationNode, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConflictingDisciplineModifiers, locationNode, null);
         }
     }
 

@@ -185,8 +185,7 @@ internal static class ArgumentBinder
 
         if(Structural(spread.Operand.Type) is not { } elements)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.UnprovableSpread, spread.Node, null, spread.Operand.Type.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnprovableSpread, spread.Node, null, DiagnosticSnapshot.Type(spread.Operand.Type, spread.Operand.Type.Name));
             bound.Add(argument);
             return;
         }

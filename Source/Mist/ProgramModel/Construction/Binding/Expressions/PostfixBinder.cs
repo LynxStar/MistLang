@@ -53,9 +53,9 @@ internal static class PostfixBinder
                 return converted;
             }
 
-            context.Diagnostics.ReportAtNodeTyped(
+            ProjectedWithholding.Report(context.Diagnostics,
                 ambiguous ? ProgramModelDiagnostics.MethodGroupAmbiguous : ProgramModelDiagnostics.MethodGroupNotConverted,
-                group.Node, null, new NameValue(group.MemberName));
+                group.Node, ProjectedWithholding.Frames(group, ctx.Scope, context.ProgramModel.TypeInterner), new NameValue(group.MemberName));
 
             return new ErrorExpression(group.Node);
         }
@@ -77,7 +77,8 @@ internal static class PostfixBinder
 
         if(found is not MethodGroupResult { Methods.Count: > 0 } group)
         {
-            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnresolvedIdentifier, node, null, new NameValue(name));
+            ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.UnresolvedIdentifier, node,
+                ProjectedWithholding.Frames(ctx.Scope, name), new NameValue(name));
             return new ErrorExpression(node);
         }
 
@@ -303,7 +304,8 @@ internal static class PostfixBinder
         {
             return OverloadFailure.Retain(
                 choice, group.Candidates, bound,
-                $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound]);
+                $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound],
+                ProjectedWithholding.Frames(group, ctx.Scope, interner));
         }
 
         bound = ArgumentBinder.Settle(bound, selected.ParametersList, choice.Substitution, ctx, context);

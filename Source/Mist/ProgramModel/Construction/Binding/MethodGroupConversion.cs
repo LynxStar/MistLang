@@ -141,7 +141,8 @@ internal static class MethodGroupConversion
         IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters,
         TypeSubstitution substitution,
-        BuilderContext context)
+        BuilderContext context,
+        Scope? boundIn = null)
     {
         if(!arguments.Any(argument => argument is MethodGroupExpression))
         {
@@ -163,19 +164,19 @@ internal static class MethodGroupConversion
                 ? substitution.Apply(parameters[i].Type, interner)
                 : null;
 
-            settled.Add(Convert(group, target, context, out var ambiguous) ?? Refuse(group, target, ambiguous, context));
+            settled.Add(Convert(group, target, context, out var ambiguous) ?? Refuse(group, target, ambiguous, context, boundIn));
         }
 
         return settled;
     }
 
-    private static Expression Refuse(MethodGroupExpression group, IMistType? target, bool ambiguous, BuilderContext context)
+    private static Expression Refuse(MethodGroupExpression group, IMistType? target, bool ambiguous, BuilderContext context, Scope? boundIn)
     {
         if(target is not null)
         {
-            context.Diagnostics.ReportAtNodeTyped(
+            ProjectedWithholding.Report(context.Diagnostics,
                 ambiguous ? ProgramModelDiagnostics.MethodGroupAmbiguous : ProgramModelDiagnostics.MethodGroupNotConverted,
-                group.Node, null, new NameValue(group.MemberName));
+                group.Node, ProjectedWithholding.Frames(group, boundIn, context.ProgramModel.TypeInterner), new NameValue(group.MemberName));
         }
 
         return new ErrorExpression(group.Node);

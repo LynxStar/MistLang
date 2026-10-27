@@ -81,7 +81,8 @@ internal static class IndexBinder
         {
             return OverloadFailure.Retain(
                 choice, indexers, [index],
-                $"indexer '{TypeDisplay.Mist(receiver.Type)}.this[]'", node, context.Diagnostics, [receiver, index]);
+                $"indexer '{TypeDisplay.Mist(receiver.Type)}.this[]'", node, context.Diagnostics, [receiver, index],
+                ProjectedWithholding.Frames(receiver.Type, "Item"));
         }
 
         if(UnknownViews.IsClosedWithUnknown(receiver.Type) && UnknownViews.Hidden(selected, access, choice.Substitution, context) is { } hidden)

@@ -1,7 +1,9 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
@@ -11,6 +13,19 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 internal static class ProjectedWithholding
 {
+    public static ImmutableArray<Frame> Frames(MethodGroupExpression group, Scope? scope, TypeInterner interner)
+    {
+        return group.Receiver switch
+        {
+            null when scope is not null => Frames(scope, group.MemberName),
+            null => [.. group.Candidates.Select(candidate => candidate.DeclaringType).OfType<IMistType>()
+                .Distinct<IMistType>(ReferenceEqualityComparer.Instance).SelectMany(type => Frames(type, group.MemberName))],
+            TypeReferenceExpression named => Frames(named.ReferencedType, group.MemberName),
+            { } target => Frames(group.IsConditional
+                ? OptionalLifting.NonVoidPortion(target.Type, interner) : target.Type, group.MemberName),
+        };
+    }
+
     public static ImmutableArray<Frame> Frames(Scope scope, string name)
     {
         var frames = ImmutableArray.CreateBuilder<Frame>();

@@ -357,7 +357,7 @@ internal static class ArgumentBinder
                 : ContextualExpressionTrials.BindAgainst((UnboundContextualExpression)argument, target, ctx, context, parameter.IsFailed);
         }).ToList();
 
-        return MethodGroupConversion.Settle(contextuallyBound, parameters, substitution, context);
+        return MethodGroupConversion.Settle(contextuallyBound, parameters, substitution, context, ctx.Scope);
     }
 
     /// <summary>

@@ -111,7 +111,8 @@ internal static class ObjectInitializerBinder
         if(choice.Selected is null)
         {
             var failure = OverloadFailure.Retain(
-                choice, group.Methods, [value], "method 'Add'", assignment, context.Diagnostics);
+                choice, group.Methods, [value], "method 'Add'", assignment, context.Diagnostics,
+                frames: ProjectedWithholding.Frames(type, "Add"));
             bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, failure, targetType: null));
             return;
         }

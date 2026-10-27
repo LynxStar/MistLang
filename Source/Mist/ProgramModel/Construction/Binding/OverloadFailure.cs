@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -18,7 +19,8 @@ internal static class OverloadFailure
         string description,
         Storm.Runtime.SyntaxNode node,
         DiagnosticBag diagnostics,
-        IReadOnlyList<Expression>? children = null)
+        IReadOnlyList<Expression>? children = null,
+        ImmutableArray<Frame> frames = default)
         where T : class, IOverload
     {
         var retained = children ?? arguments;
@@ -29,13 +31,13 @@ internal static class OverloadFailure
 
         if(retained.Any(FailureDependency.NeedsAnalysis))
         {
-            var pending = diagnostics.Withhold(() => Report(choice, candidates, arguments, description, node, diagnostics));
+            var pending = diagnostics.Withhold(() => Report(choice, candidates, arguments, description, node, diagnostics, frames));
             var diagnostic = pending.Occurrences.Single();
             pending.Discard();
             return new ErrorExpression(node, retained, diagnostic);
         }
 
-        Report(choice, candidates, arguments, description, node, diagnostics);
+        Report(choice, candidates, arguments, description, node, diagnostics, frames);
         return new ErrorExpression(node, retained);
     }
 
@@ -58,7 +60,8 @@ internal static class OverloadFailure
         IReadOnlyList<Expression> arguments,
         string description,
         Storm.Runtime.SyntaxNode node,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        ImmutableArray<Frame> frames = default)
         where T : class, IOverload
     {
         // AN ARGUMENT THAT ALREADY FAILED MAKES THIS FAILURE DERIVED, so it is not reported: no
@@ -69,10 +72,12 @@ internal static class OverloadFailure
             return;
         }
 
+        frames = frames.IsDefault ? [] : frames;
+
         if(choice.NoArityMatch)
         {
-            diagnostics.ReportAtNodeTyped(
-                ProgramModelDiagnostics.NoApplicableOverload, node, null,
+            ProjectedWithholding.Report(diagnostics,
+                ProgramModelDiagnostics.NoApplicableOverload, node, frames,
                 SnapshotCallee(candidates, description), new QuantityValue(arguments.Count),
                 new SequenceValue(SlotKind.Quantity, [.. candidates.Select(candidate => candidate.ParametersList.Count).Distinct().Order().Select(arity => (SlotValue)new QuantityValue(arity))]));
 
@@ -81,8 +86,8 @@ internal static class OverloadFailure
 
         if(choice.TypeArgumentMismatch.Count > 0)
         {
-            diagnostics.ReportAtNodeTyped(
-                ProgramModelDiagnostics.TypeArgumentCountMismatch, node, null,
+            ProjectedWithholding.Report(diagnostics,
+                ProgramModelDiagnostics.TypeArgumentCountMismatch, node, frames,
                 SnapshotCallee(candidates, description),
                 new SequenceValue(SlotKind.Quantity, [.. choice.TypeArgumentMismatch.Select(candidate => candidate.TypeParametersList.Count).Distinct().Order().Select(arity => (SlotValue)new QuantityValue(arity))]));
 
@@ -93,8 +98,8 @@ internal static class OverloadFailure
         {
             var declared = choice.Uninferred[0].TypeParametersList;
             var spelled = TypeDisplay.Distinguished([conflict.Parameter, .. conflict.Bounds, .. declared]);
-            diagnostics.ReportAtNodeTyped(
-                ProgramModelDiagnostics.TypeArgumentsConflict, node, null,
+            ProjectedWithholding.Report(diagnostics,
+                ProgramModelDiagnostics.TypeArgumentsConflict, node, frames,
                 SnapshotCallee(candidates, description), DiagnosticSnapshot.Type(conflict.Parameter, spelled[0]),
                 new SequenceValue(SlotKind.Type, [.. conflict.Bounds.Select((type, index) => (SlotValue)DiagnosticSnapshot.Type(type, spelled[index + 1]))], ItemPrefix: "'", ItemSuffix: "'"),
                 new SequenceValue(SlotKind.Type, [.. declared.Select((type, index) => (SlotValue)DiagnosticSnapshot.Type(type, spelled[index + 1 + conflict.Bounds.Count]))], ItemPrefix: "'", ItemSuffix: "'"));
@@ -104,8 +109,8 @@ internal static class OverloadFailure
 
         if(choice.Uninferred.Count > 0)
         {
-            diagnostics.ReportAtNodeTyped(
-                ProgramModelDiagnostics.TypeArgumentsNotInferred, node, null,
+            ProjectedWithholding.Report(diagnostics,
+                ProgramModelDiagnostics.TypeArgumentsNotInferred, node, frames,
                 SnapshotCallee(candidates, description),
                 new SequenceValue(SlotKind.Type, [.. choice.Uninferred[0].TypeParametersList.Select(parameter => (SlotValue)DiagnosticSnapshot.Type(parameter, parameter.Name))], ItemPrefix: "'", ItemSuffix: "'"));
 
@@ -114,15 +119,15 @@ internal static class OverloadFailure
 
         if(choice.Unresolvable.Count > 0)
         {
-            diagnostics.ReportAtNodeTyped(
-                ProgramModelDiagnostics.UnresolvableOverload, node, null,
+            ProjectedWithholding.Report(diagnostics,
+                ProgramModelDiagnostics.UnresolvableOverload, node, frames,
                 SnapshotCallee(candidates, description), SnapshotSignatures(choice.Unresolvable));
 
             return;
         }
 
-        diagnostics.ReportAtNodeTyped(
-            ProgramModelDiagnostics.AmbiguousOverload, node, null,
+        ProjectedWithholding.Report(diagnostics,
+            ProgramModelDiagnostics.AmbiguousOverload, node, frames,
             SnapshotCallee(candidates, description), SnapshotSignatures(choice.Ambiguous));
     }
 

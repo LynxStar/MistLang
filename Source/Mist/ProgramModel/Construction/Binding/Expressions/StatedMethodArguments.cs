@@ -41,7 +41,8 @@ internal static class StatedMethodArguments
                     var anchor = argumentNodes[index] is TypeReferenceTypeArgumentTypeArgumentNode type
                         ? type.Type.First : (SyntaxNode)argumentNodes[index];
                     var spread = (SpreadType)arguments[index];
-                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SpreadNonPackArgument, anchor, null, new NameValue(spread.Operand.Name), new NameValue(name));
+                    ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.SpreadNonPackArgument, anchor,
+                        ProjectedWithholding.Frames(group, ctx.Scope, context.ProgramModel.TypeInterner), new NameValue(spread.Operand.Name), new NameValue(name));
                     return new ErrorExpression(node, [group]);
                 }
 

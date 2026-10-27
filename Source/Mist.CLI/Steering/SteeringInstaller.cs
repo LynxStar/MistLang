@@ -1,10 +1,11 @@
+using Mist.Common.Diagnostics;
+
 namespace Mist.CLI.Steering;
 
 /// <summary>
 /// Result of a steering installation run.
 /// </summary>
 /// <param name="Succeeded">Whether installation completed successfully.</param>
-/// <param name="Error">A human-readable failure message when <paramref name="Succeeded"/> is <c>false</c>; otherwise <c>null</c>.</param>
 /// <param name="Removed">Paths of previously-installed managed files that were deleted.</param>
 /// <param name="Installed">Paths of files written during this run.</param>
 /// <param name="SkippedUserFiles">
@@ -13,7 +14,7 @@ namespace Mist.CLI.Steering;
 /// </param>
 public sealed record SteeringInstallResult(
     bool Succeeded,
-    string? Error,
+    Admission? FailureDiagnostic,
     IReadOnlyList<string> Removed,
     IReadOnlyList<string> Installed,
     IReadOnlyList<string> SkippedUserFiles,
@@ -22,8 +23,10 @@ public sealed record SteeringInstallResult(
 {
     private static readonly IReadOnlyList<string> Empty = [];
 
+    public string? Error => FailureDiagnostic?.Occurrence.Message;
+
     /// <summary>Creates a failure result carrying the supplied <paramref name="error"/> message.</summary>
-    public static SteeringInstallResult Failure(string error)
+    public static SteeringInstallResult Failure(Admission error)
     {
         return new(false, error, Empty, Empty, Empty, [], false);
     }
@@ -104,14 +107,14 @@ public static class SteeringInstaller
                 ? Directory.GetFiles(sourceRoot, "mist-*.md", SearchOption.TopDirectoryOnly)
                 : [];
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            return SteeringInstallResult.Failure($"Failed to read bundled steering files from '{sourceRoot}': {ex.Message}");
+            return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringBundleReadFailed, new FileOnly(sourceRoot), new PathValue(sourceRoot), new TextValue(ex.Message)));
         }
 
         if(bundledFiles.Length == 0)
         {
-            return SteeringInstallResult.Failure($"No bundled steering files found at '{sourceRoot}'. The compiler installation may be incomplete.");
+            return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringBundleMissing, new FileOnly(sourceRoot), new PathValue(sourceRoot)));
         }
 
         Array.Sort(bundledFiles, StringComparer.Ordinal);
@@ -122,9 +125,9 @@ public static class SteeringInstaller
         {
             blockBody = File.ReadAllText(templatePath);
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            return SteeringInstallResult.Failure($"Failed to read the bundled AGENTS.md block '{templatePath}': {ex.Message}. The compiler installation may be incomplete.");
+            return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringBlockReadFailed, new FileOnly(templatePath), new PathValue(templatePath), new TextValue(ex.Message)));
         }
 
         var agentsPath = Path.Combine(projectFolder, "AGENTS.md");
@@ -145,16 +148,16 @@ public static class SteeringInstaller
                 }
             }
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            return SteeringInstallResult.Failure($"Failed to read the project's AGENTS.md or CLAUDE.md: {ex.Message}");
+            return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringInstructionsReadFailed, new ProjectLocation(Path.Combine(projectFolder, "mist.toml"), null), new TextValue(ex.Message)));
         }
 
         foreach(var (path, merge) in merges)
         {
             if(merge.Outcome == ManagedBlockOutcome.Malformed)
             {
-                return SteeringInstallResult.Failure($"Cannot update '{path}': {merge.Error}. Fix or remove the markers and run again.");
+                return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringMarkersMalformed, new FileOnly(path), new PathValue(path), new NameValue(merge.Error!)));
             }
         }
 
@@ -163,9 +166,9 @@ public static class SteeringInstaller
         {
             _ = Directory.CreateDirectory(referenceDir);
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            return SteeringInstallResult.Failure($"Failed to create reference directory '{referenceDir}': {ex.Message}");
+            return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringDirectoryCreateFailed, new FileOnly(referenceDir), new PathValue(referenceDir), new TextValue(ex.Message)));
         }
 
         var removed = new List<string>();
@@ -173,7 +176,7 @@ public static class SteeringInstaller
         var error = RemoveManagedFiles(referenceDir, removed, skippedUserFiles);
         if(error is not null)
         {
-            return SteeringInstallResult.Failure(error);
+            return SteeringInstallResult.Failure(error.Value);
         }
 
         var legacyDir = Path.Combine(projectFolder, ".kiro", "steering");
@@ -182,7 +185,7 @@ public static class SteeringInstaller
             error = RemoveManagedFiles(legacyDir, removed, []);
             if(error is not null)
             {
-                return SteeringInstallResult.Failure(error);
+                return SteeringInstallResult.Failure(error.Value);
             }
         }
 
@@ -194,9 +197,9 @@ public static class SteeringInstaller
             {
                 File.Copy(source, destination, overwrite: true);
             }
-            catch(Exception ex)
+            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {
-                return SteeringInstallResult.Failure($"Failed to install steering file '{Path.GetFileName(source)}': {ex.Message}");
+                return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringFileInstallFailed, new FileOnly(destination), new NameValue(Path.GetFileName(source)), new TextValue(ex.Message)));
             }
 
             installed.Add(destination);
@@ -211,9 +214,9 @@ public static class SteeringInstaller
                 {
                     File.WriteAllText(path, merge.Text);
                 }
-                catch(Exception ex)
+                catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
                 {
-                    return SteeringInstallResult.Failure($"Failed to write '{path}': {ex.Message}");
+                    return SteeringInstallResult.Failure(MakeFailure(CommandDiagnostics.SteeringInstructionsWriteFailed, new FileOnly(path), new PathValue(path), new TextValue(ex.Message)));
                 }
             }
 
@@ -223,7 +226,12 @@ public static class SteeringInstaller
         return new SteeringInstallResult(true, null, removed, installed, skippedUserFiles, instructionFiles, claudeMdAbsent);
     }
 
-    private static string? RemoveManagedFiles(string directory, List<string> removed, List<string> skippedUserFiles)
+    private static Admission MakeFailure(MistDiagnostic descriptor, Location location, params ReadOnlySpan<SlotValue> arguments)
+    {
+        return DiagnosticFactory.Create(descriptor, location, PipelineStage.Driver, arguments);
+    }
+
+    private static Admission? RemoveManagedFiles(string directory, List<string> removed, List<string> skippedUserFiles)
     {
         // We identify managed files by the embedded marker rather than by name, so files renamed
         // or dropped between versions are still cleaned up — and user-authored files are left alone.
@@ -232,9 +240,9 @@ public static class SteeringInstaller
         {
             existing = Directory.GetFiles(directory, "*.md", SearchOption.TopDirectoryOnly);
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            return $"Failed to enumerate existing steering files in '{directory}': {ex.Message}";
+            return MakeFailure(CommandDiagnostics.SteeringFilesEnumerateFailed, new FileOnly(directory), new PathValue(directory), new TextValue(ex.Message));
         }
 
         Array.Sort(existing, StringComparer.Ordinal);
@@ -246,9 +254,9 @@ public static class SteeringInstaller
             {
                 isManaged = File.ReadAllText(path).Contains(ManagedMarker, StringComparison.Ordinal);
             }
-            catch(Exception ex)
+            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {
-                return $"Failed to read existing steering file '{path}': {ex.Message}";
+                return MakeFailure(CommandDiagnostics.SteeringFileReadFailed, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
             }
 
             if(isManaged)
@@ -257,9 +265,9 @@ public static class SteeringInstaller
                 {
                     File.Delete(path);
                 }
-                catch(Exception ex)
+                catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
                 {
-                    return $"Failed to remove managed steering file '{path}': {ex.Message}";
+                    return MakeFailure(CommandDiagnostics.SteeringFileRemoveFailed, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
                 }
 
                 removed.Add(path);

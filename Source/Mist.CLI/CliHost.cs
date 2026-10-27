@@ -34,18 +34,29 @@ public static class CliHost
 
             if(parsed.Errors.Count > 0)
             {
+                var bag = new DiagnosticBag(output.Operation);
                 foreach(var error in parsed.Errors)
                 {
-                    stderr.WriteLine($"error: {error.Message}");
+                    bag.Admit(DiagnosticFactory.Create(error.Descriptor, new Absent(AbsenceReason.Unavailable),
+                        PipelineStage.Driver, error.Arguments.AsSpan()));
                 }
 
-                CliHelp.Write(stderr);
+                foreach(var diagnostic in bag.Admitted)
+                {
+                    output.Stream(diagnostic);
+                }
+
+                if((parsed.Diagnostics?.Format ?? DiagnosticFormat.Text) == DiagnosticFormat.Text)
+                {
+                    CliHelp.Write(stderr);
+                }
+
                 output.Complete(false, outcome: "usageError");
                 return 1;
             }
 
             var exit = dispatch(arguments!, output);
-            if(arguments!.Command is not (CliCommand.None or CliCommand.Version or CliCommand.Steering))
+            if(arguments!.Command is not (CliCommand.None or CliCommand.Version))
             {
                 output.Complete(exit == 0);
             }

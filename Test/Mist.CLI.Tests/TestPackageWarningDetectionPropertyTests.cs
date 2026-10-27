@@ -8,79 +8,15 @@
 // contain such a package, no warning SHALL be emitted.
 
 using System.Collections.Immutable;
-using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
 using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Tests;
 
-/// <summary>
-/// Property-based tests for the test package warning detection logic.
-/// Verifies that the combined condition of HasTestAttributedMethods (regex scan)
-/// and HasTestFrameworkPackage (package name check) produces the correct
-/// warning/no-warning decision.
-///
-/// Since the actual helper methods are private static in Program.cs, we duplicate
-/// their logic here to test the regex pattern and package check independently
-/// and in combination.
-/// </summary>
+[Trait("Tier", "1")]
 public sealed class TestPackageWarningDetectionPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Duplicated detection logic (mirrors Program.cs private static methods)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// The same regex pattern used in Program.HasTestAttributedMethods.
-    /// Matches attribute syntax: [SomeName] where SomeName ends with
-    /// Fact, Theory, Test, or TestMethod.
-    /// </summary>
-    private static readonly Regex TestAttributePattern = new(
-        @"\[\s*[\w.]*(?:Fact|Theory|Test|TestMethod)\s*[\(\]]",
-        RegexOptions.Compiled);
-
-    /// <summary>
-    /// Mirrors Program.HasTestAttributedMethods: scans source content for
-    /// method declarations with test-matching attributes.
-    /// </summary>
-    private static bool HasTestAttributedMethods(string sourceContent)
-    {
-        return TestAttributePattern.IsMatch(sourceContent);
-    }
-
-    /// <summary>
-    /// Mirrors Program.HasTestFrameworkPackage: checks whether any package
-    /// name contains "Test" or "xunit" (case-insensitive).
-    /// </summary>
-    private static bool HasTestFrameworkPackage(ImmutableArray<NuGetPackageReference> packages)
-    {
-        if(packages.IsDefaultOrEmpty)
-        {
-            return false;
-        }
-
-        foreach(var package in packages)
-        {
-            if(package.Name.Contains("Test", StringComparison.OrdinalIgnoreCase)
-                || package.Name.Contains("xunit", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Determines whether the MIST0102 warning should be emitted:
-    /// true when test-attributed methods exist AND no test framework package is present.
-    /// </summary>
-    private static bool ShouldEmitWarning(string sourceContent, ImmutableArray<NuGetPackageReference> packages)
-    {
-        return HasTestAttributedMethods(sourceContent) && !HasTestFrameworkPackage(packages);
-    }
-
     // ═══════════════════════════════════════════════════════════════════════
     // Generators
     // ═══════════════════════════════════════════════════════════════════════
@@ -242,7 +178,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
         for(var i = 0; i < samples.Count; i++)
         {
             var scenario = samples[i];
-            var actualWarning = ShouldEmitWarning(scenario.SourceContent, scenario.Packages);
+            var actualWarning = TestFrameworkDetection.ShouldWarn([scenario.SourceContent], scenario.Packages);
 
             if(actualWarning != scenario.ExpectWarning)
             {
@@ -275,7 +211,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
         {
             var attrName = samples[i];
             var source = $"[{attrName}]";
-            var matches = TestAttributePattern.IsMatch(source);
+            var matches = TestFrameworkDetection.HasTestAttributes(source);
 
             if(!matches)
             {
@@ -301,7 +237,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
         {
             var attrName = samples[i];
             var source = $"[{attrName}]";
-            var matches = TestAttributePattern.IsMatch(source);
+            var matches = TestFrameworkDetection.HasTestAttributes(source);
 
             if(matches)
             {
@@ -326,7 +262,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
         for(var i = 0; i < samples.Count; i++)
         {
             var packages = samples[i];
-            var detected = HasTestFrameworkPackage(packages);
+            var detected = TestFrameworkDetection.HasFrameworkPackage(packages);
 
             if(!detected)
             {
@@ -351,7 +287,7 @@ public sealed class TestPackageWarningDetectionPropertyTests
         for(var i = 0; i < samples.Count; i++)
         {
             var packages = samples[i];
-            var detected = HasTestFrameworkPackage(packages);
+            var detected = TestFrameworkDetection.HasFrameworkPackage(packages);
 
             if(detected)
             {

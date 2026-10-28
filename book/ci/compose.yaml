@@ -22,6 +22,7 @@ services:
   tunnel:
     image: cloudflare/cloudflared:2026.10.5@sha256:1b1d34d0a9c0bfca9de72db8460d328db3f19edd2b96169114e3e893a97bbe53
     container_name: mist-book-tunnel
+    user: "1000:1000"
     restart: unless-stopped
     profiles: [tunnel]
     command: [tunnel, --no-autoupdate, run, --token-file, /run/secrets/tunnel_token]

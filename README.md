@@ -136,7 +136,8 @@ After installing, reload or restart Kiro for the extension to take effect.
 
 ## Documentation (The Mist Book)
 
-The Mist Book lives in the `book/` directory and is built with [mdBook](https://rust-lang.github.io/mdBook/).
+Read [The Mist Programming Language](https://mistlang.com/). The book lives in
+the `book/` directory and is built with [mdBook](https://rust-lang.github.io/mdBook/).
 
 ### Prerequisites
 
@@ -185,12 +186,16 @@ The server host key is pinned in `book/ci/known_hosts`; a host-key change must b
 verified before updating it. The deployment key can upload the book, without a
 shell, port forwarding or Docker access.
 
-Cloudflare keeps DNS and public TLS for `mistlang.com`. The Compose `tunnel`
-profile runs an outbound Cloudflare Tunnel to the static server at
-`http://book:8080`; no inbound router forwarding is needed for this site.
+Cloudflare keeps DNS and public TLS for `mistlang.com`. Tunnel
+`mist-book-isengard` (`8d71617a-09ec-4583-8035-d3af521a1079`) routes that
+hostname to `http://book:8080`; other hostnames receive 404. The apex DNS record
+is a proxied CNAME to `8d71617a-09ec-4583-8035-d3af521a1079.cfargotunnel.com`.
+The Compose `tunnel` profile runs the outbound connector; no inbound router
+forwarding is needed for this site.
 Install that tunnel's token as `~/mist-book/tunnel-token` on isengard, outside
-Git and Jenkins, and restrict the parent directory to its owner. The connector
-must be able to read the token file. Start the services with:
+Git and Jenkins, and restrict the parent directory to its owner. Set the token
+file to mode `0600`; the connector runs as isengard user ID 1000 so it can read
+that file without granting access to other users. Start the services with:
 
 ```bash
 cd ~/mist-book
@@ -203,7 +208,9 @@ book service. Existing inbound rules for other sites are separate.
 
 For migration, verify the Jenkins build and origin first, then disable automatic
 builds on the existing Cloudflare Worker `mist`. Record its current DNS targets
-and custom-domain settings before moving `mistlang.com` to the tunnel. Check
+and custom-domain settings before moving `mistlang.com` to the tunnel. Detach
+the Worker custom domain before setting the tunnel CNAME: removing a Worker
+domain also removes its DNS record. Check
 Cloudflare Access rules as well: the public book must be readable without a
 login. Confirm the home-served `revision.txt`, chapters, search, tabs and assets
 through `https://mistlang.com` before deleting the old Worker. Keep its

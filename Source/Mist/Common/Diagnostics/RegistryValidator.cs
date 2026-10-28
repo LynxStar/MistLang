@@ -3,10 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// The Tier 1 rules a registry mistake fails before it reaches a user. A positional template with
-/// no slot schema is tolerated until Phase 3 requires names.
-/// </summary>
 internal static partial class RegistryValidator
 {
     [GeneratedRegex(@"^MIST(?!0000)[0-9]{4}$")]
@@ -130,13 +126,9 @@ internal static partial class RegistryValidator
         }
 
         var placeholders = TemplateSyntax.Placeholders(segments).ToHashSet(StringComparer.Ordinal);
-        if(placeholders.Count == 0 || TemplateSyntax.IsPositional(segments))
+        if(placeholders.Any(name => name.All(char.IsAsciiDigit)))
         {
-            if(!descriptor.Slots.IsEmpty)
-            {
-                problems.Add($"{field}: the descriptor declares slots but the template names none of them");
-            }
-
+            problems.Add($"{field}: positional placeholders are not allowed; declare named slots");
             return;
         }
 

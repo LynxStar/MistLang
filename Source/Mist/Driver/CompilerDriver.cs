@@ -62,7 +62,7 @@ public sealed class CompilerDriver : ICompilerDriver
 
         if(options.Backend != BackendId.CSharp)
         {
-            allDiagnostics.Report(DriverDiagnostics.UnknownBackend, default, "<unknown>", (object?)options.Backend.Value);
+            allDiagnostics.ReportTyped(DriverDiagnostics.UnknownBackend, new Absent(AbsenceReason.Unavailable), new NameValue(options.Backend.Value));
 
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
@@ -70,9 +70,12 @@ public sealed class CompilerDriver : ICompilerDriver
         if(!string.IsNullOrEmpty(options.ProjectFolder))
         {
             var manifestPath = Path.GetFullPath(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName));
-            if(BuildChain.CycleThrough(BuildChain.Current(), manifestPath) is { } cycle)
+            var chain = BuildChain.Current();
+            if(BuildChain.Contains(chain, manifestPath))
             {
-                allDiagnostics.Report(DriverDiagnostics.ReferenceCycle, default, manifestPath, (object?)cycle);
+                allDiagnostics.ReportTyped(DriverDiagnostics.ReferenceCycle, new FileOnly(manifestPath),
+                    new SequenceValue(SlotKind.Name, [.. BuildChain.Extend(chain, manifestPath).Select(path => new NameValue(path))], " -> "),
+                    new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Name, null));
                 return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
             }
         }
@@ -98,7 +101,7 @@ public sealed class CompilerDriver : ICompilerDriver
         var ridGraph = packages.RuntimeIdentifierGraph ?? RidGraph.BuiltIn;
         if(!RidGraph.Contains(ridGraph, runtimeIdentifier))
         {
-            allDiagnostics.Report(DriverDiagnostics.RuntimeIdentifierUnknown, default, "<unknown>", (object?)runtimeIdentifier);
+            allDiagnostics.ReportTyped(DriverDiagnostics.RuntimeIdentifierUnknown, new Absent(AbsenceReason.Unavailable), new NameValue(runtimeIdentifier));
             return resolutionDiagnostics.JoinInto(new CompilerResult(false, null, allDiagnostics.ToImmutableArray()));
         }
 
@@ -233,7 +236,7 @@ public sealed class CompilerDriver : ICompilerDriver
             }
             catch(Exception ex)
             {
-                allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
+                allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
             }
         }
 
@@ -296,7 +299,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 }
                 catch(Exception ex)
                 {
-                    allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
+                    allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
                 }
             }
         }

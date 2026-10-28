@@ -90,9 +90,44 @@ public sealed class RegistryValidationTests
         Assert.Empty(RegistryValidator.Validate(entries, tombstones));
     }
 
+    [Theory]
+    [InlineData("Value '{0}'.", false)]
+    [InlineData("Value '{0}'.", true)]
+    [InlineData("Value '{name}' and '{0}'.", false)]
+    [InlineData("Value{name? '{0}' here}.", false)]
+    public void PositionalPlaceholdersAreRejected(string template, bool numericSchema)
+    {
+        Slot[] slots = numericSchema ? [new Slot("0", SlotKind.Text)] : [];
+        var entry = Entry("Probe", "MIST9001", "Probe value", template, "Remove the probed value.", slots);
+
+        var problem = Assert.Single(RegistryValidator.Validate([entry], []));
+
+        Assert.Contains("positional", problem, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Nothing is named.")]
+    [InlineData("Literal {{0}} and {{name}} braces.")]
+    public void ZeroSlotTemplatesAreValid(string template)
+    {
+        var entry = Entry("Probe", "MIST9001", "Probe value", template, "Remove the probed value.");
+
+        Assert.Empty(RegistryValidator.Validate([entry], []));
+    }
+
+    [Fact]
+    public void NamedSchemasAllowRepeatedSlotsAndOptionalSegments()
+    {
+        var entry = Entry("Probe", "MIST9001", "Probe value",
+            "Value '{name}' repeats '{name}'{detail? with '{detail}' here}.", "Remove the probed value.",
+            new Slot("name", SlotKind.Name), new Slot("detail", SlotKind.Optional, SlotKind.Text));
+
+        Assert.Empty(RegistryValidator.Validate([entry], []));
+    }
+
     private static (RegistryEntry[] Entries, Tombstone[] Tombstones) Plant(string fault)
     {
-        var first = Entry("First", "MIST9001", "First probe", "Value '{0}' is probed.", "A probe found a value; remove it.");
+        var first = Entry("First", "MIST9001", "First probe", "Value '{value}' is probed.", "A probe found a value; remove it.", new Slot("value", SlotKind.Text));
         var second = Entry("Second", "MIST9002", "Second probe", "Name '{name}' is probed.", "A probe found a name; rename it.", new Slot("name", SlotKind.Name));
         Tombstone[] tombstones = [new Tombstone(DiagnosticNumber.Mint("MIST9099"), "Retired probe", "0000000")];
 

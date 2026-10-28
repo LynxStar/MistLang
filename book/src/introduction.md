@@ -1,5 +1,7 @@
 # Introduction
 
+> Follow [What's New](updates/index.md) for weekly updates on the language, tooling, and compiler.
+
 Mist is a programming language and idea that has been bouncing around my head since 2015 in different forms. Every single feature of the language arose from pushing the type system of existing languages to their limits. I was programming and I ran into some limitation and wanted something that didn't exist. I am definitely a craftsperson over an academic. Most of the things concepts were things I've been bouncing around my head for a while without concern for the underlying computer science behind it. It is most heavily influenced by C# followed closely by Typescript with a sprinkling of Haskell. While many other language may have the same features it is not derived from them, and then instead more of a coincidence, and consequently deviated without concern.
 
 ## Tenets

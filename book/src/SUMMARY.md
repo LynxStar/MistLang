@@ -1,6 +1,7 @@
 # Summary
 
 [Introduction](introduction.md)
+[What's New](updates/index.md)
 
 # Getting Started
 
@@ -82,3 +83,7 @@
 - [CLI Usage](tooling/cli-usage.md)
 - [Editor Support](tooling/editor-support.md)
 - [Project Configuration](tooling/project-configuration.md)
+
+---
+
+[October 28, 2026 — Mist Goes Public](updates/2026-10-28.md)

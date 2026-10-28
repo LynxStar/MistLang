@@ -154,6 +154,40 @@ cargo install mdbook-tabs
 
 This builds the book and opens it in your default browser. The source files are in `book/src/`.
 
+### Weekly updates
+
+[What's New](https://mistlang.com/updates/) collects dated updates, with regular editions
+planned for Monday evenings in `America/New_York`. The kickoff edition is dated October 28,
+2026. Scheduling and authorship are separate from Jenkins's existing book publication.
+
+To prepare an edition, copy `book/updates-template.md` to `book/src/updates/YYYY-MM-DD.md`.
+Use the actual publication date for the filename and heading. Review the changes on `main`
+since the previous edition's ending revision, and record the exact start and end revisions
+with a GitHub comparison link. Use merged implementation, documentation, and test evidence;
+a spec, task status, or commit subject alone does not establish a delivered feature.
+
+Group related commits under New Language Features, C# Interop, Improvements, Developer
+Improvements, Breaking Changes, and Bug Fixes, in that order. Developer Improvements address
+contributors working on the compiler. Omit empty sections and documentation or hosting
+housekeeping. Add Performance or Standard Library when relevant; give performance numbers
+only with a linked measurement and its limits. Each feature or improvement gets a short
+paragraph and a small preview, such as code, configuration, a command, or a diagnostic.
+Breaking changes explain the required adjustment. Bug fixes follow breaking changes and
+stay brief, without previews. Describe changes to `main` without implying a versioned release
+or completeness. Label GitHub commit links with their short hashes and comparison links with
+the revision range, reserving descriptive link text for book chapters. Follow `book/AGENTS.md`
+for examples, including compiling Mist snippets and generating their C# tabs.
+
+Update the latest-edition title, link, and `{{#include YYYY-MM-DD.md:edition}}` in
+`book/src/updates/index.md`. The include renders the full latest edition on What's New from
+the dated page's `edition` anchors, so the content has one source. Keep the anchors when
+editing an edition. Add its row to the newest-first archive on that page, then add the dated
+page after the final separator in `book/src/SUMMARY.md`, newest first. Older editions keep
+their dated URLs and archive rows as the latest-edition include moves forward.
+The template stays outside `book/src/` and is not published. Build with
+`bash book/publish.sh` and check the rendered index, edition, and links before pushing.
+Jenkins publishes these pages through the same pipeline as the rest of the book.
+
 ### Jenkins publication
 
 The root `Jenkinsfile` builds the book from `main` on the shared Linux agent and

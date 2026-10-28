@@ -1,0 +1,13 @@
+using Standard;
+
+namespace Updates;
+
+public class Program
+{
+    public static void Main()
+    {
+        (int | string)[] values = [42, "hello"];
+        (int | string)[]? maybeValues = values;
+        Console.WriteLine(values.Length);
+    }
+}

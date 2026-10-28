@@ -205,13 +205,3 @@ docker compose --profile tunnel up -d
 The LAN-only listener `http://192.168.1.6:8090` supports deployment checks. Never
 forward that port from the Internet. The tunnel route exposes only the static
 book service. Existing inbound rules for other sites are separate.
-
-For migration, verify the Jenkins build and origin first, then disable automatic
-builds on the existing Cloudflare Worker `mist`. Record its current DNS targets
-and custom-domain settings before moving `mistlang.com` to the tunnel. Detach
-the Worker custom domain before setting the tunnel CNAME: removing a Worker
-domain also removes its DNS record. Check
-Cloudflare Access rules as well: the public book must be readable without a
-login. Confirm the home-served `revision.txt`, chapters, search, tabs and assets
-through `https://mistlang.com` before deleting the old Worker. Keep its
-last deployment available during cutover so DNS can be rolled back.

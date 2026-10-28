@@ -1,5 +1,0 @@
-Build started 7/4/2026 8:23:26 PM.
-     1>Project "C:\Users\LynxStar\GitRepos\MistLang\Mist.slnx" on node 1 (default targets).
-     1>ValidateSolutionConfiguration:
-         Building solution configuration "Debug|Any CPU".
-Attempting to cancel the build...

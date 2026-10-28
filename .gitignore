@@ -28,6 +28,7 @@ bld/
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
+/build_output.txt
 
 # NUNIT
 *.VisualState.xml
@@ -212,6 +213,3 @@ book/output/
 
 # Symlinked external projects for testing
 Pendragon
-
-# Audit tool output
-.audit/

@@ -1,0 +1,42 @@
+name: mist-book
+services:
+  book:
+    image: nginx:alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
+    container_name: mist-book
+    restart: unless-stopped
+    ports:
+      - "192.168.1.6:8090:8080"
+    volumes:
+      - ./site:/srv/book:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+  tunnel:
+    image: cloudflare/cloudflared:2026.10.5@sha256:1b1d34d0a9c0bfca9de72db8460d328db3f19edd2b96169114e3e893a97bbe53
+    container_name: mist-book-tunnel
+    restart: unless-stopped
+    profiles: [tunnel]
+    command: [tunnel, --no-autoupdate, run, --token-file, /run/secrets/tunnel_token]
+    secrets:
+      - tunnel_token
+    depends_on:
+      - book
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+secrets:
+  tunnel_token:
+    file: ./tunnel-token

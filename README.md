@@ -152,3 +152,59 @@ cargo install mdbook-tabs
 ```
 
 This builds the book and opens it in your default browser. The source files are in `book/src/`.
+
+### Jenkins publication
+
+The root `Jenkinsfile` builds the book from `main` on the shared Linux agent and
+publishes it to isengard. It polls `main` every five minutes for changes. Successful
+builds archive `book/site.tar.gz`; deployment
+switches the served release atomically and checks its `revision.txt` over HTTP.
+The compiler and private Storm submodule are not needed for publication.
+
+`bash book/publish.sh` runs the same noninteractive build locally. It installs
+mdBook 0.5.2 and mdbook-tabs 0.3.4 in the ignored `book/bin/` directory and supports
+Linux and macOS on x64 and ARM64.
+
+The static server uses `book/ci/compose.yaml` and `book/ci/nginx.conf`, installed
+in `~/mist-book` on isengard. Its read-only site mount contains `site/releases/`
+and the `site/current` symlink. `book/ci/receive.py`, installed at
+`~/mist-book/receive.py`, receives a tar archive over SSH and accepts only a full
+commit SHA as the SSH command. It rejects path traversal, links, special files,
+archives above 100 MiB and releases without an index. A rejected upload leaves
+the current release in place. The latest release and nine previous releases
+remain available for rollback.
+
+Jenkins credential `mist-book-isengard-deploy` holds a dedicated SSH private key
+for user `lynxstar`. Its public key in isengard's `~/.ssh/authorized_keys` uses:
+
+```text
+restrict,command="/usr/bin/python3 /home/lynxstar/mist-book/receive.py" ssh-ed25519 PUBLIC_KEY
+```
+
+The server host key is pinned in `book/ci/known_hosts`; a host-key change must be
+verified before updating it. The deployment key can upload the book, without a
+shell, port forwarding or Docker access.
+
+Cloudflare keeps DNS and public TLS for `mistlang.com`. The Compose `tunnel`
+profile runs an outbound Cloudflare Tunnel to the static server at
+`http://book:8080`; no inbound router forwarding is needed for this site.
+Install that tunnel's token as `~/mist-book/tunnel-token` on isengard, outside
+Git and Jenkins, and restrict the parent directory to its owner. The connector
+must be able to read the token file. Start the services with:
+
+```bash
+cd ~/mist-book
+docker compose --profile tunnel up -d
+```
+
+The LAN-only listener `http://192.168.1.6:8090` supports deployment checks. Never
+forward that port from the Internet. The tunnel route exposes only the static
+book service. Existing inbound rules for other sites are separate.
+
+For migration, verify the Jenkins build and origin first, then disable automatic
+builds on the existing Cloudflare Worker `mist`. Record its current DNS targets
+and custom-domain settings before moving `mistlang.com` to the tunnel. Check
+Cloudflare Access rules as well: the public book must be readable without a
+login. Confirm the home-served `revision.txt`, chapters, search, tabs and assets
+through `https://mistlang.com` before deleting the old Worker. Keep its
+last deployment available during cutover so DNS can be rolled back.

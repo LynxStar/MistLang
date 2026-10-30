@@ -84,6 +84,16 @@ public sealed class GeneratorSeedsTests
         Assert.Null(GeneratorProvenance.Deserialize(GeneratorProvenance.Serialize(record with { Version = 2 })));
     }
 
+    [Fact]
+    public void CapturedSourcesCannotCollideWithAGeneratorNamedSeedSources()
+    {
+        var consumer = Consumer();
+        var captured = GeneratorPreparation.Location(consumer, "SeedSources", seedSources: true);
+        var generated = GeneratorPreparation.Location(consumer, "SeedSources");
+        Assert.NotEqual(captured.Name, generated.Name);
+        Assert.NotEqual(captured.Folder, generated.Folder);
+    }
+
     private static GeneratorNode Consumer()
     {
         return new GeneratorNode("/consumer/mist.toml", new ProjectConfiguration("Consumer", "Consumer", [], SeedSources: new SeedSources("/capture", "/record.json")));

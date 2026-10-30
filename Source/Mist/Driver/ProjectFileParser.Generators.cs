@@ -117,7 +117,7 @@ public static partial class ProjectFileParser
                 || pathValue is not string path || !ValidGeneratorPath(path)
                 || !sources.TryGetValue("provenance", out var recordValue)
                 || recordValue is not string record || !ValidGeneratorPath(record)
-                || $"{configuration.Name}.Generated.SeedSources".Length > MaxNameLength)
+                || $"{configuration.Name}.SeedSources".Length > MaxNameLength)
             {
                 return invalid("seed_sources", "expected path and provenance strings and a generated identity within 128 characters");
             }

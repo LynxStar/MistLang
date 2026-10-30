@@ -92,7 +92,7 @@ internal static class GeneratorPreparation
                         return overlay;
                     }
 
-                    generated.Add(Materialize(node, "SeedSources", seed));
+                    generated.Add(Materialize(node, "SeedSources", seed, seedSources: true));
                 }
 
                 foreach(var reference in node.Configuration.Generators.IsDefault ? [] : node.Configuration.Generators)
@@ -165,10 +165,17 @@ internal static class GeneratorPreparation
         }
     }
 
-    internal static ResolvedProjectReference Materialize(GeneratorNode consumer, string generator, CachedGeneration entry)
+    internal static (string Name, string Folder) Location(GeneratorNode consumer, string generator, bool seedSources = false)
     {
-        var name = $"{consumer.Configuration.Name}.Generated.{generator}";
-        var folder = Path.Combine(Path.GetDirectoryName(consumer.Manifest)!, "out", "generated", generator);
+        var root = Path.GetDirectoryName(consumer.Manifest)!;
+        return seedSources
+            ? ($"{consumer.Configuration.Name}.SeedSources", Path.Combine(root, "out", "seed-sources"))
+            : ($"{consumer.Configuration.Name}.Generated.{generator}", Path.Combine(root, "out", "generated", generator));
+    }
+
+    internal static ResolvedProjectReference Materialize(GeneratorNode consumer, string generator, CachedGeneration entry, bool seedSources = false)
+    {
+        var (name, folder) = Location(consumer, generator, seedSources);
         if(Directory.Exists(folder))
         {
             Directory.Delete(folder, recursive: true);

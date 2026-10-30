@@ -71,7 +71,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
             if(child is ReturnStatement { Value: { } value } && !YieldsOwned(value, method, origins))
             {
-                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, value.Node, [value], method.Name, Unowned(value));
+                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, value.Node, [value], new NameValue(method.Name), new NameValue(Unowned(value)));
             }
 
             JudgeOwnedReturns(context, method, child, origins);

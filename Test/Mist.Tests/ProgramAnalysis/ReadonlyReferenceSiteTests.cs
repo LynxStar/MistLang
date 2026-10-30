@@ -37,9 +37,9 @@ public sealed class ReadonlyReferenceSiteTests
         };
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), root));
-        Assert.Equal("MIST_PA_READONLY_REF_WRITTEN", diagnostic.Id.Value);
+        Assert.Equal("MIST0208", diagnostic.Number.Value);
         Assert.StartsWith(message, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -69,7 +69,7 @@ public sealed class ReadonlyReferenceSiteTests
         var assignment = new AssignmentExpression(HandBuiltModel.Node(37), View(), HandBuiltModel.Literal(Integer, 5L), Integer);
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), new ExpressionStatement(assignment)));
-        Assert.Equal(ProgramAnalysisDiagnostics.ReadonlyLocalReassigned.Id, diagnostic.Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.ReadonlyLocalReassigned.Number, diagnostic.Number);
     }
 
     private IMistType Integer => model.Type("Int32");

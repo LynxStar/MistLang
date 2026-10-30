@@ -13,11 +13,11 @@ public sealed class ConformanceGenericAliasFillerTests
 {
     [Theory]
     [InlineData("IHolder", "Box", 1, "")]
-    [InlineData("IHolder", "Plain", 1, "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED")]
+    [InlineData("IHolder", "Plain", 1, "MIST0192")]
     [InlineData("class", "Box", 1, "")]
-    [InlineData("struct", "Box", 1, "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED")]
-    [InlineData("IHolder", "Box", 0, "MIST_PA_TYPE_SLOT_UNFILLED")]
-    [InlineData("IHolder", "Box", 2, "MIST_PA_TYPE_SLOT_UNFILLED")]
+    [InlineData("struct", "Box", 1, "MIST0192")]
+    [InlineData("IHolder", "Box", 0, "MIST0191")]
+    [InlineData("IHolder", "Box", 2, "MIST0191")]
     public void AGenericAliasOfTheSlotsArity_FillsIt_AndIsJudgedByItsExpansionOverTheSlotsParameters(
         string bound, string target, int arity, string expected)
     {
@@ -51,8 +51,8 @@ public sealed class ConformanceGenericAliasFillerTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
-        Assert.All(findings.Where(finding => finding.Id.Value == "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED"),
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
+        Assert.All(findings.Where(finding => finding.Number.Value == "MIST0192"),
             finding => Assert.Contains("Nested type 'Holder' does not satisfy constraint", finding.Message, StringComparison.Ordinal));
     }
 

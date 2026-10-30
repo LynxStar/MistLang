@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Args;
@@ -5,12 +7,15 @@ namespace Mist.CLI.Args;
 /// <summary>
 /// Error produced during CLI argument parsing.
 /// </summary>
-public sealed record CliParseError(string Message);
+public sealed record CliParseError(MistDiagnostic Descriptor, ImmutableArray<SlotValue> Arguments)
+{
+    public string Message => DiagnosticRenderer.Render(Descriptor, Arguments);
+}
 
 /// <summary>
 /// Result of CLI argument parsing.
 /// </summary>
-public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors);
+public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors, DiagnosticControls? Diagnostics = null, string? DiagnosticError = null);
 
 /// <summary>
 /// Hand-rolled argument parser for the Mist CLI.
@@ -19,6 +24,21 @@ public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliPa
 public static class CliArgumentParser
 {
     public static CliParseResult Parse(string[] args)
+    {
+        var controls = DiagnosticControlParser.Parse(args);
+        var result = ParseCore([.. controls.Remaining]);
+        var command = result.Arguments?.Command ?? CliCommand.Build;
+        var mode = result.Arguments?.Mode ?? CompilerMode.Compile;
+        var error = DiagnosticControlParser.ValidateCommand(controls, command, mode);
+        return result with
+        {
+            Arguments = result.Arguments is { } arguments ? arguments with { Diagnostics = controls.Controls } : null,
+            Diagnostics = controls.Controls,
+            DiagnosticError = error,
+        };
+    }
+
+    private static CliParseResult ParseCore(string[] args)
     {
         var positionalArgs = new List<string>();
         var errors = new List<CliParseError>();
@@ -40,7 +60,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --backend flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--backend")]));
                 }
                 else
                 {
@@ -52,7 +72,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --output flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--output")]));
                 }
                 else
                 {
@@ -64,7 +84,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --bin flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--bin")]));
                 }
                 else
                 {
@@ -76,7 +96,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --mode flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--mode")]));
                 }
                 else
                 {
@@ -89,7 +109,7 @@ public static class CliArgumentParser
                     };
                     if(args[i].ToLowerInvariant() is not ("compile" or "lex"))
                     {
-                        errors.Add(new CliParseError($"Unknown mode: '{args[i]}'. Valid modes: compile, lex"));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownMode, [new NameValue(args[i])]));
                     }
                 }
             }
@@ -105,7 +125,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --pipeline flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--pipeline")]));
                 }
                 else
                 {
@@ -113,7 +133,7 @@ public static class CliArgumentParser
                     pipeline = args[i].ToLowerInvariant();
                     if(pipeline is not "standard")
                     {
-                        errors.Add(new CliParseError($"Unknown pipeline: '{args[i]}'. Valid pipelines: standard"));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPipeline, [new NameValue(args[i])]));
                     }
                 }
             }
@@ -121,7 +141,7 @@ public static class CliArgumentParser
             {
                 if(i + 1 >= args.Length)
                 {
-                    errors.Add(new CliParseError("Missing value for --platform flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--platform")]));
                 }
                 else
                 {
@@ -135,7 +155,7 @@ public static class CliArgumentParser
                     };
                     if(platform is null)
                     {
-                        errors.Add(new CliParseError($"Unknown platform: '{args[i]}'. Valid platforms: windows, linux, macos"));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPlatform, [new NameValue(args[i])]));
                     }
                 }
             }
@@ -144,7 +164,7 @@ public static class CliArgumentParser
                 i++;
                 if(i >= args.Length || string.IsNullOrWhiteSpace(args[i]))
                 {
-                    errors.Add(new CliParseError("Missing value for --rid flag."));
+                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--rid")]));
                 }
                 else
                 {
@@ -153,7 +173,7 @@ public static class CliArgumentParser
             }
             else if(arg.StartsWith("--"))
             {
-                errors.Add(new CliParseError($"Unknown flag: {arg}"));
+                errors.Add(new CliParseError(CommandDiagnostics.UnknownFlag, [new NameValue(arg)]));
             }
             else
             {
@@ -164,7 +184,7 @@ public static class CliArgumentParser
         // --verbose and --quiet are mutually exclusive
         if(verbose && quiet)
         {
-            errors.Add(new CliParseError("The '--verbose' and '--quiet' flags are mutually exclusive."));
+            errors.Add(new CliParseError(CommandDiagnostics.ConflictingVerbosity, []));
         }
 
         // Detect command verb from the first positional argument.
@@ -219,13 +239,13 @@ public static class CliArgumentParser
         // Validate run + lex mode combination
         if(command == CliCommand.Run && mode == CompilerMode.Lex)
         {
-            errors.Add(new CliParseError("The 'run' command is not compatible with '--mode lex'."));
+            errors.Add(new CliParseError(CommandDiagnostics.LexCommandIncompatible, [new EnumValue("run")]));
         }
 
         // Validate test + lex mode combination
         if(command == CliCommand.Test && mode == CompilerMode.Lex)
         {
-            errors.Add(new CliParseError("The 'test' command is not compatible with '--mode lex'."));
+            errors.Add(new CliParseError(CommandDiagnostics.LexCommandIncompatible, [new EnumValue("test")]));
         }
 
         // If no explicit command verb was given but there are positional args
@@ -266,7 +286,7 @@ public static class CliArgumentParser
 
         if(positionalArgs.Count > 1)
         {
-            errors.Add(new CliParseError("Only a single project folder is accepted."));
+            errors.Add(new CliParseError(CommandDiagnostics.MultipleProjectFolders, []));
         }
         else if(positionalArgs.Count == 1)
         {
@@ -274,11 +294,11 @@ public static class CliArgumentParser
 
             if(File.Exists(arg))
             {
-                errors.Add(new CliParseError("Individual file paths are no longer accepted. Provide a project folder instead."));
+                errors.Add(new CliParseError(CommandDiagnostics.IndividualFileUnsupported, []));
             }
             else if(!Directory.Exists(arg))
             {
-                errors.Add(new CliParseError($"Directory does not exist: '{arg}'."));
+                errors.Add(new CliParseError(CommandDiagnostics.ProjectDirectoryMissing, [new PathValue(arg)]));
             }
             else
             {

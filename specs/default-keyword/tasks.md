@@ -52,7 +52,7 @@ This plan implements the `default` keyword feature across the Mist compiler pipe
 
   - [x] 4.2 Add default keyword diagnostic IDs to `Source/Mist/Common/Diagnostics/DiagnosticId.cs`
     - Add all 12 diagnostic IDs from the design: `DefaultNotSupported`, `DefaultDuplicateBlock`, `DefaultFieldNotVisible`, `DefaultNotConstant`, `DefaultUndefinedType`, `DefaultOnInterface`, `DefaultOnTrait`, `DefaultOnTypeParameter`, `DefaultCannotInferType`, `DefaultRedundantBlock`, `DefaultRequiresTypeBinding`, `DefaultBaseNotDefaultable`
-    - Follow the existing naming pattern with `MIST_DEFAULT_*` string values
+    - Follow the existing naming pattern with `MIST_DEFAULT_* (historical scheme)` string values
     - _Requirements: 13.1–13.12_
 
 - [x] 5. Semantic model changes
@@ -71,15 +71,15 @@ This plan implements the `default` keyword feature across the Mist compiler pipe
   - [x] 5.3 Register default blocks in Pass 1 of `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
     - In `RegisterMemberDeclaration`, add a case for `DefaultBlockMemberMemberDeclarationNode`
     - Store the `DefaultBlockDeclarationNode` on the containing `ClassType` or `StructType` via the new `DefaultBlockNode` property
-    - If a default block is already stored on the type, emit `MIST_DEFAULT_DUPLICATE` diagnostic
+    - If a default block is already stored on the type, emit `MIST_DEFAULT_DUPLICATE (historical)` diagnostic
     - _Requirements: 5.2, 5.4_
 
   - [x] 5.4 Implement defaultability analysis pass in `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
     - Add a new pass (after Pass 2 type resolution, since field types must be resolved) that computes defaultability for all `ClassType` and `StructType` symbols
     - Build a dependency graph based on field types and process types in topological order
-    - For each type: if it has an explicit default block → `Explicit`; if all fields have defaultable types → `Inferred`; otherwise → `NotDefaultable` + emit `MIST_DEFAULT_REQUIRES_BINDING` diagnostic naming the problematic field
+    - For each type: if it has an explicit default block → `Explicit`; if all fields have defaultable types → `Inferred`; otherwise → `NotDefaultable` + emit `MIST_DEFAULT_REQUIRES_BINDING (historical)` diagnostic naming the problematic field
     - Treat all primitive types and `string` as intrinsically defaultable
-    - If a derived type's base class is not defaultable, mark the derived type as `NotDefaultable` and emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE`
+    - If a derived type's base class is not defaultable, mark the derived type as `NotDefaultable` and emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)`
     - Compute `DefaultValues` dictionary for defaultable types using field initializers, zero-initialization, type bindings, nested overrides, and inherited base defaults
     - Wire the new pass into the `Build` method
     - _Requirements: 5.1, 5.2, 5.3, 5.6, 6.1–6.10, 8.6, 10.1–10.4_
@@ -95,26 +95,26 @@ This plan implements the `default` keyword feature across the Mist compiler pipe
 - [x] 7. Type checker changes
   - [x] 7.1 Add default expression validation to `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - In `CheckPrimaryNode`, add a case for `DefaultExpressionPrimaryNode`:
-      - Resolve the type reference; if unresolved → emit `MIST_DEFAULT_UNDEFINED_TYPE`
-      - If `InterfaceType` → emit `MIST_DEFAULT_ON_INTERFACE`
-      - If `TraitType` → emit `MIST_DEFAULT_ON_TRAIT`
-      - If `TypeParameterType` → emit `MIST_DEFAULT_ON_TYPE_PARAMETER`
-      - If `ClassType`/`StructType` with `NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED` with explanation
+      - Resolve the type reference; if unresolved → emit `MIST_DEFAULT_UNDEFINED_TYPE (historical)`
+      - If `InterfaceType` → emit `MIST_DEFAULT_ON_INTERFACE (historical)`
+      - If `TraitType` → emit `MIST_DEFAULT_ON_TRAIT (historical)`
+      - If `TypeParameterType` → emit `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)`
+      - If `ClassType`/`StructType` with `NotDefaultable` → emit `MIST_DEFAULT_NOT_SUPPORTED (historical)` with explanation
       - If defaultable → valid, assign type
     - Add a case for `DefaultLiteralExpressionPrimaryNode`:
       - Look up expected type from context (assignment target, return type, parameter type)
       - If context provides a type → validate as `default(InferredType)`
-      - If in a `var` declaration → emit `MIST_DEFAULT_CANNOT_INFER`
-      - If no context type → emit `MIST_DEFAULT_CANNOT_INFER`
+      - If in a `var` declaration → emit `MIST_DEFAULT_CANNOT_INFER (historical)`
+      - If no context type → emit `MIST_DEFAULT_CANNOT_INFER (historical)`
     - _Requirements: 7.1–7.10_
 
   - [x] 7.2 Add default block validation to `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Add a validation pass in `Analyze` that walks all type symbols with explicit default blocks
     - Validate each field override references a field that exists in the type's member scope (including inherited fields)
-    - Validate visibility: base type fields must be public, not private → emit `MIST_DEFAULT_FIELD_NOT_VISIBLE` on violation
+    - Validate visibility: base type fields must be public, not private → emit `MIST_DEFAULT_FIELD_NOT_VISIBLE (historical)` on violation
     - Validate type bindings: concrete type must be a defaultable `ClassType` or `StructType`
-    - Validate compile-time constant expressions (v1: only literal expressions) → emit `MIST_DEFAULT_NOT_CONSTANT` on violation
-    - Check for redundancy: if explicit default block produces same values as inferred default → emit `MIST_DEFAULT_REDUNDANT` with `Info` severity
+    - Validate compile-time constant expressions (v1: only literal expressions) → emit `MIST_DEFAULT_NOT_CONSTANT (historical)` on violation
+    - Check for redundancy: if explicit default block produces same values as inferred default → emit `MIST_DEFAULT_REDUNDANT (historical)` with `Info` severity
     - _Requirements: 9.1–9.3, 6.9, 11.1, 11.2, 13.3, 13.4, 13.10_
 
 - [x] 8. Checkpoint — Type checker builds cleanly
@@ -222,7 +222,7 @@ This plan implements the `default` keyword feature across the Mist compiler pipe
     - **Property 13: Redundant default block detection**
     - **Validates: Requirements 11.1, 11.2**
     - Use FsCheck to generate types with explicit default blocks that match inferred defaults
-    - Compile in-process and verify `MIST_DEFAULT_REDUNDANT` info diagnostic is emitted
+    - Compile in-process and verify `MIST_DEFAULT_REDUNDANT (historical)` info diagnostic is emitted
 
   - [x] 12.9 Write property tests for C# emission (Properties 14, 15)
     - Create `Test/Mist.Tests/Backend/DefaultEmitterPropertyTests.cs`

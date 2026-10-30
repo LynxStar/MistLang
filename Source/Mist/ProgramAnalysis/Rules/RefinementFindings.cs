@@ -2,6 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -11,7 +12,7 @@ namespace Mist.ProgramAnalysis.Rules;
 internal static class RefinementFindings
 {
     public static void Report(
-        AnalysisContext context, Admitted known, Expression value, Requirement required, string target, Expression at,
+        AnalysisContext context, Admitted known, Expression value, Requirement required, SlotValue target, Expression at,
         string? onConstraint, Expression? onIndex = null)
     {
         var predicate = Describe(required);
@@ -20,35 +21,35 @@ internal static class RefinementFindings
         {
             if(known.Intervals is [var only] && only.Low == only.High && !required.Values.Contains(only.Low))
             {
-                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], only.Low, target, predicate);
+                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], new NameValue(only.Low.ToString(CultureInfo.InvariantCulture)), target, new NameValue(predicate));
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.IndexUnproven, at.Node, [value, onIndex], Display(value), target, predicate);
+                context.Report(ProgramAnalysisDiagnostics.IndexUnproven, at.Node, [value, onIndex], new NameValue(Display(value)), target, new NameValue(predicate));
             }
         }
         else if(onConstraint is not null)
         {
             if(Violating(value, known, required) is { } constant)
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value, at], constant, predicate, onConstraint);
+                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value, at], new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(onConstraint));
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], Display(value), predicate, onConstraint);
+                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint));
             }
         }
         else if(Violating(value, known, required) is { } constant)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value, at], constant, predicate, target);
+            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value, at], new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), target);
         }
         else if(Requirement.Refined(value.Type) is not null)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, known, predicate);
+            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(known.ToString()), new NameValue(predicate));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, predicate);
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate));
         }
     }
 
@@ -60,31 +61,31 @@ internal static class RefinementFindings
 
         if(Lengths.Exact(position) is { } only && !required.Values.Contains(only))
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at, about, only, predicate, parameter);
+            context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at, about, new NameValue(only.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(parameter));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, shown, predicate, parameter);
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(predicate), new NameValue(parameter));
         }
     }
 
     public static void ReportUnreadable(
-        AnalysisContext context, Expression value, IMistType constituent, string target, Expression at, string? onConstraint)
+        AnalysisContext context, Expression value, IMistType constituent, TypeValue target, Expression at, string? onConstraint)
     {
         var predicate = Describe(constituent);
 
         if(onConstraint is not null)
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], Display(value), predicate, onConstraint);
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], TypeDisplay.Mist(value.Type), target, predicate);
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate));
         }
     }
 
     public static void ReportLiteral(
-        AnalysisContext context, Expression value, IMistType constituent, string target, Expression at, string? onConstraint,
+        AnalysisContext context, Expression value, IMistType constituent, TypeValue target, Expression at, string? onConstraint,
         LiteralValue? literal, TimeSpan matchLimit)
     {
         if(LiteralPredicates.Decide(constituent, literal, matchLimit) != false)
@@ -95,13 +96,14 @@ internal static class RefinementFindings
 
         context.Report(
             onConstraint is null ? ProgramAnalysisDiagnostics.RefinementViolated : ProgramAnalysisDiagnostics.ConstraintViolated,
-            at.Node, [value, at], literal!, Describe(constituent), onConstraint ?? target);
+            at.Node, [value, at], new NameValue(literal!.ToString()), new NameValue(Describe(constituent)),
+            onConstraint is null ? target : new NameValue(onConstraint));
     }
 
     public static void ReportPositionUnreadable(
         AnalysisContext context, IMistType slot, Storm.Runtime.SyntaxNode at, string shown, string parameter, IReadOnlyList<Expression> about)
     {
-        context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, shown, Describe(slot), parameter);
+        context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(Describe(slot)), new NameValue(parameter));
     }
 
     private static string Describe(IMistType constituent)

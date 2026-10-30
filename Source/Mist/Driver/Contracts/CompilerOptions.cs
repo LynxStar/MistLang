@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
+using Mist.Common.Diagnostics;
 
 namespace Mist.Driver.Contracts;
 
@@ -45,6 +46,10 @@ public sealed record CompilerOptions(
     TargetPlatform? Platform = null,
     string? RuntimeIdentifier = null)
 {
+    public DiagnosticOperation? DiagnosticOperation { get; init; }
+
+    public ProjectConfiguration? Configuration { get; init; }
+
     public TargetPlatform EffectivePlatform => Platform ?? TargetPlatforms.Host;
 
     /// <summary>

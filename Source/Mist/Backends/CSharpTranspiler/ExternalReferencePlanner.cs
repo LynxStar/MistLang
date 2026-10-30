@@ -58,11 +58,12 @@ internal static class ExternalReferencePlanner
             {
                 if(string.Equals(referenced, rootName, StringComparison.OrdinalIgnoreCase))
                 {
-                    diagnostics.Report(
+                    diagnostics.ReportTyped(
                         DriverDiagnostics.ReferenceCycle,
-                        default,
-                        external.Path,
-                        $"'{external.Name}' ({external.Path}) references '{rootName}', the project being compiled");
+                        new FileOnly(external.Path),
+                        new SequenceValue(SlotKind.Name, [new NameValue(external.Name)], ItemPrefix: "'", ItemSuffix: "'"),
+                        new OptionalValue(SlotKind.Path, new PathValue(external.Path)),
+                        new OptionalValue(SlotKind.Name, new NameValue(rootName)));
                     failed = true;
                 }
                 else if(composed.Any(project => string.Equals(project.Name, referenced, StringComparison.OrdinalIgnoreCase)))
@@ -84,15 +85,14 @@ internal static class ExternalReferencePlanner
             return false;
         }
 
-        diagnostics.Report(
+        diagnostics.ReportTyped(
             BackendDiagnostics.ReferenceAssemblyConflict,
-            default,
-            file,
-            SimpleName(file),
-            existing,
-            suppliedVersion,
-            file,
-            candidateVersion);
+            new FileOnly(file),
+            new NameValue(SimpleName(file)),
+            new PathValue(existing),
+            new NameValue(suppliedVersion?.ToString() ?? string.Empty),
+            new PathValue(file),
+            new NameValue(candidateVersion?.ToString() ?? string.Empty));
         return true;
     }
 
@@ -110,8 +110,9 @@ internal static class ExternalReferencePlanner
         var missing = RuntimeFrameworkRule.Missing(RuntimeFrameworkRule.Frameworks(json), frameworkReferences);
         foreach(var framework in missing)
         {
-            diagnostics.Report(
-                BackendDiagnostics.ReferenceFrameworkMissing, default, external.RuntimeConfigPath, external.Name, framework);
+            diagnostics.ReportTyped(
+                BackendDiagnostics.ReferenceFrameworkMissing, new FileOnly(external.RuntimeConfigPath),
+                new NameValue(external.Name), new NameValue(framework));
         }
 
         return missing.Length > 0;

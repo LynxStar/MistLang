@@ -41,7 +41,7 @@ Critically, global usings are scoped to the declaring project only. When project
 4. WHEN the `namespaces` array is empty, THE Project_File_Parser SHALL produce a Project_Configuration with an empty global usings list.
 5. WHEN no `[global_usings]` section is present in `mist.toml`, THE Project_File_Parser SHALL produce a Project_Configuration with an empty global usings list.
 6. THE Project_Configuration SHALL expose a `GlobalUsings` field containing the list of Global_Using namespace strings parsed from `mist.toml`, preserving the declaration order from the `namespaces` array.
-7. IF a `[global_usings]` section is present but does not contain a `namespaces` field, THEN THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_MISSING_NAMESPACES` error diagnostic and return `null`.
+7. IF a `[global_usings]` section is present but does not contain a `namespaces` field, THEN THE Project_File_Parser SHALL report a `MIST0079` error diagnostic and return `null`.
 
 ---
 
@@ -51,11 +51,11 @@ Critically, global usings are scoped to the declaring project only. When project
 
 #### Acceptance Criteria
 
-1. WHEN a `namespaces` entry is empty or whitespace-only, THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_EMPTY_NAMESPACE` error diagnostic and return `null`.
-2. WHEN a `namespaces` entry contains invalid characters (characters other than alphanumeric, underscores, and dots), THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_INVALID_NAMESPACE` error diagnostic listing the invalid characters and return `null`.
-3. WHEN the `namespaces` field is not an array, THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_INVALID_FORMAT` error diagnostic and return `null`.
-4. WHEN the `namespaces` array contains a non-string element, THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_INVALID_FORMAT` error diagnostic identifying the element index and return `null`.
-5. WHEN the `namespaces` array contains duplicate entries (compared using case-sensitive ordinal equality), THE Project_File_Parser SHALL report a `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` warning diagnostic identifying the duplicate and continue parsing with the duplicate removed, regardless of whether other validation errors are also present.
+1. WHEN a `namespaces` entry is empty or whitespace-only, THE Project_File_Parser SHALL report a `MIST0080` error diagnostic and return `null`.
+2. WHEN a `namespaces` entry contains invalid characters (characters other than alphanumeric, underscores, and dots), THE Project_File_Parser SHALL report a `MIST0081` error diagnostic listing the invalid characters and return `null`.
+3. WHEN the `namespaces` field is not an array, THE Project_File_Parser SHALL report a `MIST0077` error diagnostic and return `null`.
+4. WHEN the `namespaces` array contains a non-string element, THE Project_File_Parser SHALL report a `MIST0078` error diagnostic identifying the element index and return `null`.
+5. WHEN the `namespaces` array contains duplicate entries (compared using case-sensitive ordinal equality), THE Project_File_Parser SHALL report a `MIST0082` warning diagnostic identifying the duplicate and continue parsing with the duplicate removed, regardless of whether other validation errors are also present.
 6. WHEN reporting any global using diagnostic, THE Project_File_Parser SHALL include the path to the `mist.toml` file in the message.
 
 ---
@@ -81,9 +81,9 @@ Critically, global usings are scoped to the declaring project only. When project
 
 1. WHEN resolving a type name in a Compilation_Unit, THE Semantic_Model_Builder SHALL treat each Global_Using namespace as if a Using_Declaration for that namespace appeared at the top of the file.
 2. WHEN a source file contains an explicit Using_Declaration for a namespace that is also a Global_Using, THE Semantic_Model_Builder SHALL accept the redundant declaration without producing any diagnostic for the redundancy, while continuing to report unrelated diagnostics normally.
-3. WHEN a Global_Using namespace does not exist in the semantic model (neither as a user-defined namespace nor as an ambient namespace), THE Semantic_Model_Builder SHALL report a `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` warning diagnostic.
-4. WHEN multiple Global_Using namespaces contain types with the same simple name and that name is referenced without qualification, THE Semantic_Model_Builder SHALL report a `MIST_AMBIGUOUS_TYPE` error diagnostic consistent with the behavior for explicit Using_Declarations.
-5. WHEN both a Global_Using and an explicit Using_Declaration in the same file provide a type with the same simple name and that name is referenced without qualification, THE Semantic_Model_Builder SHALL report a `MIST_AMBIGUOUS_TYPE` error diagnostic, treating Global_Usings with the same priority as explicit Using_Declarations.
+3. WHEN a Global_Using namespace does not exist in the semantic model (neither as a user-defined namespace nor as an ambient namespace), THE Semantic_Model_Builder SHALL report a `MIST0294` warning diagnostic.
+4. WHEN multiple Global_Using namespaces contain types with the same simple name and that name is referenced without qualification, THE Semantic_Model_Builder SHALL report a `MIST_AMBIGUOUS_TYPE (historical)` error diagnostic consistent with the behavior for explicit Using_Declarations.
+5. WHEN both a Global_Using and an explicit Using_Declaration in the same file provide a type with the same simple name and that name is referenced without qualification, THE Semantic_Model_Builder SHALL report a `MIST_AMBIGUOUS_TYPE (historical)` error diagnostic, treating Global_Usings with the same priority as explicit Using_Declarations.
 
 ---
 

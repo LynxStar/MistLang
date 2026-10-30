@@ -63,7 +63,7 @@ public sealed class AliasDependentProjectionBindingTests
     {
         _ = Bind(aliasName, aliasName == "Plain" ? null : "8", member);
 
-        Assert.Contains(f.Diagnostics.ToImmutableArray(), diagnostic => diagnostic.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+        Assert.Contains(f.Diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST0301");
     }
 
     private TypeAlias Alias(string name, string parameter)

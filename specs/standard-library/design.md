@@ -214,7 +214,7 @@ The two flags encode independent information. The type-level flag tells the emit
 |---|---|---|---|
 | `true` | `true` | Valid | `Standard.Int32.operator+` — backend-provided template |
 | `true` | `false` | Valid | A hypothetical pure-Mist helper method on a backed type (e.g., `Int32.IsEven()` composing intrinsic `%` and `==`); none exist in v1, but the combination must be allowed so v1.x can add them |
-| `false` | `true` | **Rejected** — Requirement 5.15 pairing rule, diagnostic `MIST_SB_0032` | A user class with an `intrinsic` method; forbidden |
+| `false` | `true` | **Rejected** — Requirement 5.15 pairing rule, diagnostic `MIST_SB_0032 (historical)` | A user class with an `intrinsic` method; forbidden |
 | `false` | `false` | Valid | Any ordinary user type and member |
 
 Because a pure-Mist method on a backed type is legal (even though v1 ships none), the two flags are not redundant: an emitter or analyzer cannot derive one from the other in the general case.
@@ -280,7 +280,7 @@ private IType ResolvePrimitiveKeyword(PrimitiveTypeNode keyword)
 }
 ```
 
-`LookupQualifiedStdlibType` is a new helper that walks directly from the global scope to the `Standard` namespace scope, finds the type symbol by its unqualified name, and returns the `IType`. If the stdlib has not been loaded (misconfigured installation), this throws a fatal `MIST_DRIVER_*` diagnostic.
+`LookupQualifiedStdlibType` is a new helper that walks directly from the global scope to the `Standard` namespace scope, finds the type symbol by its unqualified name, and returns the `IType`. If the stdlib has not been loaded (misconfigured installation), this throws a fatal `MIST_DRIVER_* (historical scheme)` diagnostic.
 
 **(c) Operator declarations registered as static members.** The new `OperatorDeclaration` AST nodes are handled in the same Pass 1 loop that registers methods. Each operator becomes a `Symbol` with:
 
@@ -296,10 +296,10 @@ Naming operators `operator+` (with the `operator` prefix) ensures they don't col
 
 | Check | Requirement | Diagnostic ID |
 |---|---|---|
-| Member `intrinsic` with a body | 5.3 | `MIST_SB_0030` (new) |
-| Member `intrinsic` in a non-stdlib unit | 5.6 | `MIST_SB_0031` (new) |
-| Type-level `intrinsic` in a non-stdlib unit | 5.13 | `MIST_SB_0031` (same ID — one message covers both placements, text differs) |
-| Member `intrinsic` whose containing type is not `intrinsic` | 5.15 | `MIST_SB_0032` (new) |
+| Member `intrinsic` with a body | 5.3 | `MIST_SB_0030 (historical)` (new) |
+| Member `intrinsic` in a non-stdlib unit | 5.6 | `MIST_SB_0031 (historical)` (new) |
+| Type-level `intrinsic` in a non-stdlib unit | 5.13 | `MIST_SB_0031 (historical)` (same ID — one message covers both placements, text differs) |
+| Member `intrinsic` whose containing type is not `intrinsic` | 5.15 | `MIST_SB_0032 (historical)` (new) |
 
 "Non-stdlib unit" is determined by a flag on `CompilationUnit` set when the driver loads stdlib source (see § *Stdlib Loading Strategy*).
 
@@ -371,7 +371,7 @@ private void ResolveBinaryOperator(
 }
 ```
 
-The four existing `CheckAdditiveNode` / `CheckMultiplicativeNode` / `CheckRelationalNode` / `CheckEqualityNode` methods collapse to three-line wrappers that call `ResolveBinaryOperator` with the appropriate lexeme. The existing diagnostic IDs `MIST_TC_0003`–`MIST_TC_0006` (covered by Requirement 6.4) are preserved by keyed lookup based on which `Check*` wrapper called in — `MIST_TC_0003` for additive/multiplicative, `MIST_TC_0005` for relational, `MIST_TC_0006` for equality. The message template stays the same.
+The four existing `CheckAdditiveNode` / `CheckMultiplicativeNode` / `CheckRelationalNode` / `CheckEqualityNode` methods collapse to three-line wrappers that call `ResolveBinaryOperator` with the appropriate lexeme. The existing diagnostic IDs `MIST_TC_0003 (historical)`–`MIST_TC_0006 (historical)` (covered by Requirement 6.4) are preserved by keyed lookup based on which `Check*` wrapper called in — `MIST_TC_0003 (historical)` for additive/multiplicative, `MIST_TC_0005 (historical)` for relational, `MIST_TC_0006 (historical)` for equality. The message template stays the same.
 
 **Unary operators.** `CheckUnaryNode`'s cases for `LogicalNotUnaryNode` and `NegateUnaryNode` get analogous rewrites to a `ResolveUnaryOperator` helper: single operand, look up `"operator-"` or `"operator!"` on the operand's type, resolve with a one-element argument list. Unary operators almost never have overloads (only one operator per type on one type), so the `OverloadResolver` path always returns `Success` or `NoApplicableCandidate`.
 
@@ -381,10 +381,10 @@ The four existing `CheckAdditiveNode` / `CheckMultiplicativeNode` / `CheckRelati
 
 | Check | Requirement | Diagnostic ID |
 |---|---|---|
-| Operator declared outside a class/struct body (detected at parse level by the grammar, but confirmed here) | 4.7 | `MIST_SB_0033` (new) |
-| Binary operator without exactly 2 parameters | 4.8 | `MIST_SB_0034` (new) |
-| Unary operator without exactly 1 parameter | 4.9 | `MIST_SB_0034` (same ID, different message) |
-| Operator not declared `public static` | 4.2 | `MIST_SB_0035` (new) |
+| Operator declared outside a class/struct body (detected at parse level by the grammar, but confirmed here) | 4.7 | `MIST_SB_0033 (historical)` (new) |
+| Binary operator without exactly 2 parameters | 4.8 | `MIST_SB_0034 (historical)` (new) |
+| Unary operator without exactly 1 parameter | 4.9 | `MIST_SB_0034 (historical)` (same ID, different message) |
+| Operator not declared `public static` | 4.2 | `MIST_SB_0035 (historical)` (new) |
 
 ### 5. Overload resolver (`Source/Mist/Analysis/Builtin/OverloadResolver.cs`)
 
@@ -429,7 +429,7 @@ The registry is populated from a table inside the C# backend at startup. One con
 ("Standard.Array", "Length")   → "{0}.Length"
 ```
 
-Requirement 5.9 mandates a hard error when a lookup misses; the backend throws `MIST_BE_0002` (new) `MissingIntrinsicEmissionTemplate`, fails the compilation, and emits no output per Requirement 5.10.
+Requirement 5.9 mandates a hard error when a lookup misses; the backend throws `MIST0001` (new) `MissingIntrinsicEmissionTemplate`, fails the compilation, and emits no output per Requirement 5.10.
 
 ### 7. C# backend (`Source/Mist/Backends/CSharpTranspiler/`)
 
@@ -669,7 +669,7 @@ Not a distinct AST node. Represented as an `IntrinsicModifierModifierNode` in th
 
 **Well-known path (Requirement 10.9).** Stdlib source is located at `<compiler-install>/Standard/*.mist`, where `<compiler-install>` is `AppContext.BaseDirectory`. For local development, `AppContext.BaseDirectory` is `Source/Mist.CLI/bin/<config>/net10.0/` and the stdlib is either copied there by a `<ItemGroup>` in `Mist.csproj` or symlinked. For shipped builds, `dotnet publish` on `Mist.CLI` writes the compiler's output to a publish directory; a `<Content Include="..\..\Source\Standard\**\*.mist" CopyToPublishDirectory="PreserveNewest" TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />` item in `Mist.CLI.csproj` ensures the stdlib is colocated with the binary. Requirement 15.5 is resolved: `dotnet publish` packages the stdlib into `publish/Standard/`.
 
-**Load order.** Stdlib units are loaded first. If stdlib files fail to parse, compilation fails with a `MIST_STDLIB_PARSE` error and the user's own sources are not attempted (because nothing will resolve without stdlib types).
+**Load order.** Stdlib units are loaded first. If stdlib files fail to parse, compilation fails with a `MIST0031` error and the user's own sources are not attempted (because nothing will resolve without stdlib types).
 
 **What about tests?** Unit tests for the semantic model can bypass `StdlibLoader` by calling `SemanticModelBuilder.Build` directly with a test-constructed stdlib AST, avoiding filesystem coupling.
 
@@ -754,27 +754,27 @@ The requirements for this feature include several universal statements (Requirem
 
 ### Diagnostic IDs introduced by this feature
 
-All new IDs are `Error` severity. Existing IDs `MIST_TC_0003`, `MIST_TC_0005`, `MIST_TC_0006`, `MIST_TC_0032` are reused per Requirement 14.1–14.2. The last `MIST_SB_` ID used today is `MIST_SM_0022` (see `SemanticModelBuilder.cs` line 22); new IDs claim the next `MIST_SB_*` block.
+All new IDs are `Error` severity. Existing IDs `MIST_TC_0003 (historical)`, `MIST_TC_0005 (historical)`, `MIST_TC_0006 (historical)`, `MIST_TC_0032 (historical)` are reused per Requirement 14.1–14.2. The last `MIST_SB_ (historical scheme)` ID used today is `MIST_SM_0022 (historical)` (see `SemanticModelBuilder.cs` line 22); new IDs claim the next `MIST_SB_* (historical scheme)` block.
 
 | ID | Requirement | Message template | Trigger example |
 |---|---|---|---|
-| `MIST_SB_0030` | 5.3 | `Intrinsic member '{type}.{member}' must not have a body; use ';' to mark it as backend-provided.` | `intrinsic public static Int32 operator +(Int32 a, Int32 b) { return 0; }` |
-| `MIST_SB_0031` | 5.6, 5.13 | `The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.` (same ID for both type-level and member-level misuse; message identical) | `intrinsic public struct MyThing { }` in user code |
-| `MIST_SB_0032` | 5.15 | `Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{type}' is not intrinsic.` | A non-intrinsic class in stdlib contains `intrinsic public void Foo();` |
-| `MIST_SB_0033` | 4.7 | `Operators must be declared as 'public static' members of a class or struct.` | An operator declaration appearing at namespace scope (caught in grammar/semantic builder) |
-| `MIST_SB_0034` | 4.8, 4.9 | `Binary operator '{op}' must declare exactly 2 parameters; found {n}.` / `Unary operator '{op}' must declare exactly 1 parameter; found {n}.` | `public static Int32 operator +(Int32 a) { ... }` |
-| `MIST_SB_0035` | 4.2 | `Operator '{op}' must be declared 'public static'.` | `private static Int32 operator +(...) { ... }` |
-| `MIST_BE_0002` | 5.9, 5.10 | `No emission template found for intrinsic '{type}.{member}' in backend '{backend}'.` | An intrinsic declared in stdlib but not registered in `IntrinsicEmissionTable`. Fatal; no output. |
-| `MIST_STDLIB_PARSE` | 10.1 | `Failed to load Standard Library source: {path}: {underlying message}` | Stdlib file missing or syntactically invalid at `AppContext.BaseDirectory/Standard/*.mist`. |
+| `MIST_SB_0030 (historical)` | 5.3 | `Intrinsic member '{type}.{member}' must not have a body; use ';' to mark it as backend-provided.` | `intrinsic public static Int32 operator +(Int32 a, Int32 b) { return 0; }` |
+| `MIST_SB_0031 (historical)` | 5.6, 5.13 | `The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.` (same ID for both type-level and member-level misuse; message identical) | `intrinsic public struct MyThing { }` in user code |
+| `MIST_SB_0032 (historical)` | 5.15 | `Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{type}' is not intrinsic.` | A non-intrinsic class in stdlib contains `intrinsic public void Foo();` |
+| `MIST_SB_0033 (historical)` | 4.7 | `Operators must be declared as 'public static' members of a class or struct.` | An operator declaration appearing at namespace scope (caught in grammar/semantic builder) |
+| `MIST_SB_0034 (historical)` | 4.8, 4.9 | `Binary operator '{op}' must declare exactly 2 parameters; found {n}.` / `Unary operator '{op}' must declare exactly 1 parameter; found {n}.` | `public static Int32 operator +(Int32 a) { ... }` |
+| `MIST_SB_0035 (historical)` | 4.2 | `Operator '{op}' must be declared 'public static'.` | `private static Int32 operator +(...) { ... }` |
+| `MIST0001` | 5.9, 5.10 | `No emission template found for intrinsic '{type}.{member}' in backend '{backend}'.` | An intrinsic declared in stdlib but not registered in `IntrinsicEmissionTable`. Fatal; no output. |
+| `MIST0031` | 10.1 | `Failed to load Standard Library source: {path}: {underlying message}` | Stdlib file missing or syntactically invalid at `AppContext.BaseDirectory/Standard/*.mist`. |
 
 Reused existing IDs:
 
 | ID | Use |
 |---|---|
-| `MIST_TC_0003` | Binary additive/multiplicative operator no-applicable (today: type check; after: overload-resolution `NoApplicableCandidate`) |
-| `MIST_TC_0005` | Relational operator no-applicable |
-| `MIST_TC_0006` | Equality operator no-applicable |
-| `MIST_TC_0032` | Ambiguous operator (operator overload resolution `AmbiguousCall`) |
+| `MIST_TC_0003 (historical)` | Binary additive/multiplicative operator no-applicable (today: type check; after: overload-resolution `NoApplicableCandidate`) |
+| `MIST_TC_0005 (historical)` | Relational operator no-applicable |
+| `MIST_TC_0006 (historical)` | Equality operator no-applicable |
+| `MIST_TC_0032 (historical)` | Ambiguous operator (operator overload resolution `AmbiguousCall`) |
 
 ## Testing Strategy
 
@@ -794,8 +794,8 @@ The feature includes both pure-logic components (operator overload resolution, p
 
 - `int + int` resolves through operator overload resolution to `Standard.Int32.operator+`; the resulting expression type is `Standard.Int32`.
 - `user_Vec3 + user_Vec3` resolves to the user's declared operator; the AST is annotated with the selected symbol.
-- `int + string` produces `MIST_TC_0003`.
-- A user type that declares two overloads of `+` with argument types `(Vec3, Vec3)` and `(Vec3, float)`: `vec + 1.0` resolves to the latter; `vec + vec` resolves to the former; ambiguous call produces `MIST_TC_0032`.
+- `int + string` produces `MIST_TC_0003 (historical)`.
+- A user type that declares two overloads of `+` with argument types `(Vec3, Vec3)` and `(Vec3, float)`: `vec + 1.0` resolves to the latter; `vec + vec` resolves to the former; ambiguous call produces `MIST_TC_0032 (historical)`.
 
 ### Property-based tests (FsCheck or equivalent)
 
@@ -901,5 +901,5 @@ The shim in Stage 4 is removed in Stage 6, a single PR. It exists for ≤2 featu
 ### New open questions surfaced by this design (deferred to implementation)
 
 - **Generic-over-T intrinsic emission.** `Standard.Array<T>.Length` has an intrinsic template `{0}.Length`. What about future members that depend on `T`'s backing type (none in v1 scope, but e.g., `Array<T>.Clear()` would want `Array.Clear({0})` without a T dependency)? Deferred — v1 intrinsics on `Array<T>` only need `Length`.
-- **Diagnostic locality for `MIST_BE_0002`.** When an intrinsic is missing an emission template, the diagnostic is raised in the backend. Ideally it should include the source span of the call site, not just the declaration. The emitter has the call site's AST node; the existing `MakeDiagnostic` helper accepts a node. Deferred to implementation.
+- **Diagnostic locality for `MIST0001`.** When an intrinsic is missing an emission template, the diagnostic is raised in the backend. Ideally it should include the source span of the call site, not just the declaration. The emitter has the call site's AST node; the existing `MakeDiagnostic` helper accepts a node. Deferred to implementation.
 - **Pure-tier test surface.** `Optional<T>` in isolation doesn't exercise pure-tier-calls-bootstrap-intrinsics (the tricky direction). A small regression test that instantiates `Optional<Int32>`, stores a value, and reads it back would exercise the bootstrap-to-pure-to-bootstrap round trip. Deferred to the tasks phase.

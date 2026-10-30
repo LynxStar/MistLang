@@ -160,7 +160,7 @@ This plan implements the complete Mist v1 language as specified in the design do
     - Implement array operation checking: integer index, array target, integer size for `new T[n]`
     - Implement constructor validation: `new T(args)` must match a constructor, `: this(args)` must match
     - Use `UnknownType` for error suppression to prevent cascading diagnostics
-    - Emit diagnostics with IDs `MIST_TC_0001` through `MIST_TC_0013`
+    - Emit diagnostics with IDs `MIST_TC_0001 (historical)` through `MIST_TC_0013 (historical)`
     - _Requirements: 8.1–8.14_
 
   - [x] 8.2 Implement access modifier enforcement in `TypeCheckerAnalyzer`
@@ -168,12 +168,12 @@ This plan implements the complete Mist v1 language as specified in the design do
     - Verify `public` members are accessible from any scope
     - Verify `static` members are accessed via type name, not instance
     - Verify instance members are accessed via instance, not type name
-    - Emit diagnostics `MIST_TC_0014`, `MIST_TC_0015`, `MIST_TC_0016`
+    - Emit diagnostics `MIST_TC_0014 (historical)`, `MIST_TC_0015 (historical)`, `MIST_TC_0016 (historical)`
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
   - [x] 8.3 Implement entry point validation in `TypeCheckerAnalyzer`
     - Verify exactly one class contains `static void Main()` or `static void Main(string[] args)`
-    - Emit `MIST_TC_0017` for no entry point, `MIST_TC_0018` for multiple entry points
+    - Emit `MIST_TC_0017 (historical)` for no entry point, `MIST_TC_0018 (historical)` for multiple entry points
     - _Requirements: 10.1, 10.2, 10.3_
 
   - [x] 8.4 Write property test for well-typed programs
@@ -197,8 +197,8 @@ This plan implements the complete Mist v1 language as specified in the design do
     - **Validates: Requirements 10.1, 10.2, 10.3**
 
   - [x] 8.9 Write unit tests for type checker edge cases
-    - Test specific diagnostic messages match expected patterns (MIST_TC_0001 through MIST_TC_0018)
-    - Test `var` without initializer produces `MIST_TC_0009`
+    - Test specific diagnostic messages match expected patterns (MIST_TC_0001 (historical) through MIST_TC_0018 (historical))
+    - Test `var` without initializer produces `MIST_TC_0009 (historical)`
     - Test `UnknownType` suppresses cascading errors
     - Test numeric widening conversions in assignability
     - Test string concatenation with `+` operator

@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
@@ -32,7 +33,7 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         {
             if(RefStructs.Is(closing.Argument) && context.IsInSource(closing.Node))
             {
-                context.Report(ProgramAnalysisDiagnostics.RefStructTypeArgument, closing.Node, [], TypeDisplay.Mist(closing.Argument));
+                context.Report(ProgramAnalysisDiagnostics.RefStructTypeArgument, closing.Node, [], DiagnosticSnapshot.Type(closing.Argument));
             }
         }
 
@@ -40,7 +41,7 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         {
             if(RefStructs.Is(application.Inner) && context.IsInSource(application.Node))
             {
-                context.Report(ProgramAnalysisDiagnostics.RefStructOptional, application.Node, [], TypeDisplay.Mist(application.Inner));
+                context.Report(ProgramAnalysisDiagnostics.RefStructOptional, application.Node, [], DiagnosticSnapshot.Type(application.Inner));
             }
         }
 
@@ -84,7 +85,7 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         switch(pattern)
         {
             case TypeTestPattern test when Assignability.Boxing(scrutinee.Type, test.NarrowedType, context.Model.TypeInterner) is { } boxed:
-                context.Report(boxed, test.Node, [scrutinee], TypeDisplay.Mist(scrutinee.Type), TypeDisplay.Mist(test.NarrowedType));
+                context.Report(boxed, test.Node, [scrutinee], DiagnosticSnapshot.Type(scrutinee.Type), DiagnosticSnapshot.Type(test.NarrowedType));
                 break;
 
             case PropertyPattern { TypeTest: { } typeTest }:
@@ -119,7 +120,7 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         {
             if(RefStructPositions.Field(container, field) is { } refusal && (field.DeclarationNode ?? Declarations.NodeOf(container)) is { } at)
             {
-                context.Report(refusal, at, [], TypeDisplay.Mist(field.Type), container.Name);
+                context.Report(refusal, at, [], DiagnosticSnapshot.Type(field.Type), DiagnosticSnapshot.Type(container, container.Name));
             }
         }
 
@@ -127,7 +128,7 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
         {
             if(RefStructPositions.Property(container, property) is { } refusal && (property.DeclarationNode ?? Declarations.NodeOf(container)) is { } at)
             {
-                context.Report(refusal, at, [], TypeDisplay.Mist(property.Type), container.Name);
+                context.Report(refusal, at, [], DiagnosticSnapshot.Type(property.Type), DiagnosticSnapshot.Type(container, container.Name));
             }
         }
     }
@@ -141,17 +142,17 @@ internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
 
         if(kind == CompositeKind.Union)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefStructUnionConstituent, at, about, TypeDisplay.Mist(held));
+            context.Report(ProgramAnalysisDiagnostics.RefStructUnionConstituent, at, about, DiagnosticSnapshot.Type(held));
             return;
         }
 
         if(kind == CompositeKind.TypeArgument)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefStructTypeArgument, at, about, TypeDisplay.Mist(held));
+            context.Report(ProgramAnalysisDiagnostics.RefStructTypeArgument, at, about, DiagnosticSnapshot.Type(held));
             return;
         }
 
         var (position, reason) = RefStructPositions.Element(kind);
-        context.Report(ProgramAnalysisDiagnostics.RefStructElement, at, about, TypeDisplay.Mist(held), position, reason);
+        context.Report(ProgramAnalysisDiagnostics.RefStructElement, at, about, DiagnosticSnapshot.Type(held), new EnumValue(position), new NameValue(reason));
     }
 }

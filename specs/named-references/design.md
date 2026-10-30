@@ -94,13 +94,13 @@ public sealed record ProjectReference(string Name, string Path);
 
 ```csharp
 public static readonly DiagnosticId ProjectReferenceInvalidFormat =
-    new("MIST_PROJECT_REFERENCE_INVALID_FORMAT");
+    new("MIST0065");
 
 public static readonly DiagnosticId ProjectReferenceInvalidName =
-    new("MIST_PROJECT_REFERENCE_INVALID_NAME");
+    new("MIST0067");
 
 public static readonly DiagnosticId ProjectReferenceNameMismatch =
-    new("MIST_PROJECT_REFERENCE_NAME_MISMATCH");
+    new("MIST0070");
 ```
 
 ### TOML Format (new)

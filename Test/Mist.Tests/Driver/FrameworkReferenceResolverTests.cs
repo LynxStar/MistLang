@@ -3,8 +3,8 @@
 //
 // Validates: Requirements 5.1 (locate the installed shared-framework pack for
 //            the Target_Framework; success only when the pack dir exists with
-//            >=1 ref assembly), 5.4 (MIST_FWREF_001 — known framework, not
-//            installed for the TFM), 5.5 (MIST_FWREF_002 — unknown framework
+//            >=1 ref assembly), 5.4 (MIST0034 — known framework, not
+//            installed for the TFM), 5.5 (MIST0035 — unknown framework
 //            name), 5.6 (version selection: among packs whose major matches the
 //            TFM major, pick the greatest by integer major->minor->patch).
 //
@@ -12,7 +12,7 @@
 // spawns a process. Assertions that depend on a locally-installed pack are
 // environment-adaptive: they discover whether the pack is present (using the
 // same dotnet-root discovery the resolver itself uses) and assert the success
-// path when present, or the documented not-installed (MIST_FWREF_001) path when
+// path when present, or the documented not-installed (MIST0034) path when
 // absent, so the suite passes on machines with or without the pack installed.
 
 using System.Collections.Immutable;
@@ -25,8 +25,8 @@ namespace Mist.Tests.Driver;
 /// <summary>
 /// Unit tests for <see cref="FrameworkReferenceResolver.Resolve"/> covering
 /// successful resolution of a locally-installed framework pack, major-matched
-/// highest-version selection, and the <c>MIST_FWREF_001</c> (known but not
-/// installed for the TFM) and <c>MIST_FWREF_002</c> (unknown name) diagnostics.
+/// highest-version selection, and the <c>MIST0034</c> (known but not
+/// installed for the TFM) and <c>MIST0035</c> (unknown name) diagnostics.
 /// </summary>
 public sealed class FrameworkReferenceResolverTests
 {
@@ -134,7 +134,7 @@ public sealed class FrameworkReferenceResolverTests
 
     // ═══════════════════════════════════════════════════════════════════════
     // Requirement 5.1 — resolve the locally-installed Microsoft.AspNetCore.App
-    // pack for the real TFM (environment-adaptive: assert MIST_FWREF_001 when
+    // pack for the real TFM (environment-adaptive: assert MIST0034 when
     // the pack is not installed on this machine).
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -169,13 +169,13 @@ public sealed class FrameworkReferenceResolverTests
         }
         else
         {
-            // Not installed for the TFM on this host (Req 5.4): one MIST_FWREF_001.
+            // Not installed for the TFM on this host (Req 5.4): one MIST0034.
             Assert.Empty(result.Resolved);
             Assert.Empty(result.AssemblyPaths);
             Assert.Equal(1, result.FailureCount);
 
             var diag = Assert.Single(diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_FWREF_001", diag.Id.Value);
+            Assert.Equal("MIST0034", diag.Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
             Assert.Contains(AspNetCore, diag.Message);
             Assert.Contains(TargetFramework, diag.Message);
@@ -193,7 +193,7 @@ public sealed class FrameworkReferenceResolverTests
         var (installed, expectedVersion) = ProbeHighestMatchingPack(AspNetCore, TargetFramework);
 
         // Skip the meaningful selection assertion only when the pack is entirely
-        // absent — there is nothing to select. The dedicated MIST_FWREF_001 test
+        // absent — there is nothing to select. The dedicated MIST0034 test
         // covers the not-installed behavior.
         if(!installed)
         {
@@ -219,7 +219,7 @@ public sealed class FrameworkReferenceResolverTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 5.4 — MIST_FWREF_001: a KNOWN shared framework that is not
+    // Requirement 5.4 — MIST0034: a KNOWN shared framework that is not
     // installed for the requested Target_Framework. Using an old TFM major
     // (net5.0) guarantees no matching pack exists regardless of the host, while
     // keeping the framework name on the known allow-list (so the 002 path is
@@ -257,7 +257,7 @@ public sealed class FrameworkReferenceResolverTests
             Assert.Equal(1, result.FailureCount);
 
             var diag = Assert.Single(diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_FWREF_001", diag.Id.Value);
+            Assert.Equal("MIST0034", diag.Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
             Assert.Contains(AspNetCore, diag.Message);
             Assert.Contains(unavailableTfm, diag.Message);
@@ -266,7 +266,7 @@ public sealed class FrameworkReferenceResolverTests
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 5.5 — MIST_FWREF_002: a framework name absent from the known
+    // Requirement 5.5 — MIST0035: a framework name absent from the known
     // shared-framework allow-list. No pack lookup is attempted.
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -286,7 +286,7 @@ public sealed class FrameworkReferenceResolverTests
         Assert.Equal(1, result.FailureCount);
 
         var diag = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_FWREF_002", diag.Id.Value);
+        Assert.Equal("MIST0035", diag.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains(unknown, diag.Message);
     }
@@ -316,16 +316,16 @@ public sealed class FrameworkReferenceResolverTests
             unavailableTfm,
             diagnostics);
 
-        // The unknown framework always fails with MIST_FWREF_002.
+        // The unknown framework always fails with MIST0035.
         var diags = diagnostics.ToImmutableArray();
-        Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_002" && d.Message.Contains(unknown, StringComparison.Ordinal));
+        Assert.Contains(diags, d => d.Number.Value == "MIST0035" && d.Message.Contains(unknown, StringComparison.Ordinal));
 
         if(aspNetInstalled)
         {
             // AspNetCore pack IS installed for net5.0 — it resolves successfully.
             Assert.NotEmpty(result.Resolved);
             Assert.Equal(1, result.FailureCount); // only the unknown framework fails
-            _ = Assert.Single(diags); // only MIST_FWREF_002
+            _ = Assert.Single(diags); // only MIST0035
         }
         else
         {
@@ -334,7 +334,7 @@ public sealed class FrameworkReferenceResolverTests
             Assert.Empty(result.AssemblyPaths);
             Assert.Equal(2, result.FailureCount);
             Assert.Equal(2, diags.Length);
-            Assert.Contains(diags, d => d.Id.Value == "MIST_FWREF_001" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
+            Assert.Contains(diags, d => d.Number.Value == "MIST0034" && d.Message.Contains(AspNetCore, StringComparison.Ordinal));
         }
     }
 }

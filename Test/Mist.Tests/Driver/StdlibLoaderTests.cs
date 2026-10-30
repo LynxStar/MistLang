@@ -82,10 +82,10 @@ public sealed class StdlibLoaderTests
         _ = Assert.Single(diags);
 
         var diag = diags[0];
-        Assert.Equal(CommonDiagnostics.StdlibParse.Id, diag.Id);
+        Assert.Equal(CommonDiagnostics.StdlibParse.Number, diag.Number);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Equal(PipelineStage.Driver, diag.Stage);
-        Assert.Equal(missing, diag.CompilationUnitPath);
+        Assert.Equal(missing, diag.Location.Path);
         Assert.Contains(missing, diag.Message);
     }
 }

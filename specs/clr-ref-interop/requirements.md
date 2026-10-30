@@ -80,7 +80,7 @@ The Assembly Type Provider's `VisibilityFilter` currently excludes CLR methods t
 1. WHEN a CLR method or constructor has `out` parameters (`IsOut == true`), THE Type_Projector SHALL project each as a Mist `ref` parameter, and THE CSharp_Emitter SHALL emit the `out` keyword at the call site.
 2. WHEN a CLR method has both `out` parameters and `ref` parameters, THE Type_Projector SHALL project each by its own direction, so the method stays visible.
 3. WHEN a CLR method, property or indexer has a `ref readonly` result (by-ref with `IsReadOnlyAttribute`), THE Type_Projector SHALL project it as a readonly reference: the result may be read as a value, passed to an `in` parameter, or bound to a `readonly ref` local. A Mist readonly reference promises only that its holder will not write through it, which is what `ref readonly` promises; it is not `frozen`, which a CLR result cannot back.
-4. IF a writable reference is taken through a readonly reference -- such a result, or a `readonly ref` local or parameter -- by binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`, THEN THE Compiler SHALL report `MIST_PA_READONLY_REF_WRITTEN` at the reference.
+4. IF a writable reference is taken through a readonly reference -- such a result, or a `readonly ref` local or parameter -- by binding it to a `ref` local, passing it as a `ref` or `out` argument, assigning to it, or returning it by `ref`, THEN THE Compiler SHALL report `MIST0208` at the reference.
 
 ### Requirement 7: Sample Application
 

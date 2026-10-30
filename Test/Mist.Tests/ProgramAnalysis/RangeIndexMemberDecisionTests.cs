@@ -37,18 +37,18 @@ public sealed class RangeIndexMemberDecisionTests
     }
 
     [Theory]
-    [InlineData("Index end = ^0; var last = numbers[end];", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("Index end = ^6; var last = numbers[end];", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("Index end = ^6; var slice = numbers[0..end]; var last = slice[0];", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("Index end = ^1; if(flag) { end = ^2; } var slice = numbers[0..end]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Index end = ^1; Range window = 0..end; if(flag) { window = 0..4; } var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Index end = Pick.Edge(); Range window = 0..end; end = ^1; var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Index end = ^1; var change = () => { end = ^5; }; change(); var slice = numbers[0..end]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Index end = ^1; ref Index alias = end; Range window = 0..alias; alias = ^5; var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("Index end = ^0; var last = numbers[end];", "MIST0274")]
+    [InlineData("Index end = ^6; var last = numbers[end];", "MIST0274")]
+    [InlineData("Index end = ^6; var slice = numbers[0..end]; var last = slice[0];", "MIST0274")]
+    [InlineData("Index end = ^1; if(flag) { end = ^2; } var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; Range window = 0..end; if(flag) { window = 0..4; } var slice = numbers[window]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = Pick.Edge(); Range window = 0..end; end = ^1; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; var change = () => { end = ^5; }; change(); var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; ref Index alias = end; Range window = 0..alias; alias = ^5; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];", "MIST0275")]
     public void UnknownDifferentAndInvalidIndexes_RemainRefused(string statements, string id)
     {
-        Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Number.Value);
     }
 
     [Theory]
@@ -56,7 +56,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("Index end = ^1; end = 4;")]
     public void AnIntegerAssignment_DoesNotInventAnImplicitIndexConversion(string statements)
     {
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assert.Single(Findings(Build(statements))).Id.Value);
+        Assert.Equal("MIST0157", Assert.Single(Findings(Build(statements))).Number.Value);
     }
 
     [Theory]
@@ -85,18 +85,18 @@ public sealed class RangeIndexMemberDecisionTests
     {
         var model = Build("var holder = new Holder();" + statements + "var slice = numbers[window]; var last = slice[0];", "public class Holder { " + members + " }");
 
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
     [InlineData("edge = ^1; Range window = 0..this.edge; edge = ^4; var slice = numbers[window]; return slice[3];", null)]
     [InlineData("this.edge = ^1; Range window = 0..edge; if(flag) { window = 0..^1; } var slice = numbers[window]; return slice[3];", null)]
     [InlineData("edge = ^1; Range window = 0..edge; Change(); var slice = numbers[window]; return slice[3];", null)]
-    [InlineData("edge = ^1; ref Index alias = edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("this.edge = ^1; ref Index alias = this.edge; alias = ^5; Range window = 0..this.edge; var slice = numbers[window]; return slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("edge = ^1; var self = this; ref Index alias = self.edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("edge = ^1; Change(); Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("edge = ^1; if(flag) { edge = ^2; } Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("edge = ^1; ref Index alias = edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
+    [InlineData("this.edge = ^1; ref Index alias = this.edge; alias = ^5; Range window = 0..this.edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
+    [InlineData("edge = ^1; var self = this; ref Index alias = self.edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
+    [InlineData("edge = ^1; Change(); Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
+    [InlineData("edge = ^1; if(flag) { edge = ^2; } Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
     public void VisibleOwnedFieldAssignments_CaptureIndexesUntilAnInvalidatingCallOrDifferentJoin(string statements, string? id)
     {
         var model = Build("var holder = new Holder(); var last = holder.Read(flag);",
@@ -109,13 +109,13 @@ public sealed class RangeIndexMemberDecisionTests
         }
         else
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
     }
 
     [Theory]
     [InlineData("Range window = 1..numbers.Length; var slice = numbers[window]; var last = slice[3];", null)]
-    [InlineData("Range window = 1..numbers.Length; numbers = [10]; var slice = numbers[window]; var last = slice[0];", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
+    [InlineData("Range window = 1..numbers.Length; numbers = [10]; var slice = numbers[window]; var last = slice[0];", "MIST0274")]
     [InlineData("Index end = ^numbers.Length; var slice = numbers[end..^0]; var last = slice[4];", null)]
     public void BuiltinLength_CapturesTheMeasuredValueOnce(string statements, string? id)
     {
@@ -123,7 +123,7 @@ public sealed class RangeIndexMemberDecisionTests
 
         if(id is not null)
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
         else
         {
@@ -133,8 +133,8 @@ public sealed class RangeIndexMemberDecisionTests
 
     [Theory]
     [InlineData("int[] a = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5) { Range window = 0..a.Length; if(flag) { window = 0..a.Length; } var slice = a[window]; var last = slice[2]; }", null)]
-    [InlineData("int[] a = Inputs.Values(); int[] b = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5 && b.Length >= 3 && b.Length <= 5) { Range window = 0..a.Length; if(flag) { window = 0..b.Length; } var slice = a[window]; var last = slice[0]; }", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("int[] a = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5) { Range window = 0..a.Length; Range copy = window; a = [10]; var slice = a[copy]; var last = slice[0]; }", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
+    [InlineData("int[] a = Inputs.Values(); int[] b = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5 && b.Length >= 3 && b.Length <= 5) { Range window = 0..a.Length; if(flag) { window = 0..b.Length; } var slice = a[window]; var last = slice[0]; }", "MIST0275")]
+    [InlineData("int[] a = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5) { Range window = 0..a.Length; Range copy = window; a = [10]; var slice = a[copy]; var last = slice[0]; }", "MIST0274")]
     public void NonExactLengthCaptures_KeepReceiverIdentityAndTheirCapturedValues(string statements, string? id)
     {
         var findings = Findings(Build(statements, "public class Inputs { public static int[] Values() { return [10, 20, 30]; } }"));
@@ -145,7 +145,7 @@ public sealed class RangeIndexMemberDecisionTests
         }
         else
         {
-            Assert.Equal(id, Assert.Single(findings).Id.Value);
+            Assert.Equal(id, Assert.Single(findings).Number.Value);
         }
     }
 

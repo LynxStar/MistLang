@@ -185,7 +185,7 @@ public sealed class CultureInvariantEmissionTests : IDisposable
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 
         Assert.True(errors.Count == 0, $"Compilation failed:\n{string.Join("\n", errors)}");

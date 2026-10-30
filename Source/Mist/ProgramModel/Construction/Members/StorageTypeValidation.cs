@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -15,7 +16,7 @@ internal static class StorageTypeValidation
             return;
         }
 
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownAtStoragePosition, node, null, description, TypeDisplay.Mist(type));
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnknownAtStoragePosition, node, null, new TextValue(description), DiagnosticSnapshot.Type(type));
     }
 
     public static bool ContainsUnknown(IMistType type)

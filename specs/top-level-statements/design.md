@@ -65,7 +65,7 @@ if (model.TryGetValue("entry_point", out var epObj) && epObj is string epStr)
 {
     if (string.IsNullOrWhiteSpace(epStr))
     {
-        diagnostics.Add(/* MIST_PROJECT_EMPTY_ENTRY_POINT */);
+        diagnostics.Add(/* MIST0058 */);
         return null;
     }
     entryPoint = epStr;
@@ -107,34 +107,34 @@ Create `EntryPointAnalyzer` in `Source/Mist/Analysis/Builtin/` that runs during 
 
 **Rule 1: Single TLS file**
 - Scan all user-code compilation units for `HasTopLevelStatements == true`.
-- If more than one exists → error `MIST_EP_0001` listing all TLS file paths.
+- If more than one exists → error `MIST0109` listing all TLS file paths.
 
 **Rule 2: TLS + Main conflict**
 - If exactly one TLS file exists AND one or more `static void Main` methods exist in user code:
-  - If `entry_point` is not set → error `MIST_EP_0002` with suggestion.
+  - If `entry_point` is not set → error `MIST0110` with suggestion.
   - If `entry_point` is set to `"top-level"` → valid, proceed.
-  - If `entry_point` is set to a class name → error `MIST_EP_0003` ("cannot have a TLS that isn't the entry point").
+  - If `entry_point` is set to a class name → error `MIST0111` ("cannot have a TLS that isn't the entry point").
 
 **Rule 3: Multiple Mains without TLS**
 - If no TLS file exists AND multiple classes have `static void Main`:
-  - If `entry_point` is not set → error `MIST_EP_0004` listing all Main-containing classes.
+  - If `entry_point` is not set → error `MIST0112` listing all Main-containing classes.
   - If `entry_point` is set to a class name → validate that class exists and has Main.
-  - If `entry_point` is set to `"top-level"` → error `MIST_EP_0005` ("no TLS file found").
+  - If `entry_point` is set to `"top-level"` → error `MIST0113` ("no TLS file found").
 
 **Rule 4: TLS + namespace validation**
-- If a TLS file contains a block namespace declaration → error `MIST_EP_0006`.
+- If a TLS file contains a block namespace declaration → error `MIST0114`.
 - File-scoped namespaces are allowed (they apply to type declarations only).
 
 **Diagnostic IDs:**
 | ID | Condition |
 |----|-----------|
-| `MIST_EP_0001` | Multiple TLS files in project |
-| `MIST_EP_0002` | TLS + Main without `entry_point` config |
-| `MIST_EP_0003` | TLS exists but `entry_point` specifies a class (TLS must be entry point) |
-| `MIST_EP_0004` | Multiple Mains without `entry_point` config |
-| `MIST_EP_0005` | `entry_point = "top-level"` but no TLS file exists |
-| `MIST_EP_0006` | TLS file contains block namespace declaration |
-| `MIST_EP_0007` | `entry_point` specifies class that doesn't exist or lacks Main |
+| `MIST0109` | Multiple TLS files in project |
+| `MIST0110` | TLS + Main without `entry_point` config |
+| `MIST0111` | TLS exists but `entry_point` specifies a class (TLS must be entry point) |
+| `MIST0112` | Multiple Mains without `entry_point` config |
+| `MIST0113` | `entry_point = "top-level"` but no TLS file exists |
+| `MIST0114` | TLS file contains block namespace declaration |
+| `MIST0115` | `entry_point` specifies class that doesn't exist or lacks Main |
 
 ### 5. Semantic Model Builder Changes
 
@@ -312,13 +312,13 @@ CSharpCompilationDriver: `dotnet build` compiles the emitted C# (SDK handles ent
 
 | Diagnostic | Message Template |
 |---|---|
-| `MIST_EP_0001` | `Multiple files contain top-level statements. Only one file per project may have top-level statements. Files: {paths}` |
-| `MIST_EP_0002` | `Project has both top-level statements (in '{tlsPath}') and a static void Main (in '{className}'). Add entry_point = "top-level" to mist.toml to resolve this conflict.` |
-| `MIST_EP_0003` | `Cannot specify entry_point = "{className}" when a top-level statement file exists. A top-level statement file must always be the entry point. Use entry_point = "top-level" instead.` |
-| `MIST_EP_0004` | `Multiple classes contain static void Main: {classNames}. Add entry_point = "{suggestedClass}" to mist.toml to specify which one to use.` |
-| `MIST_EP_0005` | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` |
-| `MIST_EP_0006` | `Top-level statements cannot coexist with block namespace declarations in the same file. Use a file-scoped namespace (namespace X;) instead.` |
-| `MIST_EP_0007` | `entry_point specifies '{className}' but no class with that name contains a static void Main method.` |
+| `MIST0109` | `Multiple files contain top-level statements. Only one file per project may have top-level statements. Files: {paths}` |
+| `MIST0110` | `Project has both top-level statements (in '{tlsPath}') and a static void Main (in '{className}'). Add entry_point = "top-level" to mist.toml to resolve this conflict.` |
+| `MIST0111` | `Cannot specify entry_point = "{className}" when a top-level statement file exists. A top-level statement file must always be the entry point. Use entry_point = "top-level" instead.` |
+| `MIST0112` | `Multiple classes contain static void Main: {classNames}. Add entry_point = "{suggestedClass}" to mist.toml to specify which one to use.` |
+| `MIST0113` | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` |
+| `MIST0114` | `Top-level statements cannot coexist with block namespace declarations in the same file. Use a file-scoped namespace (namespace X;) instead.` |
+| `MIST0115` | `entry_point specifies '{className}' but no class with that name contains a static void Main method.` |
 
 ## Files to Create/Modify
 

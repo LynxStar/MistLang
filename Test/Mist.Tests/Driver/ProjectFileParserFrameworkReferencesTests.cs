@@ -139,7 +139,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.5: Non-table value → MIST_FWREF_TABLE_EXPECTED ────
+    // ─── Requirement 4.5: Non-table value → MIST0088 ────
 
     [Fact]
     public void FrameworkReferencesAsString_ReportsTableExpectedAndEmptyList()
@@ -161,7 +161,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
+            Assert.Equal("MIST0088", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -189,7 +189,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_TABLE_EXPECTED", diags[0].Id.Value);
+            Assert.Equal("MIST0088", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -198,7 +198,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.6: Non-boolean value → MIST_FWREF_INVALID_VALUE ───
+    // ─── Requirement 4.6: Non-boolean value → MIST0091 ───
 
     [Fact]
     public void FrameworkReferenceWithStringValue_ReportsInvalidValueAndExcludes()
@@ -221,7 +221,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST0091", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("Microsoft.AspNetCore.App", diags[0].Message);
         }
@@ -252,7 +252,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST0091", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -286,7 +286,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_VALUE", diags[0].Id.Value);
+            Assert.Equal("MIST0091", diags[0].Number.Value);
         }
         finally
         {
@@ -294,7 +294,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.7: Empty/whitespace name → MIST_FWREF_INVALID_NAME ─
+    // ─── Requirement 4.7: Empty/whitespace name → MIST0089 ─
 
     [Fact]
     public void FrameworkReferenceWithEmptyName_ReportsInvalidNameAndExcludes()
@@ -317,7 +317,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST0089", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -347,7 +347,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST0089", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
         }
         finally
@@ -356,7 +356,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.8: Name >256 chars after trim → MIST_FWREF_INVALID_NAME ─
+    // ─── Requirement 4.8: Name >256 chars after trim → MIST0090 ─
 
     [Fact]
     public void FrameworkReferenceNameExceeding256Chars_ReportsInvalidNameAndExcludes()
@@ -380,7 +380,7 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
-            Assert.Equal("MIST_FWREF_INVALID_NAME", diags[0].Id.Value);
+            Assert.Equal("MIST0090", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
             Assert.Contains("256", diags[0].Message);
         }

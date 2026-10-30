@@ -274,10 +274,10 @@ internal sealed class InferenceContext
 
 | ID | Condition | Message Format |
 |----|-----------|----------------|
-| `MIST_TC_0080` | Type parameter cannot be inferred (not in any parameter position) | `"Type parameter '{name}' of method '{methodName}' cannot be inferred from the arguments. Provide explicit type arguments."` |
-| `MIST_TC_0081` | Conflicting inference for same type parameter | `"Type parameter '{name}' of method '{methodName}' has conflicting inferred types: '{type1}' and '{type2}'. Provide explicit type arguments."` |
+| `MIST_TC_0080 (historical)` | Type parameter cannot be inferred (not in any parameter position) | `"Type parameter '{name}' of method '{methodName}' cannot be inferred from the arguments. Provide explicit type arguments."` |
+| `MIST_TC_0081 (historical)` | Conflicting inference for same type parameter | `"Type parameter '{name}' of method '{methodName}' has conflicting inferred types: '{type1}' and '{type2}'. Provide explicit type arguments."` |
 
-Constraint violation diagnostics reuse existing IDs (`MIST_TC_0040` through `MIST_TC_0047`) — the same diagnostics emitted for explicit type argument constraint violations.
+Constraint violation diagnostics reuse existing IDs (`MIST_TC_0040 (historical)` through `MIST_TC_0047 (historical)`) — the same diagnostics emitted for explicit type argument constraint violations.
 
 ### Semantic Model Storage
 

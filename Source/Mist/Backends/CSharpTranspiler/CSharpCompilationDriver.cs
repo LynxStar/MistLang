@@ -270,10 +270,7 @@ public sealed class CSharpCompilationDriver
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
         if(csFiles.Length == 0)
         {
-            diagnostics.Report(
-                BackendDiagnostics.BuildError,
-                default,
-                "<unknown>");
+            diagnostics.ReportTyped(BackendDiagnostics.BuildError, new Absent(AbsenceReason.Unavailable));
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 
@@ -324,21 +321,10 @@ public sealed class CSharpCompilationDriver
             result = compilation.Emit(peStream);
         }
 
-        // Map Roslyn diagnostics back to Mist diagnostics
-        foreach(var roslynDiag in result.Diagnostics)
+        var native = result.Diagnostics.Select(RoslynDiagnosticAdapter.Snapshot).ToImmutableArray();
+        foreach(var occurrence in native)
         {
-            if(roslynDiag.Severity == RoslynApi.DiagnosticSeverity.Error)
-            {
-                var location = roslynDiag.Location.IsInSource
-                    ? roslynDiag.Location.SourceTree?.FilePath
-                    : null;
-
-                diagnostics.Report(
-                    BackendDiagnostics.CSharpError,
-                    default,
-                    location ?? "<unknown>",
-                    (object?)roslynDiag.GetMessage(System.Globalization.CultureInfo.InvariantCulture));
-            }
+            RoslynDiagnosticAdapter.Admit(occurrence, diagnostics);
         }
 
         if(!result.Success)
@@ -348,7 +334,7 @@ public sealed class CSharpCompilationDriver
                 File.Delete(outputPath);
             }
 
-            return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
+            return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount, Native: native);
         }
 
         // Write a .runtimeconfig.json so `dotnet <dll>` knows which runtime to use
@@ -368,7 +354,8 @@ public sealed class CSharpCompilationDriver
             outputPath,
             diagnostics.ToImmutableArray(),
             EmittedFileCount: emittedFileCount,
-            RuntimeAssetsDeployed: deployment.RuntimeAssetsDeployed);
+            RuntimeAssetsDeployed: deployment.RuntimeAssetsDeployed,
+            Native: native);
     }
 
     private static void Deploy(ImmutableArray<FileCopy> copies)

@@ -12,10 +12,10 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_REFINEMENT_VIOLATED", "MIST_PA_REFINEMENT_UNPROVEN", "MIST_PA_REFINEMENT_NOT_IMPLIED",
-        "MIST_PA_INDEX_OUT_OF_BOUNDS", "MIST_PA_INDEX_UNPROVEN", "MIST_PA_CONSTRAINT_VIOLATED",
-        "MIST_PA_CONSTRAINT_UNPROVEN", "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED", "MIST_PA_DEPENDENT_FORWARD_UNPROVEN",
-        "MIST_PA_CONSTRAINT_STRENGTHENED",
+        "MIST0271", "MIST0272", "MIST0273",
+        "MIST0274", "MIST0275", "MIST0276",
+        "MIST0277", "MIST0278", "MIST0279",
+        "MIST0283",
     ];
 
     public RefinementDecisionTests()
@@ -300,8 +300,8 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
     public void AnIndexALengthGuardLeavesOpen_IsRefused(string members)
     {
         Assert.Equal(
-            "MIST_PA_INDEX_UNPROVEN",
-            Assert.Single(Analyse("var held = new Held();", $"public class Held {{ {members} }}")).Id.Value);
+            "MIST0275",
+            Assert.Single(Analyse("var held = new Held();", $"public class Held {{ {members} }}")).Number.Value);
     }
 
     [Theory]
@@ -512,6 +512,6 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

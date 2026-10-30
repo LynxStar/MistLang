@@ -129,7 +129,7 @@ internal static partial class PurityJudge
 
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeReadsMutable, reference.Node, [reference],
-                    $"captured variable '{local.Name}'", scope, "it can be assigned after the capture, so its value is not fixed for the lambda's life");
+                    new NameValue($"captured variable '{local.Name}'"), new NameValue(scope.Text), new NameValue("it can be assigned after the capture, so its value is not fixed for the lambda's life"));
                 return;
             }
 
@@ -165,7 +165,7 @@ internal static partial class PurityJudge
 
             Refuse(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, at.Node, [at],
-                $"{Triggering(at)}, which runs the static initializers of '{trigger.Type.Name}',", scope, promise.Display, "static initializers that are pure");
+                new NameValue($"{Triggering(at)}, which runs the static initializers of '{trigger.Type.Name}',"), new NameValue(scope.Text), new EnumValue(promise.Display), new EnumValue("static initializers that are pure"));
         }
 
         private static string Triggering(Expression at)
@@ -196,7 +196,7 @@ internal static partial class PurityJudge
 
             if(kind is not ScopeKind.Pure && RootArgument(chain) is { } argument)
             {
-                Refuse(ProgramAnalysisDiagnostics.LocalScopeReadsArgument, at, about, what, scope, argument.Name);
+                Refuse(ProgramAnalysisDiagnostics.LocalScopeReadsArgument, at, about, new NameValue(what), new NameValue(scope.Text), new NameValue(argument.Name));
                 return;
             }
 
@@ -207,7 +207,7 @@ internal static partial class PurityJudge
                 _ => "it lies outside the scope's own instance; a local scope reads only its own instance and stable fields",
             };
 
-            Refuse(ProgramAnalysisDiagnostics.PureScopeReadsMutable, at, about, what, scope, reason);
+            Refuse(ProgramAnalysisDiagnostics.PureScopeReadsMutable, at, about, new NameValue(what), new NameValue(scope.Text), new NameValue(reason));
         }
 
         private LocalVariable? RootArgument(Expression? chain)
@@ -256,8 +256,8 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, formatted.Node, [formatted],
-                    $"format {Spell(formatted)} through its runtime 'ToString'", scope, "unmarked",
-                    "a value whose text its type fixes -- a primitive, a string, an enum or a type declared in Mist --");
+                    new NameValue($"format {Spell(formatted)} through its runtime 'ToString'"), new NameValue(scope.Text), new EnumValue("unmarked"),
+                    new EnumValue("a value whose text its type fixes -- a primitive, a string, an enum or a type declared in Mist --"));
             }
         }
 

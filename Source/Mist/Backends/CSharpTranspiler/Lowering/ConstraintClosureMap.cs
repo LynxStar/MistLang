@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
@@ -33,12 +34,12 @@ internal sealed class ConstraintClosureMap
             // because this is the point where the backend learns it cannot express the program.
             if(definition is null || !definition.Assembly.HasMistSource)
             {
-                diagnostics.ReportAtNode(
+                diagnostics.ReportAtNodeTyped(
                     BackendDiagnostics.ForeignConstructorConstraintClosure,
                     closure.Node,
                     null,
-                    TypeDisplay.Mist(closure.TypeArgument),
-                    string.Join(", ", closure.Closed.Select(TypeDisplay.Mist)));
+                    DiagnosticSnapshot.Type(closure.TypeArgument),
+                    new SequenceValue(SlotKind.Type, [.. closure.Closed.Select(DiagnosticSnapshot.Type)]));
 
                 continue;
             }

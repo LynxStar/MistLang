@@ -8,7 +8,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class AccessorDecision
 {
-    public static DiagnosticDescriptor? Read(
+    public static MistDiagnostic? Read(
         PropertyAccessor? getter, MistType? owner, MistAssembly? assembly,
         Accessibility memberAccessibility, MistType? declaring)
     {
@@ -22,7 +22,7 @@ internal static class AccessorDecision
             : null;
     }
 
-    public static DiagnosticDescriptor? Write(
+    public static MistDiagnostic? Write(
         PropertyAccessor? setter, bool backingField, bool initializing,
         MistType? owner, MistAssembly? assembly, Accessibility memberAccessibility, MistType? declaring)
     {
@@ -51,7 +51,7 @@ internal static class AccessorDecision
             && AccessDomains.Admits(owner, assembly, memberAccessibility, declaring));
     }
 
-    private static DiagnosticDescriptor? Access(PropertyAccessor accessor, MistType? owner, MistAssembly? assembly, MistType? declaring)
+    private static MistDiagnostic? Access(PropertyAccessor accessor, MistType? owner, MistAssembly? assembly, MistType? declaring)
     {
         return declaring is null || AccessDomains.Admits(owner, assembly, accessor.Accessibility, declaring)
             ? null : ProgramAnalysisDiagnostics.InaccessibleAccessor;

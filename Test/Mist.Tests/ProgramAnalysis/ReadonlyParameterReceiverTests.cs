@@ -15,9 +15,9 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class ReadonlyParameterReceiverTests
 {
-    private const string CallsMutable = "MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE";
-    private const string FieldAssigned = "MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER";
-    private const string SetsProperty = "MIST_PA_READONLY_PARAMETER_SETS_PROPERTY";
+    private const string CallsMutable = "MIST0253";
+    private const string FieldAssigned = "MIST0252";
+    private const string SetsProperty = "MIST0254";
 
     private readonly HandBuiltModel model = new();
     private readonly ClassType counter = HandBuiltModel.Class("Counter");
@@ -71,9 +71,9 @@ public sealed class ReadonlyParameterReceiverTests
     {
         var finding = Assert.Single(Analyze(shape, ParameterKind.Readonly));
 
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(message, finding.Message);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -88,7 +88,7 @@ public sealed class ReadonlyParameterReceiverTests
     [Fact]
     public void AFieldWriteThroughAReadonlyRefParameterIsRefusedAtAnyDepth()
     {
-        Assert.Equal(FieldAssigned, Assert.Single(Analyze("c.Inner.Count = 1", ParameterKind.ReadonlyRef)).Id.Value);
+        Assert.Equal(FieldAssigned, Assert.Single(Analyze("c.Inner.Count = 1", ParameterKind.ReadonlyRef)).Number.Value);
     }
 
     [Theory]
@@ -124,7 +124,7 @@ public sealed class ReadonlyParameterReceiverTests
     {
         var finding = Assert.Single(Analyze("c.Inner.Bump()", ParameterKind.Readonly, readonlyMember: true));
 
-        Assert.Equal("MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", finding.Id.Value);
+        Assert.Equal("MIST0257", finding.Number.Value);
     }
 
     private enum ParameterKind

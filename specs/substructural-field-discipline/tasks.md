@@ -2,9 +2,9 @@
 
 ## Overview
 
-This plan implements the corrected substructural field discipline for the Mist compiler. It replaces the binary "is the container owned?" check with a discipline-compatibility matrix, adds substructural constraint syntax for generic type parameters, enforces constraint satisfaction at instantiation sites, removes the obsolete `MIST_TC_0110` diagnostic, and adds documentation and samples.
+This plan implements the corrected substructural field discipline for the Mist compiler. It replaces the binary "is the container owned?" check with a discipline-compatibility matrix, adds substructural constraint syntax for generic type parameters, enforces constraint satisfaction at instantiation sites, removes the obsolete `MIST_TC_0110 (historical)` diagnostic, and adds documentation and samples.
 
-The implementation proceeds in layers: grammar → semantic model → analysis (DropAnalyzer matrix + TypeChecker instantiation checks) → MIST_TC_0110 removal → sample/book/tests.
+The implementation proceeds in layers: grammar → semantic model → analysis (DropAnalyzer matrix + TypeChecker instantiation checks) → MIST_TC_0110 (historical) removal → sample/book/tests.
 
 ## Tasks
 
@@ -44,14 +44,14 @@ The implementation proceeds in layers: grammar → semantic model → analysis (
     - Affine container + linear/relevant field: "Affine type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may never be dropped, violating the field's requirement of at least one drop."
     - Relevant container + affine/linear field: "Relevant type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may be dropped multiple times, violating the field's at-most-once drop requirement."
     - Unrestricted/owned container + any substructural field: "Type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container has no substructural discipline and cannot guarantee the field's drop requirements."
-    - Retain the `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID for all three message variants
+    - Retain the `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID for all three message variants
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
   - [x] 3.3 Implement the unconstrained type parameter diagnostic messages
     - Linear container: "Linear type '{ContainerName}' contains field '{FieldName}' of unconstrained type parameter '{T}'. Add a substructural constraint (e.g., 'where {T} : linear') to ensure the field's discipline is compatible."
     - Affine container: "Affine type '{ContainerName}' contains field '{FieldName}' of unconstrained type parameter '{T}'. Add a substructural constraint (e.g., 'where {T} : affine') to ensure the field's discipline is compatible."
     - Relevant container: "Relevant type '{ContainerName}' contains field '{FieldName}' of unconstrained type parameter '{T}'. Add a substructural constraint (e.g., 'where {T} : relevant') to ensure the field's discipline is compatible."
-    - All use the `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID
+    - All use the `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID
     - _Requirements: 4.4, 4.5, 4.6_
 
 - [x] 4. Checkpoint — DropAnalyzer matrix
@@ -70,19 +70,19 @@ The implementation proceeds in layers: grammar → semantic model → analysis (
     - Use the existing instantiation-site visiting pattern already in `TypeCheckerAnalyzer`
     - _Requirements: 5.4_
 
-- [x] 6. Remove MIST_TC_0110 diagnostic
-  - [x] 6.1 Delete the `MIST_TC_0110` Task storage restriction checks from `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
+- [x] 6. Remove MIST_TC_0110 (historical) diagnostic
+  - [x] 6.1 Delete the `MIST_TC_0110 (historical)` Task storage restriction checks from `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Remove the `TaskStorageRestriction` diagnostic ID declaration
     - Remove the field validation section around lines 3349-3360 that rejects `Task<T>` in fields
     - Remove the property validation section around lines 3420-3430 that rejects `Task<T>` in properties
     - Remove the `IsTaskLikeType` helper if it is exclusively used by these checks (check all call sites first)
-    - Remove the section header comment "Task<T> storage restriction (MIST_TC_0110)" around line 9463
+    - Remove the section header comment "Task<T> storage restriction (MIST_TC_0110 (historical))" around line 9463
     - After removal, `Task<T>` (relevant) and `ValueTask<T>` (linear) are handled by the DropAnalyzer's compatibility matrix
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.9_
 
   - [x] 6.2 Update `TaskStorageRestrictionDiagnosticTests.cs` and `TaskStorageRestrictionPropertyTests.cs` in `Test/Mist.Tests/Analysis/`
-    - Update test expectations: Task in relevant/linear containers → zero diagnostics; Task in affine/unrestricted → discipline-compatibility diagnostic from Requirement 2 (not MIST_TC_0110); ValueTask in linear → zero diagnostics; ValueTask in affine/relevant/unrestricted → discipline-compatibility diagnostic
-    - Verify that the specific `MIST_TC_0110` diagnostic ID no longer appears in any output
+    - Update test expectations: Task in relevant/linear containers → zero diagnostics; Task in affine/unrestricted → discipline-compatibility diagnostic from Requirement 2 (not MIST_TC_0110 (historical)); ValueTask in linear → zero diagnostics; ValueTask in affine/relevant/unrestricted → discipline-compatibility diagnostic
+    - Verify that the specific `MIST_TC_0110 (historical)` diagnostic ID no longer appears in any output
     - _Requirements: 9.7, 9.8_
 
 - [x] 7. Checkpoint — Full compiler pipeline
@@ -94,7 +94,7 @@ The implementation proceeds in layers: grammar → semantic model → analysis (
     - Generate random (container discipline, field discipline) pairs using FsCheck
     - Build a single batched Mist source with all scenarios as separate type declarations
     - Compile once in-process via `CompilerDriver`
-    - Assert each scenario produces zero `MIST_DROP_FIELD_NOT_OWNED` diagnostics iff the matrix permits, exactly one diagnostic otherwise with correct message content
+    - Assert each scenario produces zero `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostics iff the matrix permits, exactly one diagnostic otherwise with correct message content
     - Zero process spawning — all compilation in-process
     - **Property 1: Discipline-Compatibility Matrix**
     - **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 2.1, 2.2, 2.3, 2.4**

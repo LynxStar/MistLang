@@ -122,7 +122,7 @@ public sealed class StructuredContextTests : ProgramModelProbe
     public void EveryWithDeclarationInARunBindsItsName(string statements)
     {
         Assert.Empty(
-            Diagnostics(statements).Where(d => d.Id.Value == "MIST_PM_UNRESOLVED_IDENTIFIER"));
+            Diagnostics(statements).Where(d => d.Number.Value == "MIST0296"));
     }
 
     /// <summary>

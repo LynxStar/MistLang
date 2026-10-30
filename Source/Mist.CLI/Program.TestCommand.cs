@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Text.RegularExpressions;
+using Mist.CLI;
 using Mist.CLI.Args;
 using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
@@ -8,156 +8,66 @@ using Mist.Driver.Contracts;
 
 internal partial class Program
 {
-    private static int RunTestCommand(CliArguments cliArgs)
+    private static int RunTestCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
-        // For `test`, timing/progress output is hidden by default (clean stdout for test output).
-        // Use --verbose to see it. --quiet still suppresses everything.
+        var manifest = Path.Combine(Path.GetFullPath(cliArgs.ProjectFolder), "mist.toml");
+        var parseDiagnostics = new DiagnosticBag(output.Operation);
+        var configuration = ProjectFileParser.ParseRoot(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
+        output.Collect(parseDiagnostics.Admitted);
+        if(configuration is null || parseDiagnostics.HasErrors)
+        {
+            return 1;
+        }
+
         ICompilationProgressReporter reporter = cliArgs.Verbose
             ? new ConsoleProgressReporter(Console.Out)
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
-
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter, output);
         if(sourceFiles is null)
         {
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => RunBuiltTests(sourceFiles, cliArgs));
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch,
+            _ => RunDotnetTest(Path.Combine(cliArgs.OutputDirectory, $"{configuration.Name}.csproj"), output),
+            configuration,
+            result => TestFrameworkWarning(result, sourceFiles, configuration, manifest, output));
     }
 
-    private static int RunBuiltTests(IReadOnlyList<string> sourceFiles, CliArguments cliArgs)
+    private static CompilerResult TestFrameworkWarning(
+        CompilerResult result, IReadOnlyList<string> sourceFiles, ProjectConfiguration configuration, string manifest, DiagnosticOutput output)
     {
-        // Determine the .csproj path in the output directory
-        var parseDiagnostics = new DiagnosticBag();
-        var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
-        var csprojPath = Path.Combine(cliArgs.OutputDirectory, $"{config!.Name}.csproj");
-
-        // Check for test-attributed methods without test framework packages (MIST_TEST_0001).
-        if(HasTestAttributedMethods(sourceFiles) && !HasTestFrameworkPackage(config))
+        if(!result.Succeeded || !TestFrameworkDetection.ShouldWarn(ReadTestSources(sourceFiles), configuration.Packages))
         {
-            var warning = new Diagnostic(
-                new DiagnosticId("MIST_TEST_0001"),
-                DiagnosticSeverity.Warning,
-                PipelineStage.Driver,
-                "Test-attributed methods found but no test framework package is referenced. Add xUnit, NUnit, or MSTest packages to [packages] in mist.toml.",
-                Location: default,
-                CompilationUnitPath: "<unknown>",
-                AnalyzerName: null);
-            Console.Error.WriteLine(DiagnosticFormatter.Format(warning));
+            return result;
         }
 
-        return RunDotnetTest(csprojPath);
+        var warnings = new DiagnosticBag(output.Operation);
+        warnings.ReportTyped(DriverDiagnostics.TestFrameworkPackageMissing, new ProjectLocation(manifest, null));
+        return result with { Diagnostics = result.Diagnostics.AddRange(warnings.Admitted) };
     }
 
-    private static int RunDotnetTest(string csprojPath)
+    private static IEnumerable<string> ReadTestSources(IReadOnlyList<string> sourceFiles)
     {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"test \"{csprojPath}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            var process = Process.Start(startInfo);
-            if(process is null)
-            {
-                Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-                return 1;
-            }
-
-            // Stream stdout and stderr in real time using async reads
-            var stdoutTask = Task.Run(() =>
-            {
-                while(process.StandardOutput.ReadLine() is { } line)
-                {
-                    Console.WriteLine(line);
-                }
-            });
-
-            var stderrTask = Task.Run(() =>
-            {
-                while(process.StandardError.ReadLine() is { } line)
-                {
-                    Console.Error.WriteLine(line);
-                }
-            });
-
-            process.WaitForExit();
-            stdoutTask.Wait();
-            stderrTask.Wait();
-
-            return process.ExitCode;
-        }
-        catch(System.ComponentModel.Win32Exception)
-        {
-            Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-            return 1;
-        }
-    }
-
-    /// <summary>
-    /// Scans source files for method declarations that have attributes whose unqualified
-    /// name ends in <c>Fact</c>, <c>Theory</c>, <c>Test</c>, or <c>TestMethod</c>.
-    /// Uses a regex-based heuristic over the source text since the compiled AST is not
-    /// retained in <see cref="CompilerResult"/>.
-    /// </summary>
-    private static bool HasTestAttributedMethods(IReadOnlyList<string> sourceFiles)
-    {
-        // Match attribute syntax: [SomeName] where SomeName ends with Fact, Theory, Test, or TestMethod.
-        // The pattern accounts for optional qualifiers (e.g., [Xunit.Fact]) and optional arguments.
-        var pattern = new Regex(
-            @"\[\s*[\w.]*(?:Fact|Theory|Test|TestMethod)\s*[\(\]]",
-            RegexOptions.Compiled);
-
         foreach(var file in sourceFiles)
         {
+            string contents;
             try
             {
-                var contents = File.ReadAllText(file);
-                if(pattern.IsMatch(contents))
-                {
-                    return true;
-                }
+                contents = File.ReadAllText(file);
             }
             catch(IOException)
             {
-                // If we can't read the file, skip it.
+                continue;
             }
-        }
 
-        return false;
+            yield return contents;
+        }
     }
 
-    /// <summary>
-    /// Returns <c>true</c> if any package in the project configuration has a name
-    /// containing "Test" or "xunit" (case-insensitive substring match).
-    /// </summary>
-
-    /// <summary>
-    /// Returns <c>true</c> if any package in the project configuration has a name
-    /// containing "Test" or "xunit" (case-insensitive substring match).
-    /// </summary>
-    private static bool HasTestFrameworkPackage(ProjectConfiguration config)
+    private static int RunDotnetTest(string csprojPath, DiagnosticOutput output)
     {
-        if(config.Packages.IsDefaultOrEmpty)
-        {
-            return false;
-        }
-
-        foreach(var package in config.Packages)
-        {
-            if(package.Name.Contains("Test", StringComparison.OrdinalIgnoreCase)
-                || package.Name.Contains("xunit", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", ["test", csprojPath]) { UseShellExecute = false }, output);
     }
 }

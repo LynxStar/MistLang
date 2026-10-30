@@ -116,7 +116,7 @@ public sealed class RangeAndIndexResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var bad = g[1..2];");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_RECEIVER_NOT_SLICEABLE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0353"));
     }
 
     private (bool HasStart, bool HasEnd) Bounds(string statement)

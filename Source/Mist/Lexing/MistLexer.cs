@@ -15,6 +15,7 @@ public sealed class MistLexer : ILexer
 {
     public TokenStream Lex(SourceText source, DiagnosticBag diagnostics)
     {
+        diagnostics.Stage = PipelineStage.Lexing;
         var stormSource = new Storm.Runtime.SourceText(source.Path, source.Contents);
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
 
@@ -23,13 +24,7 @@ public sealed class MistLexer : ILexer
         // Map Storm diagnostics to Mist diagnostics
         foreach(var entry in stormDiagnostics.Entries)
         {
-            var location = (entry.Line > 0 && entry.Column > 0)
-                ? new LinePositionSpan(
-                    new LinePosition(entry.Line, entry.Column),
-                    new LinePosition(entry.Line, entry.Column))
-                : default;
-
-            diagnostics.Report(LexerDiagnostics.LexError, location, entry.FilePath ?? source.Path, entry.Message);
+            StormLexerDiagnostics.Report(source, entry.Message, entry.FilePath, entry.Line, entry.Column, stormTokenStream.AllTokens, diagnostics);
         }
 
         return new TokenStream(source, stormTokenStream.AllTokens);

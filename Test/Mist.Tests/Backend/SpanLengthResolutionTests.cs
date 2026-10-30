@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// The length of a span and of an array is its dependent TYPE PARAMETER, and nothing else on the type
 /// may answer to that name. A second declaration -- a property Standard spells, or one a projection
-/// adds -- makes every read of it MIST_PM_AMBIGUOUS_MEMBER, which is a whole feature area refused
+/// adds -- makes every read of it MIST0302, which is a whole feature area refused
 /// rather than a member degraded. Built over the real Standard sources, so re-adding one fails here.
 /// </summary>
 public sealed class SpanLengthResolutionTests
@@ -23,7 +23,7 @@ public sealed class SpanLengthResolutionTests
     {
         Assert.DoesNotContain(
             DiagnosticsFor(statement),
-            diagnostic => diagnostic.Id.Value == "MIST_PM_AMBIGUOUS_MEMBER");
+            diagnostic => diagnostic.Number.Value == "MIST0302");
     }
 
     [Theory]
@@ -33,7 +33,7 @@ public sealed class SpanLengthResolutionTests
     {
         Assert.DoesNotContain(
             DiagnosticsFor(statement),
-            diagnostic => diagnostic.Id.Value == "MIST_PM_UNRESOLVED_MEMBER");
+            diagnostic => diagnostic.Number.Value == "MIST0301");
     }
 
     private static ImmutableArray<Diagnostic> DiagnosticsFor(string statement)

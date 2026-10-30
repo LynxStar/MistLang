@@ -49,14 +49,14 @@ This plan implements nested scoping for the Mist language compiler across four l
     - _Requirements: 5.2, 5.4_
 
   - [x] 3.3 Add namespace validation pass (`Pass1_ValidateNamespaceDeclarations`)
-    - Detect duplicate file-scoped namespaces → report `MIST0301`
-    - Detect mixed file-scoped and block namespaces → report `MIST0302`
-    - Detect file-scoped namespace inside block namespace → report `MIST0305`
+    - Detect duplicate file-scoped namespaces → report `MIST0290`
+    - Detect mixed file-scoped and block namespaces → report `MIST0291`
+    - Detect file-scoped namespace inside block namespace → report `MIST0292`
     - _Requirements: 3.1, 3.2, 3.3, 5.5, 14.1, 14.2_
 
   - [x] 3.4 Add duplicate nested type and type parameter conflict diagnostics
-    - When registering a nested type, check if the name already exists in the parent type's scope → report `MIST0303`
-    - Check if the nested type name conflicts with a type parameter on the parent → report `MIST0304`
+    - When registering a nested type, check if the name already exists in the parent type's scope → report `MIST0303 (historical)`
+    - Check if the nested type name conflicts with a type parameter on the parent → report `MIST0304 (historical)`
     - _Requirements: 9.4, 9.5, 14.3_
 
   - [x] 3.5 Write property test: Namespace FQN concatenation (Property 5)
@@ -165,11 +165,11 @@ This plan implements nested scoping for the Mist language compiler across four l
 
 - [x] 10. Write example-based unit tests for edge cases and diagnostics
   - [x] 10.1 Write unit tests for diagnostic error conditions
-    - Test: duplicate file-scoped namespace produces `MIST0301`
-    - Test: mixed namespace styles produce `MIST0302`
-    - Test: file-scoped namespace inside block namespace produces `MIST0305`
-    - Test: duplicate nested type name produces `MIST0303`
-    - Test: nested type name conflicts with type parameter produces `MIST0304`
+    - Test: duplicate file-scoped namespace produces `MIST0290`
+    - Test: mixed namespace styles produce `MIST0291`
+    - Test: file-scoped namespace inside block namespace produces `MIST0292`
+    - Test: duplicate nested type name produces `MIST0303 (historical)`
+    - Test: nested type name conflicts with type parameter produces `MIST0304 (historical)`
     - Test: unresolved type parameter reference produces diagnostic
     - _Requirements: 3.1, 3.2, 3.3, 5.5, 9.4, 9.5, 7.5, 14.1, 14.2, 14.3_
 

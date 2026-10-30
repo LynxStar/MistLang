@@ -65,7 +65,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.RedundantConformance, conformance.DeclarationNode, [],
-                    TypeDisplay.Mist(concrete), TypeDisplay.Mist(conformance.AbstractType));
+                    DiagnosticSnapshot.Type(concrete), DiagnosticSnapshot.Type(conformance.AbstractType));
                 continue;
             }
 
@@ -102,7 +102,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.SlotReturnNotOwned, answering.DeclarationNode ?? at, [],
-                        TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType), answering.Name);
+                        DiagnosticSnapshot.Type(concrete), new NameValue(SlotSignatures.Display(slot, substitution, interner)), DiagnosticSnapshot.Type(abstractType), new NameValue(answering.Name));
                 }
                 else if(slot is { Modifiers.IsReadonly: true } && !inference.IsReadonly(answering))
                 {
@@ -147,7 +147,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PropertySlotAccessorMissing, at, [],
-                    TypeDisplay.Mist(concrete), slot.Name, accessor, TypeDisplay.Mist(abstractType));
+                    DiagnosticSnapshot.Type(concrete), new NameValue(slot.Name), new EnumValue(accessor), DiagnosticSnapshot.Type(abstractType));
             }
 
             if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
@@ -173,7 +173,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.PropertySlotAccessorMissing, at, [],
-                    TypeDisplay.Mist(concrete), SlotSignatures.Name(slot, substitution, interner), accessor, TypeDisplay.Mist(abstractType));
+                    DiagnosticSnapshot.Type(concrete), new NameValue(SlotSignatures.Name(slot, substitution, interner)), new EnumValue(accessor), DiagnosticSnapshot.Type(abstractType));
             }
 
             if(slot is { Getter: not null, Modifiers.IsReadonly: true } && answer.Getter is not null && !inference.IsReadonlyGetter(answer))
@@ -197,8 +197,10 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.SlotConstraintStrengthened, at, [],
-                TypeDisplay.Mist(concrete), SlotSignatures.Display(slot, substitution, interner), TypeDisplay.Mist(abstractType),
-                answer.Member.Name, Spelled(constraint), parameter.Name);
+                DiagnosticSnapshot.Type(concrete), new NameValue(SlotSignatures.Display(slot, substitution, interner)), DiagnosticSnapshot.Type(abstractType),
+                new NameValue(answer.Member.Name),
+                new OptionalValue(SlotKind.Type, constraint is TypeConstraint typed ? DiagnosticSnapshot.Type(typed.ConstraintType) : null),
+                new OptionalValue(SlotKind.Name, constraint is TypeConstraint ? null : new NameValue(Spelled(constraint))), new NameValue(parameter.Name));
             found = true;
         }
 
@@ -209,7 +211,6 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     {
         return constraint switch
         {
-            TypeConstraint typed => TypeDisplay.Mist(typed.ConstraintType),
             ConstructorConstraint constructor => $"new({string.Join(", ", constructor.ParameterTypes.Select(TypeDisplay.Mist))})",
             _ => constraint.Kind.ToString().ToLowerInvariant(),
         };
@@ -242,13 +243,13 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ConformanceSlotUnanswered, at, [],
-                TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType), signature);
+                DiagnosticSnapshot.Type(concrete), DiagnosticSnapshot.Type(abstractType), new NameValue(signature));
         }
         else
         {
             context.Report(
                 named ? ProgramAnalysisDiagnostics.SlotSignatureMismatch : ProgramAnalysisDiagnostics.SlotNotFilled, at, [],
-                TypeDisplay.Mist(concrete), signature, TypeDisplay.Mist(abstractType), member);
+                DiagnosticSnapshot.Type(concrete), new NameValue(signature), DiagnosticSnapshot.Type(abstractType), new NameValue(member));
         }
     }
 
@@ -276,7 +277,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
     {
         context.Report(
             ProgramAnalysisDiagnostics.ReadonlyContractNotMet, at, [],
-            member, TypeDisplay.Mist(concrete), TypeDisplay.Mist(abstractType));
+            new NameValue(member), DiagnosticSnapshot.Type(concrete), DiagnosticSnapshot.Type(abstractType));
     }
 
     private static bool CheckPromise(
@@ -297,7 +298,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
         context.Report(
             ProgramAnalysisDiagnostics.PurityContractNotMet, at, [],
-            member, TypeDisplay.Mist(concrete), required.Display, slot, TypeDisplay.Mist(abstractType), kept.Display);
+            new NameValue(member), DiagnosticSnapshot.Type(concrete), new EnumValue(required.Display), new NameValue(slot), DiagnosticSnapshot.Type(abstractType), new EnumValue(kept.Display));
         return false;
     }
 
@@ -324,7 +325,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.TypeSlotUnfilled, at, [],
-                    TypeDisplay.Mist(concrete), MistType.StripArity(slot.Name), TypeDisplay.Mist(abstractType));
+                    DiagnosticSnapshot.Type(concrete), new NameValue(MistType.StripArity(slot.Name)), DiagnosticSnapshot.Type(abstractType));
                 continue;
             }
 
@@ -337,23 +338,24 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 
             foreach(var constraint in slot.ConstraintsList)
             {
-                var (satisfied, spelling) = constraint switch
+                var satisfied = constraint switch
                 {
-                    TypeConstraint typed => (
-                        ConversionClassifier.Classify(judged, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
-                            is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
-                        TypeDisplay.Mist(typed.ConstraintType)),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => (kind is not StructType, "class"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => (kind is not ClassType, "struct"),
-                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => (Stampability.IsStampable(judged), "stampable"),
-                    _ => (true, ""),
+                    TypeConstraint typed => ConversionClassifier.Classify(judged, substitution.Apply(typed.ConstraintType, context.Model.TypeInterner), context.Model.TypeInterner)
+                        is ConversionKind.Identity or ConversionKind.Implicit or ConversionKind.Unclassified,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Class } => kind is not StructType,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Struct } => kind is not ClassType,
+                    KeywordConstraint { Kind: TypeParameterConstraintKind.Stampable } => Stampability.IsStampable(judged),
+                    _ => true,
                 };
 
                 if(!satisfied)
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.TypeSlotConstraintNotSatisfied, at, [],
-                        TypeDisplay.Mist(filler), spelling, TypeDisplay.Mist(abstractType), MistType.StripArity(slot.Name));
+                        DiagnosticSnapshot.Type(filler),
+                        new OptionalValue(SlotKind.Type, constraint is TypeConstraint typed ? DiagnosticSnapshot.Type(typed.ConstraintType) : null),
+                        new OptionalValue(SlotKind.Name, constraint is TypeConstraint ? null : new NameValue(constraint.Kind.ToString().ToLowerInvariant())),
+                        DiagnosticSnapshot.Type(abstractType), new NameValue(MistType.StripArity(slot.Name)));
                 }
             }
         }

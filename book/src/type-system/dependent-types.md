@@ -67,9 +67,9 @@ Every integral type admits its whole range, `ulong` included. Spellings of one v
 The three kinds never mix, and a value must fit its slot's type. Each mismatch is refused where the type argument is written, whether in a construction, a method call, an alias, or a base clause:
 
 ```text
-error MIST_DT_0003: Dependent type argument '256' of type 'int' is not assignable to dependent parameter 'N' of type 'byte'.
-error MIST_DT_0003: Dependent type argument 'true' of type 'bool' is not assignable to dependent parameter 'N' of type 'int'.
-error MIST_DT_0003: Dependent type argument 'A' of type 'char' is not assignable to dependent parameter 'N' of type 'int'.
+error MIST0280: Dependent type argument '256' of type 'int' is not assignable to dependent parameter 'N' of type 'byte'.
+error MIST0280: Dependent type argument 'true' of type 'bool' is not assignable to dependent parameter 'N' of type 'int'.
+error MIST0280: Dependent type argument 'A' of type 'char' is not assignable to dependent parameter 'N' of type 'int'.
 ```
 
 A `char` never fills an integral slot, even though a `char` expression widens to `int`: `'A'` and `65` would then be two spellings of one type argument interned as two types.
@@ -115,11 +115,11 @@ Each dependent parameter of a class, struct or abstract type is also a public st
 The read is spelled on the construction that declares the property, so `SmallBuffer.Size` becomes `FixedBuffer<Const_10>.Size`. An abstract type's property is read the same way through a type implementing it. The property belongs to the type rather than to its instances, and it cannot be assigned:
 
 ```text
-error MIST_PM_UNRESOLVED_MEMBER: 'FixedBuffer<5>' has no member named 'Size'.
-error MIST_PA_NO_SET_ACCESSOR: Cannot assign to 'FixedBuffer.Size': it has no 'set' or 'init' accessor.
+error MIST0301: 'FixedBuffer<5>' has no member named 'Size'.
+error MIST0215: Cannot assign to 'FixedBuffer.Size': it has no 'set' or 'init' accessor.
 ```
 
-The first is `buffer.Size` on an instance, the second `FixedBuffer<5>.Size = 6;`. An ordinary type parameter has no such property, a dependent parameter may not share its name with a member of its own type (`MIST_DT_0005`), and two parameters of one list may not share a name (`MIST_PM_DUPLICATE_TYPE_PARAMETER`).
+The first is `buffer.Size` on an instance, the second `FixedBuffer<5>.Size = 6;`. An ordinary type parameter has no such property, a dependent parameter may not share its name with a member of its own type (`MIST0282`), and two parameters of one list may not share a name (`MIST0408`).
 
 A type alias projects its own dependent parameters too, under the names the alias declares. `Sized<6>.Count` is `6`, and so is `Tagged<7>.Count` though the alias stands for `string` and never names the value: the read is the value the use supplies, so it is emitted as that value, `((int)6)`, rather than as a member of the target. The alias is still transparent everywhere else -- `Sized<6>` is `FixedBuffer<6>`, whose own `Size` reads through it -- and an alias forwarding to another keeps only its own names, so `type Outer<P:int> = Sized<P>;` answers `Outer<4>.P` and not `Outer<4>.Count`.
 
@@ -219,10 +219,10 @@ A dependent parameter can fill another type's dependent slot, as `N` fills `Fixe
 Because a carrier names the value rather than the slot, `NarrowCounter<7>` derives from exactly the `WideCounter<7>` written directly: the assignment compiles, and an `is WideCounter<7>` test on a `NarrowCounter<7>` is true at runtime. Narrowing is refused at the forwarding site, as is any forward between `bool`, `char` and the integral types:
 
 ```text
-error MIST_DT_0004: Dependent type parameter 'M' of type 'long' on 'Derived' cannot be forwarded to parameter 'N' of type 'int' on 'Base' because 'long' is not implicitly convertible to 'int'.
+error MIST0281: Dependent type parameter 'M' of type 'long' on 'Derived' cannot be forwarded to parameter 'N' of type 'int' on 'Base' because 'long' is not implicitly convertible to 'int'.
 ```
 
-A slot whose type is a refinement also asks the forwarded parameter's own refinement to imply it (`MIST_PA_DEPENDENT_FORWARD_UNPROVEN`).
+A slot whose type is a refinement also asks the forwarded parameter's own refinement to imply it (`MIST0279`).
 
 ## Relationship to Refinement Types
 
@@ -297,4 +297,4 @@ Arrays and spans are dependent on their length too: `int[3]` is `Array<int, 3>`,
 {{#endtab }}
 {{#endtabs }}
 
-The same check reaches a length inside a tuple, `(int[3], string)`, as `{ Item1: { Length: 3 } }`, and `as int[3]` answers `void` for any other length. A test of a sequence whose elements carry their own length, such as `int[3][2]`, is refused (`MIST_BE_UNSUPPORTED_SIZED_ELEMENT_TEST`): no C# pattern can check every element.
+The same check reaches a length inside a tuple, `(int[3], string)`, as `{ Item1: { Length: 3 } }`, and `as int[3]` answers `void` for any other length. A test of a sequence whose elements carry their own length, such as `int[3][2]`, is refused (`MIST0013`): no C# pattern can check every element.

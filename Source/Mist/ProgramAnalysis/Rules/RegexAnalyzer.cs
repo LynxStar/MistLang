@@ -44,7 +44,7 @@ internal sealed class RegexAnalyzer : IProgramAnalyzer
     {
         if(RegexSyntax.Error(body) is { } error)
         {
-            context.Report(ProgramAnalysisDiagnostics.RegexInvalid, at, about, error);
+            context.Report(ProgramAnalysisDiagnostics.RegexInvalid, at, about, new TextValue(error));
         }
     }
 }

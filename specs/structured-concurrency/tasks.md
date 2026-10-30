@@ -94,32 +94,32 @@ This plan implements structured concurrency for the Mist language, progressing t
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 8. Type checker: diagnostic rules
-  - [x] 8.1 Implement `MIST_TC_0070`: async + intrinsic incompatibility diagnostic
+  - [x] 8.1 Implement `MIST_TC_0070 (historical)`: async + intrinsic incompatibility diagnostic
     - Report error when a method has both `async` and `intrinsic` modifiers
     - _Requirements: 2.4_
 
-  - [x] 8.2 Implement `MIST_TC_0071`: async on constructor/operator diagnostic
+  - [x] 8.2 Implement `MIST_TC_0071 (historical)`: async on constructor/operator diagnostic
     - Report error when `async` is applied to a constructor or operator declaration
     - _Requirements: 2.5_
 
-  - [x] 8.3 Implement `MIST_TC_0072`: async method with explicit Task<T> return type diagnostic
+  - [x] 8.3 Implement `MIST_TC_0072 (historical)`: async method with explicit Task<T> return type diagnostic
     - Report error when an async method explicitly declares `Task<T>` as its return type
     - _Requirements: 2.6_
 
-  - [x] 8.4 Implement `MIST_TC_0073`: async functor on non-invocation operand diagnostic
+  - [x] 8.4 Implement `MIST_TC_0073 (historical)`: async functor on non-invocation operand diagnostic
     - Report error when `async` precedes an expression that is not a method invocation
     - _Requirements: 3.7_
 
-  - [x] 8.5 Implement `MIST_TC_0074`: await on non-Task<T> operand diagnostic
+  - [x] 8.5 Implement `MIST_TC_0074 (historical)`: await on non-Task<T> operand diagnostic
     - Report error when `await` is applied to an expression whose type is not `Task<T>`, including the actual type in the message
     - _Requirements: 4.3_
 
-  - [x] 8.6 Implement `MIST_TC_0075`: Task<T> storage restriction diagnostic
+  - [x] 8.6 Implement `MIST_TC_0075 (historical)`: Task<T> storage restriction diagnostic
     - Report error when `Task<T>` is stored in a field, property, or collection
     - Allow `Task<T>` in local variables, method parameters, and return types
     - _Requirements: 7.5, 7.6, 7.7_
 
-  - [x] 8.7 Implement `MIST_TC_0076`: double-wrap warning for async functor on async method in async context
+  - [x] 8.7 Implement `MIST_TC_0076 (historical)`: double-wrap warning for async functor on async method in async context
     - Report warning when `async` functor is applied to an async method in an async context, producing `Task<Task<T>>`
     - _Requirements: 3.6_
 
@@ -259,7 +259,7 @@ This plan implements structured concurrency for the Mist language, progressing t
 - Property tests validate universal correctness properties from the design document
 - Unit tests validate specific examples and edge cases
 - All property tests run in-process using compiler APIs (no process spawning per iteration) per the test process spawning policy
-- The zero-warnings policy applies to all new code — `MIST_TC_0076` is intentionally a warning, not an error
+- The zero-warnings policy applies to all new code — `MIST_TC_0076 (historical)` is intentionally a warning, not an error
 
 ## Task Dependency Graph
 

@@ -44,7 +44,7 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
     - When a `TraitDeclaration` has a `TypeParameterList`, create a `TypeParameterType(name, ordinal)` for each type parameter
     - Store the list on `traitType.TypeParameters`
     - Register each `TypeParameterType` as a symbol in the trait's member scope so trait member signatures can reference them
-    - Check for duplicate type parameter names and emit `MIST_DUPLICATE_TYPE_PARAMETER` if found
+    - Check for duplicate type parameter names and emit `MIST_DUPLICATE_TYPE_PARAMETER (historical)` if found
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
   - [x] 4.2 Write property test for trait type parameter registration
@@ -54,12 +54,12 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
 - [x] 5. Implement trait inheritance resolution and cycle detection
   - [x] 5.1 Resolve parent trait references in Pass 1
     - After all types are registered, resolve each `BaseTypeRef` in the trait's `parents` list
-    - If the name does not resolve to a `TraitType`, emit `MIST_TRAIT_PARENT_NOT_TRAIT`
-    - If the parent trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS`
-    - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH`
+    - If the name does not resolve to a `TraitType`, emit `MIST_TRAIT_PARENT_NOT_TRAIT (historical)`
+    - If the parent trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`
+    - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`
     - If the parent trait is generic with correct type arguments, construct a `ConstructedTraitType`
     - If the parent trait is non-generic and no type arguments are provided, use the `TraitType` directly
-    - Check for duplicate parents (same trait with same type arguments) and emit `MIST_TRAIT_DUPLICATE_PARENT`
+    - Check for duplicate parents (same trait with same type arguments) and emit `MIST_TRAIT_DUPLICATE_PARENT (historical)`
     - Store the resolved list on `traitType.ParentTraits`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.6, 3.7_
 
@@ -67,7 +67,7 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
     - Add a dedicated sub-pass `Pass1_DetectTraitCycles` that performs DFS on the trait inheritance graph
     - Build adjacency list from each trait to its parent traits (using `GenericTraitDefinition` for constructed parents)
     - Run DFS with coloring (white/gray/black); when a gray node is revisited, a cycle is detected
-    - Emit `MIST_TRAIT_INHERITANCE_CYCLE` for each trait involved in a cycle
+    - Emit `MIST_TRAIT_INHERITANCE_CYCLE (historical)` for each trait involved in a cycle
     - Mark cyclic traits so they are excluded from satisfaction computation
     - _Requirements: 3.5_
 
@@ -97,9 +97,9 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
 
   - [x] 6.4 Extend Pass 2 to resolve trait type references to `ConstructedTraitType`
     - When a `NamedTypeRef` resolves to a generic `TraitType` with type arguments provided and arity matches, construct a `ConstructedTraitType`
-    - When type arguments are missing for a generic trait, emit `MIST_MISSING_TYPE_ARGUMENTS`
-    - When arity doesn't match, emit `MIST_ARITY_MISMATCH`
-    - When type arguments are provided to a non-generic trait, emit `MIST_NOT_GENERIC`
+    - When type arguments are missing for a generic trait, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`
+    - When arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`
+    - When type arguments are provided to a non-generic trait, emit `MIST_NOT_GENERIC (historical)`
     - Handle nested generics in trait type arguments (e.g., `Comparable<List<int>>`)
     - Handle type parameter references as type arguments (e.g., `Comparable<T>` inside a generic class)
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 11.1, 11.2, 11.3, 11.4_
@@ -107,8 +107,8 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
 - [x] 7. Extend `with` block resolution for generic traits
   - [x] 7.1 Extend `Pass1_ResolveWithBlocks` to handle `ConstructedTraitType`
     - Resolve `traitName` + `traitTypeArgs` to either a `TraitType` (non-generic) or `ConstructedTraitType` (generic)
-    - If the trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS`
-    - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH`
+    - If the trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`
+    - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`
     - When validating member mappings, substitute type parameters with type arguments before checking type compatibility
     - Store validated mappings in `WithBlockRegistry` using `ConstructedTraitType` as the key
     - _Requirements: 8.3, 8.4, 13.1, 13.2, 13.3, 13.4, 17.4, 17.5_
@@ -150,14 +150,14 @@ Extend the Mist trait system with type parameters (generic traits) and trait inh
   - [x] 10.1 Extend `IsAssignable` for `ConstructedTraitType`
     - Add `ConstructedTraitType` case: query `TraitSatisfactionMap` using the constructed trait as key
     - Ensure `Comparable<int>` and `Comparable<string>` are treated as distinct non-assignable types
-    - Emit `MIST_TRAIT_UNSATISFIED` diagnostic with constructed trait name (including type args), type name, and unsatisfied members with substituted types
+    - Emit `MIST_TRAIT_UNSATISFIED (historical)` diagnostic with constructed trait name (including type args), type name, and unsatisfied members with substituted types
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 17.3_
 
   - [x] 10.2 Extend member access for `ConstructedTraitType`
     - When resolving member access on a `ConstructedTraitType`-typed variable, look up the member in the trait's `MemberScope`
     - Substitute type parameters using the constructed trait's type arguments (reuse `SubstituteType` helper)
     - Validate method call arguments against substituted parameter types
-    - Emit `MIST_UNDEFINED_MEMBER` when member name is not found
+    - Emit `MIST_UNDEFINED_MEMBER (historical)` when member name is not found
     - _Requirements: 15.1, 15.2, 15.3_
 
   - [x] 10.3 Write property test for trait assignability with generic traits

@@ -161,9 +161,9 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "1.5");
         Assert.DoesNotContain(spy.StageCompletes, s => s.StageId == "1.5");
 
-        // But the MIST_PKG_002 diagnostic still surfaces (Requirement 1.9).
+        // But the MIST0036 diagnostic still surfaces (Requirement 1.9).
         Assert.Contains(result.Diagnostics,
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST0036");
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -222,10 +222,10 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The MIST_PKG_002 diagnostic appears in the compilation result
+        // The MIST0036 diagnostic appears in the compilation result
         // regardless of verbose setting.
         var diag = result.Diagnostics.FirstOrDefault(
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST0036");
         Assert.NotNull(diag);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("BadPkg", diag.Message);
@@ -243,9 +243,9 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The MIST_PKG_002 diagnostic appears in the compilation result.
+        // The MIST0036 diagnostic appears in the compilation result.
         var diag = result.Diagnostics.FirstOrDefault(
-            d => d.Id.Value == "MIST_PKG_002");
+            d => d.Number.Value == "MIST0036");
         Assert.NotNull(diag);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("BadPkg", diag.Message);
@@ -270,7 +270,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
         Assert.False(result.Succeeded, "The source uses nothing from the package, and the build still fails on it.");
         Assert.Null(result.PrimaryOutputArtifactPath);
-        Assert.Equal(["MIST_PKG_002"], result.Diagnostics.Select(d => d.Id.Value));
+        Assert.Equal(["MIST0036"], result.Diagnostics.Select(d => d.Number.Value));
     }
 
     [Fact]
@@ -297,8 +297,8 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(["1", "2", "3", "4", "5"], spy.StageStarts.Select(s => s.StageId));
         Assert.False(result.Succeeded);
         Assert.Equal(
-            ["MIST_PKG_002", "MIST_UNDEFINED_NAMESPACE", "MIST_PM_UNRESOLVED_TYPE"],
-            result.Diagnostics.Select(d => d.Id.Value));
+            ["MIST0036", "MIST0293", "MIST0298"],
+            result.Diagnostics.Select(d => d.Number.Value));
         Assert.Contains("SomePackage.Models", result.Diagnostics[1].Message);
         Assert.Contains("Widget", result.Diagnostics[2].Message);
     }
@@ -324,8 +324,8 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(["1", "2", "3"], spy.StageStarts.Select(s => s.StageId));
         Assert.False(result.Succeeded);
         Assert.Equal(
-            ["MIST_FILE_ERROR", "MIST_PKG_002", "MIST_PARSE_INCOMPLETE"],
-            result.Diagnostics.Select(d => d.Id.Value));
+            ["MIST0101", "MIST0036", "MIST0123"],
+            result.Diagnostics.Select(d => d.Number.Value));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -346,7 +346,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         var result = driver.Compile(options);
 
         Assert.Equal(
-            ["start 1", "complete 1", "receive MIST_PKG_002", "receive MIST_PKG_002", "receive MIST_FWREF_002", "start 2"],
+            ["start 1", "complete 1", "receive MIST0036", "receive MIST0036", "receive MIST0035", "start 2"],
             timeline.Events.Take(6));
         Assert.Contains("BadA", timeline.Received[0].Message);
         Assert.Contains("BadB", timeline.Received[1].Message);
@@ -373,7 +373,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         _ = driver.Compile(options);
 
         Assert.Equal(
-            ["start 1", "complete 1", "start 1.5", "receive MIST_PKG_002", "complete 1.5", "start 2"],
+            ["start 1", "complete 1", "start 1.5", "receive MIST0036", "complete 1.5", "start 2"],
             timeline.Events.Take(6));
     }
 
@@ -392,7 +392,7 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.Equal(2, timeline.Received.Count);
         Assert.Same(timeline.Received[0], Assert.Single(first.Diagnostics));
         Assert.Same(timeline.Received[1], Assert.Single(second.Diagnostics));
-        Assert.Equal(2, timeline.Events.Count(e => e == "receive MIST_PKG_002"));
+        Assert.Equal(2, timeline.Events.Count(e => e == "receive MIST0036"));
     }
 
     private static CompilerDriver CreateDriver(Timeline timeline)
@@ -423,7 +423,7 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         public void Receive(Diagnostic diagnostic)
         {
-            Events.Add($"receive {diagnostic.Id.Value}");
+            Events.Add($"receive {diagnostic.Number.Value}");
             Received.Add(diagnostic);
         }
     }

@@ -39,7 +39,7 @@ public sealed class TypeParameterNameTests
 
         var reported = diagnostics.ToImmutableArray();
         Assert.Equal(findings, reported.Length);
-        Assert.All(reported, diagnostic => Assert.Equal("MIST_PM_DUPLICATE_TYPE_PARAMETER", diagnostic.Id.Value));
+        Assert.All(reported, diagnostic => Assert.Equal("MIST0408", diagnostic.Number.Value));
         Assert.Equal(nodes.Length, box.TypeParametersList.Count);
     }
 
@@ -52,7 +52,7 @@ public sealed class TypeParameterNameTests
         TypeParameterPopulator.Populate(
             box, box.Scope, box, new TypeParameterListNode { TypeParameter = Dependent("N", 10), TypeParameters = [Dependent("N", 40)] }, diagnostics);
 
-        Assert.Equal(41, Assert.Single(diagnostics.ToImmutableArray()).Location.Start.Column);
+        Assert.Equal(41, Assert.Single(diagnostics.ToImmutableArray()).Position().Start.Column);
     }
 
     private static TypeParameterNode Dependent(string name, int offset)

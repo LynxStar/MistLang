@@ -23,7 +23,7 @@ This plan implements end-to-end interface member dispatch in the Mist compiler. 
     - **Property 1: Interface member lookup resolves correctly through hierarchy**
     - Create `Test/Mist.Tests/Semantics/InterfaceMemberLookupPropertyTests.cs`
     - Generate `InterfaceType` hierarchies (varying depth, width, diamond patterns) with random methods in `MemberScope`
-    - For any member name that exists in the hierarchy, verify `LookupMemberType` returns the member's declared type and emits no `MIST_UNDEFINED_MEMBER` diagnostic
+    - For any member name that exists in the hierarchy, verify `LookupMemberType` returns the member's declared type and emits no `MIST_UNDEFINED_MEMBER (historical)` diagnostic
     - Minimum 100 iterations
     - **Validates: Requirements 1.1, 1.2, 1.3, 5.1, 6.1**
 
@@ -31,7 +31,7 @@ This plan implements end-to-end interface member dispatch in the Mist compiler. 
     - **Property 2: Interface member lookup emits diagnostic for missing members**
     - Create `Test/Mist.Tests/Semantics/InterfaceMemberLookupMissingPropertyTests.cs`
     - Generate `InterfaceType` hierarchies and member names that do NOT exist anywhere in the hierarchy
-    - Verify `LookupMemberType` emits exactly one `MIST_UNDEFINED_MEMBER` diagnostic and returns `UnknownType`
+    - Verify `LookupMemberType` emits exactly one `MIST_UNDEFINED_MEMBER (historical)` diagnostic and returns `UnknownType`
     - Minimum 100 iterations
     - **Validates: Requirements 1.4**
 

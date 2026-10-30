@@ -22,13 +22,13 @@ public sealed class SymbolicBoundSubstitutionTests
 
     [Theory]
     [InlineData("extension-receiver", "fixed", 2L, null)]
-    [InlineData("extension-receiver", "fixed", 7L, "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("extension-receiver", "open", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData("extension-receiver", "fixed", 7L, "MIST0276")]
+    [InlineData("extension-receiver", "open", 2L, "MIST0277")]
     [InlineData("this", "fixed", 2L, null)]
-    [InlineData("this", "fixed", 7L, "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("this", "open", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("captured-receiver", "fixed", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("parameter-named-like-the-receiver", "fixed", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData("this", "fixed", 7L, "MIST0276")]
+    [InlineData("this", "open", 2L, "MIST0277")]
+    [InlineData("captured-receiver", "fixed", 2L, "MIST0277")]
+    [InlineData("parameter-named-like-the-receiver", "fixed", 2L, "MIST0277")]
     public void AReceiverMemberBound_IsReadOnlyThroughTheCalleesOwnReceiver(string receiver, string count, long argument, string? expected)
     {
         var block = new ExtensionBlock("self", "Probe", new ExtensionScope(null), null)
@@ -67,9 +67,9 @@ public sealed class SymbolicBoundSubstitutionTests
 
     [Theory]
     [InlineData(2L, 3L, null, 0)]
-    [InlineData(5L, 3L, "MIST_PA_CONSTRAINT_VIOLATED", 1)]
-    [InlineData(3L, 3L, "MIST_PA_CONSTRAINT_VIOLATED", 1)]
-    [InlineData(1L, null, "MIST_PA_CONSTRAINT_UNPROVEN", 1)]
+    [InlineData(5L, 3L, "MIST0276", 1)]
+    [InlineData(3L, 3L, "MIST0276", 1)]
+    [InlineData(1L, null, "MIST0277", 1)]
     public void ASiblingParameterBound_ReadsTheArgumentPassedForIt(long lo, long? hi, string? expected, int column)
     {
         var upper = new Parameter("hi", h.Int);
@@ -79,7 +79,7 @@ public sealed class SymbolicBoundSubstitutionTests
         var findings = Call(take, [h.Literal(lo, offset: 0), passed], [.. take.ParametersList.Select(parameter => parameter.Type)]);
 
         Assert.Equal(expected, Single(findings));
-        Assert.All(findings, finding => Assert.Equal(column, finding.Location.Start.Column));
+        Assert.All(findings, finding => Assert.Equal(column, finding.Position().Start.Column));
     }
 
     [Fact]
@@ -88,18 +88,18 @@ public sealed class SymbolicBoundSubstitutionTests
         var take = Take(new Parameter("hi", h.Int), new Parameter("hi", h.Int));
 
         Assert.Equal(
-            "MIST_PA_CONSTRAINT_UNPROVEN",
+            "MIST0277",
             Single(Call(take, [h.Literal(2L, offset: 0), h.Literal(3L, offset: 10)], [.. take.ParametersList.Select(parameter => parameter.Type)])));
     }
 
     [Theory]
     [InlineData("closed-three", 2L, null)]
-    [InlineData("closed-three", 7L, "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData("closed-unknown", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData("closed-three", 7L, "MIST0276")]
+    [InlineData("closed-unknown", 2L, "MIST0277")]
     [InlineData("forwarded-at-least-five", 2L, null)]
-    [InlineData("forwarded-at-least-five", 6L, "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("forwarded-unconstrained", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("unclosed", 2L, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData("forwarded-at-least-five", 6L, "MIST0277")]
+    [InlineData("forwarded-unconstrained", 2L, "MIST0277")]
+    [InlineData("unclosed", 2L, "MIST0277")]
     public void ADependentBound_ReadsWhatTheConstructionClosesItWith(string closing, long argument, string? expected)
     {
         var buffer = HandBuiltModel.Class("Buf<>");
@@ -150,6 +150,6 @@ public sealed class SymbolicBoundSubstitutionTests
 
     private static string? Single(IReadOnlyList<Diagnostic> findings)
     {
-        return findings.Count == 0 ? null : Assert.Single(findings).Id.Value;
+        return findings.Count == 0 ? null : Assert.Single(findings).Number.Value;
     }
 }

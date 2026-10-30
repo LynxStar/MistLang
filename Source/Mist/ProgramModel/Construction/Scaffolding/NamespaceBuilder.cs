@@ -78,12 +78,12 @@ internal sealed class NamespaceBuilder
 
                 if(fileScopedCount > 1)
                 {
-                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateFileScopedNamespace, nsDecl, null);
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateFileScopedNamespace, nsDecl, null);
                     hasErrors = true;
                 }
                 else if(hasBlockNamespace)
                 {
-                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
                     hasErrors = true;
                 }
 
@@ -94,7 +94,7 @@ internal sealed class NamespaceBuilder
             {
                 if(hasFileScopedNamespace)
                 {
-                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MixedNamespaceStyles, nsDecl, null);
                     hasErrors = true;
                 }
 
@@ -125,7 +125,7 @@ internal sealed class NamespaceBuilder
 
             if(nestedNsDecl is FileScopedNamespaceNamespaceDeclarationNode)
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.FileScopedInsideBlock, nestedNsDecl, null);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.FileScopedInsideBlock, nestedNsDecl, null);
             }
             else if(nestedNsDecl is BlockNamespaceNamespaceDeclarationNode)
             {
@@ -274,7 +274,7 @@ internal sealed class NamespaceBuilder
                 qualifiedId = blockNs.Name;
                 break;
             default:
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnexpectedNamespaceNode, namespaceNode, null, namespaceNode.GetType().Name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnexpectedNamespaceNode, namespaceNode, null, new NameValue(namespaceNode.GetType().Name));
                 return "<error>";
         }
 

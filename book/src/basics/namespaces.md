@@ -181,4 +181,4 @@ A few things to keep in mind:
 
 - **Project-scoped only.** Global usings apply exclusively to the project that declares them. If project A references project B, project A does *not* inherit project B's global usings. Each project controls its own implicit imports.
 - **Redundant usings are fine.** If a file contains an explicit `using` for a namespace that is already globally imported, the compiler accepts it silently — no warning, no error.
-- **Ambiguity rules still apply.** If two globally-used namespaces both export a type with the same name, referencing that type without qualification produces the same `MIST_AMBIGUOUS_TYPE` error as with explicit usings.
+- **Ambiguity rules still apply.** If two globally-used namespaces both export a type with the same name, referencing that type without qualification produces the same `MIST_AMBIGUOUS_TYPE (historical)` error as with explicit usings.

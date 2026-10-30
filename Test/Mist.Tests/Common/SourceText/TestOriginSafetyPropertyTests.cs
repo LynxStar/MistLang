@@ -81,7 +81,7 @@ public class TestOriginSafetyPropertyTests
     /// <summary>
     /// For any SyntaxNode with TestOrigin and any SourceSpan value,
     /// DiagnosticHelper.ResolveLocation SHALL return without throwing.
-    /// The result SHALL have path "&lt;unknown&gt;", default location, and null context.
+    /// The result SHALL be absent for a test origin, with no frames.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(TestOriginSafetyPropertyTests) })]
     public bool TestOrigin_ResolveLocation_NeverThrows_ReturnsUnknown(SyntaxNode node, SourceSpan span)
@@ -89,17 +89,16 @@ public class TestOriginSafetyPropertyTests
         node.Origin = TestOrigin.Instance;
         node.Span = span;
 
-        var (path, location, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
+        var resolved = DiagnosticHelper.ResolveLocation(node);
 
-        return path == "<unknown>"
-            && location == default
-            && syntheticContext is null;
+        return resolved.Location is Absent { Reason: AbsenceReason.TestOrigin }
+            && resolved.Frames.IsEmpty;
     }
 
     /// <summary>
     /// For any SyntaxNode with null Origin and any SourceSpan value,
     /// DiagnosticHelper.ResolveLocation SHALL return without throwing.
-    /// Null origin is treated the same as TestOrigin.
+    /// A null origin is absent because nothing has attached one yet.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(TestOriginSafetyPropertyTests) })]
     public bool NullOrigin_ResolveLocation_NeverThrows_ReturnsUnknown(SyntaxNode node, SourceSpan span)
@@ -107,10 +106,9 @@ public class TestOriginSafetyPropertyTests
         node.Origin = null;
         node.Span = span;
 
-        var (path, location, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
+        var resolved = DiagnosticHelper.ResolveLocation(node);
 
-        return path == "<unknown>"
-            && location == default
-            && syntheticContext is null;
+        return resolved.Location is Absent { Reason: AbsenceReason.NotYetAttached }
+            && resolved.Frames.IsEmpty;
     }
 }

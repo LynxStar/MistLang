@@ -75,13 +75,13 @@ This plan implements type argument inference for generic method calls in the Mis
     - _Requirements: 1.1, 1.2, 1.3, 1.5, 4.1, 4.2, 4.3_
 
   - [x] 4.2 Implement `EmitInferenceFailureDiagnostic` helper method
-    - Add diagnostic IDs `MIST_TC_0080` (uninferrable) and `MIST_TC_0081` (conflict)
+    - Add diagnostic IDs `MIST_TC_0080 (historical)` (uninferrable) and `MIST_TC_0081 (historical)` (conflict)
     - Emit exactly one diagnostic per call site with the appropriate message format
     - _Requirements: 4.1, 4.2, 4.3_
 
   - [x] 4.3 Add constraint satisfaction checking for inferred type arguments
     - After inference succeeds, iterate type parameters and call `CheckConstraintSatisfaction` for each inferred type argument (same path as explicit type args)
-    - Reuse existing constraint violation diagnostic IDs (`MIST_TC_0040` through `MIST_TC_0047`)
+    - Reuse existing constraint violation diagnostic IDs (`MIST_TC_0040 (historical)` through `MIST_TC_0047 (historical)`)
     - _Requirements: 4.4, 6.1, 6.2, 6.3, 6.4_
 
   - [x] 4.4 Extend `SubstituteMethodReturnType` to handle inferred type arguments

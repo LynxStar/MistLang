@@ -37,6 +37,7 @@ public sealed class PackTuplePatternEmissionTests
     [Trait("Tier", "2")]
     [InlineData(3, "args is (var a, var b, var c)")]
     [InlineData(2, "args is (object and System.ValueTuple<T1, T2, object>(var a, var b, var c))")]
+    [InlineData(0, "args is (object and (object a, object b, object c))")]
     public void AVarAtAnotherWidth_TakesTheTypeItsElementSpellsThere(int width, string expected)
     {
         var pattern = Over(Var(0, "a"), Var(1, "b"), Var(2, "c"));

@@ -26,11 +26,11 @@ Carbonek project MIST is the work record; this plan is the delivery order, not a
     - _Requirements: 1.7_
 
 - [x] 2. Manifest parsing and resolution
-  - [x] 2.1 `ProjectFileParser` step 9: classify file paths; report `MIST_REFERENCE_UNSUPPORTED_PATH`; leave directory paths for the resolver
+  - [x] 2.1 `ProjectFileParser` step 9: classify file paths; report `MIST0071`; leave directory paths for the resolver
     - Add the descriptor to `DriverDiagnostics`
     - _Requirements: 1.4, 10.1, 10.3_
   - [x] 2.2 `ProjectReferenceResolver`: list a directory at depth one and classify; dispatch by kind; return external assemblies beside Mist references
-    - Reword `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`; add `MIST_REFERENCE_FILE_NOT_FOUND` and `MIST_REFERENCE_AMBIGUOUS`
+    - Reword `MIST0063`; add `MIST0072` and `MIST0073`
     - Key check for `Assembly` immediately; for `CSharpProject` deferred to task 3
     - _Requirements: 1.5, 2.4, 2.5, 2.6, 3.2, 3.4, 10.1, 10.2_
   - [x] 2.3 Tier 3 additions to `ProjectReferenceResolverTests`: one, none, two candidates in a temp directory; assembly key mismatch
@@ -39,11 +39,11 @@ Carbonek project MIST is the work record; this plan is the delivery order, not a
     - _Requirements: 1.7_
 
 - [x] 3. Building referenced C# projects
-  - [x] 3.1 Add `BuildChain` (read, extend, contains) and the `MIST_REFERENCE_CYCLE` descriptor; check the chain at the top of `CompilerDriver.Compile`
+  - [x] 3.1 Add `BuildChain` (read, extend, contains) and the `MIST0075` descriptor; check the chain at the top of `CompilerDriver.Compile`
     - _Requirements: 4.6, 4.7, 10.1_
   - [x] 3.2 Tier 1 `BuildChainTests`
     - _Requirements: 11.4_
-  - [x] 3.3 Add `ExternalAssembly` and `CSharpProjectBuilder` modelled on `DotnetRestoreProcess`: `dotnet build -c Debug -f <tfm> --nologo -v:quiet`, then `-getProperty:TargetPath`; closure and runtime config discovery; 600 s timeout; `MIST_CSHARP_PROJECT_BUILD_FAILED`
+  - [x] 3.3 Add `ExternalAssembly` and `CSharpProjectBuilder` modelled on `DotnetRestoreProcess`: `dotnet build -c Debug -f <tfm> --nologo -v:quiet`, then `-getProperty:TargetPath`; closure and runtime config discovery; 600 s timeout; `MIST0074`
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.8_
   - [x] 3.4 Wire the builder into `CompilerDriver.Compile` before `ResolvePackages`: deepest manifest first, declaration order, once per project; complete the `CSharpProject` key check against the built name
     - Populate `CompilerOptions.AssemblyPaths` and a new `ExternalAssemblies` option; carry them in `PipelineInput`
@@ -66,12 +66,12 @@ Carbonek project MIST is the work record; this plan is the delivery order, not a
     - _Requirements: 7.2, 7.3, 7.7, 7.8_
   - [x] 5.4 Tier 1 `FacadeTypeSelectionTests`
     - _Requirements: 11.2_
-  - [x] 5.5 `CSharpCompilationDriver.Compile`: scan, exclude shadowed paths, root-name cycle, emit facades, reference them; add `MIST_REFERENCE_CYCLE` at the backend stage in `BackendDiagnostics`
+  - [x] 5.5 `CSharpCompilationDriver.Compile`: scan, exclude shadowed paths, root-name cycle, emit facades, reference them; add `MIST0075` at the backend stage in `BackendDiagnostics`
     - _Requirements: 7.4, 7.5, 7.6, 10.1, 10.3_
 
 - [x] 6. Deployment
   - [x] 6.1 Copy external assemblies and closures; version conflict check; write facades; framework check against `framework_references`
-    - Add `MIST_REFERENCE_ASSEMBLY_CONFLICT` and `MIST_REFERENCE_FRAMEWORK_MISSING`
+    - Add `MIST0004` and `MIST0005`
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 10.1_
   - [x] 6.2 Tier 1 `AssemblyConflictRuleTests` over `(name, version)` pairs
     - _Requirements: 11.3_

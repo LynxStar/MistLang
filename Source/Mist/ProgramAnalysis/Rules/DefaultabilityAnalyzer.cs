@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
@@ -54,7 +55,7 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
                 && !Explained(Defaultability.DeclarationOf(defaulted.Type), judged)
                 && !Defaultability.HasDefault(defaulted.Type))
             {
-                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, defaulted.Node, [defaulted], TypeDisplay.Mist(defaulted.Type));
+                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, defaulted.Node, [defaulted], DiagnosticSnapshot.Type(defaulted.Type));
             }
             else if(node is NewExpression { Constructor: null, Type: ConstructedType constructed } allocation
                 && Defaultability.DeclarationOf(constructed) is { } declaration
@@ -62,7 +63,7 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
                 && !Explained(declaration, judged)
                 && !Defaultability.HasImplicitConstructor(constructed))
             {
-                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, allocation.Node, [allocation], TypeDisplay.Mist(constructed));
+                context.Report(ProgramAnalysisDiagnostics.NotDefaultable, allocation.Node, [allocation], DiagnosticSnapshot.Type(constructed));
             }
         }
     }
@@ -127,7 +128,7 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.BaseNotDefaultable, declaration, [],
-                    TypeDisplay.Mist(type), declares, TypeDisplay.Mist(failure.Base!));
+                    DiagnosticSnapshot.Type(type), new EnumValue(declares), DiagnosticSnapshot.Type(failure.Base!));
             }
 
             return;
@@ -142,13 +143,13 @@ internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.RefinementZeroNotAdmitted, at, [],
-                slot.Name, TypeDisplay.Mist(type), declares, TypeDisplay.Mist(slot.Type), TypeDisplay.Mist(Requirement.Unrefined(slot.Type)));
+                new NameValue(slot.Name), DiagnosticSnapshot.Type(type), new EnumValue(declares), DiagnosticSnapshot.Type(slot.Type), DiagnosticSnapshot.Type(Requirement.Unrefined(slot.Type)));
             return;
         }
 
         context.Report(
             slot.Property is null ? ProgramAnalysisDiagnostics.FieldHasNoDefault : ProgramAnalysisDiagnostics.PropertyHasNoDefault, at, [],
-            slot.Name, TypeDisplay.Mist(type), declares, TypeDisplay.Mist(slot.Type));
+            new NameValue(slot.Name), DiagnosticSnapshot.Type(type), new EnumValue(declares), DiagnosticSnapshot.Type(slot.Type));
     }
 
     private readonly record struct Failure(InstanceStorage? Slot, IMistType? Base, ConcreteType? Through, bool ZeroRefused);

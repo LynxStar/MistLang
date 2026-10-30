@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
@@ -48,7 +49,7 @@ internal sealed partial class ReadonlyAnalyzer
             }
             else if(!reported && !IsReadonlyFormatter(step, inference))
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, at.Node, [at], "ToString", frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, at.Node, [at], new NameValue("ToString"), new NameValue(frame.Describe()));
                 reported = true;
             }
         }
@@ -82,7 +83,7 @@ internal sealed partial class ReadonlyAnalyzer
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.ReadonlyContextFormatsMutable, closing.Node, [],
-                            TypeDisplay.Mist(closing.Argument), parameter.Name, by, TypeDisplay.Mist(step.Formatted));
+                            DiagnosticSnapshot.Type(closing.Argument), new NameValue(parameter.Name), new NameValue(by), DiagnosticSnapshot.Type(step.Formatted));
                         reported = true;
                     }
                 }

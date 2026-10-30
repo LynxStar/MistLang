@@ -58,7 +58,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } int Text(); } public class Factory { public int Make() { return -1; } public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
     public void ASelectedMethodLosingItsClosedReturnContract_IsRefused(string declarations)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Id.Value);
+        Assert.Equal("MIST0284", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 
     [Theory]
@@ -74,16 +74,16 @@ public sealed class RefinedReturnDispatchDecisionTests
     }
 
     [Theory]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory { PositiveReal Value { get; } } public class Factory : IFactory { public double Value { get { return 1.0; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }", "MIST_PA_CONSTRAINT_STRENGTHENED")]
-    [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public LargeInt Value { set { } } }", "MIST_PA_CONSTRAINT_STRENGTHENED")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<NonNegativeInt>, IFactory { }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
-    [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public int Value { get { return -1; } } } with Factory : IFactory<PositiveInt> { Value as Value; }", "MIST_PA_REFINEMENT_RETURN_UNPROVEN")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } } }", "MIST0284")]
+    [InlineData("public abstract IFactory { PositiveReal Value { get; } } public class Factory : IFactory { public double Value { get { return 1.0; } } }", "MIST0284")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } set { Held = value; } } }", "MIST0284")]
+    [InlineData("public abstract IFactory { NonNegativeInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }", "MIST0283")]
+    [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public LargeInt Value { set { } } }", "MIST0283")]
+    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<NonNegativeInt>, IFactory { }", "MIST0284")]
+    [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public int Value { get { return -1; } } } with Factory : IFactory<PositiveInt> { Value as Value; }", "MIST0284")]
     public void APropertyLosingEitherAccessorContract_IsRefused(string declarations, string diagnostic)
     {
-        Assert.Equal(diagnostic, Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Id.Value);
+        Assert.Equal(diagnostic, Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
     }
 
     [Theory]
@@ -105,7 +105,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("Outer<PositiveInt>.Token", "Outer<int>.Token")]
     public void AnEmbeddedRefinedReturnWithADifferentClosedType_IsRefused(string promised, string produced)
     {
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", Assert.Single(Embedded(promised, produced)).Id.Value);
+        Assert.Equal("MIST0284", Assert.Single(Embedded(promised, produced)).Number.Value);
     }
 
     [Theory]
@@ -115,7 +115,7 @@ public sealed class RefinedReturnDispatchDecisionTests
     [InlineData("PositiveInt | string", "int | string")]
     public void AStructurallyDifferentEmbeddedReturn_RemainsRefusedBySignatureMatching(string promised, string produced)
     {
-        Assert.Equal("MIST_PA_SLOT_SIGNATURE_MISMATCH", Assert.Single(Embedded(promised, produced)).Id.Value);
+        Assert.Equal("MIST0184", Assert.Single(Embedded(promised, produced)).Number.Value);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class RefinedReturnDispatchDecisionTests
             }
             """);
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", finding.Id.Value);
+        Assert.Equal("MIST0283", finding.Number.Value);
         Assert.Contains("< Bound", finding.Message, StringComparison.Ordinal);
     }
 

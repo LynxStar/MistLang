@@ -66,7 +66,7 @@ public sealed class TypeParameterDistinctionTests
 
         var diagnostic = Conflict(pick, new TypeArgumentConflict(callee, [outer, Int]));
 
-        Assert.Equal("MIST_PM_TYPE_ARGUMENTS_CONFLICT", diagnostic.Id.Value);
+        Assert.Equal("MIST0392", diagnostic.Number.Value);
         Assert.Equal(
             "Cannot infer the type arguments of method 'Pick': the arguments give 'T of method Api.Pick' the types "
             + "'T of method Program.Outer', 'int', and none of them is a type the others all convert to. "
@@ -85,7 +85,7 @@ public sealed class TypeParameterDistinctionTests
             "Cannot infer the type arguments of method 'Pick': the arguments give 'T' the types 'string', 'int', "
             + "and none of them is a type the others all convert to. State all of them explicitly at the call: 'T'.",
             diagnostic.Message);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Fact]

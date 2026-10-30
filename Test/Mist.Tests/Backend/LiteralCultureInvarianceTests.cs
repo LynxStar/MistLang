@@ -107,7 +107,7 @@ public sealed class LiteralCultureInvarianceTests
 
         _ = Assert.IsType<ErrorExpression>(LiteralBinder.BindFloatLiteral(
             BindingFragments.At<FloatLiteralExpressionPrimaryNode>(), "79228162514264337593543950336.0m", fragments.Builder));
-        Assert.Equal("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0377", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static T Under<T>(string culture, Func<T> act)

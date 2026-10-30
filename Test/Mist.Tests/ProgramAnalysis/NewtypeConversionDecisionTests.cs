@@ -15,11 +15,11 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY", "MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_PA_CAST_REQUIRED",
-        "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD",
-        "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PM_UNRESOLVABLE_OVERLOAD",
-        "MIST_PM_AMBIGUOUS_OVERLOAD", "MIST_PM_UNRESOLVED_MEMBER",
-        "MIST_PA_PATTERN_NEVER_MATCHES", "MIST_PM_AS_NO_RELATIONSHIP",
+        "MIST0149", "MIST0152", "MIST0157", "MIST0158",
+        "MIST0153",
+        "MIST0151", "MIST0155", "MIST0390",
+        "MIST0386", "MIST0301",
+        "MIST0193", "MIST0403",
     ];
 
     public NewtypeConversionDecisionTests()
@@ -220,18 +220,18 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("var aStructCloneTested = position is Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aReadonlyCloneTested = cash is Money;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aSourceTestedAgainstItsClone = money is Cash;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aCloneTestedUnderNegation = position is not Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aCloneTestedInAnArm = position switch { Point p => 1, _ => 0 };", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var anOptionalCloneTested = maybePosition is Point;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aGenericCloneTested = kept is Held<int>;", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("var aCloneTestedPastItsSource = position as Point;", "MIST_PM_AS_NO_RELATIONSHIP")]
-    [InlineData("var aSourceTestedAgainstItsCloneByAs = point as Position;", "MIST_PM_AS_NO_RELATIONSHIP")]
+    [InlineData("var aStructCloneTested = position is Point;", "MIST0193")]
+    [InlineData("var aReadonlyCloneTested = cash is Money;", "MIST0193")]
+    [InlineData("var aSourceTestedAgainstItsClone = money is Cash;", "MIST0193")]
+    [InlineData("var aCloneTestedUnderNegation = position is not Point;", "MIST0193")]
+    [InlineData("var aCloneTestedInAnArm = position switch { Point p => 1, _ => 0 };", "MIST0193")]
+    [InlineData("var anOptionalCloneTested = maybePosition is Point;", "MIST0193")]
+    [InlineData("var aGenericCloneTested = kept is Held<int>;", "MIST0193")]
+    [InlineData("var aCloneTestedPastItsSource = position as Point;", "MIST0403")]
+    [InlineData("var aSourceTestedAgainstItsCloneByAs = point as Position;", "MIST0403")]
     public void ATypeTestBetweenACloneAndItsSource_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -244,25 +244,25 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("Position entersWithoutACast = point;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Coord crossesWithoutACast = position;", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Entity leavesAMutableClass = actor;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("Pair<string, int> leavesOnlyForItsOwnArguments = intPair;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Held<string> leavesOnlyForItsOwnInstance = kept;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Pair<int, string> leavesOnlyAsItsSourcePermutes = swapped;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Kept<int> entersAGenericCloneWithoutACast = new Held<int>(4);", "MIST_PA_CAST_REQUIRED")]
-    [InlineData("Kept<int> entersFromAnotherInstance = (Kept<int>)new Held<string>(\"s\");", "MIST_PA_CAST_ARGUMENT_MISMATCH")]
-    [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);", "MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY")]
-    [InlineData("Held<int> | Entity aUnionLeavesOnlyAsItsConstituentsAre = keptOrEntity;", "MIST_PA_NO_IMPLICIT_CONVERSION")]
-    [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("Node<int> aSelfTypedSlotLeavesNothingEither = new Chain<int>(1);", "MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD")]
-    [InlineData("Packed<int, string> aPackConvertsNothing = (Packed<int, string>)new Tagged<int, string>(1);", "MIST_PA_CAST_HAS_NO_CONVERSION")]
+    [InlineData("Position entersWithoutACast = point;", "MIST0158")]
+    [InlineData("Coord crossesWithoutACast = position;", "MIST0158")]
+    [InlineData("Entity leavesAMutableClass = actor;", "MIST0157")]
+    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST0152")]
+    [InlineData("Pair<string, int> leavesOnlyForItsOwnArguments = intPair;", "MIST0157")]
+    [InlineData("Held<string> leavesOnlyForItsOwnInstance = kept;", "MIST0157")]
+    [InlineData("Pair<int, string> leavesOnlyAsItsSourcePermutes = swapped;", "MIST0157")]
+    [InlineData("Kept<int> entersAGenericCloneWithoutACast = new Held<int>(4);", "MIST0158")]
+    [InlineData("Kept<int> entersFromAnotherInstance = (Kept<int>)new Held<string>(\"s\");", "MIST0151")]
+    [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);", "MIST0152")]
+    [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);", "MIST0152")]
+    [InlineData("Held<int> | Entity aUnionLeavesOnlyAsItsConstituentsAre = keptOrEntity;", "MIST0157")]
+    [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST0153")]
+    [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST0153")]
+    [InlineData("Node<int> aSelfTypedSlotLeavesNothingEither = new Chain<int>(1);", "MIST0153")]
+    [InlineData("Packed<int, string> aPackConvertsNothing = (Packed<int, string>)new Tagged<int, string>(1);", "MIST0149")]
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -358,7 +358,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [InlineData("var onAnInstanceOfAGenericNewtype = kept.Doubled();")]
     public void AnExtensionDeclaredForTheSource_IsNotTheNewtypes(string statement)
     {
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal("MIST0301", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Fact]
@@ -431,6 +431,6 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. buildDiagnostics.Concat(findings.ToImmutableArray()).Where(d => Ids.Contains(d.Id.Value))];
+        return [.. buildDiagnostics.Concat(findings.ToImmutableArray()).Where(d => Ids.Contains(d.Number.Value))];
     }
 }

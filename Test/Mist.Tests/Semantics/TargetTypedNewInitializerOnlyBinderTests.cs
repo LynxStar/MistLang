@@ -72,8 +72,8 @@ public sealed class TargetTypedNewInitializerOnlyBinderTests
         Assert.True(declaration.Local.IsFailed);
         Assert.Same(initializerOnly, Assert.IsType<ErrorExpression>(declaration.Initializer).Node);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_TARGET_TYPED_NEW_NO_TARGET", diagnostic.Id.Value);
-        Assert.Equal(41, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0378", diagnostic.Number.Value);
+        Assert.Equal(41, diagnostic.Position().Start.Column);
     }
 
     private static TargetTypedNewExpressionNoArgsPrimaryNode InitializerOnly()

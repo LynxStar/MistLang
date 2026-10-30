@@ -53,9 +53,9 @@ internal static class PostfixBinder
                 return converted;
             }
 
-            context.Diagnostics.ReportAtNode(
+            ProjectedWithholding.Report(context.Diagnostics,
                 ambiguous ? ProgramModelDiagnostics.MethodGroupAmbiguous : ProgramModelDiagnostics.MethodGroupNotConverted,
-                group.Node, null, group.MemberName);
+                group.Node, ProjectedWithholding.Frames(group, ctx.Scope, context.ProgramModel.TypeInterner), new NameValue(group.MemberName));
 
             return new ErrorExpression(group.Node);
         }
@@ -77,7 +77,8 @@ internal static class PostfixBinder
 
         if(found is not MethodGroupResult { Methods.Count: > 0 } group)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, null, name);
+            ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.UnresolvedIdentifier, node,
+                ProjectedWithholding.Frames(ctx.Scope, name), new NameValue(name));
             return new ErrorExpression(node);
         }
 
@@ -183,7 +184,7 @@ internal static class PostfixBinder
     {
         if(node.Arms is null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SwitchExpressionNeedsAnArm, node, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchExpressionNeedsAnArm, node, null);
             return new ErrorExpression(node);
         }
 
@@ -259,8 +260,7 @@ internal static class PostfixBinder
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(values);
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, first.Name, other.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, DiagnosticSnapshot.Type(first, first.Name), DiagnosticSnapshot.Type(other, other.Name));
         }
 
         return common;
@@ -304,7 +304,8 @@ internal static class PostfixBinder
         {
             return OverloadFailure.Retain(
                 choice, group.Candidates, bound,
-                $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound]);
+                $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound],
+                ProjectedWithholding.Frames(group, ctx.Scope, interner));
         }
 
         bound = ArgumentBinder.Settle(bound, selected.ParametersList, choice.Substitution, ctx, context);
@@ -436,9 +437,7 @@ internal static class PostfixBinder
 
         if(bound.Count != function.ParameterTypes.Count)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.FunctionCallArityMismatch, node, null,
-                function.Name, function.ParameterTypes.Count, bound.Count);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.FunctionCallArityMismatch, node, null, DiagnosticSnapshot.Type(function, function.Name), new QuantityValue(function.ParameterTypes.Count), new QuantityValue(bound.Count));
 
             return new ErrorExpression(node, [receiver, .. bound]);
         }
@@ -622,7 +621,7 @@ internal static class PostfixBinder
             _ => node.Span,
         };
 
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, segment, null, qualifiedName);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnresolvedIdentifier, node, segment, null, new NameValue(qualifiedName));
         return new ErrorExpression(node);
     }
 

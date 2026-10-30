@@ -53,7 +53,7 @@ flowchart TD
 - **No special-case logic for primitives**: By marking bootstrap types `readonly` in their source definitions, the type checker uses the same general-purpose `IsTypeReadonly()` path for all types. This is simpler and more maintainable than a hardcoded list.
 - **Validation in TypeCheckerAnalyzer (not SemanticModelBuilder)**: The semantic model builder resolves types; the type checker enforces constraints. This follows the existing separation of concerns (e.g., refinement predicate readonly checks are in `TypeCheckerAnalyzer`).
 - **Two diagnostic IDs**: One for "base type is not readonly" and one for "union constituent is not readonly". This gives developers precise information about which part of a union type is problematic.
-- **Diagnostic IDs MIST_TC_0102 and MIST_TC_0103**: These follow sequentially after the existing highest ID (`MIST_TC_0101` for `PatternIncompatibleRefinement`).
+- **Diagnostic IDs MIST_TC_0102 (historical) and MIST_TC_0103* (historical scheme)*: These follow sequentially after the existing highest ID (`MIST_TC_0101 (historical)` for `PatternIncompatibleRefinement`).
 
 ## Components and Interfaces
 
@@ -212,8 +212,8 @@ All have `public bool IsReadonly { get; internal set; }` which is set by `Semant
 
 | ID | Condition | Message Template |
 |----|-----------|-----------------|
-| `MIST_TC_0102` | Enum base type is not readonly | `"Enum '{EnumName}' has a non-readonly base type '{TypeName}'. Enum base types must be readonly."` |
-| `MIST_TC_0103` | Union constituent is not readonly | `"Enum '{EnumName}' has a non-readonly union constituent type '{TypeName}'. All constituent types in an enum's union base type must be readonly."` |
+| `MIST_TC_0102 (historical)` | Enum base type is not readonly | `"Enum '{EnumName}' has a non-readonly base type '{TypeName}'. Enum base types must be readonly."` |
+| `MIST_TC_0103 (historical)` | Union constituent is not readonly | `"Enum '{EnumName}' has a non-readonly union constituent type '{TypeName}'. All constituent types in an enum's union base type must be readonly."` |
 
 Both diagnostics have severity `Error`.
 
@@ -230,25 +230,25 @@ Both diagnostics have severity `Error`.
 
 ### Property 2: Readonly base type acceptance
 
-*For any* enum declaration whose resolved underlying type is a readonly type (struct, class, interface, or trait with `IsReadonly = true`), the type checker SHALL emit zero `MIST_TC_0102` diagnostics for that enum.
+*For any* enum declaration whose resolved underlying type is a readonly type (struct, class, interface, or trait with `IsReadonly = true`), the type checker SHALL emit zero `MIST_TC_0102 (historical)` diagnostics for that enum.
 
 **Validates: Requirements 2.1, 3.1, 5.1, 5.2, 5.3, 5.4**
 
 ### Property 3: Non-readonly base type rejection
 
-*For any* enum declaration whose resolved underlying type is not a readonly type and is not a union type, the type checker SHALL emit exactly one `MIST_TC_0102` diagnostic whose message contains both the enum's display name and the non-readonly type's display name, with severity `Error`.
+*For any* enum declaration whose resolved underlying type is not a readonly type and is not a union type, the type checker SHALL emit exactly one `MIST_TC_0102 (historical)` diagnostic whose message contains both the enum's display name and the non-readonly type's display name, with severity `Error`.
 
 **Validates: Requirements 2.2, 3.2, 4.1, 4.2, 4.4, 4.5**
 
 ### Property 4: All-readonly union acceptance
 
-*For any* enum declaration whose resolved underlying type is a union type where every constituent is readonly, the type checker SHALL emit zero `MIST_TC_0103` diagnostics for that enum.
+*For any* enum declaration whose resolved underlying type is a union type where every constituent is readonly, the type checker SHALL emit zero `MIST_TC_0103 (historical)` diagnostics for that enum.
 
 **Validates: Requirements 2.3, 3.3**
 
 ### Property 5: Non-readonly union constituent rejection
 
-*For any* enum declaration whose resolved underlying type is a union type containing at least one non-readonly constituent, the type checker SHALL emit exactly one `MIST_TC_0103` diagnostic per non-readonly constituent, each message containing the enum's display name and the specific non-readonly constituent's display name, with severity `Error`.
+*For any* enum declaration whose resolved underlying type is a union type containing at least one non-readonly constituent, the type checker SHALL emit exactly one `MIST_TC_0103 (historical)` diagnostic per non-readonly constituent, each message containing the enum's display name and the specific non-readonly constituent's display name, with severity `Error`.
 
 **Validates: Requirements 2.4, 3.4, 4.3, 4.4, 4.5**
 
@@ -258,8 +258,8 @@ Both diagnostics have severity `Error`.
 
 | Scenario | Diagnostic ID | Severity | Message |
 |----------|--------------|----------|---------|
-| Enum base type is not readonly | `MIST_TC_0102` | Error | `"Enum '{EnumName}' has a non-readonly base type '{TypeName}'. Enum base types must be readonly."` |
-| Union constituent is not readonly | `MIST_TC_0103` | Error | `"Enum '{EnumName}' has a non-readonly union constituent type '{TypeName}'. All constituent types in an enum's union base type must be readonly."` |
+| Enum base type is not readonly | `MIST_TC_0102 (historical)` | Error | `"Enum '{EnumName}' has a non-readonly base type '{TypeName}'. Enum base types must be readonly."` |
+| Union constituent is not readonly | `MIST_TC_0103 (historical)` | Error | `"Enum '{EnumName}' has a non-readonly union constituent type '{TypeName}'. All constituent types in an enum's union base type must be readonly."` |
 
 ### Edge Cases
 
@@ -274,7 +274,7 @@ This is a **breaking change** for any user code that defines enums with non-read
 
 ### Impact on Existing Samples
 
-The existing `samples/Enums/Program.mist` declares `Vec2` (struct) and `Label` (class) without the `readonly` modifier and uses them as enum base types. After this feature, those declarations will produce `MIST_TC_0102` errors.
+The existing `samples/Enums/Program.mist` declares `Vec2` (struct) and `Label` (class) without the `readonly` modifier and uses them as enum base types. After this feature, those declarations will produce `MIST_TC_0102 (historical)` errors.
 
 **Resolution**: The `Vec2` and `Label` types in `samples/Enums/Program.mist` must be updated to include the `readonly` modifier. This is not "modifying working code in another sample" — it is updating the sample to conform to a new language rule, analogous to how adding a new keyword would require updating samples that used that identifier as a variable name. The types themselves are genuinely immutable (their fields are only set in constructors), so adding `readonly` is semantically correct.
 
@@ -292,10 +292,10 @@ Property-based tests validate the five correctness properties above. Each test g
 | Property | Test Class | Strategy |
 |----------|-----------|----------|
 | Property 1 | `ReadonlyModifierPropagationPropertyTests` | Generate random type declarations with/without `readonly`. Build semantic model in-process. Verify `IsReadonly` matches. |
-| Property 2 | `EnumReadonlyAcceptancePropertyTests` | Generate random enum declarations with readonly base types (all four type kinds). Build semantic model + run type checker in-process. Verify zero `MIST_TC_0102` diagnostics. |
-| Property 3 | `EnumNonReadonlyRejectionPropertyTests` | Generate random enum declarations with non-readonly base types. Build semantic model + run type checker in-process. Verify exactly one `MIST_TC_0102` with correct message content and severity. |
-| Property 4 | `EnumReadonlyUnionAcceptancePropertyTests` | Generate random enum declarations with union base types where all constituents are readonly. Verify zero `MIST_TC_0103` diagnostics. |
-| Property 5 | `EnumNonReadonlyUnionRejectionPropertyTests` | Generate random enum declarations with union base types containing non-readonly constituents. Verify correct count and content of `MIST_TC_0103` diagnostics. |
+| Property 2 | `EnumReadonlyAcceptancePropertyTests` | Generate random enum declarations with readonly base types (all four type kinds). Build semantic model + run type checker in-process. Verify zero `MIST_TC_0102 (historical)` diagnostics. |
+| Property 3 | `EnumNonReadonlyRejectionPropertyTests` | Generate random enum declarations with non-readonly base types. Build semantic model + run type checker in-process. Verify exactly one `MIST_TC_0102 (historical)` with correct message content and severity. |
+| Property 4 | `EnumReadonlyUnionAcceptancePropertyTests` | Generate random enum declarations with union base types where all constituents are readonly. Verify zero `MIST_TC_0103 (historical)` diagnostics. |
+| Property 5 | `EnumNonReadonlyUnionRejectionPropertyTests` | Generate random enum declarations with union base types containing non-readonly constituents. Verify correct count and content of `MIST_TC_0103 (historical)` diagnostics. |
 
 All property tests use in-process compilation via `SemanticModelBuilder` and `TypeCheckerAnalyzer` — no process spawning.
 
@@ -307,7 +307,7 @@ All property tests use in-process compilation via `SemanticModelBuilder` and `Ty
 |------|---------|
 | Bootstrap types are readonly | Verify all 14 bootstrap types have `IsReadonly = true` after semantic model construction |
 | Diagnostic message contains "must be readonly" | Verify the specific phrasing in error messages |
-| Diagnostic IDs are unique | Verify `MIST_TC_0102` and `MIST_TC_0103` don't collide with existing IDs |
+| Diagnostic IDs are unique | Verify `MIST_TC_0102 (historical)` and `MIST_TC_0103 (historical)` don't collide with existing IDs |
 | Existing enum features still work | Verify member access, implicit conversion, pattern matching with readonly base types |
 
 ### Integration Tests

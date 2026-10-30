@@ -123,12 +123,11 @@ internal static class AmbientTypeProviderV2Factory
             }
             catch(Exception ex)
             {
-                diagnostics.Report(
+                diagnostics.ReportTyped(
                     BackendDiagnostics.AssemblyLoadFailed,
-                    default,
-                    "<assembly>",
-                    (object?)path,
-                    ex.Message);
+                    new FileOnly(path),
+                    new PathValue(path),
+                    new TextValue(ex.Message));
             }
         }
 

@@ -168,8 +168,8 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
             context.Report(
                 ProgramAnalysisDiagnostics.PureFunctionTypeUntestableClosing, closing.Node, [],
-                closing.Parameter.Name, GenericName(closing.Parameter, context), TypeDisplay.Mist(closing.Argument),
-                GenericName(test.Parameter, context), TypeDisplay.Mist(test.From), TypeDisplay.Mist(test.To), TypeDisplay.Mist(promised));
+                new NameValue(closing.Parameter.Name), new NameValue(GenericName(closing.Parameter, context)), DiagnosticSnapshot.Type(closing.Argument),
+                new NameValue(GenericName(test.Parameter, context)), DiagnosticSnapshot.Type(test.From), DiagnosticSnapshot.Type(test.To), DiagnosticSnapshot.Type(promised));
         }
     }
 
@@ -198,11 +198,11 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         {
             var held = OptionalLifting.NonVoidPortion(input, context.Model.TypeInterner);
             var described = ConversionRelation.CopiesAClone(held, tested) || ConversionRelation.CopiesAClone(tested, held) ? held : input;
-            context.Report(descriptor, test.Node, [about], TypeDisplay.Mist(described), TypeDisplay.Mist(tested));
+            context.Report(descriptor, test.Node, [about], DiagnosticSnapshot.Type(described), DiagnosticSnapshot.Type(tested));
         }
     }
 
-    internal static DiagnosticDescriptor? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? TypeFinding(TypeTestPattern test, IMistType input, TypeInterner interner)
     {
         var tested = test.Constituent ?? test.NarrowedType;
 
@@ -240,15 +240,15 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
     {
         if(ComparisonFinding(comparison, input, context.Model.TypeInterner) is { } descriptor)
         {
-            var expressions = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id ? new[] { about } : [about, comparison.Bound];
-            var args = descriptor.Id == ProgramAnalysisDiagnostics.PatternNotComparable.Id
-                ? new object?[] { TypeDisplay.Mist(input) }
-                : [TypeDisplay.Mist(comparison.Bound.Type), TypeDisplay.Mist(input)];
+            var expressions = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number ? new[] { about } : [about, comparison.Bound];
+            var args = descriptor.Number == ProgramAnalysisDiagnostics.PatternNotComparable.Number
+                ? new SlotValue[] { DiagnosticSnapshot.Type(input) }
+                : [DiagnosticSnapshot.Type(comparison.Bound.Type), DiagnosticSnapshot.Type(input)];
             context.Report(descriptor, comparison.Node, expressions, args);
         }
     }
 
-    internal static DiagnosticDescriptor? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? ComparisonFinding(ComparisonPattern comparison, IMistType input, TypeInterner interner)
     {
         if(Comparability.IsIndeterminate(input) || input is UnionType || comparison.Bound.Type is ErrorType)
         {
@@ -295,7 +295,7 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static DiagnosticDescriptor? ArmFinding(IReadOnlyList<Pattern> earlier, Pattern later, IMistType input, TypeInterner interner)
+    internal static MistDiagnostic? ArmFinding(IReadOnlyList<Pattern> earlier, Pattern later, IMistType input, TypeInterner interner)
     {
         return earlier.Any(pattern => Covers(pattern, later, interner)) || MatchedValues.Covered(earlier, later, input)
             ? ProgramAnalysisDiagnostics.SwitchArmUnreachable

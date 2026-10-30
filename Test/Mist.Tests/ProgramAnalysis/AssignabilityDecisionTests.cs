@@ -116,6 +116,6 @@ public sealed class AssignabilityDecisionTests
         var input = new AssignabilityTypes();
         var diagnostic = Assignability.Judge(input[from], input[to], input.Model.Interner, constant);
 
-        Assert.True(diagnostic is null, $"{caseName}: got {diagnostic?.Id.Value}");
+        Assert.True(diagnostic is null, $"{caseName}: got {diagnostic?.Number.Value}");
     }
 }

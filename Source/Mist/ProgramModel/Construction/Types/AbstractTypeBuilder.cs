@@ -105,7 +105,7 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
             case CastOperatorMemberMemberDeclarationNode:
             case OperatorMemberMemberDeclarationNode:
             case DefaultBlockMemberMemberDeclarationNode:
-                Context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MemberNotAllowedOnAbstract, member, null);
+                Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MemberNotAllowedOnAbstract, member, null);
                 break;
 
             default:

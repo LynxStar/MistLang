@@ -153,7 +153,7 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
     /// Property 2: For any string that is either empty, whitespace-only, or contains
     /// characters outside the valid namespace pattern, parsing a mist.toml with that
     /// string in the namespaces array SHALL produce an error diagnostic (either
-    /// MIST_GLOBAL_USING_EMPTY_NAMESPACE or MIST_GLOBAL_USING_INVALID_NAMESPACE)
+    /// MIST0080 or MIST0081)
     /// and return null.
     ///
     /// **Validates: Requirements 2.1, 2.2**
@@ -186,11 +186,11 @@ public sealed class ProjectFileParserGlobalUsingsPropertyTests
                 var relevantDiag = diags[0];
                 var validIds = new[]
                 {
-                    "MIST_GLOBAL_USING_EMPTY_NAMESPACE",
-                    "MIST_GLOBAL_USING_INVALID_NAMESPACE"
+                    "MIST0080",
+                    "MIST0081"
                 };
 
-                Assert.Contains(relevantDiag.Id.Value, validIds);
+                Assert.Contains(relevantDiag.Number.Value, validIds);
                 Assert.Equal(DiagnosticSeverity.Error, relevantDiag.Severity);
             }
             finally

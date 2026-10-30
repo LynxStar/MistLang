@@ -163,7 +163,7 @@ public class Program
         Console.WriteLine($"twoPacks={twoPacks}");
 
         // PROOF: forwarding a value pack into a Func whose parameter list IS the pack; provable for
-        //        every TArgs (a fixed-arity target would be MIST_VAR_0011, see Requirement 21).
+        //        every TArgs (a fixed-arity target would be MIST0415, see Requirement 21).
         Func<int, int, int, int> add = (a, b, c) => a + b + c;
         var forward = Apply(add, 2, 3, 4);
         Console.WriteLine($"forward={forward}");

@@ -162,7 +162,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
     [InlineData("public local pure struct Box { }")]
     public void ProgramModel_PureAndLocalOnOneDeclarationAreRefused(string declaration)
     {
-        AssertSingleError(declaration, "MIST_PM_PURE_AND_LOCAL");
+        AssertSingleError(declaration, "MIST0318");
     }
 
     [Theory]
@@ -171,7 +171,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
     [InlineData("public class Box { public local Box() { } }")]
     public void ProgramModel_LocalRequiresAnInstance(string declaration)
     {
-        AssertSingleError(declaration, "MIST_PM_LOCAL_REQUIRES_INSTANCE");
+        AssertSingleError(declaration, "MIST0320");
     }
 
     [Theory]
@@ -184,7 +184,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
     [InlineData("public class Box { public static local implicit operator int(Box b) { return 1; } }")]
     public void ProgramModel_PurityModifiersAreRefusedWhereNoScopeMakesThePromise(string declaration)
     {
-        AssertSingleError(declaration, "MIST_PM_PURITY_MODIFIER_PLACEMENT");
+        AssertSingleError(declaration, "MIST0321");
     }
 
     [Theory]
@@ -194,7 +194,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("", declaration);
 
-        var info = Assert.Single(diagnostics, diagnostic => diagnostic.Id.Value == "MIST_PM_READONLY_IMPLIED_BY_PURE");
+        var info = Assert.Single(diagnostics, diagnostic => diagnostic.Number.Value == "MIST0319");
         Assert.Equal(DiagnosticSeverity.Info, info.Severity);
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
     }
@@ -229,7 +229,7 @@ public sealed class PurityModifierTests : ProgramModelProbe
         var diagnostics = BuildRun("", declaration);
 
         var error = Assert.Single(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal(id, error.Id.Value);
+        Assert.Equal(id, error.Number.Value);
     }
 
     private ConcreteType TypeIn(string declaration)

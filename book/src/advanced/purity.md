@@ -23,7 +23,7 @@ The promises nest. Every `pure` member is `readonly`, and every `local readonly`
 
 Leaving a member unmarked does not make a restricted caller assume the worst of it. If the member has a Mist body, the compiler [infers](#inference) the strongest promise that body keeps, and a restricted caller may rely on that. A member that keeps no promise, declared or inferred, may do anything, and a restricted caller assumes it does. That includes every member with no Mist body and no declared promise, since the compiler cannot see what it touches.
 
-Order among the modifiers does not matter. Writing `pure readonly` is accepted with an informational `MIST_PM_READONLY_IMPLIED_BY_PURE`, since the `readonly` adds nothing. Writing `pure local` is an error, `MIST_PM_PURE_AND_LOCAL`: `local` lets a member change its own instance, which `pure` forbids. `local` needs an instance, so it is refused on static members and constructors with `MIST_PM_LOCAL_REQUIRES_INSTANCE`. `pure` is admitted on both.
+Order among the modifiers does not matter. Writing `pure readonly` is accepted with an informational `MIST0319`, since the `readonly` adds nothing. Writing `pure local` is an error, `MIST0318`: `local` lets a member change its own instance, which `pure` forbids. `local` needs an instance, so it is refused on static members and constructors with `MIST0320`. `pure` is admitted on both.
 
 ## What `pure` Means
 
@@ -97,7 +97,7 @@ public static pure int Size(List<int> xs)
 }
 ```
 
-The compiler reports `MIST_PA_PURE_SCOPE_CALLS_IMPURE` at `xs.Count`: `Count` is local readonly, and calling it needs an owned or frozen receiver. Reading a mutable field of an unrestricted input is refused too, as `MIST_PA_PURE_SCOPE_READS_MUTABLE`, and writing one is `MIST_PA_PURE_SCOPE_WRITES`. A pure scope also may not store a frozen input inside something it owns, since that may outlive the loan (`MIST_PA_PURE_SCOPE_STORES_UNOWNED`).
+The compiler reports `MIST0139` at `xs.Count`: `Count` is local readonly, and calling it needs an owned or frozen receiver. Reading a mutable field of an unrestricted input is refused too, as `MIST0138`, and writing one is `MIST0137`. A pure scope also may not store a frozen input inside something it owns, since that may outlive the loan (`MIST0141`).
 
 ## What a Pure Scope May Call
 
@@ -109,9 +109,9 @@ The compiler reports `MIST_PA_PURE_SCOPE_CALLS_IMPURE` at `xs.Count`: `Count` is
 | a `readonly` member | nothing | it may read outside state that can change between calls |
 | a member that keeps no promise, declared or inferred | nothing | it may do anything |
 
-Operators and conversions on the built-in types are pure, and so is the default of a known type, such as `default(int)` or `default(Holder)`. The default of a type parameter is refused, with `MIST_PA_PURE_SCOPE_CALLS_IMPURE`: the type argument chooses what taking it does, and a `default` constraint promises only that a default exists, not that it is pure. The default of a type whose base constructor is not pure is refused too, since taking the default runs that constructor. `new` needs a pure constructor. A function value may be called when its type is a [pure function type](#pure-function-types), or when it is a local holding a lambda whose own promise, declared or inferred, the scope may call: a pure lambda on anything, and a local one only when the scope owns what it captured, as `record` shows [below](#local-functions-and-lambdas). Any other function value is refused. A pure scope performs no input or output, directly or through anything it calls, and it may not `await`.
+Operators and conversions on the built-in types are pure, and so is the default of a known type, such as `default(int)` or `default(Holder)`. The default of a type parameter is refused, with `MIST0139`: the type argument chooses what taking it does, and a `default` constraint promises only that a default exists, not that it is pure. The default of a type whose base constructor is not pure is refused too, since taking the default runs that constructor. `new` needs a pure constructor. A function value may be called when its type is a [pure function type](#pure-function-types), or when it is a local holding a lambda whose own promise, declared or inferred, the scope may call: a pure lambda on anything, and a local one only when the scope owns what it captured, as `record` shows [below](#local-functions-and-lambdas). Any other function value is refused. A pure scope performs no input or output, directly or through anything it calls, and it may not `await`.
 
-A `local` scope follows the same table with one difference: it cannot read a frozen input, only its own instance and what it creates. It may use its arguments as values (store them, pass them on, compare them, read the fields of a struct passed by value), but it may not read or write through a reference-typed argument. Reading a field through one is `MIST_PA_LOCAL_SCOPE_READS_ARGUMENT`.
+A `local` scope follows the same table with one difference: it cannot read a frozen input, only its own instance and what it creates. It may use its arguments as values (store them, pass them on, compare them, read the fields of a struct passed by value), but it may not read or write through a reference-typed argument. Reading a field through one is `MIST0140`.
 
 A `readonly` scope may call `readonly`, `pure` and `local readonly` members on anything. On something it owns, it may also write a field or an index, and call a `local` member, a `local` setter included. Those rules let a readonly member build a value before returning it: a readonly method may create a list, `Add` to it and return it, because `readonly` restricts what it does to what it was given, not to what it made. The [Readonly](../object-model/readonly.md#readonly-methods) chapter lists them with the rest of what a readonly method may do.
 
@@ -132,13 +132,13 @@ A local function or lambda declared `local` treats what it captured as its own i
 {{#endtab }}
 {{#endtabs }}
 
-`record` is a `local` lambda whose instance is `readings`, and `Widest` is a `local readonly` local function that only reads it. `Spread` created `readings`, so both calls are calls to a local member on something `Spread` owns, and `Spread` stays pure. It prints `Spread()=6`. Had `readings` been a parameter of `Spread`, `record(3)` would be refused with `MIST_PA_PURE_SCOPE_CALLS_IMPURE`: the lambda is local, and its receiver is not owned.
+`record` is a `local` lambda whose instance is `readings`, and `Widest` is a `local readonly` local function that only reads it. `Spread` created `readings`, so both calls are calls to a local member on something `Spread` owns, and `Spread` stays pure. It prints `Spread()=6`. Had `readings` been a parameter of `Spread`, `record(3)` would be refused with `MIST0139`: the lambda is local, and its receiver is not owned.
 
 A local function also accepts `pure`. A bare `readonly` stays refused on a local function; write `local readonly` or `pure`. A pure lambda or local function is judged differently from a local one: its captured variables are inputs from outside, as [Pure Function Types](#pure-function-types) describes.
 
 ## Promises on a Type
 
-You can write `local`, `local readonly` or `pure` on a class, a struct or an [abstract type](../object-model/abstract-types.md), and every member of the type then makes the promise. An enum or a newtype takes `readonly` but not these: writing one there is `MIST_PM_PURITY_MODIFIER_PLACEMENT`.
+You can write `local`, `local readonly` or `pure` on a class, a struct or an [abstract type](../object-model/abstract-types.md), and every member of the type then makes the promise. An enum or a newtype takes `readonly` but not these: writing one there is `MIST0321`.
 
 - On a `pure` type, every member is pure, constructors and static members included. Every field is stable, and no member writes an instance once it is constructed, so a pure type cannot change after construction. A pure scope may read its state through any reference, not only a frozen one, and may call any of its members.
 - On a `local` type, every instance method, property and indexer is `local`. Constructors and static members, which have no instance, keep what they declare or infer. A member that also writes `readonly` is `local readonly`. A member that writes `pure` is pure, which replaces `local` rather than conflicting with it.
@@ -196,7 +196,7 @@ A pure member that calls a function it was given can only be pure if the functio
 {{#endtab }}
 {{#endtabs }}
 
-The lambda `n => n + 1` converts to `pure func<int, int>` because its body keeps the pure rules. A lambda is judged once, where it converts, as a pure scope whose captured variables are inputs from outside. It may read a captured variable only when nothing can assign that variable after the capture: `offset` is `readonly`, and a local assigned again after the capture would be refused with `MIST_PA_PURE_SCOPE_READS_MUTABLE`. The method group `AddTen` converts because `AddTen` is a pure member. In the emitted C#, the promise is gone: `Twice` takes a plain `System.Func<int, int>`. The program prints:
+The lambda `n => n + 1` converts to `pure func<int, int>` because its body keeps the pure rules. A lambda is judged once, where it converts, as a pure scope whose captured variables are inputs from outside. It may read a captured variable only when nothing can assign that variable after the capture: `offset` is `readonly`, and a local assigned again after the capture would be refused with `MIST0138`. The method group `AddTen` converts because `AddTen` is a pure member. In the emitted C#, the promise is gone: `Twice` takes a plain `System.Func<int, int>`. The program prints:
 
 ```text
 Twice(n => n + 1, 3)=5
@@ -211,9 +211,9 @@ A lambda that does something impure does not convert:
 Twice(n => { Console.WriteLine(n); return n; }, 3);
 ```
 
-The compiler reports `MIST_PA_PURE_SCOPE_CALLS_IMPURE` at the `Console.WriteLine` inside the lambda, the operation that breaks purity, rather than at the call to `Twice`.
+The compiler reports `MIST0139` at the `Console.WriteLine` inside the lambda, the operation that breaks purity, rather than at the call to `Twice`.
 
-A pure function type converts implicitly to the same function type without `pure`, as `plain` shows, and to a CLR delegate of the same shape, such as a `System.Predicate<int>` from a `pure func<int, bool>`. The reverse is refused, and a cast does not help: the assignment below is `MIST_PA_NO_IMPLICIT_CONVERSION`, and the same conversion written as a cast is `MIST_PA_CAST_HAS_NO_CONVERSION`.
+A pure function type converts implicitly to the same function type without `pure`, as `plain` shows, and to a CLR delegate of the same shape, such as a `System.Predicate<int>` from a `pure func<int, bool>`. The reverse is refused, and a cast does not help: the assignment below is `MIST0157`, and the same conversion written as a cast is `MIST0149`.
 
 ```mist
 func<int, int> plain = n => n + 1;
@@ -302,7 +302,7 @@ public class Holder
 }
 ```
 
-The compiler reports `MIST_PA_DEFAULT_NOT_CONSISTENT` at the initializer, naming the field, its type and the operation that is not pure. A default may still fail, since pure is not total: an initializer that divides by zero is pure, and fails the same way each time the default is taken.
+The compiler reports `MIST0143` at the initializer, naming the field, its type and the operation that is not pure. A default may still fail, since pure is not total: an initializer that divides by zero is pure, and fails the same way each time the default is taken.
 
 **Refinement predicates.** A member that a [refinement predicate](../type-system/refinement-types.md#property-pattern-refinements) reads must be a pure member or a stable field, since the predicate's answer has to hold for as long as the value exists. `local readonly` is not enough: it reads its instance's current state, which may change after the value was proven.
 
@@ -310,7 +310,7 @@ The compiler reports `MIST_PA_DEFAULT_NOT_CONSISTENT` at the initializer, naming
 type NonEmpty = List<int> { Count: > 0 };
 ```
 
-`List<T>.Count` is local readonly, so this is `MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER`. The `NonEmpty` refinement in the inference snippet is admitted because `Interval.Length` is pure over readonly fields.
+`List<T>.Count` is local readonly, so this is `MIST0175`. The `NonEmpty` refinement in the inference snippet is admitted because `Interval.Length` is pure over readonly fields.
 
 ## Mist Is Culture-Invariant
 
@@ -322,7 +322,7 @@ Mist is culture-invariant instead. Every conversion between a value and text, ev
 
 Sorting a `List<string>` uses the invariant culture's order. That order comes from the ICU data the runtime loads when it starts, so it holds for the whole run, though another .NET version or globalization mode may order some text differently. By the definition above, that is part of the program's setting. Another ordering, such as ordinal, would be a member of its own.
 
-Interpolation and concatenation have no declaration in Standard to state a promise. The compiler rules on each hole instead. A hole whose text its type fixes is pure: a primitive, a string, an enum, a newtype, a type declared in Mist (unless it implements `System.IFormattable`), or a tuple or optional of these. A hole whose text is decided at run time is refused in a pure scope with `MIST_PA_PURE_SCOPE_CALLS_IMPURE`: a type parameter, `unknown`, a CLR type, or a container such as `List<T>`, whose `ToString` the program cannot see.
+Interpolation and concatenation have no declaration in Standard to state a promise. The compiler rules on each hole instead. A hole whose text its type fixes is pure: a primitive, a string, an enum, a newtype, a type declared in Mist (unless it implements `System.IFormattable`), or a tuple or optional of these. A hole whose text is decided at run time is refused in a pure scope with `MIST0139`: a type parameter, `unknown`, a CLR type, or a container such as `List<T>`, whose `ToString` the program cannot see.
 
 {{#tabs }}
 {{#tab name="Mist" }}

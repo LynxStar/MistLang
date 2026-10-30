@@ -18,8 +18,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "1")]
 public sealed class DependentDomainDecisionTests
 {
-    private const string NotAssignable = "MIST_DT_0003";
-    private const string NotConvertible = "MIST_DT_0004";
+    private const string NotAssignable = "MIST0280";
+    private const string NotConvertible = "MIST0281";
 
     private readonly HandBuiltModel built = new();
 
@@ -62,7 +62,7 @@ public sealed class DependentDomainDecisionTests
     [InlineData("UInt64", long.MinValue)]
     public void AValueOneBeyondItsDomainsBoundary_IsRefused(string domain, object value)
     {
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent(domain), Lifted(value))?.Id.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent(domain), Lifted(value))?.Number.Value);
     }
 
     [Theory]
@@ -75,7 +75,7 @@ public sealed class DependentDomainDecisionTests
     [InlineData("Char", true)]
     public void AValueOfAnotherKind_IsRefusedWhateverItsNumber(string domain, object value)
     {
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent(domain), Lifted(value))?.Id.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent(domain), Lifted(value))?.Number.Value);
     }
 
     [Theory]
@@ -91,8 +91,8 @@ public sealed class DependentDomainDecisionTests
     [Fact]
     public void ATypeInAValueSlot_IsRefused()
     {
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent("Int32"), built.Type("String"))?.Id.Value);
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent("Int32"), new TypeParameter("T", 0, new Scope(null), null))?.Id.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent("Int32"), built.Type("String"))?.Number.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(Dependent("Int32"), new TypeParameter("T", 0, new Scope(null), null))?.Number.Value);
     }
 
     [Fact]
@@ -102,14 +102,14 @@ public sealed class DependentDomainDecisionTests
         var slot = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = positive };
 
         Assert.Null(RefinementAnalyzer.DomainFinding(slot, Lifted(200L)));
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(256L))?.Id.Value);
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(true))?.Id.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(256L))?.Number.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(slot, Lifted(true))?.Number.Value);
     }
 
     [Theory]
     [InlineData(1L, null)]
     [InlineData(0L, null)]
-    [InlineData(-1L, "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED")]
+    [InlineData(-1L, "MIST0278")]
     [InlineData(true, NotAssignable)]
     public void AQualifiedRefinementAliasAdmitsOnlyValuesOfItsKindAndPredicate(object value, string? expected)
     {
@@ -130,7 +130,7 @@ public sealed class DependentDomainDecisionTests
         };
         var argument = new LiftedType(value is bool ? h.Bool : h.Int, value);
 
-        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, argument)?.Id.Value);
+        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, argument)?.Number.Value);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed class DependentDomainDecisionTests
     [InlineData("UInt16", "Char")]
     public void AParameterForwardedIntoANarrowerOrForeignDomain_IsRefused(string from, string to)
     {
-        Assert.Equal(NotConvertible, RefinementAnalyzer.DomainFinding(Dependent(to), Dependent(from, "M"))?.Id.Value);
+        Assert.Equal(NotConvertible, RefinementAnalyzer.DomainFinding(Dependent(to), Dependent(from, "M"))?.Number.Value);
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public sealed class DependentDomainDecisionTests
         wide.Domain = HandBuiltModel.Refined(built.Type("Int32"), "Small");
 
         Assert.Null(RefinementAnalyzer.DomainFinding(Dependent("Int64"), wide));
-        Assert.Equal(NotConvertible, RefinementAnalyzer.DomainFinding(Dependent("Int32"), narrow)?.Id.Value);
+        Assert.Equal(NotConvertible, RefinementAnalyzer.DomainFinding(Dependent("Int32"), narrow)?.Number.Value);
     }
 
     [Fact]
@@ -207,14 +207,14 @@ public sealed class DependentDomainDecisionTests
             Refinement = h.Compare(h.Int, ComparisonKind.LessThan, 10L),
         };
 
-        Assert.Equal(NotAssignable, RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 300L))?.Id.Value);
-        Assert.Equal("MIST_PA_DEPENDENT_ARGUMENT_VIOLATED", RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 20L))?.Id.Value);
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 300L))?.Number.Value);
+        Assert.Equal("MIST0278", RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 20L))?.Number.Value);
         Assert.Null(RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, 9L)));
     }
 
     [Theory]
     [InlineData(false, null)]
-    [InlineData(true, "MIST_PA_DEPENDENT_ARGUMENT_VIOLATED")]
+    [InlineData(true, "MIST0278")]
     public void AULongAboveLongMeetsAPredicateAsTheTopItSaturatesAt(bool boundedAbove, string? expected)
     {
         var kind = boundedAbove ? ComparisonKind.LessThan : ComparisonKind.GreaterThanOrEqual;
@@ -228,12 +228,12 @@ public sealed class DependentDomainDecisionTests
             Refinement = h.Compare(ulongType, kind, HandBuiltModel.Literal(ulongType, bound)),
         };
 
-        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, ulong.MaxValue))?.Id.Value);
+        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, new LiftedType(h.Int, ulong.MaxValue))?.Number.Value);
     }
 
     [Theory]
     [InlineData(true, null)]
-    [InlineData(false, "MIST_PA_DEPENDENT_FORWARD_UNPROVEN")]
+    [InlineData(false, "MIST0279")]
     public void AForwardedParameterMustImplyTheRefinementItFills(bool constrained, string? expected)
     {
         var h = new HandBuiltRefinements();
@@ -250,7 +250,7 @@ public sealed class DependentDomainDecisionTests
             Refinement = constrained ? h.Compare(h.Int, ComparisonKind.GreaterThanOrEqual, 1L) : null,
         };
 
-        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, forwarded)?.Id.Value);
+        Assert.Equal(expected, RefinementAnalyzer.DependentFinding(slot, forwarded)?.Number.Value);
     }
 
     [Theory]

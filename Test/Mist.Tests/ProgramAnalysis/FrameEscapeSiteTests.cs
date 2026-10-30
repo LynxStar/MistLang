@@ -30,7 +30,7 @@ public sealed class FrameEscapeSiteTests
                 Run(Assign(Ref(h), f.NewHolder(Ref(Parameter("p", f.Span))))), Return(Ref(h, 37))),
         };
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST_PA_STACK_SPAN_RETURNED", "This 'Holder' refers to stackalloc memory");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Holder' refers to stackalloc memory");
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class FrameEscapeSiteTests
             HandBuiltModel.Node(), Ref(st), new ProgramModel.Model.Patterns.TypeTestPattern(HandBuiltModel.Node(), f.Span, three), f.Model.Type("Boolean"));
         var body = HandBuiltModel.Block(Declare(st, f.Stackalloc()), new IfStatement(test, HandBuiltModel.Block(Return(Ref(three, 37))), null));
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST_PA_STACK_SPAN_RETURNED", "This 'Span");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Span");
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class FrameEscapeSiteTests
         var lambda = new LambdaExpression(
             HandBuiltModel.Node(), [], f.Stackalloc(37), null, false, f.Model.Interner.GetOrCreateFunctionType([], f.Span));
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), Run(lambda)), "MIST_PA_STACK_SPAN_RETURNED", "This 'Span");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), Run(lambda)), "MIST0265", "This 'Span");
     }
 
     [Theory]
@@ -77,7 +77,7 @@ public sealed class FrameEscapeSiteTests
             Declare(h, f.NewHolder(Ref(Parameter("r", f.Span)))),
             Run(Assign(target, Ref(st, 37))));
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST_PA_STACK_SPAN_STORED", $"cannot be stored in {destination}:");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0266", $"cannot be stored in {destination}:");
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class FrameEscapeSiteTests
             Declare(h, f.NewHolder(Ref(Parameter("p", f.Span)))),
             Run(Call(f.Put, Ref(h), 0, Ref(st, 37))));
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST_PA_STACK_SPAN_PASSED", "passed to 'Put' alongside local 'h'");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0267", "passed to 'Put' alongside local 'h'");
     }
 
     [Theory]
@@ -112,7 +112,7 @@ public sealed class FrameEscapeSiteTests
             _ => HandBuiltModel.Block(Declare(st, f.Stackalloc()), Return(f.Element(Ref(st), 37), isRef: true)),
         };
 
-        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST_PA_REF_RETURN_ESCAPES", $"it refers to {origin},");
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0268", $"it refers to {origin},");
     }
 
     [Theory]
@@ -173,8 +173,8 @@ public sealed class FrameEscapeSiteTests
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected, string message)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expected, diagnostic.Id.Value);
+        Assert.Equal(expected, diagnostic.Number.Value);
         Assert.Contains(message, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

@@ -73,7 +73,7 @@ This plan implements enum declarations for the Mist programming language across 
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4_
 
   - [x] 3.6 Add diagnostic IDs for enum errors
-    - Register `MIST_SB_0080` through `MIST_SB_0084` in the diagnostics infrastructure
+    - Register `MIST_SB_0080 (historical)` through `MIST_SB_0084 (historical)` in the diagnostics infrastructure
     - Report errors for: member value not assignable to explicit type, member value not assignable to inferred type, undefined member access, reverse conversion, duplicate enum name
     - _Requirements: 3.5, 3.6, 3.7, 5.2_
 
@@ -103,7 +103,7 @@ This plan implements enum declarations for the Mist programming language across 
   - [x] 5.1 Add enum member access resolution in type checker
     - Modify `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Resolve `EnumName.MemberName` as static member access on the enum type
-    - Report `MIST_SB_0082` for undefined member access
+    - Report `MIST_SB_0082 (historical)` for undefined member access
     - _Requirements: 5.1, 5.2, 5.3_
 
   - [x] 5.2 Add enum as valid type reference
@@ -112,7 +112,7 @@ This plan implements enum declarations for the Mist programming language across 
 
   - [x] 5.3 Implement implicit conversion from enum to underlying type
     - Add conversion rule: enum → underlying type is accepted without error
-    - Reject reverse conversion (underlying type → enum) with `MIST_SB_0083`
+    - Reject reverse conversion (underlying type → enum) with `MIST_SB_0083 (historical)`
     - _Requirements: 7.1, 7.2, 7.3_
 
   - [x] 5.4 Implement nominal type distinction
@@ -132,7 +132,7 @@ This plan implements enum declarations for the Mist programming language across 
   - [x] 5.7 Write property test for invalid member access (Property 6)
     - **Property 6: Invalid member access produces error**
     - Create `Test/Mist.Tests/Analysis/EnumInvalidMemberAccessPropertyTests.cs`
-    - Generate enums, compile programs accessing non-existent members, verify `MIST_SB_0082` diagnostic
+    - Generate enums, compile programs accessing non-existent members, verify `MIST_SB_0082 (historical)` diagnostic
     - **Validates: Requirements 5.2**
 
   - [x] 5.8 Write property test for enum as type reference (Property 7)

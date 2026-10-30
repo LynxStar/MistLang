@@ -60,7 +60,7 @@ public sealed class PipelineDebugTests
         // Check for parse errors
         var allDiags = parseBag.ToImmutableArray();
         var parseErrors = allDiags.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var diagDump = string.Join("\n", allDiags.Select(d => $"  [{d.Severity}] {d.Id.Value}: {d.Message}"));
+        var diagDump = string.Join("\n", allDiags.Select(d => $"  [{d.Severity}] {d.Number.Value}: {d.Message}"));
 
         Assert.True(parseResult.Root is not null,
             $"Parse returned null root.\nDiagnostics:\n{diagDump}\nFirst 30 tokens:\n{tokenDump}");
@@ -160,7 +160,7 @@ public sealed class PipelineDebugTests
         var parseResult = parser.Parse(tokenStream, parseBag);
 
         var allDiags = parseBag.ToImmutableArray();
-        var diagDump = string.Join("\n", allDiags.Select(d => $"  [{d.Severity}] {d.Id.Value}: {d.Message}"));
+        var diagDump = string.Join("\n", allDiags.Select(d => $"  [{d.Severity}] {d.Number.Value}: {d.Message}"));
 
         Assert.True(parseResult.Root is not null,
             $"[{name}] Parse returned null root.\nDiagnostics:\n{diagDump}");

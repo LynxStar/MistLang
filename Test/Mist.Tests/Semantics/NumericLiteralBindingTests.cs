@@ -86,14 +86,14 @@ public sealed class NumericLiteralBindingTests
         literal.IntegerLiteral = BindingFragments.Token(lexeme);
 
         _ = Assert.IsType<ErrorExpression>(fragments.Bind(literal));
-        Assert.Equal("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0377", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
     public void ADecimalPastItsRange_IsRefusedRatherThanBoundAsZero()
     {
         _ = Assert.IsType<ErrorExpression>(fragments.Bind(Float("99999999999999999999999999999.5m")));
-        Assert.Equal("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0377", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]

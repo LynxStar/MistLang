@@ -66,12 +66,12 @@ Stages:
     - [x] 8.1 Unit test: `intrinsic public struct Int32 { }` produces a `StructType` with `IsBackendBacked == true`; a member `intrinsic public static Int32 operator +(...);` on that type produces a `Symbol` with `IsIntrinsic == true` and `HasBody == false`.
     _Requirements: 5.1, 5.2, 5.11_
 
-- [x] 9. Add `Pass1e_ValidateIntrinsicMarkers` with diagnostics MIST_SB_0030–0032
+- [x] 9. Add `Pass1e_ValidateIntrinsicMarkers` with diagnostics MIST_SB_0030 (historical)–0032
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add a new Pass 1e immediately after symbol registration. For every type and member, emit:
-    - `MIST_SB_0030` when a member with `IsIntrinsic == true` has a body (Requirement 5.3). Message: `Intrinsic member '{type}.{member}' must not have a body; use ';' to mark it as backend-provided.`
-    - `MIST_SB_0031` when `IsIntrinsic` (member-level) or `IsBackendBacked` (type-level) appears on a declaration whose `CompilationUnit.IsStdlib == false` (Requirements 5.6, 5.13). `CompilationUnit.IsStdlib` is added in Task 26. For now, treat every unit as non-stdlib — this task's diagnostic emission is already correct once Task 26 lands the flag. Message: `The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.`
-    - `MIST_SB_0032` when a member has `IsIntrinsic == true` but its containing type has `IsBackendBacked == false` (Requirement 5.15). Message: `Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{type}' is not intrinsic.`
-    Use the next unallocated `MIST_SB_*` IDs (see design § *Error Handling and Diagnostics*; last used is `MIST_SM_0022`).
+    - `MIST_SB_0030 (historical)` when a member with `IsIntrinsic == true` has a body (Requirement 5.3). Message: `Intrinsic member '{type}.{member}' must not have a body; use ';' to mark it as backend-provided.`
+    - `MIST_SB_0031 (historical)` when `IsIntrinsic` (member-level) or `IsBackendBacked` (type-level) appears on a declaration whose `CompilationUnit.IsStdlib == false` (Requirements 5.6, 5.13). `CompilationUnit.IsStdlib` is added in Task 26. For now, treat every unit as non-stdlib — this task's diagnostic emission is already correct once Task 26 lands the flag. Message: `The 'intrinsic' modifier is reserved for the Standard Library and cannot be used in user code.`
+    - `MIST_SB_0032 (historical)` when a member has `IsIntrinsic == true` but its containing type has `IsBackendBacked == false` (Requirement 5.15). Message: `Member-level 'intrinsic' is only permitted inside a type that is itself declared 'intrinsic'. Type '{type}' is not intrinsic.`
+    Use the next unallocated `MIST_SB_* (historical scheme)` IDs (see design § *Error Handling and Diagnostics*; last used is `MIST_SM_0022 (historical)`).
     - [x] 9.1 Unit test: each of the three diagnostics fires on the corresponding adversarial snippet from design § *Error Handling and Diagnostics* and does NOT fire on the correct-usage counter-example.
     _Requirements: 5.3, 5.6, 5.13, 5.15, 14.3, 14.4, 14.5_
 
@@ -92,11 +92,11 @@ Stages:
     - [x] 11.1 Unit test: an operator declaration on a user struct becomes a `Symbol` with `Name == "operator+"`, `Kind == Method`, the expected parameter types, and `IsIntrinsic == false`.
     _Requirements: 4.6_
 
-- [x] 12. Add operator-declaration shape diagnostics MIST_SB_0033–0035
+- [x] 12. Add operator-declaration shape diagnostics MIST_SB_0033 (historical)–0035
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, validate operator declarations during Pass 1 and emit:
-    - `MIST_SB_0033` — operator declared outside a class/struct body (Requirement 4.7). Message: `Operators must be declared as 'public static' members of a class or struct.`
-    - `MIST_SB_0034` — binary operator without exactly 2 parameters OR unary operator without exactly 1 parameter (Requirements 4.8, 4.9). Message (binary): `Binary operator '{op}' must declare exactly 2 parameters; found {n}.` Message (unary): `Unary operator '{op}' must declare exactly 1 parameter; found {n}.`
-    - `MIST_SB_0035` — operator not declared `public static` (Requirement 4.2). Message: `Operator '{op}' must be declared 'public static'.`
+    - `MIST_SB_0033 (historical)` — operator declared outside a class/struct body (Requirement 4.7). Message: `Operators must be declared as 'public static' members of a class or struct.`
+    - `MIST_SB_0034 (historical)` — binary operator without exactly 2 parameters OR unary operator without exactly 1 parameter (Requirements 4.8, 4.9). Message (binary): `Binary operator '{op}' must declare exactly 2 parameters; found {n}.` Message (unary): `Unary operator '{op}' must declare exactly 1 parameter; found {n}.`
+    - `MIST_SB_0035 (historical)` — operator not declared `public static` (Requirement 4.2). Message: `Operator '{op}' must be declared 'public static'.`
     Binary vs unary arity for each of the 14 operator symbols is fixed in the grammar (Requirement 4.3–4.4); `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||` are binary; `!` is unary; `-` is overloaded between binary and unary based on declared parameter count.
     - [x] 12.1 Unit test: each diagnostic fires on the corresponding adversarial snippet and does NOT fire on the correct-usage counter-example.
     _Requirements: 4.2, 4.7, 4.8, 4.9, 14.6, 14.7_
@@ -112,19 +112,19 @@ Stages:
 - [x] 14. Add `ResolveBinaryOperator` and `ResolveUnaryOperator` helpers in `TypeCheckerAnalyzer`, gated by a feature flag
     Current standard-pipeline binary applicability boundary (2026-10-03): `OperatorAdmissibility`
     types inadmissible binary expressions as ErrorType and `OperatorDecision.Binary` owns
-    `MIST_PA_OPERATOR_NOT_APPLICABLE` (Requirements 6.3/6.6). Failed overload/await binding retains
+    `MIST0200` (Requirements 6.3/6.6). Failed overload/await binding retains
     these expressions for `BodyWalker`; a fallback remains pending until analysis records an actual
     owner, so inline and local-initializer forms preserve the same source refusal. ErrorType alone
     does not prove a prior diagnostic. Recovery evidence and verification belong in Carbonek project
     MIST, on the tasks imported from the former error-sentinel item (5) and
     operator-and-positional-checks entries; this does not close unary work.
     In `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`, add two new private helpers per design § 4:
-    - `ResolveBinaryOperator(string op, ExpressionNode left, ExpressionNode right, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — gathers operator-member candidates from BOTH operand types, calls `OverloadResolver.Resolve`, emits `MIST_TC_0003`/`MIST_TC_0005`/`MIST_TC_0006` on `NoApplicableCandidate` (selecting the ID by which `Check*Node` wrapper is calling), emits `MIST_TC_0032` on `AmbiguousCall`, calls `RecordResolvedOperator` on `Success`, sets the expression type to the selected candidate's `DeclaredType`.
+    - `ResolveBinaryOperator(string op, ExpressionNode left, ExpressionNode right, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — gathers operator-member candidates from BOTH operand types, calls `OverloadResolver.Resolve`, emits `MIST_TC_0003 (historical)`/`MIST_TC_0005 (historical)`/`MIST_TC_0006 (historical)` on `NoApplicableCandidate` (selecting the ID by which `Check*Node` wrapper is calling), emits `MIST_TC_0032 (historical)` on `AmbiguousCall`, calls `RecordResolvedOperator` on `Success`, sets the expression type to the selected candidate's `DeclaredType`.
     - `ResolveUnaryOperator(string op, ExpressionNode operand, SyntaxNode surrounding, ISemanticModel model, DiagnosticBag diagnostics)` — analogous, one operand.
     Add a static boolean `internal static bool UseOperatorOverloadResolution = false;` at the top of `TypeCheckerAnalyzer`. The existing `CheckAdditiveNode`/`CheckMultiplicativeNode`/`CheckRelationalNode`/`CheckEqualityNode` methods and `CheckUnaryNode` cases (`LogicalNotUnaryNode`, `NegateUnaryNode`) are NOT modified yet — do not branch on the flag from them in this task. The flag controls a single new test in Task 16. Production traffic still uses the old path.
     - [x] 14.1 Unit test: `ResolveBinaryOperator` called with a user-declared `Vector3` type and its `operator +` returns `Success` with the correct symbol, sets the result type to `Vector3`, and populates `GetResolvedOperator`.
-    - [x] 14.2 Unit test: `ResolveBinaryOperator` on types with no applicable operator emits `MIST_TC_0003` (or the appropriate ID).
-    - [x] 14.3 Unit test: `ResolveBinaryOperator` on types with two equally-applicable operators emits `MIST_TC_0032`.
+    - [x] 14.2 Unit test: `ResolveBinaryOperator` on types with no applicable operator emits `MIST_TC_0003 (historical)` (or the appropriate ID).
+    - [x] 14.3 Unit test: `ResolveBinaryOperator` on types with two equally-applicable operators emits `MIST_TC_0032 (historical)`.
     _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
 - [x] 15. Extend `OverloadResolver` with left-operand precedence tiebreaker
@@ -197,11 +197,11 @@ Stages:
         1. Computes the stdlib root as `Path.Combine(AppContext.BaseDirectory, "Standard")`.
         2. Enumerates every `*.mist` file under that directory recursively.
         3. Reads each file, wraps it in a `SourceText` and then a `CompilationUnit` with `IsStdlib = true`.
-        4. Emits `MIST_STDLIB_PARSE` (severity Error) with the file path and underlying message on I/O failure.
+        4. Emits `MIST0031` (severity Error) with the file path and underlying message on I/O failure.
         5. Returns an `ImmutableArray<CompilationUnit>`.
     Do NOT wire the loader into `CompilerDriver` yet — that happens in Task 28.
     - [x] 26.1 Unit test: `StdlibLoader.LoadFor` with a temp directory containing two `.mist` files returns both as `CompilationUnit`s with `IsStdlib == true`.
-    - [x] 26.2 Unit test: `StdlibLoader.LoadFor` with a missing directory emits `MIST_STDLIB_PARSE`.
+    - [x] 26.2 Unit test: `StdlibLoader.LoadFor` with a missing directory emits `MIST0031`.
     _Requirements: 10.1, 10.2, 10.3, 10.9_
 
 - [x] 27. Add stdlib compile smoke test
@@ -209,7 +209,7 @@ Stages:
     _Requirements: 1.4, 1.5, 2.4_
 
 - [x] 28. Wire `StdlibLoader` into `CompilerDriver.Compile` and publish stdlib source
-    Modify `Source/Mist/Driver/CompilerDriver.cs` per design § 8: immediately after `var compilation = new MistCompilation(units.ToImmutable());` (current Step 1 end), call `StdlibLoader.LoadFor(backend, allDiagnostics)` and prepend the returned units to `compilation.Units`. If the loader produced any Error diagnostics, abort before lex (compilation fails with `MIST_STDLIB_PARSE`). If no Errors, proceed with the combined unit list through the existing Lex → Parse → SemanticModelBuilder pipeline.
+    Modify `Source/Mist/Driver/CompilerDriver.cs` per design § 8: immediately after `var compilation = new MistCompilation(units.ToImmutable());` (current Step 1 end), call `StdlibLoader.LoadFor(backend, allDiagnostics)` and prepend the returned units to `compilation.Units`. If the loader produced any Error diagnostics, abort before lex (compilation fails with `MIST0031`). If no Errors, proceed with the combined unit list through the existing Lex → Parse → SemanticModelBuilder pipeline.
     Edit `Source/Mist.CLI/Mist.CLI.csproj` (create it if needed) to add `<Content Include="..\..\Source\Standard\**\*.mist" CopyToPublishDirectory="PreserveNewest" TargetPath="Standard\%(RecursiveDir)%(Filename)%(Extension)" />` so `dotnet publish` packages the stdlib into `publish/Standard/` alongside the binary (resolves Requirement 15.5).
     At this point stdlib types coexist with the old `PrimitiveType.*` singletons — nothing routes primitive keywords to stdlib yet.
     - [x] 28.1 Integration test: compile a trivial user program (`namespace X; public class Y { public static void Main() { } }`) and assert the built semantic model contains `Standard.Int32` (discoverable via namespace lookup) in addition to the existing `PrimitiveType.Int`.
@@ -224,10 +224,10 @@ Stages:
 
 - [x] 30. Add `LookupQualifiedStdlibType` helper and implement `ResolvePrimitiveKeyword`
     In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add a new private helper per design § 3(b):
-    - `private IType LookupQualifiedStdlibType(string qualifiedName)` — splits `"Standard.Int32"` into namespace + simple name, walks directly from the global scope to the `Standard` namespace scope, finds the type symbol by simple name, returns its `IType`. Throws a fatal `MIST_STDLIB_MISSING` diagnostic if the stdlib hasn't been loaded or the type isn't present.
+    - `private IType LookupQualifiedStdlibType(string qualifiedName)` — splits `"Standard.Int32"` into namespace + simple name, walks directly from the global scope to the `Standard` namespace scope, finds the type symbol by simple name, returns its `IType`. Throws a fatal `MIST_STDLIB_MISSING (historical)` diagnostic if the stdlib hasn't been loaded or the type isn't present.
     - `private IType ResolvePrimitiveKeyword(PrimitiveTypeNode keyword)` — extracts the keyword lexeme (e.g., `"int"`), looks it up in `KeywordAliases.Map`, passes the qualified name to `LookupQualifiedStdlibType`, returns the result.
     Crucially, `ResolvePrimitiveKeyword` bypasses all scope-chain, using-directive, and user-type machinery (Requirement 7.6).
-    - [x] 30.1 Unit test: `LookupQualifiedStdlibType("Standard.Int32")` returns the stdlib `Standard.Int32` `StructType`; `LookupQualifiedStdlibType("Standard.NonExistent")` throws `MIST_STDLIB_MISSING`.
+    - [x] 30.1 Unit test: `LookupQualifiedStdlibType("Standard.Int32")` returns the stdlib `Standard.Int32` `StructType`; `LookupQualifiedStdlibType("Standard.NonExistent")` throws `MIST_STDLIB_MISSING (historical)`.
     _Requirements: 7.1, 7.6_
 
 - [x] 31. Flip `Pass2_ResolveTypes` to use `ResolvePrimitiveKeyword` for primitive keyword references
@@ -246,13 +246,13 @@ Stages:
 - [x] 33. Flip `TypeCheckerAnalyzer.UseOperatorOverloadResolution` to `true` and route existing check methods through the new helpers
     In `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`:
     - Change `UseOperatorOverloadResolution` default to `true`.
-    - Rewrite `CheckAdditiveNode`, `CheckMultiplicativeNode`, `CheckRelationalNode`, `CheckEqualityNode` as three-line wrappers that call `ResolveBinaryOperator` with the appropriate operator lexeme and the appropriate `MIST_TC_*` ID for `NoApplicableCandidate`. Rewrite the `LogicalNotUnaryNode` and `NegateUnaryNode` cases of `CheckUnaryNode` to call `ResolveUnaryOperator`.
+    - Rewrite `CheckAdditiveNode`, `CheckMultiplicativeNode`, `CheckRelationalNode`, `CheckEqualityNode` as three-line wrappers that call `ResolveBinaryOperator` with the appropriate operator lexeme and the appropriate `MIST_TC_* (historical scheme)` ID for `NoApplicableCandidate`. Rewrite the `LogicalNotUnaryNode` and `NegateUnaryNode` cases of `CheckUnaryNode` to call `ResolveUnaryOperator`.
     - Delete the `NumericTypes` HashSet (lines 26–34).
     - Delete `IsNumeric` (line ~3186).
     - Delete the `StringType`-for-`+` special case and the `PrimitiveType.Bool`-for-`&&`/`||`/`!` special case.
     After this task lands, operator expressions are typed exclusively via overload resolution against stdlib operator declarations. Requirements 6.7, 6.8, 6.9 are enforced by the deletion itself.
     _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9_
-    Standard-pipeline unary correction (2026-10-03): `OperatorAdmissibility.UnaryResultType` admits a selected unary declaration or signed numeric negation/Boolean not. Unsupported class operations and non-Boolean logical not are refused by `OperatorAnalyzer` as `MIST_PA_OPERATOR_NOT_APPLICABLE` before C# emission. Byte, UInt16, UInt32, UInt64 and Char negation remain refused; signed-small wrapping and literal-boundary handling are retained. Selected returns provide the result contract, preserving an explicit refinement return without inheriting the input predicate. Positive prior-failure evidence suppresses cascades; an unfinished error sentinel alone does not. See analysis order 9 and emitter order 185 for current evidence and limits. _Requirements: 6.2, 6.4, 6.6._
+    Standard-pipeline unary correction (2026-10-03): `OperatorAdmissibility.UnaryResultType` admits a selected unary declaration or signed numeric negation/Boolean not. Unsupported class operations and non-Boolean logical not are refused by `OperatorAnalyzer` as `MIST0200` before C# emission. Byte, UInt16, UInt32, UInt64 and Char negation remain refused; signed-small wrapping and literal-boundary handling are retained. Selected returns provide the result contract, preserving an explicit refinement return without inheriting the input predicate. Positive prior-failure evidence suppresses cascades; an unfinished error sentinel alone does not. See analysis order 9 and emitter order 185 for current evidence and limits. _Requirements: 6.2, 6.4, 6.6._
 
 - [x] 34. Capture sample output baselines
     Before Task 35 runs, capture a baseline: for every `.mist` file under `samples/` that compiles and runs today, save its stdout to `samples/__baselines__/<sample-path>.out` (or an equivalent location). This is a one-time data capture, not ongoing production code. This baseline is consumed by Task 35 and serves as the regression oracle for Requirement 11.2, 11.4, 12.6.
@@ -314,7 +314,7 @@ Stages:
     1. Look up `model.GetResolvedOperator(node)` to retrieve the `ISymbol` selected by the type checker.
     2. If the symbol has `IsIntrinsic == true`, look up the emission template via the registry (`TryGetBinaryOperator` / `TryGetUnaryOperator`) and emit via `string.Format(template, left, right)`.
     3. If the symbol has `IsIntrinsic == false`, emit as a static method call on the declaring type (e.g., `Vector3.op_Addition(a, b)` via a `CSharpOperatorName` helper that maps `+` → `op_Addition`, etc.).
-    4. If the template lookup fails on an intrinsic, throw `MIST_BE_0002` per Task 43 and emit no output.
+    4. If the template lookup fails on an intrinsic, throw `MIST0001` per Task 43 and emit no output.
     Methods to rewrite: `EmitAdditive` (lines ~1663), `EmitMultiplicative` (~1672), `EmitRelational`, `EmitEquality`, and the `LogicalNotUnaryNode`/`NegateUnaryNode` cases of `EmitUnary`.
     Also rewrite method-call and member-access emission (e.g., `x.Substring(0)`, `s.Length`, `arr.Length`) to consult the registry when the resolved member has `IsIntrinsic == true`, so stdlib member calls emit `{receiver}.Substring(...)` rather than a Mist static-method dispatch.
     - [x] 41.1 Unit test: emitted C# for `int a = 1; int b = 2; int c = a + b;` equals `int a = 1; int b = 2; int c = a + b;` (the intrinsic template produces byte-identical output; Requirement 11.5).
@@ -334,12 +334,12 @@ Stages:
     - [x] 42.2 Unit test: `CSharpAmbientTypeResolver.ResolveType("System", "String")` returns `null` (no longer exposed per Requirement 9.6).
     _Requirements: 9.3, 9.4, 9.5, 9.6, 9.9, 9.10, 9.12, 9.13_
 
-- [x] 43. Emit `MIST_BE_0002` on missing intrinsic emission template
+- [x] 43. Emit `MIST0001` on missing intrinsic emission template
     Per Requirement 5.9 and 5.10, the backend MUST emit a hard error when an intrinsic is invoked but the registry has no template, MUST NOT emit any fallback or stub, and MUST produce no output artifact.
-    - Add diagnostic ID `MIST_BE_0002` to the backend diagnostic catalog with message template: `No emission template found for intrinsic '{type}.{member}' in backend '{backend}'.` (design § *Error Handling*).
-    - In `CSharpEmitter` (Task 41), when an intrinsic template lookup returns null, create a `MIST_BE_0002` diagnostic (severity Error) with the call-site source span (resolved open question — include the AST node's source span) and add it to the backend's `DiagnosticBag`. Abort emission of the current compilation unit; do NOT write any `.cs` file.
-    - In `CSharpTranspilerBackend.Emit`, if any `MIST_BE_0002` is in the bag, return a `BackendResult(Succeeded: false, PrimaryArtifactPath: null, ...)` with the diagnostic, ensuring no output artifact is produced.
-    - [x] 43.1 Unit test: construct a stdlib file with an intrinsic whose key is intentionally absent from `IntrinsicEmissionTable`. Compile a user program that calls it. Assert: `MIST_BE_0002` is emitted, and the `BackendResult.Succeeded == false`, and no `.cs` file is written.
+    - Add diagnostic ID `MIST0001` to the backend diagnostic catalog with message template: `No emission template found for intrinsic '{type}.{member}' in backend '{backend}'.` (design § *Error Handling*).
+    - In `CSharpEmitter` (Task 41), when an intrinsic template lookup returns null, create a `MIST0001` diagnostic (severity Error) with the call-site source span (resolved open question — include the AST node's source span) and add it to the backend's `DiagnosticBag`. Abort emission of the current compilation unit; do NOT write any `.cs` file.
+    - In `CSharpTranspilerBackend.Emit`, if any `MIST0001` is in the bag, return a `BackendResult(Succeeded: false, PrimaryArtifactPath: null, ...)` with the diagnostic, ensuring no output artifact is produced.
+    - [x] 43.1 Unit test: construct a stdlib file with an intrinsic whose key is intentionally absent from `IntrinsicEmissionTable`. Compile a user program that calls it. Assert: `MIST0001` is emitted, and the `BackendResult.Succeeded == false`, and no `.cs` file is written.
     - [x] 43.2 Unit test: at test-project startup, iterate every `Symbol` with `IsIntrinsic == true` in the stdlib semantic model and assert the registry has a matching template. Ensures no stdlib intrinsic ships without its template.
     _Requirements: 5.9, 5.10_
 

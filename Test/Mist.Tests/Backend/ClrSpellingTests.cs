@@ -109,7 +109,7 @@ public sealed class ClrSpellingTests : IDisposable
 
     private static void AssertClean(ImmutableArray<Diagnostic> diagnostics)
     {
-        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Id.Value}: {d.Message}").ToList();
+        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Select(d => $"{d.Number.Value}: {d.Message}").ToList();
 
         Assert.True(errors.Count == 0, string.Join("\n", errors));
     }

@@ -13,8 +13,8 @@ public sealed class AccessorDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_NO_GET_ACCESSOR", "MIST_PA_NO_SET_ACCESSOR", "MIST_PA_INACCESSIBLE_ACCESSOR", "MIST_PA_INIT_ONLY_ASSIGNMENT",
-        "MIST_PA_INACCESSIBLE_MEMBER",
+        "MIST0214", "MIST0215", "MIST0216", "MIST0217",
+        "MIST0159",
     ];
 
     public AccessorDecisionTests()
@@ -290,6 +290,6 @@ public sealed class AccessorDecisionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        Assert.Empty(findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value)));
+        Assert.Empty(findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value)));
     }
 }

@@ -28,11 +28,11 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             switch(type)
             {
                 case AbstractType { Modifiers.IsOwned: true } abstractType when Declarations.NodeOf(abstractType) is { } node:
-                    context.Report(ProgramAnalysisDiagnostics.OwnedAbstract, node, [], abstractType.Name);
+                    context.Report(ProgramAnalysisDiagnostics.OwnedAbstract, node, [], DiagnosticSnapshot.Type(abstractType, abstractType.Name));
                     break;
 
                 case ClassType { Modifiers.IsRef: true } refClass when Declarations.NodeOf(refClass) is { } node:
-                    context.Report(ProgramAnalysisDiagnostics.RefOnClass, node, [], refClass.Name);
+                    context.Report(ProgramAnalysisDiagnostics.RefOnClass, node, [], DiagnosticSnapshot.Type(refClass, refClass.Name));
                     break;
             }
 
@@ -51,7 +51,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.OwnedSubstructuralBinding, initializer.Node, [initializer],
-                    local.Name, Display(discipline), TypeDisplay.Mist(local.Type));
+                    new NameValue(local.Name), new EnumValue(Display(discipline)), DiagnosticSnapshot.Type(local.Type));
             }
 
             var element = node switch
@@ -63,7 +63,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
 
             if(element is not null && ArrayRefuses(element) is { } held && node is Expression array)
             {
-                context.Report(ProgramAnalysisDiagnostics.ArrayElementDiscipline, array.Node, [array], Display(held), TypeDisplay.Mist(element));
+                context.Report(ProgramAnalysisDiagnostics.ArrayElementDiscipline, array.Node, [array], new EnumValue(Display(held)), DiagnosticSnapshot.Type(element));
             }
         }
     }
@@ -82,8 +82,8 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         if(node is not null && discipline != SubstructuralDiscipline.None && container.Modifiers.IsOwned)
         {
             context.Report(
-                ProgramAnalysisDiagnostics.ConflictingDiscipline, node, [], container.Name, $"'{Display(discipline)}'",
-                discipline == SubstructuralDiscipline.Relevant ? "a relevant value is aliasable" : $"'{Display(discipline)}' already implies 'owned'");
+                ProgramAnalysisDiagnostics.ConflictingDiscipline, node, [], new NameValue(container.Name), new EnumValue($"'{Display(discipline)}'"),
+                new NameValue(discipline == SubstructuralDiscipline.Relevant ? "a relevant value is aliasable" : $"'{Display(discipline)}' already implies 'owned'"));
         }
 
         foreach(var field in container.FieldsList.Where(field => !field.Modifiers.IsStatic))
@@ -105,7 +105,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.FieldTypeParameterUnconstrained, at, [],
-                        Capitalised(discipline), container.Name, field.Name, parameter.Name, Display(discipline));
+                        new EnumValue(Capitalised(discipline)), DiagnosticSnapshot.Type(container, container.Name), new NameValue(field.Name), new NameValue(parameter.Name), new EnumValue(Display(discipline)));
                 }
 
                 continue;
@@ -135,7 +135,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldDisciplineContainment, at, [],
-                Capitalised(container.Discipline), container.Name, Display(held), field.Name, reason);
+                new EnumValue(Capitalised(container.Discipline)), DiagnosticSnapshot.Type(container, container.Name), new EnumValue(Display(held)), new NameValue(field.Name), new NameValue(reason));
         }
     }
 

@@ -10,10 +10,10 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class PureFunctionConversionTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string FunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string FunctionRequired = "MIST0142";
 
     [Theory]
     [InlineData("lambda-adding-one-to-its-parameter")]
@@ -34,9 +34,9 @@ public sealed class PureFunctionConversionTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
-        Assert.Equal(Writes, finding.Id.Value);
+        Assert.Equal(Writes, finding.Number.Value);
         Assert.Contains("lambda", finding.Message, StringComparison.Ordinal);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -44,7 +44,7 @@ public sealed class PureFunctionConversionTests
     [InlineData("pure-lambda-reading-a-mutable-static")]
     public void ALambdaThatReadsAMutableStatic_IsRefused(string statement)
     {
-        Assert.Equal(ReadsMutable, Assert.Single(new PuritySpecFragments().Analyze(statement)).Id.Value);
+        Assert.Equal(ReadsMutable, Assert.Single(new PuritySpecFragments().Analyze(statement)).Number.Value);
     }
 
     [Theory]
@@ -63,7 +63,7 @@ public sealed class PureFunctionConversionTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
-        Assert.Equal(ReadsMutable, finding.Id.Value);
+        Assert.Equal(ReadsMutable, finding.Number.Value);
         Assert.Contains("'k'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -83,7 +83,7 @@ public sealed class PureFunctionConversionTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(statement));
 
-        Assert.Equal(FunctionRequired, finding.Id.Value);
+        Assert.Equal(FunctionRequired, finding.Number.Value);
         Assert.Contains("Bump", finding.Message, StringComparison.Ordinal);
     }
 
@@ -98,7 +98,7 @@ public sealed class PureFunctionConversionTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("pure-method-invoking-a-plain-function-value"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("'Apply'", finding.Message, StringComparison.Ordinal);
     }
 

@@ -106,9 +106,7 @@ public class OverlappingSpanResolutionPropertyTests
         node.Origin = new ParsedOrigin(targetSource);
 
         // Resolve the location — it should return the target file's path
-        var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return path == targetSource.Path;
+        return DiagnosticHelper.ResolveLocation(node).Location.Path == targetSource.Path;
     }
 
     /// <summary>
@@ -136,9 +134,7 @@ public class OverlappingSpanResolutionPropertyTests
                 Origin = new ParsedOrigin(sourceTexts[i])
             };
 
-            var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
-
-            if(path != sourceTexts[i].Path)
+            if(DiagnosticHelper.ResolveLocation(node).Location.Path != sourceTexts[i].Path)
             {
                 return false;
             }

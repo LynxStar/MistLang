@@ -337,9 +337,9 @@ Extension methods are grouped by their receiver CLR type using structural type i
 
 | Diagnostic ID | Severity | Condition | Recovery |
 |--------------|----------|-----------|----------|
-| `MIST_UNDEFINED_MEMBER` | Error | No own member or extension found | Standard existing diagnostic |
-| `MIST_TC_0082` | Error | Ambiguous extension (multiple equally-specific candidates) | Report all candidates |
-| `MIST_TC_TYPE_MISMATCH` | Error | Call arguments don't match extension params | Report expected vs actual types |
+| `MIST_UNDEFINED_MEMBER (historical)` | Error | No own member or extension found | Standard existing diagnostic |
+| `MIST_TC_0082 (historical)` | Error | Ambiguous extension (multiple equally-specific candidates) | Report all candidates |
+| `MIST_TC_TYPE_MISMATCH (historical)` | Error | Call arguments don't match extension params | Report expected vs actual types |
 
 No new diagnostic IDs are needed — the existing diagnostics cover all error cases for ambient extensions because they flow through the same `ExtensionRegistry` lookup path.
 

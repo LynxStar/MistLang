@@ -60,7 +60,7 @@ public static class CSharpProjectBuilder
             var producedName = Path.GetFileNameWithoutExtension(output.Path);
             if(ProjectReferenceResolver.KeyMismatch(reference.Name, ReferenceKind.CSharpProject, producedName, reference.Path) is { } mismatch)
             {
-                diagnostics.Add(mismatch);
+                diagnostics.Admit(mismatch);
                 continue;
             }
 
@@ -90,7 +90,8 @@ public static class CSharpProjectBuilder
             var reason = build.TimedOut
                 ? $"dotnet build timed out after {(int)BuildTimeout.TotalSeconds} seconds."
                 : ErrorLines(build, "dotnet build");
-            diagnostics.Report(DriverDiagnostics.CSharpProjectBuildFailed, default, reference.DeclaringManifestPath, (object?)reference.Path, reference.Name, reason);
+            diagnostics.ReportTyped(DriverDiagnostics.CSharpProjectBuildFailed, new FileOnly(reference.DeclaringManifestPath),
+                new PathValue(reference.Path), new NameValue(reference.Name), new TextValue(reason));
             return null;
         }
 
@@ -100,9 +101,9 @@ public static class CSharpProjectBuilder
         var targetPath = query.ExitCode == 0 && !query.TimedOut ? LastLine(query.Stdout) : "";
         if(targetPath.Length == 0 || !File.Exists(targetPath))
         {
-            diagnostics.Report(
-                DriverDiagnostics.CSharpProjectBuildFailed, default, reference.DeclaringManifestPath,
-                (object?)reference.Path, reference.Name, $"MSBuild reported no built output (TargetPath '{targetPath}').");
+            diagnostics.ReportTyped(
+                DriverDiagnostics.CSharpProjectBuildFailed, new FileOnly(reference.DeclaringManifestPath),
+                new PathValue(reference.Path), new NameValue(reference.Name), new TextValue($"MSBuild reported no built output (TargetPath '{targetPath}')."));
             return null;
         }
 

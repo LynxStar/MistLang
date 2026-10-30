@@ -156,7 +156,7 @@ if (varType is ArrayType arrayType && arrayType.ElementType is VoidType)
 }
 ```
 
-New diagnostic ID: `MIST_TC_0034`.
+New diagnostic ID: `MIST_TC_0034 (historical)`.
 
 #### 2c. `CheckReturnStatement` — Accept `return Void.Void;` in void methods
 
@@ -324,7 +324,7 @@ No grammar changes are required. The existing grammar already supports:
 
 | ID | Severity | Message Template |
 |----|----------|-----------------|
-| `MIST_TC_0034` | Error | "Cannot declare/create an array of type 'void'. Void is not permitted as an array element type." |
+| `MIST_TC_0034 (historical)` | Error | "Cannot declare/create an array of type 'void'. Void is not permitted as an array element type." |
 
 ### New Emitter State
 
@@ -369,7 +369,7 @@ The `MistVoid` struct is emitted into the generated C# output when any void valu
 
 ### Property 5: Void array restriction
 
-*For any* program containing a `void[]` type declaration or a `new void[n]` array creation expression, the type checker SHALL emit diagnostic `MIST_TC_0034`.
+*For any* program containing a `void[]` type declaration or a `new void[n]` array creation expression, the type checker SHALL emit diagnostic `MIST_TC_0034 (historical)`.
 
 **Validates: Requirements 8.1, 8.2**
 
@@ -393,20 +393,20 @@ The `MistVoid` struct is emitted into the generated C# output when any void valu
 
 | Scenario | Diagnostic ID | Severity | Message |
 |----------|--------------|----------|---------|
-| Array of void declared or created | `MIST_TC_0034` | Error | "Cannot declare/create an array of type 'void'. Void is not permitted as an array element type." |
+| Array of void declared or created | `MIST_TC_0034 (historical)` | Error | "Cannot declare/create an array of type 'void'. Void is not permitted as an array element type." |
 
 ### Existing Diagnostics (Behavior Changes)
 
 | Scenario | Diagnostic ID | Change |
 |----------|--------------|--------|
-| `return Void.Void;` in void method | `MIST_TC_0008` | No longer emitted (was incorrectly rejecting void return values) |
-| `return 42;` in void method | `MIST_TC_0008` | Still emitted (non-void value in void method) |
-| `Void.Void == 42` | `MIST_TC_0005` | Still emitted (incompatible equality operands) |
+| `return Void.Void;` in void method | `MIST_TC_0008 (historical)` | No longer emitted (was incorrectly rejecting void return values) |
+| `return 42;` in void method | `MIST_TC_0008 (historical)` | Still emitted (non-void value in void method) |
+| `Void.Void == 42` | `MIST_TC_0005 (historical)` | Still emitted (incompatible equality operands) |
 
 ### Error Recovery
 
 - When a void array is detected, the diagnostic is emitted but the array type is still constructed to allow downstream analysis to proceed.
-- Unknown member access on `VoidType` (e.g., `Void.Foo`) produces the standard `MIST_UNDEFINED_MEMBER` diagnostic.
+- Unknown member access on `VoidType` (e.g., `Void.Foo`) produces the standard `MIST_UNDEFINED_MEMBER (historical)` diagnostic.
 
 ---
 

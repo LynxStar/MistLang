@@ -13,11 +13,11 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY",
-        "MIST_PA_READONLY_CONTEXT_ALLOCATES_MUTABLE", "MIST_PA_FIELD_ASSIGNED_IN_READONLY_BLOCK",
-        "MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER", "MIST_PA_READONLY_FIELD_ASSIGNED",
-        "MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE", "MIST_PA_READONLY_PARAMETER_SETS_PROPERTY",
-        "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX",
+        "MIST0257", "MIST0259",
+        "MIST0260", "MIST0255",
+        "MIST0251", "MIST0262",
+        "MIST0253", "MIST0254",
+        "MIST0256",
     ];
 
     public ReadonlyContextDecisionTests()
@@ -248,8 +248,8 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
             """;
 
         Assert.Equal(
-            ["MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY", "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_INDEX"],
-            Analyse("var m = new Meter();", extraTypes).Select(d => d.Id.Value).Order());
+            ["MIST0256", "MIST0259", "MIST0259"],
+            Analyse("var m = new Meter();", extraTypes).Select(d => d.Number.Value).Order());
     }
 
     private List<Diagnostic> Analyse(string statement, string extraTypes)
@@ -259,6 +259,6 @@ public sealed class ReadonlyContextDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

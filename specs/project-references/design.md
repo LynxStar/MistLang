@@ -145,11 +145,11 @@ Multiple `[[references]]` entries use TOML array-of-tables syntax. Each entry mu
 
 | ID                                        | Stage    | Message template                                                                 |
 |-------------------------------------------|----------|----------------------------------------------------------------------------------|
-| `MIST_PROJECT_REFERENCE_MISSING_PATH`     | Driver   | `Reference entry in '{tomlPath}' is missing the required 'path' field.`         |
-| `MIST_PROJECT_REFERENCE_EMPTY_PATH`       | Driver   | `Reference entry in '{tomlPath}' has an empty or whitespace 'path' field.`      |
-| `MIST_PROJECT_REFERENCE_NOT_FOUND`        | Driver   | `Referenced project path '{normalizedPath}' does not exist.`                    |
-| `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`  | Driver   | `Referenced directory '{normalizedPath}' does not contain a 'mist.toml' file.`  |
-| `MIST_PROJECT_CIRCULAR_REFERENCE`         | Driver   | `Circular project reference detected: {A} → {B} → ... → {A}.`                  |
+| `MIST0060`     | Driver   | `Reference entry in '{tomlPath}' is missing the required 'path' field.`         |
+| `MIST0061`       | Driver   | `Reference entry in '{tomlPath}' has an empty or whitespace 'path' field.`      |
+| `MIST0062`        | Driver   | `Referenced project path '{normalizedPath}' does not exist.`                    |
+| `MIST0063`  | Driver   | `Referenced directory '{normalizedPath}' does not contain a 'mist.toml' file.`  |
+| `MIST0064`         | Driver   | `Circular project reference detected: {A} → {B} → ... → {A}.`                  |
 
 ---
 
@@ -162,11 +162,11 @@ After the existing `namespace_root` parsing (step 8), a new step 9 reads the `[[
 ```
 9. Read [[references]] array (optional)
    a. If "references" key is absent → References = ImmutableArray.Empty
-   b. If present but not a TomlTableArray → report MIST_PROJECT_TOML_ERROR, return null
+   b. If present but not a TomlTableArray → report MIST0051, return null
    c. For each entry in the array:
-      i.  If "path" key is absent → report MIST_PROJECT_REFERENCE_MISSING_PATH, return null
-      ii. If path value is not a string → report MIST_PROJECT_REFERENCE_MISSING_PATH, return null
-      iii.If path string is empty or whitespace → report MIST_PROJECT_REFERENCE_EMPTY_PATH, return null
+      i.  If "path" key is absent → report MIST0060, return null
+      ii. If path value is not a string → report MIST0060, return null
+      iii.If path string is empty or whitespace → report MIST0061, return null
       iv. Normalize path:
           - If relative: Path.GetFullPath(Path.Combine(projectFolder, rawPath))
           - If absolute: Path.GetFullPath(rawPath)  [canonicalizes . and ..]
@@ -198,15 +198,15 @@ Resolve(rootProjectFolder, references, diagnostics):
       // Cycle detected — build chain string
       cycleStart = chain.IndexOf(canonicalTomlPath)
       cycleChain = chain[cycleStart..] + [canonicalTomlPath]
-      report MIST_PROJECT_CIRCULAR_REFERENCE with chain string
+      report MIST0064 with chain string
       return
 
     // Existence and file-vs-directory checks
     if not File.Exists(canonicalTomlPath):
-      report MIST_PROJECT_REFERENCE_NOT_FOUND
+      report MIST0062
       return
     if Path.GetFileName(canonicalTomlPath) != "mist.toml":
-      report MIST_PROJECT_REFERENCE_NOT_FOUND
+      report MIST0062
       return
 
     inProgress.Add(canonicalTomlPath)
@@ -346,7 +346,7 @@ After reflection, the consolidated set of properties is:
 
 ### Property 2: Empty/whitespace reference paths are rejected
 
-*For any* string composed entirely of whitespace characters (space, tab, newline, carriage return), using it as the `path` value in a `[[references]]` entry SHALL cause `ProjectFileParser.Parse` to return `null` and report a `MIST_PROJECT_REFERENCE_EMPTY_PATH` diagnostic whose message includes the path to the `mist.toml` file.
+*For any* string composed entirely of whitespace characters (space, tab, newline, carriage return), using it as the `path` value in a `[[references]]` entry SHALL cause `ProjectFileParser.Parse` to return `null` and report a `MIST0061` diagnostic whose message includes the path to the `mist.toml` file.
 
 **Validates: Requirements 1.4, 7.3**
 
@@ -362,7 +362,7 @@ After reflection, the consolidated set of properties is:
 
 ### Property 4: Cycle detection for cycles of any length
 
-*For any* reference graph containing a cycle of length N ≥ 1 (including direct self-references A → A and two-node cycles A → B → A), `ProjectReferenceResolver.Resolve` SHALL report a `MIST_PROJECT_CIRCULAR_REFERENCE` diagnostic whose message contains all nodes in the cycle chain, and SHALL return a failure result.
+*For any* reference graph containing a cycle of length N ≥ 1 (including direct self-references A → A and two-node cycles A → B → A), `ProjectReferenceResolver.Resolve` SHALL report a `MIST0064` diagnostic whose message contains all nodes in the cycle chain, and SHALL return a failure result.
 
 **Validates: Requirements 4.1, 4.2, 4.3, 7.2**
 
@@ -417,23 +417,23 @@ After reflection, the consolidated set of properties is:
 
 /// <summary>A [[references]] entry is missing the required 'path' field.</summary>
 public static readonly DiagnosticId ProjectReferenceMissingPath =
-    new("MIST_PROJECT_REFERENCE_MISSING_PATH");
+    new("MIST0060");
 
 /// <summary>A [[references]] entry has an empty or whitespace 'path' field.</summary>
 public static readonly DiagnosticId ProjectReferenceEmptyPath =
-    new("MIST_PROJECT_REFERENCE_EMPTY_PATH");
+    new("MIST0061");
 
 /// <summary>The normalized reference path does not point to an existing file or directory.</summary>
 public static readonly DiagnosticId ProjectReferenceNotFound =
-    new("MIST_PROJECT_REFERENCE_NOT_FOUND");
+    new("MIST0062");
 
 /// <summary>The normalized reference path points to a directory with no mist.toml.</summary>
 public static readonly DiagnosticId ProjectReferenceNoProjectFile =
-    new("MIST_PROJECT_REFERENCE_NO_PROJECT_FILE");
+    new("MIST0063");
 
 /// <summary>A circular reference was detected in the project reference graph.</summary>
 public static readonly DiagnosticId ProjectCircularReference =
-    new("MIST_PROJECT_CIRCULAR_REFERENCE");
+    new("MIST0064");
 ```
 
 ### Error propagation strategy
@@ -450,8 +450,8 @@ public static readonly DiagnosticId ProjectCircularReference =
 | Reference to self (`path = "."`) | Detected as a cycle (A → A) |
 | Two projects referencing each other | Detected as a two-node cycle (A → B → A) |
 | Diamond dependency (A→B, A→C, B→D, C→D) | D is compiled once (deduplication via `visited` set) |
-| Reference path points to a `.mist` file (not `mist.toml`) | `MIST_PROJECT_REFERENCE_NOT_FOUND` |
-| Reference path is a directory with no `mist.toml` | `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE` |
+| Reference path points to a `.mist` file (not `mist.toml`) | `MIST0062` |
+| Reference path is a directory with no `mist.toml` | `MIST0063` |
 | Referenced project has zero `.mist` files | Resolved successfully; zero units added (not an error) |
 | `[[references]]` array is present but empty | Parsed as empty references list; no error |
 
@@ -463,8 +463,8 @@ public static readonly DiagnosticId ProjectCircularReference =
 
 Specific example-based tests for deterministic error paths:
 
-- Missing `path` field in `[[references]]` entry → `MIST_PROJECT_REFERENCE_MISSING_PATH`
-- Empty string `path` → `MIST_PROJECT_REFERENCE_EMPTY_PATH`
+- Missing `path` field in `[[references]]` entry → `MIST0060`
+- Empty string `path` → `MIST0061`
 - No `[[references]]` section → `References` is empty
 - `[[references]]` with a direct `mist.toml` path → path used as-is
 - `[[references]]` with a directory path → `mist.toml` appended
@@ -473,13 +473,13 @@ Specific example-based tests for deterministic error paths:
 
 ### Unit tests (`ProjectReferenceResolverTests`)
 
-- Non-existent path → `MIST_PROJECT_REFERENCE_NOT_FOUND`
-- Directory without `mist.toml` → `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`
-- File not named `mist.toml` → `MIST_PROJECT_REFERENCE_NOT_FOUND`
+- Non-existent path → `MIST0062`
+- Directory without `mist.toml` → `MIST0063`
+- File not named `mist.toml` → `MIST0062`
 - Invalid referenced `mist.toml` → error propagated
 - Diamond dependency → each project appears exactly once in result
-- Direct self-reference → `MIST_PROJECT_CIRCULAR_REFERENCE`
-- Two-node cycle → `MIST_PROJECT_CIRCULAR_REFERENCE` with both nodes in message
+- Direct self-reference → `MIST0064`
+- Two-node cycle → `MIST0064` with both nodes in message
 - Multiple independent errors → all reported
 
 ### Integration tests (`CompilerDriverReferenceIntegrationTests`)
@@ -504,7 +504,7 @@ All property tests use **in-process compilation** via `CompilerDriver.Compile()`
 **Property 2 — Whitespace path rejection** (100 iterations, FsCheck):
 - Generator: strings of 1–64 whitespace characters
 - Write `mist.toml` with that string as a `path` value
-- Assert `MIST_PROJECT_REFERENCE_EMPTY_PATH` is reported
+- Assert `MIST0061` is reported
 - No process spawning
 
 **Property 3 — Unknown fields ignored** (100 iterations, FsCheck):
@@ -516,7 +516,7 @@ All property tests use **in-process compilation** via `CompilerDriver.Compile()`
 **Property 4 — Cycle detection** (100 iterations, FsCheck):
 - Generator: cycle length N from 1 to 5; create N temp directories each with a `mist.toml` referencing the next, with the last referencing the first
 - Call `ProjectReferenceResolver.Resolve` in-process
-- Assert `MIST_PROJECT_CIRCULAR_REFERENCE` is reported and message contains all node paths
+- Assert `MIST0064` is reported and message contains all node paths
 - No process spawning (resolver is pure in-process logic)
 
 **Property 5 — Deduplication** (100 iterations, FsCheck):

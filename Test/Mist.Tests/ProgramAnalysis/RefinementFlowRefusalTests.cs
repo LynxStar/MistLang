@@ -16,40 +16,40 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RefinementFlowRefusalTests
 {
     [Theory]
-    [InlineData("getter-over-a-mutable-field-lifts-nothing", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("inequality-does-not-prove-a-positive-local", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("inequality-local-refinement-lost-on-write", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("lifted-getter-violates-refinement", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("lifted-return-violates-refinement", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("lifted-value-copied-into-a-local-violates-refinement", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("local-aliased-by-a-ref-local-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-passed-by-ref-to-a-constructor-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-passed-by-ref-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-passed-to-a-clr-out-parameter-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-read-through-a-ref-local-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-written-by-a-lambda-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-written-by-a-local-function-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("local-written-by-an-async-block-unproven", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("narrowing-does-not-reach-else-branch", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("narrowing-lost-on-reassignment", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-arithmetic-is-not-a-proof", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-float-rounded-bound-is-not-a-double-bound", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-inclusive-guard-does-not-prove-strict-endpoint", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-insufficient-upper-guard", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-join-includes-a-violating-path", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-negated-lower-order-admits-nan", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-negated-order-admits-nan", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-reassignment-loses-a-guard", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-refined-arithmetic-cannot-reuse-identity", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-refined-cast-cannot-reuse-identity", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-symbolic-bound-is-not-a-proof", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-flow-unseen-write-loses-a-guard", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-inclusive-guard-does-not-prove-positive", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-literal-lost-in-a-closure-write", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("real-negation-does-not-preserve-a-refinement", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("recursive-return-lifts-nothing", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("regex-literal-lost-after-a-local-write", "MIST_PA_REFINEMENT_VIOLATED")]
-    [InlineData("return-the-flow-narrowed-lifts-nothing", "MIST_PA_REFINEMENT_UNPROVEN")]
+    [InlineData("getter-over-a-mutable-field-lifts-nothing", "MIST0272")]
+    [InlineData("inequality-does-not-prove-a-positive-local", "MIST0272")]
+    [InlineData("inequality-local-refinement-lost-on-write", "MIST0272")]
+    [InlineData("lifted-getter-violates-refinement", "MIST0271")]
+    [InlineData("lifted-return-violates-refinement", "MIST0271")]
+    [InlineData("lifted-value-copied-into-a-local-violates-refinement", "MIST0271")]
+    [InlineData("local-aliased-by-a-ref-local-unproven", "MIST0272")]
+    [InlineData("local-passed-by-ref-to-a-constructor-unproven", "MIST0272")]
+    [InlineData("local-passed-by-ref-unproven", "MIST0272")]
+    [InlineData("local-passed-to-a-clr-out-parameter-unproven", "MIST0272")]
+    [InlineData("local-read-through-a-ref-local-unproven", "MIST0272")]
+    [InlineData("local-written-by-a-lambda-unproven", "MIST0272")]
+    [InlineData("local-written-by-a-local-function-unproven", "MIST0272")]
+    [InlineData("local-written-by-an-async-block-unproven", "MIST0272")]
+    [InlineData("narrowing-does-not-reach-else-branch", "MIST0272")]
+    [InlineData("narrowing-lost-on-reassignment", "MIST0272")]
+    [InlineData("real-flow-arithmetic-is-not-a-proof", "MIST0272")]
+    [InlineData("real-flow-float-rounded-bound-is-not-a-double-bound", "MIST0272")]
+    [InlineData("real-flow-inclusive-guard-does-not-prove-strict-endpoint", "MIST0272")]
+    [InlineData("real-flow-insufficient-upper-guard", "MIST0272")]
+    [InlineData("real-flow-join-includes-a-violating-path", "MIST0272")]
+    [InlineData("real-flow-negated-lower-order-admits-nan", "MIST0272")]
+    [InlineData("real-flow-negated-order-admits-nan", "MIST0272")]
+    [InlineData("real-flow-reassignment-loses-a-guard", "MIST0272")]
+    [InlineData("real-flow-refined-arithmetic-cannot-reuse-identity", "MIST0272")]
+    [InlineData("real-flow-refined-cast-cannot-reuse-identity", "MIST0272")]
+    [InlineData("real-flow-symbolic-bound-is-not-a-proof", "MIST0272")]
+    [InlineData("real-flow-unseen-write-loses-a-guard", "MIST0272")]
+    [InlineData("real-inclusive-guard-does-not-prove-positive", "MIST0272")]
+    [InlineData("real-literal-lost-in-a-closure-write", "MIST0272")]
+    [InlineData("real-negation-does-not-preserve-a-refinement", "MIST0271")]
+    [InlineData("recursive-return-lifts-nothing", "MIST0272")]
+    [InlineData("regex-literal-lost-after-a-local-write", "MIST0271")]
+    [InlineData("return-the-flow-narrowed-lifts-nothing", "MIST0272")]
     public void FlowFactsMustActuallyProveTheRequiredValue(string name, string expected)
     {
         var h = new HandBuiltRefinements();
@@ -66,7 +66,7 @@ public sealed class RefinementFlowRefusalTests
             case "narrowing-does-not-reach-else-branch":
                 statements.Add(new IfStatement(h.Binary(local, BinaryOperatorKind.GreaterThanOrEqual, h.Literal(18L)), HandBuiltModel.Block(),
                     HandBuiltModel.Block(HandBuiltRefinements.Need(local, target))));
-                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
             case "narrowing-lost-on-reassignment":
                 guard = h.Binary(local, BinaryOperatorKind.GreaterThanOrEqual, h.Literal(18L));
                 inside.Add(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(local, HandBuiltRefinements.Local(h.Int, "replacement")))); break;
@@ -172,7 +172,7 @@ public sealed class RefinementFlowRefusalTests
                 if(name.Contains("cast", StringComparison.Ordinal))
                 {
                     statements.Add(HandBuiltRefinements.Evaluate(new CastExpression(HandBuiltModel.Node(), value, target, [], target)));
-                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
                 }
 
                 break;
@@ -225,7 +225,7 @@ public sealed class RefinementFlowRefusalTests
         if(guard is null) { statements.AddRange(inside); }
         else { statements.Add(HandBuiltRefinements.If(guard, [.. inside])); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(Regex.InfiniteMatchTimeout), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(Regex.InfiniteMatchTimeout), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
     [Fact]
@@ -236,6 +236,6 @@ public sealed class RefinementFlowRefusalTests
         var body = HandBuiltModel.Block(
             HandBuiltRefinements.Give(text, h.Literal(new string('a', 64))), HandBuiltRefinements.Need(text, h.Regex("(a+)+b", "Catastrophic")));
 
-        Assert.Equal("MIST_PA_REFINEMENT_UNPROVEN", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(TimeSpan.FromMilliseconds(1)), body)).Id.Value);
+        Assert.Equal("MIST0272", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(TimeSpan.FromMilliseconds(1)), body)).Number.Value);
     }
 }

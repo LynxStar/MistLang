@@ -250,13 +250,13 @@ public enum AccessKind
 
 ### Property 1: Owned Type Field Restriction — Valid Fields Accepted
 
-*For any* owned type declaration (class or struct) where every reference-type field is either declared with the `owned` specifier or has a type that is itself an owned type, the type checker SHALL accept the declaration without reporting `MIST_OWN_FIELD_NOT_OWNED`.
+*For any* owned type declaration (class or struct) where every reference-type field is either declared with the `owned` specifier or has a type that is itself an owned type, the type checker SHALL accept the declaration without reporting `MIST_OWN_FIELD_NOT_OWNED (historical)`.
 
 **Validates: Requirements 1.3, 1.5, 1.6, 2.4, 9.1**
 
 ### Property 2: Owned Type Field Restriction — Invalid Fields Rejected
 
-*For any* owned type declaration that contains at least one reference-type field whose type is not an owned type AND the field does not have the `owned` specifier, the type checker SHALL report exactly one `MIST_OWN_FIELD_NOT_OWNED` error per violating field.
+*For any* owned type declaration that contains at least one reference-type field whose type is not an owned type AND the field does not have the `owned` specifier, the type checker SHALL report exactly one `MIST_OWN_FIELD_NOT_OWNED (historical)` error per violating field.
 
 **Validates: Requirements 1.4, 13.1, 13.6**
 
@@ -333,15 +333,15 @@ All ownership diagnostics use existing diagnostic IDs from `OwnershipAnalyzer`. 
 
 | Diagnostic ID | Condition | Message Template |
 |---|---|---|
-| `MIST_OWN_FIELD_NOT_OWNED` | Non-owned ref-type field in owned type | "Reference-type field '{field}' in owned type '{type}' must be declared as 'owned' or be of an owned type" |
-| `MIST_OWN_TYPE_REQUIRES_OWNED` | **Repurposed**: Owned binding with non-owned type | "Variable '{name}' declared as 'owned' requires a type declared with the 'owned' modifier, but '{type}' is not an owned type" |
-| `MIST_OWN_USE_AFTER_MOVE` | Access after move | "Cannot access '{name}' — it was moved at {location}" |
-| `MIST_OWN_MUTATION_BLOCKED` | Write while LentFrozen | "Cannot mutate '{name}' while a frozen ref is outstanding" |
-| `MIST_OWN_EXCLUSIVE_VIOLATION` | Access while LentRef, or second borrow | "Cannot access '{name}' while a borrowed ref is outstanding" |
-| `MIST_OWN_INCOMPATIBLE_LEND` | Unrestricted binding lent as borrowed/frozen | "Cannot lend unrestricted binding '{name}' as '{tier}' — only owned bindings can guarantee exclusive access" |
-| `MIST_OWN_NOT_STORABLE` | Ref-tier assigned to field | "Cannot assign '{tier}' variable to field — ref-tier references are non-storable" |
-| `MIST_OWN_LOOP_MOVE` | Move in loop without re-assignment | "Variable '{name}' is moved inside a loop without re-assignment" |
-| `MIST_OWN_CONDITIONAL_MOVE` | Move in one branch, access after join | "Variable '{name}' may have been moved in a preceding branch" |
+| `MIST_OWN_FIELD_NOT_OWNED (historical)` | Non-owned ref-type field in owned type | "Reference-type field '{field}' in owned type '{type}' must be declared as 'owned' or be of an owned type" |
+| `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` | **Repurposed**: Owned binding with non-owned type | "Variable '{name}' declared as 'owned' requires a type declared with the 'owned' modifier, but '{type}' is not an owned type" |
+| `MIST_OWN_USE_AFTER_MOVE (historical)` | Access after move | "Cannot access '{name}' — it was moved at {location}" |
+| `MIST_OWN_MUTATION_BLOCKED (historical)` | Write while LentFrozen | "Cannot mutate '{name}' while a frozen ref is outstanding" |
+| `MIST_OWN_EXCLUSIVE_VIOLATION (historical)` | Access while LentRef, or second borrow | "Cannot access '{name}' while a borrowed ref is outstanding" |
+| `MIST_OWN_INCOMPATIBLE_LEND (historical)` | Unrestricted binding lent as borrowed/frozen | "Cannot lend unrestricted binding '{name}' as '{tier}' — only owned bindings can guarantee exclusive access" |
+| `MIST_OWN_NOT_STORABLE (historical)` | Ref-tier assigned to field | "Cannot assign '{tier}' variable to field — ref-tier references are non-storable" |
+| `MIST_OWN_LOOP_MOVE (historical)` | Move in loop without re-assignment | "Variable '{name}' is moved inside a loop without re-assignment" |
+| `MIST_OWN_CONDITIONAL_MOVE (historical)` | Move in one branch, access after join | "Variable '{name}' may have been moved in a preceding branch" |
 
 ### Error Recovery Strategy
 
@@ -373,8 +373,8 @@ The feature is well-suited for property-based testing because:
 
 | Property | Test Approach |
 |----------|--------------|
-| 1 (Valid fields) | Generate random owned type declarations with valid field configs, compile in-process, verify zero MIST_OWN_FIELD_NOT_OWNED diagnostics |
-| 2 (Invalid fields) | Generate random owned types with at least one invalid field, compile in-process, verify MIST_OWN_FIELD_NOT_OWNED is reported |
+| 1 (Valid fields) | Generate random owned type declarations with valid field configs, compile in-process, verify zero MIST_OWN_FIELD_NOT_OWNED (historical) diagnostics |
+| 2 (Invalid fields) | Generate random owned types with at least one invalid field, compile in-process, verify MIST_OWN_FIELD_NOT_OWNED (historical) is reported |
 | 3 (Inference) | Generate random structs with various field configs, compile in-process, check IsOwnedType matches expectation |
 | 4 (Semantic shift) | Generate owned types in both binding contexts, compile in-process, verify no errors |
 | 5 (Owned binding validation) | Generate owned bindings with valid/invalid types and initializers, verify correct accept/reject |

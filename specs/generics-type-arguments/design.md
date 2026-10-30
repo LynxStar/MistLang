@@ -237,8 +237,8 @@ When registering a class, struct, or interface declaration that has a `TypeParam
 1. For each identifier in the `TypeParameterList`, create a `TypeParameterType(name, ordinal)`.
 2. Store the list on the type (e.g., `classType.TypeParameters = typeParams`).
 3. Register each `TypeParameterType` as a symbol in the type's member scope so that it can be resolved as a type within the type body.
-4. Check for duplicate type parameter names within the same list and emit `MIST_DUPLICATE_TYPE_PARAMETER` if found.
-5. Check if a type parameter name shadows the enclosing type name and emit `MIST_TYPE_PARAMETER_SHADOWS_TYPE` warning if so.
+4. Check for duplicate type parameter names within the same list and emit `MIST_DUPLICATE_TYPE_PARAMETER (historical)` if found.
+5. Check if a type parameter name shadows the enclosing type name and emit `MIST_TYPE_PARAMETER_SHADOWS_TYPE (historical)` warning if so.
 
 For generic methods:
 1. Create `TypeParameterType` instances for each method type parameter.
@@ -251,9 +251,9 @@ Extend the existing base type and interface list resolution to handle type argum
 
 1. When a base clause or interface list entry includes a `TypeArgumentList`, resolve each type argument to an `IType`.
 2. Look up the referenced type name. If it has type parameters, construct a `ConstructedType` with the resolved type arguments.
-3. Validate arity: if the number of type arguments doesn't match the number of type parameters, emit `MIST_ARITY_MISMATCH`.
-4. If type arguments are provided but the referenced type is not generic, emit `MIST_NOT_GENERIC`.
-5. If a generic type is referenced without type arguments and the referencing type doesn't provide its own matching type parameters, emit `MIST_MISSING_TYPE_ARGUMENTS`.
+3. Validate arity: if the number of type arguments doesn't match the number of type parameters, emit `MIST_ARITY_MISMATCH (historical)`.
+4. If type arguments are provided but the referenced type is not generic, emit `MIST_NOT_GENERIC (historical)`.
+5. If a generic type is referenced without type arguments and the referencing type doesn't provide its own matching type parameters, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`.
 
 Store the resolved `ConstructedType` on `ClassType.BaseType` (which changes from `ClassType?` to `IType?` to accommodate `ConstructedType`) and on the `Interfaces` lists (which change from `IReadOnlyList<InterfaceType>` to `IReadOnlyList<IType>` to accommodate `ConstructedType`).
 
@@ -396,13 +396,13 @@ Add method type parameter highlighting:
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_ARITY_MISMATCH` | SemanticModelConstruction | Type '{name}' expects {expected} type argument(s) but received {actual}. |
-| `MIST_NOT_GENERIC` | SemanticModelConstruction | Type '{name}' is not generic and does not accept type arguments. |
-| `MIST_MISSING_TYPE_ARGUMENTS` | SemanticModelConstruction | Generic type '{name}' requires type arguments. |
-| `MIST_DUPLICATE_TYPE_PARAMETER` | SemanticModelConstruction | Duplicate type parameter name '{name}'. |
-| `MIST_TYPE_PARAMETER_SHADOWS_TYPE` | SemanticModelConstruction | Type parameter '{name}' shadows the enclosing type name. |
-| `MIST_METHOD_ARITY_MISMATCH` | Analysis | Method '{name}' expects {expected} type argument(s) but received {actual}. |
-| `MIST_UNDEFINED_TYPE_ARGUMENT` | SemanticModelConstruction | Type argument '{name}' could not be resolved. |
+| `MIST_ARITY_MISMATCH (historical)` | SemanticModelConstruction | Type '{name}' expects {expected} type argument(s) but received {actual}. |
+| `MIST_NOT_GENERIC (historical)` | SemanticModelConstruction | Type '{name}' is not generic and does not accept type arguments. |
+| `MIST_MISSING_TYPE_ARGUMENTS (historical)` | SemanticModelConstruction | Generic type '{name}' requires type arguments. |
+| `MIST_DUPLICATE_TYPE_PARAMETER (historical)` | SemanticModelConstruction | Duplicate type parameter name '{name}'. |
+| `MIST_TYPE_PARAMETER_SHADOWS_TYPE (historical)` | SemanticModelConstruction | Type parameter '{name}' shadows the enclosing type name. |
+| `MIST_METHOD_ARITY_MISMATCH (historical)` | Analysis | Method '{name}' expects {expected} type argument(s) but received {actual}. |
+| `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` | SemanticModelConstruction | Type argument '{name}' could not be resolved. |
 
 ## Data Models
 
@@ -532,7 +532,7 @@ StringMap<int> → ConstructedType(StringMap, [int])
 
 ### Property 3: Duplicate type parameter diagnostic
 
-*For any* type or method declaration whose `TypeParameterList` contains two or more identical identifier names, the semantic model builder SHALL emit a `MIST_DUPLICATE_TYPE_PARAMETER` diagnostic error for each duplicate occurrence.
+*For any* type or method declaration whose `TypeParameterList` contains two or more identical identifier names, the semantic model builder SHALL emit a `MIST_DUPLICATE_TYPE_PARAMETER (historical)` diagnostic error for each duplicate occurrence.
 
 **Validates: Requirements 6.5, 13.3**
 
@@ -544,13 +544,13 @@ StringMap<int> → ConstructedType(StringMap, [int])
 
 ### Property 5: Arity mismatch diagnostic
 
-*For any* type reference or method invocation that provides a different number of type arguments than the referenced generic type or method declares type parameters, the compiler SHALL emit a diagnostic error stating the expected and actual arity. This applies to both type-level arity mismatches (`MIST_ARITY_MISMATCH`) and method-level arity mismatches (`MIST_METHOD_ARITY_MISMATCH`).
+*For any* type reference or method invocation that provides a different number of type arguments than the referenced generic type or method declares type parameters, the compiler SHALL emit a diagnostic error stating the expected and actual arity. This applies to both type-level arity mismatches (`MIST_ARITY_MISMATCH (historical)`) and method-level arity mismatches (`MIST_METHOD_ARITY_MISMATCH (historical)`).
 
 **Validates: Requirements 7.2, 11.6, 13.1, 13.4**
 
 ### Property 6: Non-generic type argument diagnostic
 
-*For any* type reference that provides type arguments to a type that is not a generic type declaration (i.e., has zero type parameters), the compiler SHALL emit a `MIST_NOT_GENERIC` diagnostic error.
+*For any* type reference that provides type arguments to a type that is not a generic type declaration (i.e., has zero type parameters), the compiler SHALL emit a `MIST_NOT_GENERIC (historical)` diagnostic error.
 
 **Validates: Requirements 7.3, 13.2**
 
@@ -562,7 +562,7 @@ StringMap<int> → ConstructedType(StringMap, [int])
 
 ### Property 8: Missing type arguments diagnostic
 
-*For any* non-generic type that inherits from a generic type without providing type arguments, the compiler SHALL emit a `MIST_MISSING_TYPE_ARGUMENTS` diagnostic error.
+*For any* non-generic type that inherits from a generic type without providing type arguments, the compiler SHALL emit a `MIST_MISSING_TYPE_ARGUMENTS (historical)` diagnostic error.
 
 **Validates: Requirements 8.4, 13.5**
 
@@ -592,7 +592,7 @@ StringMap<int> → ConstructedType(StringMap, [int])
 
 ### Property 13: Undefined type argument diagnostic
 
-*For any* type reference where a type argument name cannot be resolved to a known type (neither a declared type, a type parameter in scope, nor a primitive type), the compiler SHALL emit a `MIST_UNDEFINED_TYPE_ARGUMENT` diagnostic error.
+*For any* type reference where a type argument name cannot be resolved to a known type (neither a declared type, a type parameter in scope, nor a primitive type), the compiler SHALL emit a `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` diagnostic error.
 
 **Validates: Requirements 13.6**
 
@@ -602,14 +602,14 @@ StringMap<int> → ConstructedType(StringMap, [int])
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Type argument count doesn't match type parameter count | `MIST_ARITY_MISMATCH` | Error | Treat as `UnknownType`, continue |
-| Type arguments provided to non-generic type | `MIST_NOT_GENERIC` | Error | Ignore type arguments, continue |
-| Generic type used without type arguments | `MIST_MISSING_TYPE_ARGUMENTS` | Error | Treat as open generic, continue |
-| Duplicate type parameter name in list | `MIST_DUPLICATE_TYPE_PARAMETER` | Error | Use first occurrence, skip duplicates |
-| Type parameter shadows enclosing type name | `MIST_TYPE_PARAMETER_SHADOWS_TYPE` | Warning | Continue (type parameter takes precedence in scope) |
-| Method type argument count mismatch | `MIST_METHOD_ARITY_MISMATCH` | Error | Treat return type as `UnknownType`, continue |
-| Type argument cannot be resolved | `MIST_UNDEFINED_TYPE_ARGUMENT` | Error | Substitute `UnknownType`, continue |
-| Incompatible constructed type assignment | `MIST_TC_0001` (existing) | Error | Existing type checker handling |
+| Type argument count doesn't match type parameter count | `MIST_ARITY_MISMATCH (historical)` | Error | Treat as `UnknownType`, continue |
+| Type arguments provided to non-generic type | `MIST_NOT_GENERIC (historical)` | Error | Ignore type arguments, continue |
+| Generic type used without type arguments | `MIST_MISSING_TYPE_ARGUMENTS (historical)` | Error | Treat as open generic, continue |
+| Duplicate type parameter name in list | `MIST_DUPLICATE_TYPE_PARAMETER (historical)` | Error | Use first occurrence, skip duplicates |
+| Type parameter shadows enclosing type name | `MIST_TYPE_PARAMETER_SHADOWS_TYPE (historical)` | Warning | Continue (type parameter takes precedence in scope) |
+| Method type argument count mismatch | `MIST_METHOD_ARITY_MISMATCH (historical)` | Error | Treat return type as `UnknownType`, continue |
+| Type argument cannot be resolved | `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` | Error | Substitute `UnknownType`, continue |
+| Incompatible constructed type assignment | `MIST_TC_0001 (historical)` (existing) | Error | Existing type checker handling |
 
 ### Error Recovery Strategy
 

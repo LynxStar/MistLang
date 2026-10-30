@@ -62,7 +62,7 @@ This plan implements deep ownership guarantees for the Mist language by: (1) add
 
 - [x] 6. Implement owned binding type validation (Pass 2b)
   - [x] 6.1 Add Pass 2b to `OwnershipAnalyzer` — owned binding type validation
-    - Verify that `owned` bindings hold values of owned types (report `MIST_OWN_TYPE_REQUIRES_OWNED` if not)
+    - Verify that `owned` bindings hold values of owned types (report `MIST_OWN_TYPE_REQUIRES_OWNED (historical)` if not)
     - Verify initializer yields unique ownership: `new`, owned-returning function, or move from another owned binding
     - Report error if initializer does not yield unique ownership
     - Wire into `Analyze()` method after Pass 1
@@ -165,13 +165,13 @@ This plan implements deep ownership guarantees for the Mist language by: (1) add
   - [x] 13.2 Write property test for valid fields accepted (Property 1)
     - **Property 1: Owned Type Field Restriction — Valid Fields Accepted**
     - Generate owned type declarations with valid field configs
-    - Compile in-process, verify zero `MIST_OWN_FIELD_NOT_OWNED` diagnostics
+    - Compile in-process, verify zero `MIST_OWN_FIELD_NOT_OWNED (historical)` diagnostics
     - **Validates: Requirements 1.3, 1.5, 1.6, 2.4, 9.1**
 
   - [x] 13.3 Write property test for invalid fields rejected (Property 2)
     - **Property 2: Owned Type Field Restriction — Invalid Fields Rejected**
     - Generate owned types with at least one invalid field
-    - Compile in-process, verify `MIST_OWN_FIELD_NOT_OWNED` reported per violating field
+    - Compile in-process, verify `MIST_OWN_FIELD_NOT_OWNED (historical)` reported per violating field
     - **Validates: Requirements 1.4, 13.1, 13.6**
 
 - [x] 14. Wire OwnershipInferenceEngine into CompilerDriver

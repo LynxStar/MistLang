@@ -19,12 +19,12 @@ namespace Mist.ProgramAnalysis.Rules;
 /// </summary>
 internal static class Assignability
 {
-    public static DiagnosticDescriptor? Judge(Expression value, IMistType target, TypeInterner interner)
+    public static MistDiagnostic? Judge(Expression value, IMistType target, TypeInterner interner)
     {
         return Judge(value.Type, target, interner, ConstantConversion.IntegerConstant(value));
     }
 
-    public static DiagnosticDescriptor? Judge(IMistType from, IMistType to, TypeInterner interner, Int128? integerConstant = null)
+    public static MistDiagnostic? Judge(IMistType from, IMistType to, TypeInterner interner, Int128? integerConstant = null)
     {
         var kind = ConversionClassifier.Classify(from, to, interner);
 
@@ -52,7 +52,7 @@ internal static class Assignability
     /// exists at all and is asked that by overload pairing too. A union is left alone: one holding a ref
     /// struct is refused where it is written.
     /// </summary>
-    public static DiagnosticDescriptor? Boxing(IMistType from, IMistType to, TypeInterner interner)
+    public static MistDiagnostic? Boxing(IMistType from, IMistType to, TypeInterner interner)
     {
         return RefStructs.Is(from)
             && !RefStructs.Is(to)
@@ -62,7 +62,7 @@ internal static class Assignability
                 : null;
     }
 
-    public static DiagnosticDescriptor? JudgeSelection(int implicitOperatorCount)
+    public static MistDiagnostic? JudgeSelection(int implicitOperatorCount)
     {
         return implicitOperatorCount > 1 ? ProgramAnalysisDiagnostics.AmbiguousImplicitConversion : null;
     }

@@ -26,10 +26,10 @@ public sealed class ContextualExpressionIndexContractTests
         _ = Assert.IsType<LiteralExpression>(bound.Children[1]);
         Assert.True(PriorFailure.Of(bound));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_RECEIVER_NOT_INDEXABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST0354", diagnostic.Number.Value);
         Assert.Contains("'int'", diagnostic.Message);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 46), new LinePosition(1, 47)), diagnostic.Position());
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class ContextualExpressionIndexContractTests
         var bound = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("printer"), call));
 
         Assert.True(bound.IsReported);
-        Assert.Equal("MIST_PM_RECEIVER_NOT_INDEXABLE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0354", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         Assert.Contains(bound.Children, child => child is ErrorExpression { Children.Count: 2 });
     }
 
@@ -86,7 +86,7 @@ public sealed class ContextualExpressionIndexContractTests
         var second = f.Function("Take", f.Built.Type("Void"), f.Built.Type("String"));
         var choice = OverloadResolution.Select(new[] { first, second }, [bound], null, null, f.Built.Interner);
         _ = OverloadFailure.Retain(choice, new[] { first, second }, [bound], "method 'Take'", HandBuiltModel.Node(), f.Diagnostics);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0390", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]

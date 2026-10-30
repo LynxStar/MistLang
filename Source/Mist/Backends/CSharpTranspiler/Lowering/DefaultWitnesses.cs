@@ -187,7 +187,8 @@ internal static class DefaultWitnesses
                     && (BackingStorage.DeclaredField(property) is not null
                         || (property.Getter is { IsAuto: true } && AccessorEmitter.IsBodiless(property.Setter))))))
             {
-                writer.WriteLine($"this.{slot} = default({TypeEmitter.EmitTypeName(declaration)}).{slot};");
+                // This copies admitted raw storage, not a semantic default witness promising a non-null T.
+                writer.WriteLine($"this.{slot} = default({TypeEmitter.EmitTypeName(declaration)}).{slot}!;");
             }
         }
     }

@@ -29,7 +29,7 @@ internal sealed partial class OwnershipFlow
                 if(move.Node is Expression { Node: { } at } expression && inside.Contains(expression)
                     && !(declaringBlocks.TryGetValue(place.Root, out var home) && inside.Contains(home)))
                 {
-                    context.Report(ProgramAnalysisDiagnostics.LoopMove, at, [expression], place.Display);
+                    context.Report(ProgramAnalysisDiagnostics.LoopMove, at, [expression], new NameValue(place.Display));
                 }
             }
         }
@@ -63,7 +63,7 @@ internal sealed partial class OwnershipFlow
 
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }
                 when owning is not null && SharedThrough(state, returned) is { } kept:
-                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, returned.Node, [returned], owning.Name, kept.Reason);
+                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, returned.Node, [returned], new NameValue(owning.Name), new NameValue(kept.Reason));
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
@@ -92,14 +92,14 @@ internal sealed partial class OwnershipFlow
         {
             if(!ReferenceEquals(move.Node, read) && !IsReceiverOf(move.Node, read))
             {
-                context.Report(ProgramAnalysisDiagnostics.UseAfterMove, read.Node, [read], place.Display, move.Dropped ? "dropped" : "moved");
+                context.Report(ProgramAnalysisDiagnostics.UseAfterMove, read.Node, [read], new NameValue(place.Display), new EnumValue(move.Dropped ? "dropped" : "moved"));
             }
         }
         else if(Has(state, place, Lease.Borrowed))
         {
             if(!state.Complained.Contains(place))
             {
-                context.Report(ProgramAnalysisDiagnostics.LeaseViolation, read.Node, [read], place.Display, "access", "borrowed");
+                context.Report(ProgramAnalysisDiagnostics.LeaseViolation, read.Node, [read], new NameValue(place.Display), new EnumValue("access"), new EnumValue("borrowed"));
             }
         }
         else if(Whole(read) && !Consumed(read))
@@ -135,7 +135,7 @@ internal sealed partial class OwnershipFlow
             else if(target is MemberAccessExpression { Receiver: var receiver } && Place.Nearest(receiver) is { } holder
                 && Lent(state, holder, Action.Write, evaluated: true) is var (lent, kind))
             {
-                context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], lent.Display, "mutate", Display(kind));
+                context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
             }
 
             if(ThisTiers.OwnedSlot(target) is { } destination && Place.Of(value) is { } stored && Place.Tracked(stored))
@@ -167,7 +167,7 @@ internal sealed partial class OwnershipFlow
 
         if(tiers.Required(method) >= ThisTier.Borrowed && Lent(state, held, Action.Write, evaluated: true) is var (lent, kind))
         {
-            context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], lent.Display, "mutate", Display(kind));
+            context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
         }
         else if(method.DeclaredThisTier == ThisTier.Owned && Place.Tracked(held))
         {
@@ -202,7 +202,7 @@ internal sealed partial class OwnershipFlow
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.FieldStateCall, invocation.Node, [invocation, receiver],
-                    method.Name, held.Display, use.HasFlag(FieldUse.Writes) ? "writes" : "reads", field.Name, Describe(current));
+                    new NameValue(method.Name), new NameValue(held.Display), new EnumValue(use.HasFlag(FieldUse.Writes) ? "writes" : "reads"), new NameValue(field.Name), new EnumValue(Describe(current)));
                 return;
             }
         }
@@ -212,7 +212,7 @@ internal sealed partial class OwnershipFlow
     {
         if(Lent(state, place, action, evaluated) is var (lent, kind))
         {
-            context.Report(ProgramAnalysisDiagnostics.LeaseViolation, at.Node, [at], lent.Display, Verb(action), Display(kind));
+            context.Report(ProgramAnalysisDiagnostics.LeaseViolation, at.Node, [at], new NameValue(lent.Display), new EnumValue(Verb(action)), new EnumValue(Display(kind)));
             return;
         }
 
@@ -223,7 +223,7 @@ internal sealed partial class OwnershipFlow
     {
         if(Blocking(state, place, action) is var (child, held))
         {
-            context.Report(ProgramAnalysisDiagnostics.CompositeState, at.Node, [at], Verb(action), place.Display, child.RelativeTo(place), Describe(held));
+            context.Report(ProgramAnalysisDiagnostics.CompositeState, at.Node, [at], new EnumValue(Verb(action)), new NameValue(place.Display), new NameValue(child.RelativeTo(place)), new EnumValue(Describe(held)));
         }
     }
 
@@ -231,7 +231,7 @@ internal sealed partial class OwnershipFlow
     {
         if(owned && SharedThrough(state, source) is { } kept)
         {
-            context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, source.Node, [source], destination, kept.Reason);
+            context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, source.Node, [source], new NameValue(destination), new NameValue(kept.Reason));
         }
     }
 

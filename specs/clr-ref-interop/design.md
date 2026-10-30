@@ -292,9 +292,9 @@ This feature does not introduce new error conditions. The existing ref parameter
 
 | Diagnostic | Condition | Behavior |
 |-----------|-----------|----------|
-| `MIST_REF_0001` | Missing `ref` keyword at call site | Already emitted by TypeChecker when a `RefKind.Ref` parameter is called without `ref` |
-| `MIST_REF_0005` | Assignment through `ref readonly` local | Already handled — not applicable here since CLR `ref readonly` returns are filtered |
-| `MIST_REF_0006` | Ref return lifetime violation | Already handled for Mist-native ref returns; applies identically to projected CLR ref returns |
+| `MIST_REF_0001 (historical)` | Missing `ref` keyword at call site | Already emitted by TypeChecker when a `RefKind.Ref` parameter is called without `ref` |
+| `MIST_REF_0005 (historical)` | Assignment through `ref readonly` local | Already handled — not applicable here since CLR `ref readonly` returns are filtered |
+| `MIST_REF_0006 (historical)` | Ref return lifetime violation | Already handled for Mist-native ref returns; applies identically to projected CLR ref returns |
 
 ### Graceful Degradation
 

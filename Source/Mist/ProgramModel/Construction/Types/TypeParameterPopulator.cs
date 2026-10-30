@@ -58,7 +58,7 @@ internal static class TypeParameterPopulator
 
             if(!names.Add(typeParam.Name))
             {
-                diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateTypeParameter, nodes[ordinal], null, typeParam.Name);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateTypeParameter, nodes[ordinal], null, new NameValue(typeParam.Name));
             }
 
             if(typeParam.PackKind != TypePackKind.Unbracketed)
@@ -68,9 +68,7 @@ internal static class TypeParameterPopulator
 
             if(unbracketed is not null)
             {
-                diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.MultipleUnbracketedPacks, nodes[ordinal], null,
-                    typeParam.Name, unbracketed.Name);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MultipleUnbracketedPacks, nodes[ordinal], null, new NameValue(typeParam.Name), new NameValue(unbracketed.Name));
 
                 // Demoted so the rest of the pipeline still reads an unambiguous list. The
                 // diagnostic is the verdict; leaving two absorbing slots behind would make every

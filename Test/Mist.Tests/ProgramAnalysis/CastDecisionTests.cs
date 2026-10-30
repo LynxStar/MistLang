@@ -14,8 +14,8 @@ public sealed class CastDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_ENUM_CAST_ARGUMENT_MISMATCH", "MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_NO_IMPLICIT_CONVERSION",
-        "MIST_PA_CAST_ARGUMENT_MISMATCH", "MIST_PA_AMBIGUOUS_CAST", "MIST_PA_CAST_REQUIRED",
+        "MIST0150", "MIST0149", "MIST0157",
+        "MIST0151", "MIST0155", "MIST0158",
     ];
 
     public CastDecisionTests()
@@ -164,6 +164,6 @@ public sealed class CastDecisionTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

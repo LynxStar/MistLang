@@ -13,9 +13,9 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_SLOT_NOT_FILLED", "MIST_PA_SLOT_SIGNATURE_MISMATCH", "MIST_PA_PROPERTY_SLOT_ACCESSOR_MISSING",
-        "MIST_PA_CONFORMANCE_SLOT_UNANSWERED", "MIST_PA_REDUNDANT_CONFORMANCE", "MIST_PA_TYPE_SLOT_UNFILLED",
-        "MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED", "MIST_PA_READONLY_CONTRACT_NOT_MET",
+        "MIST0183", "MIST0184", "MIST0188",
+        "MIST0189", "MIST0190", "MIST0191",
+        "MIST0192", "MIST0187",
     ];
 
     public ConformanceDecisionTests()
@@ -185,7 +185,7 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
             """);
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_CONFORMANCE_SLOT_UNANSWERED", finding.Id.Value);
+        Assert.Equal("MIST0189", finding.Number.Value);
         Assert.Contains("string", finding.Message);
     }
 
@@ -203,6 +203,6 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

@@ -38,7 +38,7 @@ public class VarForeachParseTest
 
         var errors = ParseAndGetErrors(source);
         Assert.True(errors.Count == 0,
-            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Id}: {e.Message}"))}");
+            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Number}: {e.Message}"))}");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class VarForeachParseTest
 
         var errors = ParseAndGetErrors(source);
         Assert.True(errors.Count == 0,
-            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Id}: {e.Message}"))}");
+            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Number}: {e.Message}"))}");
     }
 
     [Fact]
@@ -79,6 +79,6 @@ public class VarForeachParseTest
 
         var errors = ParseAndGetErrors(source);
         Assert.True(errors.Count == 0,
-            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Id}: {e.Message}"))}");
+            $"Parse errors:\n  {string.Join("\n  ", errors.Select(e => $"{e.Number}: {e.Message}"))}");
     }
 }

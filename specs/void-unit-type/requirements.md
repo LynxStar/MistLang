@@ -48,7 +48,7 @@ Formalize `Void` as a fully powered unit type in the Mist programming language c
 1. WHEN a method declares `void` as its return type, THE Semantic_Model_Builder SHALL resolve the return type to `VoidType.Instance`.
 2. WHEN a `return;` statement appears in a void method, THE Compiler SHALL treat the statement as equivalent to `return Void.Void;`.
 3. WHEN a void method body reaches its end without an explicit return statement, THE Compiler SHALL treat the method as implicitly returning `Void.Void`.
-4. WHEN a `return` statement in a void method includes a value expression, THE Type_Checker SHALL report a diagnostic error with id `MIST_TC_0008` if the expression type is not `VoidType`.
+4. WHEN a `return` statement in a void method includes a value expression, THE Type_Checker SHALL report a diagnostic error with id `MIST_TC_0008 (historical)` if the expression type is not `VoidType`.
 5. WHEN a `return Void.Void;` statement appears in a void method, THE Type_Checker SHALL accept the statement without error.
 
 ### Requirement 4: Void as Variable Type

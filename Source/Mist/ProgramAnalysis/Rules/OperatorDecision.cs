@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -10,7 +11,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class OperatorDecision
 {
-    public static DiagnosticDescriptor? Binary(
+    public static MistDiagnostic? Binary(
         BinaryOperatorKind kind, IMistType left, IMistType right, Func<WellKnownType, IMistType> wellKnown)
     {
         if(OperatorAdmissibility.ResultType(kind, left, right, wellKnown) is not null)
@@ -22,7 +23,7 @@ internal static class OperatorDecision
             ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
     }
 
-    public static DiagnosticDescriptor? Unary(UnaryOperatorKind kind, IMistType operand)
+    public static MistDiagnostic? Unary(UnaryOperatorKind kind, IMistType operand)
     {
         if(OperatorAdmissibility.UnaryResultType(kind, operand) is not null)
         {
@@ -38,22 +39,27 @@ internal static class OperatorDecision
     /// (standard-library Requirement 14.2), naming each candidate with its owner: two owners may declare one
     /// parameter list, so the parameters alone would describe a tie between two identical signatures.
     /// </summary>
-    public static DiagnosticDescriptor? Tie(IReadOnlyList<ClosedOperator> tied)
+    public static MistDiagnostic? Tie(IReadOnlyList<ClosedOperator> tied)
     {
         return tied.Count > 1 ? ProgramModelDiagnostics.AmbiguousOverload : null;
     }
 
-    public static string Signatures(IReadOnlyList<ClosedOperator> tied)
+    public static SymbolValue Callee(IReadOnlyList<ClosedOperator> tied, string spelling)
     {
-        return string.Join(", ", tied.Select(OperatorSelection.Describe));
+        return new SymbolValue(string.Join("|", tied.Select(candidate => DiagnosticSnapshot.Symbol(candidate.Declaration, "").Identity)), spelling);
     }
 
-    public static DiagnosticDescriptor? Conditional(IMistType receiver)
+    public static SequenceValue Signatures(IReadOnlyList<ClosedOperator> tied)
+    {
+        return new SequenceValue(SlotKind.Symbol, [.. tied.Select(candidate => DiagnosticSnapshot.Symbol(candidate.Declaration, OperatorSelection.Describe(candidate)))]);
+    }
+
+    public static MistDiagnostic? Conditional(IMistType receiver)
     {
         return OptionalUnion.AdmitsConditionalAccess(receiver) ? null : ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional;
     }
 
-    public static DiagnosticDescriptor? Member(IMistType receiver)
+    public static MistDiagnostic? Member(IMistType receiver)
     {
         return receiver is UnknownType ? ProgramAnalysisDiagnostics.UnknownHasNoMembers : null;
     }

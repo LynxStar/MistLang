@@ -73,21 +73,21 @@ All code is C# (the compiler) and Mist (standard library + samples), matching th
 - [x] 5. DropAnalyzer and diagnostics
   - [x] 5.1 Create `DropAnalyzer` skeleton, diagnostics, and declaration validations
     - New `DropAnalyzer : IAnalyzer` in `Source/Mist/Analysis/Builtin/`, following the `OwnershipAnalyzer` structure (a `MakeDiagnostic` helper and analyzer-local descriptive IDs — NOT central numeric codes).
-    - Define IDs: `MIST_DROP_USE_AFTER_MOVE`, `MIST_DROP_USE_AFTER_DROP`, `MIST_DROP_FIELD_NOT_OWNED`, `MIST_DROP_FIELD_OUTSIDE_CONTAINER`, `MIST_DROP_CONFLICTING_MODIFIERS`, `MIST_DROP_PARAMETERS`.
-    - Implement declaration-level validations: conflicting modifiers (`MIST_DROP_CONFLICTING_MODIFIERS`), `Drop()` with parameters (`MIST_DROP_PARAMETERS`), and non-owned container with affine/linear field (`MIST_DROP_FIELD_NOT_OWNED`).
+    - Define IDs: `MIST_DROP_USE_AFTER_MOVE (historical)`, `MIST_DROP_USE_AFTER_DROP (historical)`, `MIST_DROP_FIELD_NOT_OWNED (historical)`, `MIST_DROP_FIELD_OUTSIDE_CONTAINER (historical)`, `MIST_DROP_CONFLICTING_MODIFIERS (historical)`, `MIST_DROP_PARAMETERS (historical)`.
+    - Implement declaration-level validations: conflicting modifiers (`MIST_DROP_CONFLICTING_MODIFIERS (historical)`), `Drop()` with parameters (`MIST_DROP_PARAMETERS (historical)`), and non-owned container with affine/linear field (`MIST_DROP_FIELD_NOT_OWNED (historical)`).
     - Register `new DropAnalyzer()` in the analyzer array in `Source/Mist.CLI/Program.cs`, ordered AFTER `OwnershipAnalyzer`.
     - _Requirements: 1.6, 1.7, 2.3, 11.1, 11.2, 11.3, 11.4, 15.3, 15.5_
 
   - [x] 5.2 Implement flow-sensitive drop-state tracking
     - Add the `VariableDropState` enum (`Live`, `Dropped`, `Moved`, `Returned`) and walk method bodies flow-sensitively, reusing the existing `MethodFlowState` Fork/Merge infrastructure used by `OwnershipAnalyzer`.
-    - Report use-after-drop/move on linear (`MIST_DROP_USE_AFTER_MOVE`) and use-after-drop on affine (`MIST_DROP_USE_AFTER_DROP`); `Drop()` on relevant types does NOT consume; field `Drop()` outside the container's `Drop()` reports `MIST_DROP_FIELD_OUTSIDE_CONTAINER` (affine/linear fields only, relevant exempt).
+    - Report use-after-drop/move on linear (`MIST_DROP_USE_AFTER_MOVE (historical)`) and use-after-drop on affine (`MIST_DROP_USE_AFTER_DROP (historical)`); `Drop()` on relevant types does NOT consume; field `Drop()` outside the container's `Drop()` reports `MIST_DROP_FIELD_OUTSIDE_CONTAINER (historical)` (affine/linear fields only, relevant exempt).
     - _Requirements: 3.1, 3.2, 3.3, 6.2, 6.3, 12.1, 12.2, 12.3, 15.1, 15.2, 15.4_
 
   - [x] 5.3 Write test for conflicting-modifier rejection
     - **Property 2: Conflicting modifier rejection**
     - **Validates: Requirements 1.6, 1.7**
     - Tag: `Feature: drop-semantics, Property 2: Conflicting modifier rejection`
-    - Example-based `[Theory]`/`[InlineData]` over the finite invalid set (`affine linear`, `affine relevant`, `linear relevant`, `owned affine`, `owned linear`, `owned relevant`); assert `MIST_DROP_CONFLICTING_MODIFIERS`. In-process; **spawns 0 external processes**.
+    - Example-based `[Theory]`/`[InlineData]` over the finite invalid set (`affine linear`, `affine relevant`, `linear relevant`, `owned affine`, `owned linear`, `owned relevant`); assert `MIST_DROP_CONFLICTING_MODIFIERS (historical)`. In-process; **spawns 0 external processes**.
 
   - [x] 5.4 Write property test for field-containment rule
     - **Property 13: Field containment rule — owned fields require owned containers**

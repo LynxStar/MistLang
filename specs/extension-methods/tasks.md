@@ -72,15 +72,15 @@ This plan implements extension blocks for the Mist programming language, followi
     - Resolve receiver type reference to an `IType`
     - Register receiver parameter symbol in the block's scope
     - Walk member declarations: register methods as `SymbolKind.Method`, properties as `SymbolKind.Property`
-    - Reject `set` accessors with `MIST_SB_0071`
-    - Reject invalid members (fields) with `MIST_SB_0072`
-    - Reject `void` receiver type with `MIST_SB_0074`
+    - Reject `set` accessors with `MIST_SB_0071 (historical)`
+    - Reject invalid members (fields) with `MIST_SB_0072 (historical)`
+    - Reject `void` receiver type with `MIST_SB_0074 (historical)`
     - Register `ExtensionBlockInfo` in the `ExtensionRegistry`
     - _Requirements: 8.1, 8.2, 8.4, 8.6, 8.7, 8.8, 9.1, 9.4, 10.1, 10.2, 10.3, 20.1, 20.2, 20.6_
 
   - [x] 5.4 Add duplicate signature detection across extension blocks
     - Check for duplicate member signatures across all extension blocks for the same receiver type
-    - Emit `MIST_SB_0073` on the second occurrence
+    - Emit `MIST_SB_0073 (historical)` on the second occurrence
     - _Requirements: 8.9, 20.4, 20.7_
 
   - [x] 5.5 Add receiver parameter shadowing warning
@@ -97,14 +97,14 @@ This plan implements extension blocks for the Mist programming language, followi
   - [x] 5.7 Write property test for set accessor rejection (Property 11)
     - **Property 11: Set Accessor Rejection**
     - Generate extension properties with `set` or `init` accessors
-    - Assert compiler emits `MIST_SB_0071` diagnostic
+    - Assert compiler emits `MIST_SB_0071 (historical)` diagnostic
     - Use FsCheck with MaxTest = 100, in-process compilation via shared CompilerDriver
     - **Validates: Requirements 6.5, 20.3**
 
   - [x] 5.8 Write property test for duplicate signature detection (Property 10)
     - **Property 10: Duplicate Signature Detection**
     - Generate two extension blocks on the same receiver type with identical member signatures
-    - Assert compiler emits `MIST_SB_0073` diagnostic
+    - Assert compiler emits `MIST_SB_0073 (historical)` diagnostic
     - Use FsCheck with MaxTest = 100, in-process compilation via shared CompilerDriver
     - **Validates: Requirements 8.9, 20.4**
 
@@ -117,14 +117,14 @@ This plan implements extension blocks for the Mist programming language, followi
     - Filter by namespace visibility (only extensions whose `ContainingNamespace` is imported or null)
     - Collect candidate extension members matching the name
     - Apply overload resolution if multiple candidates
-    - Emit `MIST_UNDEFINED_MEMBER` if no candidates found
+    - Emit `MIST_UNDEFINED_MEMBER (historical)` if no candidates found
     - _Requirements: 11.1, 11.2, 11.3, 11.6, 21.1_
 
   - [x] 7.2 Implement specificity ordering for extension candidates
     - Own members > extension members (already handled by fallback structure)
     - More-specific receiver type > less-specific (e.g., `string` > `unknown`)
     - Exact type match > base type match > universal
-    - Emit `MIST_TC_0082` on ambiguity
+    - Emit `MIST_TC_0082 (historical)` on ambiguity
     - _Requirements: 11.4, 11.5, 21.2_
 
   - [x] 7.3 Implement generic extension type inference
@@ -141,8 +141,8 @@ This plan implements extension blocks for the Mist programming language, followi
     - _Requirements: 13.1, 13.2, 13.3_
 
   - [x] 7.5 Implement static receiver access validation
-    - If a `static` extension member body references the receiver parameter → emit `MIST_TC_0080`
-    - If a method parameter name conflicts with receiver parameter name → emit `MIST_TC_0081`
+    - If a `static` extension member body references the receiver parameter → emit `MIST_TC_0080 (historical)`
+    - If a method parameter name conflicts with receiver parameter name → emit `MIST_TC_0081 (historical)`
     - _Requirements: 3.3, 13.4, 20.5_
 
   - [x] 7.6 Implement trait/interface exclusion
@@ -207,7 +207,7 @@ This plan implements extension blocks for the Mist programming language, followi
   - [x] 7.15 Write property test for static receiver access rejection (Property 9)
     - **Property 9: Static Receiver Access Rejection**
     - Generate static extension members whose bodies reference the receiver parameter
-    - Assert type checker emits `MIST_TC_0080`
+    - Assert type checker emits `MIST_TC_0080 (historical)`
     - Use FsCheck with MaxTest = 100, in-process compilation via shared CompilerDriver
     - **Validates: Requirements 3.3, 13.4**
 

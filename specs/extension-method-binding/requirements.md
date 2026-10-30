@@ -112,7 +112,7 @@ This feature bridges the gap between Mist's native extension blocks (which are s
 
 #### Acceptance Criteria
 
-1. WHEN member lookup fails and no ambient extension method is found in any imported namespace, THE Type_Checker SHALL emit the standard `MIST_UNDEFINED_MEMBER` diagnostic.
+1. WHEN member lookup fails and no ambient extension method is found in any imported namespace, THE Type_Checker SHALL emit the standard `MIST_UNDEFINED_MEMBER (historical)` diagnostic.
 2. WHEN multiple ambient extension methods from different namespaces are equally applicable (ambiguity), THE Type_Checker SHALL emit a diagnostic listing all candidate methods and their containing namespaces.
 3. WHEN an ambient extension method is found but the call-site arguments do not match the parameter types, THE Type_Checker SHALL emit a type mismatch diagnostic referencing the extension method's full signature.
 

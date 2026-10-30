@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Superseded in part by `specs/diagnostics/requirements.md`.** That document supersedes Requirements 4.3, 4.4, 7.3 and 7.4 here by its Requirement 8; Requirement 5.6 and the design's Property 1 by its Requirement 11; and the design's rule of a minimum of 100 iterations for every property by its Requirement 17. Requirements 1 to 3 and 6 remain in force for the Storm boundary. The rest of this document, including the `MIST_...` spellings it cites, is left as history and is not rewritten; `specs/diagnostics/crosswalk.md` translates them.
+
 ## Introduction
 
 The Mist compiler and Storm parser generator currently have inconsistent diagnostic reporting. Some pipeline stages include source location (file, line, column) in their diagnostics while others do not. Additionally, Storm and Mist use separate diagnostic types with no shared formatting system. This feature introduces a unified diagnostic formatting system that ensures every diagnostic across all pipeline stages in both Storm and Mist includes exact source location information and is rendered through a single, consistent formatter.

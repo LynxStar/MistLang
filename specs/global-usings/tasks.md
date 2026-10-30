@@ -33,11 +33,11 @@ This plan implements the `[global_usings]` feature for the Mist compiler. Global
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.7_
 
   - [x] 2.2 Implement validation rules for namespace entries
-    - Validate each entry: reject empty/whitespace-only strings (`MIST_GLOBAL_USING_EMPTY_NAMESPACE`)
-    - Validate character set using `ValidNamespacePattern` regex (`MIST_GLOBAL_USING_INVALID_NAMESPACE`)
-    - Validate `namespaces` field is an array (`MIST_GLOBAL_USING_INVALID_FORMAT`)
-    - Validate each element is a string (`MIST_GLOBAL_USING_INVALID_FORMAT` with index)
-    - Detect and warn on duplicates (`MIST_GLOBAL_USING_DUPLICATE_NAMESPACE`), removing duplicates but continuing
+    - Validate each entry: reject empty/whitespace-only strings (`MIST0080`)
+    - Validate character set using `ValidNamespacePattern` regex (`MIST0081`)
+    - Validate `namespaces` field is an array (`MIST0077`)
+    - Validate each element is a string (`MIST0078` with index)
+    - Detect and warn on duplicates (`MIST0082`), removing duplicates but continuing
     - Include `mist.toml` file path in all diagnostic messages
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
@@ -45,11 +45,11 @@ This plan implements the `[global_usings]` feature for the Mist compiler. Global
     - Test valid `[global_usings]` with multiple namespaces
     - Test absent `[global_usings]` section produces empty list
     - Test empty `namespaces` array produces empty list
-    - Test missing `namespaces` field produces `MIST_GLOBAL_USING_MISSING_NAMESPACES` error
-    - Test empty/whitespace entry produces `MIST_GLOBAL_USING_EMPTY_NAMESPACE` error
-    - Test invalid characters produce `MIST_GLOBAL_USING_INVALID_NAMESPACE` error
-    - Test non-array `namespaces` produces `MIST_GLOBAL_USING_INVALID_FORMAT` error
-    - Test non-string element produces `MIST_GLOBAL_USING_INVALID_FORMAT` error
+    - Test missing `namespaces` field produces `MIST0079` error
+    - Test empty/whitespace entry produces `MIST0080` error
+    - Test invalid characters produce `MIST0081` error
+    - Test non-array `namespaces` produces `MIST0077` error
+    - Test non-string element produces `MIST0078` error
     - Test duplicate entries produce warning and are removed
     - Test unknown fields in `[global_usings]` are silently discarded
     - Test all diagnostics include the file path
@@ -78,17 +78,17 @@ This plan implements the `[global_usings]` feature for the Mist compiler. Global
     - In the file scope creation pass, read `unit.GlobalUsings` for each compilation unit
     - For each global using namespace, check if it exists (user-defined or ambient)
     - If it exists, call `fileScope.AddImportedNamespace(globalNs)`
-    - If it does not exist, report `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` warning diagnostic
+    - If it does not exist, report `MIST0294` warning diagnostic
     - Redundant explicit usings are silently accepted (HashSet deduplicates)
-    - Ambiguity detection works via existing `MIST_AMBIGUOUS_TYPE` mechanism
+    - Ambiguity detection works via existing `MIST_AMBIGUOUS_TYPE (historical)` mechanism
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
   - [x] 5.2 Write unit tests for SemanticModelBuilder global usings resolution
     - Test that types from global using namespaces resolve by simple name
     - Test that redundant explicit using produces no diagnostic
-    - Test that undefined global using namespace produces `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` warning
-    - Test that ambiguous types from multiple global usings produce `MIST_AMBIGUOUS_TYPE` error
-    - Test that ambiguity between global using and explicit using produces `MIST_AMBIGUOUS_TYPE` error
+    - Test that undefined global using namespace produces `MIST0294` warning
+    - Test that ambiguous types from multiple global usings produce `MIST_AMBIGUOUS_TYPE (historical)` error
+    - Test that ambiguity between global using and explicit using produces `MIST_AMBIGUOUS_TYPE (historical)` error
     - _Requirements: 4.1–4.5_
 
 - [x] 6. Implement CSharpSourceWriter global usings emission
@@ -119,14 +119,14 @@ This plan implements the `[global_usings]` feature for the Mist compiler. Global
   - [x] 8.2 Write property test for invalid namespace rejection
     - **Property 2: Invalid namespace rejection**
     - Generate random strings that are empty, whitespace-only, or contain invalid characters
-    - Assert parsing produces `MIST_GLOBAL_USING_EMPTY_NAMESPACE` or `MIST_GLOBAL_USING_INVALID_NAMESPACE` error and returns `null`
+    - Assert parsing produces `MIST0080` or `MIST0081` error and returns `null`
     - Minimum 100 iterations, in-process only
     - **Validates: Requirements 2.1, 2.2**
 
   - [x] 8.3 Write property test for duplicate detection and removal
     - **Property 3: Duplicate detection and removal**
     - Generate random namespace arrays with injected duplicates
-    - Assert `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` warning is produced
+    - Assert `MIST0082` warning is produced
     - Assert resulting `GlobalUsings` contains each namespace at most once, preserving first-occurrence order
     - Minimum 100 iterations, in-process only
     - **Validates: Requirements 2.5**
@@ -156,7 +156,7 @@ This plan implements the `[global_usings]` feature for the Mist compiler. Global
   - [x] 9.3 Write property test for undefined namespace warning
     - **Property 7: Undefined namespace warning**
     - Generate random non-existent namespace names as global usings
-    - Compile in-process, assert `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` warning is produced
+    - Compile in-process, assert `MIST0294` warning is produced
     - Minimum 100 iterations, in-process only
     - **Validates: Requirements 4.3**
 

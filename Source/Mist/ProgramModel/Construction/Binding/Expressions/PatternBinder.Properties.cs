@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -98,15 +99,13 @@ internal static partial class PatternBinder
     {
         if(MemberResolution.IsStaticStorage(found))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternSubpatternNotInstance, node, null, matched.Name, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternSubpatternNotInstance, node, null, DiagnosticSnapshot.Type(matched, matched.Name), new NameValue(memberName));
             return true;
         }
 
         if(found is MethodGroupResult or TypeResult or EnumMemberResult)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, matched.Name, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternSubpatternNotStorage, node, null, DiagnosticSnapshot.Type(matched, matched.Name), new NameValue(memberName));
             return true;
         }
 

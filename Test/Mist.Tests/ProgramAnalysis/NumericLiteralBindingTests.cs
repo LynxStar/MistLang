@@ -15,7 +15,7 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class NumericLiteralBindingTests
 {
-    private const string OutOfRange = "MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE";
+    private const string OutOfRange = "MIST0377";
 
     [Theory]
     [InlineData("9223372036854775808L")]
@@ -109,7 +109,7 @@ public sealed class NumericLiteralBindingTests
 
         _ = Assert.IsType<ErrorType>(Assert.Single(f.Builder.Resolver.ResolveTypeArguments(Arguments(form, lexeme), f.Scope)));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(OutOfRange, diagnostic.Id.Value);
+        Assert.Equal(OutOfRange, diagnostic.Number.Value);
         Assert.EndsWith($"'{widest}'.", diagnostic.Message, StringComparison.Ordinal);
     }
 

@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
@@ -61,7 +62,7 @@ internal static class MemberResolution
 
         // Ahead of extensions and behind declared members, which is where a projection belongs: it
         // is the declaring type's own, so it beats an extension, but a member actually written
-        // under the name beats it -- and writing one is MIST_VAR_0007 rather than a shadowing.
+        // under the name beats it -- and writing one is MIST0412 rather than a shadowing.
         if(found is NotFoundResult
             && SpreadProjection.Find(constructed, declaring, memberName, context) is { } projected)
         {
@@ -160,17 +161,23 @@ internal static class MemberResolution
         return found is FieldResult { Field.Modifiers.IsStatic: true } or PropertyResult { Property.Modifiers.IsStatic: true };
     }
 
-    internal static string Describe(AmbiguousResult ambiguous)
+    internal static SequenceValue Describe(AmbiguousResult ambiguous)
     {
-        return string.Join(", ", ambiguous.Candidates.Select(candidate => candidate switch
+        return new SequenceValue(SlotKind.Symbol, [.. ambiguous.Candidates.SelectMany(candidate => candidate switch
         {
-            FieldResult field => $"field '{Qualified(field.DeclaringType, field.Field.Name)}'",
-            PropertyResult property => $"property '{Qualified(property.DeclaringType, property.Property.Name)}'",
-            MethodGroupResult group => string.Join(", ", group.Methods.Select(method => $"method '{Qualified(method.DeclaringType, method.Name)}'")),
-            TypeResult type => $"type '{type.Type.FullyQualifiedName}'",
-            EnumMemberResult member => $"variant '{Qualified(member.DeclaringType, member.Member.Name)}'",
-            _ => candidate.ToString(),
-        }));
+            FieldResult field => new[] { Symbol(field.DeclaringType, field.Field.Name, $"field '{Qualified(field.DeclaringType, field.Field.Name)}'") },
+            PropertyResult property => [Symbol(property.DeclaringType, property.Property.Name, $"property '{Qualified(property.DeclaringType, property.Property.Name)}'")],
+            MethodGroupResult group => group.Methods.Select(method => DiagnosticSnapshot.Symbol(method, $"method '{Qualified(method.DeclaringType, method.Name)}'")),
+            TypeResult type => [new SymbolValue(DiagnosticSnapshot.Type(type.Type).Identity, $"type '{type.Type.FullyQualifiedName}'")],
+            EnumMemberResult member => [Symbol(member.DeclaringType, member.Member.Name, $"variant '{Qualified(member.DeclaringType, member.Member.Name)}'")],
+            _ => [new SymbolValue(candidate.GetType().Name, candidate.ToString() ?? "")],
+        })]);
+    }
+
+    private static SymbolValue Symbol(IMistType? owner, string name, string spelling)
+    {
+        var identity = owner is null ? "<local>" : DiagnosticSnapshot.Type(owner).Identity;
+        return new SymbolValue($"{identity}.{name}", spelling);
     }
 
     private static string Qualified(IMistType? type, string memberName)
@@ -217,14 +224,14 @@ internal static class MemberResolution
                 return true;
 
             case NotFoundResult:
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.UnresolvedMember, node, null, TypeDisplay.Mist(receiver), memberName);
+                ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.UnresolvedMember, node,
+                    ProjectedWithholding.Frames(declaring, memberName), DiagnosticSnapshot.Type(receiver), new NameValue(memberName));
                 return true;
 
             case AmbiguousResult ambiguous:
-                context.Diagnostics.ReportAtNode(
+                context.Diagnostics.ReportAtNodeTyped(
                     ProgramModelDiagnostics.AmbiguousMember, node, null,
-                    TypeDisplay.Mist(receiver), memberName, Describe(ambiguous));
+                    DiagnosticSnapshot.Type(receiver), new NameValue(memberName), Describe(ambiguous));
                 return true;
 
             default:

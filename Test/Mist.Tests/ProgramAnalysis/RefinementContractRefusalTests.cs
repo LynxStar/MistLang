@@ -66,7 +66,7 @@ public sealed class RefinementContractRefusalTests
 
         var finding = RefinementContracts.ReturnFinding(produced, promised,
             name == "implementation-reference-return-narrows-storage", lifted);
-        Assert.Equal("MIST_PA_REFINEMENT_RETURN_UNPROVEN", finding?.Id.Value);
+        Assert.Equal("MIST0284", finding?.Number.Value);
     }
 
     [Theory]
@@ -110,7 +110,7 @@ public sealed class RefinementContractRefusalTests
 
         var finding = name == "implementation-setter-strengthens-refinement" ? RefinementContracts.SetterFinding(promised, demanded)
             : RefinementContracts.ParameterFinding(promised, demanded, name == "implementation-reference-parameter-erases-storage-refinement");
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", finding?.Id.Value);
+        Assert.Equal("MIST0283", finding?.Number.Value);
     }
 
     [Theory]
@@ -126,7 +126,7 @@ public sealed class RefinementContractRefusalTests
             Domain = h.Built.Type("Int32"),
             Refinement = h.Compare(h.Int, ComparisonKind.GreaterThanOrEqual, minimum),
         };
-        Assert.Equal("MIST_PA_DEPENDENT_ARGUMENT_VIOLATED", RefinementAnalyzer.DependentFinding(parameter, new LiftedType(h.Int, argument))?.Id.Value);
+        Assert.Equal("MIST0278", RefinementAnalyzer.DependentFinding(parameter, new LiftedType(h.Int, argument))?.Number.Value);
     }
 
 
@@ -138,7 +138,7 @@ public sealed class RefinementContractRefusalTests
         var h = new HandBuiltRefinements();
         var target = h.Built.Type("Single");
         var cast = new CastExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(h.Double), target, [], target);
-        Assert.Equal("MIST_PA_CAST_HAS_NO_CONVERSION", CastAnalyzer.Judge(cast, h.Built.Interner, CloneConversionRefusals.None)?.Id.Value);
+        Assert.Equal("MIST0149", CastAnalyzer.Judge(cast, h.Built.Interner, CloneConversionRefusals.None)?.Number.Value);
     }
 
 }

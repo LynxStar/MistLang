@@ -18,7 +18,7 @@ internal sealed class AnalysisModel
         bool includes(SyntaxNode node, Scope? boundIn)
         {
             return scope.ContainsBinding(boundIn)
-                && sourcePaths.Contains(DiagnosticHelper.ResolveLocation(node).Path)
+                && DiagnosticHelper.ResolveLocation(node).Location.Path is { } path && sourcePaths.Contains(path)
                 && (scope.Boundary?.Contains(node) ?? true);
         }
 

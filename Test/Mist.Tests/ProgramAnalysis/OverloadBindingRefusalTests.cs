@@ -15,13 +15,13 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class OverloadBindingRefusalTests
 {
     [Theory]
-    [InlineData("overload-ambiguous-between-signed-and-unsigned", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("index-overload-ambiguous-between-signed-and-unsigned", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("index-overload-arity-mismatch", "MIST_PM_NO_APPLICABLE_OVERLOAD")]
-    [InlineData("index-overload-unresolvable", "MIST_PM_UNRESOLVABLE_OVERLOAD")]
-    [InlineData("local-function-called-with-wrong-arity", "MIST_PM_NO_APPLICABLE_OVERLOAD")]
-    [InlineData("type-argument-bounds-with-no-dominant", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("unknown-receiver-member-reaches-its-call", "MIST_PM_UNRESOLVABLE_OVERLOAD")]
+    [InlineData("overload-ambiguous-between-signed-and-unsigned", "MIST0386")]
+    [InlineData("index-overload-ambiguous-between-signed-and-unsigned", "MIST0386")]
+    [InlineData("index-overload-arity-mismatch", "MIST0385")]
+    [InlineData("index-overload-unresolvable", "MIST0390")]
+    [InlineData("local-function-called-with-wrong-arity", "MIST0385")]
+    [InlineData("type-argument-bounds-with-no-dominant", "MIST0392")]
+    [InlineData("unknown-receiver-member-reaches-its-call", "MIST0390")]
     public void RefusedChoiceNamesItsCause(string refusal, string diagnosticId)
     {
         var f = new HandBuiltModel();
@@ -73,9 +73,9 @@ public sealed class OverloadBindingRefusalTests
         }
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]

@@ -49,9 +49,9 @@ This plan implements type aliases for the Mist language across the full compiler
     - _Requirements: 4.1, 4.2, 5.1_
   - [x] 5.3 Register type aliases in `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
     - **Pass 1**: Register `TypeAliasDeclarationNode` as a `Symbol` with `SymbolKind.TypeAlias` in the enclosing scope; store AST node reference and type parameters
-    - **Pass 2**: Resolve the target `TypeReference` to an `IType`; construct `TypeAliasType`; detect cycles using a visited-set (report `MIST_SB_0060` on cycle, assign `ErrorType`)
-    - Report `MIST_SB_0061` for duplicate alias names in scope
-    - Report `MIST_SB_0062` for unresolved types in alias target
+    - **Pass 2**: Resolve the target `TypeReference` to an `IType`; construct `TypeAliasType`; detect cycles using a visited-set (report `MIST_SB_0060 (historical)` on cycle, assign `ErrorType`)
+    - Report `MIST_SB_0061 (historical)` for duplicate alias names in scope
+    - Report `MIST_SB_0062 (historical)` for unresolved types in alias target
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 5.4_
   - [x] 5.4 Write property test for semantic model registration
     - **Property 3: Semantic model registration**
@@ -61,10 +61,10 @@ This plan implements type aliases for the Mist language across the full compiler
     - **Validates: Requirements 4.1, 4.2**
   - [x] 5.5 Write unit tests for semantic model diagnostics
     - Create `Test/Mist.Tests/Semantics/TypeAliasDiagnosticTests.cs`
-    - Test duplicate alias name produces `MIST_SB_0061`
-    - Test unresolved type in alias target produces `MIST_SB_0062`
-    - Test direct cycle (`type A = B; type B = A;`) produces `MIST_SB_0060`
-    - Test indirect cycle (`type A = B; type B = C; type C = A;`) produces `MIST_SB_0060`
+    - Test duplicate alias name produces `MIST_SB_0061 (historical)`
+    - Test unresolved type in alias target produces `MIST_SB_0062 (historical)`
+    - Test direct cycle (`type A = B; type B = A;`) produces `MIST_SB_0060 (historical)`
+    - Test indirect cycle (`type A = B; type B = C; type C = A;`) produces `MIST_SB_0060 (historical)`
     - **Validates: Requirements 4.3, 4.4, 5.4**
 
 - [x] 6. Checkpoint - Verify semantic model
@@ -73,7 +73,7 @@ This plan implements type aliases for the Mist language across the full compiler
 - [x] 7. Type checker changes
   - [x] 7.1 Implement transparent alias resolution in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - When resolving a type reference that names a `SymbolKind.TypeAlias` symbol, retrieve `TypeAliasType.UnderlyingType`
-    - For generic aliases with type arguments: verify argument count matches parameter count (report `MIST_SB_0063` on mismatch), substitute type arguments into the underlying type
+    - For generic aliases with type arguments: verify argument count matches parameter count (report `MIST_SB_0063 (historical)` on mismatch), substitute type arguments into the underlying type
     - Return the resolved `IType` (fully transparent — no alias wrapper remains)
     - _Requirements: 5.1, 5.2, 5.3_
   - [x] 7.2 Write property test for type resolution transparency
@@ -84,7 +84,7 @@ This plan implements type aliases for the Mist language across the full compiler
     - **Validates: Requirements 5.1, 5.2**
   - [x] 7.3 Write unit tests for type argument mismatch
     - Create `Test/Mist.Tests/Analysis/TypeAliasArgumentMismatchTests.cs`
-    - Test generic alias used with wrong number of type arguments produces `MIST_SB_0063`
+    - Test generic alias used with wrong number of type arguments produces `MIST_SB_0063 (historical)`
     - **Validates: Requirements 5.3**
 
 - [x] 8. Checkpoint - Verify type checking

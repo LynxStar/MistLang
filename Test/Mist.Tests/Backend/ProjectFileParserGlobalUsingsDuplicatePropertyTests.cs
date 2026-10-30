@@ -98,7 +98,7 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
 
     /// <summary>
     /// Property 3: For any namespaces array containing at least one duplicate entry
-    /// (case-sensitive), parsing SHALL produce a MIST_GLOBAL_USING_DUPLICATE_NAMESPACE
+    /// (case-sensitive), parsing SHALL produce a MIST0082
     /// warning diagnostic and the resulting GlobalUsings list SHALL contain each namespace
     /// at most once, preserving the order of first occurrence.
     ///
@@ -128,9 +128,9 @@ public sealed class ProjectFileParserGlobalUsingsDuplicatePropertyTests
 
                 var diags = diagnostics.ToImmutableArray();
 
-                // Assert: at least one MIST_GLOBAL_USING_DUPLICATE_NAMESPACE warning is produced
+                // Assert: at least one MIST0082 warning is produced
                 var duplicateWarnings = diags
-                    .Where(d => d.Id.Value == "MIST_GLOBAL_USING_DUPLICATE_NAMESPACE")
+                    .Where(d => d.Number.Value == "MIST0082")
                     .ToList();
                 Assert.NotEmpty(duplicateWarnings);
 

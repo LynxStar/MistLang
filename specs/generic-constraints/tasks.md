@@ -71,17 +71,17 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
     - In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add constraint resolution sub-pass after base types/interface lists are resolved
     - For each declaration with constraint clauses: validate type parameter name exists, resolve each constraint type reference, classify as base class / interface / trait constraint, store on `TypeParameterType.Constraints`
     - Handle `class` → `HasClassConstraint`, `struct` → `HasStructConstraint`, `new(...)` → `ConstructorConstraints`, type reference → classify and store
-    - Emit `MIST_CONSTRAINT_0001` for undefined type parameter references
-    - Emit `MIST_CONSTRAINT_0007` for duplicate `where` clauses on same type parameter
-    - Emit `MIST_CONSTRAINT_0008` for unresolvable constraint types
+    - Emit `MIST_CONSTRAINT_0001 (historical)` for undefined type parameter references
+    - Emit `MIST_CONSTRAINT_0007 (historical)` for duplicate `where` clauses on same type parameter
+    - Emit `MIST_CONSTRAINT_0008 (historical)` for unresolvable constraint types
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.9_
 
   - [x] 4.4 Implement constraint validation rules in `SemanticModelBuilder`
-    - Emit `MIST_CONSTRAINT_0002` for `class` + `struct` mutual exclusion
-    - Emit `MIST_CONSTRAINT_0003` (warning) for `struct` + `new()` redundancy
-    - Emit `MIST_CONSTRAINT_0004` for multiple base class constraints
-    - Emit `MIST_CONSTRAINT_0005` for struct used as base class constraint
-    - Emit `MIST_CONSTRAINT_0006` for base class + `struct` incompatibility
+    - Emit `MIST_CONSTRAINT_0002 (historical)` for `class` + `struct` mutual exclusion
+    - Emit `MIST_CONSTRAINT_0003 (historical)` (warning) for `struct` + `new()` redundancy
+    - Emit `MIST_CONSTRAINT_0004 (historical)` for multiple base class constraints
+    - Emit `MIST_CONSTRAINT_0005 (historical)` for struct used as base class constraint
+    - Emit `MIST_CONSTRAINT_0006 (historical)` for base class + `struct` incompatibility
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
   - [x] 4.5 Implement constrained member access in semantic model member lookup
@@ -111,7 +111,7 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
     - Check interface constraints: type argument implements each interface
     - Check trait constraints: type argument satisfies each trait
     - Check constructor constraints (conjunctive): type argument has a matching public constructor for every declared signature
-    - Emit diagnostics `MIST_CONSTRAINT_0009` through `MIST_CONSTRAINT_0015` as appropriate
+    - Emit diagnostics `MIST_CONSTRAINT_0009 (historical)` through `MIST_CONSTRAINT_0015 (historical)` as appropriate
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
 
   - [x] 6.2 Wire constraint satisfaction checking into type argument usage sites
@@ -125,12 +125,12 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
       - Verify `T` has at least one constructor constraint
       - Collect argument types of the `new T(...)` call
       - Check if any declared constructor constraint signature matches
-      - Emit `MIST_CONSTRAINT_0016` if no match
+      - Emit `MIST_CONSTRAINT_0016 (historical)` if no match
     - _Requirements: 6.5, 6.6, 10.8_
 
   - [x] 6.4 Implement constraint propagation through inheritance
     - When a derived type inherits from a constrained generic base, verify derived type's constraints are at least as restrictive
-    - Emit `MIST_CONSTRAINT_0017` when constraints are insufficient
+    - Emit `MIST_CONSTRAINT_0017 (historical)` when constraints are insufficient
     - Handle both base class and interface inheritance scenarios
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
@@ -153,7 +153,7 @@ This plan implements generic constraints (`where` clauses) for the Mist programm
     - **Validates: Requirements 7.1, 7.2, 7.3**
 
   - [x] 6.8 Write unit tests for type checker constraint diagnostics
-    - Test each diagnostic message format (MIST_CONSTRAINT_0009 through MIST_CONSTRAINT_0017)
+    - Test each diagnostic message format (MIST_CONSTRAINT_0009 (historical) through MIST_CONSTRAINT_0017 (historical))
     - Test that multiple constructor constraints each require a matching constructor
     - Test constraint satisfaction for generic method invocations
     - Test constraint propagation error cases

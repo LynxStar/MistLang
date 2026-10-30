@@ -49,7 +49,7 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
             }
             """);
 
-        Assert.True(result.Succeeded, string.Join("\n", result.Diagnostics.Select(d => $"{d.Id.Value}: {d.Message}")));
+        Assert.True(result.Succeeded, string.Join("\n", result.Diagnostics.Select(d => $"{d.Number.Value}: {d.Message}")));
         Assert.Equal(
             ["start 1", "complete 1", "start 2", "complete 2", "start 3", "complete 3", "start 4", "complete 4", "start 5", "complete 5", "start 6", "complete 6"],
             reporter.Sequence);

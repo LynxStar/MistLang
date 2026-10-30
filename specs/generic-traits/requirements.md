@@ -212,7 +212,7 @@ The generics spec explicitly excludes traits. This spec fills that gap, and also
 
 1. WHEN a member access expression targets a variable typed as a Constructed_Trait_Type, THE Semantic_Model_Builder SHALL resolve the member name against the trait's Member_Scope and return the member's type with type parameters substituted by the corresponding type arguments.
 2. WHEN a method call targets a variable typed as a Constructed_Trait_Type, THE Type_Checker SHALL validate the arguments against the trait method's parameter types after type argument substitution.
-3. WHEN the member name is not found in the trait's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER` diagnostic error.
+3. WHEN the member name is not found in the trait's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER (historical)` diagnostic error.
 
 ### Requirement 16: C# Code Emission for Generic Traits
 

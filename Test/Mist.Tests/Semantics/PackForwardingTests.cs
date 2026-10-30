@@ -91,7 +91,7 @@ public sealed class PackForwardingTests : ProgramModelProbe
         var diagnostics = BuildRun(
             "", $"public class Forwarder {{ public static int Run{signature} {{ return {call}; }} }}");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_VAR_0011"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0415"));
     }
 
     private Method Forwarder(string method)

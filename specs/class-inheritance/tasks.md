@@ -23,15 +23,15 @@ Add single class inheritance to the Mist programming language. This involves cha
   - [x] 2.2 Implement base type resolution in `SemanticModelBuilder` Pass 1
     - After all types are registered in `Pass1_RegisterTypes`, add a new step that iterates over all `ClassDeclarationNode` ASTs with a `baseClassName`
     - Look up the base class name in the parent scope
-    - If not found, emit `MIST_UNDEFINED_BASE_TYPE` diagnostic
-    - If found but is a `StructType`, emit `MIST_CANNOT_INHERIT_STRUCT` diagnostic
+    - If not found, emit `MIST_UNDEFINED_BASE_TYPE (historical)` diagnostic
+    - If found but is a `StructType`, emit `MIST_CANNOT_INHERIT_STRUCT (historical)` diagnostic
     - If found and is a `ClassType`, set `classType.BaseType = resolvedClassType`
     - Ensure forward references are supported (all types registered before resolution)
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
   - [x] 2.3 Implement cycle detection in `SemanticModelBuilder`
     - After all base types are resolved, walk each class's `BaseType` chain
-    - If a class is revisited (cycle detected, including self-inheritance), emit `MIST_CIRCULAR_INHERITANCE` diagnostic and set `BaseType = null` to break the cycle
+    - If a class is revisited (cycle detected, including self-inheritance), emit `MIST_CIRCULAR_INHERITANCE (historical)` diagnostic and set `BaseType = null` to break the cycle
     - _Requirements: 3.2, 3.3_
 
   - [x] 2.4 Write property test for base type resolution correctness
@@ -41,7 +41,7 @@ Add single class inheritance to the Mist programming language. This involves cha
 
   - [x] 2.5 Write property test for cycle detection
     - **Property 3: Cycle detection**
-    - Generate random cyclic inheritance chains (A→B→A, A→A, A→B→C→A) → build semantic model → assert `MIST_CIRCULAR_INHERITANCE` diagnostic is emitted
+    - Generate random cyclic inheritance chains (A→B→A, A→A, A→B→C→A) → build semantic model → assert `MIST_CIRCULAR_INHERITANCE (historical)` diagnostic is emitted
     - **Validates: Requirements 3.2, 3.3**
 
 - [x] 3. Checkpoint - Ensure all tests pass
@@ -50,13 +50,13 @@ Add single class inheritance to the Mist programming language. This involves cha
 - [x] 4. Semantic model: inherited member lookup and additive-only constraint
   - [x] 4.1 Implement inherited member lookup in `SemanticModelBuilder` Pass 2
     - Update `LookupMemberType` (or the member access resolution logic) to walk the `BaseType` chain when a member is not found in the current class's `MemberScope`
-    - If the member is not found in any class in the chain, emit the existing `MIST_UNDEFINED_MEMBER` diagnostic
+    - If the member is not found in any class in the chain, emit the existing `MIST_UNDEFINED_MEMBER (historical)` diagnostic
     - Ensure `this.member` in a derived class constructor/method resolves inherited members through the chain
     - _Requirements: 4.1, 4.2, 4.5, 6.2_
 
   - [x] 4.2 Implement additive-only constraint (no member redeclaration)
     - During Pass 1 member registration for a class with a `BaseType`, walk the ancestor chain
-    - If any ancestor's `MemberScope` contains a member with the same name as the member being registered, emit `MIST_MEMBER_REDECLARATION` diagnostic
+    - If any ancestor's `MemberScope` contains a member with the same name as the member being registered, emit `MIST_MEMBER_REDECLARATION (historical)` diagnostic
     - Check both fields and methods
     - _Requirements: 4.3, 4.4_
 
@@ -67,7 +67,7 @@ Add single class inheritance to the Mist programming language. This involves cha
 
   - [x] 4.4 Write property test for additive-only constraint
     - **Property 5: Additive-only constraint (no redeclaration)**
-    - Generate random derived classes that redeclare a field or method from an ancestor → build semantic model → assert `MIST_MEMBER_REDECLARATION` diagnostic is emitted
+    - Generate random derived classes that redeclare a field or method from an ancestor → build semantic model → assert `MIST_MEMBER_REDECLARATION (historical)` diagnostic is emitted
     - **Validates: Requirements 4.3, 4.4**
 
 - [x] 5. Type checker: subtype assignability
@@ -79,12 +79,12 @@ Add single class inheritance to the Mist programming language. This involves cha
 
   - [x] 5.2 Write property test for subtype assignability
     - **Property 6: Subtype assignability (derived assignable to base)**
-    - Generate random class hierarchies → create derived-to-base assignments → run type checker → assert no `MIST_TC_0001` diagnostic
+    - Generate random class hierarchies → create derived-to-base assignments → run type checker → assert no `MIST_TC_0001 (historical)` diagnostic
     - **Validates: Requirements 5.1, 5.3, 5.4**
 
   - [x] 5.3 Write property test for non-assignability of incompatible types
     - **Property 7: Non-assignability of incompatible class types**
-    - Generate random unrelated class pairs or base-to-derived assignments → run type checker → assert `MIST_TC_0001` diagnostic is emitted
+    - Generate random unrelated class pairs or base-to-derived assignments → run type checker → assert `MIST_TC_0001 (historical)` diagnostic is emitted
     - **Validates: Requirements 5.2, 5.5**
 
 - [x] 6. Checkpoint - Ensure all tests pass
@@ -114,7 +114,7 @@ Add single class inheritance to the Mist programming language. This involves cha
 - [x] 8. Constructor behavior and base constructor chaining
   - [x] 8.1 Implement base constructor validation in `SemanticModelBuilder`
     - When a derived class is constructed, check if the base class has an explicit constructor with required parameters
-    - If the base class requires constructor arguments and the derived class does not provide them (via `: base(args)`), emit `MIST_BASE_CTOR_UNSATISFIED` diagnostic
+    - If the base class requires constructor arguments and the derived class does not provide them (via `: base(args)`), emit `MIST_BASE_CTOR_UNSATISFIED (historical)` diagnostic
     - Allow `new DerivedClass()` when the base class has a parameterless constructor or no explicit constructor
     - _Requirements: 8.1, 8.3_
 

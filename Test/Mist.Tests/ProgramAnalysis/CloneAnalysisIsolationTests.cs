@@ -146,8 +146,8 @@ public sealed class CloneAnalysisIsolationTests
 
         Assert.Empty(fixture.Analyze(Fixture.BodyScope(root), new ConstraintAnalyzer()));
         Assert.Empty(fixture.Judge(root, new ConstraintAnalyzer()));
-        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Id,
-            Assert.Single(fixture.Analyze(new AnalysisScope([fixture.Source], [], [], []), new ConstraintAnalyzer())).Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Number,
+            Assert.Single(fixture.Analyze(new AnalysisScope([fixture.Source], [], [], []), new ConstraintAnalyzer())).Number);
     }
 
     [Fact]
@@ -162,16 +162,18 @@ public sealed class CloneAnalysisIsolationTests
         var refused = Assert.Single(refusals).Value;
 
         Assert.Equal("Mate", refused.Member);
-        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Id, refused.Failure.Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Number, refused.Failure.Number);
         var cast = fixture.Cast((CastOperator)root.Member!, Fixture.Node(90, "use.mist"));
         var finding = Assert.Single(fixture.Analyze(
             new AnalysisScope([], [new SourceRoot(cast, fixture.Source, fixture.Assembly, null)], [], []),
             new CastAnalyzer(), refusals));
 
-        Assert.Equal(ProgramAnalysisDiagnostics.CloneConversionDoesNotHold.Id, finding.Id);
-        Assert.Equal("use.mist", finding.CompilationUnitPath);
-        Assert.Equal(91, finding.Location.Start.Column);
+        Assert.Equal(ProgramAnalysisDiagnostics.CloneConversionDoesNotHold.Number, finding.Number);
+        Assert.Equal("use.mist", finding.Location.Path);
+        Assert.Equal(91, finding.Position().Start.Column);
         Assert.Contains("at 'Mate'", finding.Message);
+        Assert.Equal(refused.Failure.Ordinal, finding.Cause);
+        Assert.DoesNotContain(refused.Failure.Message, finding.Message);
     }
 
     [Fact]
@@ -207,8 +209,8 @@ public sealed class CloneAnalysisIsolationTests
 
         var refusal = Assert.Single(fixture.Judge(root, new AssignabilityAnalyzer())).Value;
 
-        Assert.Equal(ProgramAnalysisDiagnostics.NoImplicitConversion.Id, refusal.Failure.Id);
-        Assert.Equal("source.mist", refusal.Failure.CompilationUnitPath);
+        Assert.Equal(ProgramAnalysisDiagnostics.NoImplicitConversion.Number, refusal.Failure.Number);
+        Assert.Equal("source.mist", refusal.Failure.Location.Path);
         Assert.Equal("Mate", refusal.Member);
     }
 
@@ -274,8 +276,8 @@ public sealed class CloneAnalysisIsolationTests
         var program = fixture.Analyze(new AnalysisScope([fixture.Source], [], [], []), new ConstraintAnalyzer());
         var clone = fixture.Analyze(new AnalysisScope([fixture.Clone], [cloneBody], [], [], RestrictToScope: true), new ConstraintAnalyzer());
 
-        Assert.Equal(71, Assert.Single(program).Location.Start.Column);
-        Assert.Equal(31, Assert.Single(clone).Location.Start.Column);
+        Assert.Equal(71, Assert.Single(program).Position().Start.Column);
+        Assert.Equal(31, Assert.Single(clone).Position().Start.Column);
     }
 
     [Fact]
@@ -291,7 +293,7 @@ public sealed class CloneAnalysisIsolationTests
 
         Assert.Empty(fixture.Judge(root, new PositionAnalyzer()));
         fixture.Model.OptionalApplications.Record(optional, syntax, ((CastOperator)root.Member!).Scope);
-        Assert.Equal(ProgramAnalysisDiagnostics.OptionalOfOptional.Id, Assert.Single(fixture.Judge(root, new PositionAnalyzer())).Value.Failure.Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.OptionalOfOptional.Number, Assert.Single(fixture.Judge(root, new PositionAnalyzer())).Value.Failure.Number);
     }
 
     [Fact]
@@ -316,7 +318,7 @@ public sealed class CloneAnalysisIsolationTests
         Assert.Empty(context.Model.ConstructorConstraintClosures.Closings);
         Assert.Same(supplied, Assert.Single(context.Model.ConstructorConstraintClosures.OpenClosings).Argument);
         Assert.Same(supplied, Assert.Single(context.Model.ConstructorConstraintClosures.StampableOpenClosings).Argument);
-        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Id, Assert.Single(fixture.Judge(root, new ConstraintAnalyzer())).Value.Failure.Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Number, Assert.Single(fixture.Judge(root, new ConstraintAnalyzer())).Value.Failure.Number);
     }
 
     [Fact]
@@ -346,12 +348,12 @@ public sealed class CloneAnalysisIsolationTests
         var root = fixture.Conversion(member);
         var diagnostics = new DiagnosticBag();
         var context = fixture.Context(Fixture.BodyScope(root), new ConstraintAnalyzer(), diagnostics);
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], "S", "class", "T");
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, Fixture.Node(70), [], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
         context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node,
-            [new ErrorExpression(member.Node)], "S", "class", "T");
-        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], "S", "class", "T");
+            [new ErrorExpression(member.Node)], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
+        context.Report(ProgramAnalysisDiagnostics.ConstraintNotSatisfied, member.Node, [member], DiagnosticSnapshot.Type(fixture.Source), new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue("class")), new NameValue("T"));
 
-        Assert.Equal(31, Assert.Single(diagnostics.ToImmutableArray()).Location.Start.Column);
+        Assert.Equal(31, Assert.Single(diagnostics.ToImmutableArray()).Position().Start.Column);
     }
 
     // The runner alone owns partitioning whole-model registries between the program, clone and conversion passes.
@@ -382,7 +384,7 @@ public sealed class CloneAnalysisIsolationTests
 
         ProgramAnalysisRunner.Run(fixture.Model, diagnostics);
 
-        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Id, Assert.Single(diagnostics.ToImmutableArray()).Id);
+        Assert.Equal(ProgramAnalysisDiagnostics.ConstraintNotSatisfied.Number, Assert.Single(diagnostics.ToImmutableArray()).Number);
     }
 
     private sealed class Fixture
@@ -513,11 +515,10 @@ public sealed class CloneAnalysisIsolationTests
             return CloneConversionRefusals.Judge(roots, root => Analyze(BodyScope(root), analyzer));
         }
 
-        public static Diagnostic Failure(SyntaxNode node, DiagnosticDescriptor? descriptor = null, DiagnosticSeverity severity = DiagnosticSeverity.Error)
+        public static Diagnostic Failure(SyntaxNode node, MistDiagnostic? descriptor = null, DiagnosticSeverity severity = DiagnosticSeverity.Error)
         {
-            var location = DiagnosticHelper.ResolveLocation(node);
             var selected = descriptor ?? ProgramAnalysisDiagnostics.ConstraintNotSatisfied;
-            return new Diagnostic(selected.Id, severity, selected.Stage, "blocked", location.Location, location.Path, "fixture");
+            return DiagnosticFixtures.Occurrence(selected.Number.Value, severity, PipelineStage.Analysis, "blocked", DiagnosticHelper.ResolveLocation(node).Location, "fixture");
         }
     }
 }

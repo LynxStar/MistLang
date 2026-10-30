@@ -48,12 +48,12 @@ Add the `as` operator to the Mist programming language. The `as` operator provid
     - Add `AsExpressionRelationalNode` case to the method that checks Relational nodes
     - Implement `CheckAsExpression`:
       - Get source type from left operand, target type from resolved type reference
-      - Reject void source (emit `MIST_TC_0072`)
-      - Reject void target (emit `MIST_TC_0071`)
+      - Reject void source (emit `MIST_TC_0072 (historical)`)
+      - Reject void target (emit `MIST_TC_0071 (historical)`)
       - Call `ClassifyAsConversion` to determine provable/non-provable/invalid
       - For Provable: set expression type to `T`, record `AsConversionKind.Provable`
       - For NonProvable: set expression type to `T | void` (construct union type), record `AsConversionKind.NonProvable`
-      - For Invalid: emit `MIST_TC_0070`
+      - For Invalid: emit `MIST_TC_0070 (historical)`
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.3, 5.4, 8.1, 8.2, 8.3, 8.4_
 
   - [x] 5.2 Implement `ClassifyAsConversion` helper

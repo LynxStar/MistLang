@@ -75,15 +75,15 @@ public sealed class ClrConstantReadingTests
 
     [Theory]
     [InlineData(true, 10_000_000L, null)]
-    [InlineData(false, 10_000_000L, "MIST_PA_CONSTRAINT_VIOLATED")]
-    [InlineData(true, null, "MIST_PA_CONSTRAINT_UNPROVEN")]
+    [InlineData(false, 10_000_000L, "MIST0276")]
+    [InlineData(true, null, "MIST0277")]
     public void AParameterConstraintAdmitsOrRefusesAClrLiteralByItsValue(bool positive, long? stored, string? expected)
     {
         var argument = Access(Clr("TicksPerSecond", Long, stored));
         var constraint = h.Refine(Long, positive ? ComparisonKind.GreaterThan : ComparisonKind.LessThan, h.Literal(0L, Long), name: null);
         var known = Requirement.Constant(argument) is { } value ? Admitted.Exactly(value) : Admitted.Everything;
 
-        Assert.Equal(expected, RefinementDecision.Judge(argument, constraint, known, onConstraint: true)?.Id.Value);
+        Assert.Equal(expected, RefinementDecision.Judge(argument, constraint, known, onConstraint: true)?.Number.Value);
     }
 
     private IMistType Long => h.Built.Type("Int64");

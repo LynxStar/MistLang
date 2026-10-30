@@ -21,22 +21,23 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "2")]
 public sealed class CallabilityTests
 {
-    private const string NotCallable = "MIST_PM_NOT_CALLABLE";
+    private const string NotCallable = "MIST0363";
+    private const string ValueNotCallable = "MIST0364";
 
     [Theory]
-    [InlineData("holder.Number(one)", "'Number' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
-    [InlineData("Holder.Shared(one)", "'Shared' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
-    [InlineData("count(one)", "'count' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
-    [InlineData("holder.GetNumber()(one)", "A value of type 'int' is not a function, so it cannot be called.")]
-    [InlineData("maybe?.Number(one)", "'Number' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
-    public void AValueWhoseTypeIsNotAFunctionIsNotCalled(string call, string message)
+    [InlineData("holder.Number(one)", NotCallable, "'Number' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
+    [InlineData("Holder.Shared(one)", NotCallable, "'Shared' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
+    [InlineData("count(one)", NotCallable, "'count' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
+    [InlineData("holder.GetNumber()(one)", ValueNotCallable, "A value of type 'int' is not a function, so it cannot be called.")]
+    [InlineData("maybe?.Number(one)", NotCallable, "'Number' is not a method, and its type 'int' is not a function type, so it cannot be called.")]
+    public void AValueWhoseTypeIsNotAFunctionIsNotCalled(string call, string code, string message)
     {
         var f = new Fixture();
 
         _ = f.Bind(call);
 
         var diagnostic = Assert.Single(f.Errors());
-        Assert.Equal((NotCallable, message), (diagnostic.Id.Value, diagnostic.Message));
+        Assert.Equal((code, message), (diagnostic.Number.Value, diagnostic.Message));
     }
 
     [Theory]
@@ -50,7 +51,7 @@ public sealed class CallabilityTests
         _ = f.BindBare(kind, name, f.Int32);
 
         var diagnostic = Assert.Single(f.Errors());
-        Assert.Equal(NotCallable, diagnostic.Id.Value);
+        Assert.Equal(NotCallable, diagnostic.Number.Value);
         Assert.Contains(named, diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -122,7 +123,7 @@ public sealed class CallabilityTests
                 "'Count' is not a method, and its type 'int' is not a function type, so it cannot be called. An extension method named 'Count' is declared in 'System.Linq', which is not imported here.",
                 "'Length' is not a method, and its type 'int' is not a function type, so it cannot be called.",
             ],
-            f.Fragments.Diagnostics.ToImmutableArray().Where(d => d.Id.Value == NotCallable).Select(d => d.Message));
+            f.Fragments.Diagnostics.ToImmutableArray().Where(d => d.Number.Value == NotCallable).Select(d => d.Message));
     }
 
     [Fact]

@@ -87,7 +87,7 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = un is double d;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0345"));
         _ = InitializerOf<ErrorExpression>("var ok = un is double d;");
     }
 
@@ -122,8 +122,8 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (un is int i && i > 40) { }");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
+        Assert.Empty(Errors(diagnostics, "MIST0345"));
     }
 
     [Fact]

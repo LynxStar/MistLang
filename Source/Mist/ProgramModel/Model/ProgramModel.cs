@@ -123,9 +123,9 @@ public sealed class ProgramModel : IProgramModel
     /// type is registered.
     /// </summary>
     internal MistAssembly AddSelfAssembly(
-        string name, ImmutableArray<string> globalUsings = default, string? entryPointSetting = null, bool isLibrary = false)
+        string name, ImmutableArray<string> globalUsings = default, string? entryPointSetting = null, bool isLibrary = false, string? projectPath = null)
     {
-        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self, projectPath: null, globalUsings)
+        SelfAssembly = new MistAssembly(name, MistAssemblyKind.Self, projectPath, globalUsings)
         {
             EntryPointSetting = entryPointSetting,
             IsLibrary = isLibrary,

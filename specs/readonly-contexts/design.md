@@ -300,15 +300,15 @@ For each expression/statement in a readonly context, the analyzer checks:
 | Operation | Rule | Action |
 |-----------|------|--------|
 | Field read | Permitted (rule 1) | No diagnostic |
-| Field assignment | Prohibited (rule 6) | Emit `MIST_RO_0001` |
+| Field assignment | Prohibited (rule 6) | Emit `MIST_RO_0001 (historical)` |
 | Readonly method call | Permitted (rule 2) | No diagnostic |
-| Non-readonly method call | Prohibited (rule 7) | Emit `MIST_RO_0002` |
+| Non-readonly method call | Prohibited (rule 7) | Emit `MIST_RO_0002 (historical)` |
 | Readonly property/indexer getter call | Permitted (rule 3) | No diagnostic |
-| Non-readonly property/indexer getter call | Prohibited (rule 8) | Emit `MIST_RO_0003` |
-| Any property/indexer setter call | Prohibited (rule 9) | Emit `MIST_RO_0004` |
+| Non-readonly property/indexer getter call | Prohibited (rule 8) | Emit `MIST_RO_0003 (historical)` |
+| Any property/indexer setter call | Prohibited (rule 9) | Emit `MIST_RO_0004 (historical)` |
 | Local variable decl/assign | Permitted (rule 4) | No diagnostic |
 | `new` with readonly ctor | Permitted (rule 5) | No diagnostic |
-| `new` with non-readonly ctor | Prohibited (rule 10) | Emit `MIST_RO_0005` |
+| `new` with non-readonly ctor | Prohibited (rule 10) | Emit `MIST_RO_0005 (historical)` |
 
 #### Exception: Constructor Privilege (Rule 11)
 
@@ -346,9 +346,9 @@ public sealed record ParameterSignature(
 
 The `ReadonlyAnalyzer` treats a readonly parameter as a "readonly receiver" — any operation on the parameter is subject to readonly context rules:
 
-- Calling a non-readonly method on a readonly parameter → `MIST_RO_0006`
-- Assigning to a field of a readonly parameter → `MIST_RO_0007`
-- Calling a non-readonly setter on a readonly parameter → `MIST_RO_0008`
+- Calling a non-readonly method on a readonly parameter → `MIST_RO_0006 (historical)`
+- Assigning to a field of a readonly parameter → `MIST_RO_0007 (historical)`
+- Calling a non-readonly setter on a readonly parameter → `MIST_RO_0008 (historical)`
 
 This is NOT the same as the method body being in a readonly context. The method itself may be mutable, but it promises not to mutate the specific parameter.
 
@@ -459,20 +459,20 @@ The `readonly` keyword in block position (`readonly { ... }`) will be highlighte
 
 | ID | Severity | Message Template |
 |---|---|---|
-| `MIST_RO_0001` | Error | "Cannot assign to field '{name}' within a readonly context" |
-| `MIST_RO_0002` | Error | "Cannot call non-readonly method '{name}' within a readonly context" |
-| `MIST_RO_0003` | Error | "Cannot call non-readonly property getter '{name}' within a readonly context" |
-| `MIST_RO_0004` | Error | "Cannot call property setter '{name}' within a readonly context" |
-| `MIST_RO_0005` | Error | "Cannot allocate type '{name}' within a readonly context: constructor is not readonly" |
-| `MIST_RO_0006` | Error | "Cannot call non-readonly method '{name}' on readonly parameter '{param}'" |
-| `MIST_RO_0007` | Error | "Cannot assign to field '{name}' on readonly parameter '{param}'" |
-| `MIST_RO_0008` | Error | "Cannot call property setter '{name}' on readonly parameter '{param}'" |
-| `MIST_RO_0009` | Error | "Cannot assign to readonly field '{name}' outside of a constructor" |
-| `MIST_RO_0010` | Error | "Cannot assign to field '{name}' within a readonly block (constructor privilege is suspended)" |
-| `MIST_TC_0070` | Error | "Type argument '{type}' does not satisfy the 'readonly' constraint on type parameter '{param}'" |
-| `MIST_TC_0071` | Error | "Type argument '{type}' does not satisfy the 'mutable' constraint on type parameter '{param}' (type is readonly)" |
-| `MIST_TC_0072` | Error | "Method '{method}' must be readonly to satisfy readonly contract from '{interface}'" |
-| `MIST_TC_0073` | Error | "Cannot pass readonly type '{type}' to non-readonly parameter '{param}'" |
+| `MIST_RO_0001 (historical)` | Error | "Cannot assign to field '{name}' within a readonly context" |
+| `MIST_RO_0002 (historical)` | Error | "Cannot call non-readonly method '{name}' within a readonly context" |
+| `MIST_RO_0003 (historical)` | Error | "Cannot call non-readonly property getter '{name}' within a readonly context" |
+| `MIST_RO_0004 (historical)` | Error | "Cannot call property setter '{name}' within a readonly context" |
+| `MIST_RO_0005 (historical)` | Error | "Cannot allocate type '{name}' within a readonly context: constructor is not readonly" |
+| `MIST_RO_0006 (historical)` | Error | "Cannot call non-readonly method '{name}' on readonly parameter '{param}'" |
+| `MIST_RO_0007 (historical)` | Error | "Cannot assign to field '{name}' on readonly parameter '{param}'" |
+| `MIST_RO_0008 (historical)` | Error | "Cannot call property setter '{name}' on readonly parameter '{param}'" |
+| `MIST_RO_0009 (historical)` | Error | "Cannot assign to readonly field '{name}' outside of a constructor" |
+| `MIST_RO_0010 (historical)` | Error | "Cannot assign to field '{name}' within a readonly block (constructor privilege is suspended)" |
+| `MIST_TC_0070 (historical)` | Error | "Type argument '{type}' does not satisfy the 'readonly' constraint on type parameter '{param}'" |
+| `MIST_TC_0071 (historical)` | Error | "Type argument '{type}' does not satisfy the 'mutable' constraint on type parameter '{param}' (type is readonly)" |
+| `MIST_TC_0072 (historical)` | Error | "Method '{method}' must be readonly to satisfy readonly contract from '{interface}'" |
+| `MIST_TC_0073 (historical)` | Error | "Cannot pass readonly type '{type}' to non-readonly parameter '{param}'" |
 
 ### ReadonlyInferenceEngine Data Flow
 

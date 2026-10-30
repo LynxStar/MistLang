@@ -15,46 +15,46 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class DeclarationShapeRefusalTests
 {
     [Theory]
-    [InlineData("default-entry-not-a-field", "MIST_PA_DEFAULT_ENTRY_NOT_A_FIELD", 1)]
-    [InlineData("default-of-non-defaultable", "MIST_PA_NOT_DEFAULTABLE", 1)]
-    [InlineData("duplicate-abstract-method-signature", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-constructor-signature", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-generic-method-over-a-union-its-type-parameter-sorts-into", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-generic-method-signature", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-indexer-signature", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-declared-three-times", "MIST_PA_DUPLICATE_SIGNATURE", 2)]
-    [InlineData("duplicate-method-differing-only-in-ownership", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-differing-only-in-params", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-differing-only-in-readonly-ref", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-differing-only-in-return-type", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-differing-only-in-tuple-element-names", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-over-a-refinement-of-the-other-parameter", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-over-two-spellings-of-an-optional", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-signature", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("duplicate-method-static-against-instance", "MIST_PA_DUPLICATE_SIGNATURE", 1)]
-    [InlineData("enum-base-not-readonly", "MIST_PA_ENUM_BASE_NOT_READONLY", 1)]
-    [InlineData("enum-duplicate-value", "MIST_PA_ENUM_DUPLICATE_VALUE", 1)]
-    [InlineData("enum-union-constituent-not-readonly", "MIST_PA_ENUM_BASE_NOT_READONLY", 1)]
-    [InlineData("field-redeclared-from-a-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("field-redeclared-over-an-inherited-method", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("indexer-redeclared-by-closing-a-generic-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("indexer-redeclared-from-a-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("logical-operator-declared", "MIST_PA_LOGICAL_OPERATOR_DECLARED", 1)]
-    [InlineData("method-redeclared-by-closing-a-generic-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-from-a-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-from-a-constructed-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-from-a-grandparent", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-over-a-refinement-of-the-inherited-parameter", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-through-a-two-level-generic-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("method-redeclared-with-renamed-type-parameters", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("newtype-over-sealed-type", "MIST_PA_NEWTYPE_OVER_SEALED_TYPE", 1)]
-    [InlineData("operator-not-on-declaring-type", "MIST_PA_OPERATOR_NOT_ON_DECLARING_TYPE", 1)]
-    [InlineData("operator-not-public", "MIST_PA_OPERATOR_NOT_PUBLIC", 1)]
-    [InlineData("operator-unpaired-equality", "MIST_PA_OPERATOR_UNPAIRED", 1)]
-    [InlineData("operator-unpaired-ordering", "MIST_PA_OPERATOR_UNPAIRED", 2)]
-    [InlineData("property-redeclared-from-a-base", "MIST_PA_MEMBER_REDECLARATION", 1)]
-    [InlineData("sealed-base-type", "MIST_PA_SEALED_BASE_TYPE", 1)]
-    [InlineData("sealed-type-alias", "MIST_PA_SEALED_TYPE_ALIAS", 1)]
+    [InlineData("default-entry-not-a-field", "MIST0168", 1)]
+    [InlineData("default-of-non-defaultable", "MIST0180", 1)]
+    [InlineData("duplicate-abstract-method-signature", "MIST0176", 1)]
+    [InlineData("duplicate-constructor-signature", "MIST0176", 1)]
+    [InlineData("duplicate-generic-method-over-a-union-its-type-parameter-sorts-into", "MIST0176", 1)]
+    [InlineData("duplicate-generic-method-signature", "MIST0176", 1)]
+    [InlineData("duplicate-indexer-signature", "MIST0176", 1)]
+    [InlineData("duplicate-method-declared-three-times", "MIST0176", 2)]
+    [InlineData("duplicate-method-differing-only-in-ownership", "MIST0176", 1)]
+    [InlineData("duplicate-method-differing-only-in-params", "MIST0176", 1)]
+    [InlineData("duplicate-method-differing-only-in-readonly-ref", "MIST0176", 1)]
+    [InlineData("duplicate-method-differing-only-in-return-type", "MIST0176", 1)]
+    [InlineData("duplicate-method-differing-only-in-tuple-element-names", "MIST0176", 1)]
+    [InlineData("duplicate-method-over-a-refinement-of-the-other-parameter", "MIST0176", 1)]
+    [InlineData("duplicate-method-over-two-spellings-of-an-optional", "MIST0176", 1)]
+    [InlineData("duplicate-method-signature", "MIST0176", 1)]
+    [InlineData("duplicate-method-static-against-instance", "MIST0176", 1)]
+    [InlineData("enum-base-not-readonly", "MIST0166", 1)]
+    [InlineData("enum-duplicate-value", "MIST0167", 1)]
+    [InlineData("enum-union-constituent-not-readonly", "MIST0166", 1)]
+    [InlineData("field-redeclared-from-a-base", "MIST0177", 1)]
+    [InlineData("field-redeclared-over-an-inherited-method", "MIST0177", 1)]
+    [InlineData("indexer-redeclared-by-closing-a-generic-base", "MIST0177", 1)]
+    [InlineData("indexer-redeclared-from-a-base", "MIST0177", 1)]
+    [InlineData("logical-operator-declared", "MIST0171", 1)]
+    [InlineData("method-redeclared-by-closing-a-generic-base", "MIST0177", 1)]
+    [InlineData("method-redeclared-from-a-base", "MIST0177", 1)]
+    [InlineData("method-redeclared-from-a-constructed-base", "MIST0177", 1)]
+    [InlineData("method-redeclared-from-a-grandparent", "MIST0177", 1)]
+    [InlineData("method-redeclared-over-a-refinement-of-the-inherited-parameter", "MIST0177", 1)]
+    [InlineData("method-redeclared-through-a-two-level-generic-base", "MIST0177", 1)]
+    [InlineData("method-redeclared-with-renamed-type-parameters", "MIST0177", 1)]
+    [InlineData("newtype-over-sealed-type", "MIST0164", 1)]
+    [InlineData("operator-not-on-declaring-type", "MIST0172", 1)]
+    [InlineData("operator-not-public", "MIST0169", 1)]
+    [InlineData("operator-unpaired-equality", "MIST0170", 1)]
+    [InlineData("operator-unpaired-ordering", "MIST0170", 2)]
+    [InlineData("property-redeclared-from-a-base", "MIST0177", 1)]
+    [InlineData("sealed-base-type", "MIST0162", 1)]
+    [InlineData("sealed-type-alias", "MIST0165", 1)]
     public void RefusesNamedCase(string name, string expected, int count)
     {
         var fragment = Build(name);
@@ -63,8 +63,8 @@ public sealed class DeclarationShapeRefusalTests
             : new DeclarationShapeAnalyzer();
         var findings = fragment.Run(analyzer);
         Assert.Equal(count, findings.Count);
-        Assert.All(findings, finding => Assert.Equal(expected, finding.Id.Value));
-        Assert.All(findings, finding => Assert.Equal("hand-built.mist", finding.CompilationUnitPath));
+        Assert.All(findings, finding => Assert.Equal(expected, finding.Number.Value));
+        Assert.All(findings, finding => Assert.Equal("hand-built.mist", finding.Location.Path));
     }
 
     [Theory]
@@ -75,7 +75,7 @@ public sealed class DeclarationShapeRefusalTests
     {
         var fragment = Duplicate($"duplicate-{kind}-signature");
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal(31, finding.Position().Start.Column);
     }
 
     [Fact]

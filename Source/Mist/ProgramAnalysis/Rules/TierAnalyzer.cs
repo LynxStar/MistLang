@@ -57,7 +57,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ThisTierInsufficient, method.DeclarationNode!, [],
-                    method.Name, ThisTiers.Display(declared), ThisTiers.Display(needed));
+                    new NameValue(method.Name), new EnumValue(ThisTiers.Display(declared)), new EnumValue(ThisTiers.Display(needed)));
             }
         }
     }
@@ -78,7 +78,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ThisTierMismatch, invocation.Node, [invocation, receiver],
-                method.Name, ThisTiers.Display(required), Display(receiver), ThisTiers.Display(provided));
+                new NameValue(method.Name), new EnumValue(ThisTiers.Display(required)), new NameValue(Display(receiver)), new EnumValue(ThisTiers.Display(provided)));
         }
     }
 
@@ -112,7 +112,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
-                ThisTiers.Display(given), lent, ThisTiers.Display(required), parameter.Name);
+                new EnumValue(ThisTiers.Display(given)), new NameValue(lent), new EnumValue(ThisTiers.Display(required)), new NameValue(parameter.Name));
         }
     }
 
@@ -129,7 +129,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
         if(refused)
         {
-            context.Report(ProgramAnalysisDiagnostics.SharedExtract, value.Node, [value], field.Name, holder.Name);
+            context.Report(ProgramAnalysisDiagnostics.SharedExtract, value.Node, [value], new NameValue(field.Name), new NameValue(holder.Name));
         }
     }
 

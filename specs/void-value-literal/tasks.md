@@ -29,7 +29,7 @@ This plan implements context-sensitive `void` keyword resolution in expression p
   - **Files:** `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
 
 - [x] 3. Deprecation warning for Void.Void
-  - Declare a new diagnostic ID `MIST_SM_0023` (`VoidDotVoidDeprecated`) in `SemanticModelBuilder`
+  - Declare a new diagnostic ID `MIST_SM_0023 (historical)` (`VoidDotVoidDeprecated`) in `SemanticModelBuilder`
   - In the existing `MemberAccessSuffixPostfixSuffixNode` special case for `Void.Void` (~line 19570), emit a warning diagnostic with the message: "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton."
   - Ensure the diagnostic includes the source location of the `Void.Void` expression
   - Verify `Void.Void` still resolves as `VoidType` (no functional change, just adds warning)
@@ -59,7 +59,7 @@ This plan implements context-sensitive `void` keyword resolution in expression p
   - Add test: `void` in generic context `new Result<void>(void, true)` accepted (Req 1.5)
   - Add test: `void v = void; Type t = v;` accepted via implicit conversion (Req 4.2)
   - Add test: `Void.Void` still resolves as `VoidType` (Req 5.1)
-  - Add test: `Void.Void` emits `MIST_SM_0023` warning (Req 5.2)
+  - Add test: `Void.Void` emits `MIST_SM_0023 (historical)` warning (Req 5.2)
   - All tests pass with `dotnet test`
   - **Requirements:** 1.2, 1.3, 1.4, 1.5, 2.2, 3.2, 3.3, 4.2, 5.1, 5.2
   - **Design:** Testing Strategy (Unit Tests)

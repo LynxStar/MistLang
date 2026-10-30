@@ -10,21 +10,21 @@ namespace Mist.Driver;
 /// </summary>
 public static class DependencyRestore
 {
-    public static int Run(ProjectConfiguration configuration, TextWriter output, TextWriter error)
+    public static int Run(ProjectConfiguration configuration, TextWriter output, TextWriter error, DiagnosticOperation? operation = null, Action<Diagnostic>? report = null)
     {
-        var diagnostics = new DiagnosticBag();
+        var diagnostics = new DiagnosticBag(operation ?? new DiagnosticOperation());
         var packages = PackageResolver.ResolvePackages(
             configuration.Packages, configuration.FrameworkReferences, configuration.TargetFramework, diagnostics);
         var frameworks = FrameworkReferenceResolver.Resolve(
             configuration.FrameworkReferences, configuration.TargetFramework, diagnostics);
 
-        return Report(packages, frameworks, diagnostics.ToImmutableArray(), configuration.TargetFramework, output, error);
+        return Report(packages, frameworks, diagnostics.ToImmutableArray(), configuration.TargetFramework, output, error, report);
     }
 
-    public static int Run(string projectFolder, ProjectConfiguration configuration, TextWriter output, TextWriter error)
+    public static int Run(string projectFolder, ProjectConfiguration configuration, TextWriter output, TextWriter error, DiagnosticOperation? operation = null, Action<Diagnostic>? report = null)
     {
-        var referenceErrors = RestoreReferences(projectFolder, configuration.References, output, DotnetRestoreProcess.Run);
-        var exitCode = Run(configuration, output, error);
+        var referenceErrors = RestoreReferences(projectFolder, configuration.References, output, DotnetRestoreProcess.Run, operation, report);
+        var exitCode = Run(configuration, output, error, operation, report);
 
         foreach(var line in referenceErrors)
         {
@@ -34,11 +34,35 @@ public static class DependencyRestore
         return referenceErrors.Count > 0 ? 1 : exitCode;
     }
 
+    public static int Run(
+        string projectFolder,
+        ProjectConfiguration? configuration,
+        ImmutableArray<Diagnostic> manifestDiagnostics,
+        TextWriter output,
+        TextWriter error,
+        DiagnosticOperation? operation = null,
+        Action<Diagnostic>? report = null)
+    {
+        foreach(var diagnostic in manifestDiagnostics)
+        {
+            Write(diagnostic, error, report);
+        }
+
+        if(manifestDiagnostics.Any(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error) || configuration is null)
+        {
+            return 1;
+        }
+
+        return Run(projectFolder, configuration, output, error, operation, report);
+    }
+
     internal static List<string> RestoreReferences(
         string projectFolder,
         ImmutableArray<ProjectReference> references,
         TextWriter output,
-        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore)
+        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore,
+        DiagnosticOperation? operation = null,
+        Action<Diagnostic>? report = null)
     {
         var errors = new List<string>();
         if(references.IsDefaultOrEmpty)
@@ -46,7 +70,7 @@ public static class DependencyRestore
             return errors;
         }
 
-        var diagnostics = new DiagnosticBag();
+        var diagnostics = new DiagnosticBag(operation ?? new DiagnosticOperation());
         var resolution = ProjectReferenceResolver.ResolveAll(projectFolder, references, diagnostics);
 
         foreach(var project in resolution.Projects)
@@ -70,7 +94,18 @@ public static class DependencyRestore
             }
         }
 
-        errors.AddRange(diagnostics.ToImmutableArray().Select(DiagnosticFormatter.Format));
+        if(report is null)
+        {
+            errors.AddRange(diagnostics.ToImmutableArray().Select(DiagnosticFormatter.Format));
+        }
+        else
+        {
+            foreach(var diagnostic in diagnostics.Admitted)
+            {
+                report(diagnostic);
+            }
+        }
+
         return errors;
     }
 
@@ -80,7 +115,8 @@ public static class DependencyRestore
         ImmutableArray<Diagnostic> diagnostics,
         string targetFramework,
         TextWriter output,
-        TextWriter error)
+        TextWriter error,
+        Action<Diagnostic>? report = null)
     {
         foreach(var package in packages.Resolved)
         {
@@ -102,9 +138,20 @@ public static class DependencyRestore
 
         foreach(var diagnostic in diagnostics)
         {
-            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+            Write(diagnostic, error, report);
         }
 
         return failures > 0 ? 1 : 0;
+    }
+    private static void Write(Diagnostic diagnostic, TextWriter error, Action<Diagnostic>? report)
+    {
+        if(report is null)
+        {
+            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
+        }
+        else
+        {
+            report(diagnostic);
+        }
     }
 }

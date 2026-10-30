@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class StablePureGetterTests
 {
-    private const string OverMutable = "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER";
+    private const string OverMutable = "MIST0175";
 
     [Theory]
     [InlineData("getter-calling-a-declared-pure-method")]
@@ -32,7 +32,7 @@ public sealed class StablePureGetterTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(members));
 
-        Assert.Equal(OverMutable, finding.Id.Value);
+        Assert.Equal(OverMutable, finding.Number.Value);
         Assert.Contains("Both", finding.Message, StringComparison.Ordinal);
     }
 }

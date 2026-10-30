@@ -58,7 +58,7 @@ Newtonsoft.Json = "13.0.3"  # NuGet deps — exact versions, no ranges
 CLI:
 
 ```bash
-mist build              # compile (quiet by default)
+mist build              # compile (progress and summary by default)
 mist run                # compile and execute (executable projects only)
 mist test               # compile and run tests via backend runner (dotnet test)
 mist build --verbose    # show package/framework resolution detail

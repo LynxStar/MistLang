@@ -38,7 +38,7 @@ internal sealed class TypeSlotBuilder
         // Modifiers are not permitted on associated type slots.
         if(!slotDecl.Modifiers.IsDefaultOrEmpty)
         {
-            context.Diagnostics.ReportAtNode(CommonDiagnostics.ModifiersOnAssociatedTypeSlot, slotDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(CommonDiagnostics.ModifiersOnAssociatedTypeSlot, slotDecl, null);
         }
 
         // Slot names must be unique within their declaring abstract type. Compared without the
@@ -47,7 +47,7 @@ internal sealed class TypeSlotBuilder
         // has asked.
         if(typeDef.TypeSlotsList.Any(existing => MistType.StripArity(existing.Name) == name))
         {
-            context.Diagnostics.ReportAtNode(CommonDiagnostics.DuplicateAssociatedTypeSlot, slotDecl, null, typeDef.Name, name);
+            context.Diagnostics.ReportAtNodeTyped(CommonDiagnostics.DuplicateAssociatedTypeSlot, slotDecl, null, new NameValue(typeDef.Name), new NameValue(name));
             return;
         }
 

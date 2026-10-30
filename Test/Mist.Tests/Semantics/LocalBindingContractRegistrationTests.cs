@@ -40,9 +40,9 @@ public sealed class LocalBindingContractRegistrationTests
         scope.DeclareLocal(new LocalVariable("item", ErrorType.Instance), declaration, diagnostics, new SourceSpan(8, 4));
 
         var duplicate = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_DUPLICATE_LOCAL", duplicate.Id.Value);
-        Assert.Equal("later.mist", duplicate.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(2, 3), new LinePosition(2, 7)), duplicate.Location);
+        Assert.Equal("MIST0367", duplicate.Number.Value);
+        Assert.Equal("later.mist", duplicate.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(2, 3), new LinePosition(2, 7)), duplicate.Position());
         if(!conflictsWithFunction)
         {
             Assert.Same(original, scope.Locals["item"]);
@@ -93,9 +93,9 @@ public sealed class LocalBindingContractRegistrationTests
         scope.DeclareLocalFunction(later, second, diagnostics);
 
         var duplicate = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_DUPLICATE_LOCAL_FUNCTION", duplicate.Id.Value);
-        Assert.Equal("hand-built.mist", duplicate.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 20), new LinePosition(1, 21)), duplicate.Location);
+        Assert.Equal("MIST0368", duplicate.Number.Value);
+        Assert.Equal("hand-built.mist", duplicate.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 20), new LinePosition(1, 21)), duplicate.Position());
         Assert.Same(second, scope.LocalFunctions[later]);
     }
 }

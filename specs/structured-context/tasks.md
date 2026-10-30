@@ -59,7 +59,7 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
 - [x] 5. Context checker analyzer
   - [x] 5.1 Create ContextCheckerAnalyzer skeleton and register it
     - Create `ContextCheckerAnalyzer` implementing `IAnalyzer` in `Source/Mist/Analysis/Builtin/`
-    - Define diagnostic IDs: `MIST_CTX_0001` through `MIST_CTX_0006`
+    - Define diagnostic IDs: `MIST0129` through `MIST0133`
     - Register the analyzer in the `CompilerDriver` pipeline (after `TypeCheckerAnalyzer`)
     - _Requirements: 9.1, 14.1, 14.2, 14.3, 14.4, 14.5_
 
@@ -68,22 +68,22 @@ This plan implements Racket-style `parameterize` semantics for the Mist language
     - For each call site invoking such a method, walk up enclosing scopes and call chain looking for a context declaration whose resolved type matches
     - A context declaration satisfies the requirement if it appears before the call site in the same block, or in any enclosing block/method that transitively calls the current method
     - Handle cycles with a visited set per walk path
-    - Emit `MIST_CTX_0001` when no provider is found
+    - Emit `MIST0129` when no provider is found
     - Treat methods without context declarations/bindings as transparent
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.8, 10.1, 10.2, 10.3, 10.4, 10.5_
 
   - [x] 5.3 Implement interface/trait contract enforcement
     - For each interface method with `with` clauses: verify implementing methods declare the exact same clauses (matched by resolved type, no variance)
-    - Emit `MIST_CTX_0006` for omitted or mismatched clauses
+    - Emit `MIST0133` for omitted or mismatched clauses
     - For trait methods with `with` clauses: during structural matching, only consider a type's method a match if it also declares the same `with` clauses
     - When dispatching through interface/trait type, use the interface/trait method's `with` clauses for context checking
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
   - [x] 5.4 Implement remaining context checker diagnostics
-    - `MIST_CTX_0002`: duplicate context binding (same type in multiple with-clauses on one method)
-    - `MIST_CTX_0003`: context declaration outside method body
-    - `MIST_CTX_0004`: cannot infer context type from expression
-    - `MIST_CTX_0005`: assignment to context-bound variable
+    - `MIST0130`: duplicate context binding (same type in multiple with-clauses on one method)
+    - `MIST_CTX_0003 (historical)`: context declaration outside method body
+    - `MIST0131`: cannot infer context type from expression
+    - `MIST0132`: assignment to context-bound variable
     - Verify constructor with-clauses are checked at `new` expression call sites
     - _Requirements: 3.6, 7.5, 14.1, 14.2, 14.3, 14.4, 14.5_
 

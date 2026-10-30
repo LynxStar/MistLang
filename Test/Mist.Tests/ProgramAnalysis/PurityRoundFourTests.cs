@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -5,12 +6,12 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PurityRoundFourTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
-    private const string PureFunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
-    private const string ReadonlyContractNotMet = "MIST_PA_READONLY_CONTRACT_NOT_MET";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string StoresUnowned = "MIST0141";
+    private const string PureFunctionRequired = "MIST0142";
+    private const string ReadonlyContractNotMet = "MIST0187";
 
     [Fact]
     public void FrozenLocalDeclaredOverAnUnrestrictedInput()
@@ -315,7 +316,12 @@ public sealed class PurityRoundFourTests
     [Fact]
     public void GenericDefinitionsFieldInitializerIsHeldToADefaultsConsistency()
     {
-        Refused("generic-definitions-field-initializer-is-a-default-of-every-instantiation", "MIST_PA_DEFAULT_NOT_CONSISTENT", "'Note'");
+        var finding = Assert.Single(new PurityFragments().RoundFour("generic-definitions-field-initializer-is-a-default-of-every-instantiation"));
+
+        Assert.Equal("MIST0143", finding.Number.Value);
+        Assert.Equal("The initializer of field 'Stamp' of 'PBox<>'", Assert.IsType<NameValue>(finding.Arguments[0]).Name);
+        Assert.Equal("PBox<>", Assert.IsType<TypeValue>(finding.Arguments[1]).Spelling);
+        Assert.True(finding.Cause is > 0 && finding.Cause < finding.Ordinal);
     }
 
     [Fact]
@@ -340,7 +346,7 @@ public sealed class PurityRoundFourTests
     {
         var finding = Assert.Single(new PurityFragments().RoundFour(fragment));
 
-        Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}: {finding.Message}");
+        Assert.True(finding.Number.Value == expected, $"{fragment}: expected {expected}, got {finding.Number.Value}: {finding.Message}");
         Assert.Contains(named, finding.Message, StringComparison.Ordinal);
     }
 

@@ -1,9 +1,9 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
-using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
@@ -84,8 +84,7 @@ internal static class ObjectInitializerBinder
     {
         if(Expression(assignment) is not { } expressionNode)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.CollectionInitializerNotSupported, assignment, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.CollectionInitializerNotSupported, assignment, null);
 
             return;
         }
@@ -98,7 +97,8 @@ internal static class ObjectInitializerBinder
         {
             if(!reported && StorageType(found) is { } stored)
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.NotCallable, assignment, null, "Add", TypeDisplay.Mist(stored));
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.NotCallable, assignment, null,
+                    new NameValue("Add"), DiagnosticSnapshot.Type(stored), new OptionalValue(SlotKind.Sequence, null));
             }
 
             bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, value, targetType: null) { IsTargetFailed = true });
@@ -111,7 +111,8 @@ internal static class ObjectInitializerBinder
         if(choice.Selected is null)
         {
             var failure = OverloadFailure.Retain(
-                choice, group.Methods, [value], "method 'Add'", assignment, context.Diagnostics);
+                choice, group.Methods, [value], "method 'Add'", assignment, context.Diagnostics,
+                frames: ProjectedWithholding.Frames(type, "Add"));
             bound.Add(new ObjectInitializerAssignment(assignment, memberName: null, failure, targetType: null));
             return;
         }
@@ -166,12 +167,12 @@ internal static class ObjectInitializerBinder
     {
         if(MemberResolution.IsStaticStorage(found))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InitializerTargetNotInstance, node, null, type.Name, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InitializerTargetNotInstance, node, null, DiagnosticSnapshot.Type(type, type.Name), new NameValue(memberName));
             return true;
         }
         else if(found is MethodGroupResult or TypeResult or EnumMemberResult)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InitializerTargetNotAssignable, node, null, type.Name, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InitializerTargetNotAssignable, node, null, DiagnosticSnapshot.Type(type, type.Name), new NameValue(memberName));
             return true;
         }
 

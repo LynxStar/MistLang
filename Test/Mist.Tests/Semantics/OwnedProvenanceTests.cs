@@ -60,9 +60,9 @@ public sealed class OwnedProvenanceTests
     [Theory]
     [Trait("Tier", "2")]
     [InlineData("clone-through", true, null)]
-    [InlineData("clone-through", false, "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("clone-through", false, "MIST0264")]
     [InlineData("declared-owned", true, null)]
-    [InlineData("copy", true, "MIST_PA_OWNED_SOURCE_NOT_OWNED")]
+    [InlineData("copy", true, "MIST0264")]
     public void AnOwnedBindingInitializedByAConversion_YieldsOwnershipExactlyWhereTheBinderLeftItUncloned(
         string conversion, bool cloneDeclaresOwned, string? expected)
     {
@@ -76,7 +76,7 @@ public sealed class OwnedProvenanceTests
 
         var findings = types.Model.Analyze(new OwnershipAnalyzer(), body, [], probe, run);
 
-        Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, findings.SingleOrDefault()?.Number.Value);
     }
 
     /// <summary>

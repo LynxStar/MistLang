@@ -19,7 +19,7 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 |---------|----------|------------|-------------|
 | `build` | Yes | — | Compiles the project and produces output artifacts. |
 | `run` | Yes | Runs the artifact with `dotnet` | Compiles, then executes the resulting binary. Executable projects only: a project with `output_type = "library"` is refused before compiling. |
-| `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST_TEST_0001` when it finds test-attributed methods but no test framework package. |
+| `test` | Yes | Runs `dotnet test` on the emitted `.csproj` | Compiles, then runs the project's tests. Warns with `MIST0102` when it finds test-attributed methods but no test framework package. |
 | `restore` | No | — | Resolves `[packages]` and `[framework_references]` only, and always prints the resolver's detail and summary. It never lexes, type-checks or emits. |
 | `inspect <TypeName>` | No | — | Resolves the same assemblies a build would and prints a CLR type's projected and hidden members. It prints the same dependency diagnostics a build does to standard error, once each, and exits 1 without a report when one is an error. |
 | `steering` | No | — | Installs the bundled Mist agent references into the project's `.mist/agents/` directory and adds a Mist block pointing at them to `AGENTS.md`, and to an existing `CLAUDE.md` that does not import `AGENTS.md`. |
@@ -27,19 +27,19 @@ Running `mist` with no arguments prints the usage help. A project folder with no
 
 `build`, `run` and `test` discover all `.mist` source files recursively within the project folder, clean the output and binary directories (Stage 0), and run the full compilation pipeline. If compilation fails, diagnostics are printed, the command exits with code 1, and `run` and `test` launch nothing. Otherwise `run` exits with the program's exit code and `test` with `dotnet test`'s.
 
-`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. `restore` and `inspect` exit non-zero when any dependency fails to resolve, and both print the dependency diagnostics; see [.NET Interop](../advanced/dotnet-interop.md) for `restore`'s output and the diagnostics.
+`restore` and `inspect` require a `mist.toml` in the project folder and exit non-zero without one. Like a build, both print every diagnostic the `mist.toml` raises, warnings included, to standard error once each, and exit 1 before resolving anything when one is an error. `restore` and `inspect` exit non-zero when any dependency fails to resolve, and both print the dependency diagnostics; see [.NET Interop](../advanced/dotnet-interop.md) for `restore`'s output and the diagnostics.
 
 ## Flags
 
 | Flag | Short | Value | Default | Description |
 |------|-------|-------|---------|-------------|
-| `--backend` | — | `<id>` | `csharp` | Selects the code generation backend. Currently only `csharp` is available; another value fails compilation with `MIST_UNKNOWN_BACKEND`. |
+| `--backend` | — | `<id>` | `csharp` | Selects the code generation backend. Currently only `csharp` is available; another value fails compilation with `MIST0099`. |
 | `--output` | — | `<dir>` | `<project>/out` | Sets the directory where transpiled source files are written. |
 | `--bin` | — | `<dir>` | `<project>/bin` | Sets the directory where compiled binary artifacts are placed. |
 | `--mode` | — | `compile` \| `lex` | `compile` | Selects the compiler mode for `build`. `compile` runs the full pipeline; `lex` dumps token streams only. |
 | `--pipeline` | — | `standard` | `standard` | Selects the compilation pipeline. `standard` is the only pipeline, so the flag can be omitted; any other value is a parse error. |
 | `--platform` | — | `windows` \| `linux` \| `macos` | this machine | Sets the platform the program is compiled for, which decides the platform-specific startup code the compiler emits and the operating-system part of the target runtime identifier. |
-| `--rid` | — | `<rid>` | this machine's | Sets the target runtime identifier, such as `linux-x64`, which decides the native and runtime-specific files copied into `bin/`. It takes precedence over `--platform`; an identifier the SDK does not know fails with `MIST_RID_UNKNOWN`. See [Target runtime identifier](#target-runtime-identifier). |
+| `--rid` | — | `<rid>` | this machine's | Sets the target runtime identifier, such as `linux-x64`, which decides the native and runtime-specific files copied into `bin/`. It takes precedence over `--platform`; an identifier the SDK does not know fails with `MIST0100`. See [Target runtime identifier](#target-runtime-identifier). |
 | `--verbose` | `-v` | — | off | Shows the progress of every stage, including Stage 1.5 package-resolution detail. |
 | `--quiet` | `-q` | — | off | Suppresses progress output during compilation, and the list of installed files for `steering`. |
 
@@ -67,7 +67,23 @@ Progress goes to stdout. Diagnostics go to stderr, one per line, as `path(line,c
 | `build` | Stages 0–6 and the summary; Stage 1.5 is silent unless something fails | Adds the Stage 1.5 detail | No progress and no summary |
 | `run`, `test` | No progress, so stdout belongs to the program or the test runner | Stages 0–6, Stage 1.5 detail and the summary | Same as the default |
 
-No flag hides a diagnostic. Most diagnostics are printed after the summary. A dependency failure is the exception: a package or framework reference that fails to resolve is printed as soon as Stage 1.5 ends, before Stage 2 begins, and is not repeated after the summary, though the summary counts it. Compilation still runs through analysis, so errors in your source are reported in the same run, and then fails before anything is emitted. [.NET Interop](../advanced/dotnet-interop.md#when-a-dependency-fails) shows an example.
+No option hides an error. `--min-severity` can hide warnings and notes while the summary still counts them. Most diagnostics are printed after the summary. A dependency failure is the exception: a package or framework reference that fails to resolve is printed as soon as Stage 1.5 ends, before Stage 2 begins, and is not repeated after the summary, though the summary counts it. Compilation still runs through analysis, so errors in your source are reported in the same run, and then fails before anything is emitted. [.NET Interop](../advanced/dotnet-interop.md#when-a-dependency-fails) shows an example.
+
+Diagnostic controls: `--diagnostic-format text|json` (default `text`),
+`--diagnostic-file <path>`, `--min-severity info|warning|error` (default `info`),
+`--warnings-as-errors [Number,...]`, `--disable <Number,...>` and `--enable <Number,...>`.
+Bare `--warnings-as-errors` promotes every Promotable diagnostic, including notes; a list
+selects which non-Fixed diagnostics to promote. Disable and enable apply only to Optional
+rules. CLI policy overrides the manifest. Unknown numbers and invalid values fail before execution.
+
+All six controls apply to `build`, `run`, `test`, `inspect` and `restore`. Lex mode accepts
+format, file and minimum severity only; `steering` and `version` accept none.
+JSON is one buffered document on stderr, completed before a run or test child starts.
+With `--diagnostic-file`, JSON goes to that UTF-8 file and stderr keeps text diagnostics.
+Program and test-runner output remains separate. If the host fails after completing the document,
+it reports one text ICE on stderr and exits 1; the completed document is not rewritten. JSON includes hidden diagnostics with
+`visible: false`. Consumers must ignore unknown keys; additive schema changes raise the
+minor version, and removals or changed meanings raise the major version.
 
 ## Positional Argument
 

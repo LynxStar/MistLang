@@ -61,10 +61,10 @@ maps each identifier to `{ "#import": [ ... ] }`.
 | `CliArgumentParser`, `CliArguments` | `--rid <rid>`. |
 | `CompilerOptions` | `string? RuntimeIdentifier` from `--rid`. |
 | `PackageResolver` | Parses `runtimeTargets`; reads the graph path; `PackageResolutionResult` gains `RuntimeAssets`. |
-| `CompilerDriver` | Computes the identifiers before resolution, reports `MIST_RID_UNKNOWN`, fills `PipelineInput.RuntimeIdentifiers` and `RuntimeAssets`, adds the Stage 1 detail. |
+| `CompilerDriver` | Computes the identifiers before resolution, reports `MIST0100`, fills `PipelineInput.RuntimeIdentifiers` and `RuntimeAssets`, adds the Stage 1 detail. |
 | `PipelineInput` | `ImmutableArray<string> RuntimeIdentifiers` (target first), `ImmutableArray<RuntimeAsset> RuntimeAssets`. |
 | `CSharpEmitterV2`, `CSharpCompilationDriver` | Carry both into the deployment step; closure selection; the copy rules; the deployed count. |
-| `DriverDiagnostics` | `MIST_RID_UNKNOWN`. |
+| `DriverDiagnostics` | `MIST0100`. |
 
 ## Detailed Design
 
@@ -73,7 +73,7 @@ maps each identifier to `{ "#import": [ ... ] }`.
 `TargetRuntime.Select` returns `rid` when given. Otherwise, when `platform` is null or equals the host's,
 it returns `hostRid`. Otherwise it joins the platform token (`win`, `linux`, `osx`) with the architecture
 token from `RuntimeInformation.OSArchitecture` (`X64` to `x64`, `Arm64` to `arm64`, `X86` to `x86`,
-`Arm` to `arm`). The driver validates the result against the graph and reports `MIST_RID_UNKNOWN` when
+`Arm` to `arm`). The driver validates the result against the graph and reports `MIST0100` when
 absent.
 
 ### 2. Fallback order
@@ -108,7 +108,7 @@ assets deployed` when `N > 0`.
 
 | Situation | Where | Diagnostic |
 | --- | --- | --- |
-| `--rid foo-bar` | driver | `MIST_RID_UNKNOWN` |
+| `--rid foo-bar` | driver | `MIST0100` |
 | `--platform windows` on an arm64 Mac | driver | Target_Rid `win-arm64`; packages lacking it fall back along the graph |
 | package with assets only for other identifiers | resolver | nothing selected, no diagnostic; the runtime reports the missing library as today |
 

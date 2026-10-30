@@ -216,12 +216,12 @@ parameters, parameters, constraints and the block, reusing the method's helpers.
 
 | Id | Stage | Message |
 |---|---|---|
-| `MIST_PM_LOCAL_FUNCTION_MODIFIER` | construction | A local function cannot be declared '{0}'. |
-| `MIST_PM_LOCAL_FUNCTION_GENERIC` | construction | Local function '{0}' cannot declare type parameters. |
-| `MIST_PM_DUPLICATE_LOCAL_FUNCTION` | construction | A local function named '{0}' is already declared in this scope. |
-| `MIST_PA_STATIC_LOCAL_FUNCTION_CAPTURE` | analysis | A static local function cannot reference {0} '{1}'. |
-| `MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED` | analysis | Local function '{0}' reads '{1}', which is not definitely assigned at this call. |
-| `MIST_PA_CAPTURED_BINDING` (existing) | analysis | Cannot capture {0} variable '{1}' in a {2}: {3}. |
+| `MIST0369` | construction | A local function cannot be declared '{0}'. |
+| `MIST0370` | construction | Local function '{0}' cannot declare type parameters. |
+| `MIST0368` | construction | A local function named '{0}' is already declared in this scope. |
+| `MIST0212` | analysis | A static local function cannot reference {0} '{1}'. |
+| `MIST0221` | analysis | Local function '{0}' reads '{1}', which is not definitely assigned at this call. |
+| `MIST0269` (existing) | analysis | Cannot capture {0} variable '{1}' in a {2}: {3}. |
 
 ## Testing Strategy
 

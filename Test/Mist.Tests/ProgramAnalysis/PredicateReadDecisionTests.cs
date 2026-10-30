@@ -10,10 +10,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class PredicateReadDecisionTests
 {
     [Theory]
-    [InlineData("write-only", "MIST_PA_NO_GET_ACCESSOR")]
-    [InlineData("no-accessors", "MIST_PA_NO_GET_ACCESSOR")]
-    [InlineData("get-set", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
-    [InlineData("mutable-field", "MIST_PA_REFINEMENT_OVER_MUTABLE_MEMBER")]
+    [InlineData("write-only", "MIST0214")]
+    [InlineData("no-accessors", "MIST0214")]
+    [InlineData("get-set", "MIST0175")]
+    [InlineData("mutable-field", "MIST0175")]
     [InlineData("get-init", null)]
     [InlineData("get-only", null)]
     [InlineData("readonly-field", null)]
@@ -21,7 +21,7 @@ public sealed class PredicateReadDecisionTests
     {
         var refusal = DeclarationShapeAnalyzer.PredicateRead(Member(member), purity: null);
 
-        Assert.Equal(expected, refusal?.Id.Value);
+        Assert.Equal(expected, refusal?.Number.Value);
     }
 
     private static LookupResult Member(string member)

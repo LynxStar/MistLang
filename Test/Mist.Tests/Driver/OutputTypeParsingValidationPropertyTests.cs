@@ -4,7 +4,7 @@
 // For any string value used as the output_type field in a valid mist.toml:
 // - "executable" produces success with ProjectOutputType.Executable
 // - "library" produces success with ProjectOutputType.Library
-// - All other strings produce a diagnostic error containing MIST_PROJECT_INVALID_OUTPUT_TYPE
+// - All other strings produce a diagnostic error containing MIST0059
 
 using FsCheck;
 using FsCheck.Fluent;
@@ -159,7 +159,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
                 }
 
                 var hasOutputTypeError = diags.Any(d =>
-                    d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE");
+                    d.Number.Value == "MIST0059");
                 if(hasOutputTypeError)
                 {
                     return false;
@@ -182,7 +182,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
             {
                 // Should produce an error diagnostic for the invalid output type
                 var hasOutputTypeError = diags.Any(d =>
-                    d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE" &&
+                    d.Number.Value == "MIST0059" &&
                     d.Severity == DiagnosticSeverity.Error);
                 return hasOutputTypeError;
             }
@@ -201,7 +201,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
     /// Property 4: Output Type Parsing Validation.
     /// For any string value used as output_type: "executable" and "library" produce
     /// success with the correct enum value; all other strings produce a diagnostic
-    /// error with MIST_PROJECT_INVALID_OUTPUT_TYPE.
+    /// error with MIST0059.
     /// Uses FsCheck Gen.Sample to generate 200 random inputs and verify the property.
     /// </summary>
     [Fact]
@@ -245,7 +245,7 @@ public sealed class OutputTypeParsingValidationPropertyTests
             Assert.NotNull(result);
             Assert.Equal(ProjectOutputType.Executable, result.OutputType);
             Assert.Empty(diagnostics.ToImmutableArray().Where(d =>
-                d.Id.Value == "MIST_PROJECT_INVALID_OUTPUT_TYPE"));
+                d.Number.Value == "MIST0059"));
         }
         finally
         {

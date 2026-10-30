@@ -12,7 +12,7 @@ namespace Mist.Tests.Integration;
 /// <para>
 /// BINDING SUCCESS PROVES NOTHING ABOUT THIS SEAM. The ambient provider reads the same resolved
 /// assemblies, so a package type resolves to a model member whether or not Roslyn was ever told
-/// where that type lives; the compiler then reports success and hands back MIST_CS_ERROR against a
+/// where that type lives; the compiler then reports success and hands back MIST0003 against a
 /// generated file. Only compiling the emitted C# separates the two.
 /// </para>
 /// </summary>
@@ -74,7 +74,7 @@ public sealed class ResolvedPackagesReachV2CompilationTests : IDisposable
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 
         Assert.True(

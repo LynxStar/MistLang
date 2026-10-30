@@ -28,8 +28,7 @@ internal static class MemberNameValidation
     {
         if(string.Equals(memberName, enclosingTypeName, StringComparison.Ordinal))
         {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.MemberNameMatchesEnclosingType, locationNode, null, enclosingTypeName);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MemberNameMatchesEnclosingType, locationNode, null, new NameValue(enclosingTypeName));
         }
     }
 }

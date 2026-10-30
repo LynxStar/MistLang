@@ -46,10 +46,10 @@ Add implicit and explicit cast operators to the Mist programming language compil
 
   - [x] 3.2 Implement `Pass1e_ValidateCastOperatorShape` validation sub-pass
     - Add new validation sub-pass alongside existing `Pass1e_ValidateOperatorShape`
-    - Validate parameter count is exactly one; emit `MIST_SB_0040` if not
-    - Validate `public static` modifiers are present; emit `MIST_SB_0041` if missing
-    - Validate cast operator is declared inside a class or struct; emit `MIST_SB_0042` if not
-    - Detect name-based duplicate cast operators (same kind + same target type name); emit `MIST_SB_0043`
+    - Validate parameter count is exactly one; emit `MIST_SB_0040 (historical)` if not
+    - Validate `public static` modifiers are present; emit `MIST_SB_0041 (historical)` if missing
+    - Validate cast operator is declared inside a class or struct; emit `MIST_SB_0042 (historical)` if not
+    - Detect name-based duplicate cast operators (same kind + same target type name); emit `MIST_SB_0043 (historical)`
     - _Requirements: 6.1, 6.3, 6.4, 6.5_
 
   - [x] 3.3 Write property test for cast operator symbol registration
@@ -81,8 +81,8 @@ Add implicit and explicit cast operators to the Mist programming language compil
 - [x] 6. Extend type checker for cast operator validation and resolution
   - [x] 6.1 Validate cast operator declarations in the type checker
     - Detect when the declaring node is a `CastOperatorDeclarationNode` in `CheckMethodBody`
-    - Validate enclosing type constraint: either source parameter type or target type must be the enclosing type; emit `MIST_TC_0040` if violated
-    - Validate duplicate cast operators after type resolution (same kind + same resolved source-target type pair); emit `MIST_TC_0041`
+    - Validate enclosing type constraint: either source parameter type or target type must be the enclosing type; emit `MIST_TC_0040 (historical)` if violated
+    - Validate duplicate cast operators after type resolution (same kind + same resolved source-target type pair); emit `MIST_TC_0041 (historical)`
     - _Requirements: 6.2, 6.5, 6.6, 6.7_
 
   - [x] 6.2 Write property test for enclosing type constraint validation
@@ -95,7 +95,7 @@ Add implicit and explicit cast operators to the Mist programming language compil
     - Add `TryResolveImplicitCast` companion method that returns the resolved symbol (or null) for recording on the AST node
     - Add implicit cast operator search as the last fallback in `IsAssignable`, after identity, subtype, interface, trait, and numeric widening checks
     - At assignment/argument/return sites, call `TryResolveImplicitCast` to both check assignability and record the resolved operator via `RecordResolvedOperator`
-    - Emit `MIST_TC_0044` when multiple implicit cast operators are applicable (ambiguous)
+    - Emit `MIST_TC_0044 (historical)` when multiple implicit cast operators are applicable (ambiguous)
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 14.1, 14.2, 14.3_
 
   - [x] 6.4 Write property test for implicit cast resolution
@@ -110,8 +110,8 @@ Add implicit and explicit cast operators to the Mist programming language compil
     - Search source type and target type members for `operator_explicit_{target}` or `operator_implicit_{target}` symbols
     - Do NOT search base types or derived types — only operators declared directly on the compile-time type and the target type
     - Record resolved operator via `RecordResolvedOperator` and set expression type to target type
-    - Emit `MIST_TC_0042` when no cast operator is found
-    - Emit `MIST_TC_0043` when multiple operators are applicable (ambiguous)
+    - Emit `MIST_TC_0042 (historical)` when no cast operator is found
+    - Emit `MIST_TC_0043 (historical)` when multiple operators are applicable (ambiguous)
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.1, 9.2, 9.3, 9.4_
 
   - [x] 6.6 Write property test for explicit cast expression compile-time safety

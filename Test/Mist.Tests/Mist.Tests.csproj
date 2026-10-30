@@ -49,4 +49,15 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Tier 1 receives the committed page in memory without reading the checkout at runtime. -->
+  <PropertyGroup>
+    <DiagnosticCatalogPage>$([MSBuild]::ConvertToBase64($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../book/src/reference/diagnostics.md'))))</DiagnosticCatalogPage>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DiagnosticCatalogPage</_Parameter1>
+      <_Parameter2>$(DiagnosticCatalogPage)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

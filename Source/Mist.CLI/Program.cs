@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
+using Mist.CLI;
 using Mist.CLI.Args;
 using Mist.CLI.Layout;
 using Mist.CLI.Output;
@@ -15,109 +16,31 @@ internal partial class Program
 {
     private static int Main(string[] args)
     {
-        // Ensure consistent UTF-8 output across all platforms. Without this,
-        // Windows defaults to the system codepage (e.g., 1252) which mangles
-        // Unicode characters in sample output and breaks cross-platform baselines.
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        return CliHost.Run(args, Dispatch, Console.Error,
+            initialize: () => Console.OutputEncoding = System.Text.Encoding.UTF8);
+    }
 
-        // Parse CLI arguments
-        var parseResult = CliArgumentParser.Parse(args);
-
-        if(parseResult.Errors.Count > 0)
-        {
-            foreach(var error in parseResult.Errors)
-            {
-                Console.Error.WriteLine($"error: {error.Message}");
-            }
-
-            Console.Error.WriteLine("Usage: mist <command> [project-folder] [options]");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine("Commands:");
-            Console.Error.WriteLine("  build              Compile the project");
-            Console.Error.WriteLine("  run                Compile and execute the project");
-            Console.Error.WriteLine("  test               Compile and run tests");
-            Console.Error.WriteLine("  steering           Install Mist steering files");
-            Console.Error.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
-            Console.Error.WriteLine("  restore            Resolve packages, framework references and C# project references without building");
-            Console.Error.WriteLine("  version            Print the compiler version");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine("Options:");
-            Console.Error.WriteLine("  --backend <id>     Backend to use (default: csharp)");
-            Console.Error.WriteLine("  --output <dir>     Output directory for emitted files");
-            Console.Error.WriteLine("  --bin <dir>        Binary output directory");
-            Console.Error.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
-            Console.Error.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
-            Console.Error.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
-            Console.Error.WriteLine("  --rid <rid>        Runtime identifier whose native assets are deployed, e.g. linux-x64 (default: this machine)");
-            Console.Error.WriteLine("  --verbose, -v      Show detailed output");
-            Console.Error.WriteLine("  --quiet, -q        Suppress progress output");
-            return 1;
-        }
-
-        var cliArgs = parseResult.Arguments!;
-
+    private static int Dispatch(CliArguments cliArgs, DiagnosticOutput output)
+    {
         switch(cliArgs.Command)
         {
             case CliCommand.None:
-                PrintHelp();
+                CliHelp.Write(Console.Out);
                 return 0;
-
             case CliCommand.Version:
                 Console.WriteLine("mist 0.318.0");
                 return 0;
-
-            case CliCommand.Build:
-                return RunBuildPipeline(cliArgs);
-
-            case CliCommand.Run:
-                return RunRunCommand(cliArgs);
-
-            case CliCommand.Test:
-                return RunTestCommand(cliArgs);
-
-            case CliCommand.Steering:
-                return RunSteeringCommand(cliArgs);
-
-            case CliCommand.Inspect:
-                return RunInspectCommand(cliArgs);
-
-            case CliCommand.Restore:
-                return RunRestoreCommand(cliArgs);
-
-            default:
-                Console.Error.WriteLine($"error: Unknown command '{cliArgs.Command}'.");
-                return 1;
+            case CliCommand.Build: return RunBuildPipeline(cliArgs, output);
+            case CliCommand.Run: return RunRunCommand(cliArgs, output);
+            case CliCommand.Test: return RunTestCommand(cliArgs, output);
+            case CliCommand.Steering: return RunSteeringCommand(cliArgs, output);
+            case CliCommand.Inspect: return RunInspectCommand(cliArgs, output);
+            case CliCommand.Restore: return RunRestoreCommand(cliArgs, output);
+            default: return 1;
         }
     }
 
-    private static void PrintHelp()
-    {
-        Console.WriteLine("The Mist programming language compiler");
-        Console.WriteLine();
-        Console.WriteLine("Usage: mist <command> [project-folder] [options]");
-        Console.WriteLine();
-        Console.WriteLine("Commands:");
-        Console.WriteLine("  build              Compile the project");
-        Console.WriteLine("  run                Compile and execute the project");
-        Console.WriteLine("  test               Compile and run tests");
-        Console.WriteLine("  steering           Install Mist steering files");
-        Console.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
-        Console.WriteLine("  restore            Resolve packages, framework references and C# project references without building");
-        Console.WriteLine("  version            Print the compiler version");
-        Console.WriteLine();
-        Console.WriteLine("Options:");
-        Console.WriteLine("  --backend <id>     Backend to use (default: csharp)");
-        Console.WriteLine("  --output <dir>     Output directory for emitted files");
-        Console.WriteLine("  --bin <dir>        Binary output directory");
-        Console.WriteLine("  --mode <mode>      Compiler mode: compile, lex");
-        Console.WriteLine("  --pipeline <name>  Compilation pipeline: standard (default: standard)");
-        Console.WriteLine("  --platform <os>    Platform to compile for: windows, linux, macos (default: this machine)");
-        Console.WriteLine("  --rid <rid>        Runtime identifier whose native assets are deployed, e.g. linux-x64 (default: this machine)");
-        Console.WriteLine("  --verbose, -v      Show detailed output");
-        Console.WriteLine("  --quiet, -q        Suppress progress output");
-    }
-
-    private static int RunBuildPipeline(CliArguments cliArgs)
+    private static int RunBuildPipeline(CliArguments cliArgs, DiagnosticOutput output)
     {
         ICompilationProgressReporter reporter = cliArgs.Quiet
             ? NullProgressReporter.Instance
@@ -125,7 +48,7 @@ internal partial class Program
         var totalStopwatch = Stopwatch.StartNew();
 
         var layout = LayoutOf(cliArgs);
-        var sourceFiles = DiscoverSourcesAndClean(layout, reporter);
+        var sourceFiles = DiscoverSourcesAndClean(layout, reporter, output);
         if(sourceFiles is null)
         {
             return 1;
@@ -133,8 +56,8 @@ internal partial class Program
 
         return cliArgs.Mode switch
         {
-            CompilerMode.Lex => RunLexMode(sourceFiles, layout),
-            _ => CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, _ => 0),
+            CompilerMode.Lex => RunLexMode(sourceFiles, layout, output),
+            _ => CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, _ => 0),
         };
     }
 
@@ -143,11 +66,12 @@ internal partial class Program
         return new ProjectLayout(cliArgs.ProjectFolder, cliArgs.OutputDirectory, cliArgs.BinDirectory, Directory.GetCurrentDirectory());
     }
 
-    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter)
+    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter, DiagnosticOutput output)
     {
         if(layout.DirectoryHoldingProject() is { } holdingDirectory)
         {
-            Console.Error.WriteLine($"error: '{holdingDirectory}' is or contains the project folder '{layout.ProjectFolder}'; cleaning it would delete the project.");
+            CommandFeedback.Report(output, CommandDiagnostics.UnsafeCleanDirectory, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null),
+                new PathValue(holdingDirectory), new PathValue(layout.ProjectFolder));
             return null;
         }
 
@@ -155,7 +79,7 @@ internal partial class Program
 
         if(sourceFiles.Count == 0)
         {
-            Console.Error.WriteLine("error: No .mist source files found.");
+            CommandFeedback.Report(output, CommandDiagnostics.SourceFilesMissing, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null));
             return null;
         }
 
@@ -168,10 +92,10 @@ internal partial class Program
             CleanDirectory(layout.OutputDirectory);
             CleanDirectory(layout.BinDirectory);
         }
-        catch(IOException ex)
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
             reporter.ReportStageComplete("0", cleanStopwatch.Elapsed, []);
-            Console.Error.WriteLine($"error: Failed to clean build directories: {ex.Message}");
+            CommandFeedback.Report(output, CommandDiagnostics.CleanDirectoriesFailed, new ProjectLocation(Path.Combine(layout.ProjectFolder, "mist.toml"), null), new TextValue(ex.Message));
             return null;
         }
 
@@ -185,7 +109,7 @@ internal partial class Program
         return sourceFiles;
     }
 
-    private static int RunLexMode(IReadOnlyList<string> sourceFiles, ProjectLayout layout)
+    private static int RunLexMode(IReadOnlyList<string> sourceFiles, ProjectLayout layout, DiagnosticOutput output)
     {
         var lexer = new MistLexer();
         var hasErrors = false;
@@ -200,24 +124,21 @@ internal partial class Program
             {
                 source = File.ReadAllText(filePath);
             }
-            catch(Exception ex)
+            catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {
-                Console.Error.WriteLine($"error: Failed to read '{filePath}': {ex.Message}");
+                CommandFeedback.Report(output, DriverDiagnostics.FileError, new FileOnly(filePath), new PathValue(filePath), new TextValue(ex.Message));
                 hasErrors = true;
                 continue;
             }
 
             var sourceText = new Mist.Common.Source.SourceText(filePath, source);
-            var diags = new DiagnosticBag();
+            var diags = new DiagnosticBag(output.Operation);
             var tokenStream = lexer.Lex(sourceText, diags);
 
-            if(diags.HasErrors)
+            hasErrors |= diags.HasErrors;
+            foreach(var diagnostic in diags.Admitted)
             {
-                hasErrors = true;
-                foreach(var d in diags.ToImmutableArray())
-                {
-                    Console.Error.WriteLine(DiagnosticFormatter.Format(d));
-                }
+                output.Stream(diagnostic);
             }
 
             // Build the output: hidden tokens render as their literal content,
@@ -257,23 +178,16 @@ internal partial class Program
             if(reconstructed != source)
             {
                 hasErrors = true;
-                Console.Error.WriteLine($"error: Lexer round-trip failed for '{filePath}' — reconstructed source differs from original.");
-
-                // Find first difference for debugging
-                var minLen = Math.Min(source.Length, reconstructed.Length);
-                for(var i = 0; i < minLen; i++)
+                var offset = 0;
+                while(offset < Math.Min(source.Length, reconstructed.Length) && source[offset] == reconstructed[offset])
                 {
-                    if(source[i] != reconstructed[i])
-                    {
-                        Console.Error.WriteLine($"  First difference at offset {i}: expected '{Escape(source[i])}' got '{Escape(reconstructed[i])}'");
-                        break;
-                    }
+                    offset++;
                 }
 
-                if(source.Length != reconstructed.Length)
-                {
-                    Console.Error.WriteLine($"  Length mismatch: original={source.Length} reconstructed={reconstructed.Length}");
-                }
+                CommandFeedback.Report(output, CommandDiagnostics.LexerRoundTripFailed, new FileOnly(filePath),
+                    new PathValue(filePath), new QuantityValue(source.Length), new QuantityValue(reconstructed.Length), new QuantityValue(offset),
+                    new OptionalValue(SlotKind.Name, offset < source.Length ? new NameValue(Escape(source[offset])) : null),
+                    new OptionalValue(SlotKind.Name, offset < reconstructed.Length ? new NameValue(Escape(reconstructed[offset])) : null));
             }
 
             Console.WriteLine($"Lexed {filePath} -> {artifacts.TokensPath}, {artifacts.SourcePath}");
@@ -285,27 +199,34 @@ internal partial class Program
     private static int CompileThen(
         IReadOnlyList<string> sourceFiles,
         CliArguments cliArgs,
+        DiagnosticOutput output,
         ICompilationProgressReporter reporter,
         Stopwatch totalStopwatch,
-        Func<CompilerResult, int> afterSuccess)
+        Func<CompilerResult, int> afterSuccess,
+        ProjectConfiguration? configuration = null,
+        Func<CompilerResult, CompilerResult>? beforeCompletion = null)
     {
-        return new CompileFeedback(reporter, Console.Error).Run(
-            listener => CompileProject(sourceFiles, cliArgs, reporter, listener),
+        return new CompileFeedback(reporter, output).Run(
+            listener => CompileProject(sourceFiles, cliArgs, output, reporter, listener, configuration),
             totalStopwatch,
-            afterSuccess);
+            afterSuccess,
+            beforeCompletion);
     }
 
     private static CompilerResult CompileProject(
         IReadOnlyList<string> sourceFiles,
         CliArguments cliArgs,
+        DiagnosticOutput output,
         ICompilationProgressReporter progressReporter,
-        IResolutionDiagnosticListener resolutionListener)
+        IResolutionDiagnosticListener resolutionListener,
+        ProjectConfiguration? configuration = null)
     {
         // Parse the project file to get the project name
-        var parseDiagnostics = new DiagnosticBag();
-        var config = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
+        var parseDiagnostics = new DiagnosticBag(output.Operation);
+        var config = configuration ?? ProjectFileParser.ParseRoot(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
 
-        if(config is null)
+        output.Collect(parseDiagnostics.Admitted);
+        if(config is null || parseDiagnostics.HasErrors)
         {
             return new CompilerResult(false, null, parseDiagnostics.ToImmutableArray());
         }
@@ -332,7 +253,11 @@ internal partial class Program
                 _ => throw new InvalidOperationException($"Unknown pipeline: '{cliArgs.Pipeline}'."),
             },
             Platform: cliArgs.Platform,
-            RuntimeIdentifier: cliArgs.RuntimeIdentifier);
+            RuntimeIdentifier: cliArgs.RuntimeIdentifier)
+        {
+            DiagnosticOperation = output.Operation,
+            Configuration = config,
+        };
 
         var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter, resolutionListener);
 
@@ -340,25 +265,19 @@ internal partial class Program
         return driver.Compile(options);
     }
 
-    private static int RunRunCommand(CliArguments cliArgs)
+    private static int RunRunCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
-        // Validate that the project is not a library before starting compilation.
-        var runParseDiagnostics = new DiagnosticBag();
-        var runConfig = ProjectFileParser.Parse(Path.GetFullPath(cliArgs.ProjectFolder), runParseDiagnostics);
-
-        if(runConfig is null)
+        var diagnostics = new DiagnosticBag(output.Operation);
+        var configuration = ProjectFileParser.ParseRoot(Path.GetFullPath(cliArgs.ProjectFolder), diagnostics);
+        output.Collect(diagnostics.Admitted);
+        if(configuration is null || diagnostics.HasErrors)
         {
-            foreach(var diagnostic in runParseDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
             return 1;
         }
 
-        if(runConfig.OutputType == ProjectOutputType.Library)
+        if(configuration.OutputType == ProjectOutputType.Library)
         {
-            Console.Error.WriteLine("error: 'mist run' can only be used with executable projects. This project has output_type = \"library\".");
+            CommandFeedback.Report(output, CommandDiagnostics.RunLibraryProject, new ProjectLocation(Path.Combine(cliArgs.ProjectFolder, "mist.toml"), null));
             return 1;
         }
 
@@ -369,34 +288,30 @@ internal partial class Program
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter);
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter, output);
         if(sourceFiles is null)
         {
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, reporter, totalStopwatch, RunBuiltArtifact);
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
     }
 
-    private static int RunBuiltArtifact(CompilerResult result)
+    private static int RunBuiltArtifact(CompilerResult result, DiagnosticOutput output)
     {
-        if(result.PrimaryOutputArtifactPath is null)
-        {
-            Console.Error.WriteLine("error: Build succeeded but no executable artifact was produced.");
-            return 1;
-        }
-
-        return RunArtifact(result.PrimaryOutputArtifactPath);
+        return RunArtifact(result.PrimaryOutputArtifactPath!, output);
     }
 
-    private static int RunSteeringCommand(CliArguments cliArgs)
+    private static int RunSteeringCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
         var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
         var result = SteeringInstaller.Install(projectFolder);
 
         if(!result.Succeeded)
         {
-            Console.Error.WriteLine($"error: {result.Error}");
+            var bag = new DiagnosticBag(output.Operation);
+            bag.Admit(result.FailureDiagnostic!.Value);
+            output.Collect(bag.Admitted);
             return 1;
         }
 
@@ -435,12 +350,11 @@ internal partial class Program
         return 0;
     }
 
-    private static int RunInspectCommand(CliArguments cliArgs)
+    private static int RunInspectCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
         if(cliArgs.InspectTypeName is null)
         {
-            Console.Error.WriteLine("Usage: mist inspect <TypeName>");
-            Console.Error.WriteLine("  <TypeName> is the fully-qualified CLR type name to inspect.");
+            CommandFeedback.Report(output, CommandDiagnostics.InspectTypeRequired, new Absent(AbsenceReason.Unavailable));
             return 1;
         }
 
@@ -449,39 +363,39 @@ internal partial class Program
 
         if(!File.Exists(projectFilePath))
         {
-            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            CommandFeedback.Report(output, DriverDiagnostics.ProjectFileNotFound, new ProjectLocation(projectFilePath, null), new PathValue(projectFilePath));
             return 1;
         }
 
         // Parse the project file
-        var parseDiagnostics = new DiagnosticBag();
-        var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
+        var parseDiagnostics = new DiagnosticBag(output.Operation);
+        var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
-        if(config is null)
+        foreach(var diagnostic in parseDiagnostics.Admitted)
         {
-            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
+            output.Stream(diagnostic);
+        }
 
+        if(parseDiagnostics.HasErrors || config is null)
+        {
             return 1;
         }
 
-        var referenceDiagnostics = new DiagnosticBag();
+        var referenceDiagnostics = new DiagnosticBag(output.Operation);
         var references = ProjectReferenceLoader.Load(projectFolder, config.References, config.TargetFramework, referenceDiagnostics);
+        foreach(var diagnostic in referenceDiagnostics.Admitted)
+        {
+            output.Stream(diagnostic);
+        }
+
         if(referenceDiagnostics.HasErrors)
         {
-            foreach(var diagnostic in referenceDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
             return 1;
         }
 
         // Resolve SDK + package + framework assemblies (same as a build would use)
-        var resolutionDiagnostics = new DiagnosticBag();
-        var feedback = new InspectFeedback(Console.Error);
+        var resolutionDiagnostics = new DiagnosticBag(output.Operation);
+        var feedback = new InspectFeedback(output.Stream);
         var packageResult = PackageResolver.ResolvePackages(
             config.Packages,
             config.FrameworkReferences,
@@ -510,65 +424,32 @@ internal partial class Program
             config.TargetFramework,
             additionalPaths,
             cliArgs.InspectTypeName,
-            Console.Out);
+            Console.Out, output.Operation, output.Stream);
 
         return result;
     }
 
-    private static int RunRestoreCommand(CliArguments cliArgs)
+    private static int RunRestoreCommand(CliArguments cliArgs, DiagnosticOutput output)
     {
         var projectFolder = Path.GetFullPath(cliArgs.ProjectFolder);
         var projectFilePath = Path.Combine(projectFolder, "mist.toml");
 
         if(!File.Exists(projectFilePath))
         {
-            Console.Error.WriteLine("error: No mist.toml found in the current directory. Run this command from a Mist project folder.");
+            CommandFeedback.Report(output, DriverDiagnostics.ProjectFileNotFound, new ProjectLocation(projectFilePath, null), new PathValue(projectFilePath));
             return 1;
         }
 
         // Parse the project file
-        var parseDiagnostics = new DiagnosticBag();
-        var config = ProjectFileParser.Parse(projectFolder, parseDiagnostics);
+        var parseDiagnostics = new DiagnosticBag(output.Operation);
+        var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
-        if(config is null)
-        {
-            foreach(var diagnostic in parseDiagnostics.ToImmutableArray())
-            {
-                Console.Error.WriteLine(DiagnosticFormatter.Format(diagnostic));
-            }
-
-            return 1;
-        }
-
-        return DependencyRestore.Run(projectFolder, config, Console.Out, Console.Error);
+        return DependencyRestore.Run(projectFolder, config, parseDiagnostics.ToImmutableArray(), Console.Out, Console.Error, output.Operation, output.Stream);
     }
 
-    private static int RunArtifact(string artifactPath)
+    private static int RunArtifact(string artifactPath, DiagnosticOutput output)
     {
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                ArgumentList = { artifactPath },
-                UseShellExecute = false,
-            };
-
-            var process = Process.Start(startInfo);
-            if(process is null)
-            {
-                Console.Error.WriteLine("error: Failed to start 'dotnet' process.");
-                return 1;
-            }
-
-            process.WaitForExit();
-            return process.ExitCode;
-        }
-        catch(Exception ex)
-        {
-            Console.Error.WriteLine($"error: Failed to launch 'dotnet': {ex.Message}");
-            return 1;
-        }
+        return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", [artifactPath]) { UseShellExecute = false }, output);
     }
 
     /// <summary>

@@ -17,7 +17,7 @@ public sealed class UnionNonConstituentPatternTests
     [Trait("Tier", "1")]
     public void ATypeNoConstituentHolds_IsAnError()
     {
-        Assert.Equal("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT", ProgramModelDiagnostics.PatternTypeNotAConstituent.Id.Value);
+        Assert.Equal("MIST0345", ProgramModelDiagnostics.PatternTypeNotAConstituent.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, ProgramModelDiagnostics.PatternTypeNotAConstituent.DefaultSeverity);
     }
 
@@ -32,10 +32,10 @@ public sealed class UnionNonConstituentPatternTests
         _ = Bind(f, form, Typed("Boolean", "b"));
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT", diagnostic.Id.Value);
+        Assert.Equal("MIST0345", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(Path, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Location);
+        Assert.Equal(Path, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 41), new LinePosition(1, 42)), diagnostic.Position());
     }
 
     [Theory]

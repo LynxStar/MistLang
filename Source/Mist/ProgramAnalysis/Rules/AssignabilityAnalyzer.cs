@@ -1,6 +1,8 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -90,9 +92,9 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                         ambiguity,
                         conversion.Node,
                         [conversion, conversion.Operand],
-                        TypeDisplay.Mist(conversion.Operand.Type),
-                        TypeDisplay.Mist(conversion.TargetType),
-                        string.Join(", ", conversion.AmbiguousOperators.Select(CastAnalyzer.Signature)));
+                        DiagnosticSnapshot.Type(conversion.Operand.Type),
+                        DiagnosticSnapshot.Type(conversion.TargetType),
+                        new SequenceValue(SlotKind.Symbol, [.. conversion.AmbiguousOperators.Select(candidate => DiagnosticSnapshot.Symbol(candidate, CastAnalyzer.Signature(candidate)))]));
                     break;
             }
         }
@@ -276,7 +278,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
         if((Assignability.Judge(value, target, interner) ?? Assignability.Boxing(value.Type, target, interner)) is { } descriptor
             && !UnheldCopies.Report(context, value.Type, target, value.Node, [value, .. alsoAbout]))
         {
-            context.Report(descriptor, value.Node, [value, .. alsoAbout], TypeDisplay.Mist(value.Type), TypeDisplay.Mist(target));
+            context.Report(descriptor, value.Node, [value, .. alsoAbout], DiagnosticSnapshot.Type(value.Type), DiagnosticSnapshot.Type(target));
         }
     }
 
@@ -288,7 +290,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
         if((Assignability.Judge(from, to, interner) ?? Assignability.Boxing(from, to, interner)) is { } descriptor
             && !UnheldCopies.Report(context, from, to, at, about))
         {
-            context.Report(descriptor, at, about, TypeDisplay.Mist(from), TypeDisplay.Mist(to));
+            context.Report(descriptor, at, about, DiagnosticSnapshot.Type(from), DiagnosticSnapshot.Type(to));
         }
     }
 }

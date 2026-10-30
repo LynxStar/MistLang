@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
@@ -24,7 +25,7 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
                 foreach(var member in StaticMembers(abstractType))
                 {
                     Report(context, member.Declaration, DeclarationModifierDiagnostics.StaticOnAbstractMember,
-                        member.Kind, member.Name, TypeDisplay.Mist(abstractType));
+                        new EnumValue(member.Kind), new NameValue(member.Name), DiagnosticSnapshot.Type(abstractType));
                 }
             }
 
@@ -37,7 +38,7 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
                         var refusal = parameter.Modifier.IsReadonly
                             ? DeclarationModifierDiagnostics.ReadonlyRefOnOperatorParameter
                             : DeclarationModifierDiagnostics.RefOnOperatorParameter;
-                        Report(context, parameter.DeclarationNode, refusal, parameter.Name, Describe(callable));
+                        Report(context, parameter.DeclarationNode, refusal, new NameValue(parameter.Name), new NameValue(Describe(callable)));
                     }
                 }
             }
@@ -81,7 +82,7 @@ internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
             : $"operator '{((Operator)callable).Symbol}'";
     }
 
-    private static void Report(AnalysisContext context, SyntaxNode? at, DiagnosticDescriptor descriptor, params object?[] args)
+    private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params SlotValue[] args)
     {
         if(at is not null)
         {

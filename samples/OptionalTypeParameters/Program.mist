@@ -2,7 +2,7 @@
 //
 // `T?` is `T | void`, so a generic method whose only mention of T is an optional slot has to read
 // the argument against that slot's PRESENT constituent to learn anything. T appears nowhere else in
-// any signature below, so every call here is MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED without that rule
+// any signature below, so every call here is MIST0391 without that rule
 // and the sample fails to compile rather than printing something wrong.
 //
 // Every argument is present, which keeps each line cross-checked against classic: classic refuses an

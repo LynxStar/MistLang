@@ -63,14 +63,7 @@ public static partial class SdkDiscovery
 
         if(sdkRoot is null)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.SdkNotFound.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                "The .NET SDK installation could not be located. Searched: 'dotnet --list-sdks' and well-known paths (/usr/share/dotnet, C:\\Program Files\\dotnet, ~/.dotnet).",
-                Location: default,
-                CompilationUnitPath: "<sdk-discovery>",
-                AnalyzerName: null));
+            diagnostics.ReportTyped(CommonDiagnostics.SdkNotFound, new Absent(AbsenceReason.Unavailable));
             return null;
         }
 
@@ -78,14 +71,8 @@ public static partial class SdkDiscovery
         var refPath = FindHighestVersionRefPath(sdkRoot, tfm);
         if(refPath is null)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.SdkNoFramework.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"The target framework '{tfm}' reference assemblies were not found in the SDK at '{sdkRoot}'.",
-                Location: default,
-                CompilationUnitPath: "<sdk-discovery>",
-                AnalyzerName: null));
+            diagnostics.ReportTyped(CommonDiagnostics.SdkNoFramework, new Absent(AbsenceReason.Unavailable),
+                new NameValue(tfm), new PathValue(sdkRoot));
             return null;
         }
 

@@ -177,19 +177,19 @@ internal static class OwnedDestinations
     {
         if(!OwnershipAnalyzer.YieldsOwned(value, method, origins))
         {
-            context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], destination, OwnershipAnalyzer.Unowned(value));
+            context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination), new NameValue(OwnershipAnalyzer.Unowned(value)));
         }
         else if(!extracts && OwnershipAnalyzer.HeldByAnotherOwner(value, method) is { } field && Place.Of(Unwrapped(value)) is not { IsRoot: false })
         {
             context.Report(
-                ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], destination,
-                $"owned field '{field}' still holds it, and only an owned binding may take a value out of one");
+                ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),
+                new NameValue($"owned field '{field}' still holds it, and only an owned binding may take a value out of one"));
         }
         else if(Unwrapped(value) is LocalReferenceExpression { Local: var local } && !OwnershipAnalyzer.Tracked(local) && !Origins.IsUnchangeable(local.Type))
         {
             context.Report(
-                ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], destination,
-                $"local '{local.Name}' is not an owned binding, so nothing stops it being used after the move");
+                ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),
+                new NameValue($"local '{local.Name}' is not an owned binding, so nothing stops it being used after the move"));
         }
     }
 

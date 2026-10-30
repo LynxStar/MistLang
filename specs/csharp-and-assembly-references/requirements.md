@@ -71,11 +71,11 @@ what kind it is.
 3. WHEN a Reference_Entry's `path` names a file with the extension `.dll`, THE Reference_Classifier SHALL
    assign `Assembly` and record that file as the resolved path.
 4. IF a Reference_Entry's `path` names an existing file that is not `mist.toml` and has an extension other
-   than `.csproj` or `.dll`, THEN THE Project_File_Parser SHALL report `MIST_REFERENCE_UNSUPPORTED_PATH`
+   than `.csproj` or `.dll`, THEN THE Project_File_Parser SHALL report `MIST0071`
    naming the key and the path. A path that names nothing on disk and has no recognized extension keeps
-   today's treatment: `mist.toml` is appended and the resolver reports `MIST_PROJECT_REFERENCE_NOT_FOUND`.
+   today's treatment: `mist.toml` is appended and the resolver reports `MIST0062`.
 5. IF a `.csproj` or `.dll` path does not exist, THEN THE Project_Reference_Resolver SHALL report
-   `MIST_REFERENCE_FILE_NOT_FOUND` naming the key and the path.
+   `MIST0072` naming the key and the path.
 6. THE Reference_Classifier SHALL decide from the path's final segment alone and SHALL NOT read the file.
 7. THE `ProjectReference` record SHALL carry the assigned Reference_Kind so that every later component
    dispatches on it rather than re-deriving it, and SHALL mark a reference written as a bare directory, so
@@ -95,13 +95,13 @@ one obvious thing to reference, so that I do not spell out a file name the direc
 3. WHEN exactly one candidate exists, THE Reference_Classifier SHALL assign that candidate's kind and record
    the candidate as the resolved path.
 4. IF no candidate exists, THEN THE Project_Reference_Resolver SHALL report
-   `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`, whose message SHALL say the directory holds no `mist.toml`,
+   `MIST0063`, whose message SHALL say the directory holds no `mist.toml`,
    `.csproj` or `.dll`.
 5. IF two or more candidates exist, whether of one kind or of several, THEN THE Project_Reference_Resolver
-   SHALL report `MIST_REFERENCE_AMBIGUOUS` at the referencing manifest, naming the key, listing every
+   SHALL report `MIST0073` at the referencing manifest, naming the key, listing every
    candidate, and saying to name the intended file in `path`.
 6. IF the directory does not exist, THEN THE Project_Reference_Resolver SHALL report
-   `MIST_PROJECT_REFERENCE_NOT_FOUND` as today.
+   `MIST0062` as today.
 7. THE Reference_Classifier SHALL compare file names ordinally and case-insensitively on extensions, so that
    `App.Migrations.CSPROJ` is a candidate.
 
@@ -120,7 +120,7 @@ one obvious thing to reference, so that I do not spell out a file name the direc
    name, without extension, of the built output reported by the CSharp_Project_Builder, which is MSBuild's
    `AssemblyName` and need not equal the project file's name.
 4. IF the key does not match, THEN THE Project_Reference_Resolver SHALL report
-   `MIST_PROJECT_REFERENCE_NAME_MISMATCH`, whose message SHALL name the kind and the name the target
+   `MIST0070`, whose message SHALL name the kind and the name the target
    produces.
 5. THE key SHALL continue to satisfy the existing name pattern, which admits dots, so that `App.Data` and
    `App.Migrations` are valid keys.
@@ -140,7 +140,7 @@ that my Mist code compiles against its current output and the build runs from a 
 3. THE CSharp_Project_Builder SHALL record the directory containing the output as the reference's
    Runtime_Closure, taken as every `.dll` in that directory other than the output itself.
 4. IF the build exits non-zero, THEN THE CSharp_Project_Builder SHALL report
-   `MIST_CSHARP_PROJECT_BUILD_FAILED` naming the key and the project path, with MSBuild's error lines in the
+   `MIST0074` naming the key and the project path, with MSBuild's error lines in the
    message, and the compilation SHALL stop before Stage 1.
 5. THE CSharp_Project_Builder SHALL build each referenced C# project once per compilation, in the order the
    manifests declare them, and SHALL run a referenced Mist project's own `CSharp_Project` references before
@@ -149,10 +149,10 @@ that my Mist code compiles against its current output and the build runs from a 
    Build_Chain extended with the canonical `mist.toml` path being compiled, so that a bridge target inside
    the C# project may start a nested `mist build` of a Mist library.
 7. IF a compilation's canonical `mist.toml` path is already present in the Build_Chain it inherits, THEN THE
-   compiler SHALL report `MIST_REFERENCE_CYCLE` naming the chain and SHALL exit without building, so that a
+   compiler SHALL report `MIST0075` naming the chain and SHALL exit without building, so that a
    C# project that bridges back to the project referencing it fails once instead of recursing.
 8. THE CSharp_Project_Builder SHALL bound the build with a timeout, as `DotnetRestoreProcess` bounds a
-   restore, and SHALL report a timeout as `MIST_CSHARP_PROJECT_BUILD_FAILED`.
+   restore, and SHALL report a timeout as `MIST0074`.
 
 ### Requirement 5: Assembly references
 
@@ -219,7 +219,7 @@ agree on what each type is.
 5. THE Backend SHALL exclude from Roslyn's references, and from deployment, any External_Assembly or
    Runtime_Closure member whose simple name equals a Composed_Project's name, whether or not a Facade is
    emitted for that name.
-6. IF a collected name equals the root project's name, THEN THE Backend SHALL report `MIST_REFERENCE_CYCLE`
+6. IF a collected name equals the root project's name, THEN THE Backend SHALL report `MIST0075`
    naming the External_Assembly, since no Facade can forward into the output it would be part of.
 7. THE Facade SHALL carry the assembly version the Primary_Output carries, and its contents SHALL be
    deterministic for a given program.
@@ -237,13 +237,13 @@ the program needs, so that a referenced C# project's dependencies do not have to
    framework resolution already supplies.
 2. IF two files among the compiler's own resolution, the External_Assemblies and their Runtime_Closures
    share a simple name and differ in assembly version, THEN THE Backend SHALL report
-   `MIST_REFERENCE_ASSEMBLY_CONFLICT` naming both paths and versions, so that no two parts of the program
+   `MIST0004` naming both paths and versions, so that no two parts of the program
    load different builds of one library. A file with no assembly definition never conflicts, and the first
    file of a name is the one deployed; a copy already in the Output_Directory is refreshed when its source
    is newer.
 3. THE Backend SHALL write each Facade beside the Primary_Output.
 4. WHEN a `CSharp_Project` reference's `runtimeconfig.json` names a shared framework the Mist project's
-   `framework_references` does not, THE Backend SHALL report `MIST_REFERENCE_FRAMEWORK_MISSING` naming the
+   `framework_references` does not, THE Backend SHALL report `MIST0005` naming the
    framework, so that the runtime configuration the Backend writes is sufficient.
 5. THE Backend SHALL leave native runtime assets to the separate task that owns them; this feature neither
    copies nor reports them.
@@ -275,16 +275,16 @@ message that names what to change.
 
    | Identifier | Reported when |
    | --- | --- |
-   | `MIST_REFERENCE_UNSUPPORTED_PATH` | A direct path names an existing file that is not `mist.toml`, a `.csproj` or a `.dll` (1.4). |
-   | `MIST_REFERENCE_FILE_NOT_FOUND` | A named `.csproj` or `.dll` does not exist (1.5). |
-   | `MIST_REFERENCE_AMBIGUOUS` | A directory holds two or more candidates (2.5). |
-   | `MIST_CSHARP_PROJECT_BUILD_FAILED` | `dotnet build` of a referenced project fails or times out (4.4, 4.8). |
-   | `MIST_REFERENCE_CYCLE` | The Build_Chain already holds this manifest, or an External_Assembly references the root project (4.7, 7.6). |
-   | `MIST_REFERENCE_ASSEMBLY_CONFLICT` | Backend stage: one simple name, two versions (8.2). |
-   | `MIST_REFERENCE_FRAMEWORK_MISSING` | Backend stage: a C# project's shared framework is not declared (8.4). |
+   | `MIST0071` | A direct path names an existing file that is not `mist.toml`, a `.csproj` or a `.dll` (1.4). |
+   | `MIST0072` | A named `.csproj` or `.dll` does not exist (1.5). |
+   | `MIST0073` | A directory holds two or more candidates (2.5). |
+   | `MIST0074` | `dotnet build` of a referenced project fails or times out (4.4, 4.8). |
+   | `MIST0075` | The Build_Chain already holds this manifest, or an External_Assembly references the root project (4.7, 7.6). |
+   | `MIST0004` | Backend stage: one simple name, two versions (8.2). |
+   | `MIST0005` | Backend stage: a C# project's shared framework is not declared (8.4). |
 
-2. THE compiler SHALL reuse `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`, `MIST_PROJECT_REFERENCE_NOT_FOUND` and
-   `MIST_PROJECT_REFERENCE_NAME_MISMATCH` with the messages Requirements 2.4 and 3.4 describe.
+2. THE compiler SHALL reuse `MIST0063`, `MIST0062` and
+   `MIST0070` with the messages Requirements 2.4 and 3.4 describe.
 3. THE descriptors SHALL live in `DriverDiagnostics` and `BackendDiagnostics` beside the existing
    project-reference and C# descriptors.
 

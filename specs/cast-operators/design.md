@@ -207,10 +207,10 @@ private static void RegisterCastOperatorDeclaration(
 
 A new validation sub-pass (run alongside `Pass1e_ValidateOperatorShape`) that checks cast operator declarations:
 
-1. **Parameter count** — Cast operators must have exactly one parameter. Emit `MIST_SB_0040` if the count is not 1.
-2. **Public static** — Cast operators must be declared `public static`. Emit `MIST_SB_0041` if either modifier is missing.
-3. **Enclosing type** — Cast operators must be declared inside a class or struct. Emit `MIST_SB_0042` if declared elsewhere.
-4. **Duplicate detection** — Two cast operators with the same kind and same source-target type pair in the same type are duplicates. Emit `MIST_SB_0043`. (Full type-based duplicate detection requires resolved types, so this is deferred to the type checker for precise checking; Pass 1 can detect name-based duplicates.)
+1. **Parameter count** — Cast operators must have exactly one parameter. Emit `MIST_SB_0040 (historical)` if the count is not 1.
+2. **Public static** — Cast operators must be declared `public static`. Emit `MIST_SB_0041 (historical)` if either modifier is missing.
+3. **Enclosing type** — Cast operators must be declared inside a class or struct. Emit `MIST_SB_0042 (historical)` if declared elsewhere.
+4. **Duplicate detection** — Two cast operators with the same kind and same source-target type pair in the same type are duplicates. Emit `MIST_SB_0043 (historical)`. (Full type-based duplicate detection requires resolved types, so this is deferred to the type checker for precise checking; Pass 1 can detect name-based duplicates.)
 
 #### Pass 2: Resolve Cast Operator Declarations
 
@@ -248,9 +248,9 @@ case CastExpressionUnaryNode castExpr:
 
 In `CheckMethodBody`, detect when the declaring node is a `CastOperatorDeclarationNode` and perform additional validation:
 
-1. **Enclosing type constraint** (Requirement 6.2): Either the source parameter type or the target type must be the enclosing type. Emit `MIST_TC_0040`.
+1. **Enclosing type constraint** (Requirement 6.2): Either the source parameter type or the target type must be the enclosing type. Emit `MIST_TC_0040 (historical)`.
 2. **Body validation** (Requirements 6.6, 6.7): Non-intrinsic cast operators must have a body; intrinsic cast operators must not. These are already handled by `Pass1e_ValidateIntrinsicMarkers` for the intrinsic case, and by the new `Pass1e_ValidateCastOperatorShape` for the body-required case.
-3. **Duplicate detection** (Requirement 6.5): After types are resolved, check for duplicate cast operators with the same kind and same source-target type pair. Emit `MIST_TC_0041`.
+3. **Duplicate detection** (Requirement 6.5): After types are resolved, check for duplicate cast operators with the same kind and same source-target type pair. Emit `MIST_TC_0041 (historical)`.
 
 #### Extend `IsAssignable` for Implicit Cast Operators
 
@@ -289,8 +289,8 @@ case CastExpressionUnaryNode castExpr:
 5. Also searches the target type for an explicit or implicit cast operator that converts from the operand's compile-time type.
 6. Searches the base types of both, since an operand is a valid argument to a parameter of its base type, and **does NOT search derived types** (Requirement 8.7).
 7. If an operator is selected, records it via `RecordResolvedOperator` and sets the expression type to that operator's return type.
-8. If no operator is found, emits `MIST_TC_0042` naming the source and target types.
-9. If overload resolution leaves several operators tied (ambiguous), emits `MIST_TC_0043`.
+8. If no operator is found, emits `MIST_TC_0042 (historical)` naming the source and target types.
+9. If overload resolution leaves several operators tied (ambiguous), emits `MIST_TC_0043 (historical)`.
 
 #### Selection as Overload Resolution
 
@@ -496,15 +496,15 @@ This highlights `implicit` and `explicit` with the same style as `public`, `priv
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_SB_0040` | SemanticModelConstruction | Cast operator must have exactly one parameter; found {count}. |
-| `MIST_SB_0041` | SemanticModelConstruction | Cast operator must be declared 'public static'. |
-| `MIST_SB_0042` | SemanticModelConstruction | Cast operators must be declared inside a class or struct. |
-| `MIST_SB_0043` | SemanticModelConstruction | Duplicate {kind} cast operator from '{sourceType}' to '{targetType}'. |
-| `MIST_TC_0040` | TypeChecker | Either the source type or the target type of a cast operator must be the enclosing type '{enclosingType}'. Source: '{sourceType}', Target: '{targetType}'. |
-| `MIST_TC_0041` | TypeChecker | Duplicate {kind} cast operator from '{sourceType}' to '{targetType}' in type '{enclosingType}'. |
-| `MIST_TC_0042` | TypeChecker | No cast operator is defined from '{sourceType}' to '{targetType}'. |
-| `MIST_TC_0043` | TypeChecker | Ambiguous cast from '{sourceType}' to '{targetType}': multiple cast operators are applicable. |
-| `MIST_TC_0044` | TypeChecker | Ambiguous implicit conversion from '{sourceType}' to '{targetType}': multiple implicit cast operators are applicable. |
+| `MIST_SB_0040 (historical)` | SemanticModelConstruction | Cast operator must have exactly one parameter; found {count}. |
+| `MIST_SB_0041 (historical)` | SemanticModelConstruction | Cast operator must be declared 'public static'. |
+| `MIST_SB_0042 (historical)` | SemanticModelConstruction | Cast operators must be declared inside a class or struct. |
+| `MIST_SB_0043 (historical)` | SemanticModelConstruction | Duplicate {kind} cast operator from '{sourceType}' to '{targetType}'. |
+| `MIST_TC_0040 (historical)` | TypeChecker | Either the source type or the target type of a cast operator must be the enclosing type '{enclosingType}'. Source: '{sourceType}', Target: '{targetType}'. |
+| `MIST_TC_0041 (historical)` | TypeChecker | Duplicate {kind} cast operator from '{sourceType}' to '{targetType}' in type '{enclosingType}'. |
+| `MIST_TC_0042 (historical)` | TypeChecker | No cast operator is defined from '{sourceType}' to '{targetType}'. |
+| `MIST_TC_0043 (historical)` | TypeChecker | Ambiguous cast from '{sourceType}' to '{targetType}': multiple cast operators are applicable. |
+| `MIST_TC_0044 (historical)` | TypeChecker | Ambiguous implicit conversion from '{sourceType}' to '{targetType}': multiple implicit cast operators are applicable. |
 
 
 ## Data Models
@@ -664,15 +664,15 @@ Explicit cast expressions follow a different path — they are checked in `Check
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Cast operator with wrong parameter count | `MIST_SB_0040` | Error | Skip operator, continue |
-| Cast operator not `public static` | `MIST_SB_0041` | Error | Continue with validation |
-| Cast operator outside class/struct | `MIST_SB_0042` | Error | Skip operator, continue |
-| Duplicate cast operator (same kind + types) | `MIST_SB_0043` | Error | Keep first, skip duplicate |
-| Enclosing type constraint violated | `MIST_TC_0040` | Error | Skip operator validation, continue |
-| Duplicate cast operator (type-resolved) | `MIST_TC_0041` | Error | Keep first, skip duplicate |
-| No cast operator for cast expression | `MIST_TC_0042` | Error | Set expression type to `UnknownType`, continue |
-| Ambiguous explicit cast | `MIST_TC_0043` | Error | Set expression type to `UnknownType`, continue |
-| Ambiguous implicit conversion | `MIST_TC_0044` | Error | Reject assignment, emit diagnostic, continue |
+| Cast operator with wrong parameter count | `MIST_SB_0040 (historical)` | Error | Skip operator, continue |
+| Cast operator not `public static` | `MIST_SB_0041 (historical)` | Error | Continue with validation |
+| Cast operator outside class/struct | `MIST_SB_0042 (historical)` | Error | Skip operator, continue |
+| Duplicate cast operator (same kind + types) | `MIST_SB_0043 (historical)` | Error | Keep first, skip duplicate |
+| Enclosing type constraint violated | `MIST_TC_0040 (historical)` | Error | Skip operator validation, continue |
+| Duplicate cast operator (type-resolved) | `MIST_TC_0041 (historical)` | Error | Keep first, skip duplicate |
+| No cast operator for cast expression | `MIST_TC_0042 (historical)` | Error | Set expression type to `UnknownType`, continue |
+| Ambiguous explicit cast | `MIST_TC_0043 (historical)` | Error | Set expression type to `UnknownType`, continue |
+| Ambiguous implicit conversion | `MIST_TC_0044 (historical)` | Error | Reject assignment, emit diagnostic, continue |
 
 ### Error Recovery Strategy
 

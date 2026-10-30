@@ -432,13 +432,13 @@ New diagnostic IDs to add to `SemanticModelBuilder`:
 
 | ID | Severity | Condition |
 |----|----------|-----------|
-| `MIST_STRUCT_CIRCULAR_INHERITANCE` | Error | Cycle detected in struct inheritance chain |
-| `MIST_STRUCT_MAX_DEPTH` | Error | Inheritance chain exceeds 64 levels |
-| `MIST_STRUCT_MULTIPLE_INHERITANCE` | Error | More than one struct in base list |
-| `MIST_STRUCT_FIELD_HIDING` | Error | Derived field name collides with ancestor field |
-| `MIST_STRUCT_INVALID_BASE` | Error | Base type is not a struct (class/interface used as base) |
-| `MIST_STRUCT_BASE_CTOR_REQUIRED` | Error | Base struct requires constructor args but none provided |
-| `MIST_STRUCT_BASE_CTOR_MISMATCH` | Error | Arguments don't match any base constructor |
+| `MIST_STRUCT_CIRCULAR_INHERITANCE (historical)` | Error | Cycle detected in struct inheritance chain |
+| `MIST_STRUCT_MAX_DEPTH (historical)` | Error | Inheritance chain exceeds 64 levels |
+| `MIST_STRUCT_MULTIPLE_INHERITANCE (historical)` | Error | More than one struct in base list |
+| `MIST_STRUCT_FIELD_HIDING (historical)` | Error | Derived field name collides with ancestor field |
+| `MIST_STRUCT_INVALID_BASE (historical)` | Error | Base type is not a struct (class/interface used as base) |
+| `MIST0147` | Error | Base struct requires constructor args but none provided |
+| `MIST_STRUCT_BASE_CTOR_MISMATCH (historical)` | Error | Arguments don't match any base constructor |
 
 _Requirements: 1.3, 2.2, 2.3, 2.4, 2.6, 3.3, 7.3, 7.4_
 
@@ -448,7 +448,7 @@ _Requirements: 1.3, 2.2, 2.3, 2.4, 2.6, 3.3, 7.3, 7.4_
 
 **File:** `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
 
-Remove or relax `MIST_CONSTRAINT_0005` ("Struct cannot be used as a base class constraint"). With struct inheritance, a struct used as a constraint means "T must be this struct or a struct that extends it." The existing constraint validation needs updating:
+Remove or relax `MIST_CONSTRAINT_0005 (historical)` ("Struct cannot be used as a base class constraint"). With struct inheritance, a struct used as a constraint means "T must be this struct or a struct that extends it." The existing constraint validation needs updating:
 
 - If the constraint type is a `StructType` and the constrained parameter is also constrained with `struct`, allow it as a base-struct constraint (analogous to base-class constraints on class-constrained parameters).
 - If the constraint type is a `StructType` but the parameter has a `class` constraint, emit the existing incompatibility error.
@@ -540,7 +540,7 @@ _Requirements: 10.1, 10.2, 10.3, 10.4_
 | `TypeCheckerAnalyzer` | `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs` | Add struct subtype walk in `IsAssignable`, extend `ImplementsInterface` for struct ancestors, add constructor chain validation |
 | `CSharpEmitter` | `Source/Mist/Backends/CSharpTranspiler/CSharpEmitter.cs` | Emit flattened ancestor fields, synthesize implicit conversion operators, inline base constructor assignments |
 | `MistPrettyPrinter` | `Source/Mist/Parsing/MistPrettyPrinter.cs` | No change needed (already handles BaseList on structs) |
-| `ConstraintResolution` | `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` | Relax `MIST_CONSTRAINT_0005` to allow struct base-type constraints |
+| `ConstraintResolution` | `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` | Relax `MIST_CONSTRAINT_0005 (historical)` to allow struct base-type constraints |
 
 ### Interfaces
 
@@ -611,13 +611,13 @@ public struct Point3D
 
 | ID | Severity | Message Template |
 |----|----------|-----------------|
-| `MIST_STRUCT_CIRCULAR_INHERITANCE` | Error | `Struct '{name}' has a circular inheritance chain.` |
-| `MIST_STRUCT_MAX_DEPTH` | Error | `Struct '{name}' exceeds the maximum inheritance depth of 64.` |
-| `MIST_STRUCT_MULTIPLE_INHERITANCE` | Error | `Struct '{name}' cannot inherit from multiple structs. Only single struct inheritance is supported.` |
-| `MIST_STRUCT_FIELD_HIDING` | Error | `Field '{field}' in struct '{derived}' hides field '{field}' inherited from '{ancestor}'.` |
-| `MIST_STRUCT_INVALID_BASE` | Error | `Struct '{name}' cannot inherit from '{base}' because it is not a struct.` |
-| `MIST_STRUCT_BASE_CTOR_REQUIRED` | Error | `Struct '{base}' requires constructor arguments. Add ': base(...)' to the constructor of '{derived}'.` |
-| `MIST_STRUCT_BASE_CTOR_MISMATCH` | Error | `No constructor on struct '{base}' accepts the provided arguments.` |
+| `MIST_STRUCT_CIRCULAR_INHERITANCE (historical)` | Error | `Struct '{name}' has a circular inheritance chain.` |
+| `MIST_STRUCT_MAX_DEPTH (historical)` | Error | `Struct '{name}' exceeds the maximum inheritance depth of 64.` |
+| `MIST_STRUCT_MULTIPLE_INHERITANCE (historical)` | Error | `Struct '{name}' cannot inherit from multiple structs. Only single struct inheritance is supported.` |
+| `MIST_STRUCT_FIELD_HIDING (historical)` | Error | `Field '{field}' in struct '{derived}' hides field '{field}' inherited from '{ancestor}'.` |
+| `MIST_STRUCT_INVALID_BASE (historical)` | Error | `Struct '{name}' cannot inherit from '{base}' because it is not a struct.` |
+| `MIST0147` | Error | `Struct '{base}' requires constructor arguments. Add ': base(...)' to the constructor of '{derived}'.` |
+| `MIST_STRUCT_BASE_CTOR_MISMATCH (historical)` | Error | `No constructor on struct '{base}' accepts the provided arguments.` |
 
 ---
 
@@ -665,14 +665,14 @@ After `PopulateInheritedMembers`, the derived struct's `MemberScope` contains al
 
 | Scenario | Handling |
 |----------|----------|
-| Base type not found | Emit `MIST_STRUCT_INVALID_BASE`, set `BaseType = null`, continue compilation |
-| Base type is a class | Emit `MIST_STRUCT_INVALID_BASE`, set `BaseType = null`, continue |
-| Circular inheritance | Emit `MIST_STRUCT_CIRCULAR_INHERITANCE`, set `BaseType = null` on the offending struct, break the cycle |
-| Depth > 64 | Emit `MIST_STRUCT_MAX_DEPTH`, set `BaseType = null`, stop chain walk |
-| Multiple structs in base list | Emit `MIST_STRUCT_MULTIPLE_INHERITANCE`, use only the first struct as base |
-| Field name collision | Emit `MIST_STRUCT_FIELD_HIDING`, skip adding the duplicate to scope |
-| Missing base constructor args | Emit `MIST_STRUCT_BASE_CTOR_REQUIRED`, emit constructor without base assignments |
-| Wrong base constructor args | Emit `MIST_STRUCT_BASE_CTOR_MISMATCH`, emit constructor without base assignments |
+| Base type not found | Emit `MIST_STRUCT_INVALID_BASE (historical)`, set `BaseType = null`, continue compilation |
+| Base type is a class | Emit `MIST_STRUCT_INVALID_BASE (historical)`, set `BaseType = null`, continue |
+| Circular inheritance | Emit `MIST_STRUCT_CIRCULAR_INHERITANCE (historical)`, set `BaseType = null` on the offending struct, break the cycle |
+| Depth > 64 | Emit `MIST_STRUCT_MAX_DEPTH (historical)`, set `BaseType = null`, stop chain walk |
+| Multiple structs in base list | Emit `MIST_STRUCT_MULTIPLE_INHERITANCE (historical)`, use only the first struct as base |
+| Field name collision | Emit `MIST_STRUCT_FIELD_HIDING (historical)`, skip adding the duplicate to scope |
+| Missing base constructor args | Emit `MIST0147`, emit constructor without base assignments |
+| Wrong base constructor args | Emit `MIST_STRUCT_BASE_CTOR_MISMATCH (historical)`, emit constructor without base assignments |
 
 All error paths set the model to a consistent state (null BaseType or skipped members) so downstream passes don't crash on incomplete data.
 

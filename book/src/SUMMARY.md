@@ -84,6 +84,10 @@
 - [Editor Support](tooling/editor-support.md)
 - [Project Configuration](tooling/project-configuration.md)
 
+# Reference
+
+- [Diagnostics](reference/diagnostics.md)
+
 ---
 
 [October 28, 2026 — Mist Goes Public](updates/2026-10-28.md)

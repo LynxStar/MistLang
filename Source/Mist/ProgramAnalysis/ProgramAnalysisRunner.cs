@@ -85,7 +85,7 @@ internal static class ProgramAnalysisRunner
 
         var refusals = CloneConversionRefusals.Judge(conversions, root =>
         {
-            var findings = new DiagnosticBag();
+            var findings = new DiagnosticBag(diagnostics.Operation, diagnostics.Stage);
             Analyze(model, new AnalysisScope([], [root], [], [], RestrictToScope: true), whole, sourcePaths, findings, CloneConversionRefusals.None, timings, AnalysisScopeKind.CloneConversion);
 
             return findings.ToImmutableArray();
@@ -146,13 +146,18 @@ internal static class ProgramAnalysisRunner
         var scopedModel = new AnalysisModel(model, scope, sourcePaths);
         var failures = new ExpressionFailures();
 
-        foreach(var analyzer in Analyzers)
+        foreach(var analyzer in Analyzers.Where(analyzer => Runs(analyzer, diagnostics.Operation.Policy)))
         {
             var context = new AnalysisContext(model, scope, nodes, roots, assignedBy, sourcePaths, diagnostics, analyzer.Id, refusals, scopedModel, whole, failures);
             var started = Stopwatch.GetTimestamp();
             analyzer.Analyze(context);
             timings.Record(analyzer, Stopwatch.GetElapsedTime(started));
         }
+    }
+
+    internal static bool Runs(IProgramAnalyzer analyzer, DiagnosticPolicy policy)
+    {
+        return analyzer.OptionalRule is not { } rule || policy.IsEnabled(rule);
     }
 
     private static bool IsClone(MistType? type)

@@ -190,8 +190,8 @@ The input space that matters (which type × which method) is small and fully enu
 ### Compilation Errors for Stale `using System;`
 
 After migration, programs that still use `using System;` to access Console/Math/Convert will receive:
-- **MIST_UNDEFINED_NAMESPACE** if no ambient types remain in the System namespace (since `HasNamespace("System")` returns `false`)
-- **MIST_UNDEFINED_TYPE** if the type name cannot be resolved in any imported namespace
+- **MIST0293** if no ambient types remain in the System namespace (since `HasNamespace("System")` returns `false`)
+- **MIST_UNDEFINED_TYPE* (historical scheme)* if the type name cannot be resolved in any imported namespace
 
 The fix is straightforward: change `using System;` to `using Standard;`.
 

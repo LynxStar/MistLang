@@ -72,6 +72,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     public CompilerResult Emit()
     {
+        diagnostics.Stage = PipelineStage.Backend;
         if(Transpile() is not { } startup)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
@@ -99,11 +100,11 @@ internal sealed class CSharpEmitterV2
 
         if(!compileResult.Succeeded)
         {
-            return new CompilerResult(false, null, diagnostics.ToImmutableArray());
+            return new CompilerResult(false, null, diagnostics.ToImmutableArray(), compileResult.Native);
         }
 
         RuntimeAssetsDeployed = compileResult.RuntimeAssetsDeployed;
-        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray());
+        return new CompilerResult(true, compileResult.PrimaryArtifactPath, diagnostics.ToImmutableArray(), compileResult.Native);
     }
 
     /// <summary>
@@ -112,6 +113,7 @@ internal sealed class CSharpEmitterV2
     /// </summary>
     internal Startup? Transpile()
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics);
         if(Startup.Of(programModel, options) is not { } startup)
         {
             return null;
@@ -286,12 +288,12 @@ internal sealed class CSharpEmitterV2
                 continue;
             }
 
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.ForeignConformance,
                 conformance.DeclarationNode,
                 null,
-                TypeDisplay.Mist(conformance.ConformingType),
-                TypeDisplay.Mist(conformance.AbstractType));
+                DiagnosticSnapshot.Type(conformance.ConformingType),
+                DiagnosticSnapshot.Type(conformance.AbstractType));
         }
     }
 

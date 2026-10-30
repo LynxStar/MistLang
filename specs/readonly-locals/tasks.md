@@ -62,7 +62,7 @@ This plan implements `readonly` as a modifier on local variable declarations in 
 - [x] 3. Type Checker — Reject reassignment to readonly locals
   - [x] 3.1 Add a `CheckReadonlyLocalReassignment` method to `TypeCheckerAnalyzer` (`Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`)
     - The method resolves the assignment target to a symbol
-    - If the symbol is a `SymbolKind.LocalVariable` with `ReadonlyStatus.ExplicitReadonly`, emit diagnostic with ID `MIST_READONLY_LOCAL_0001` and message `"Cannot reassign readonly local variable '{name}'"`
+    - If the symbol is a `SymbolKind.LocalVariable` with `ReadonlyStatus.ExplicitReadonly`, emit diagnostic with ID `MIST_READONLY_LOCAL_0001 (historical)` and message `"Cannot reassign readonly local variable '{name}'"`
     - _Requirements: 3.1, 4.1, 4.5_
 
   - [x] 3.2 Call `CheckReadonlyLocalReassignment` from the assignment handling code
@@ -70,14 +70,14 @@ This plan implements `readonly` as a modifier on local variable declarations in 
     - _Requirements: 3.1_
 
   - [x] 3.3 Add ref argument check for readonly locals
-    - In the existing ref argument validation logic, add a check: if the expression being passed as a `ref` argument resolves to a local variable with `ReadonlyStatus.ExplicitReadonly`, emit diagnostic `MIST_READONLY_LOCAL_0001` with message `"Cannot pass readonly local variable '{name}' by mutable reference"`
+    - In the existing ref argument validation logic, add a check: if the expression being passed as a `ref` argument resolves to a local variable with `ReadonlyStatus.ExplicitReadonly`, emit diagnostic `MIST_READONLY_LOCAL_0001 (historical)` with message `"Cannot pass readonly local variable '{name}' by mutable reference"`
     - _Requirements: 3.5, 4.4_
 
   - [x] 3.4 Rebuild the project and verify zero warnings
     - _Requirements: 3.1–3.6, 4.1–4.5_
 
   - [x] 3.5 Verify type checker correctness
-    - Verify `readonly var x = 7; x = 10;` produces diagnostic `MIST_READONLY_LOCAL_0001`
+    - Verify `readonly var x = 7; x = 10;` produces diagnostic `MIST_READONLY_LOCAL_0001 (historical)`
     - Verify `var x = 7; x = 10;` does NOT produce a readonly diagnostic
     - Verify passing a readonly local as a `ref` argument produces the expected diagnostic
     - Verify a readonly local declared inside a `readonly { }` block still gets the readonly-local diagnostic on reassignment

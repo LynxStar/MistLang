@@ -33,7 +33,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - _Requirements: 1.1, 1.2, 3.1, 3.2_
 
   - [x] 2.2 Reject `owned` on static fields
-    - In the type checker or semantic model builder, detect `owned` on a static field and emit `MIST_OWN_STATIC_FIELD_OWNED`
+    - In the type checker or semantic model builder, detect `owned` on a static field and emit `MIST_OWN_STATIC_FIELD_OWNED (historical)`
     - _Requirements: 1.5, 11.4_
 
   - [x] 2.3 Write unit tests for `IsOwnedField` resolution
@@ -58,7 +58,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 - [x] 4. `FieldTypeRestrictionVerifier` — standalone, testable independently
   - [x] 4.1 Implement `FieldTypeRestrictionVerifier`
     - Add `Source/Mist/Analysis/Builtin/FieldTypeRestrictionVerifier.cs` with `static void Verify(IType ownedType, ISemanticModel model, DiagnosticBag diagnostics)`
-    - For each instance field of an owned type, verify the field's type is: (1) another owned type, (2) implements `IClonable<T>`, or (3) is a value type. If none, emit `MIST_OWN_FIELD_TYPE_VIOLATION`
+    - For each instance field of an owned type, verify the field's type is: (1) another owned type, (2) implements `IClonable<T>`, or (3) is a value type. If none, emit `MIST_OWN_FIELD_TYPE_VIOLATION (historical)`
     - Handle generic type parameters: check constraints for owned/clonable (Req 4 AC 6)
     - Runs after IClonable derivation so auto-derived implementations are considered (Req 4 AC 5)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 5.3_
@@ -68,7 +68,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Owned type with all-IClonable fields → passes
     - Owned type with value-type fields → passes
     - Owned type with mixed valid fields → passes
-    - Owned type with non-owned reference type field (not IClonable) → `MIST_OWN_FIELD_TYPE_VIOLATION`
+    - Owned type with non-owned reference type field (not IClonable) → `MIST_OWN_FIELD_TYPE_VIOLATION (historical)`
     - Owned type with unconstrained generic type parameter field → error
     - Multiple violations in same type → each reported independently (Req 5.3, 11.6)
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 5.2, 5.3, 11.2_
@@ -76,25 +76,25 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 - [x] 5. Checkpoint — Wave 0 foundations build and tests pass
   - Ensure the grammar change regenerated successfully, type model additions compile, `ThisTier`/`InferredBinding` types exist, and `FieldTypeRestrictionVerifier` unit tests pass. Ask the user if questions arise.
 
-- [x] 6. Delete `RejectOwnedFieldModifier` pass + `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic
+- [x] 6. Delete `RejectOwnedFieldModifier` pass + `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic
   - [x] 6.1 Remove `RejectOwnedFieldModifier` and its diagnostic
     - In `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs`, delete the `RejectOwnedFieldModifier` method and its orchestrator call site
-    - Delete the `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic ID definition, message builder (`FieldModifierRemovedMessage`), and all emission sites
-    - Delete/update unit tests in `Test/Mist.Tests/` that assert `MIST_OWN_FIELD_MODIFIER_REMOVED` is emitted — replace with tests that assert `owned` field declarations are now accepted
+    - Delete the `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic ID definition, message builder (`FieldModifierRemovedMessage`), and all emission sites
+    - Delete/update unit tests in `Test/Mist.Tests/` that assert `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` is emitted — replace with tests that assert `owned` field declarations are now accepted
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [x] 7. Delete `MethodTierVisibilityFilter` + `MIST_OWN_MUTABLE_HIDDEN` diagnostic
+- [x] 7. Delete `MethodTierVisibilityFilter` + `MIST_OWN_MUTABLE_HIDDEN (historical)` diagnostic
   - [x] 7.1 Remove `MethodTierVisibilityFilter` and its diagnostic
     - Delete `Source/Mist/Analysis/Builtin/MethodTierVisibilityFilter.cs` entirely
-    - Delete the `MIST_OWN_MUTABLE_HIDDEN` diagnostic ID definition and message builder
+    - Delete the `MIST_OWN_MUTABLE_HIDDEN (historical)` diagnostic ID definition and message builder
     - Remove all call sites in `OwnershipAnalyzer.cs` that reference the filter
     - Delete unit tests for `MethodTierVisibilityFilter` in `Test/Mist.Tests/`
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [x] 8. Delete `CooperationContractVerifier` + `MIST_OWN_CONTRACT_VIOLATION` diagnostic
+- [x] 8. Delete `CooperationContractVerifier` + `MIST_OWN_CONTRACT_VIOLATION (historical)` diagnostic
   - [x] 8.1 Remove `CooperationContractVerifier` and its diagnostic
     - Delete `Source/Mist/Analysis/Builtin/CooperationContractVerifier.cs` entirely
-    - Delete the `MIST_OWN_CONTRACT_VIOLATION` diagnostic ID definition and message builder
+    - Delete the `MIST_OWN_CONTRACT_VIOLATION (historical)` diagnostic ID definition and message builder
     - Remove the cooperation contract loop call site in `OwnershipAnalyzer.cs`
     - Delete unit tests for `CooperationContractVerifier` in `Test/Mist.Tests/`
     - _Requirements: 5.4, 8.1, 8.2_
@@ -106,7 +106,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - [x] 10.1 Implement `ThisTierInferencePass`
     - Add `Source/Mist/Analysis/Builtin/ThisTierInferencePass.cs` with `void Analyze(ISemanticModel model, DiagnosticBag diagnostics)` and `static ThisTier GetThisTier(ISymbol methodSymbol)`
     - Implement the inference algorithm: for each method, scan owned-field accesses in the body; move/write → `Borrowed`, freeze/frozenRef → `Frozen`, read → `ReadonlyRef`, no access → `None`; compose transitively through helper calls on `this` (Req 17 AC 7)
-    - For methods with explicit `with {tier}` annotation: use the declared tier but validate that `declaredTier >= requiredTier`; if under-declared, emit `MIST_OWN_THIS_TIER_INSUFFICIENT`; over-declared is accepted (Req 17 AC 11–12)
+    - For methods with explicit `with {tier}` annotation: use the declared tier but validate that `declaredTier >= requiredTier`; if under-declared, emit `MIST_OWN_THIS_TIER_INSUFFICIENT (historical)`; over-declared is accepted (Req 17 AC 11–12)
     - Record the inferred/declared `ThisTier` on each method symbol for consumption by the flow-sensitive pass
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.10, 17.11, 17.12, 17.13, 17.14, 17.17_
 
@@ -119,7 +119,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Composition: reads field A, writes field B → `Borrowed` (most restrictive wins)
     - Transitive: method A calls method B on `this` where B requires `Borrowed` → A requires `Borrowed`
     - Explicit `with borrowed` matching body → accepted
-    - Explicit `with frozen` but body writes → `MIST_OWN_THIS_TIER_INSUFFICIENT`
+    - Explicit `with frozen` but body writes → `MIST_OWN_THIS_TIER_INSUFFICIENT (historical)`
     - Explicit `with owned` but body only reads → accepted (over-constraining is valid)
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.11, 17.12_
 
@@ -127,7 +127,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - [x] 11.1 Implement `OwnershipInferencePass`
     - Add `Source/Mist/Analysis/Builtin/OwnershipInferencePass.cs` with `IReadOnlyDictionary<ISymbol, InferredBinding> InferBindings(SyntaxNode functionBody, ISemanticModel model, DiagnosticBag diagnostics)`
     - Implement the fixed-point algorithm: collect `var` declarations, initialize candidates optimistically (`Owned` for constructor/owned-returning inits), iterate downgrading on conflicts (`Owned → Borrowed → Frozen → ReadonlyRef → Shared`), `Shared` as ultimate fallback (never conflicts)
-    - If no consistent assignment after downgrade → emit `MIST_OWN_INFERENCE_FAILURE`
+    - If no consistent assignment after downgrade → emit `MIST_OWN_INFERENCE_FAILURE (historical)`
     - Does not apply to variables with explicit specifiers — those are validated directly
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.8, 18.11, 18.12_
 
@@ -138,7 +138,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - Fixed-point with mutual dependencies between two vars
     - `var x` with no ownership usage → inferred `Shared`
     - Explicit `owned var` → no inference, validated directly
-    - Conflicting usage that cannot be resolved → `MIST_OWN_INFERENCE_FAILURE`
+    - Conflicting usage that cannot be resolved → `MIST_OWN_INFERENCE_FAILURE (historical)`
     - _Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6, 18.7, 18.12_
 
 - [x] 12. Per-field state tracking in `MethodFlowState`
@@ -171,8 +171,8 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 
 - [x] 13. Shared vs owned parent access enforcement
   - [x] 13.1 Implement shared parent extraction blocking
-    - In the flow-sensitive analysis, when an owned field is accessed through a shared (non-owned) parent binding: permit write with provenance (Req 2 AC 2), permit clone-read if IClonable (Req 2 AC 3), reject move/borrow/freeze/readonly-ref with `MIST_OWN_SHARED_EXTRACT` (Req 2 AC 4–5)
-    - When reading through shared parent and type is NOT IClonable → emit `MIST_OWN_SHARED_READ_NOT_CLONABLE` (Req 2 AC 6)
+    - In the flow-sensitive analysis, when an owned field is accessed through a shared (non-owned) parent binding: permit write with provenance (Req 2 AC 2), permit clone-read if IClonable (Req 2 AC 3), reject move/borrow/freeze/readonly-ref with `MIST_OWN_SHARED_EXTRACT (historical)` (Req 2 AC 4–5)
+    - When reading through shared parent and type is NOT IClonable → emit `MIST_OWN_SHARED_READ_NOT_CLONABLE (historical)` (Req 2 AC 6)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 11.1, 11.7_
 
   - [x] 13.2 Implement owned parent field access with per-field state
@@ -188,9 +188,9 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - [x] 13.4 Write unit tests for shared/owned parent access rules
     - Shared parent → write with owned source succeeds
     - Shared parent → clone-read of IClonable field succeeds
-    - Shared parent → move out of owned field → `MIST_OWN_SHARED_EXTRACT`
-    - Shared parent → borrow owned field → `MIST_OWN_SHARED_EXTRACT`
-    - Shared parent → read non-IClonable field → `MIST_OWN_SHARED_READ_NOT_CLONABLE`
+    - Shared parent → move out of owned field → `MIST_OWN_SHARED_EXTRACT (historical)`
+    - Shared parent → borrow owned field → `MIST_OWN_SHARED_EXTRACT (historical)`
+    - Shared parent → read non-IClonable field → `MIST_OWN_SHARED_READ_NOT_CLONABLE (historical)`
     - Owned parent → move out succeeds, field enters Moved
     - Owned parent → write with non-owned non-clonable source → provenance error
     - Method call on instance with partial field state (accessed field is Moved) → rejected
@@ -213,14 +213,14 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - [x] 15.2 Extend `AnalyzeFlowSensitive` for per-field state + this-tier call-site checking
     - Initialize per-field state for owned bindings of types with owned fields
     - At each field access site: determine parent tier, apply shared/owned rules (task 13)
-    - At each method call site: query `ThisTierInferencePass.GetThisTier(method)` and verify caller's binding tier satisfies it; if insufficient, emit `MIST_OWN_THIS_TIER_MISMATCH`
+    - At each method call site: query `ThisTierInferencePass.GetThisTier(method)` and verify caller's binding tier satisfies it; if insufficient, emit `MIST_OWN_THIS_TIER_MISMATCH (historical)`
     - Integrate `OwnershipInferencePass.InferBindings()` to determine var binding tiers before flow analysis
     - _Requirements: 2.1, 2.4, 16.1, 16.9, 17.15, 17.16, 18.1_
 
   - [x] 15.3 Write unit tests for orchestrator integration
     - End-to-end: owned type with valid fields compiles cleanly
-    - End-to-end: owned type with violating field → `MIST_OWN_FIELD_TYPE_VIOLATION`
-    - End-to-end: method call through shared binding where method requires `borrowed` → `MIST_OWN_THIS_TIER_MISMATCH`
+    - End-to-end: owned type with violating field → `MIST_OWN_FIELD_TYPE_VIOLATION (historical)`
+    - End-to-end: method call through shared binding where method requires `borrowed` → `MIST_OWN_THIS_TIER_MISMATCH (historical)`
     - End-to-end: owned binding, move field out, access sibling → succeeds
     - End-to-end: `var x = new T(); x.MutateTier();` → inference gives `Owned`, call succeeds
     - _Requirements: 4.4, 5.1, 6.3, 16.2, 17.16, 18.1_
@@ -231,14 +231,14 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 - [x] 17. Define new diagnostics
   - [x] 17.1 Define diagnostic IDs and message builders
     - Add diagnostic ID definitions and message builders for:
-      - `MIST_OWN_SHARED_EXTRACT` — move/borrow/freeze/readonly-ref of owned field through shared parent (Req 2 AC 5, Req 11 AC 1)
-      - `MIST_OWN_FIELD_TYPE_VIOLATION` — owned type field type not owned/IClonable/value (Req 4 AC 4, Req 11 AC 2)
-      - `MIST_OWN_THIS_TIER_INSUFFICIENT` — explicit `with` tier under-declared (Req 17 AC 11)
-      - `MIST_OWN_THIS_TIER_MISMATCH` — call-site receiver does not satisfy method's this-tier (Req 17 AC 16)
-      - `MIST_OWN_SHARED_READ_NOT_CLONABLE` — read of owned field through shared parent, type not IClonable (Req 2 AC 6, Req 11 AC 7)
-      - `MIST_OWN_INFERENCE_FAILURE` — ownership inference cannot find consistent tier (Req 18 AC 5)
-      - `MIST_OWN_STATIC_FIELD_OWNED` — `owned` on a static field (Req 1 AC 5, Req 11 AC 4)
-    - Confirm removed diagnostics (`MIST_OWN_FIELD_MODIFIER_REMOVED`, `MIST_OWN_MUTABLE_HIDDEN`, `MIST_OWN_CONTRACT_VIOLATION`) are no longer defined
+      - `MIST_OWN_SHARED_EXTRACT (historical)` — move/borrow/freeze/readonly-ref of owned field through shared parent (Req 2 AC 5, Req 11 AC 1)
+      - `MIST_OWN_FIELD_TYPE_VIOLATION (historical)` — owned type field type not owned/IClonable/value (Req 4 AC 4, Req 11 AC 2)
+      - `MIST_OWN_THIS_TIER_INSUFFICIENT (historical)` — explicit `with` tier under-declared (Req 17 AC 11)
+      - `MIST_OWN_THIS_TIER_MISMATCH (historical)` — call-site receiver does not satisfy method's this-tier (Req 17 AC 16)
+      - `MIST_OWN_SHARED_READ_NOT_CLONABLE (historical)` — read of owned field through shared parent, type not IClonable (Req 2 AC 6, Req 11 AC 7)
+      - `MIST_OWN_INFERENCE_FAILURE (historical)` — ownership inference cannot find consistent tier (Req 18 AC 5)
+      - `MIST_OWN_STATIC_FIELD_OWNED (historical)` — `owned` on a static field (Req 1 AC 5, Req 11 AC 4)
+    - Confirm removed diagnostics (`MIST_OWN_FIELD_MODIFIER_REMOVED (historical)`, `MIST_OWN_MUTABLE_HIDDEN (historical)`, `MIST_OWN_CONTRACT_VIOLATION (historical)`) are no longer defined
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
 
   - [x] 17.2 Write unit tests for each new diagnostic's trigger and message
@@ -264,7 +264,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
     - **Validates: Requirements 16.9, 16.10, 16.11, 16.12, 16.13, 16.14**
 
   - [x] 18.4 Property 4: Shared parent blocks extraction (Req 2 AC 4–5)
-    - For all shared parent bindings and owned fields: extract → `MIST_OWN_SHARED_EXTRACT`, write with provenance → succeeds, clone-read → succeeds iff IClonable
+    - For all shared parent bindings and owned fields: extract → `MIST_OWN_SHARED_EXTRACT (historical)`, write with provenance → succeeds, clone-read → succeeds iff IClonable
     - In-process `CompilerDriver.Compile()`, inspect diagnostics
     - **Validates: Requirements 2.2, 2.3, 2.4, 2.5, 2.6**
 
@@ -295,9 +295,9 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 
 - [x] 19. Unit tests for each component
   - [x] 19.1 Write comprehensive diagnostic removal tests
-    - Assert `MIST_OWN_FIELD_MODIFIER_REMOVED` is never emitted for any `owned` field declaration
-    - Assert `MIST_OWN_MUTABLE_HIDDEN` is never emitted for any method call through owned binding
-    - Assert `MIST_OWN_CONTRACT_VIOLATION` is never emitted for any owned-type method
+    - Assert `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` is never emitted for any `owned` field declaration
+    - Assert `MIST_OWN_MUTABLE_HIDDEN (historical)` is never emitted for any method call through owned binding
+    - Assert `MIST_OWN_CONTRACT_VIOLATION (historical)` is never emitted for any owned-type method
     - Test programs that previously triggered these diagnostics now compile cleanly
     - _Requirements: 6.2, 7.1, 7.3, 7.4_
 
@@ -312,10 +312,10 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
   - [x] 19.3 Write this-tier call-site checking tests
     - Owned binding calls method requiring `Borrowed` → succeeds
     - Borrowed binding calls method requiring `Borrowed` → succeeds
-    - Frozen binding calls method requiring `Borrowed` → `MIST_OWN_THIS_TIER_MISMATCH`
-    - Shared binding calls method requiring `ReadonlyRef` → `MIST_OWN_THIS_TIER_MISMATCH`
+    - Frozen binding calls method requiring `Borrowed` → `MIST_OWN_THIS_TIER_MISMATCH (historical)`
+    - Shared binding calls method requiring `ReadonlyRef` → `MIST_OWN_THIS_TIER_MISMATCH (historical)`
     - Shared binding calls method with no tier requirement → succeeds
-    - `with owned` method consumes receiver, subsequent access → `MIST_OWN_USE_AFTER_MOVE`
+    - `with owned` method consumes receiver, subsequent access → `MIST_OWN_USE_AFTER_MOVE (historical)`
     - _Requirements: 17.13, 17.14, 17.15, 17.16_
 
 - [x] 20. Checkpoint — Wave 4+5 diagnostics and tests pass
@@ -360,7 +360,7 @@ All work is in **C#** (compiler at `Source/Mist/`), **Mist** (samples at `sample
 - The 9 correctness properties from the design map to property-based tests (Properties 1–9 are analysis-only and use in-process `CompilerDriver.Compile()`). **No property test spawns `dotnet` per iteration.** If any property is later found to require per-iteration process execution, it must be raised for approval per the spec-process-spawning-approval policy before implementation.
 - The proof code in `samples/Ownership/Program.mist` is immutable (sample-proof-code policy). If it cannot be made to compile and produce the exact expected output, stop and report the gap rather than weakening it.
 - The breaking removals (tasks 6–8, Wave 1) are grouped so the build breaks and fixes in one coherent commit; tests asserting the removed diagnostics are deleted in the same commit.
-- `MIST_DROP_FIELD_NOT_OWNED` in `DropAnalyzer.cs` is OUT OF SCOPE and must not be removed.
+- `MIST_DROP_FIELD_NOT_OWNED (historical)` in `DropAnalyzer.cs` is OUT OF SCOPE and must not be removed.
 - The `with {tier}` grammar change requires Storm grammar regeneration (`Source/Mist/Grammar/Mist.storm`).
 - Requirements 9 and 10 are marked "Removed" in the requirements document (subsumed by Requirement 8) — no tasks map to them.
 - The `samples/Ownership/Program.mist` update (task 21) preserves all existing ownership-v2 demos; no change to AllFeatures wiring is needed since the sample name and entry point are unchanged.

@@ -71,7 +71,7 @@ public sealed class LibraryOutputEmissionTests : IDisposable
     {
         return string.Join("\n", result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}"));
+            .Select(d => $"  {d.Number.Value}: {d.Message}"));
     }
 
     [Fact]
@@ -161,6 +161,6 @@ public sealed class LibraryOutputEmissionTests : IDisposable
         var result = Compile(top, ProjectOutputType.Library, entryPoint: "top-level");
 
         Assert.False(result.Succeeded);
-        Assert.Contains(result.Diagnostics, d => d.Id.Value == "MIST_EP_0008");
+        Assert.Contains(result.Diagnostics, d => d.Number.Value == "MIST0116");
     }
 }

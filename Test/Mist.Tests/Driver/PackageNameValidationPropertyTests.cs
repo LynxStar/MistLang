@@ -196,14 +196,14 @@ public sealed class PackageNameValidationPropertyTests
                 }
 
                 var hasNameError = diags.Any(d =>
-                    d.Id.Value == "MIST_PKG_INVALID_NAME");
+                    d.Number.Value is "MIST0084" or "MIST0085");
                 return !hasNameError;
             }
             else
             {
                 // Should produce an error diagnostic for the invalid package name
                 var hasNameError = diags.Any(d =>
-                    d.Id.Value == "MIST_PKG_INVALID_NAME" &&
+                    d.Number.Value is "MIST0084" or "MIST0085" &&
                     d.Severity == DiagnosticSeverity.Error);
                 return hasNameError;
             }

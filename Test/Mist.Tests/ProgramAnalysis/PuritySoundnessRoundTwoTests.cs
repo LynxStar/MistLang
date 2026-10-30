@@ -12,19 +12,19 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PuritySoundnessRoundTwoTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string ContractNotMet = "MIST_PA_PURITY_CONTRACT_NOT_MET";
-    private const string Untestable = "MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE";
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string ContractNotMet = "MIST0144";
+    private const string Untestable = "MIST0146";
+    private const string CallsMutable = "MIST0257";
 
     [Fact]
     public void AStructsLocalReadonlyMember_MayNotReadThroughAnOwnedReferenceFieldOfTheCopy()
     {
         var finding = Assert.Single(Analyze("struct-local-readonly-member-reads-through-an-owned-field-of-a-copy"));
 
-        Assert.Equal(ReadsMutable, finding.Id.Value);
+        Assert.Equal(ReadsMutable, finding.Number.Value);
         Assert.Contains("'Look'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -35,7 +35,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze(fragment));
 
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Contains("Bump", finding.Message, StringComparison.Ordinal);
     }
 
@@ -53,7 +53,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("readonly-method-reads-an-abstract-auto-getter-answered-by-an-impure-implementation"));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Contains("Area", finding.Message, StringComparison.Ordinal);
     }
 
@@ -62,7 +62,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("pure-method-sets-an-abstract-auto-setter-answered-by-an-impure-implementation"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("'Fill'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -93,7 +93,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("generic-as-instantiated-with-a-pure-function-type"));
 
-        Assert.Equal(Untestable, finding.Id.Value);
+        Assert.Equal(Untestable, finding.Number.Value);
         Assert.Contains("pure func<", finding.Message, StringComparison.Ordinal);
     }
 
@@ -110,7 +110,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("readonly-type-field-backed-settable-property-read-through-an-unrestricted-reference"));
 
-        Assert.Equal(CallsImpure, finding.Id.Value);
+        Assert.Equal(CallsImpure, finding.Number.Value);
         Assert.Contains("'Peek'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -129,7 +129,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze(fragment));
 
-        Assert.Equal(Writes, finding.Id.Value);
+        Assert.Equal(Writes, finding.Number.Value);
         Assert.Contains("lambda", finding.Message, StringComparison.Ordinal);
     }
 
@@ -147,7 +147,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("pure-lambda-argument-to-a-params-parameter-writes-a-static"));
 
-        Assert.Equal(Writes, finding.Id.Value);
+        Assert.Equal(Writes, finding.Number.Value);
         Assert.Contains("lambda", finding.Message, StringComparison.Ordinal);
     }
 
@@ -168,7 +168,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("pure-method-iterates-an-ordinary-array-parameter"));
 
-        Assert.Equal(ReadsMutable, finding.Id.Value);
+        Assert.Equal(ReadsMutable, finding.Number.Value);
         Assert.Contains("'Sum'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -178,7 +178,7 @@ public sealed class PuritySoundnessRoundTwoTests
         var findings = Analyze("implicit-clone-of-an-external-object");
 
         Assert.NotEmpty(findings);
-        Assert.All(findings, finding => Assert.Contains(finding.Id.Value, new[] { CallsImpure, ReadsMutable }));
+        Assert.All(findings, finding => Assert.Contains(finding.Number.Value, new[] { CallsImpure, ReadsMutable }));
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("abstract-local-indexer-implemented-with-an-impure-setter"));
 
-        Assert.Equal(ContractNotMet, finding.Id.Value);
+        Assert.Equal(ContractNotMet, finding.Number.Value);
         Assert.Contains("Grid", finding.Message, StringComparison.Ordinal);
     }
 
@@ -209,7 +209,7 @@ public sealed class PuritySoundnessRoundTwoTests
     {
         var finding = Assert.Single(Analyze("pure-caller-of-an-unmarked-method-allocating-through-an-implicit-constructor-with-an-impure-initializer"));
 
-        Assert.Contains(finding.Id.Value, new[] { CallsImpure, ReadsMutable });
+        Assert.Contains(finding.Number.Value, new[] { CallsImpure, ReadsMutable });
         Assert.Contains("'Use'", finding.Message, StringComparison.Ordinal);
     }
 

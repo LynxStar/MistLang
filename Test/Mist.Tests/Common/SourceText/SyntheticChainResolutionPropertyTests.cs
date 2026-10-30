@@ -142,9 +142,7 @@ public class SyntheticChainResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (path, _, _) = DiagnosticHelper.ResolveLocation(node);
-
-        return path == input.TerminalSource.Path;
+        return DiagnosticHelper.ResolveLocation(node).Location.Path == input.TerminalSource.Path;
     }
 
     /// <summary>
@@ -164,7 +162,7 @@ public class SyntheticChainResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (_, location, _) = DiagnosticHelper.ResolveLocation(node);
+        var location = DiagnosticHelper.ResolveLocation(node).Location.Position();
 
         var expectedSpan = new SourceSpan(input.SpanStart, input.SpanLength);
         var expectedLocation = input.TerminalSource.ToLinePositionSpan(expectedSpan);
@@ -177,7 +175,7 @@ public class SyntheticChainResolutionPropertyTests
 
     /// <summary>
     /// For any chain of SyntheticOrigin records (depth >= 1),
-    /// DiagnosticHelper.ResolveLocation SHALL return a non-null SyntheticContext.
+    /// DiagnosticHelper.ResolveLocation SHALL return one synthesis frame per link, outermost first.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SyntheticChainResolutionPropertyTests) })]
     public bool ResolveLocation_SyntheticChain_HasNonNullSyntheticContext(SyntheticChainInput input)
@@ -191,8 +189,8 @@ public class SyntheticChainResolutionPropertyTests
             Span = new Storm.Runtime.SourceSpan(input.SpanStart, input.SpanLength)
         };
 
-        var (_, _, syntheticContext) = DiagnosticHelper.ResolveLocation(node);
+        var frames = DiagnosticHelper.ResolveLocation(node).Frames;
 
-        return syntheticContext is not null;
+        return frames.Length == input.Reasons.Length && frames.Select(frame => ((SynthesisFrame)frame).Reason).SequenceEqual(input.Reasons);
     }
 }

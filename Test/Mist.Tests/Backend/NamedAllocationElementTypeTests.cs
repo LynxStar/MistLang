@@ -83,9 +83,9 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
     {
         var model = Build(Source($"var actual = {allocation};"), out var diagnostics);
 
-        var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        var error = Assert.Single(Errors(diagnostics, "MIST0298"));
         Assert.Contains(requestedName, error.Message, StringComparison.Ordinal);
-        Assert.NotEqual(error.Location.Start, error.Location.End);
+        Assert.NotEqual(error.Position().Start, error.Position().End);
         _ = Assert.IsType<ErrorType>(ElementOf(Initializer(model)));
     }
 
@@ -96,9 +96,9 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
     {
         var model = Build(Source($"var actual = {allocationKind} Ns.Pair<Missing>[2];"), out var diagnostics);
 
-        var error = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        var error = Assert.Single(Errors(diagnostics, "MIST0298"));
         Assert.Contains("Missing", error.Message, StringComparison.Ordinal);
-        Assert.NotEqual(error.Location.Start, error.Location.End);
+        Assert.NotEqual(error.Position().Start, error.Position().End);
 
         var element = Assert.IsType<ConstructedType>(ElementOf(Initializer(model)));
         Assert.Same(model.TypesByFQN["Ns.Pair<>"], element.Definition);
@@ -156,14 +156,14 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("new Ns.Owner[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "reference type")]
-    [InlineData("new OwnerAlias[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "reference type")]
-    [InlineData("new Ns.NonStampable<string>[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "field 'value'")]
-    [InlineData("new Ns.RefPoint[2]", "MIST_PA_ARRAY_REQUIRES_INITIALIZER", "ref struct")]
-    [InlineData("stackalloc Ns.Owner[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "reference type")]
-    [InlineData("stackalloc OwnerAlias[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "reference type")]
-    [InlineData("stackalloc Ns.NonStampable<string>[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "field 'value'")]
-    [InlineData("stackalloc Ns.RefPoint[2]", "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", "ref struct")]
+    [InlineData("new Ns.Owner[2]", "MIST0225", "reference type")]
+    [InlineData("new OwnerAlias[2]", "MIST0225", "reference type")]
+    [InlineData("new Ns.NonStampable<string>[2]", "MIST0225", "field 'value'")]
+    [InlineData("new Ns.RefPoint[2]", "MIST0225", "ref struct")]
+    [InlineData("stackalloc Ns.Owner[2]", "MIST0226", "reference type")]
+    [InlineData("stackalloc OwnerAlias[2]", "MIST0226", "reference type")]
+    [InlineData("stackalloc Ns.NonStampable<string>[2]", "MIST0226", "field 'value'")]
+    [InlineData("stackalloc Ns.RefPoint[2]", "MIST0226", "ref struct")]
     public void ProgramModelToAnalysis_ResolvedElementsReachTheStampabilityGate(string allocation, string diagnosticId, string reason)
     {
         var model = Build(Source($"var actual = {allocation};"), out var diagnostics);
@@ -190,7 +190,7 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        var finding = Assert.Single(Errors(findings.ToImmutableArray(), "MIST_PA_REF_STRUCT_TYPE_ARGUMENT"));
+        var finding = Assert.Single(Errors(findings.ToImmutableArray(), "MIST0244"));
         Assert.Contains("RefPoint", finding.Message, StringComparison.Ordinal);
     }
 

@@ -28,7 +28,7 @@ internal static class ConstraintEntailment
 {
     private const int Depth = 64;
 
-    public static DiagnosticDescriptor? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
+    public static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
     {
         if(closing.Argument is not TypeParameter offered
             || ConstraintAnalyzer.Closed(declared, closing.Closing, interner) is not { } required)

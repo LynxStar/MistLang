@@ -17,7 +17,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class CountedSliceEmissionTests
 {
-    private const string Unsupported = "MIST_BE_UNSUPPORTED_IMPLICIT_SLICE";
+    private const string Unsupported = "MIST0014";
 
     private const int PostfixPrecedence = 10;
 
@@ -66,7 +66,7 @@ public sealed class CountedSliceEmissionTests
         }
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(Unsupported, diagnostic.Id.Value);
+        Assert.Equal(Unsupported, diagnostic.Number.Value);
         Assert.Contains("'Slice'", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -87,7 +87,7 @@ public sealed class CountedSliceEmissionTests
             _ = BodyEmitter.Render(f.Matched(), diagnostics);
         }
 
-        Assert.Equal(refused ? [Unsupported, Unsupported] : [], diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+        Assert.Equal(refused ? [Unsupported, Unsupported] : [], diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     private sealed class Fixture

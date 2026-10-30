@@ -422,17 +422,17 @@ Symbol
 
 | Condition | Diagnostic ID | Severity | Message |
 |-----------|--------------|----------|---------|
-| Missing `;` after newtype declaration | `MIST_PARSE_ERROR` | Error | `Expected ';' at end of newtype declaration` |
-| Invalid token after `new` (not a type reference) | `MIST_PARSE_ERROR` | Error | `Expected type reference after 'new'` |
-| Duplicate newtype name in scope | `MIST_DUPLICATE_SYMBOL` | Error | `Type '{name}' is already defined in this scope` |
-| Undefined source type | `MIST_UNRESOLVED_TYPE` | Error | `Type '{name}' could not be found` |
-| Source→Newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{source}' to '{newtype}' without an explicit cast` |
-| Newtype→Source use without cast, mutable class source | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtype}' to '{source}'` |
-| Cross-newtype use without cast | `MIST_TYPE_MISMATCH` | Error | `Cannot convert type '{newtypeA}' to '{newtypeB}' without an explicit cast` |
-| Newtype over an unsupported kind of type | `MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED` | Error | `A newtype over '{source}' is not supported: a newtype clones a class or a struct declared in Mist.` |
-| A member of the renamed clone does not bind | `MIST_PM_NEWTYPE_CLONE_INVALID` | Error | `'{newtype}' cannot clone '{source}', whose member '{member}' does not hold for '{newtype}': {reason}` |
-| Cast between a mutable class source and its newtype, no `IClonable` of itself | `MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY` | Error | `Cannot cast '{from}' to '{to}'. '{source}' defines no copy to convert with; ...` |
-| Cast whose `Clone` body does not hold with the operand as `this` | `MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD` | Error | `Cannot cast '{from}' to '{to}'. The cast runs '{type}.Clone' with a '{receiver}' as this, and it does not hold at '{member}': {reason}` |
+| Missing `;` after newtype declaration | `MIST0122` | Error | `Expected ';' at end of newtype declaration` |
+| Invalid token after `new` (not a type reference) | `MIST0122` | Error | `Expected type reference after 'new'` |
+| Duplicate newtype name in scope | `MIST_DUPLICATE_SYMBOL (historical)` | Error | `Type '{name}' is already defined in this scope` |
+| Undefined source type | `MIST_UNRESOLVED_TYPE (historical)` | Error | `Type '{name}' could not be found` |
+| Source→Newtype use without cast | `MIST_TYPE_MISMATCH (historical)` | Error | `Cannot convert type '{source}' to '{newtype}' without an explicit cast` |
+| Newtype→Source use without cast, mutable class source | `MIST_TYPE_MISMATCH (historical)` | Error | `Cannot convert type '{newtype}' to '{source}'` |
+| Cross-newtype use without cast | `MIST_TYPE_MISMATCH (historical)` | Error | `Cannot convert type '{newtypeA}' to '{newtypeB}' without an explicit cast` |
+| Newtype over an unsupported kind of type | `MIST0419` | Error | `A newtype over '{source}' is not supported: a newtype clones a class or a struct declared in Mist.` |
+| A member of the renamed clone does not bind | `MIST0418` | Error | `'{newtype}' cannot clone '{source}', whose member '{member}' does not hold for '{newtype}': {reason}` |
+| Cast between a mutable class source and its newtype, no `IClonable` of itself | `MIST0152` | Error | `Cannot cast '{from}' to '{to}'. '{source}' defines no copy to convert with; ...` |
+| Cast whose `Clone` body does not hold with the operand as `this` | `MIST0154` | Error | `Cannot cast '{from}' to '{to}'. The cast runs '{type}.Clone' with a '{receiver}' as this, and it does not hold at '{member}': {reason}` |
 
 **Error recovery strategy**: When the source type is unresolved, the newtype symbol is assigned `ErrorType` so that downstream phases (type checker, transpiler) do not produce cascading errors. The newtype is still registered in the symbol table to prevent "undefined type" errors on subsequent references to the newtype name.
 

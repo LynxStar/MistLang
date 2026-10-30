@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 
@@ -86,7 +85,8 @@ public static class ProjectReferenceResolver
             {
                 if(!File.Exists(reference.Path))
                 {
-                    diagnostics.Report(DriverDiagnostics.ReferenceFileNotFound, default, declaringManifest, (object?)reference.Name, reference.Path);
+                    diagnostics.ReportTyped(DriverDiagnostics.ReferenceFileNotFound, new ProjectLocation(declaringManifest, null),
+                        new NameValue(reference.Name), new PathValue(reference.Path));
                     return;
                 }
 
@@ -114,7 +114,7 @@ public static class ProjectReferenceResolver
 
             if(KeyMismatch(reference.Name, ReferenceKind.MistProject, config.Name, canonicalTomlPath) is { } mismatch)
             {
-                diagnostics.Add(mismatch);
+                diagnostics.Admit(mismatch);
                 return;
             }
 
@@ -156,16 +156,8 @@ public static class ProjectReferenceResolver
             var cycleStart = chain.IndexOf(canonicalTomlPath);
             var cycleNodes = chain.Skip(cycleStart).ToList();
             cycleNodes.Add(canonicalTomlPath);
-            var cycleChain = string.Join(" → ", cycleNodes);
-
-            diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectCircularReference.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Circular project reference detected: {cycleChain}.",
-                Location: default,
-                CompilationUnitPath: canonicalTomlPath,
-                AnalyzerName: null));
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectCircularReference, new ProjectLocation(canonicalTomlPath, null),
+                new SequenceValue(SlotKind.Path, [.. cycleNodes.Select(path => (SlotValue)new PathValue(path))], Separator: " → "));
         }
     }
 
@@ -173,7 +165,7 @@ public static class ProjectReferenceResolver
     /// The diagnostic for a reference key that differs from the name its target produces: a Mist
     /// project's <c>name</c>, or an assembly's or a built C# project's file name without extension.
     /// </summary>
-    internal static Diagnostic? KeyMismatch(string key, ReferenceKind kind, string producedName, string targetPath)
+    internal static Admission? KeyMismatch(string key, ReferenceKind kind, string producedName, string targetPath)
     {
         if(string.Equals(key, producedName, StringComparison.Ordinal))
         {
@@ -181,14 +173,9 @@ public static class ProjectReferenceResolver
         }
 
         var descriptor = DriverDiagnostics.ProjectReferenceNameMismatch;
-        return new Diagnostic(
-            descriptor.Id,
-            descriptor.DefaultSeverity,
-            descriptor.Stage,
-            string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, key, producedName, Describe(kind), targetPath),
-            Location: default,
-            CompilationUnitPath: targetPath,
-            AnalyzerName: null);
+        return DiagnosticFactory.Create(
+            descriptor, kind == ReferenceKind.Assembly ? new FileOnly(targetPath) : new ProjectLocation(targetPath, null), PipelineStage.Driver,
+            [new NameValue(key), new NameValue(producedName), new EnumValue(Describe(kind)), new PathValue(targetPath)]);
     }
 
     internal static string Describe(ReferenceKind kind)
@@ -207,7 +194,7 @@ public static class ProjectReferenceResolver
         if(kind == ReferenceKind.Assembly
             && KeyMismatch(key, kind, Path.GetFileNameWithoutExtension(path), path) is { } mismatch)
         {
-            diagnostics.Add(mismatch);
+            diagnostics.Admit(mismatch);
             return;
         }
 
@@ -219,7 +206,7 @@ public static class ProjectReferenceResolver
         var directory = Path.GetDirectoryName(reference.Path)!;
         if(!Directory.Exists(directory))
         {
-            diagnostics.Report(DriverDiagnostics.ProjectReferenceNotFound, default, reference.Path, (object?)directory);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNotFound, new ProjectLocation(declaringManifest, null), new PathValue(directory));
             return null;
         }
 
@@ -229,12 +216,12 @@ public static class ProjectReferenceResolver
             case ReferenceClassified classified:
                 return classified;
             case ReferenceAmbiguous ambiguous:
-                diagnostics.Report(
-                    DriverDiagnostics.ReferenceAmbiguous, default, declaringManifest,
-                    (object?)reference.Name, directory, string.Join(", ", ambiguous.Candidates));
+                diagnostics.ReportTyped(DriverDiagnostics.ReferenceAmbiguous, new ProjectLocation(declaringManifest, null),
+                    new NameValue(reference.Name), new PathValue(directory),
+                    new SequenceValue(SlotKind.Path, [.. ambiguous.Candidates.Select(path => (SlotValue)new PathValue(path))]));
                 return null;
             default:
-                diagnostics.Report(DriverDiagnostics.ProjectReferenceNoProjectFile, default, reference.Path, (object?)directory);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNoProjectFile, new ProjectLocation(declaringManifest, null), new PathValue(directory));
                 return null;
         }
     }
@@ -249,18 +236,11 @@ public static class ProjectReferenceResolver
                 && Path.GetFileName(canonicalTomlPath)
                        .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
             {
-                diagnostics.Report(DriverDiagnostics.ProjectReferenceNoProjectFile, default, canonicalTomlPath, (object?)directory);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNoProjectFile, new ProjectLocation(canonicalTomlPath, null), new PathValue(directory));
             }
             else
             {
-                diagnostics.Add(new Diagnostic(
-                    DriverDiagnostics.ProjectReferenceNotFound.Id,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                    Location: default,
-                    CompilationUnitPath: canonicalTomlPath,
-                    AnalyzerName: null));
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNotFound, new ProjectLocation(canonicalTomlPath, null), new PathValue(canonicalTomlPath));
             }
 
             return null;
@@ -269,19 +249,12 @@ public static class ProjectReferenceResolver
         if(!Path.GetFileName(canonicalTomlPath)
                  .Equals(ProjectFileParser.FileName, StringComparison.Ordinal))
         {
-            diagnostics.Add(new Diagnostic(
-                DriverDiagnostics.ProjectReferenceNotFound.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Referenced project path '{canonicalTomlPath}' does not exist.",
-                Location: default,
-                CompilationUnitPath: canonicalTomlPath,
-                AnalyzerName: null));
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNotFound, new ProjectLocation(canonicalTomlPath, null), new PathValue(canonicalTomlPath));
             return null;
         }
 
         var projectFolder = Path.GetDirectoryName(canonicalTomlPath)!;
-        var parseBag = new DiagnosticBag();
+        var parseBag = new DiagnosticBag(diagnostics.Operation);
         var config = ProjectFileParser.Parse(projectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())

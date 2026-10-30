@@ -119,41 +119,41 @@ The grammar edits (2.1-2.4) plus the Range-tier ripple (3.1) are a single logica
 
 - [x] 7. Type checker
   - [x] 7.1 Register the new and repurposed diagnostics in `TypeCheckDiagnostics.cs`
-    - Repurpose `MIST_TC_0054` (`PatternListRequiresArray` -> `PatternListRequiresIndexable`, broadened message)
-    - Add `MIST_TC_0181`..`MIST_TC_0187` with the messages from the design's Diagnostic IDs table; retain `MIST_TC_0055`
-    - Verify the current highest `MIST_TC_*` id is `0180` before numbering
+    - Repurpose `MIST_TC_0054 (historical)` (`PatternListRequiresArray` -> `PatternListRequiresIndexable`, broadened message)
+    - Add `MIST_TC_0181 (historical)`..`MIST_TC_0187 (historical)` with the messages from the design's Diagnostic IDs table; retain `MIST_TC_0055 (historical)`
+    - Verify the current highest `MIST_TC_* (historical scheme)` id is `0180` before numbering
     - _Requirements: 12.5, 20.6_
   - [x] 7.2 Implement `CheckFromEndExpression`
-    - Accept integer-compatible operands; emit `MIST_TC_0181` for a non-integer operand (naming the type); emit `MIST_TC_0182` for a `void` operand
+    - Accept integer-compatible operands; emit `MIST_TC_0181 (historical)` for a non-integer operand (naming the type); emit `MIST_TC_0182 (historical)` for a `void` operand
     - _Requirements: 6.1, 6.2, 6.3, 12.1_
   - [ ]* 7.3 Property test: index-from-end operand type checking
-    - **Property 7: Index-from-end operand type checking** — accepted for integer operands; otherwise exactly one diagnostic (`MIST_TC_0181` non-integer, `MIST_TC_0182` void) naming the operand type and identifying the source span
+    - **Property 7: Index-from-end operand type checking** — accepted for integer operands; otherwise exactly one diagnostic (`MIST_TC_0181 (historical)` non-integer, `MIST_TC_0182 (historical)` void) naming the operand type and identifying the source span
     - **Validates: Requirements 6.1, 6.2, 6.3, 12.1**
     - _Requirements: 6.1, 6.2, 6.3, 12.1_
     - _Properties: 7_
   - [x] 7.4 Implement `CheckRange`
-    - Each present bound must be integer-compatible or `Standard.Index`; otherwise reject the entire range with `MIST_TC_0183` (naming the bound type and its span)
+    - Each present bound must be integer-compatible or `Standard.Index`; otherwise reject the entire range with `MIST_TC_0183 (historical)` (naming the bound type and its span)
     - An absent bound is always valid; a present-but-invalid bound is never treated as absent
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.2_
   - [ ]* 7.5 Property test: range bound type checking
-    - **Property 8: Range bound type checking** — every absent bound and every integer/`Index` present bound accepted; any other present bound rejects the whole range with exactly one `MIST_TC_0183`
+    - **Property 8: Range bound type checking** — every absent bound and every integer/`Index` present bound accepted; any other present bound rejects the whole range with exactly one `MIST_TC_0183 (historical)`
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 12.2**
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.2_
     - _Properties: 8_
   - [x] 7.6 Extend `CheckIndexSuffix` to branch on the argument type
-    - `Standard.Index` argument requires `IsIndexableType` else `MIST_TC_0184`; `Standard.Range` argument requires `IsSliceableType` else `MIST_TC_0185`; integer/custom-indexer behavior unchanged
+    - `Standard.Index` argument requires `IsIndexableType` else `MIST_TC_0184 (historical)`; `Standard.Range` argument requires `IsSliceableType` else `MIST_TC_0185 (historical)`; integer/custom-indexer behavior unchanged
     - _Requirements: 8.6, 8.7, 12.3, 12.4_
   - [ ]* 7.7 Property test: element-access receiver rejection
-    - **Property 11: Element-access receiver rejection** — a non-indexable receiver with an `Index` argument emits exactly one `MIST_TC_0184`; a non-sliceable receiver with a `Range` argument emits exactly one `MIST_TC_0185`; each names the receiver type and identifies the span
+    - **Property 11: Element-access receiver rejection** — a non-indexable receiver with an `Index` argument emits exactly one `MIST_TC_0184 (historical)`; a non-sliceable receiver with a `Range` argument emits exactly one `MIST_TC_0185 (historical)`; each names the receiver type and identifies the span
     - **Validates: Requirements 8.6, 8.7, 12.3, 12.4**
     - _Requirements: 8.6, 8.7, 12.3, 12.4_
     - _Properties: 11_
   - [x] 7.8 Broaden `CheckListPatternElementList`
-    - Require an `IsIndexableType` receiver else repurposed `MIST_TC_0054`; type-check element sub-patterns against the element type
-    - Require `IsSliceableType` for a slice sub-pattern else `MIST_TC_0187`, and check it against the slice-result type; emit `MIST_TC_0186` for more than one slice element; retain `MIST_TC_0055`
+    - Require an `IsIndexableType` receiver else repurposed `MIST_TC_0054 (historical)`; type-check element sub-patterns against the element type
+    - Require `IsSliceableType` for a slice sub-pattern else `MIST_TC_0187 (historical)`, and check it against the slice-result type; emit `MIST_TC_0186 (historical)` for more than one slice element; retain `MIST_TC_0055 (historical)`
     - _Requirements: 20.1, 20.3, 20.4, 20.5_
   - [ ]* 7.9 Property test: list and slice pattern type checking
-    - **Property 16: List and slice pattern type checking** — list patterns on indexable receivers accepted with element sub-patterns checked against the element type; slice sub-patterns require sliceable receivers and bind to the slice-result type; `MIST_TC_0054`/`MIST_TC_0186`/`MIST_TC_0187` emitted for the respective error cases
+    - **Property 16: List and slice pattern type checking** — list patterns on indexable receivers accepted with element sub-patterns checked against the element type; slice sub-patterns require sliceable receivers and bind to the slice-result type; `MIST_TC_0054 (historical)`/`MIST_TC_0186 (historical)`/`MIST_TC_0187 (historical)` emitted for the respective error cases
     - **Validates: Requirements 20.1, 20.2, 20.3, 20.4, 20.5**
     - _Requirements: 20.1, 20.2, 20.3, 20.4, 20.5_
     - _Properties: 16_

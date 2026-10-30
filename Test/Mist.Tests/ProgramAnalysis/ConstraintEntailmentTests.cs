@@ -14,8 +14,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "1")]
 public sealed class ConstraintEntailmentTests
 {
-    private const string Refused = "MIST_PA_CONSTRAINT_NOT_SATISFIED";
-    private const string RefusedConstructor = "MIST_PA_CONSTRUCTOR_CONSTRAINT_NOT_SATISFIED";
+    private const string Refused = "MIST0178";
+    private const string RefusedConstructor = "MIST0179";
 
     private readonly HandBuiltModel built = new();
 
@@ -325,7 +325,7 @@ public sealed class ConstraintEntailmentTests
 
     private string? Judge(TypeArgumentClosing closing, TypeParameterConstraint declared)
     {
-        return ConstraintEntailment.Decide(closing, declared, built.Interner)?.Id.Value;
+        return ConstraintEntailment.Decide(closing, declared, built.Interner)?.Number.Value;
     }
 
     private static TypeParameter Parameter(string name, int ordinal = 0)

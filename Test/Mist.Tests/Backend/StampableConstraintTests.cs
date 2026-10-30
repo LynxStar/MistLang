@@ -201,7 +201,7 @@ public sealed class StampableConstraintTests : ProgramModelProbe
 
         if(!accepted)
         {
-            Assert.Equal("MIST_PA_TYPE_SLOT_CONSTRAINT_NOT_SATISFIED", errors[0].Id.Value);
+            Assert.Equal("MIST0192", errors[0].Number.Value);
         }
     }
 
@@ -281,7 +281,7 @@ public sealed class StampableConstraintTests : ProgramModelProbe
         Assert.Equal(accepted ? 0 : pack ? 2 : 1, errors.Length);
         Assert.All(errors, error =>
         {
-            Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", error.Id.Value);
+            Assert.Equal("MIST0178", error.Number.Value);
             Assert.Contains("IKeyed<string>", error.Message, StringComparison.Ordinal);
         });
     }
@@ -294,6 +294,6 @@ public sealed class StampableConstraintTests : ProgramModelProbe
         var findings = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, findings);
 
-        return findings.ToImmutableArray().Where(diagnostic => diagnostic.Id.Value == "MIST_PA_CONSTRAINT_NOT_SATISFIED").ToList();
+        return findings.ToImmutableArray().Where(diagnostic => diagnostic.Number.Value == "MIST0178").ToList();
     }
 }

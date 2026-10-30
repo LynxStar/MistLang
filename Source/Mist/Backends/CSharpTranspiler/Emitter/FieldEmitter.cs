@@ -1,7 +1,9 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -53,6 +55,14 @@ internal static class FieldEmitter
 
         if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
         {
+            // AllowNull admits CLR-zero storage without an initializer that can reset earlier static writes.
+            if(field.Initializer is null && field.DeclaringType is ClassType
+                && !TypeNameEmitter.IsValueKind(type)
+                && Defaultability.IsUndecided(TypeNameEmitter.Closed(type)))
+            {
+                writer.WriteLine("[System.Diagnostics.CodeAnalysis.AllowNull]");
+            }
+
             writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)};");
             return;
         }

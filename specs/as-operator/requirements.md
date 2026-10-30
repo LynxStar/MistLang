@@ -142,9 +142,9 @@ Key characteristics:
 
 #### Acceptance Criteria
 
-1. WHEN an As_Expression is used between unrelated types, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0070`) stating: "The 'as' operator cannot be used between '{sourceType}' and '{targetType}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed."
-2. WHEN an As_Expression targets `void`, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0071`) stating: "'as void' is not a valid conversion."
-3. WHEN an As_Expression has a void-typed left operand, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0072`) stating: "A void-typed expression cannot be used with the 'as' operator."
+1. WHEN an As_Expression is used between unrelated types, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0070 (historical)`) stating: "The 'as' operator cannot be used between '{sourceType}' and '{targetType}' because no type relationship exists. Use an explicit cast operator if a user-defined conversion is needed."
+2. WHEN an As_Expression targets `void`, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0071 (historical)`) stating: "'as void' is not a valid conversion."
+3. WHEN an As_Expression has a void-typed left operand, THE Compiler SHALL emit a diagnostic (e.g., `MIST_TC_0072 (historical)`) stating: "A void-typed expression cannot be used with the 'as' operator."
 4. ALL diagnostics SHALL include the source span of the `as` expression for precise error location reporting.
 
 ### Requirement 9: As Expression Precedence and Associativity

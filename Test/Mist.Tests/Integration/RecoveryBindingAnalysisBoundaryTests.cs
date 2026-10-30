@@ -44,8 +44,8 @@ public sealed class RecoveryBindingAnalysisBoundaryTests
         Assert.Empty(f.Diagnostics.ToImmutableArray());
 
         var diagnostic = Assert.Single(f.Built.Analyze(new OperatorAnalyzer(), statement));
-        Assert.Equal("MIST_PA_OPERATOR_NOT_APPLICABLE", diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0200", diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

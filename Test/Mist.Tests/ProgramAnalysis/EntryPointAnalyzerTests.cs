@@ -33,12 +33,11 @@ public sealed class EntryPointAnalyzerTests
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal("MIST_MISSING_ENTRY_POINT", refusal.Id.Value);
+        Assert.Equal("MIST0108", refusal.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
         Assert.Equal(PipelineStage.Analysis, refusal.Stage);
         Assert.Equal("entry-point-resolution", refusal.AnalyzerName);
-        Assert.Equal("Probe", refusal.CompilationUnitPath);
-        Assert.Equal(default, refusal.Location);
+        Assert.Equal(new Absent(AbsenceReason.Unavailable), refusal.Location);
         Assert.Equal(
             "Project 'Probe' produces an executable but declares no entry point. Add a 'static void Main()' method, or set output type to library.",
             refusal.Message);
@@ -85,23 +84,23 @@ public sealed class EntryPointAnalyzerTests
         entryPoint.Analyze(hand.Context(entryPoint, diagnostics));
 
         Assert.Equal(
-            ["MIST_PA_NO_IMPLICIT_CONVERSION", "MIST_MISSING_ENTRY_POINT"],
-            diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+            ["MIST0157", "MIST0108"],
+            diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     [Fact]
     [Trait("Tier", "2")]
-    public void ARefusalIsReportedAgainstTheCompiledProjectByName()
+    public void ARefusalIsReportedAgainstTheCompiledProjectsManifest()
     {
-        var self = hand.Model.AddSelfAssembly("Probe");
+        var self = hand.Model.AddSelfAssembly("Probe", projectPath: "/probe/mist.toml");
         TopLevelFile(self, "Program.mist");
         Main(self, "A");
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal("MIST_EP_0002", refusal.Id.Value);
+        Assert.Equal("MIST0110", refusal.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, refusal.Severity);
-        Assert.Equal("Probe", refusal.CompilationUnitPath);
+        Assert.Equal(new ProjectLocation("/probe/mist.toml", null), refusal.Location);
         Assert.Equal(
             "Project has both top-level statements (in 'Program.mist') and a static void Main (in 'Probe.A'). "
             + "Add entry_point = \"top-level\" to mist.toml to resolve this conflict.",
@@ -124,13 +123,14 @@ public sealed class EntryPointAnalyzerTests
     [Trait("Tier", "2")]
     public void TheBlockNamespacesRecordedOnTheStatementsFileReachTheDecision()
     {
-        var self = hand.Model.AddSelfAssembly("Probe", entryPointSetting: "top-level");
+        var self = hand.Model.AddSelfAssembly("Probe", entryPointSetting: "top-level", projectPath: "/probe/mist.toml");
         TopLevelFile(self, "Program.mist", blockNamespaces: ["Foo", "Baz"]);
         Main(self, "A");
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal(("MIST_EP_0006", "Probe"), (refusal.Id.Value, refusal.CompilationUnitPath));
+        Assert.Equal("MIST0114", refusal.Number.Value);
+        Assert.Equal(new ProjectLocation("/probe/mist.toml", null), refusal.Location);
         Assert.StartsWith(
             "File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }, namespace Baz { ... }. ",
             refusal.Message,
@@ -148,8 +148,8 @@ public sealed class EntryPointAnalyzerTests
 
         var refusal = Assert.Single(hand.Analyze(new EntryPointAnalyzer()));
 
-        Assert.Equal("MIST_EP_0004", refusal.Id.Value);
-        Assert.Equal("/lib/mist.toml", refusal.CompilationUnitPath);
+        Assert.Equal("MIST0112", refusal.Number.Value);
+        Assert.Equal("/lib/mist.toml", refusal.Location.Path);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class EntryPointAnalyzerTests
         var library = hand.Model.AddReferenceAssembly("Lib", "/lib/mist.toml", isLibrary: true);
         TopLevelFile(library, "Script.mist");
 
-        Assert.Equal("MIST_EP_0008", Assert.Single(hand.Analyze(new EntryPointAnalyzer())).Id.Value);
+        Assert.Equal("MIST0116", Assert.Single(hand.Analyze(new EntryPointAnalyzer())).Number.Value);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class EntryPointAnalyzerTests
         ProgramAnalysisRunner.Run(hand.Model, diagnostics);
 
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(("MIST_EP_0004", "/lib/mist.toml", "entry-point-resolution"), (refusal.Id.Value, refusal.CompilationUnitPath, refusal.AnalyzerName));
+        Assert.Equal(("MIST0112", "/lib/mist.toml", "entry-point-resolution"), (refusal.Number.Value, refusal.Location.Path, refusal.AnalyzerName));
     }
 
     private static void TopLevelFile(MistAssembly assembly, string path, ImmutableArray<string> blockNamespaces = default)

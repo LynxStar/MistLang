@@ -6,7 +6,7 @@
 // Program.mist are the actual entry point. The Main method here is compiled as
 // a normal static method — callable but NOT the program's start point.
 //
-// If entry_point were not set, this would be a compile error (MIST_EP_0002).
+// If entry_point were not set, this would be a compile error (MIST0110).
 
 using Standard;
 

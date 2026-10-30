@@ -15,8 +15,8 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class SymbolicContractTests
 {
-    private const string Strengthened = "MIST_PA_CONSTRAINT_STRENGTHENED";
-    private const string Unproven = "MIST_PA_REFINEMENT_RETURN_UNPROVEN";
+    private const string Strengthened = "MIST0283";
+    private const string Unproven = "MIST0284";
 
     [Theory]
     [InlineData("direct", "same", "")]
@@ -40,7 +40,7 @@ public sealed class SymbolicContractTests
     public void ASelectedFillerMeetsTheSlotOnlyOverTheSymbolsItAnswers(string route, string bound, string expected)
     {
         var fragment = route == "generic" ? Generic(bound) : Build(route, bound);
-        var found = fragment.Run(new RefinementAnalyzer()).Select(diagnostic => diagnostic.Id.Value).Order(StringComparer.Ordinal);
+        var found = fragment.Run(new RefinementAnalyzer()).Select(diagnostic => diagnostic.Number.Value).Order(StringComparer.Ordinal);
         Assert.Equal(expected.Split(',', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal), found);
     }
 

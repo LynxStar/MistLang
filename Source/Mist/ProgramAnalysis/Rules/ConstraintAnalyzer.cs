@@ -37,7 +37,8 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ConstraintNotSatisfied, closing.Node, [],
-                    TypeDisplay.Mist(closing.Argument), $"Type[{closing.Parameter.PackLength}]", closing.Parameter.Name);
+                    DiagnosticSnapshot.Type(closing.Argument), new OptionalValue(SlotKind.Type, null),
+                    new OptionalValue(SlotKind.Name, new NameValue($"Type[{closing.Parameter.PackLength}]")), new NameValue(closing.Parameter.Name));
             }
 
             foreach(var constraint in closing.Parameter.ConstraintsList)
@@ -130,17 +131,20 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 descriptor, closing.Node, [],
-                TypeDisplay.Mist(argument), string.Join(", ", required.ParameterTypes.Select(TypeDisplay.Mist)), closing.Parameter.Name);
+                DiagnosticSnapshot.Type(argument), new SequenceValue(SlotKind.Type, [.. required.ParameterTypes.Select(DiagnosticSnapshot.Type)]), new NameValue(closing.Parameter.Name));
         }
         else
         {
             context.Report(
                 descriptor, closing.Node, [],
-                TypeDisplay.Mist(argument), Spelling(constraint), closing.Parameter.Name);
+                DiagnosticSnapshot.Type(argument),
+                new OptionalValue(SlotKind.Type, constraint is TypeConstraint typed ? DiagnosticSnapshot.Type(typed.ConstraintType) : null),
+                new OptionalValue(SlotKind.Name, constraint is TypeConstraint ? null : new NameValue(constraint.Kind.ToString().ToLowerInvariant())),
+                new NameValue(closing.Parameter.Name));
         }
     }
 
-    internal static DiagnosticDescriptor? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
+    internal static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
     {
         if(closing.Argument is ErrorType || Closed(declared, closing.Closing, interner) is not { } constraint)
         {
@@ -268,13 +272,4 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
                 ConversionRelation.IsIdentity(substitution.Apply(parameter.Type, interner), signature[i])).All(same => same));
     }
 
-    private static string Spelling(TypeParameterConstraint constraint)
-    {
-        return constraint switch
-        {
-            TypeConstraint typed => TypeDisplay.Mist(typed.ConstraintType),
-            KeywordConstraint keyword => keyword.Kind.ToString().ToLowerInvariant(),
-            _ => constraint.Kind.ToString().ToLowerInvariant(),
-        };
-    }
 }

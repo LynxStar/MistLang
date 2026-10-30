@@ -20,7 +20,7 @@
 
 - [x] Add `string? EntryPoint = null` parameter to the `ProjectConfiguration` record in `Source/Mist/Driver/Contracts/ProjectConfiguration.cs`
 - [x] In `ProjectFileParser.Parse()`, read the optional `entry_point` string field from the TOML model after `namespace_root` parsing
-- [x] Validate that `entry_point` is not empty/whitespace when present (emit `MIST_PROJECT_EMPTY_ENTRY_POINT` diagnostic)
+- [x] Validate that `entry_point` is not empty/whitespace when present (emit `MIST0058` diagnostic)
 - [x] Store the parsed value in the returned `ProjectConfiguration`
 
 **Requirements:** 4.1, 4.2, 4.3, 4.4
@@ -37,11 +37,11 @@
 ## Task 5: Create EntryPointAnalyzer
 
 - [x] Create `Source/Mist/Analysis/Builtin/EntryPointAnalyzer.cs` implementing `IAnalyzer`
-- [x] Implement Rule 1 — Multiple TLS files: scan user-code units for `HasTopLevelStatements`, emit `MIST_EP_0001` if more than one
-- [x] Implement Rule 2 — TLS + Main conflict: detect coexistence, check `entry_point` config, emit `MIST_EP_0002` (no config) or `MIST_EP_0003` (class name specified with TLS present)
-- [x] Implement Rule 3 — Multiple Mains without TLS: detect multiple `static void Main` methods across classes, check `entry_point` config, emit `MIST_EP_0004` (no config) or `MIST_EP_0007` (specified class not found)
-- [x] Implement Rule 4 — `entry_point = "top-level"` but no TLS: emit `MIST_EP_0005`
-- [x] Implement Rule 5 — TLS + block namespace: emit `MIST_EP_0006`
+- [x] Implement Rule 1 — Multiple TLS files: scan user-code units for `HasTopLevelStatements`, emit `MIST0109` if more than one
+- [x] Implement Rule 2 — TLS + Main conflict: detect coexistence, check `entry_point` config, emit `MIST0110` (no config) or `MIST0111` (class name specified with TLS present)
+- [x] Implement Rule 3 — Multiple Mains without TLS: detect multiple `static void Main` methods across classes, check `entry_point` config, emit `MIST0112` (no config) or `MIST0115` (specified class not found)
+- [x] Implement Rule 4 — `entry_point = "top-level"` but no TLS: emit `MIST0113`
+- [x] Implement Rule 5 — TLS + block namespace: emit `MIST0114`
 - [x] Register `EntryPointAnalyzer` in the analyzer array in the CLI/driver setup
 
 **Requirements:** 2.1, 2.2, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
@@ -96,7 +96,7 @@
 
 - [x] Ensure the semantic model builder correctly handles a TLS file with a file-scoped namespace: the namespace applies to type declarations but not to the statements
 - [x] In the C# emitter, when a TLS file has a file-scoped namespace, emit the type declarations inside a `namespace X { }` block after the top-level statements
-- [x] Verify that block namespace declarations in a TLS file are caught by the EntryPointAnalyzer (MIST_EP_0006)
+- [x] Verify that block namespace declarations in a TLS file are caught by the EntryPointAnalyzer (MIST0114)
 
 **Requirements:** 1.5, 1.6, 5.4
 

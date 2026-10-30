@@ -24,6 +24,8 @@ public sealed class SourceText
     /// </summary>
     public string Contents { get; }
 
+    public string ContentHash => field ??= Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Contents)));
+
     /// <summary>
     /// Returns the characters covered by the given <paramref name="span"/>.
     /// </summary>

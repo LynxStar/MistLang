@@ -114,11 +114,11 @@ The same pattern applies to `TargetTypedNewExpressionNoArgsPrimaryNode` but with
 
 New validation for target-typed new expressions:
 
-- **No target type available**: Emit `MIST_TARGET_NEW_NO_CONTEXT` — "The type of 'new()' cannot be inferred from context."
-- **Used with `var`**: Emit `MIST_TARGET_NEW_WITH_VAR` — "The type of 'new()' cannot be inferred because 'var' does not provide a target type."
-- **Interface target**: Emit `MIST_TARGET_NEW_INTERFACE` — "Cannot create an instance of interface type '{name}' with target-typed new."
-- **Trait target**: Emit `MIST_TARGET_NEW_TRAIT` — "Cannot create an instance of trait type '{name}' with target-typed new."
-- **Abstract class**: Reuse existing `MIST_ABSTRACT_INSTANTIATION`.
+- **No target type available**: Emit `MIST_TARGET_NEW_NO_CONTEXT (historical)` — "The type of 'new()' cannot be inferred from context."
+- **Used with `var`**: Emit `MIST_TARGET_NEW_WITH_VAR (historical)` — "The type of 'new()' cannot be inferred because 'var' does not provide a target type."
+- **Interface target**: Emit `MIST_TARGET_NEW_INTERFACE (historical)` — "Cannot create an instance of interface type '{name}' with target-typed new."
+- **Trait target**: Emit `MIST_TARGET_NEW_TRAIT (historical)` — "Cannot create an instance of trait type '{name}' with target-typed new."
+- **Abstract class**: Reuse existing `MIST_ABSTRACT_INSTANTIATION (historical)`.
 - **Constructor mismatch**: Reuse existing constructor resolution logic (`CheckObjectCreation` pattern) — validate arguments against accessible constructors on the resolved type.
 
 ### 4. C# Emitter Changes
@@ -195,10 +195,10 @@ The semantic model records the resolved target type on the AST node:
 
 | ID | Severity | Message |
 |----|----------|---------|
-| `MIST_TARGET_NEW_NO_CONTEXT` | Error | "The type of 'new()' cannot be inferred from context." |
-| `MIST_TARGET_NEW_WITH_VAR` | Error | "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'." |
-| `MIST_TARGET_NEW_INTERFACE` | Error | "Cannot create an instance of interface type '{name}' with target-typed new." |
-| `MIST_TARGET_NEW_TRAIT` | Error | "Cannot create an instance of trait type '{name}' with target-typed new." |
+| `MIST_TARGET_NEW_NO_CONTEXT (historical)` | Error | "The type of 'new()' cannot be inferred from context." |
+| `MIST_TARGET_NEW_WITH_VAR (historical)` | Error | "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'." |
+| `MIST_TARGET_NEW_INTERFACE (historical)` | Error | "Cannot create an instance of interface type '{name}' with target-typed new." |
+| `MIST_TARGET_NEW_TRAIT (historical)` | Error | "Cannot create an instance of trait type '{name}' with target-typed new." |
 
 
 
@@ -255,12 +255,12 @@ Errors are reported at two stages:
 
 | Condition | Stage | Diagnostic ID | Message |
 |-----------|-------|---------------|---------|
-| `var x = new()` | Type Checker | `MIST_TARGET_NEW_WITH_VAR` | "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'." |
-| No target type available | Type Checker | `MIST_TARGET_NEW_NO_CONTEXT` | "The type of 'new()' cannot be inferred from context." |
-| Target is interface | Type Checker | `MIST_TARGET_NEW_INTERFACE` | "Cannot create an instance of interface type '{name}' with target-typed new." |
-| Target is trait | Type Checker | `MIST_TARGET_NEW_TRAIT` | "Cannot create an instance of trait type '{name}' with target-typed new." |
-| Target is abstract class | Semantic Model | `MIST_ABSTRACT_INSTANTIATION` | (existing) "Cannot create an instance of abstract type '{name}'." |
-| No matching constructor | Type Checker | `MIST_TC_0011` / `MIST_TC_0031` | (reuse existing) "Type '{name}' does not contain a constructor matching the given arguments" / "No overload for '{name}' constructor matches argument types ({types})" |
+| `var x = new()` | Type Checker | `MIST_TARGET_NEW_WITH_VAR (historical)` | "The type of 'new()' cannot be inferred because 'var' does not provide a target type. Use an explicit type or provide the type name after 'new'." |
+| No target type available | Type Checker | `MIST_TARGET_NEW_NO_CONTEXT (historical)` | "The type of 'new()' cannot be inferred from context." |
+| Target is interface | Type Checker | `MIST_TARGET_NEW_INTERFACE (historical)` | "Cannot create an instance of interface type '{name}' with target-typed new." |
+| Target is trait | Type Checker | `MIST_TARGET_NEW_TRAIT (historical)` | "Cannot create an instance of trait type '{name}' with target-typed new." |
+| Target is abstract class | Semantic Model | `MIST_ABSTRACT_INSTANTIATION (historical)` | (existing) "Cannot create an instance of abstract type '{name}'." |
+| No matching constructor | Type Checker | `MIST_TC_0011 (historical)` / `MIST_TC_0031 (historical)` | (reuse existing) "Type '{name}' does not contain a constructor matching the given arguments" / "No overload for '{name}' constructor matches argument types ({types})" |
 
 ### Error Recovery
 
@@ -298,11 +298,11 @@ Properties 1 and 2 (parsing/pretty-printing) are in-process and do not require p
 
 | Test Case | Validates |
 |-----------|-----------|
-| `var x = new()` emits `MIST_TARGET_NEW_WITH_VAR` | 5.1 |
-| `new()` in expression statement emits `MIST_TARGET_NEW_NO_CONTEXT` | 5.2 |
-| Interface target emits `MIST_TARGET_NEW_INTERFACE` | 4.4 |
-| Trait target emits `MIST_TARGET_NEW_TRAIT` | 4.5 |
-| Abstract class target emits `MIST_ABSTRACT_INSTANTIATION` | 4.6 |
+| `var x = new()` emits `MIST_TARGET_NEW_WITH_VAR (historical)` | 5.1 |
+| `new()` in expression statement emits `MIST_TARGET_NEW_NO_CONTEXT (historical)` | 5.2 |
+| Interface target emits `MIST_TARGET_NEW_INTERFACE (historical)` | 4.4 |
+| Trait target emits `MIST_TARGET_NEW_TRAIT (historical)` | 4.5 |
+| Abstract class target emits `MIST_ABSTRACT_INSTANTIATION (historical)` | 4.6 |
 | Constructor arg count mismatch emits error | 4.3 |
 | `new()` with no args produces `new()` in pretty-printer | 2.1 |
 | `new { Prop = 1 }` produces correct pretty-printer output | 2.4 |

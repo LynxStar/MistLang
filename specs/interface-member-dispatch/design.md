@@ -4,7 +4,7 @@
 
 This design addresses the gaps that prevent interfaces from being fully functional end-to-end in the Mist compiler. While the interfaces spec delivered interface declarations, implementation validation, subtype assignability, and C# emission of interface declarations, three critical pieces are missing:
 
-1. **`LookupMemberType` doesn't handle `InterfaceType`** — The switch in `SemanticModelBuilder.LookupMemberType` (line 3107) maps `InterfaceType` to `null` via the `_ => null` fallback, so calling a method on an interface-typed variable produces a `MIST_UNDEFINED_MEMBER` error.
+1. **`LookupMemberType` doesn't handle `InterfaceType`** — The switch in `SemanticModelBuilder.LookupMemberType` (line 3107) maps `InterfaceType` to `null` via the `_ => null` fallback, so calling a method on an interface-typed variable produces a `MIST_UNDEFINED_MEMBER (historical)` error.
 2. **`EmitClassDeclaration` omits interface lists** — The emitter only emits `baseClause = $" : {baseName}"` using `classDecl.BaseClassName.Lexeme`. It doesn't consult the semantic model's `ClassType.Interfaces` to append interface names, so the transpiled C# class doesn't implement its interfaces.
 3. **No AllFeatures sample files exercise interfaces** — The `samples/AllFeatures/` directory has no `.mist` files defining or using interfaces.
 
@@ -439,7 +439,7 @@ After analyzing all acceptance criteria, the following consolidations were made:
 
 ### Property 2: Interface member lookup emits diagnostic for missing members
 
-*For any* `InterfaceType` hierarchy and *for any* member name that does NOT exist in the target interface's `MemberScope` or any transitively inherited interface's `MemberScope`, calling `LookupMemberType` SHALL emit exactly one `MIST_UNDEFINED_MEMBER` diagnostic and SHALL return `UnknownType`.
+*For any* `InterfaceType` hierarchy and *for any* member name that does NOT exist in the target interface's `MemberScope` or any transitively inherited interface's `MemberScope`, calling `LookupMemberType` SHALL emit exactly one `MIST_UNDEFINED_MEMBER (historical)` diagnostic and SHALL return `UnknownType`.
 
 **Validates: Requirements 1.4**
 
@@ -455,9 +455,9 @@ After analyzing all acceptance criteria, the following consolidations were made:
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Member not found on interface type (direct or inherited) | `MIST_UNDEFINED_MEMBER` (existing) | Error | Return `UnknownType.Instance`, continue compilation |
+| Member not found on interface type (direct or inherited) | `MIST_UNDEFINED_MEMBER (historical)` (existing) | Error | Return `UnknownType.Instance`, continue compilation |
 
-No new diagnostic IDs are introduced. The existing `MIST_UNDEFINED_MEMBER` diagnostic is already defined and used for class/struct member lookup failures. The `InterfaceType` case reuses it.
+No new diagnostic IDs are introduced. The existing `MIST_UNDEFINED_MEMBER (historical)` diagnostic is already defined and used for class/struct member lookup failures. The `InterfaceType` case reuses it.
 
 ### Error Recovery Strategy
 

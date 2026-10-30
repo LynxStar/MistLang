@@ -93,7 +93,7 @@ public sealed class PureFunctionTypeTests : ProgramModelProbe
         var diagnostics = BuildRun(statement, "public class Counter { public Counter() { } }");
 
         var error = Assert.Single(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal("MIST_PM_PURE_REQUIRES_FUNCTION_TYPE", error.Id.Value);
+        Assert.Equal("MIST0322", error.Number.Value);
         Assert.Contains(named, error.Message, StringComparison.Ordinal);
     }
 
@@ -103,6 +103,6 @@ public sealed class PureFunctionTypeTests : ProgramModelProbe
     public void ProgramModel_ALocalLambdaWhereAPureOneIsNeededIsTheWrittenConflict(string statement)
     {
         var error = Assert.Single(BuildRun(statement), diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
-        Assert.Equal("MIST_PM_PURE_AND_LOCAL", error.Id.Value);
+        Assert.Equal("MIST0318", error.Number.Value);
     }
 }

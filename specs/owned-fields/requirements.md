@@ -110,20 +110,20 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 #### Acceptance Criteria
 
 1. THE Type_Checker SHALL NOT hide mutable methods on non-owned types held in owned bindings — the `MethodTierVisibilityFilter` blanket hiding logic from ownership-v2 is removed.
-2. THE `MIST_OWN_MUTABLE_HIDDEN` diagnostic SHALL be removed from the compiler — it is replaced by `MIST_OWN_THIS_TIER_MISMATCH` (Requirement 17 AC 16) which provides precise per-method feedback.
+2. THE `MIST_OWN_MUTABLE_HIDDEN (historical)` diagnostic SHALL be removed from the compiler — it is replaced by `MIST_OWN_THIS_TIER_MISMATCH (historical)` (Requirement 17 AC 16) which provides precise per-method feedback.
 3. ALL method calls SHALL be gated solely by the this-tier system: a method is callable if the caller's binding tier satisfies the method's inferred or declared this-tier (Requirement 17 AC 15). No other visibility restriction applies.
 4. THE `MethodTierVisibilityFilter` component from ownership-v2 SHALL be removed or replaced by the this-tier call-site check in the flow-sensitive analysis.
 
-### Requirement 7: Removal of MIST_OWN_FIELD_MODIFIER_REMOVED Diagnostic
+### Requirement 7: Removal of MIST_OWN_FIELD_MODIFIER_REMOVED (historical) Diagnostic
 
-**User Story:** As a Mist developer, I want the `MIST_OWN_FIELD_MODIFIER_REMOVED` hard error removed from the compiler since the `owned` field modifier is now valid syntax again with new semantics.
+**User Story:** As a Mist developer, I want the `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` hard error removed from the compiler since the `owned` field modifier is now valid syntax again with new semantics.
 
 #### Acceptance Criteria
 
-1. THE Type_Checker SHALL NOT emit the `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic — the diagnostic ID definition, message builder, and all emission sites SHALL be deleted from the compiler source.
+1. THE Type_Checker SHALL NOT emit the `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic — the diagnostic ID definition, message builder, and all emission sites SHALL be deleted from the compiler source.
 2. THE `RejectOwnedFieldModifier` pass in the `OwnershipAnalyzer` SHALL be removed and its orchestrator call site deleted; provenance enforcement (Requirement 8) and field access rules (Requirement 2) replace its validation responsibility.
-3. WHEN existing code uses `owned` on field declarations that previously triggered `MIST_OWN_FIELD_MODIFIER_REMOVED`, THE Compiler SHALL accept the syntax without emitting any error or warning from the removed diagnostic, and SHALL apply the owned-field semantics defined in Requirements 1 through 10 of this spec.
-4. THE unit tests in `OwnershipV2DiagnosticTests` that assert `MIST_OWN_FIELD_MODIFIER_REMOVED` is emitted SHALL be removed or replaced with tests that assert the compiler accepts `owned` field declarations and applies the new owned-field validation rules.
+3. WHEN existing code uses `owned` on field declarations that previously triggered `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)`, THE Compiler SHALL accept the syntax without emitting any error or warning from the removed diagnostic, and SHALL apply the owned-field semantics defined in Requirements 1 through 10 of this spec.
+4. THE unit tests in `OwnershipV2DiagnosticTests` that assert `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` is emitted SHALL be removed or replaced with tests that assert the compiler accepts `owned` field declarations and applies the new owned-field validation rules.
 
 ### Requirement 8: Owned Field Provenance Enforcement
 
@@ -154,7 +154,7 @@ Subsumed by Requirement 8. Non-owned types with owned fields get the same proven
 2. WHEN an `owned type` has a field whose type is a reference type that is not an owned type and does not implement `IClonable<T>`, THE Type_Checker SHALL report an error identifying the field, its declared type, and the requirement for owned types to have fully-owned-or-clonable fields — value-type fields are exempt from this check.
 3. WHEN an owned-field assignment uses a non-owned source that is not IClonable, THE Type_Checker SHALL report an error identifying the target field name, the source expression, and explaining the provenance requirement for owned fields.
 4. WHEN a static field is marked `owned`, THE Type_Checker SHALL report an error explaining that the `owned` modifier cannot be applied to static fields.
-5. THE `MIST_OWN_FIELD_MODIFIER_REMOVED` diagnostic SHALL be deleted entirely from the compiler.
+5. THE `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic SHALL be deleted entirely from the compiler.
 6. IF multiple owned-field violations occur in the same compilation unit, THEN THE Type_Checker SHALL report each violation as an independent error rather than stopping at the first.
 7. WHEN code reads an owned field through a shared parent binding and the field's type does not implement `IClonable<T>`, THE Type_Checker SHALL report an error explaining that the field cannot be read through a shared binding because it cannot be cloned and cannot be moved out without an owned parent.
 

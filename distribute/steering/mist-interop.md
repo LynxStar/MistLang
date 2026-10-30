@@ -182,12 +182,12 @@ app.MapGet("/hello", () => "Hello from Mist!");
 
 When the C# emitter encounters a func-to-named-delegate conversion at a call site, it emits `new DelegateName(expression)` to satisfy C#'s type system. When the target is `System.Delegate`, the lambda is emitted as-is (C# 11+ handles the conversion). When a named-delegate value flows to a `func<...>` target, it is emitted as-is.
 
-## Build Output: Quiet by Default
+## Build Output: Progress and Summary by Default
 
-Builds are **quiet by default**. When packages or framework references are declared, the Package Resolution stage always runs (between Loading and Lexing), but its detail output is suppressed unless you opt in with `--verbose`. Error diagnostics (`MIST_PKG_*`, `MIST_FWREF_*`) always surface regardless of verbosity, `--quiet` included: one per failing dependency, on stderr, as soon as Stage 1.5 ends and before lexing begins. The compile still runs through analysis, so source errors are reported in the same run after the summary, which counts the dependency error without printing it again; then the build fails before emitting, and `run`/`test` launch nothing.
+Builds show **progress and a summary by default**. When packages or framework references are declared, the Package Resolution stage always runs (between Loading and Lexing), but its detail output is suppressed unless you opt in with `--verbose`. Error diagnostics (`MIST_PKG_*`, `MIST_FWREF_*`) always surface regardless of verbosity, `--quiet` included: one per failing dependency, on stderr, as soon as Stage 1.5 ends and before lexing begins. The compile still runs through analysis, so source errors are reported in the same run after the summary, which counts the dependency error without printing it again; then the build fails before emitting, and `run`/`test` launch nothing.
 
 ```bash
-mist build                 # quiet — no resolution output unless errors
+mist build                 # progress and summary; --verbose adds resolution details
 mist build --verbose       # prints Stage 1.5 header, per-package/framework detail, elapsed time
 mist run --verbose         # same for run (and test)
 ```

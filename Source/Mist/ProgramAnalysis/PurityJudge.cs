@@ -9,7 +9,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis;
 
-internal sealed record Finding(DiagnosticDescriptor Descriptor, SyntaxNode At, IReadOnlyList<Expression> About, object?[] Args);
+internal sealed record Finding(MistDiagnostic Descriptor, SyntaxNode At, IReadOnlyList<Expression> About, SlotValue[] Args);
 
 internal readonly record struct ScopeDescription(string Text)
 {
@@ -266,13 +266,13 @@ internal static partial class PurityJudge
                 case WithBlockStatement ambient:
                     Refuse(
                         ProgramAnalysisDiagnostics.PureScopeCallsImpure, ambient.Value.Node, [ambient.Value],
-                        "open a with block", scope, "an ambient binding, which reaches state outside the scope", "a body without one");
+                        new NameValue("open a with block"), new NameValue(scope.Text), new EnumValue("an ambient binding, which reaches state outside the scope"), new EnumValue("a body without one"));
                     break;
 
                 case AsyncBlockExpression block:
                     Refuse(
                         ProgramAnalysisDiagnostics.PureScopeCallsImpure, block.Node, [block],
-                        "run an async block", scope, "a task that runs outside the scope", "a synchronous body");
+                        new NameValue("run an async block"), new NameValue(scope.Text), new EnumValue("a task that runs outside the scope"), new EnumValue("a synchronous body"));
                     break;
             }
 
@@ -388,7 +388,7 @@ internal static partial class PurityJudge
                 {
                     Refuse(
                         ProgramAnalysisDiagnostics.PureScopeWrites, reference.Node, [reference],
-                        $"captured variable '{local.Name}'", scope, "it is a variable of the enclosing scope, and a pure lambda writes nothing outside itself");
+                        new NameValue($"captured variable '{local.Name}'"), new NameValue(scope.Text), new NameValue("it is a variable of the enclosing scope, and a pure lambda writes nothing outside itself"));
                 }
                 else if(kind is ScopeKind.LocalReadonly)
                 {
@@ -407,7 +407,7 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeWrites, at.Node, [at],
-                    what, scope, "a local readonly scope writes nothing, its own instance included");
+                    new NameValue(what), new NameValue(scope.Text), new NameValue("a local readonly scope writes nothing, its own instance included"));
                 return false;
             }
 
@@ -418,7 +418,7 @@ internal static partial class PurityJudge
 
             Refuse(
                 ProgramAnalysisDiagnostics.PureScopeWrites, at.Node, [at],
-                what, scope, $"it is {Describe(holder)}, and a {ScopeDescription.Spell(kind)} scope writes only what it owns");
+                new NameValue(what), new NameValue(scope.Text), new NameValue($"it is {Describe(holder)}, and a {ScopeDescription.Spell(kind)} scope writes only what it owns"));
             return false;
         }
 
@@ -478,8 +478,8 @@ internal static partial class PurityJudge
             if(slot.Owned && origin is Origin.Own && OwnershipAnalyzer.HeldByAnotherOwner(value, origins.Member as Method) is { } field)
             {
                 Refuse(
-                    ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], Spell(value), scope,
-                    $"held by the owned field '{field}', which keeps it,");
+                    ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], new NameValue(Spell(value)), new NameValue(scope.Text),
+                    new NameValue($"held by the owned field '{field}', which keeps it,"));
                 return;
             }
 
@@ -488,7 +488,7 @@ internal static partial class PurityJudge
                 return;
             }
 
-            Refuse(ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], Spell(value), scope, Describe(origin));
+            Refuse(ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], new NameValue(Spell(value)), new NameValue(scope.Text), new NameValue(Describe(origin)));
         }
 
         private bool IsInput(Expression value)
@@ -516,7 +516,7 @@ internal static partial class PurityJudge
             return receiver is null ? origins.This : origins.Of(receiver);
         }
 
-        private void Refuse(DiagnosticDescriptor descriptor, SyntaxNode at, IReadOnlyList<Expression> about, params object?[] args)
+        private void Refuse(MistDiagnostic descriptor, SyntaxNode at, IReadOnlyList<Expression> about, params SlotValue[] args)
         {
             Findings.Add(new Finding(descriptor, at, about, args));
 

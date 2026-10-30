@@ -70,7 +70,7 @@ public abstract class ProgramModelProbe : IDisposable
 
     private protected static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
     {
-        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Id.Value == id);
+        return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Number.Value == id);
     }
 
     /// <summary>

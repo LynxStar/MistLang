@@ -140,7 +140,7 @@ Classes with field initializers (e.g., `public int Timeout = 30;`) also particip
 
 The `default` block is useful when you want default values that differ from field initializers, or when you want to centralize default logic separately from the field declarations.
 
-A field initializer of a defaultable type, and each entry of a `default` block, must be a pure expression. It may allocate, and call a pure constructor such as `new List<int>()`, so each default gets its own list. An initializer that calls a constructor which prints, or reads state that can change, is refused with `MIST_PA_DEFAULT_NOT_CONSISTENT`, naming the field and the operation that is not pure. A pure expression may still fail, the same way each time the default is taken. [Where Mist Requires Purity](./purity.md#where-mist-requires-purity) has an example.
+A field initializer of a defaultable type, and each entry of a `default` block, must be a pure expression. It may allocate, and call a pure constructor such as `new List<int>()`, so each default gets its own list. An initializer that calls a constructor which prints, or reads state that can change, is refused with `MIST0143`, naming the field and the operation that is not pure. A pure expression may still fail, the same way each time the default is taken. [Where Mist Requires Purity](./purity.md#where-mist-requires-purity) has an example.
 
 ## Defaultable vs. Non-Defaultable Types
 
@@ -158,7 +158,7 @@ A type is classified as **defaultable** or **non-defaultable** based on its stru
 | Union type without `void` | Non-defaultable |
 | Abstract types | Always non-defaultable |
 
-Using `default(T)` on a non-defaultable class, struct or type parameter is refused during analysis with `MIST_PA_NOT_DEFAULTABLE`. A concrete type without a default must be constructed explicitly via `new`.
+Using `default(T)` on a non-defaultable class, struct or type parameter is refused during analysis with `MIST0180`. A concrete type without a default must be constructed explicitly via `new`.
 
 ## Constructor-Less Types Are Implicitly Defaultable
 
@@ -263,7 +263,7 @@ The rules are:
 {{#endtab }}
 {{#endtabs }}
 
-If a constructor fails to assign a non-defaultable field on any code path, the compiler emits `MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED` naming the unassigned field.
+If a constructor fails to assign a non-defaultable field on any code path, the compiler emits `MIST0223` naming the unassigned field.
 
 The analysis is control-flow sensitive. An assignment in only one branch does not discharge a field's constructor obligation; every path that reaches the end must assign it. A `this(...)` chain relies on its target constructor's assignments and does not repeat storage initialization. A base constructor initializes its own storage portion once.
 
@@ -286,7 +286,7 @@ Generic code that needs to call `default(T)` must declare the requirement using 
 {{#endtab }}
 {{#endtabs }}
 
-The constraint is enforced at instantiation: if you try to call `Factory.Create<DatabaseConnection>()` where `DatabaseConnection` is non-defaultable, the compiler emits `MIST_PA_CONSTRAINT_NOT_SATISFIED`.
+The constraint is enforced at instantiation: if you try to call `Factory.Create<DatabaseConnection>()` where `DatabaseConnection` is non-defaultable, the compiler emits `MIST0178`.
 
 The `default` constraint has no direct equivalent in C#. Mist checks it at compile time and passes a generated `Func<T>` default factory to the emitted generic method. The method invokes that factory to obtain the type argument's semantic default. For a class-level constraint, the emitted class retains the factory so instance methods can use it; see the [class-level example](../type-system/generic-constraints.md#default-constraint). Each factory call produces a fresh class default.
 

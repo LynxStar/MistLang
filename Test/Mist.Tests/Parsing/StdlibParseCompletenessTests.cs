@@ -10,7 +10,7 @@ namespace Mist.Tests.Parsing;
 
 /// <summary>
 /// Task 4 checkpoint: verifies that Array.mist and Span.mist parse completely
-/// with zero MIST_PARSE_INCOMPLETE diagnostics.
+/// with zero MIST0123 diagnostics.
 ///
 /// Validates: Requirements 4.1, 4.2
 /// </summary>
@@ -59,12 +59,12 @@ public sealed class StdlibParseCompletenessTests
         Assert.NotNull(root);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST0123")
             .ToList();
 
         Assert.True(
             incompleteDiags.Count == 0,
-            $"Array.mist produced MIST_PARSE_INCOMPLETE: {string.Join("; ", incompleteDiags.Select(d => d.Message))}");
+            $"Array.mist produced MIST0123: {string.Join("; ", incompleteDiags.Select(d => d.Message))}");
     }
 
     [Fact]
@@ -78,11 +78,11 @@ public sealed class StdlibParseCompletenessTests
         Assert.NotNull(root);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST0123")
             .ToList();
 
         Assert.True(
             incompleteDiags.Count == 0,
-            $"Span.mist produced MIST_PARSE_INCOMPLETE: {string.Join("; ", incompleteDiags.Select(d => d.Message))}");
+            $"Span.mist produced MIST0123: {string.Join("; ", incompleteDiags.Select(d => d.Message))}");
     }
 }

@@ -9,11 +9,11 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PurityJudgeTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string ReadsArgument = "MIST_PA_LOCAL_SCOPE_READS_ARGUMENT";
-    private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string ReadsArgument = "MIST0140";
+    private const string StoresUnowned = "MIST0141";
 
     [Theory]
     [InlineData("public pure int M() { var b = new Bag(); b.Count = 1; return b.Count; }", null)]
@@ -188,7 +188,7 @@ public sealed class PurityJudgeTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.True(finding.Id.Value == expected, $"{member}: expected {expected}, got {finding.Id.Value}");
+        Assert.True(finding.Number.Value == expected, $"{member}: expected {expected}, got {finding.Number.Value}");
         Assert.Contains("'M'", finding.Message, StringComparison.Ordinal);
     }
 }

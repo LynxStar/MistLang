@@ -46,12 +46,12 @@ public sealed class PackElementDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refused ? ["MIST_PA_NOT_DEFAULTABLE"] : [], findings.Select(finding => finding.Id.Value));
+        Assert.Equal(refused ? ["MIST0180"] : [], findings.Select(finding => finding.Number.Value));
     }
 
     [Theory]
     [InlineData("intrinsic", null)]
-    [InlineData("connection", "MIST_PA_FIELD_HAS_NO_DEFAULT")]
+    [InlineData("connection", "MIST0181")]
     [InlineData("holders-own-pack", null)]
     public void ASlotOfAClosing_IsRefusedAtTheHolderOnlyWhereAnElementLeavesItNone(string second, string? refusal)
     {
@@ -63,7 +63,7 @@ public sealed class PackElementDefaultRefusalTests
 
         var findings = fragment.Run(new DefaultabilityAnalyzer());
 
-        Assert.Equal(refusal is null ? [] : [refusal], findings.Select(finding => finding.Id.Value));
+        Assert.Equal(refusal is null ? [] : [refusal], findings.Select(finding => finding.Number.Value));
     }
 
     private static TypeParameter Pack(ConcreteType owner, string name)

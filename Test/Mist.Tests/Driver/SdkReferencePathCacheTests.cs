@@ -102,7 +102,7 @@ public sealed class SdkReferencePathCacheTests
 
         Assert.Null(path);
         var failure = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(CommonDiagnostics.SdkNoFramework.Id, failure.Id);
+        Assert.Equal(CommonDiagnostics.SdkNoFramework.Number, failure.Number);
         Assert.Contains(Net8, failure.Message, StringComparison.Ordinal);
         Assert.Equal([Net10, Net8], sdk.Discoveries);
         Assert.Equal(persistedBefore, sdk.Persisted);
@@ -419,14 +419,13 @@ public sealed class SdkReferencePathCacheTests
                 }
             }
 
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.SdkNoFramework.Id,
+            diagnostics.Add(DiagnosticFixtures.Occurrence(CommonDiagnostics.SdkNoFramework.Number.Value,
                 DiagnosticSeverity.Error,
                 PipelineStage.Driver,
                 $"The target framework '{targetFramework}' reference assemblies were not found in the SDK at '/dotnet'.",
-                Location: default,
-                CompilationUnitPath: "<sdk-discovery>",
-                AnalyzerName: null));
+                location: default,
+                compilationUnitPath: "<sdk-discovery>",
+                analyzerName: null));
             return null;
         }
 

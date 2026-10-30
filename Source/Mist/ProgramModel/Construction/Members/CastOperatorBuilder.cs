@@ -39,17 +39,17 @@ internal sealed class CastOperatorBuilder
 
         if(!common.Modifiers.IsStatic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, castOpDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.OperatorMustBeStatic, castOpDecl, null);
         }
 
         if(common.Modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, castOpDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, castOpDecl, null);
         }
 
         if(common.Parameters.Count == 0)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorMissingParameter, castOpDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.CastOperatorMissingParameter, castOpDecl, null);
             return;
         }
 
@@ -57,7 +57,7 @@ internal sealed class CastOperatorBuilder
 
         if(common.Parameters.Count > 1)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.CastOperatorTooManyParameters, castOpDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.CastOperatorTooManyParameters, castOpDecl, null);
         }
 
         var castOperator = new CastOperator(targetType, sourceParameter, isImplicit, common.Modifiers)

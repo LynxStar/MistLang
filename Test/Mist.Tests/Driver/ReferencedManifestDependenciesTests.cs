@@ -112,7 +112,7 @@ public sealed class ReferencedManifestDependenciesTests : IDisposable
 
         var errors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}")
+            .Select(d => $"  {d.Number.Value}: {d.Message}")
             .ToList();
 
         Assert.True(

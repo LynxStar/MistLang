@@ -13,6 +13,7 @@ The table below summarizes all available fields:
 | `entry_point` | No | String | Disambiguates the program entry point when multiple candidates exist. |
 | `[references]` | No | Table | Declares dependencies on other Mist projects, C# projects and compiled assemblies. Each key is the referenced assembly's name mapping to a table with a `path` field. |
 | `[global_usings]` | No | Table | Declares namespaces implicitly imported into every source file in the project. |
+| `[diagnostics]` | No | Table | Declares diagnostic policy: which warnings become errors and which optional rules run. |
 
 ## The `name` Field
 
@@ -133,9 +134,9 @@ An entry may name a Mist project, a C# project or a compiled assembly. The compi
 "Vendor.Tools" = { path = "../vendor/Vendor.Tools.dll" }
 ```
 
-A path to a file with any other extension is `MIST_REFERENCE_UNSUPPORTED_PATH`, and a `.csproj` or `.dll` that does not exist is `MIST_REFERENCE_FILE_NOT_FOUND`.
+A path to a file with any other extension is `MIST0071`, and a `.csproj` or `.dll` that does not exist is `MIST0072`.
 
-**A bare directory.** A `path` that names a directory is valid when that directory's own files hold exactly one `mist.toml`, `.csproj` or `.dll`; that file decides the kind. Subdirectories are never searched, so a project's `bin/`, `obj/` and `out/` never count, and extensions compare without regard to case. A directory with none of the three is `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`. A directory with two or more, of one kind or several, is `MIST_REFERENCE_AMBIGUOUS`: the message lists every candidate, and the fix is to name the intended file in `path`.
+**A bare directory.** A `path` that names a directory is valid when that directory's own files hold exactly one `mist.toml`, `.csproj` or `.dll`; that file decides the kind. Subdirectories are never searched, so a project's `bin/`, `obj/` and `out/` never count, and extensions compare without regard to case. A directory with none of the three is `MIST0063`. A directory with two or more, of one kind or several, is `MIST0073`: the message lists every candidate, and the fix is to name the intended file in `path`.
 
 ```toml
 [references]
@@ -143,7 +144,7 @@ A path to a file with any other extension is `MIST_REFERENCE_UNSUPPORTED_PATH`, 
 "Bridge" = { path = "../Bridge" }
 ```
 
-**The key names the produced assembly.** For every kind the key must equal the assembly the target produces, so a typo or a rename fails at build time. That is the manifest's `name` for a Mist project, the file name without its extension for a `.dll`, and, for a C# project, the file name of its built output, which is MSBuild's `AssemblyName` and need not equal the `.csproj` file's name. A mismatch is `MIST_PROJECT_REFERENCE_NAME_MISMATCH`; its message names the kind and the name the target produces.
+**The key names the produced assembly.** For every kind the key must equal the assembly the target produces, so a typo or a rename fails at build time. That is the manifest's `name` for a Mist project, the file name without its extension for a `.dll`, and, for a C# project, the file name of its built output, which is MSBuild's `AssemblyName` and need not equal the `.csproj` file's name. A mismatch is `MIST0070`; its message names the kind and the name the target produces.
 
 **Facades.** A C# project that depends on a Mist library was compiled against the library's own assembly, and the runtime resolves a type by assembly and name. The program, however, composes the library's source into its own DLL, so the same type lives in a different assembly and the C# project's methods would not accept it. When a referenced C# assembly was compiled against a Mist library that the program composes, the compiler therefore writes a small assembly named after that library into `bin/`, beside the program's DLL, holding nothing but type forwards to the program. The C# project and the program then agree on what each type is, and a signature that crosses the boundary works. No setting asks for this. The C# project reaches the Mist library through a hand-written MSBuild target that runs `mist build` on it; `samples/CSharpReferences` in the repository shows the whole arrangement.
 
@@ -190,7 +191,7 @@ Self-references (a project referencing itself) are also detected and reported as
 
 If a referenced path does not exist, the compiler reports a diagnostic:
 
-- If the directory exists but holds no `mist.toml`, `.csproj` or `.dll`: `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE`
+- If the directory exists but holds no `mist.toml`, `.csproj` or `.dll`: `MIST0063`
 - If the path does not exist at all: `Referenced project path '/path/to/file' does not exist.`
 
 ## The `[global_usings]` Section
@@ -224,16 +225,53 @@ Valid examples: `Standard`, `MyProject.Models`, `_Internal.Utils`
 
 | Condition | Diagnostic | Severity |
 |-----------|-----------|----------|
-| Section present but missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error |
-| Empty or whitespace-only entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error |
-| Entry contains invalid characters | `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error |
-| `namespaces` is not an array | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
-| Non-string element in `namespaces` | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
-| Duplicate entry (case-sensitive) | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning |
+| Section present but missing `namespaces` field | `MIST0079` | Error |
+| Empty or whitespace-only entry | `MIST0080` | Error |
+| Entry contains invalid characters | `MIST0081` | Error |
+| `namespaces` is not an array | `MIST0077` | Error |
+| Non-string element in `namespaces` | `MIST0078` | Error |
+| Duplicate entry (case-sensitive) | `MIST0082` | Warning |
 
 All error diagnostics halt compilation. The duplicate warning is non-fatal — the duplicate is removed and parsing continues.
 
 All diagnostics include the path to the `mist.toml` file for orientation.
+
+## The `[diagnostics]` Table
+
+The optional `[diagnostics]` table sets the project's diagnostic policy. Policy can only raise a severity or switch an optional rule off and on; nothing in it can lower a severity or hide a diagnostic, so an invalid program never compiles because of it. The policy applies to the project being compiled; a referenced project's `[diagnostics]` table does not reach the program that references it.
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `warnings_as_errors` | Boolean or array of strings | `true` raises every promotable diagnostic, warning or note, to an error. An array raises only the listed diagnostic numbers, and may name notes as well as warnings. |
+| `disable` | Array of strings | Optional rules that do not run for this project. |
+| `enable` | Array of strings | Optional rules that are off by default and run for this project. |
+
+Every entry is a diagnostic number written as a string, for example `"MIST0148"`. Each diagnostic has one of three policy classes: a *fixed* diagnostic reports a violated contract and no policy touches it; a *promotable* diagnostic is a warning or note that `warnings_as_errors` may raise; an *optional* diagnostic is a rule that `disable` and `enable` may switch and that `warnings_as_errors` may also raise. When a rule is disabled it does not run at all.
+
+```toml
+[diagnostics]
+warnings_as_errors = true
+disable = ["MIST0148"]
+```
+
+```toml
+[diagnostics]
+warnings_as_errors = ["MIST0082"]
+```
+
+A promoted warning or note fails the build exactly where an error would, and the build summary counts it as an error.
+
+### Error Behavior
+
+| Condition | Diagnostic | Severity |
+|-----------|-----------|----------|
+| `diagnostics` is not a table | `MIST0103` | Error |
+| A key other than `warnings_as_errors`, `disable` or `enable` | `MIST0104` | Error |
+| A value of the wrong shape | `MIST0105` | Error |
+| An entry naming a number the compiler does not know | `MIST0106` | Error |
+| A `disable` or `enable` entry naming a fixed or promotable diagnostic | `MIST0107` | Error |
+
+Every entry is checked against the compiler's registry before compilation starts, and any of these errors fails the command.
 
 ## Example Configurations
 
@@ -332,20 +370,22 @@ The compiler validates `mist.toml` strictly and halts compilation on any error:
 | `entry_point = "top-level"` but no TLS file | `entry_point = "top-level" specified in mist.toml but no file contains top-level statements.` | Error |
 | `entry_point` specifies unknown class | `entry_point specifies '{class}' but no class with that name contains a static void Main method.` | Error |
 | `entry_point` specifies class but TLS exists | `Cannot specify entry_point = "{class}" when a top-level statement file exists.` | Error |
-| `references` is not a table | `MIST_PROJECT_REFERENCE_INVALID_FORMAT` | Error |
-| Reference value is not a table | `MIST_PROJECT_REFERENCE_INVALID_FORMAT` | Error |
-| Reference key is empty, has invalid characters, or exceeds 128 chars | `MIST_PROJECT_REFERENCE_INVALID_NAME` | Error |
-| Reference key does not match target project's `name` | `MIST_PROJECT_REFERENCE_NAME_MISMATCH` | Error |
+| `references` is not a table | `MIST0066` | Error |
+| Reference value is not a table | `MIST0065` | Error |
+| Reference key is empty, has invalid characters, or exceeds 128 chars | `MIST0068`, `MIST0067` or `MIST0069` | Error |
+| Reference key does not match target project's `name` | `MIST0070` | Error |
 | Reference entry missing `path` | `Reference entry is missing the required 'path' field.` | Error |
 | Reference entry with empty `path` | `Reference entry has an empty or whitespace 'path' field.` | Error |
 | Referenced project not found | Reports the missing path | Error |
-| Reference `path` names a file other than `mist.toml`, `.csproj` or `.dll` | `MIST_REFERENCE_UNSUPPORTED_PATH` | Error |
-| Referenced `.csproj` or `.dll` does not exist | `MIST_REFERENCE_FILE_NOT_FOUND` | Error |
-| Referenced directory holds more than one `mist.toml`, `.csproj` or `.dll` | `MIST_REFERENCE_AMBIGUOUS` | Error |
-| Referenced C# project fails to build | `MIST_CSHARP_PROJECT_BUILD_FAILED` | Error |
+| Reference `path` names a file other than `mist.toml`, `.csproj` or `.dll` | `MIST0071` | Error |
+| Referenced `.csproj` or `.dll` does not exist | `MIST0072` | Error |
+| Referenced directory holds more than one `mist.toml`, `.csproj` or `.dll` | `MIST0073` | Error |
+| Referenced C# project fails to build | `MIST0074` | Error |
 | Circular reference | Reports the full cycle chain | Error |
-| `[global_usings]` missing `namespaces` field | `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error |
-| Empty or whitespace namespace entry | `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error |
-| Invalid characters in namespace entry | `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error |
-| `namespaces` is not an array or contains non-strings | `MIST_GLOBAL_USING_INVALID_FORMAT` | Error |
-| Duplicate namespace entry | `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning |
+| `[global_usings]` missing `namespaces` field | `MIST0079` | Error |
+| Empty or whitespace namespace entry | `MIST0080` | Error |
+| Invalid characters in namespace entry | `MIST0081` | Error |
+| `namespaces` is not an array or contains non-strings | `MIST0077` or `MIST0078` | Error |
+| Duplicate namespace entry | `MIST0082` | Warning |
+| `diagnostics` is not a table, or a `[diagnostics]` key or value is invalid | `MIST0103`, `MIST0104`, `MIST0105` | Error |
+| A `[diagnostics]` entry names an unknown number, or switches a fixed or promotable diagnostic | `MIST0106`, `MIST0107` | Error |

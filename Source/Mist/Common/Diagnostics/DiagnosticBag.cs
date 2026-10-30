@@ -83,6 +83,11 @@ public sealed class DiagnosticBag
         Admit(DiagnosticFactory.Create(descriptor, location, Stage, arguments));
     }
 
+    public void ReportTyped(MistDiagnostic descriptor, Location location, ProviderCode provider, params ReadOnlySpan<SlotValue> arguments)
+    {
+        Admit(DiagnosticFactory.Create(descriptor, location, Stage, arguments, native: provider));
+    }
+
     public IReadOnlyList<Diagnostic> Admitted => diagnostics;
 
     public void Admit(Admission admission)

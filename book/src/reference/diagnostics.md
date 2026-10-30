@@ -462,6 +462,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0453 | Inspection type is not qualified | The command cannot proceed with this input. Correct the named argument or project setting and retry. | Error | Fixed | type: Name | None |
 | MIST0459 | Invalid generator project | The generator project declares an unsupported project type or library output. Declare source\_generator with executable output, or use regular for an ordinary project. | Error | Fixed | reason: Text | None |
 | MIST0460 | Invalid generator reference | A generator declaration has an invalid name, path or protocol option, or targets an ordinary project. Correct the declaration and declare generators separately from ordinary references. | Error | Fixed | name: Name, reason: Text | None |
+| MIST0465 | Source generator input missing | A declared input is absent. Restore the file or correct its path in the consumer manifest. | Error | Fixed | path: Path | None |
 
 ## DEP
 
@@ -484,6 +485,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0075 | Reference cycle | The graph of Mist, C# and assembly references contains a loop, shown as the chain of names, so the projects cannot be built in order. Remove one of the references in the chain. | Error | Fixed | chain: Sequence&lt;Name&gt;, referencingPath: Optional&lt;Path&gt;, target: Optional&lt;Name&gt; | None |
 | MIST0384 | Duplicate assembly name | Two projects in one compilation produce assemblies with the same name, and since a Mist program refers to an assembly by name, references between them would be ambiguous with no way to disambiguate. Give each project a unique assembly name. | Error | Fixed | name: Name | None |
 | MIST0461 | Source generator cycle | A dependency chain containing a generator edge returns to an active project. Remove an edge in the reported chain before building either project. | Error | Fixed | chain: Sequence&lt;Path&gt; | None |
+| MIST0464 | Source generator build failed | The generator project could not be compiled by this toolchain. Correct the separately reported generator diagnostics and retry the consumer build. | Error | Fixed | name: Name | None |
 
 ## IOX
 
@@ -509,6 +511,9 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0456 | Child process start failed | The command could not complete its file or process operation. Check the named resource and the operating system error before retrying. | Error | Fixed | executable: Name | None |
 | MIST0457 | Child process launch failed | The command could not complete its file or process operation. Check the named resource and the operating system error before retrying. | Error | Fixed | executable: Name, message: Text | None |
 | MIST0462 | Invalid generator output | The generator's output list does not describe a complete set of discoverable Mist sources within staging. Correct the generator to list each emitted source exactly once using safe relative paths. | Error | Fixed | path: Path, reason: Text | None |
+| MIST0463 | Source generator run failed | The generator failed to run or exceeded its limit. Correct the generator or its declared time limit before compiling the consumer. | Error | Fixed | name: Name, reason: Text | None |
+| MIST0466 | Source generator reported error | The generator reported an error through its diagnostic protocol. Correct the input at the reported location using the provider code for details. | Error | Fixed | message: Text | None |
+| MIST0467 | Source generator reported warning | The generator reported a warning through its diagnostic protocol. Review the input at the reported location; a closed build may promote this warning to an error. | Warning | Promotable | message: Text | None |
 
 ## ICE
 

@@ -8,7 +8,12 @@ internal sealed record DotnetInvocation(
     string Arguments,
     string WorkingDirectory,
     ImmutableDictionary<string, string> Environment,
-    TimeSpan Timeout);
+    TimeSpan Timeout)
+{
+    public bool CleanEnvironment { get; init; }
+
+    public ImmutableArray<string> ArgumentList { get; init; }
+}
 
 internal sealed record DotnetOutcome(int ExitCode, string Stdout, string Stderr, bool TimedOut);
 
@@ -28,6 +33,31 @@ internal static class DotnetProcess
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+
+        if(!invocation.ArgumentList.IsDefault)
+        {
+            psi.Arguments = "";
+            foreach(var argument in invocation.ArgumentList)
+            {
+                psi.ArgumentList.Add(argument);
+            }
+        }
+
+        if(invocation.CleanEnvironment)
+        {
+            var path = Environment.GetEnvironmentVariable("PATH");
+            var runtimeRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+            psi.Environment.Clear();
+            if(path is not null)
+            {
+                psi.Environment["PATH"] = path;
+            }
+
+            if(runtimeRoot is not null)
+            {
+                psi.Environment["DOTNET_ROOT"] = runtimeRoot;
+            }
+        }
 
         foreach(var (name, value) in invocation.Environment)
         {

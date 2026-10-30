@@ -6,7 +6,7 @@ namespace Mist.Common.Diagnostics;
 /// Diagnostic descriptors for the compiler driver, project file parsing,
 /// and related infrastructure (loading, package/framework resolution, csproj properties).
 /// </summary>
-public static class DriverDiagnostics
+public static partial class DriverDiagnostics
 {
     // ── Project file diagnostics ─────────────────────────────────────────
 
@@ -266,46 +266,6 @@ public static class DriverDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name), new Slot("directory", SlotKind.Path), new Slot("candidates", SlotKind.Sequence, SlotKind.Path)]);
-
-    public static readonly MistDiagnostic GeneratorProjectInvalid = new(
-        DiagnosticNumber.Mint("MIST0459"),
-        Title: "Invalid generator project",
-        Template: "Invalid source-generator project: {reason}.",
-        Description: "The generator project declares an unsupported project type or library output. Declare source_generator with executable output, or use regular for an ordinary project.",
-        Category: DiagnosticCategory.Cfg,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("reason", SlotKind.Text)]);
-
-    public static readonly MistDiagnostic GeneratorReferenceInvalid = new(
-        DiagnosticNumber.Mint("MIST0460"),
-        Title: "Invalid generator reference",
-        Template: "Invalid source-generator reference '{name}': {reason}.",
-        Description: "A generator declaration has an invalid name, path or protocol option, or targets an ordinary project. Correct the declaration and declare generators separately from ordinary references.",
-        Category: DiagnosticCategory.Cfg,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("name", SlotKind.Name), new Slot("reason", SlotKind.Text)]);
-
-    public static readonly MistDiagnostic GeneratorCycle = new(
-        DiagnosticNumber.Mint("MIST0461"),
-        Title: "Source generator cycle",
-        Template: "Source-generator dependency cycle: {chain}.",
-        Description: "A dependency chain containing a generator edge returns to an active project. Remove an edge in the reported chain before building either project.",
-        Category: DiagnosticCategory.Dep,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("chain", SlotKind.Sequence, SlotKind.Path)]);
-
-    public static readonly MistDiagnostic GeneratorOutputInvalid = new(
-        DiagnosticNumber.Mint("MIST0462"),
-        Title: "Invalid generator output",
-        Template: "Invalid source-generator output '{path}': {reason}.",
-        Description: "The generator's output list does not describe a complete set of discoverable Mist sources within staging. Correct the generator to list each emitted source exactly once using safe relative paths.",
-        Category: DiagnosticCategory.Iox,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("path", SlotKind.Path), new Slot("reason", SlotKind.Text)]);
 
     public static readonly MistDiagnostic CSharpProjectBuildFailed = new(
         DiagnosticNumber.Mint("MIST0074"),

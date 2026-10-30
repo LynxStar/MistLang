@@ -470,5 +470,10 @@ internal static class TextFreezeTable
         ["DriverDiagnostics.GeneratorReferenceInvalid"] = "Invalid source-generator reference 'arg0': arg1.",
         ["DriverDiagnostics.GeneratorCycle"] = "Source-generator dependency cycle: arg0.",
         ["DriverDiagnostics.GeneratorOutputInvalid"] = "Invalid source-generator output 'arg0': arg1.",
+        ["DriverDiagnostics.GeneratorRunFailed"] = "Source generator 'arg0' failed: arg1.",
+        ["DriverDiagnostics.GeneratorBuildFailed"] = "Source generator 'arg0' did not compile.",
+        ["DriverDiagnostics.GeneratorInputNotFound"] = "Source-generator input 'arg0' does not exist.",
+        ["DriverDiagnostics.GeneratorReportedError"] = "arg0",
+        ["DriverDiagnostics.GeneratorReportedWarning"] = "arg0",
     };
 }

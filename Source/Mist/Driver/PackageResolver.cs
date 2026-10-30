@@ -16,9 +16,10 @@ namespace Mist.Driver;
 public static class PackageResolver
 {
     /// <summary>
-    /// The standard NuGet global packages folder (~/.nuget/packages/).
+    /// The standard NuGet global packages folder (~/.nuget/packages/), read only for an assets file that names
+    /// neither its package folders nor its restore packages path.
     /// </summary>
-    private static readonly string GlobalPackagesFolder =
+    private static readonly string DefaultPackagesFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
 
     /// <summary>
@@ -387,6 +388,7 @@ public static class PackageResolver
             }
 
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var packageFolders = PackageAssets.PackageFolders(doc.RootElement, DefaultPackagesFolder);
 
             // Parse the "targets" section to get resolved libraries and their assemblies.
             var targetEntry = PackageAssets.Target(doc.RootElement, targetFramework);
@@ -411,6 +413,8 @@ public static class PackageResolver
                     {
                         continue;
                     }
+
+                    var packageDirectory = PackageAssets.PackageDirectory(doc.RootElement, packageFolders, library.Name);
 
                     // Extract compile-time assemblies from "compile" property
                     string? selectedTfm = null;
@@ -444,11 +448,8 @@ public static class PackageResolver
                                 continue;
                             }
 
-                            // Resolve to full path in global packages folder
                             var fullPath = Path.Combine(
-                                GlobalPackagesFolder,
-                                packageName.ToLowerInvariant(),
-                                packageVersion.ToLowerInvariant(),
+                                packageDirectory,
                                 assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
                             if(File.Exists(fullPath))
@@ -487,9 +488,7 @@ public static class PackageResolver
                             }
 
                             var fullPath = Path.Combine(
-                                GlobalPackagesFolder,
-                                packageName.ToLowerInvariant(),
-                                packageVersion.ToLowerInvariant(),
+                                packageDirectory,
                                 assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
 
                             if(File.Exists(fullPath))
@@ -545,7 +544,7 @@ public static class PackageResolver
 
             return result with
             {
-                RuntimeAssets = PackageAssets.SelectRuntimeAssets(doc.RootElement, targetFramework, GlobalPackagesFolder, order),
+                RuntimeAssets = PackageAssets.SelectRuntimeAssets(doc.RootElement, targetFramework, packageFolders, order),
                 RuntimeIdentifierGraph = graph,
             };
         }

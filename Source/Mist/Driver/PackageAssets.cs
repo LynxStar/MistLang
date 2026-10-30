@@ -42,6 +42,37 @@ internal static class PackageAssets
         return framework is { } found ? Text(found, "runtimeIdentifierGraphPath") : null;
     }
 
+    public static ImmutableArray<string> PackageFolders(JsonElement root, string defaultFolder)
+    {
+        if(Property(root, "packageFolders") is { ValueKind: JsonValueKind.Object } folders
+            && folders.EnumerateObject().Select(folder => folder.Name).ToImmutableArray() is { IsEmpty: false } named)
+        {
+            return named;
+        }
+
+        return Property(root, "project") is { } project
+            && Property(project, "restore") is { } restore
+            && Text(restore, "packagesPath") is { } packagesPath
+            ? [packagesPath]
+            : [defaultFolder];
+    }
+
+    /// <summary>
+    /// Restore extracts into the first folder and reads the rest as fallback folders, recording only that each
+    /// package was found in one of them, so a package's directory is the first folder that holds it.
+    /// </summary>
+    public static string PackageDirectory(JsonElement root, ImmutableArray<string> packageFolders, string library)
+    {
+        var relative = (Property(root, "libraries") is { } libraries && Property(libraries, library) is { } entry
+            ? Text(entry, "path")
+            : null) ?? library.ToLowerInvariant();
+        var directories = packageFolders
+            .Select(folder => Path.Combine(folder, relative.Replace('/', Path.DirectorySeparatorChar)))
+            .ToImmutableArray();
+
+        return directories.Length == 1 ? directories[0] : directories.FirstOrDefault(Directory.Exists) ?? directories[0];
+    }
+
     public static ImmutableArray<RuntimeAsset> RuntimeTargets(JsonElement library, string packageDirectory)
     {
         if(Property(library, "runtimeTargets") is not { ValueKind: JsonValueKind.Object } runtimeTargets)
@@ -67,7 +98,7 @@ internal static class PackageAssets
     public static ImmutableArray<RuntimeAsset> SelectRuntimeAssets(
         JsonElement root,
         string targetFramework,
-        string packagesFolder,
+        ImmutableArray<string> packageFolders,
         ImmutableArray<string> order)
     {
         if(Target(root, targetFramework) is not { ValueKind: JsonValueKind.Object } target)
@@ -84,7 +115,7 @@ internal static class PackageAssets
                 continue;
             }
 
-            var packageDirectory = Path.Combine(packagesFolder, parts[0].ToLowerInvariant(), parts[1].ToLowerInvariant());
+            var packageDirectory = PackageDirectory(root, packageFolders, library.Name);
             selected.AddRange(RuntimeAssetSelection.Select(RuntimeTargets(library.Value, packageDirectory), order));
         }
 

@@ -75,6 +75,57 @@ public sealed class PackageAssetsParsingTests
     }
 
     [Fact]
+    public void ThePackageFolders_AreTheRestoresOwn_InTheirRecordedOrder()
+    {
+        using var document = JsonDocument.Parse("""
+            {
+              "packageFolders": { "/isolated/nuget/": {}, "/fallback/": {} },
+              "project": { "restore": { "packagesPath": "/isolated/nuget/" } }
+            }
+            """);
+
+        Assert.Equal<string>(["/isolated/nuget/", "/fallback/"], PackageAssets.PackageFolders(document.RootElement, Packages));
+    }
+
+    [Fact]
+    public void WithoutPackageFolders_TheRestorePackagesPathIsTheFolder()
+    {
+        using var document = JsonDocument.Parse("""{ "project": { "restore": { "packagesPath": "/isolated/nuget/" } } }""");
+
+        Assert.Equal<string>(["/isolated/nuget/"], PackageAssets.PackageFolders(document.RootElement, Packages));
+    }
+
+    [Fact]
+    public void AnAssetsFileNamingNoFolder_UsesTheDefaultFolder()
+    {
+        using var document = JsonDocument.Parse("""{ "packageFolders": {}, "project": { "restore": {} } }""");
+
+        Assert.Equal<string>([Packages], PackageAssets.PackageFolders(document.RootElement, Packages));
+    }
+
+    [Fact]
+    public void APackageDirectory_FollowsTheLibraryPathTheRestoreRecorded()
+    {
+        using var document = JsonDocument.Parse("""
+            { "libraries": { "Some.Managed/1.0.0-Beta": { "type": "package", "path": "some.managed/1.0.0-beta.1" } } }
+            """);
+
+        Assert.Equal(
+            InPackage("some.managed", "1.0.0-beta.1"),
+            PackageAssets.PackageDirectory(document.RootElement, [Packages], "Some.Managed/1.0.0-Beta"));
+    }
+
+    [Fact]
+    public void APackageDirectory_WithoutARecordedLibraryPath_IsTheLowercasedLibraryKey()
+    {
+        using var document = JsonDocument.Parse(Assets);
+
+        Assert.Equal(
+            InPackage("some.managed", "1.0.0-beta"),
+            PackageAssets.PackageDirectory(document.RootElement, [Packages], "Some.Managed/1.0.0-Beta"));
+    }
+
+    [Fact]
     public void EachRuntimeTarget_BecomesAnAssetUnderThePackageDirectory()
     {
         using var document = JsonDocument.Parse(Assets);
@@ -121,7 +172,7 @@ public sealed class PackageAssetsParsingTests
     {
         using var document = JsonDocument.Parse(Assets);
 
-        var selected = PackageAssets.SelectRuntimeAssets(document.RootElement, "net10.0", Packages, OsxArm64);
+        var selected = PackageAssets.SelectRuntimeAssets(document.RootElement, "net10.0", [Packages], OsxArm64);
 
         Assert.Equal<RuntimeAsset>(
             [
@@ -143,7 +194,7 @@ public sealed class PackageAssetsParsingTests
             }
             """);
 
-        var asset = Assert.Single(PackageAssets.SelectRuntimeAssets(document.RootElement, "net10.0", Packages, OsxArm64));
+        var asset = Assert.Single(PackageAssets.SelectRuntimeAssets(document.RootElement, "net10.0", [Packages], OsxArm64));
 
         Assert.Equal(InPackage("a", "1.0.0", "runtimes", "osx", "native", "new.dylib"), asset.Path);
     }

@@ -287,6 +287,26 @@ public static class DriverDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name), new Slot("reason", SlotKind.Text)]);
 
+    public static readonly MistDiagnostic GeneratorCycle = new(
+        DiagnosticNumber.Mint("MIST0461"),
+        Title: "Source generator cycle",
+        Template: "Source-generator dependency cycle: {chain}.",
+        Description: "A dependency chain containing a generator edge returns to an active project. Remove an edge in the reported chain before building either project.",
+        Category: DiagnosticCategory.Dep,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("chain", SlotKind.Sequence, SlotKind.Path)]);
+
+    public static readonly MistDiagnostic GeneratorOutputInvalid = new(
+        DiagnosticNumber.Mint("MIST0462"),
+        Title: "Invalid generator output",
+        Template: "Invalid source-generator output '{path}': {reason}.",
+        Description: "The generator's output list does not describe a complete set of discoverable Mist sources within staging. Correct the generator to list each emitted source exactly once using safe relative paths.",
+        Category: DiagnosticCategory.Iox,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("path", SlotKind.Path), new Slot("reason", SlotKind.Text)]);
+
     public static readonly MistDiagnostic CSharpProjectBuildFailed = new(
         DiagnosticNumber.Mint("MIST0074"),
         Title: "C# project build failed",

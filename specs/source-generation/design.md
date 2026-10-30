@@ -326,12 +326,13 @@ and reported by `GeneratorSeedUsed`.
 
 ### 2. The graph
 
-`GeneratorGraph` walks generator edges only. For each project it loads, it records the generator projects
-it names and visits them first; a generator's own `[references]` are compiled into it by the ordinary
-driver when the generator is compiled, so the graph never loads an ordinary reference's manifest and never
-sees a C# project or an assembly. A cycle through any mix of edges is still found, because a generator that
-references its consumer is visited through the consumer's generator edge and then reaches the consumer
-again through its own reference. Ordinary-only cycles stay `ProjectReferenceResolver`'s `MIST0064`.
+`GeneratorGraph` loads generator edges only. The ordinary resolver supplies the already-resolved Mist
+configurations for each consumer and generator; the graph visits those known edges to order transitive
+consumers and detect mixed cycles before compiling or running anything. It never loads an ordinary
+reference's manifest itself and never parses a C# project or assembly. Ordinary-only cycles, name
+matching, missing manifests and external-reference classification remain `ProjectReferenceResolver`'s.
+This shared graph resolves the generator-only traversal conflict under the operator's clarification in
+run `6ac521f4-16cc-4f50-8a13-3ebf9c5d7843`.
 
 ### 3. Compiling the generator
 

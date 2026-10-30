@@ -483,6 +483,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0074 | C# project build failed | A referenced .csproj had to be built to obtain its assembly, and the dotnet build did not succeed; the trailing text is the build output. Fix the errors in that C# project, or reference its already-built .dll instead. | Error | Fixed | path: Path, name: Name, message: Text | None |
 | MIST0075 | Reference cycle | The graph of Mist, C# and assembly references contains a loop, shown as the chain of names, so the projects cannot be built in order. Remove one of the references in the chain. | Error | Fixed | chain: Sequence&lt;Name&gt;, referencingPath: Optional&lt;Path&gt;, target: Optional&lt;Name&gt; | None |
 | MIST0384 | Duplicate assembly name | Two projects in one compilation produce assemblies with the same name, and since a Mist program refers to an assembly by name, references between them would be ambiguous with no way to disambiguate. Give each project a unique assembly name. | Error | Fixed | name: Name | None |
+| MIST0461 | Source generator cycle | A dependency chain containing a generator edge returns to an active project. Remove an edge in the reported chain before building either project. | Error | Fixed | chain: Sequence&lt;Path&gt; | None |
 
 ## IOX
 
@@ -507,6 +508,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0455 | Inspection type not projected | The command could not complete its file or process operation. Check the named resource and the operating system error before retrying. | Error | Fixed | type: Name | None |
 | MIST0456 | Child process start failed | The command could not complete its file or process operation. Check the named resource and the operating system error before retrying. | Error | Fixed | executable: Name | None |
 | MIST0457 | Child process launch failed | The command could not complete its file or process operation. Check the named resource and the operating system error before retrying. | Error | Fixed | executable: Name, message: Text | None |
+| MIST0462 | Invalid generator output | The generator's output list does not describe a complete set of discoverable Mist sources within staging. Correct the generator to list each emitted source exactly once using safe relative paths. | Error | Fixed | path: Path, reason: Text | None |
 
 ## ICE
 

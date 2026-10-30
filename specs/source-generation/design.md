@@ -220,7 +220,7 @@ gives it the one shape in which it may be used: declared, attributed and reporte
    the Provenance_Record as a Seed. It may unblock SE-05 and the consumer side of SH-003 to SH-006 before
    SC-001 to SC-004 land. It is never completion.
 3. **Pre_Generated_Sources** are a captured output set with its Provenance_Record, consumed only through the
-   explicit declaration of Requirement 6.3 and reported by `MIST_GENERATOR_SEED_USED`. They may unblock a
+   explicit declaration of Requirement 6.3 and reported by `GeneratorSeedUsed`. They may unblock a
    consumer before any generator runs. They are never completion.
 4. **Removal criterion.** A build is closed when no manifest in it declares a Stage_Zero_Tool or
    Pre_Generated_Sources, every Frontend_Artifact was produced in that build by a generator compiled from
@@ -244,7 +244,7 @@ For option B, the recommended design.
 | `OutputListValidation` | `Source/Mist/Driver/Generators/OutputListValidation.cs` | Pure: the refusals of Requirement 3.2 over the listed and the actual relative paths. |
 | `GeneratorHost` | `Source/Mist/Driver/Generators/GeneratorHost.cs` | Compiles, runs, validates and publishes; takes an injectable runner like `CSharpProjectBuilder`. |
 | `GeneratorCache` | `Source/Mist/Driver/Generators/GeneratorCache.cs` | Content-addressed store under the cache root; Provenance_Record read and write; atomic publish; waiting locks. |
-| `GeneratorDiagnostics` | `Source/Mist/Common/Diagnostics/Descriptors/DriverDiagnostics.cs` | The descriptors of Requirement 4.3, in the existing registry class. |
+| Generator descriptors | `Source/Mist/Common/Diagnostics/Descriptors/DriverDiagnostics.cs` | The ten Descriptors of Requirement 4.3, beside `CSharpProjectBuildFailed`. |
 
 ### Modified
 
@@ -315,14 +315,14 @@ StormMist = { path = "../../Storm/StormMist",
 ```
 
 `project_type` defaults to `regular`. A generator is an executable; `output_type = "library"` is
-`MIST_GENERATOR_PROJECT_INVALID`. Paths resolve against the declaring manifest exactly as `[references]`
+`GeneratorProjectInvalid`. Paths resolve against the declaring manifest exactly as `[references]`
 paths do (`named-references`). A `[references]` entry whose target is a generator is
-`MIST_GENERATOR_REFERENCE_INVALID`, as is a `[source_generators]` entry whose target is not one. The names
+`GeneratorReferenceInvalid`, as is a `[source_generators]` entry whose target is not one. The names
 `project_type` and `source_generators` are proposals for the Decision; the spike used them.
 
 A Stage_Zero_Tool is declared in the same table with `seed = true`, which marks every Run's
 Provenance_Record. Pre_Generated_Sources are declared as `seed_sources = { path = "...", provenance = "..." }`
-and reported by `MIST_GENERATOR_SEED_USED`.
+and reported by `GeneratorSeedUsed`.
 
 ### 2. The graph
 
@@ -331,16 +331,16 @@ it names and visits them first; a generator's own `[references]` are compiled in
 driver when the generator is compiled, so the graph never loads an ordinary reference's manifest and never
 sees a C# project or an assembly. A cycle through any mix of edges is still found, because a generator that
 references its consumer is visited through the consumer's generator edge and then reaches the consumer
-again through its own reference. Ordinary-only cycles stay `ProjectReferenceResolver`'s
-`MIST_PROJECT_CIRCULAR_REFERENCE`.
+again through its own reference. Ordinary-only cycles stay `ProjectReferenceResolver`'s `MIST0064`.
 
 ### 3. Compiling the generator
 
 The host compiles a generator with the same driver, into the cache under its compile key, for the host
 runtime, with no `--rid` or `--platform` from the consumer. The emitted C# is compiled in process by
 Roslyn, deterministic, so the DLL hash in the run key is stable across rebuilds: the spike measured a
-byte-identical rebuild. A generator that fails to compile is `MIST_GENERATOR_BUILD_FAILED` at the
-generator's manifest, with the first errors of its own diagnostics in the message.
+byte-identical rebuild. A generator that fails to compile is `GeneratorBuildFailed` at the
+generator's manifest. The generator's own diagnostics are reported as they are, at its sources, and never
+copied into a Slot (`diagnostics` Requirement 7.8).
 
 ### 4. Running the generator: the protocol
 
@@ -356,8 +356,8 @@ with the staging directory as working directory and a clean environment plus `MI
 generator reads `request.txt`, resolves imports among the listed files only, writes its `.mist` outputs
 under `staging/`, lists them in `staging/outputs.txt`, one relative path per line, and writes
 `staging/diagnostics.txt`, one line per diagnostic in the unified text form. Exit zero means the list is
-complete. The host validates the list (Requirement 3.2), reports every diagnostic through the bag and fails
-on any error among them, then publishes.
+complete. The host validates the list (Requirement 3.2), reports every diagnostic through the bag under the
+wrappers of Requirement 4.2 and fails on any error among them, then publishes.
 
 Copying the inputs is what makes the declared list complete by construction: a Storm import of a file that
 was not declared resolves to a path that does not exist in `staging/inputs/` and fails inside Storm with
@@ -395,11 +395,14 @@ the published result. Reuse never locks.
 
 ### 7. Diagnostics
 
-Generator diagnostics arrive as data (Detailed Design 4) and are reported with their own identifiers and
-locations. Host failures are the descriptors of Requirement 4.3, declared in `DriverDiagnostics` with
-templates and reported through `DiagnosticBag.Report` at the declaring manifest, never built inline from
-an exception message. When the `diagnostics` spec's numbered codes land, they are reissued like every other
-`MIST_` identifier.
+Generator diagnostics arrive as data (Detailed Design 4). Each line becomes an Occurrence of
+`GeneratorReportedError` or `GeneratorReportedWarning` at the line's file, line and column, with the
+generator's code as its Provider_Code, the way `RoslynDiagnosticAdapter` carries a Roslyn error under
+`MIST0003`. Host failures are the Descriptors of Requirement 4.3, declared in `DriverDiagnostics` beside
+`CSharpProjectBuildFailed` with named Slots, built through `DiagnosticFactory` at the declaring manifest,
+never from an exception message. Each new Descriptor takes the next Number under `diagnostics` Requirement
+1.4, adds its row to the Tier 1 text-freeze table, and the change regenerates the catalog with
+`tools/diagnostics/catalog.sh` so the staleness check passes.
 
 ### 8. CLI and placement
 
@@ -412,20 +415,20 @@ details, invisible under `--quiet`, and the generator's output is captured.
 
 | Situation | Where | Diagnostic |
 |---|---|---|
-| `project_type = "source_generator"` with `output_type = "library"` | parser | `MIST_GENERATOR_PROJECT_INVALID` |
-| `[source_generators]` entry without `path` or `inputs`, or an empty `inputs` | parser | `MIST_GENERATOR_REFERENCE_INVALID` |
-| `[references]` entry naming a generator project | host, at the declaring manifest | `MIST_GENERATOR_REFERENCE_INVALID` |
-| `[source_generators]` entry naming a regular project | host | `MIST_GENERATOR_REFERENCE_INVALID` |
-| a Declared_Input missing | host | `MIST_GENERATOR_INPUT_NOT_FOUND` |
-| consumer → generator → consumer, generator → itself | host, before any compile | `MIST_GENERATOR_CYCLE` |
-| ordinary-only cycle | resolver | `MIST_PROJECT_CIRCULAR_REFERENCE` |
-| generator fails to compile | host, at the generator's manifest | `MIST_GENERATOR_BUILD_FAILED` |
-| nonzero exit or time limit | host | `MIST_GENERATOR_RUN_FAILED` |
-| output list empty, duplicate, escaping, missing, unlisted, under `out`/`bin`/marker | host | `MIST_GENERATOR_OUTPUT_INVALID` |
-| error in `diagnostics.txt` | host, re-reported with the generator's own identifier and location | the generator's |
-| synthesized name over 128 characters | host | `MIST_GENERATOR_REFERENCE_INVALID` |
-| Pre_Generated_Sources consumed | host | `MIST_GENERATOR_SEED_USED` (warning) |
-| concurrent builder holds the lock past the limit | host | `MIST_GENERATOR_RUN_FAILED` |
+| `project_type = "source_generator"` with `output_type = "library"` | parser | `GeneratorProjectInvalid` |
+| `[source_generators]` entry without `path` or `inputs`, or an empty `inputs` | parser | `GeneratorReferenceInvalid` |
+| `[references]` entry naming a generator project | host, at the declaring manifest | `GeneratorReferenceInvalid` |
+| `[source_generators]` entry naming a regular project | host | `GeneratorReferenceInvalid` |
+| a Declared_Input missing | host | `GeneratorInputNotFound` |
+| consumer → generator → consumer, generator → itself | host, before any compile | `GeneratorCycle` |
+| ordinary-only cycle | resolver | `MIST0064` |
+| generator fails to compile | host, at the generator's manifest | `GeneratorBuildFailed` |
+| nonzero exit or time limit | host | `GeneratorRunFailed` |
+| output list empty, duplicate, escaping, missing, unlisted, under `out`/`bin`/marker | host | `GeneratorOutputInvalid` |
+| a line in `diagnostics.txt` | host, at the line's location, the generator's code as Provider_Code | `GeneratorReportedError` or `GeneratorReportedWarning` |
+| synthesized name over 128 characters | host | `GeneratorReferenceInvalid` |
+| Pre_Generated_Sources consumed | host | `GeneratorSeedUsed` (warning) |
+| concurrent builder holds the lock past the limit | host | `GeneratorRunFailed` |
 
 ## Correctness Properties
 

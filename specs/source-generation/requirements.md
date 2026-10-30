@@ -174,29 +174,35 @@ host failure to name what was wrong, so that generation failures are diagnosed l
 1. THE protocol between host and generator SHALL carry diagnostics as data, not prose: a file beside the
    output list holding one diagnostic per line in the text form of `unified-diagnostic-formatting`
    Requirement 5, `<file>(<line>,<column>): <severity> <id>: <message>`, so that Storm's own codes
-   (`STORM0001` to `STORM0025` today) reach the user unchanged with their locations.
+   (`STORM0001` to `STORM0025` today) reach the user unchanged, as Provider_Codes, with their locations.
 2. THE Generator_Host SHALL report each diagnostic the generator wrote through the Compiler_Driver's
-   diagnostic bag, and an error among them SHALL fail the build even when the generator exited zero.
-3. THE Generator_Host SHALL report its own failures through descriptors declared in `DriverDiagnostics`,
-   one per situation, with a message template and no exception text, reissued as numbered codes when
-   `diagnostics` Requirement 1 lands:
+   diagnostic bag as an Occurrence of `GeneratorReportedError` or `GeneratorReportedWarning`, chosen by the
+   line's severity, carrying the generator's code as a Provider_Code qualified by the generator's name and
+   its message unparsed in the wrapper's single `Text` Slot (`diagnostics` Requirements 1.8 and 7.11). An
+   error among them SHALL fail the build even when the generator exited zero.
+3. THE Generator_Host SHALL report its own failures, and wrap the generator's, through Descriptors in the
+   `diagnostics` Registry, one per situation, each with its own Number allocated under `diagnostics`
+   Requirement 1.4, the fields of its Requirement 2, named Slots and no exception text. A field name below
+   stands for the Number it receives; no `MIST_` spelling is emitted (`diagnostics` Requirement 1.10):
 
-   | Identifier | Reported when |
-   |---|---|
-   | `MIST_GENERATOR_PROJECT_INVALID` | a generator project declares a type or output the host does not accept (5.1) |
-   | `MIST_GENERATOR_REFERENCE_INVALID` | a Generator_Reference is malformed or names a project that is not a generator (5.2, 5.3) |
-   | `MIST_GENERATOR_INPUT_NOT_FOUND` | a Declared_Input does not exist |
-   | `MIST_GENERATOR_CYCLE` | a generator edge closes a cycle (5.5) |
-   | `MIST_GENERATOR_BUILD_FAILED` | the generator project did not compile |
-   | `MIST_GENERATOR_RUN_FAILED` | the generator exited nonzero or timed out (3.3) |
-   | `MIST_GENERATOR_OUTPUT_INVALID` | the output list failed validation (3.2) |
-   | `MIST_GENERATOR_SEED_USED` | a build consumed Pre_Generated_Sources (6.3); a warning |
+   | Descriptor | Category | Reported when |
+   |---|---|---|
+   | `GeneratorProjectInvalid` | `CFG` | a generator project declares a type or output the host does not accept (5.1) |
+   | `GeneratorReferenceInvalid` | `CFG` | a Generator_Reference is malformed or names a project that is not a generator (5.2, 5.3) |
+   | `GeneratorInputNotFound` | `CFG` | a Declared_Input does not exist |
+   | `GeneratorCycle` | `DEP` | a generator edge closes a cycle (5.5) |
+   | `GeneratorBuildFailed` | `DEP` | the generator project did not compile |
+   | `GeneratorRunFailed` | `IOX` | the generator exited nonzero or timed out (3.3) |
+   | `GeneratorOutputInvalid` | `IOX` | the output list failed validation (3.2) |
+   | `GeneratorSeedUsed` | `CFG` | a build consumed Pre_Generated_Sources (6.3); a `Promotable` warning, so a closed build can raise it to an error |
+   | `GeneratorReportedError` | `IOX` | the generator wrote an `error` line (4.2) |
+   | `GeneratorReportedWarning` | `IOX` | the generator wrote a `warning` line (4.2); `Promotable` |
 
 4. Each host diagnostic SHALL be located at the manifest that declares the thing at fault: the Consumer's
    `mist.toml` for a Generator_Reference, its inputs and its Run; the generator's `mist.toml` for its own
    configuration and build.
 5. THE Generator_Host SHALL NOT judge ordinary `[references]` edges. Name matching, cycles and missing
-   manifests for those edges remain `ProjectReferenceResolver`'s, reported under its identifiers, and a
+   manifests for those edges remain `ProjectReferenceResolver`'s, reported under its Descriptors, and a
    reference of a kind other than a Mist project SHALL pass through the host untouched. The spike's graph
    walk parsed every referenced folder as a Mist manifest and refused every C# project and assembly
    reference on main.
@@ -243,7 +249,7 @@ identifiable and removable, so that self-hosting can be proven rather than asser
    SHALL count as transition only, never as completion.
 3. Pre_Generated_Sources MAY enter a Consumer only through an explicit declaration naming their
    Provenance_Record, never as ordinary sources under Source_Discovery, and THE Generator_Host SHALL report
-   `MIST_GENERATOR_SEED_USED` naming them, so that a build that used none can prove it from its diagnostics.
+   `GeneratorSeedUsed` naming them, so that a build that used none can prove it from its diagnostics.
 4. A build is Seed-free, and the Later_Stage_Graph closed, WHEN its manifests declare no Stage_Zero_Tool and
    no Pre_Generated_Sources, every Frontend_Artifact in it was produced in that build by a Storm_Generator
    compiled from Mist sources by Generation N, and the Provenance_Record of every Run names only
@@ -282,7 +288,7 @@ assigns, so that no rule is covered only by a manual probe.
 2. Output-list validation SHALL be a pure function over the listed and the actual relative paths, proven at
    Tier 1 over every refusal of Requirement 3.2.
 3. Manifest refusals of Requirement 5 SHALL be proven at Tier 1 over in-memory TOML tables, one case per
-   identifier of Requirement 4.3 that the parser reports.
+   Descriptor of Requirement 4.3 that the parser reports.
 4. Generator graph ordering and cycle refusal SHALL be proven at Tier 2 over hand-built configurations with
    stubbed loaders, including a diamond, a shared generator and a generator with its own generator.
 5. The host's process seam SHALL take an injectable runner, as `CSharpProjectBuilder` does, so that compile,

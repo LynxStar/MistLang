@@ -246,6 +246,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.ConflictingDiscipline"] = "'arg0' cannot be both arg1 and 'owned': arg2.",
         ["ProgramAnalysisDiagnostics.FieldDisciplineContainment"] = "arg0 type 'arg1' cannot contain arg2 field 'arg3': arg4.",
         ["ProgramAnalysisDiagnostics.FieldTypeParameterUnconstrained"] = "arg0 type 'arg1' contains field 'arg2' of unconstrained type parameter 'arg3'. Add a substructural constraint, such as 'where arg3 : arg4'.",
+        ["ProgramAnalysisDiagnostics.ArrayElementDiscipline"] = "An array cannot hold arg0 elements of type 'arg1': an array has no substructural discipline and cannot guarantee its elements' drops.",
         ["ProgramAnalysisDiagnostics.RefOnClass"] = "The 'ref' modifier is only valid on struct declarations; 'arg0' is a class.",
         ["ProgramAnalysisDiagnostics.RefStructField"] = "Ref struct 'arg0' cannot be a field of 'arg1', which is not a ref struct.",
         ["ProgramAnalysisDiagnostics.RefStructTypeArgument"] = "Ref struct 'arg0' cannot be a type argument.",

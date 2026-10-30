@@ -18,8 +18,10 @@ do during the transition and the criterion that removes them, and ends with a re
 questions the Decision MIST-1046 must settle. The choice itself is the owner's; nothing here is implemented
 under this task.
 
-The requirements below bind whichever capability the Decision records. They were written against an
-executed probe: the native source generator spike of 2026-10-29 (branch `spike/native-source-generators`,
+The owner recorded the decision on 2026-10-30 (MIST-1046): option B, the build-chain reference, with a
+shared NuGet-style cache; the design's decision register holds the twelve settled points. The requirements
+below were written to bind whichever capability the Decision recorded and now bind that one. They were
+written against an executed probe: the native source generator spike of 2026-10-29 (branch `spike/native-source-generators`,
 commit `26b4f30e`, reviewed and re-executed against main `87f8f3f8`), whose measurements and defects are
 recorded as a finding on MIST-1045 dated 2026-10-30. Where a requirement closes a defect that probe
 exposed, the design says so. This spec layers on `project-based-build-model`, `project-references`,
@@ -256,14 +258,16 @@ to live where it cannot pollute a source tree.
 #### Acceptance Criteria
 
 1. WHEN two builds compile or run the same generator at once, THE Generator_Host SHALL let one proceed and
-   make the other wait for its result, bounded by the time limit, and SHALL NOT fail a build for the
-   contention; a reuse of a published Run SHALL take no exclusive lock. The spike failed the second build
-   outright, even on a cache hit.
+   make the other wait on a per-key lock for its result, bounded by the time limit, re-check the cache when
+   the lock opens and reuse what was published, and SHALL NOT fail a build for the contention; a reuse of a
+   published Run SHALL take no exclusive lock. This is the shape NuGet gives its shared package folder. The
+   spike failed the second build outright, even on a cache hit.
 2. THE cache of compiled generators and published Runs SHALL live outside every project's source tree, at a
    location derived from the Toolchain_Identity and configurable for a hermetic build, so that a read-only
    generator folder can be used and nothing generated is ever committed by accident.
 3. THE CLI SHALL offer a way to remove the cache, and the Integrated_Build SHALL run against an empty one.
-4. Publication of a Run SHALL be atomic: a concurrent publisher of the same Staleness_Key SHALL find the
+4. Publication of a Run SHALL be atomic, with the Provenance_Record written last as the completion marker, so
+   that an entry without one is never reused; a concurrent publisher of the same Staleness_Key SHALL find the
    winner's Run and reuse it.
 
 ### Requirement 8: Verification

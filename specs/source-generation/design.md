@@ -495,9 +495,32 @@ matter of reading manifests and records rather than auditing a source tree. The 
 Stage_Zero_Tool of Detailed Design 1, swapped for the Mist-authored Storm by a manifest edit when SC-001 to
 SC-004 and SE-01 to SE-07 land.
 
+## Decision register
+
+The owner settled the following on 2026-10-30 (MIST-1046). Each row names the requirements that carry it.
+
+| Decision | Settled as | Requirements |
+|---|---|---|
+| D01 Capability | Option B: a build-chain reference. A generator is an executable Mist project; the consumer declares it with inputs and arguments; the toolchain compiles it, runs it, validates its output list and composes the outputs as a synthesized library reference. | 1, 3, 5 |
+| D02 Invocation point | Stage 1 of every project in the composition, beside C# reference builds, so `build`, `run`, `test` and `inspect` all obtain generated sources. | 1.4, 1.5 |
+| D03 Inputs, outputs, staleness | Declared inputs copied into the run's staging directory and passed by a request file; `.mist` outputs, an output list and a diagnostics file in the unified text form out; reuse only under the content key of Requirement 2, every cached file re-verified by hash, timestamps never in the key. | 2, 3, 4.1 |
+| D04 Seed during the transition | Generation 0 stays the C# compiler built with the Roslyn generator and builds generation 1 only. The C# Storm frontend may run as a stage-zero tool declared with `seed = true`; pre-generated sources enter only through `seed_sources` with a provenance record, and the build warns when it used them. | 6.1, 6.2, 6.3 |
+| D05 Removal criterion | A build is closed when no manifest declares a stage-zero tool or seed sources, every frontend artifact was produced in that build by a generator compiled from Mist sources by generation N, and every provenance record names only the grammar inputs, that generator and generation N's identity; SH-008 proves it with an empty cache across two generations. | 6.4 |
+| D06 Manifest spellings | `project_type = "source_generator"`, a `[source_generators]` table with `path`, `inputs`, `arguments` and `timeout_seconds`, `seed = true` on a stage-zero tool, and `seed_sources = { path, provenance }`. | 5 |
+| D07 Cache location | One shared cache under `MIST_CACHE_ROOT`, defaulting to the user's cache directory, keyed by toolchain identity, never inside a project. | 7.2, 7.3 |
+| D08 Concurrency | NuGet-style: the provenance record is written last as the completion marker, a miss takes a per-key lock, a second builder waits up to the time limit, re-checks when the lock opens and reuses what was published; reuse never locks. | 7.1, 7.4 |
+| D09 Diagnostics protocol | One unified-format line per diagnostic in a file beside the output list; warnings are reported and do not fail the build; an error fails it even on exit zero. | 4.1, 4.2 |
+| D10 Namespaces | Generated code declares its namespaces explicitly; the synthesized project does not lend the consumer's `namespace_root` to inferred namespaces. | 5, Detailed Design 5 |
+| D11 Package distribution | None: a generator is a project in the checkout. | 9.5 |
+| D12 The stage-zero tool | The C# Storm frontend run as a process speaking the generator protocol; generation 0's Roslyn output may be captured as declared seed sources for the first consumer builds, warned about like any seed. | 6.2, 6.3 |
+
+The implementation children are created under Self Hosting/Source Generation with this spec as their source
+reference.
+
 ## Open Items
 
-The questions the Decision MIST-1046 must settle, in the order the implementation needs them:
+Settled on 2026-10-30; see the decision register. The list below is kept as the record of what the
+investigation left open:
 
 1. **The capability.** Option B as recommended, or A, with the transition rule of this design in either
    case.

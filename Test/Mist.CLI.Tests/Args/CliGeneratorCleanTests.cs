@@ -20,6 +20,6 @@ public sealed class CliGeneratorCleanTests
     {
         var parsed = CliArgumentParser.Parse(["version", "--generators"]);
         Assert.Null(parsed.Arguments);
-        Assert.Same(Mist.Common.Diagnostics.CommandDiagnostics.UnknownFlag, Assert.Single(parsed.Errors).Descriptor);
+        Assert.Same(Common.Diagnostics.CommandDiagnostics.UnknownFlag, Assert.Single(parsed.Errors).Descriptor);
     }
 }

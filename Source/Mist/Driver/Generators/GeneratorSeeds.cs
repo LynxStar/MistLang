@@ -1,6 +1,5 @@
 using System.Text;
 using Mist.Common.Diagnostics;
-using Mist.Driver.Contracts;
 
 namespace Mist.Driver.Generators;
 
@@ -19,7 +18,7 @@ internal static class GeneratorSeeds
                 || GeneratorProvenance.Deserialize(Encoding.UTF8.GetString(files.Read(declaration.Provenance))) is not { } record
                 || record.Outputs.IsDefaultOrEmpty)
             {
-                return Invalid();
+                return invalid();
             }
 
             var actual = files.Files(declaration.Path)
@@ -27,7 +26,7 @@ internal static class GeneratorSeeds
                 .Select(path => Path.GetRelativePath(declaration.Path, path)).ToArray();
             if(OutputListValidation.Validate(record.Outputs.Select(output => output.Path), actual, []) is not null)
             {
-                return Invalid();
+                return invalid();
             }
 
             foreach(var output in record.Outputs)
@@ -35,7 +34,7 @@ internal static class GeneratorSeeds
                 var path = Path.Combine(declaration.Path, OutputListValidation.Normalize(output.Path));
                 if(!files.Exists(path) || GeneratorProvenance.Hash(files.Read(path)) != output.Sha256)
                 {
-                    return Invalid();
+                    return invalid();
                 }
             }
 
@@ -44,10 +43,10 @@ internal static class GeneratorSeeds
         }
         catch(Exception exception) when(exception is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return Invalid();
+            return invalid();
         }
 
-        CachedGeneration? Invalid()
+        CachedGeneration? invalid()
         {
             diagnostics.ReportTyped(DriverDiagnostics.GeneratorReferenceInvalid, new ProjectLocation(consumer.Manifest, null),
                 new NameValue("seed_sources"), new TextValue("provenance does not match the captured output set"));

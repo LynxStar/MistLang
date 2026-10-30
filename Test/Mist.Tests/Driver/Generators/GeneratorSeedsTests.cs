@@ -63,8 +63,11 @@ public sealed class GeneratorSeedsTests
     {
         var record = Record() with
         {
-            Inputs = [new ContentHash("grammar", "input-hash")], Arguments = ["one", "two"], SeedTool = true,
-            Files = [new ContentHash("request.txt", "request-hash")], ArtifactPath = "bin/G.dll"
+            Inputs = [new ContentHash("grammar", "input-hash")],
+            Arguments = ["one", "two"],
+            SeedTool = true,
+            Files = [new ContentHash("request.txt", "request-hash")],
+            ArtifactPath = "bin/G.dll"
         };
         var parsed = GeneratorProvenance.Deserialize(GeneratorProvenance.Serialize(record))!;
         Assert.Equal(record.ToolchainIdentity, parsed.ToolchainIdentity);

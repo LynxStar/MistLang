@@ -21,7 +21,7 @@ public sealed class GeneratorHostTests
         var invocation = Assert.Single(fixture.Invocations);
         Assert.True(invocation.CleanEnvironment);
         Assert.Equal(invocation.WorkingDirectory, invocation.Environment["MIST_GENERATOR_STAGING"]);
-        Assert.Single(invocation.Environment);
+        _ = Assert.Single(invocation.Environment);
         Assert.Equal(fixture.Request.Reference.TimeLimit, invocation.Timeout);
         var request = fixture.Files.Text(Path.Combine(invocation.WorkingDirectory, "request.txt")).Split('\n');
         Assert.Equal("one", fixture.Files.Text(request[0]));
@@ -46,7 +46,7 @@ public sealed class GeneratorHostTests
         var diagnostics = new DiagnosticBag();
         Assert.Null(fixture.Host.Prepare(changed, diagnostics));
         Assert.True(diagnostics.HasErrors);
-        Assert.Single(fixture.Cache.Entries, entry => entry.Key.StartsWith("runs", StringComparison.Ordinal));
+        _ = Assert.Single(fixture.Cache.Entries, entry => entry.Key.StartsWith("runs", StringComparison.Ordinal));
         Assert.Contains(previous!, fixture.Cache.Entries.Values);
         Assert.Same(mode is "list" or "protocol" ? DriverDiagnostics.GeneratorOutputInvalid : DriverDiagnostics.GeneratorRunFailed,
             Assert.Single(diagnostics.Admitted).Descriptor);
@@ -74,7 +74,7 @@ public sealed class GeneratorHostTests
             var warm = new DiagnosticBag();
             Assert.NotNull(fixture.Host.Prepare(fixture.Request, warm));
             Assert.Equal(diagnostic.Native, Assert.Single(warm.Admitted).Native);
-            Assert.Single(fixture.Invocations);
+            _ = Assert.Single(fixture.Invocations);
         }
     }
 

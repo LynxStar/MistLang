@@ -9,7 +9,6 @@ using Mist.CLI.Steering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
-using Mist.Driver.Generators;
 using Mist.Lexing;
 using Mist.Parsing;
 

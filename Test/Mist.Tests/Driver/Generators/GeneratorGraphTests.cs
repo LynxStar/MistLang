@@ -62,11 +62,14 @@ public sealed class GeneratorGraphTests
     {
         var ordinary = Node("Ordinary", [], []);
         var root = Node("Root", ["Ordinary"], []);
-        root = root with { Configuration = root.Configuration with
+        root = root with
         {
-            References = root.Configuration.References.Add(new ProjectReference("CSharp", "/CSharp.csproj", ReferenceKind.CSharpProject))
+            Configuration = root.Configuration with
+            {
+                References = root.Configuration.References.Add(new ProjectReference("CSharp", "/CSharp.csproj", ReferenceKind.CSharpProject))
                 .Add(new ProjectReference("Assembly", "/Assembly.dll", ReferenceKind.Assembly))
-        } };
+            }
+        };
         var bag = new DiagnosticBag();
         var order = GeneratorGraph.Order(root, _ => throw new InvalidOperationException("ordinary loader called"),
             node => node.Manifest == root.Manifest ? [ordinary] : [], bag);

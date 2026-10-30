@@ -12,7 +12,7 @@ internal static class GeneratorReferenceValidation
             if(reference.Kind == ReferenceKind.MistProject && configurations.TryGetValue(reference.Path, out var target)
                 && target.ProjectType == MistProjectType.SourceGenerator)
             {
-                Report(reference.Name, "source generators must use source_generators edges");
+                report(reference.Name, "source generators must use source_generators edges");
             }
         }
 
@@ -22,12 +22,12 @@ internal static class GeneratorReferenceValidation
             {
                 if(configurations.TryGetValue(reference.ProjectPath, out var target) && target.ProjectType != MistProjectType.SourceGenerator)
                 {
-                    Report(reference.Name, "target is not a source_generator project");
+                    report(reference.Name, "target is not a source_generator project");
                 }
             }
         }
 
-        void Report(string name, string reason)
+        void report(string name, string reason)
         {
             diagnostics.ReportTyped(DriverDiagnostics.GeneratorReferenceInvalid, new ProjectLocation(node.Manifest, null), new NameValue(name), new TextValue(reason));
         }

@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
 using Mist.Common.Diagnostics;
-using Mist.Driver.Contracts;
 
 namespace Mist.Driver.Generators;
 
@@ -51,6 +50,7 @@ internal sealed class GeneratorHost(
                 {
                     artifact = null;
                 }
+
                 if(artifact is null || diagnostics.HasErrors)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.GeneratorBuildFailed, new ProjectLocation(reference.ProjectPath, null), new NameValue(reference.Name));
@@ -79,7 +79,8 @@ internal sealed class GeneratorHost(
                 files.Write(Path.Combine(staging, "request.txt"), Encoding.UTF8.GetBytes(text));
                 var artifact = Path.Combine(compiled.Folder, compiled.Provenance.ArtifactPath!);
                 var outcome = run(new DotnetInvocation($"\"{artifact}\" \"{staging}\"", staging,
-                    ImmutableDictionary<string, string>.Empty.Add("MIST_GENERATOR_STAGING", staging), reference.TimeLimit) { CleanEnvironment = true, ArgumentList = [artifact, staging] });
+                    ImmutableDictionary<string, string>.Empty.Add("MIST_GENERATOR_STAGING", staging), reference.TimeLimit)
+                { CleanEnvironment = true, ArgumentList = [artifact, staging] });
                 reported = true;
                 if(!ReportMessages(staging, request, diagnostics))
                 {

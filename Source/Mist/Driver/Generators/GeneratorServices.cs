@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Driver.Contracts;
 
 namespace Mist.Driver.Generators;
 

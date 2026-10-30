@@ -18,7 +18,7 @@ internal static class GeneratorPreparation
         var resolutions = new Dictionary<string, ProjectReferenceResolution>(StringComparer.Ordinal) { [manifest] = ordinary };
         var configurations = ordinary.Projects.ToDictionary(project => project.CanonicalTomlPath, project => project.Configuration, StringComparer.Ordinal);
         configurations[manifest] = configuration;
-        var nodes = GeneratorGraph.Order(ForGraph(new GeneratorNode(manifest, configuration)), path =>
+        var nodes = GeneratorGraph.Order(forGraph(new GeneratorNode(manifest, configuration)), path =>
         {
             if(configurations.TryGetValue(path, out var known))
             {
@@ -54,7 +54,7 @@ internal static class GeneratorPreparation
                 configurations[project.CanonicalTomlPath] = project.Configuration;
             }
 
-            return resolution.Projects.Select(project => ForGraph(new GeneratorNode(project.CanonicalTomlPath, project.Configuration)));
+            return resolution.Projects.Select(project => forGraph(new GeneratorNode(project.CanonicalTomlPath, project.Configuration)));
         }, diagnostics);
         foreach(var node in nodes)
         {
@@ -66,7 +66,7 @@ internal static class GeneratorPreparation
             return overlay;
         }
 
-        GeneratorNode ForGraph(GeneratorNode node)
+        GeneratorNode forGraph(GeneratorNode node)
         {
             return overlay.ContainsKey(node.Manifest)
                 ? node with { Configuration = node.Configuration with { Generators = [] } } : node;

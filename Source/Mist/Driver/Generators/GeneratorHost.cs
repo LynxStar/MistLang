@@ -168,6 +168,7 @@ internal sealed class GeneratorHost(
 
     private static string Mirror(string path)
     {
-        return path.Replace(':', '_').TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var mirrored = OperatingSystem.IsWindows() ? path.Replace(':', '_') : path;
+        return mirrored.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 }

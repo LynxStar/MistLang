@@ -139,6 +139,31 @@ public sealed class GeneratorHostTests
         Assert.Equal(2, fixture.Invocations.Count);
     }
 
+    [Fact]
+    public void UnixInputNamesRemainDistinctInTheStagingCopy()
+    {
+        if(OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var fixture = new Fixture();
+        fixture.Files.Put("/consumer/a:b.txt", "colon");
+        fixture.Files.Put("/consumer/a_b.txt", "underscore");
+        var reference = fixture.Request.Reference with { Inputs = ["/consumer/a:b.txt", "/consumer/a_b.txt"] };
+        var request = fixture.Request with
+        {
+            Reference = reference,
+            Inputs = [.. reference.Inputs.Select(path => new ContentHash(path, GeneratorProvenance.Hash(fixture.Files.Read(path))))]
+        };
+        Assert.NotNull(fixture.Host.Prepare(request, new DiagnosticBag()));
+        var invocation = Assert.Single(fixture.Invocations);
+        var copied = fixture.Files.Text(Path.Combine(invocation.WorkingDirectory, "request.txt")).Split('\n');
+        Assert.NotEqual(copied[0], copied[1]);
+        Assert.Equal("colon", fixture.Files.Text(copied[0]));
+        Assert.Equal("underscore", fixture.Files.Text(copied[1]));
+    }
+
     private sealed class Fixture
     {
         public MemoryFiles Files { get; } = new();

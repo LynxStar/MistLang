@@ -1,5 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
@@ -13,6 +15,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </summary>
 internal static class ExtensionCalls
 {
+    public static bool NeedsNonNullReceiver(IMistType receiver, Method method)
+    {
+        // Mist's nonoptional receiver excludes absence even when C# cannot constrain the generic argument.
+        return TypeNameEmitter.Closed(receiver) is TypeParameter or PackElementType
+            && method.DeclaringBlock?.ResolvedReceiverType is UnknownType;
+    }
+
     public static string? Carrier(Method? method)
     {
         if(method is not { DeclaringBlock: { DeclarationNode: not null } block }

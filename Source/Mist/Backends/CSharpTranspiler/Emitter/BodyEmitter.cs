@@ -502,27 +502,6 @@ internal static partial class BodyEmitter
             : InvariantCulture.Text(RenderAt(operand, PostfixPrecedence, diagnostics), operand.Type);
     }
 
-    private static void EmitCarrierCall(
-        InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
-    {
-        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
-        writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
-        if(!call.Method.Modifiers.IsStatic)
-        {
-            EmitExpression(callee.Receiver, writer, diagnostics);
-
-            if(HasArguments(call.Arguments, call.Method.ParametersList)
-                || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type, call.ContextTypes).Count > 0)
-            {
-                writer.Append(", ");
-            }
-        }
-
-        EmitWitnesses(call, writer, diagnostics);
-        EmitArguments(call.Arguments, call.Method.ParametersList, call.ParameterTypes, writer, diagnostics, call.Method);
-        writer.Append(")");
-    }
-
     private static void EmitWitnesses(
         InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -2502,56 +2481,6 @@ internal static partial class BodyEmitter
 
         hoisted?.Add(new HoistedTest(
             RegexLowering.IsFullMatch(bound, RegexLowering.Quote(regex.Pattern))));
-    }
-
-    private static void EmitTuplePattern(
-        TuplePattern tuple, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
-    {
-        var (widthMissed, tested) = PackTuplePatterns.Lowering(tuple);
-
-        if(widthMissed)
-        {
-            writer.Append("(object and ");
-        }
-
-        if(tested is not null)
-        {
-            writer.Append(TypeNameEmitter.EmitAsPatternType(tested));
-        }
-
-        writer.Append("(");
-
-        for(var i = 0; i < tuple.Elements.Count; i++)
-        {
-            if(i > 0)
-            {
-                writer.Append(", ");
-            }
-
-            var element = tuple.Elements[i];
-
-            if(hoisted is not null && EnumVariantTested(element) is { } variant)
-            {
-                var bound = TemporaryName();
-                writer.Append($"var {bound}");
-                hoisted.Add(new HoistedTest($"{bound} == {Render(variant, diagnostics)}"));
-                continue;
-            }
-
-            EmitPattern(element, 0, hoisted, writer, diagnostics);
-        }
-
-        writer.Append(")");
-
-        if(tuple.Binding is { } whole)
-        {
-            writer.Append($" {LocalNames.Of(whole)}");
-        }
-
-        if(widthMissed)
-        {
-            writer.Append(")");
-        }
     }
 
     /// <summary>

@@ -1,7 +1,9 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
@@ -53,7 +55,10 @@ internal static class FieldEmitter
 
         if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
         {
-            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)};");
+            // Undecided generic storage retains CLR zero without granting a semantic default to its type.
+            var storageZero = field.Initializer is null && field.DeclaringType is ClassType
+                && Defaultability.IsUndecided(TypeNameEmitter.Closed(type)) ? " = default!" : "";
+            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)}{storageZero};");
             return;
         }
 

@@ -90,7 +90,9 @@ internal static class EnumEmitter
                     $"if(ReferenceEquals(this, {Q(type, member)})) return \"{member.Name}\";");
             }
 
-            writer.WriteLine($"return {InvariantCulture.ObjectText("Value", type.UnderlyingType!)};");
+            // Object.ToString's nullable CLR contract is weaker than Mist's nonoptional string result.
+            var proof = InvariantCulture.Fixes(type.UnderlyingType!) ? "!" : "";
+            writer.WriteLine($"return {InvariantCulture.ObjectText("Value", type.UnderlyingType!)}{proof};");
         }
     }
 

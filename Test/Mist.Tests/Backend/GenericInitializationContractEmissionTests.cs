@@ -167,7 +167,7 @@ public sealed class GenericInitializationContractEmissionTests
         ConstructorEmitter.Emit(constructor, type, writer, new DiagnosticBag());
         var emitted = Emit(type);
 
-        Assert.Contains("this.Value = default(Raw<T>).Value;", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("this.Value = default(Raw<T>).Value!;", writer.ToString(), StringComparison.Ordinal);
         Assert.Contains("int Mark = 7;", emitted, StringComparison.Ordinal);
         Assert.DoesNotContain("this.Mark =", writer.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("this = default", emitted, StringComparison.Ordinal);

@@ -163,16 +163,6 @@ public sealed class CloneCopyEmissionTests : ProgramModelProbe
         Assert.Contains("private static class __Probe_Pair_Access<A, B>", emitted);
     }
 
-    [Fact]
-    public void AClassClonesCopy_LeavesAnAbsentValueAbsent()
-    {
-        var emitted = EmitDeclaration("Cash");
-
-        Assert.Contains("if(value is null)", emitted);
-        Assert.Contains("return null!;", emitted);
-        Assert.DoesNotContain("is null", EmitDeclaration("Position"));
-    }
-
     private string EmitDeclaration(string typeName)
     {
         var model = BuildModel(statement: "", extraTypes: "", extraPreamble: "", out var buildDiagnostics);

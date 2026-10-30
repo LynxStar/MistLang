@@ -30,7 +30,7 @@ internal static class CloneCopyEmitter
 
             using(writer.Block())
             {
-                writer.WriteLine("return null!;");
+                writer.WriteLine("return null;");
             }
 
             writer.WriteBlankLine();

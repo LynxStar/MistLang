@@ -75,7 +75,7 @@ internal sealed class GeneratorHost(
                     files.Write(copied[i], snapshots[i]);
                 }
 
-                var text = string.Join('\n', copied) + "\n\n" + string.Join('\n', reference.Arguments);
+                var text = string.Join('\n', copied) + "\n\n" + string.Concat(reference.Arguments.Select(argument => argument + "\n"));
                 files.Write(Path.Combine(staging, "request.txt"), Encoding.UTF8.GetBytes(text));
                 var artifact = Path.Combine(compiled.Folder, compiled.Provenance.ArtifactPath!);
                 var outcome = run(new DotnetInvocation($"\"{artifact}\" \"{staging}\"", staging,

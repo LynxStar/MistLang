@@ -33,6 +33,39 @@ public sealed class GeneratorHostTests
     }
 
     [Theory]
+    [InlineData()]
+    [InlineData("")]
+    [InlineData("", "")]
+    [InlineData("value")]
+    [InlineData("", "value")]
+    [InlineData("first", "", "last")]
+    [InlineData("value", "")]
+    [InlineData("value", "", "")]
+    public void RequestProtocolPreservesEveryArgument(params string[] arguments)
+    {
+        var fixture = new Fixture();
+        var request = fixture.Request with { Reference = fixture.Request.Reference with { Arguments = [.. arguments] } };
+        Assert.NotNull(fixture.Host.Prepare(request, new DiagnosticBag()));
+        var invocation = Assert.Single(fixture.Invocations);
+        using var reader = new StringReader(fixture.Files.Text(Path.Combine(invocation.WorkingDirectory, "request.txt")));
+        foreach(var input in request.Reference.Inputs)
+        {
+            var copied = reader.ReadLine();
+            Assert.NotNull(copied);
+            Assert.Equal(fixture.Files.Read(input), fixture.Files.Read(copied));
+        }
+
+        Assert.Equal("", reader.ReadLine());
+        var received = new List<string>();
+        while(reader.ReadLine() is { } argument)
+        {
+            received.Add(argument);
+        }
+
+        Assert.Equal(arguments, received);
+    }
+
+    [Theory]
     [InlineData("timeout")]
     [InlineData("exit")]
     [InlineData("list")]

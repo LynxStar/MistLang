@@ -79,20 +79,32 @@ public sealed class GeneratorCacheTests : IDisposable
     [Fact]
     public async Task WaiterRechecksAndReusesAfterTheLockOpens()
     {
+        var guardTimeout = TimeSpan.FromSeconds(30);
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
-        using var contended = new ManualResetEventSlim();
-        var cache = new GeneratorCache(root, "tool", waiting: contended.Set);
-        var publisher = Task.Run(() => cache.Use("runs", "key", TimeSpan.FromSeconds(2), staging =>
+        var contended = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cache = new GeneratorCache(root, "tool", waiting: () => contended.TrySetResult());
+        var publisher = Task.Factory.StartNew(() => cache.Use("runs", "key", guardTimeout, staging =>
         {
             entered.Set();
-            Assert.True(release.Wait(TimeSpan.FromSeconds(2)));
+            Assert.True(release.Wait(guardTimeout));
             return Produce(staging);
-        }));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(2)));
-        var waiter = Task.Run(() => cache.Use("runs", "key", TimeSpan.FromSeconds(2), _ => throw new InvalidOperationException("waiter generated")));
-        Assert.True(contended.Wait(TimeSpan.FromSeconds(2)));
-        release.Set();
+        }), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        var waiter = Task.Factory.StartNew(() =>
+        {
+            Assert.True(entered.Wait(guardTimeout));
+            return cache.Use("runs", "key", guardTimeout, _ => throw new InvalidOperationException("waiter generated"));
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        try
+        {
+            await contended.Task.WaitAsync(guardTimeout);
+        }
+        finally
+        {
+            release.Set();
+            _ = await Task.WhenAll(publisher, waiter);
+        }
+
         var published = await publisher;
         var reused = await waiter;
         Assert.Equal(published!.Folder, reused!.Folder);

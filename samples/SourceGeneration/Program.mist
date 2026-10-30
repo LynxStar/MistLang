@@ -1,0 +1,17 @@
+using Standard;
+using SourceGeneration.Generated;
+
+namespace SourceGeneration;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine($"Generated answer: {GeneratedValue.Value()}");
+    }
+}

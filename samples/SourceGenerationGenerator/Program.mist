@@ -1,0 +1,29 @@
+using System.IO;
+
+namespace SourceGenerationGenerator;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        if(args.Length < 1)
+        {
+            return;
+        }
+
+        var staging = args[0];
+        var request = File.ReadAllLines(Path.Combine(staging, "request.txt"));
+        if(request.Length < 3)
+        {
+            return;
+        }
+
+        var number = File.ReadAllText(request[0]);
+        var typeName = request[2];
+        var source = "namespace SourceGeneration.Generated; public class " + typeName
+            + " { public static int Value() { return " + number + "; } }";
+        File.WriteAllText(Path.Combine(staging, "Value.mist"), source);
+        File.WriteAllText(Path.Combine(staging, "outputs.txt"), "Value.mist");
+        File.WriteAllText(Path.Combine(staging, "diagnostics.txt"), "");
+    }
+}

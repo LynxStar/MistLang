@@ -1,0 +1,5 @@
+name = "SourceGeneration"
+entry_point = "SourceGeneration.Program"
+
+[source_generators]
+ValueGenerator = { path = "../SourceGenerationGenerator", inputs = ["value.txt"], arguments = ["GeneratedValue"] }

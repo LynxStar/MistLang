@@ -55,11 +55,15 @@ internal static class FieldEmitter
 
         if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
         {
-            // Undecided generic storage retains CLR zero without granting a semantic default to its type.
-            var storageZero = field.Initializer is null && field.DeclaringType is ClassType
+            // AllowNull admits CLR-zero storage without an initializer that can reset earlier static writes.
+            if(field.Initializer is null && field.DeclaringType is ClassType
                 && !TypeNameEmitter.IsValueKind(type)
-                && Defaultability.IsUndecided(TypeNameEmitter.Closed(type)) ? " = default!" : "";
-            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)}{storageZero};");
+                && Defaultability.IsUndecided(TypeNameEmitter.Closed(type)))
+            {
+                writer.WriteLine("[System.Diagnostics.CodeAnalysis.AllowNull]");
+            }
+
+            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)};");
             return;
         }
 

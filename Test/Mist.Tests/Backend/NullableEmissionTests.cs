@@ -93,7 +93,9 @@ public sealed class NullableEmissionTests
 
         FieldEmitter.Emit(field, false, writer, new DiagnosticBag());
 
-        Assert.Contains("T item = default!;", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("[System.Diagnostics.CodeAnalysis.AllowNull]", writer.ToString(), StringComparison.Ordinal);
+        Assert.Contains("T item;", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(" = ", writer.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("__default", writer.ToString(), StringComparison.Ordinal);
     }
 
@@ -131,7 +133,8 @@ public sealed class NullableEmissionTests
 
         FieldEmitter.Emit(field, false, writer, new DiagnosticBag());
 
-        Assert.Equal($"public {expectedType} {name} = default!;", writer.ToString().Trim());
+        Assert.Equal($"[System.Diagnostics.CodeAnalysis.AllowNull]\npublic {expectedType} {name};",
+            writer.ToString().Replace("\r\n", "\n", StringComparison.Ordinal).Trim());
     }
 
     [Fact]

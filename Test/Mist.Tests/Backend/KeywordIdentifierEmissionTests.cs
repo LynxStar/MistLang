@@ -131,7 +131,7 @@ public sealed class KeywordIdentifierEmissionTests
         var text = EmitType(type);
 
         Assert.Contains("public class Box<@delegate>", text, StringComparison.Ordinal);
-        Assert.Contains("public @delegate Item = default!;", text, StringComparison.Ordinal);
+        Assert.Contains("public @delegate Item;", text, StringComparison.Ordinal);
     }
 
     [Fact]

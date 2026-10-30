@@ -101,8 +101,8 @@ Changing `point.X` leaves `position` untouched: `Point point = position;` copied
 Converting is not being. However freely the two convert, a newtype is never its source, so a type test between them is refused wherever the static type shows it -- `is`, a type pattern, a switch arm and `as` alike, in either direction, and for a type only the copy reaches such as `long` for a newtype over `int`:
 
 ```text
-error MIST_PA_PATTERN_NEVER_MATCHES: A value of type 'Position' can never be 'Point', so this pattern never matches.
-error MIST_PM_AS_NO_RELATIONSHIP: A value of type 'Position' can never be 'Point', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.
+error MIST0193: A value of type 'Position' can never be 'Point', so this pattern never matches.
+error MIST0403: A value of type 'Position' can never be 'Point', so 'as' has no result type to produce. One must contain the other, or the source must be a union or unknown holding it; a conversion is not enough, since 'as' answers the value rather than a copy of it.
 ```
 
 Write the conversion you meant instead: `Point point = position;` leaves, and `(Position)point` enters. A value whose static type cannot show the test is doomed -- one widened to `unknown` -- is not refused, and answers false when the program runs, as [A Renamed Clone](#a-renamed-clone) shows.
@@ -110,7 +110,7 @@ Write the conversion you meant instead: `Point point = position;` leaves, and `(
 One copyable source has no field-by-field copy at all: one with a field whose type names the source. `Node? Next` is `Chain? Next` in the clone, so no field of `Node` stands for the corresponding field of `Chain`, and there is nothing to copy across. Such a source converts only if it says how it is copied, as the next section but one describes; if it does not, both directions are missing and either one is refused, naming the field:
 
 ```text
-error MIST_PA_COPY_CONVERSION_DOES_NOT_HOLD: Cannot convert 'Node' to 'Chain'. The copy is field for field, and it does not hold at 'Next': a 'Node | void' in the source is a 'Chain | void' in the newtype. 'Node' implements no 'IClonable<Node>' to say how it is copied.
+error MIST0153: Cannot convert 'Node' to 'Chain'. The copy is field for field, and it does not hold at 'Next': a 'Node | void' in the source is a 'Chain | void' in the newtype. 'Node' implements no 'IClonable<Node>' to say how it is copied.
 ```
 
 Declaring the newtype is still fine. Only converting is refused.
@@ -118,8 +118,8 @@ Declaring the newtype is still fine. Only converting is refused.
 Without a cast, any other value is refused where a newtype is expected -- the source, and another newtype over the same source alike:
 
 ```text
-error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
-error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'Feet' to 'Meters'. An explicit cast exists (are you missing a cast?)
+error MIST0158: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
+error MIST0158: Cannot implicitly convert type 'Feet' to 'Meters'. An explicit cast exists (are you missing a cast?)
 ```
 
 ### Conformances Only the Source Has
@@ -169,7 +169,7 @@ The literal has to be one the source accepts: `300` cannot enter a newtype over 
 Everywhere else a literal needs its cast. A call argument is the case that matters most: with `Describe(UserId id)`, the call `Describe(9)` shows no `UserId` at the call site, and two swapped literal arguments are exactly the mistake a newtype exists to catch.
 
 ```text
-error MIST_PA_CAST_REQUIRED: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
+error MIST0158: Cannot implicitly convert type 'int' to 'UserId'. An explicit cast exists (are you missing a cast?)
 ```
 
 The same goes for an operand of an operator, a branch of a `switch` expression, and the result of a lambda.
@@ -203,13 +203,13 @@ The three casts into `Jaguar` count `made` to 3 in `Jaguar`'s statics, while the
 A class with no `IClonable` of itself, including one that only inherits `IClonable` of a base, defines no copy, and a cast either way is refused:
 
 ```text
-error MIST_PA_NEWTYPE_SOURCE_DEFINES_NO_COPY: Cannot cast 'Entity' to 'Actor'. 'Entity' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<Entity>' with a Clone of its own.
+error MIST0152: Cannot cast 'Entity' to 'Actor'. 'Entity' defines no copy to convert with; a newtype and its mutable class source convert only when the class implements 'IClonable<Entity>' with a Clone of its own.
 ```
 
 A `Clone` body can also fail to hold with the other type as `this`. A field declared `Tiger? Mate` is `Jaguar? Mate` in the clone, so a body that **shares** `Mate` -- copies the reference across rather than cloning it -- passes a `Tiger` where a `Jaguar` is needed, and the cast is refused, naming the member:
 
 ```text
-error MIST_PA_CLONE_CONVERSION_DOES_NOT_HOLD: Cannot cast 'Tiger' to 'Jaguar'. The cast runs 'Jaguar.Clone' with a 'Tiger' as this, and it does not hold at 'Mate': Cannot implicitly convert type 'Tiger | void' to 'Jaguar | void'.
+error MIST0154: Cannot cast 'Tiger' to 'Jaguar'. The cast runs 'Jaguar.Clone' with a 'Tiger' as this, and it does not hold at 'Mate': Cannot implicitly convert type 'Tiger | void' to 'Jaguar | void'.
 ```
 
 A body that **clones** the field holds, and that is how a source with a field naming itself converts at all. Within a conversion, cloning such a field *is* the conversion: `this.Next?.Clone()` converts `Next` rather than cloning it and then needing a second step, and answers the newtype. A type test naming the result type tests for the operand, so the deep-`Clone` spelling `if(this.Next is Node next) { ... next.Clone() ... }` works too -- without that rule the test would ask whether a `Node` is already a `Chain`, which is never true, and the conversion would quietly copy only the first element.
@@ -274,8 +274,8 @@ A newtype may be declared `readonly`. The clone is then a readonly type, as thou
 `live.Value = 21;` writes a `Reading`, which stays mutable, while `recorded.Value = 20;` would be refused. A source member that writes its own fields does not hold for the readonly clone, and is reported at the newtype declaration like any other member that fails only once renamed:
 
 ```text
-error MIST_PA_READONLY_FIELD_ASSIGNED: Cannot assign to readonly field 'Value' outside a constructor of 'Recorded'.
-error MIST_PM_NEWTYPE_CLONE_INVALID: 'Recorded' cannot clone 'Reading', whose member 'Reset' does not hold for 'Recorded': Cannot assign to field 'Value' within readonly member 'Reset'.
+error MIST0262: Cannot assign to readonly field 'Value' outside a constructor of 'Recorded'.
+error MIST0418: 'Recorded' cannot clone 'Reading', whose member 'Reset' does not hold for 'Recorded': Cannot assign to field 'Value' within readonly member 'Reset'.
 ```
 
 A newtype over a readonly newtype is readonly too, and since a readonly class is copyable, it converts with that source as [Copyable Sources](#copyable-sources) describes.

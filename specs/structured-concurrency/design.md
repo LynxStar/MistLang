@@ -209,27 +209,27 @@ This information is stored in the semantic model for the emitter to consume.
 
 | ID | Severity | Description |
 |---|---|---|
-| `MIST_TC_0070` | Error | `async` modifier combined with `intrinsic` |
-| `MIST_TC_0071` | Error | `async` applied to constructor or operator |
-| `MIST_TC_0072` | Error | `async` method explicitly declares `Task<T>` return type |
-| `MIST_TC_0073` | Error | `async` functor applied to non-method-invocation expression |
-| `MIST_TC_0074` | Error | `await` applied to non-`Task<T>` expression |
-| `MIST_TC_0075` | Error | `Task<T>` stored in field, property, or collection |
-| `MIST_TC_0076` | Warning | `async` functor on async method in async context produces `Task<Task<T>>` (likely unintended double-wrap) |
+| `MIST_TC_0070 (historical)` | Error | `async` modifier combined with `intrinsic` |
+| `MIST_TC_0071 (historical)` | Error | `async` applied to constructor or operator |
+| `MIST_TC_0072 (historical)` | Error | `async` method explicitly declares `Task<T>` return type |
+| `MIST_TC_0073 (historical)` | Error | `async` functor applied to non-method-invocation expression |
+| `MIST_TC_0074 (historical)` | Error | `await` applied to non-`Task<T>` expression |
+| `MIST_TC_0075 (historical)` | Error | `Task<T>` stored in field, property, or collection |
+| `MIST_TC_0076 (historical)` | Warning | `async` functor on async method in async context produces `Task<Task<T>>` (likely unintended double-wrap) |
 
 #### Validation Rules
 
 **Modifier validation** (during method declaration checking):
-- If method has both `async` and `intrinsic` modifiers → emit `MIST_TC_0070`
-- If `async` appears on a constructor or operator → emit `MIST_TC_0071`
-- If method has `async` and the declared return type is `Task<T>` → emit `MIST_TC_0072`
+- If method has both `async` and `intrinsic` modifiers → emit `MIST_TC_0070 (historical)`
+- If `async` appears on a constructor or operator → emit `MIST_TC_0071 (historical)`
+- If method has `async` and the declared return type is `Task<T>` → emit `MIST_TC_0072 (historical)`
 
 **Expression validation** (during expression type checking):
-- `AsyncExpressionUnaryNode`: verify operand resolves to a method invocation (check that the operand's AST is an invocation suffix or a direct call). If not → emit `MIST_TC_0073`
-- `AwaitExpressionUnaryNode`: verify operand type is `Task<T>` (a `ConstructedType` whose generic definition is the stdlib `Task` class). If not → emit `MIST_TC_0074`, including the actual type in the message
+- `AsyncExpressionUnaryNode`: verify operand resolves to a method invocation (check that the operand's AST is an invocation suffix or a direct call). If not → emit `MIST_TC_0073 (historical)`
+- `AwaitExpressionUnaryNode`: verify operand type is `Task<T>` (a `ConstructedType` whose generic definition is the stdlib `Task` class). If not → emit `MIST_TC_0074 (historical)`, including the actual type in the message
 
 **Storage restriction** (during assignment/field declaration checking):
-- If a field, property, or collection element type is `Task<T>` → emit `MIST_TC_0075`
+- If a field, property, or collection element type is `Task<T>` → emit `MIST_TC_0075 (historical)`
 - `Task<T>` in local variables is allowed (subject to scope-exit await)
 - `Task<T>` as method parameters is allowed (callee nested in caller's scope)
 - `Task<T>` as method return types is allowed (ownership transfer)
@@ -480,13 +480,13 @@ No new `IType` subtype is needed. The existing `ConstructedType` infrastructure 
 
 | ID | Severity | Stage | Description |
 |---|---|---|---|
-| `MIST_TC_0070` | Error | Analysis | `async` combined with `intrinsic` modifier |
-| `MIST_TC_0071` | Error | Analysis | `async` on constructor or operator |
-| `MIST_TC_0072` | Error | Analysis | `async` method explicitly declares `Task<T>` return type |
-| `MIST_TC_0073` | Error | Analysis | `async` functor on non-method-invocation |
-| `MIST_TC_0074` | Error | Analysis | `await` on non-`Task<T>` expression |
-| `MIST_TC_0075` | Error | Analysis | `Task<T>` stored in field/property/collection |
-| `MIST_TC_0076` | Warning | Analysis | `async` functor on async method in async context (double-wrap) |
+| `MIST_TC_0070 (historical)` | Error | Analysis | `async` combined with `intrinsic` modifier |
+| `MIST_TC_0071 (historical)` | Error | Analysis | `async` on constructor or operator |
+| `MIST_TC_0072 (historical)` | Error | Analysis | `async` method explicitly declares `Task<T>` return type |
+| `MIST_TC_0073 (historical)` | Error | Analysis | `async` functor on non-method-invocation |
+| `MIST_TC_0074 (historical)` | Error | Analysis | `await` on non-`Task<T>` expression |
+| `MIST_TC_0075 (historical)` | Error | Analysis | `Task<T>` stored in field/property/collection |
+| `MIST_TC_0076 (historical)` | Warning | Analysis | `async` functor on async method in async context (double-wrap) |
 
 </text>
 </invoke>
@@ -533,25 +533,25 @@ No new `IType` subtype is needed. The existing `ConstructedType` infrastructure 
 
 ### Property 7: Task Storage Restriction
 
-*For any* program that declares a field, property, or collection with element type `Task<T>`, the type checker SHALL emit diagnostic `MIST_TC_0075`.
+*For any* program that declares a field, property, or collection with element type `Task<T>`, the type checker SHALL emit diagnostic `MIST_TC_0075 (historical)`.
 
 **Validates: Requirements 7.5**
 
 ### Property 8: Async-Intrinsic Incompatibility
 
-*For any* method declaration that combines both the `async` and `intrinsic` modifiers, the type checker SHALL emit diagnostic `MIST_TC_0070`.
+*For any* method declaration that combines both the `async` and `intrinsic` modifiers, the type checker SHALL emit diagnostic `MIST_TC_0070 (historical)`.
 
 **Validates: Requirements 2.4**
 
 ### Property 9: Async Functor Requires Invocation Operand
 
-*For any* use of the `async` functor where the operand is not a method invocation expression (e.g., a variable reference, literal, or property access), the type checker SHALL emit diagnostic `MIST_TC_0073`.
+*For any* use of the `async` functor where the operand is not a method invocation expression (e.g., a variable reference, literal, or property access), the type checker SHALL emit diagnostic `MIST_TC_0073 (historical)`.
 
 **Validates: Requirements 3.7**
 
 ### Property 10: Await Requires Task Operand
 
-*For any* use of the `await` functor where the operand's type is not `Task<T>`, the type checker SHALL emit diagnostic `MIST_TC_0074` including the actual type of the operand.
+*For any* use of the `await` functor where the operand's type is not `Task<T>`, the type checker SHALL emit diagnostic `MIST_TC_0074 (historical)` including the actual type of the operand.
 
 **Validates: Requirements 4.3**
 
@@ -571,7 +571,7 @@ No new `IType` subtype is needed. The existing `ConstructedType` infrastructure 
 
 ### Parse Errors
 
-The Storm-generated parser handles parse errors via its existing error recovery mechanism. If `async` or `await` appears in an unexpected position, the parser emits a `MIST_PARSE_ERROR` diagnostic and attempts recovery. No special concurrency-specific parse error handling is needed beyond what Storm provides.
+The Storm-generated parser handles parse errors via its existing error recovery mechanism. If `async` or `await` appears in an unexpected position, the parser emits a `MIST0122` diagnostic and attempts recovery. No special concurrency-specific parse error handling is needed beyond what Storm provides.
 
 ### Semantic Errors
 
@@ -582,24 +582,24 @@ Concurrency-related semantic errors are reported as diagnostics with specific ID
 - The compilation unit path
 
 **Error messages**:
-- `MIST_TC_0070`: "Method '{name}' cannot be both 'async' and 'intrinsic'"
-- `MIST_TC_0071`: "The 'async' modifier is not valid on {constructors|operators}"
-- `MIST_TC_0072`: "Async method '{name}' must not explicitly declare 'Task<T>' as its return type; the compiler wraps the return type automatically"
-- `MIST_TC_0073`: "The 'async' functor requires a method invocation operand, but got {expression kind}"
-- `MIST_TC_0074`: "The 'await' functor requires an operand of type 'Task<T>', but got '{actual type}'"
-- `MIST_TC_0075`: "Cannot store 'Task<T>' in a {field|property|collection}; tasks must be awaited or returned to maintain structured concurrency"
-- `MIST_TC_0076`: "Applying 'async' functor to an async method in an async context produces 'Task<Task<T>>' — this is likely unintended"
+- `MIST_TC_0070 (historical)`: "Method '{name}' cannot be both 'async' and 'intrinsic'"
+- `MIST_TC_0071 (historical)`: "The 'async' modifier is not valid on {constructors|operators}"
+- `MIST_TC_0072 (historical)`: "Async method '{name}' must not explicitly declare 'Task<T>' as its return type; the compiler wraps the return type automatically"
+- `MIST_TC_0073 (historical)`: "The 'async' functor requires a method invocation operand, but got {expression kind}"
+- `MIST_TC_0074 (historical)`: "The 'await' functor requires an operand of type 'Task<T>', but got '{actual type}'"
+- `MIST_TC_0075 (historical)`: "Cannot store 'Task<T>' in a {field|property|collection}; tasks must be awaited or returned to maintain structured concurrency"
+- `MIST_TC_0076 (historical)`: "Applying 'async' functor to an async method in an async context produces 'Task<Task<T>>' — this is likely unintended"
 
 ### Cascading Error Suppression
 
 Following the existing pattern in the type checker:
-- If the operand of `await` has type `UnknownType` (indicating a prior error), the await expression is typed as `UnknownType` without emitting `MIST_TC_0074`
+- If the operand of `await` has type `UnknownType` (indicating a prior error), the await expression is typed as `UnknownType` without emitting `MIST_TC_0074 (historical)`
 - If an async method's declared return type fails to resolve, the effective return type is `Task<UnknownType>` to suppress downstream errors
 - If the `async` functor's operand fails to resolve as a method invocation, the expression is typed as `UnknownType`
 
 ### Zero Warnings Policy
 
-All new code must compile with zero warnings. The `MIST_TC_0076` diagnostic (double-wrap warning) is intentionally a **warning**, not an error — the double-wrap `Task<Task<T>>` is technically valid but almost certainly a mistake. No `#pragma warning disable` suppressions are introduced.
+All new code must compile with zero warnings. The `MIST_TC_0076 (historical)` diagnostic (double-wrap warning) is intentionally a **warning**, not an error — the double-wrap `Task<Task<T>>` is technically valid but almost certainly a mistake. No `#pragma warning disable` suppressions are introduced.
 
 ## Testing Strategy
 
@@ -666,6 +666,6 @@ The generator produces complete compilable programs (with class declarations, me
 
 ### Task<T> as Readonly Ref (Ownership Integration)
 
-The current design enforces the "no storing Task<T> in fields" restriction via a special-case diagnostic (`MIST_TC_0075`). A more elegant solution would be to model `Task<T>` as inherently `readonly ref` — the task scheduler owns the task, and the developer holds a readonly ref to it. Since readonly refs are non-storable by the existing ownership rules, the field-storage restriction would fall out naturally from the ownership system rather than requiring a bespoke check.
+The current design enforces the "no storing Task<T> in fields" restriction via a special-case diagnostic (`MIST_TC_0075 (historical)`). A more elegant solution would be to model `Task<T>` as inherently `readonly ref` — the task scheduler owns the task, and the developer holds a readonly ref to it. Since readonly refs are non-storable by the existing ownership rules, the field-storage restriction would fall out naturally from the ownership system rather than requiring a bespoke check.
 
-This is not achievable today because Mist's ownership tiers only apply to parameters (lending during a call), not to local variables or return types. When ref types are extended to locals and returns, `Task<T>` could be declared as an inherently-lent type, and the `MIST_TC_0075` diagnostic could be removed in favor of the general ownership enforcement.
+This is not achievable today because Mist's ownership tiers only apply to parameters (lending during a call), not to local variables or return types. When ref types are extended to locals and returns, `Task<T>` could be declared as an inherently-lent type, and the `MIST_TC_0075 (historical)` diagnostic could be removed in favor of the general ownership enforcement.

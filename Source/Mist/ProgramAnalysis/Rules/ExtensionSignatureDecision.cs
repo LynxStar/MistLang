@@ -1,6 +1,6 @@
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
-using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -19,7 +19,7 @@ internal static class ExtensionSignatureDecision
                 continue;
             }
 
-            var receiverName = TypeDisplay.Mist(block.ResolvedReceiverType!);
+            var receiverType = block.ResolvedReceiverType!;
 
             foreach(var method in block.MethodsList)
             {
@@ -35,7 +35,7 @@ internal static class ExtensionSignatureDecision
                         ? ""
                         : $"<{string.Join(", ", method.TypeParametersList.Select(parameter => parameter.Name))}>";
                     var display = $"{typeParameters}{OverloadFailure.DescribeSignatures([method])}";
-                    yield return new ExtensionSignatureRepeat(later, earlier, method.Name, receiverName, display, IsProperty: false);
+                    yield return new ExtensionSignatureRepeat(later, earlier, method.Name, receiverType, display, IsProperty: false);
                 }
                 else
                 {
@@ -53,7 +53,7 @@ internal static class ExtensionSignatureDecision
                 var key = (block.NamespaceName, receiver, property.Name);
                 if(properties.TryGetValue(key, out var earlier))
                 {
-                    yield return new ExtensionSignatureRepeat(later, earlier, property.Name, receiverName, property.Name, IsProperty: true);
+                    yield return new ExtensionSignatureRepeat(later, earlier, property.Name, receiverType, property.Name, IsProperty: true);
                 }
                 else
                 {
@@ -68,6 +68,6 @@ internal sealed record ExtensionSignatureRepeat(
     SyntaxNode Later,
     SyntaxNode Earlier,
     string Name,
-    string Receiver,
+    IMistType Receiver,
     string Signature,
     bool IsProperty);

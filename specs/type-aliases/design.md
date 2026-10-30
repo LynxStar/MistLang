@@ -157,16 +157,16 @@ public enum SymbolKind
 **SemanticModelBuilder changes:**
 
 - **Pass 1**: Register `TypeAliasDeclarationNode` as a `Symbol` with `SymbolKind.TypeAlias` in the enclosing scope. Store the AST node reference for later resolution. Record type parameters on the symbol.
-- **Pass 2**: Resolve the target `TypeReference` to an `IType`. Construct a `TypeAliasType` wrapping the resolved type. Detect cycles using a resolution stack (set of alias names currently being resolved); if a cycle is detected, report `MIST_SB_0060` and assign `ErrorType`.
+- **Pass 2**: Resolve the target `TypeReference` to an `IType`. Construct a `TypeAliasType` wrapping the resolved type. Detect cycles using a resolution stack (set of alias names currently being resolved); if a cycle is detected, report `MIST_SB_0060 (historical)` and assign `ErrorType`.
 
 **New diagnostic IDs:**
 
 | ID | Condition |
 |----|-----------|
-| `MIST_SB_0060` | Cyclic type alias detected |
-| `MIST_SB_0061` | Duplicate type alias name in scope |
-| `MIST_SB_0062` | Unresolved type in alias target expression |
-| `MIST_SB_0063` | Type argument count mismatch on generic alias usage |
+| `MIST_SB_0060 (historical)` | Cyclic type alias detected |
+| `MIST_SB_0061 (historical)` | Duplicate type alias name in scope |
+| `MIST_SB_0062 (historical)` | Unresolved type in alias target expression |
+| `MIST_SB_0063 (historical)` | Type argument count mismatch on generic alias usage |
 
 ### 5. Type Checker Changes
 
@@ -177,7 +177,7 @@ When resolving a type reference that names a type alias:
 1. Look up the name in scope → find `Symbol` with `Kind == SymbolKind.TypeAlias`
 2. Retrieve the `TypeAliasType` from the symbol's `DeclaredType`
 3. If the alias is generic and type arguments are provided:
-   - Verify argument count matches parameter count (else report `MIST_SB_0063`)
+   - Verify argument count matches parameter count (else report `MIST_SB_0063 (historical)`)
    - Substitute type arguments into the underlying type
 4. Return the resolved underlying `IType` (transparent resolution)
 
@@ -306,13 +306,13 @@ sequenceDiagram
 
 | Diagnostic ID | Stage | Condition | Message Template |
 |---|---|---|---|
-| `MIST_SB_0060` | Semantic Model | Cyclic type alias (A → B → A) | `Type alias '{name}' forms a cycle` |
-| `MIST_SB_0061` | Semantic Model | Duplicate alias name in scope | `Type alias '{name}' is already defined in this scope` |
-| `MIST_SB_0062` | Semantic Model | Unresolved type in alias target | `Type '{typeName}' could not be resolved in type alias '{aliasName}'` |
-| `MIST_SB_0063` | Type Checker | Wrong number of type arguments | `Type alias '{name}' expects {expected} type argument(s) but was given {actual}` |
-| `MIST_PARSE_ERROR` | Parser | Missing `=` in declaration | `Expected '=' in type alias declaration` |
-| `MIST_PARSE_ERROR` | Parser | Missing `;` in declaration | `Expected ';' after type alias declaration` |
-| `MIST_PARSE_ERROR` | Parser | Missing type expression | `Expected type expression after '=' in type alias declaration` |
+| `MIST_SB_0060 (historical)` | Semantic Model | Cyclic type alias (A → B → A) | `Type alias '{name}' forms a cycle` |
+| `MIST_SB_0061 (historical)` | Semantic Model | Duplicate alias name in scope | `Type alias '{name}' is already defined in this scope` |
+| `MIST_SB_0062 (historical)` | Semantic Model | Unresolved type in alias target | `Type '{typeName}' could not be resolved in type alias '{aliasName}'` |
+| `MIST_SB_0063 (historical)` | Type Checker | Wrong number of type arguments | `Type alias '{name}' expects {expected} type argument(s) but was given {actual}` |
+| `MIST0122` | Parser | Missing `=` in declaration | `Expected '=' in type alias declaration` |
+| `MIST0122` | Parser | Missing `;` in declaration | `Expected ';' after type alias declaration` |
+| `MIST0122` | Parser | Missing type expression | `Expected type expression after '=' in type alias declaration` |
 
 **Error recovery strategy:**
 - Parse errors: The Storm-generated parser uses its standard error recovery (skip to next synchronization point, typically `;` or `}`).

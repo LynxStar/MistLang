@@ -324,8 +324,7 @@ internal static partial class PatternBinder
             return new TypeTestPattern(node, tested, binding, constituent, refinement) { IsFailed = isFailed };
         }
 
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, tested.Name, union.Name);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, DiagnosticSnapshot.Type(tested, tested.Name), DiagnosticSnapshot.Type(union, union.Name));
 
         return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { IsFailed = true };
     }
@@ -349,17 +348,14 @@ internal static partial class PatternBinder
 
         if(scrutineeElements is { } held && held.Count != elementNodes.Count)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.TuplePatternArityMismatch, node, null,
-                matched.Name, held.Count, elementNodes.Count);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TuplePatternArityMismatch, node, null, DiagnosticSnapshot.Type(matched, matched.Name), new QuantityValue(held.Count), new QuantityValue(elementNodes.Count));
 
             return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null) { IsFailed = true };
         }
 
         if(scrutineeElements is null && matched is not (UnknownType or ErrorType))
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.TuplePatternScrutineeNotATuple, node, null, matched.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TuplePatternScrutineeNotATuple, node, null, DiagnosticSnapshot.Type(matched, matched.Name));
 
             return new TuplePattern(node, [], ErrorType.Instance, testedType: null, binding: null) { IsFailed = true };
         }
@@ -422,8 +418,7 @@ internal static partial class PatternBinder
 
         if(refused)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ListPatternScrutineeNotIndexable, node, null, matched.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ListPatternScrutineeNotIndexable, node, null, DiagnosticSnapshot.Type(matched, matched.Name));
         }
 
         CountedIndexer? reads = null;
@@ -438,8 +433,7 @@ internal static partial class PatternBinder
 
             if(Indexability.Count(matched) is not { } count)
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ReceiverNotCountable, node, null, TypeDisplay.Mist(matched));
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ReceiverNotCountable, node, null, DiagnosticSnapshot.Type(matched));
             }
             else if(!Indexability.IsIndex(position))
             {
@@ -456,8 +450,7 @@ internal static partial class PatternBinder
             {
                 if(sliceSeen && !refused)
                 {
-                    context.Diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.ListPatternMultipleSlices, node, null);
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ListPatternMultipleSlices, node, null);
 
                     refused = true;
                 }
@@ -480,8 +473,7 @@ internal static partial class PatternBinder
                     }
                     else
                     {
-                        context.Diagnostics.ReportAtNode(
-                            ProgramModelDiagnostics.ReceiverNotSliceable, node, null, TypeDisplay.Mist(matched));
+                        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ReceiverNotSliceable, node, null, DiagnosticSnapshot.Type(matched));
 
                         refused = true;
                     }

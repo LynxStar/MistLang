@@ -50,14 +50,14 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - Create `Source/Mist/Analysis/Builtin/OwnershipAnalyzer.cs`
     - Implement `IAnalyzer` with `AnalyzerId = "OWNERSHIP"`
     - Register the analyzer in the `CompilerDriver` analyzer list (after `ReadonlyInferenceEngine`)
-    - Define all 15 `DiagnosticId` constants (`MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_REF_ESCAPE`, etc.)
+    - Define all 15 `DiagnosticId` constants (`MIST_OWN_USE_AFTER_MOVE (historical)`, `MIST_OWN_REF_ESCAPE (historical)`, etc.)
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7_
 
   - [x] 4.2 Implement owned type declaration validation
-    - Check that all reference-type fields in an `owned class`/`owned struct` are themselves `owned` or of an owned type (emit `MIST_OWN_FIELD_NOT_OWNED`)
-    - Check that owned types do not implement interfaces or satisfy traits (emit `MIST_OWN_INTERFACE_FORBIDDEN`)
-    - Check that instances of owned types are always held in `owned` variables (emit `MIST_OWN_TYPE_REQUIRES_OWNED`)
-    - Reject `owned` on interface/trait declarations (emit `MIST_OWN_INTERFACE_FORBIDDEN`)
+    - Check that all reference-type fields in an `owned class`/`owned struct` are themselves `owned` or of an owned type (emit `MIST_OWN_FIELD_NOT_OWNED (historical)`)
+    - Check that owned types do not implement interfaces or satisfy traits (emit `MIST_OWN_INTERFACE_FORBIDDEN (historical)`)
+    - Check that instances of owned types are always held in `owned` variables (emit `MIST_OWN_TYPE_REQUIRES_OWNED (historical)`)
+    - Reject `owned` on interface/trait declarations (emit `MIST_OWN_INTERFACE_FORBIDDEN (historical)`)
     - _Requirements: 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9_
 
   - [x]* 4.3 Write property test for owned type field constraints
@@ -69,10 +69,10 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - **Validates: Requirements 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 16.5**
 
   - [x] 4.4 Implement ownership signature matching validation
-    - Check interface method implementations match ownership specifiers on parameters exactly (emit `MIST_OWN_SIGNATURE_MISMATCH`)
+    - Check interface method implementations match ownership specifiers on parameters exactly (emit `MIST_OWN_SIGNATURE_MISMATCH (historical)`)
     - Check return type ownership specifiers match between interface and implementation
     - Check structural trait matching for ownership specifier consistency
-    - Reject non-owned specifiers on return types (emit `MIST_OWN_INVALID_RETURN_SPEC`)
+    - Reject non-owned specifiers on return types (emit `MIST_OWN_INVALID_RETURN_SPEC (historical)`)
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 2.5_
 
   - [x]* 4.5 Write property test for ownership signature matching
@@ -97,10 +97,10 @@ This plan implements a compile-time ownership and reference system for the Mist 
   - [x] 6.2 Implement move tracking and use-after-move detection
     - Track owned variable moves (assignment to another owned variable, passing to owned parameter)
     - Mark source variable as `Moved` after transfer
-    - Emit `MIST_OWN_USE_AFTER_MOVE` on access to moved variables
+    - Emit `MIST_OWN_USE_AFTER_MOVE (historical)` on access to moved variables
     - Handle conditional moves: clone state at branch points, merge conservatively at joins
-    - Emit `MIST_OWN_CONDITIONAL_MOVE` for access in branches where variable was moved
-    - Emit `MIST_OWN_LOOP_MOVE` for moves in loops without re-assignment
+    - Emit `MIST_OWN_CONDITIONAL_MOVE (historical)` for access in branches where variable was moved
+    - Emit `MIST_OWN_LOOP_MOVE (historical)` for moves in loops without re-assignment
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 7.4, 7.5, 7.9_
 
   - [x]* 6.3 Write property test for move tracking and use-after-move
@@ -113,8 +113,8 @@ This plan implements a compile-time ownership and reference system for the Mist 
 
   - [x] 6.4 Implement lending compatibility and borrow checking
     - Enforce the lending compatibility matrix: owned→{owned,ref,readonly ref,frozen ref}, ref→{ref,readonly ref,frozen ref}, readonly ref→{readonly ref}, frozen ref→{frozen ref,readonly ref}, unrestricted→{readonly ref,unrestricted}
-    - Emit `MIST_OWN_INCOMPATIBLE_LEND` for invalid tier combinations
-    - Emit `MIST_OWN_UNRESTRICTED_TO_REF` when unrestricted is passed to ref/frozen ref/owned
+    - Emit `MIST_OWN_INCOMPATIBLE_LEND (historical)` for invalid tier combinations
+    - Emit `MIST_OWN_UNRESTRICTED_TO_REF (historical)` when unrestricted is passed to ref/frozen ref/owned
     - Handle value types: always satisfy any tier requirement
     - _Requirements: 3.5, 3.6, 3.7, 3.8, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 14.1, 14.2, 15.1, 15.3_
 
@@ -128,8 +128,8 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - **Validates: Requirements 3.5, 3.6, 3.7, 3.8, 6.5, 6.6, 6.7, 7.6, 7.7, 7.8, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 14.1, 14.2, 15.1, 15.3**
 
   - [x] 6.6 Implement non-storability enforcement
-    - Reject assignment of `ref`, `readonly ref`, or `frozen ref` to fields or collection elements (emit `MIST_OWN_NOT_STORABLE`)
-    - Reject returning `ref`, `readonly ref`, or `frozen ref` from methods (emit `MIST_OWN_REF_ESCAPE`)
+    - Reject assignment of `ref`, `readonly ref`, or `frozen ref` to fields or collection elements (emit `MIST_OWN_NOT_STORABLE (historical)`)
+    - Reject returning `ref`, `readonly ref`, or `frozen ref` from methods (emit `MIST_OWN_REF_ESCAPE (historical)`)
     - Verify ref lifetime does not exceed declaring scope
     - _Requirements: 4.4, 4.8, 5.2, 5.8, 6.2, 6.9, 11.1, 11.4, 11.5_
 
@@ -142,7 +142,7 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - **Validates: Requirements 4.4, 4.8, 5.2, 5.8, 6.2, 6.9, 11.1, 11.4, 11.5**
 
   - [x] 6.8 Implement mutation blocking under frozen ref
-    - When a frozen ref is outstanding from an owner, block mutation through the owner (emit `MIST_OWN_MUTATION_BLOCKED`)
+    - When a frozen ref is outstanding from an owner, block mutation through the owner (emit `MIST_OWN_MUTATION_BLOCKED (historical)`)
     - When a frozen ref is outstanding from a ref holder, block mutation through the holder
     - Restore mutation access when all frozen refs are returned (scope exit)
     - _Requirements: 5.3, 5.4, 5.6, 6.7, 7.8, 7.11, 13.1, 13.2, 13.6_
@@ -156,8 +156,8 @@ This plan implements a compile-time ownership and reference system for the Mist 
     - **Validates: Requirements 5.3, 5.4, 5.6, 6.7, 7.8, 7.11, 13.1, 13.2, 13.6**
 
   - [x] 6.10 Implement ref exclusivity enforcement
-    - When a ref is outstanding from an owner, block all owner access (emit `MIST_OWN_EXCLUSIVE_VIOLATION`)
-    - Enforce only one ref outstanding from an owner at a time (emit `MIST_OWN_EXCLUSIVE_VIOLATION`)
+    - When a ref is outstanding from an owner, block all owner access (emit `MIST_OWN_EXCLUSIVE_VIOLATION (historical)`)
+    - Enforce only one ref outstanding from an owner at a time (emit `MIST_OWN_EXCLUSIVE_VIOLATION (historical)`)
     - Restore full access when the ref is returned (scope exit)
     - Handle re-lending: original holder loses access until re-lend returns
     - _Requirements: 6.3, 6.4, 6.5, 7.12, 13.3, 13.7, 16.7_

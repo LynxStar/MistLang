@@ -19,9 +19,9 @@ public sealed class AssignmentTargetSiteTests
 
         var diagnostic = Assert.Single(h.Built.Analyze(new PositionAnalyzer(), HandBuiltRefinements.Evaluate(assignment)));
 
-        Assert.Equal("MIST_PA_NOT_ASSIGNABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST0210", diagnostic.Number.Value);
         Assert.StartsWith("Cannot assign to the result of 'Abs':", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Fact]

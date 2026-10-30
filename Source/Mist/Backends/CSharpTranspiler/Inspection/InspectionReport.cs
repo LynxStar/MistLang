@@ -1,3 +1,5 @@
+using Mist.Common.Diagnostics;
+
 namespace Mist.Backends.CSharpTranspiler.Inspection;
 
 internal enum VisibleMemberKind
@@ -14,7 +16,7 @@ internal sealed record VisibleMember(
     bool IsProtected,
     string? DeclaringBase);
 
-internal sealed record HiddenMember(string Name, string Reason, string? DeclaringBase);
+internal sealed record HiddenMember(string Name, string Reason, string? DeclaringBase, WithholdingFrame? Withheld = null);
 
 internal sealed record InspectionReport(
     string TypeName,

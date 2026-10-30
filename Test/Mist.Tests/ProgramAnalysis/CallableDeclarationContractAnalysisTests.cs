@@ -12,10 +12,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class CallableDeclarationContractAnalysisTests
 {
     [Theory]
-    [InlineData("operator", "MIST_PA_DUPLICATE_OPERATOR_SIGNATURE")]
-    [InlineData("operator-return", "MIST_PA_DUPLICATE_OPERATOR_SIGNATURE")]
-    [InlineData("implicit", "MIST_PA_DUPLICATE_CAST_OPERATOR")]
-    [InlineData("explicit", "MIST_PA_DUPLICATE_CAST_OPERATOR")]
+    [InlineData("operator", "MIST0029")]
+    [InlineData("operator-return", "MIST0029")]
+    [InlineData("implicit", "MIST0030")]
+    [InlineData("explicit", "MIST0030")]
     public void ASourceDuplicateIsReportedOnceAtTheLaterDeclarationAndIdentifiesBoth(string kind, string expected)
     {
         var fragment = new DeclarationFragments();
@@ -33,13 +33,16 @@ public sealed class CallableDeclarationContractAnalysisTests
         }
 
         var finding = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
-        Assert.Equal(expected, finding.Id.Value);
+        Assert.Equal(expected, finding.Number.Value);
         Assert.Equal(PipelineStage.Analysis, finding.Stage);
         Assert.Equal("declaration-shape-checks", finding.AnalyzerName);
-        Assert.Equal("hand-built.mist", finding.CompilationUnitPath);
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal("hand-built.mist", finding.Location.Path);
+        Assert.Equal(31, finding.Position().Start.Column);
         Assert.Contains("Money", finding.Message, StringComparison.Ordinal);
-        Assert.Contains("hand-built.mist(1,21)", finding.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(finding.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal("hand-built.mist", previous.Location.Path);
+        Assert.Equal(21, previous.Location.Lines!.Value.Start.Column);
         Assert.Contains(kind.StartsWith("operator", StringComparison.Ordinal) ? "'+'" : $"an {kind} cast operator from 'Money' to 'int'", finding.Message, StringComparison.Ordinal);
     }
 

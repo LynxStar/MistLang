@@ -60,8 +60,7 @@ internal static class SpreadMember
             {
                 if(Claims(stem, name, isSpread))
                 {
-                    diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.SpreadStemCollision, locationNode, null, name, stem);
+                    diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SpreadStemCollision, locationNode, null, new NameValue(name), new NameValue(stem));
                 }
             }
         }

@@ -62,7 +62,7 @@ public sealed class ConstructorStorageAssignmentTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED", finding.Id.Value);
+        Assert.Equal("MIST0223", finding.Number.Value);
     }
 
     [Theory]
@@ -143,7 +143,7 @@ public sealed class ConstructorStorageAssignmentTests
 
         var finding = Assert.Single(model.Analyze(new DefiniteAssignmentAnalyzer(), body, [owner], owner, constructor));
 
-        Assert.Equal("MIST_PA_FIELD_READ_BEFORE_ASSIGNMENT", finding.Id.Value);
+        Assert.Equal("MIST0222", finding.Number.Value);
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class ConstructorStorageAssignmentTests
 
         var findings = model.Analyze(new DefiniteAssignmentAnalyzer(), body, [owner], owner, constructor);
 
-        Assert.Equal(refused ? ["MIST_PA_FIELD_NOT_DEFINITELY_ASSIGNED"] : [], findings.Select(finding => finding.Id.Value));
+        Assert.Equal(refused ? ["MIST0223"] : [], findings.Select(finding => finding.Number.Value));
     }
 
     private static Constructor Declare(ConcreteType owner, Block body)

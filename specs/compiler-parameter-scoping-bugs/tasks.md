@@ -3,7 +3,7 @@
 ## Task 1: Fix parameter registration to include all parameters
 - [x] 1.1 Fix `RegisterParameters` in `SemanticModelBuilder.cs` to iterate all `ParameterNode` children from the `ParameterListNode`, ensuring every parameter (not just the first) is registered in the method body scope
 - [x] 1.2 Write unit tests verifying methods with 2, 3, and 5 parameters all have every parameter resolvable in the method body scope
-- [x] 1.3 Write a property-based test (Property 1) generating methods with random parameter counts (2–8) and asserting all parameters are registered without `MIST_UNDEFINED_IDENTIFIER` diagnostics
+- [x] 1.3 Write a property-based test (Property 1) generating methods with random parameter counts (2–8) and asserting all parameters are registered without `MIST_UNDEFINED_IDENTIFIER (historical)` diagnostics
 - [x] 1.4 Write a preservation test (Property 4) verifying single-parameter methods continue to register the parameter correctly after the fix
 
 ## Task 2: Fix field initializer resolution to prevent silent AST loss

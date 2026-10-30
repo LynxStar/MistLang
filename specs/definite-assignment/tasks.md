@@ -32,12 +32,12 @@ The checked tasks below record the original delivery. Their type-parameter-field
     - Record assignment targets as writes; flag reads of not-yet-assigned fields/locals.
     - Seed initial field set from explicit initializers + synthetic-default fields (reuse existing `initiallyAssigned`); seed locals with initializers at declaration.
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 1.6, 2.2, 2.3, 2.4, 2.5_
-  - [x] 2.3 Detect constructor field read-before-assignment and emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT`
+  - [x] 2.3 Detect constructor field read-before-assignment and emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)`
     - Add diagnostic ID to `DiagnosticId.cs`. Located at the read expression; message names field + constructor.
     - Handle the `this`-escape case (this passed/returned/method-called before all non-defaultable fields assigned).
-    - Preserve the existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` check unchanged.
+    - Preserve the existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` check unchanged.
     - _Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8, 7.1, 7.4_
-  - [x] 2.4 Detect local read-before-assignment and emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`
+  - [x] 2.4 Detect local read-before-assignment and emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)`
     - Add diagnostic ID. Cover compound assignment (read-then-write). Run on constructor and non-constructor bodies.
     - Treat array-construction sites (`new T[size]`, `new Array<T,Size>(fn)`, `[a,b,c]`) as producing fully-assigned values.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 5.4, 5.9, 7.2, 7.4_
@@ -60,10 +60,10 @@ The checked tasks below record the original delivery. Their type-parameter-field
   - Ensure all tests pass; confirm no existing tests regressed from the new read checks. Ask the user if questions arise.
 
 - [x] 4. Bare array creation stampability gate (Type Checker)
-  - [x] 4.1 Add `MIST_ARRAY_REQUIRES_INITIALIZER` diagnostic ID
+  - [x] 4.1 Add `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` diagnostic ID
     - _Requirements: 4.2_
   - [x] 4.2 Gate `new T[size]` on stampability in the array-creation check
-    - Accept primitive or stampable struct; otherwise emit `MIST_ARRAY_REQUIRES_INITIALIZER` with a reason (reference type vs. struct-with-non-stampable-field) and a fix suggestion.
+    - Accept primitive or stampable struct; otherwise emit `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` with a reason (reference type vs. struct-with-non-stampable-field) and a fix suggestion.
     - _Requirements: 4.1, 4.2, 4.5, 4.6, 7.3, 7.4_
   - [x] 4.3 Write property test for the bare-array gate (Property 4)
     - **Property 4: Bare-array stampability gate**

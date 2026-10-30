@@ -50,11 +50,11 @@ internal static partial class PurityJudge
         return undeclared is null || !Admits(kind, promiseOf(chained), Origin.Own)
             ? new Finding(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, [],
-                [$"chain to the constructor of '{built}'", scope, promiseOf(chained).Display, Needed(kind, promiseOf(chained))])
+                [new NameValue($"chain to the constructor of '{built}'"), new NameValue(scope.Text), new EnumValue(promiseOf(chained).Display), new EnumValue(Needed(kind, promiseOf(chained)))])
             : new Finding(
                 ProgramAnalysisDiagnostics.PureScopeReadsMutable, at, [],
-                [$"the ambient '{undeclared}' through the constructor of '{built}'", scope,
-                    $"it is an input the scope does not declare, so it can differ between calls; 'with {undeclared}' on the scope would make it one"]);
+                [new NameValue($"the ambient '{undeclared}' through the constructor of '{built}'"), new NameValue(scope.Text),
+                    new NameValue($"it is an input the scope does not declare, so it can differ between calls; 'with {undeclared}' on the scope would make it one")]);
     }
 
     private static bool Admits(ScopeKind kind, Promise promise, Origin receiver)
@@ -178,8 +178,8 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, at.Node, [at],
-                    operation, scope, "comparing values through an equality or ordering whose code the program cannot see",
-                    "values whose comparison is intrinsic or declared in Mist");
+                    new NameValue(operation), new NameValue(scope.Text), new EnumValue("comparing values through an equality or ordering whose code the program cannot see"),
+                    new EnumValue("values whose comparison is intrinsic or declared in Mist"));
                 return;
             }
 
@@ -220,8 +220,8 @@ internal static partial class PurityJudge
 
             Refuse(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, invocation.Node, [invocation],
-                $"call '{method.Name}'", scope, $"{promiseOf(method).Display} only while its receiver is frozen, and the receiver is {Describe(receiver)}",
-                kind is ScopeKind.Pure ? "an owned or frozen receiver" : "an owned receiver");
+                new NameValue($"call '{method.Name}'"), new NameValue(scope.Text), new EnumValue($"{promiseOf(method).Display} only while its receiver is frozen, and the receiver is {Describe(receiver)}"),
+                new EnumValue(kind is ScopeKind.Pure ? "an owned or frozen receiver" : "an owned receiver"));
         }
 
         /// <summary>
@@ -260,8 +260,8 @@ internal static partial class PurityJudge
 
             Refuse(
                 ProgramAnalysisDiagnostics.PureScopeReadsMutable, at.Node, [at],
-                $"the ambient '{context}' through {through}", scope,
-                $"it is an input the scope does not declare, so it can differ between calls; 'with {context}' on the scope would make it one");
+                new NameValue($"the ambient '{context}' through {through}"), new NameValue(scope.Text),
+                new NameValue($"it is an input the scope does not declare, so it can differ between calls; 'with {context}' on the scope would make it one"));
         }
 
         private void JudgeLoop(ForEachStatement loop)
@@ -272,8 +272,8 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, collection.Node, [collection],
-                    $"iterate {Spell(collection)}", scope, "run through a GetEnumerator only emission resolves, an extension's or the runtime's",
-                    "a collection whose own GetEnumerator states its promise");
+                    new NameValue($"iterate {Spell(collection)}"), new NameValue(scope.Text), new EnumValue("run through a GetEnumerator only emission resolves, an extension's or the runtime's"),
+                    new EnumValue("a collection whose own GetEnumerator states its promise"));
                 return;
             }
 
@@ -314,8 +314,8 @@ internal static partial class PurityJudge
 
             Refuse(
                 ProgramAnalysisDiagnostics.PureScopeCallsImpure, invocation.Node, [invocation],
-                "call a function value that is not pure", scope, "of a function type without 'pure'",
-                "a pure function type, whose values are proven pure where they convert");
+                new NameValue("call a function value that is not pure"), new NameValue(scope.Text), new EnumValue("of a function type without 'pure'"),
+                new EnumValue("a pure function type, whose values are proven pure where they convert"));
         }
 
         private void JudgeClone(CloneExpression clone)
@@ -339,8 +339,8 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, fallback.Node, [fallback],
-                    $"take the default of '{TypeDisplay.Mist(fallback.Type)}'", scope,
-                    "chosen by the type argument, and a default constraint states no promise", "a default of a known type");
+                    new NameValue($"take the default of '{TypeDisplay.Mist(fallback.Type)}'"), new NameValue(scope.Text),
+                    new EnumValue("chosen by the type argument, and a default constraint states no promise"), new EnumValue("a default of a known type"));
             }
         }
 
@@ -350,8 +350,8 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, allocation.Node, [allocation],
-                    $"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'", scope,
-                    "chosen by the type argument, and a constructor constraint states no promise", "a pure constructor");
+                    new NameValue($"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'"), new NameValue(scope.Text),
+                    new EnumValue("chosen by the type argument, and a constructor constraint states no promise"), new EnumValue("a pure constructor"));
                 return;
             }
 
@@ -368,7 +368,7 @@ internal static partial class PurityJudge
             {
                 Refuse(
                     ProgramAnalysisDiagnostics.PureScopeCallsImpure, allocation.Node, [allocation],
-                    $"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'", scope, promise.Display, "a pure constructor");
+                    new NameValue($"call the constructor of '{TypeDisplay.Mist(allocation.Type)}'"), new NameValue(scope.Text), new EnumValue(promise.Display), new EnumValue("a pure constructor"));
             }
 
             if(allocation.Constructor is { } declared)
@@ -384,7 +384,7 @@ internal static partial class PurityJudge
 
             if(!Admits(kind, promise, receiver))
             {
-                Refuse(ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, about, operation, scope, promise.Display, Needed(kind, promise));
+                Refuse(ProgramAnalysisDiagnostics.PureScopeCallsImpure, at, about, new NameValue(operation), new NameValue(scope.Text), new EnumValue(promise.Display), new EnumValue(Needed(kind, promise)));
             }
 
             return promise;

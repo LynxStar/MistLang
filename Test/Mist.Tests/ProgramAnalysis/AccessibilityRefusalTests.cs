@@ -70,7 +70,7 @@ public sealed class AccessibilityRefusalTests
         var fragment = Naming(name);
         var refusal = AccessibilityAnalyzer.DecideNaming(fragment.Namings[0]);
         _ = Assert.NotNull(refusal);
-        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", refusal.Value.Descriptor.Id.Value);
+        Assert.Equal("MIST0160", refusal.Value.Descriptor.Number.Value);
         Assert.Same(name is "private-generic-and-its-private-nested-type-are-refused-once" or "public-type-nested-in-a-private-type-named-outside"
             ? fragment.Namings[0].Named.DeclaringType : fragment.Namings[0].Named, refusal.Value.Blocking);
     }
@@ -96,9 +96,9 @@ public sealed class AccessibilityRefusalTests
     {
         var fragment = name.StartsWith("refinement-", StringComparison.Ordinal) ? PredicateAccess(name) : MemberUse(name);
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
-        Assert.Equal("MIST_PA_INACCESSIBLE_MEMBER", diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0159", diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
 
         if(name == "protected-property-with-a-private-setter-written-outside")
         {
@@ -122,8 +122,8 @@ public sealed class AccessibilityRefusalTests
     {
         var fragment = name.StartsWith("refinement-", StringComparison.Ordinal) ? PredicateAccess(name) : Exposure(name);
         var diagnostic = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
-        Assert.Equal("MIST_PA_INCONSISTENT_ACCESSIBILITY", diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
+        Assert.Equal("MIST0161", diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
     }
 
     [Theory]
@@ -140,8 +140,8 @@ public sealed class AccessibilityRefusalTests
     {
         var fragment = Naming(name);
         var finding = Assert.Single(fragment.Run(new AccessibilityAnalyzer()));
-        Assert.Equal("MIST_PA_INACCESSIBLE_TYPE", finding.Id.Value);
-        Assert.Equal(31, finding.Location.Start.Column);
+        Assert.Equal("MIST0160", finding.Number.Value);
+        Assert.Equal(31, finding.Position().Start.Column);
         Assert.Empty(fragment.Run(new AccessorAnalyzer()));
     }
 

@@ -27,17 +27,17 @@ This plan implements a 6-step workaround removal strategy for the Mist compiler,
 
   - [x] 2.2 Implement completeness check in `MistParser.cs`
     - After `ParseCompilationUnit` returns a non-null root, compare `Mist.Generated.MistParser.LastPosition` to `defaultTokens.Length`
-    - If `lastPos < defaultTokens.Length`, emit `MIST_PARSE_INCOMPLETE` diagnostic (severity Error, stage Parsing) with the line/column of the first unconsumed token
+    - If `lastPos < defaultTokens.Length`, emit `MIST0123` diagnostic (severity Error, stage Parsing) with the line/column of the first unconsumed token
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
   - [x] 2.3 Write property test for parser completeness (Property 5)
     - **Property 5: Parser Completeness Invariant**
-    - Generate source strings that are valid prefixes with trailing unparseable content, assert `MIST_PARSE_INCOMPLETE` is emitted with correct position
+    - Generate source strings that are valid prefixes with trailing unparseable content, assert `MIST0123` is emitted with correct position
     - **Validates: Requirements 3.1, 3.3, 3.4**
 
   - [x] 2.4 Write property test for completeness silence (Property 6)
     - **Property 6: Completeness Silence on Full Consumption**
-    - Generate fully valid source files, assert no `MIST_PARSE_INCOMPLETE` diagnostic is emitted
+    - Generate fully valid source files, assert no `MIST0123` diagnostic is emitted
     - **Validates: Requirements 3.2**
 
 - [x] 3. Semantic resolution of identifier constraints
@@ -56,7 +56,7 @@ This plan implements a 6-step workaround removal strategy for the Mist compiler,
 
   - [x] 3.3 Write property test for disallowed base type rejection (Property 3)
     - **Property 3: Disallowed Base Type Rejection**
-    - Generate scenarios with refinement types whose base types are NOT in the allowed set, assert `MIST_DT_0001` is emitted
+    - Generate scenarios with refinement types whose base types are NOT in the allowed set, assert `MIST0407` is emitted
     - **Validates: Requirements 2.2**
 
   - [x] 3.4 Write property test for unresolved constraint rejection (Property 4)
@@ -65,7 +65,7 @@ This plan implements a 6-step workaround removal strategy for the Mist compiler,
     - **Validates: Requirements 2.3**
 
 - [x] 4. Checkpoint — Verify stdlib full parse
-  - Ensure `Array.mist` and `Span.mist` parse completely with zero `MIST_PARSE_INCOMPLETE` diagnostics
+  - Ensure `Array.mist` and `Span.mist` parse completely with zero `MIST0123` diagnostics
   - Verify all type declarations are registered in the Standard namespace scope
   - Ensure all existing tests pass, ask the user if questions arise.
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
@@ -153,7 +153,7 @@ This plan implements a 6-step workaround removal strategy for the Mist compiler,
 
 - [x] 12. Update TODO.md
   - [x] 12.1 Remove resolved TODO items
-    - Remove the "PEG parser silently drops unparseable content" section (resolved by MIST_PARSE_INCOMPLETE)
+    - Remove the "PEG parser silently drops unparseable content" section (resolved by MIST0123)
     - Remove the "TypeParameter constraint limited to PrimitiveType" section (resolved by this feature)
     - _Requirements: 3.1, 1.1_
 

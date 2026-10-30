@@ -10,10 +10,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class LambdaBindingRefusalTests
 {
     [Theory]
-    [InlineData("lambda-whose-parameter-nothing-fixes", "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED")]
-    [InlineData("lambda-parameter-stated-against-an-inferred-type", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("lambda-body-broken-under-the-inferred-parameter", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("overloaded-callback-no-candidate-beats", "MIST_PM_AMBIGUOUS_OVERLOAD")]
+    [InlineData("lambda-whose-parameter-nothing-fixes", "MIST0391")]
+    [InlineData("lambda-parameter-stated-against-an-inferred-type", "MIST0392")]
+    [InlineData("lambda-body-broken-under-the-inferred-parameter", "MIST0301")]
+    [InlineData("overloaded-callback-no-candidate-beats", "MIST0386")]
     public void LambdaParticipatesInRealBindingAndInference(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -57,8 +57,8 @@ public sealed class LambdaBindingRefusalTests
         call.Arguments = BindingFragments.Arguments(arguments);
         _ = f.Bind(BindingFragments.Identifier("api"), call);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     private static MemberAccessSuffixPostfixSuffixNode MissingMember(string name)

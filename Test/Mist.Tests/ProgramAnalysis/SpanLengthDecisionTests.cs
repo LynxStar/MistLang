@@ -89,20 +89,20 @@ public sealed class SpanLengthDecisionTests
     }
 
     [Theory]
-    [InlineData("Span<int>", "if(i < span.Length) { return span[i]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("ReadOnlySpan<int>", "if(i >= 0) { return span[i]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Span<int>", "if(i >= 0 && i <= span.Length) { return span[i]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("ReadOnlySpan<int>", "if(span.Length != 1) { return span[0]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("Span<int>", "if(span.Length > 0) { return span[1]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("ReadOnlySpan<int>", "if(i >= 0 && i < span.Length) { i = -1; return span[i]; } return 0;", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("Span<int>", "if(i >= 0 && i < span.Length) { span = other; return span[i]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("ReadOnlySpan<int>", "if(span.Length > 0) { span = other; return span[0]; } return 0;", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("Span<int>", "if(i < span.Length) { return span[i]; } return 0;", "MIST0275")]
+    [InlineData("ReadOnlySpan<int>", "if(i >= 0) { return span[i]; } return 0;", "MIST0275")]
+    [InlineData("Span<int>", "if(i >= 0 && i <= span.Length) { return span[i]; } return 0;", "MIST0275")]
+    [InlineData("ReadOnlySpan<int>", "if(span.Length != 1) { return span[0]; } return 0;", "MIST0275")]
+    [InlineData("Span<int>", "if(span.Length > 0) { return span[1]; } return 0;", "MIST0275")]
+    [InlineData("ReadOnlySpan<int>", "if(i >= 0 && i < span.Length) { i = -1; return span[i]; } return 0;", "MIST0274")]
+    [InlineData("Span<int>", "if(i >= 0 && i < span.Length) { span = other; return span[i]; } return 0;", "MIST0275")]
+    [InlineData("ReadOnlySpan<int>", "if(span.Length > 0) { span = other; return span[0]; } return 0;", "MIST0275")]
     public void AnInsufficientGuardOrAWrite_LeavesTheAccessRefused(string type, string body, string id)
     {
         var model = Build($"public static int Read({type} span, {type} other, int i) {{ {body} }}", out var nodes);
 
         Assert.NotEmpty(nodes.OfType<IndexExpression>());
-        Assert.Equal(id, Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]

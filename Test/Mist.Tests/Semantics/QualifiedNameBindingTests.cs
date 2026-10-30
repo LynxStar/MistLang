@@ -27,9 +27,9 @@ public sealed class QualifiedNameBindingTests
 
         _ = Assert.IsType<ErrorExpression>(bound);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Id.Value);
+        Assert.Equal("MIST0296", diagnostic.Number.Value);
         Assert.Equal("The name 'System.NoSuchType' could not be found in this scope.", diagnostic.Message);
-        Assert.Equal(22, diagnostic.Location.Start.Column);
+        Assert.Equal(22, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -42,8 +42,8 @@ public sealed class QualifiedNameBindingTests
         _ = f.Bind(BindingFragments.Identifier("System"), Access("NoSuchType", 20), call);
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_IDENTIFIER", diagnostic.Id.Value);
-        Assert.Equal(22, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0296", diagnostic.Number.Value);
+        Assert.Equal(22, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class QualifiedNameBindingTests
         _ = f.Bind(BindingFragments.Identifier("System"), Access("Int32", 20), Access("MaxValue", 40));
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_MEMBER", diagnostic.Id.Value);
+        Assert.Equal("MIST0301", diagnostic.Number.Value);
         Assert.Equal("'int' has no member named 'MaxValue'.", diagnostic.Message);
     }
 

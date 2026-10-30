@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document specifies the requirements for correcting the substructural field discipline check in the Mist compiler. The existing `MIST_DROP_FIELD_NOT_OWNED` diagnostic asks only "is the container owned?" to permit or reject substructural fields. This is insufficient — the correct rule must consider the compatibility between the container's discipline and the field's discipline based on their respective drop guarantees.
+This document specifies the requirements for correcting the substructural field discipline check in the Mist compiler. The existing `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic asks only "is the container owned?" to permit or reject substructural fields. This is insufficient — the correct rule must consider the compatibility between the container's discipline and the field's discipline based on their respective drop guarantees.
 
 Additionally, generic type parameters used as fields bypass the field containment check entirely, allowing unsound instantiations (e.g., `linear class Sneaky<T> { T Value; }` compiles but `Sneaky<string>` violates the single-holder invariant).
 
@@ -10,7 +10,7 @@ This spec fixes both issues by:
 1. Replacing the binary owned/non-owned check with a discipline-compatibility matrix.
 2. Requiring substructural constraints on generic type parameters used as fields in substructural containers (or rejecting the declaration).
 
-Additionally, with the corrected field containment matrix in place, the `MIST_TC_0110` diagnostic (which blanket-prohibits `Task<T>` in fields/properties) becomes obsolete. `Task<T>` has relevant discipline and `ValueTask<T>` has linear discipline — the matrix already enforces that only containers with compatible disciplines may hold them (relevant/linear containers for Task, linear-only for ValueTask), which guarantees the same structured-concurrency invariants as a bare Task local. This spec removes `MIST_TC_0110` and relies on the matrix rules instead.
+Additionally, with the corrected field containment matrix in place, the `MIST_TC_0110 (historical)` diagnostic (which blanket-prohibits `Task<T>` in fields/properties) becomes obsolete. `Task<T>` has relevant discipline and `ValueTask<T>` has linear discipline — the matrix already enforces that only containers with compatible disciplines may hold them (relevant/linear containers for Task, linear-only for ValueTask), which guarantees the same structured-concurrency invariants as a bare Task local. This spec removes `MIST_TC_0110 (historical)` and relies on the matrix rules instead.
 
 ## Glossary
 
@@ -24,7 +24,7 @@ Additionally, with the corrected field containment matrix in place, the `MIST_TC
 - **TypeParameterType**: The semantic model's representation of an unsubstituted type parameter (e.g., `T` in `class Box<T>`).
 - **Task_Type**: The built-in `Task<T>` type used for structured concurrency. It has `Relevant` discipline (must be awaited at least once).
 - **ValueTask_Type**: The built-in `ValueTask<T>` type used for structured concurrency. It has `Linear` discipline (must be awaited exactly once).
-- **MIST_TC_0110**: A legacy diagnostic that blanket-prohibits storing `Task<T>` in fields, properties, or collections. Superseded by the discipline-compatibility matrix.
+- **MIST_TC_0110* (historical scheme)*: A legacy diagnostic that blanket-prohibits storing `Task<T>` in fields, properties, or collections. Superseded by the discipline-compatibility matrix.
 
 ## Requirements
 
@@ -41,7 +41,7 @@ Additionally, with the corrected field containment matrix in place, the `MIST_TC
 5. WHEN an **owned** container (explicit `owned` keyword, no substructural modifier) declares a field, THE DropAnalyzer SHALL apply the same permissible-field rules as an unrestricted container (criteria 4), because `owned` alone provides no substructural drop guarantee.
 6. THE DropAnalyzer SHALL replace the current binary "is the container owned?" check with the discipline-compatibility matrix described by criteria 1–5.
 7. IF a container declares multiple fields with incompatible disciplines, THEN THE DropAnalyzer SHALL report one compile-time error for each incompatible field independently.
-8. An array is an unrestricted container. WHEN an array literal or an array creation has a linear or affine element type, including a type parameter constrained `linear` or `affine`, THE Compiler SHALL report `MIST_PA_ARRAY_ELEMENT_DISCIPLINE` at that expression. A ref struct element is refused by its own array-element rule instead.
+8. An array is an unrestricted container. WHEN an array literal or an array creation has a linear or affine element type, including a type parameter constrained `linear` or `affine`, THE Compiler SHALL report `MIST0458` at that expression. A ref struct element is refused by its own array-element rule instead.
 
 ### Requirement 2: Updated Diagnostic Messages
 
@@ -49,10 +49,10 @@ Additionally, with the corrected field containment matrix in place, the `MIST_TC
 
 #### Acceptance Criteria
 
-1. WHEN an affine container contains a linear or relevant field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID: "Affine type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may never be dropped, violating the field's requirement of at least one drop." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "linear" or "relevant").
-2. WHEN a relevant container contains an affine or linear field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID: "Relevant type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may be dropped multiple times, violating the field's at-most-once drop requirement." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "affine" or "linear").
-3. WHEN an unrestricted container or an owned container (which follows unrestricted rules per Requirement 1 AC 5) contains a linear, affine, or relevant field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID: "Type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container has no substructural discipline and cannot guarantee the field's drop requirements." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "linear", "affine", or "relevant").
-4. THE existing diagnostic ID `MIST_DROP_FIELD_NOT_OWNED` SHALL be retained as the single diagnostic ID for all three message variants (the ID is stable and referenced by other specs) but its message templates SHALL be updated to match the new formulations defined in criteria 1–3, replacing the current single "Non-owned type ... single-holder invariant" message.
+1. WHEN an affine container contains a linear or relevant field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID: "Affine type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may never be dropped, violating the field's requirement of at least one drop." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "linear" or "relevant").
+2. WHEN a relevant container contains an affine or linear field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID: "Relevant type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container may be dropped multiple times, violating the field's at-most-once drop requirement." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "affine" or "linear").
+3. WHEN an unrestricted container or an owned container (which follows unrestricted rules per Requirement 1 AC 5) contains a linear, affine, or relevant field, THE DropAnalyzer SHALL report using the `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID: "Type '{ContainerName}' cannot contain {field_modifier} field '{FieldName}'. The container has no substructural discipline and cannot guarantee the field's drop requirements." where `{field_modifier}` is the lowercase discipline keyword of the field's type (e.g., "linear", "affine", or "relevant").
+4. THE existing diagnostic ID `MIST_DROP_FIELD_NOT_OWNED (historical)` SHALL be retained as the single diagnostic ID for all three message variants (the ID is stable and referenced by other specs) but its message templates SHALL be updated to match the new formulations defined in criteria 1–3, replacing the current single "Non-owned type ... single-holder invariant" message.
 
 ### Requirement 3: Substructural Constraints on Type Parameters
 
@@ -119,7 +119,7 @@ Additionally, with the corrected field containment matrix in place, the `MIST_TC
 #### Acceptance Criteria
 
 1. A sample project SHALL exist at `samples/SubstructuralFieldDiscipline/Program.mist` with a `mist.toml` project file.
-2. The sample SHALL demonstrate at minimum the following valid combinations: a linear container with linear, affine, relevant, and unrestricted fields; an affine container with affine and unrestricted fields; a relevant container with relevant and unrestricted fields; at least one generic substructural container with a constrained type parameter (e.g., `where T : affine`); at least one instantiation site that satisfies the generic constraint; a relevant container holding a `Task<T>` field (proving MIST_TC_0110 removal — Task is relevant, relevant containers hold relevant fields); a linear container holding a `Task<T>` field (linear holds anything); and a linear container holding a `ValueTask<T>` field (ValueTask is linear, linear containers hold linear fields).
+2. The sample SHALL demonstrate at minimum the following valid combinations: a linear container with linear, affine, relevant, and unrestricted fields; an affine container with affine and unrestricted fields; a relevant container with relevant and unrestricted fields; at least one generic substructural container with a constrained type parameter (e.g., `where T : affine`); at least one instantiation site that satisfies the generic constraint; a relevant container holding a `Task<T>` field (proving MIST_TC_0110 (historical) removal — Task is relevant, relevant containers hold relevant fields); a linear container holding a `Task<T>` field (linear holds anything); and a linear container holding a `ValueTask<T>` field (ValueTask is linear, linear containers hold linear fields).
 3. Each demonstrated pattern SHALL print labeled output to stdout so correctness is observable.
 4. `samples/AllFeatures/Program.mist` SHALL call `SubstructuralFieldDiscipline.Program.RunDemo()`, and `samples/AllFeatures/mist.toml` SHALL include a reference entry `SubstructuralFieldDiscipline = { path = "../SubstructuralFieldDiscipline" }`.
 5. WHEN the sample is compiled via the Mist compiler, THE system SHALL produce zero diagnostic errors and zero diagnostic warnings, and WHEN the compiled output is executed, THE system SHALL exit with code 0 and produce no output on stderr.
@@ -597,18 +597,18 @@ public class Program
 3. All code examples SHALL be compiled snippets following the Book Snippet Policy: each example stored as a `.mist` file in `book/snippets/` with a corresponding `.cs` file generated by the SnippetEmitter tool, and included in the markdown via `{{#include}}` references using the tabbed format.
 4. THE book's SUMMARY.md SHALL reference the new section in the Advanced Features part, listed immediately after the "Drop Semantics" entry.
 
-### Requirement 9: Remove MIST_TC_0110 Task Storage Restriction
+### Requirement 9: Remove MIST_TC_0110 (historical) Task Storage Restriction
 
 **User Story:** As a Mist developer, I want to store `Task<T>` in fields and properties of types with appropriate substructural discipline, so that I can build abstractions (e.g., task combinators, deferred executors) that hold pending tasks without the compiler rejecting them.
 
 #### Acceptance Criteria
 
-1. THE Compiler SHALL remove the `MIST_TC_0110` diagnostic and all associated checks that blanket-prohibit `Task<T>` from appearing in fields, properties, or collection element types.
+1. THE Compiler SHALL remove the `MIST_TC_0110 (historical)` diagnostic and all associated checks that blanket-prohibit `Task<T>` from appearing in fields, properties, or collection element types.
 2. WHEN `Task<T>` (relevant discipline) is used as a field type in a relevant or linear container, THE DropAnalyzer SHALL permit the field because the discipline-compatibility matrix (Requirement 1 AC 1, AC 3) allows relevant fields in relevant and linear containers.
-3. WHEN `Task<T>` is used as a field type in an affine or unrestricted container, THE DropAnalyzer SHALL reject the field using the standard Requirement 2 diagnostic messages (not `MIST_TC_0110`), because affine containers may never be dropped (violating relevant's at-least-once requirement) and unrestricted containers make no drop guarantees.
+3. WHEN `Task<T>` is used as a field type in an affine or unrestricted container, THE DropAnalyzer SHALL reject the field using the standard Requirement 2 diagnostic messages (not `MIST_TC_0110 (historical)`), because affine containers may never be dropped (violating relevant's at-least-once requirement) and unrestricted containers make no drop guarantees.
 4. WHEN `ValueTask<T>` (linear discipline) is used as a field type in a linear container, THE DropAnalyzer SHALL permit the field because the discipline-compatibility matrix (Requirement 1 AC 1) allows linear fields in linear containers.
-5. WHEN `ValueTask<T>` is used as a field type in an affine, relevant, or unrestricted container, THE DropAnalyzer SHALL reject the field using the standard Requirement 2 diagnostic messages (not `MIST_TC_0110`), because affine may never drop (violating linear's exactly-once), relevant may drop multiple times (violating linear's at-most-once), and unrestricted makes no guarantees.
+5. WHEN `ValueTask<T>` is used as a field type in an affine, relevant, or unrestricted container, THE DropAnalyzer SHALL reject the field using the standard Requirement 2 diagnostic messages (not `MIST_TC_0110 (historical)`), because affine may never drop (violating linear's exactly-once), relevant may drop multiple times (violating linear's at-most-once), and unrestricted makes no guarantees.
 6. THE Compiler SHALL continue to permit `Task<T>` and `ValueTask<T>` in local variables, method parameters, and return types (existing behavior preserved).
 7. WHEN a generic type parameter constrained to `relevant` (e.g., `where T : relevant`) is instantiated with `Task<T>`, THE constraint checker SHALL accept the type argument because `Task<T>` has relevant discipline. WHEN a generic type parameter constrained to `linear` is instantiated with `ValueTask<T>`, THE constraint checker SHALL accept the type argument because `ValueTask<T>` has linear discipline.
-8. THE existing test files `TaskStorageRestrictionDiagnosticTests.cs` and `TaskStorageRestrictionPropertyTests.cs` SHALL be updated to verify: (a) `Task<T>` IS permitted in relevant and linear container fields without any diagnostic, (b) `ValueTask<T>` IS permitted in linear container fields without any diagnostic, and (c) `Task<T>` in affine or unrestricted container fields and `ValueTask<T>` in affine, relevant, or unrestricted container fields produce the standard discipline-compatibility diagnostic from Requirement 2 (not `MIST_TC_0110`).
-9. IF any code path previously guarded by `MIST_TC_0110` becomes reachable after removal, THEN THE DropAnalyzer's discipline-compatibility matrix SHALL handle it correctly — no new diagnostic ID is needed because the matrix rules from Requirement 1 already cover all cases.
+8. THE existing test files `TaskStorageRestrictionDiagnosticTests.cs` and `TaskStorageRestrictionPropertyTests.cs` SHALL be updated to verify: (a) `Task<T>` IS permitted in relevant and linear container fields without any diagnostic, (b) `ValueTask<T>` IS permitted in linear container fields without any diagnostic, and (c) `Task<T>` in affine or unrestricted container fields and `ValueTask<T>` in affine, relevant, or unrestricted container fields produce the standard discipline-compatibility diagnostic from Requirement 2 (not `MIST_TC_0110 (historical)`).
+9. IF any code path previously guarded by `MIST_TC_0110 (historical)` becomes reachable after removal, THEN THE DropAnalyzer's discipline-compatibility matrix SHALL handle it correctly — no new diagnostic ID is needed because the matrix rules from Requirement 1 already cover all cases.

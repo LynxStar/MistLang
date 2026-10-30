@@ -237,7 +237,7 @@ A static lambda can only access:
 - Static fields and methods
 - Constants and type names
 
-Attempting to reference an enclosing local variable, instance field, or `this` from a static lambda produces a compile-time error (`MIST_TC_0113`).
+Attempting to reference an enclosing local variable, instance field, or `this` from a static lambda produces a compile-time error (`MIST_TC_0113 (historical)`).
 
 ## Async Lambdas
 
@@ -291,7 +291,7 @@ Mist's ownership system restricts what types can be captured to prevent safety v
 | `owned` types | ❌ No | Ownership transfer into closure is ambiguous |
 | `ref` / `readonly ref` / `frozen ref` | ❌ No | Borrowed references cannot outlive their scope |
 
-Attempting to capture a restricted type produces a compile-time error (`MIST_TC_0110` through `MIST_TC_0112`).
+Attempting to capture a restricted type produces a compile-time error (`MIST_TC_0110 (historical)` through `MIST_TC_0112 (historical)`).
 
 ## Type Aliases for Function Types
 

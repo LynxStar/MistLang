@@ -17,7 +17,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "2")]
 public sealed class UserSliceBindingTests
 {
-    private const string NotSliceable = "MIST_PM_RECEIVER_NOT_SLICEABLE";
+    private const string NotSliceable = "MIST0353";
 
     [Fact]
     public void ARangeIndexerOfACountedReceiverIsTheSelectedAccess()
@@ -129,7 +129,7 @@ public sealed class UserSliceBindingTests
         var refused = f.Slice(receiver);
 
         var diagnostic = Assert.Single(f.Errors());
-        Assert.Equal(NotSliceable, diagnostic.Id.Value);
+        Assert.Equal(NotSliceable, diagnostic.Number.Value);
         Assert.StartsWith("'Shape' cannot be sliced by a range.", diagnostic.Message, StringComparison.Ordinal);
         Assert.True(PriorFailure.Of(refused));
     }
@@ -186,8 +186,8 @@ public sealed class UserSliceBindingTests
 
     [Theory]
     [InlineData("unsliceable", NotSliceable)]
-    [InlineData("two-slices", "MIST_PM_LIST_PATTERN_MULTIPLE_SLICES")]
-    [InlineData("unindexable", "MIST_PM_LIST_PATTERN_SCRUTINEE")]
+    [InlineData("two-slices", "MIST0357")]
+    [InlineData("unindexable", "MIST0356")]
     public void ARefusedListPatternKeepsItsBindingsAsFailures_SoNothingNamesThemAgain(string refusal, string id)
     {
         var f = new Fixture();
@@ -208,7 +208,7 @@ public sealed class UserSliceBindingTests
             ? f.Match(rows, Patterns.Slice(Patterns.Var("first")), Patterns.Slice(Patterns.Var("middle")), Patterns.Element(Patterns.Var("last")))
             : f.Match(rows, Patterns.Element(Patterns.Var("first")), Patterns.Slice(Patterns.Var("middle")), Patterns.Element(Patterns.Var("last")));
 
-        Assert.Equal(id, Assert.Single(f.Errors()).Id.Value);
+        Assert.Equal(id, Assert.Single(f.Errors()).Number.Value);
         Assert.True(bound.IsFailed);
         Assert.Equal(3, bound.Elements.Count);
         Assert.Equal(refusal == "unindexable", f.Fragments.Scope.Locals["first"].IsFailed);

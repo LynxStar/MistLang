@@ -63,7 +63,7 @@ public class Program
         // Microsoft.EntityFrameworkCore from the Npgsql.EntityFrameworkCore.PostgreSQL package.
         // This exercises the structural equality fix in ExtensionRegistry.IsApplicable —
         // without it, the projected receiver type (disconnected shell) would not match the
-        // cached type instance resolved during Pass 2, producing MIST_UNDEFINED_MEMBER.
+        // cached type instance resolved during Pass 2, producing the historical code MIST_UNDEFINED_MEMBER.
         DemoEfCoreExtensions();
 
         Console.WriteLine("--- C# Interop V2 Done ---");

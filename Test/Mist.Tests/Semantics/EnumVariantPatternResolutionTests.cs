@@ -76,7 +76,7 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = d is Direction.North;");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        Assert.Empty(Errors(diagnostics, "MIST0298"));
         BindsCleanly("var ok = d is Direction.North;");
     }
 
@@ -129,13 +129,13 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
     [Fact]
     public void ADottedNameQualifiedByANonEnum_FallsBackToReportingAnUnresolvedType()
     {
-        _ = Assert.Single(Errors(BuildRun("var ok = u is Animal.Nope;"), "MIST_PM_UNRESOLVED_TYPE"));
+        _ = Assert.Single(Errors(BuildRun("var ok = u is Animal.Nope;"), "MIST0298"));
     }
 
     [Fact]
     public void AVariantNameTheEnumDoesNotDeclare_FallsBackToReportingAnUnresolvedType()
     {
-        _ = Assert.Single(Errors(BuildRun("var ok = d is Direction.Up;"), "MIST_PM_UNRESOLVED_TYPE"));
+        _ = Assert.Single(Errors(BuildRun("var ok = d is Direction.Up;"), "MIST0298"));
     }
 
     // ── The other position a pattern occupies ────────────────────────────

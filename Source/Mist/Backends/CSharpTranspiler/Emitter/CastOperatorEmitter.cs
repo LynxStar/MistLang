@@ -30,8 +30,18 @@ internal static class CastOperatorEmitter
 
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
-        var targetType = TypeNameEmitter.Emit(castOperator.TargetType);
-        var parameters = ParameterEmitter.Emit(castOperator.ParametersList, diagnostics);
+        var nullableCopy = castOperator.CopiesClone && TypeNameEmitter.IsReferenceKind(castOperator.TargetType);
+        var targetType = nullableCopy ? TypeNameEmitter.EmitOptional(castOperator.TargetType) : TypeNameEmitter.Emit(castOperator.TargetType);
+        var source = castOperator.SourceParameter;
+        var parameters = nullableCopy
+            ? AttributeEmitter.Inline(source.DeclaredAttributesList, diagnostics)
+                + $"{TypeNameEmitter.EmitOptional(source.Type)} {IdentifierSpelling.Of(source.Name)}"
+            : ParameterEmitter.Emit(castOperator.ParametersList, diagnostics);
+
+        if(nullableCopy)
+        {
+            writer.WriteLine($"[return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(\"{source.Name}\")]");
+        }
 
         writer.WriteLine($"{modifiers}{kind} operator {targetType}({parameters})");
         using(writer.Block())

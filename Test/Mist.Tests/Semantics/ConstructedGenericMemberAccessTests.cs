@@ -227,7 +227,7 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("Box<int>.Missing m = Box<int>.Wrapper.Make();");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0298"));
     }
 
     private const string Projections = """
@@ -263,7 +263,7 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var s = new Sized<7>(); var n = s.N;", Projections);
 
-        Assert.Contains("'Sized<7>' has no member named 'N'", Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER")).Message, StringComparison.Ordinal);
+        Assert.Contains("'Sized<7>' has no member named 'N'", Assert.Single(Errors(diagnostics, "MIST0301")).Message, StringComparison.Ordinal);
     }
 
     private static ConstructedType ReceiverTypeOf(InvocationExpression call)

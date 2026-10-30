@@ -11,7 +11,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
 {
-    private const string NotExhaustive = "MIST_PA_SWITCH_NOT_EXHAUSTIVE";
+    private const string NotExhaustive = "MIST0148";
 
     public ExhaustivenessDecisionTests()
         : base("MistExhaustiveness_")
@@ -135,6 +135,6 @@ public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => d.Id.Value == NotExhaustive)];
+        return [.. findings.ToImmutableArray().Where(d => d.Number.Value == NotExhaustive)];
     }
 }

@@ -16,7 +16,7 @@ follow the root `AGENTS.md` "Tests" table.
     - _Requirements: 1.1, 1.2, 1.3, 6.1_
   - [x] 1.3 `RidGraph`: parse, `FallbackOrder`, built-in table; Tier 1 `RidGraphTests`
     - _Requirements: 1.5, 1.6, 6.2_
-  - [x] 1.4 `--rid` in `CliArgumentParser`/`CliArguments`; `CompilerOptions.RuntimeIdentifier`; `MIST_RID_UNKNOWN`
+  - [x] 1.4 `--rid` in `CliArgumentParser`/`CliArguments`; `CompilerOptions.RuntimeIdentifier`; `MIST0100`
     - _Requirements: 1.3, 1.4, 5.3_
 
 - [x] 2. Package runtime assets (driver)

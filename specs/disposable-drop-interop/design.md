@@ -192,7 +192,7 @@ The `DropAnalyzer` and `TypeHasDrop` helper already check `HasDrop` on the type.
 ### Diagnostic Behavior
 
 No new diagnostics are introduced by this feature. The existing drop analyzer diagnostics apply unchanged:
-- Using a droppable type outside a `with` block in a linear/relevant context still produces `MIST_DROP_USE_AFTER_MOVE` or equivalent.
+- Using a droppable type outside a `with` block in a linear/relevant context still produces `MIST_DROP_USE_AFTER_MOVE (historical)` or equivalent.
 - The presence or absence of `IsDisposableDrop` does not affect which diagnostics fire — only `HasDrop` and the substructural discipline determine diagnostic behavior.
 
 ## Testing Strategy

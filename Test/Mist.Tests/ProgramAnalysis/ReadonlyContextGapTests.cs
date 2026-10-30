@@ -13,16 +13,16 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class ReadonlyContextGapTests
 {
-    private const string CallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
-    private const string SetsProperty = "MIST_PA_READONLY_CONTEXT_SETS_PROPERTY";
-    private const string WritesThroughRef = "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF";
+    private const string CallsMutable = "MIST0257";
+    private const string SetsProperty = "MIST0259";
+    private const string WritesThroughRef = "MIST0261";
 
     [Fact]
     public void AReadonlyMember_MayNotWriteThroughARef()
     {
         var finding = Assert.Single(Analyze("readonly-method-writes-through-a-ref-local-aliasing-a-field"));
 
-        Assert.Equal(WritesThroughRef, finding.Id.Value);
+        Assert.Equal(WritesThroughRef, finding.Number.Value);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class ReadonlyContextGapTests
     [InlineData("readonly-method-sets-an-indexer-whose-setter-writes-a-static-on-what-it-owns")]
     public void AReadonlyMember_MayNotCallASideEffectingSetterOnWhatItOwns(string fragment)
     {
-        Assert.Equal(SetsProperty, Assert.Single(Analyze(fragment)).Id.Value);
+        Assert.Equal(SetsProperty, Assert.Single(Analyze(fragment)).Number.Value);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class ReadonlyContextGapTests
     {
         var finding = Assert.Single(Analyze("readonly-method-reads-an-extension-getter-that-writes-a-static"));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Contains("Ext", finding.Message, StringComparison.Ordinal);
     }
 
@@ -73,7 +73,7 @@ public sealed class ReadonlyContextGapTests
     {
         var finding = Assert.Single(Analyze("readonly-method-calls-an-implicit-conversion-that-writes-a-static"));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
     }
 
     [Theory]
@@ -89,7 +89,7 @@ public sealed class ReadonlyContextGapTests
     {
         var finding = Assert.Single(Analyze("readonly-method-clones-through-a-clone-that-writes-a-static"));
 
-        Assert.Equal(CallsMutable, finding.Id.Value);
+        Assert.Equal(CallsMutable, finding.Number.Value);
         Assert.Contains("Clone", finding.Message, StringComparison.Ordinal);
     }
 

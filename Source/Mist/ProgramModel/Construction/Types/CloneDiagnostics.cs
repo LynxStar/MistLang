@@ -1,5 +1,5 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
@@ -18,34 +18,49 @@ internal static class CloneDiagnostics
     {
         foreach(var clone in clones)
         {
-            var newtypeLocation = DiagnosticHelper.ResolveLocation(clone.NewtypeDeclaration!).Location;
-
-            foreach(var withheld in bag.Withhold(() => step(clone)))
+            var newtype = DiagnosticHelper.ResolveLocation(clone.NewtypeDeclaration!);
+            var sourceOrdinals = bag.Admitted.Select(occurrence => occurrence.Ordinal).ToHashSet();
+            Withheld withheld;
+            using(bag.ReplayOwnedFailures())
             {
-                if(Contains(newtypeLocation, withheld.Location))
-                {
-                    bag.Add(withheld);
-                    continue;
-                }
-
-                if(withheld.Severity != DiagnosticSeverity.Error || bag.Contains(withheld))
-                {
-                    continue;
-                }
-
-                bag.ReportAtNode(
-                    ProgramModelDiagnostics.NewtypeCloneInvalid,
-                    clone.NewtypeDeclaration!,
-                    null,
-                    TypeDisplay.Mist(clone),
-                    TypeDisplay.Mist(clone.CloneSourceType ?? clone.CloneSource!),
-                    MemberAt(clone, withheld.Location) ?? TypeDisplay.Mist(clone.CloneSource!),
-                    withheld.Message);
+                withheld = bag.Withhold(() => step(clone));
             }
+
+            foreach(var occurrence in withheld.Occurrences)
+            {
+                if(sourceOrdinals.Contains(occurrence.Ordinal))
+                {
+                    continue;
+                }
+
+                if(newtype.Location.Contains(occurrence.Location))
+                {
+                    withheld.Replay(occurrence);
+                    continue;
+                }
+
+                if(occurrence.Severity != DiagnosticSeverity.Error)
+                {
+                    continue;
+                }
+
+                bag.Admit(DiagnosticFactory.Create(
+                    ProgramModelDiagnostics.NewtypeCloneInvalid,
+                    newtype,
+                    bag.Stage,
+                    [
+                        DiagnosticSnapshot.Type(clone),
+                        DiagnosticSnapshot.Type(clone.CloneSourceType ?? clone.CloneSource!),
+                        new NameValue(MemberAt(clone, occurrence.Location) ?? TypeDisplay.Mist(clone.CloneSource!)),
+                    ],
+                    cause: occurrence.Ordinal));
+            }
+
+            withheld.Discard();
         }
     }
 
-    private static string? MemberAt(ConcreteType clone, LinePositionSpan location)
+    private static string? MemberAt(ConcreteType clone, Location location)
     {
         var members = clone.FieldsList.Select(field => (field.Name, field.DeclarationNode))
             .Concat(clone.PropertiesList.Select(property => (property.Name, property.DeclarationNode)))
@@ -54,22 +69,12 @@ internal static class CloneDiagnostics
 
         foreach(var (name, node) in members)
         {
-            if(node is not null && Contains(DiagnosticHelper.ResolveLocation(node).Location, location))
+            if(node is not null && DiagnosticHelper.ResolveLocation(node).Location.Contains(location))
             {
                 return name;
             }
         }
 
         return null;
-    }
-
-    private static bool Contains(LinePositionSpan outer, LinePositionSpan inner)
-    {
-        return Compare(outer.Start, inner.Start) <= 0 && Compare(inner.End, outer.End) <= 0;
-    }
-
-    private static int Compare(LinePosition left, LinePosition right)
-    {
-        return left.Line != right.Line ? left.Line.CompareTo(right.Line) : left.Column.CompareTo(right.Column);
     }
 }

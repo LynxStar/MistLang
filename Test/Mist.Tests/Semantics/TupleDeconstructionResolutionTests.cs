@@ -78,7 +78,7 @@ public sealed class TupleDeconstructionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var (n, s, extra) = pair;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_DECONSTRUCTION_ARITY"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0365"));
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public sealed class TupleDeconstructionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var (only) = pair;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_DECONSTRUCTION_ARITY"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0365"));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class TupleDeconstructionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var (n, s) = g;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_DECONSTRUCTION_SOURCE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0366"));
     }
 
     [Fact]

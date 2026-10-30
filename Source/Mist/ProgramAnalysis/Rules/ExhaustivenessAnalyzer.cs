@@ -28,6 +28,8 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 {
     public string Id => "exhaustiveness-checking";
 
+    public MistDiagnostic? OptionalRule => ProgramAnalysisDiagnostics.SwitchNotExhaustive;
+
     public void Analyze(AnalysisContext context)
     {
         foreach(var node in context.Nodes)
@@ -38,12 +40,12 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
                     ProgramAnalysisDiagnostics.SwitchNotExhaustive,
                     switchExpression.Node,
                     [switchExpression.Scrutinee],
-                    string.Join(", ", missing));
+                    new SequenceValue(SlotKind.Name, [.. missing.Select(item => new NameValue(item))]));
             }
         }
     }
 
-    internal static DiagnosticDescriptor? Finding(SwitchExpression switchExpression, TypeInterner? interner = null)
+    internal static MistDiagnostic? Finding(SwitchExpression switchExpression, TypeInterner? interner = null)
     {
         return Missing(switchExpression, interner) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
     }

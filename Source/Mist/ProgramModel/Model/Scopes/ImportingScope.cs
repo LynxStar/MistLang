@@ -95,9 +95,7 @@ internal abstract class ImportingScope(Scope? parent, ProgramModel programModel,
             // returned either way, so the caller can report in its own terms.
             if(request.LocationNode is { } node)
             {
-                diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.AmbiguousType, node, null,
-                    request.Name, matchedNamespace!, conflictNamespace);
+                diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AmbiguousType, node, null, new NameValue(request.Name), new NameValue(matchedNamespace!), new NameValue(conflictNamespace));
             }
 
             return new TypeResult(Types.ErrorType.Instance);

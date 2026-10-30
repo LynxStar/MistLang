@@ -20,8 +20,8 @@ public sealed class PatternAssignmentTests
         var diagnostic = Assert.Single(fixture.Analyze(If(fixture.Or(fixture.Flag(), fixture.Match(variable)), Use(Read(variable)))));
 
         AssertRead(diagnostic, "log");
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
         Assert.Equal(PipelineStage.Analysis, diagnostic.Stage);
         Assert.Equal("flow-framework", diagnostic.AnalyzerName);
     }
@@ -298,7 +298,7 @@ public sealed class PatternAssignmentTests
         {
             var diagnostic = Assert.Single(diagnostics);
             AssertEntry(diagnostic, variable.Name);
-            Assert.Equal(38, diagnostic.Location.Start.Column);
+            Assert.Equal(38, diagnostic.Position().Start.Column);
         }
     }
 
@@ -408,13 +408,13 @@ public sealed class PatternAssignmentTests
 
     private static void AssertRead(Diagnostic diagnostic, string name)
     {
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", diagnostic.Id.Value);
+        Assert.Equal("MIST0220", diagnostic.Number.Value);
         Assert.Equal($"Local variable '{name}' is read before being definitely assigned.", diagnostic.Message);
     }
 
     private static void AssertEntry(Diagnostic diagnostic, string name)
     {
-        Assert.Equal("MIST_PA_LOCAL_FUNCTION_READS_UNASSIGNED", diagnostic.Id.Value);
+        Assert.Equal("MIST0221", diagnostic.Number.Value);
         Assert.Contains($"reads '{name}'", diagnostic.Message, StringComparison.Ordinal);
     }
 }

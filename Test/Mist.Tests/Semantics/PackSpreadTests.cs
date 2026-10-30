@@ -111,7 +111,7 @@ public sealed class PackSpreadTests : ProgramModelProbe
     [InlineData("public TArgs... Item; public TArgs... ItemExtra;")]
     public void NameASpreadCouldClaim_IsRefused(string body)
     {
-        _ = Assert.Single(Errors(Stems(body), "MIST_VAR_0007"));
+        _ = Assert.Single(Errors(Stems(body), "MIST0412"));
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public sealed class PackSpreadTests : ProgramModelProbe
     [Fact]
     public void NameTheFamilyCannotClaim_IsAllowed()
     {
-        Assert.Empty(Errors(Stems("public TArgs... Item; public int ItemName; public int Other;"), "MIST_VAR_0007"));
+        Assert.Empty(Errors(Stems("public TArgs... Item; public int ItemName; public int Other;"), "MIST0412"));
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ public sealed class PackSpreadTests : ProgramModelProbe
                 Stems2("public struct Pair<Type[2]:TShapes>"
                     + " { public TShapes... Shape;"
                     + "   public void Use() { var x = Shape3; } }"),
-                "MIST_PM_UNRESOLVED_IDENTIFIER"));
+                "MIST0296"));
     }
 
     private ImmutableArray<Diagnostic> Stems2(string types)

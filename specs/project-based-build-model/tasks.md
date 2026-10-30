@@ -23,13 +23,13 @@ This plan implements Requirements 10–14: adding a TOML project file (`mist.tom
     - Define `public static class ProjectFileParser` in namespace `Mist.Driver`
     - Add constants: `FileName = "mist.toml"`, `MaxNameLength = 128`
     - Implement `public static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics)` with the following validation order:
-      1. File existence check → `MIST_PROJECT_FILE_NOT_FOUND` diagnostic
-      2. File read with I/O error handling → `MIST_PROJECT_FILE_READ_ERROR` diagnostic
-      3. TOML parsing via `Tomlyn.Toml.ToModel()`, catching `TomlException` → `MIST_PROJECT_TOML_ERROR` diagnostic
-      4. `name` field presence check → `MIST_PROJECT_MISSING_NAME` diagnostic
-      5. `name` non-empty/non-whitespace check → `MIST_PROJECT_EMPTY_NAME` diagnostic
-      6. `name` character validation via regex `^[a-zA-Z0-9\-_\.]+$` → `MIST_PROJECT_INVALID_NAME` diagnostic (message lists invalid chars)
-      7. `name` length check ≤ 128 → `MIST_PROJECT_NAME_TOO_LONG` diagnostic
+      1. File existence check → `MIST0049` diagnostic
+      2. File read with I/O error handling → `MIST0050` diagnostic
+      3. TOML parsing via `Tomlyn.Toml.ToModel()`, catching `TomlException` → `MIST0051` diagnostic
+      4. `name` field presence check → `MIST0052` diagnostic
+      5. `name` non-empty/non-whitespace check → `MIST0053` diagnostic
+      6. `name` character validation via regex `^[a-zA-Z0-9\-_\.]+$` → `MIST0054` diagnostic (message lists invalid chars)
+      7. `name` length check ≤ 128 → `MIST0055` diagnostic
     - All diagnostics use `PipelineStage.Driver`, `DiagnosticSeverity.Error`, `Location: null`, and set `CompilationUnitPath` to the `mist.toml` file path
     - Return `null` on any error, short-circuiting on first failure
     - _Requirements: 10.1, 10.4, 10.5, 10.6, 11.1, 11.2, 11.3, 11.4, 12.1, 12.2, 12.3_
@@ -45,22 +45,22 @@ This plan implements Requirements 10–14: adding a TOML project file (`mist.tom
     - **Property 2: Whitespace-only names are rejected**
     - Add test to `Test/Mist.Tests/Backend/ProjectFileParserPropertyTests.cs`
     - Generate random strings composed entirely of whitespace characters (`\x20`, `\t`, `\n`, `\r`)
-    - Parse and assert null result with `MIST_PROJECT_EMPTY_NAME` diagnostic
+    - Parse and assert null result with `MIST0053` diagnostic
     - **Validates: Requirements 10.6**
 
   - [x] 2.4 Write property test: Name character validation (Property 3)
     - **Property 3: Name character validation**
     - Add test to `Test/Mist.Tests/Backend/ProjectFileParserPropertyTests.cs`
-    - Two sub-generators: (a) valid names from `[a-zA-Z0-9\-_\.]` → assert accepted; (b) strings with at least one char outside that set → assert rejected with `MIST_PROJECT_INVALID_NAME` diagnostic listing invalid chars
+    - Two sub-generators: (a) valid names from `[a-zA-Z0-9\-_\.]` → assert accepted; (b) strings with at least one char outside that set → assert rejected with `MIST0054` diagnostic listing invalid chars
     - **Validates: Requirements 11.1, 11.2**
 
   - [x] 2.5 Write unit tests for ProjectFileParser error paths
     - Add tests to `Test/Mist.Tests/Backend/ProjectFileParserTests.cs`
-    - Test: missing `mist.toml` → `MIST_PROJECT_FILE_NOT_FOUND`
-    - Test: TOML without `name` key → `MIST_PROJECT_MISSING_NAME`
-    - Test: malformed TOML content → `MIST_PROJECT_TOML_ERROR`
+    - Test: missing `mist.toml` → `MIST0049`
+    - Test: TOML without `name` key → `MIST0052`
+    - Test: malformed TOML content → `MIST0051`
     - Test: name exactly 128 chars → accepted (boundary)
-    - Test: name of 129 chars → `MIST_PROJECT_NAME_TOO_LONG` (boundary)
+    - Test: name of 129 chars → `MIST0055` (boundary)
     - _Requirements: 10.4, 10.5, 11.3, 11.4, 12.3_
 
 - [x] 3. Checkpoint

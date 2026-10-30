@@ -57,11 +57,12 @@ public sealed class CompilerDriver : ICompilerDriver
             _ => throw new InvalidOperationException($"Unknown pipeline: {options.Pipeline}."),
         };
 
-        var allDiagnostics = new DiagnosticBag();
+        var operation = options.DiagnosticOperation ?? new DiagnosticOperation();
+        var allDiagnostics = new DiagnosticBag(operation);
 
         if(options.Backend != BackendId.CSharp)
         {
-            allDiagnostics.Report(DriverDiagnostics.UnknownBackend, default, "<unknown>", (object?)options.Backend.Value);
+            allDiagnostics.ReportTyped(DriverDiagnostics.UnknownBackend, new Absent(AbsenceReason.Unavailable), new NameValue(options.Backend.Value));
 
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
         }
@@ -69,9 +70,12 @@ public sealed class CompilerDriver : ICompilerDriver
         if(!string.IsNullOrEmpty(options.ProjectFolder))
         {
             var manifestPath = Path.GetFullPath(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName));
-            if(BuildChain.CycleThrough(BuildChain.Current(), manifestPath) is { } cycle)
+            var chain = BuildChain.Current();
+            if(BuildChain.Contains(chain, manifestPath))
             {
-                allDiagnostics.Report(DriverDiagnostics.ReferenceCycle, default, manifestPath, (object?)cycle);
+                allDiagnostics.ReportTyped(DriverDiagnostics.ReferenceCycle, new FileOnly(manifestPath),
+                    new SequenceValue(SlotKind.Name, [.. BuildChain.Extend(chain, manifestPath).Select(path => new NameValue(path))], " -> "),
+                    new OptionalValue(SlotKind.Path, null), new OptionalValue(SlotKind.Name, null));
                 return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
             }
         }
@@ -90,14 +94,14 @@ public sealed class CompilerDriver : ICompilerDriver
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
-        var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener);
+        var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener, operation);
         var (packagePaths, packages) = ResolvePackages(options, resolutionDiagnostics, runtimeIdentifier);
         var resolvedAssemblyPaths = WithExternalAssemblies(packagePaths.AddRange(options.AssemblyPaths), loadResult);
 
         var ridGraph = packages.RuntimeIdentifierGraph ?? RidGraph.BuiltIn;
         if(!RidGraph.Contains(ridGraph, runtimeIdentifier))
         {
-            allDiagnostics.Report(DriverDiagnostics.RuntimeIdentifierUnknown, default, "<unknown>", (object?)runtimeIdentifier);
+            allDiagnostics.ReportTyped(DriverDiagnostics.RuntimeIdentifierUnknown, new Absent(AbsenceReason.Unavailable), new NameValue(runtimeIdentifier));
             return resolutionDiagnostics.JoinInto(new CompilerResult(false, null, allDiagnostics.ToImmutableArray()));
         }
 
@@ -232,7 +236,7 @@ public sealed class CompilerDriver : ICompilerDriver
             }
             catch(Exception ex)
             {
-                allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
+                allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
             }
         }
 
@@ -240,10 +244,10 @@ public sealed class CompilerDriver : ICompilerDriver
         // user units (design § 8). The loader reads every *.mist file under
         // AppContext.BaseDirectory/Standard and returns them as
         // CompilationUnits with IsStdlib=true. If the loader emits any
-        // MIST_STDLIB_PARSE error, the compilation cannot proceed because
+        // MIST0031 error, the compilation cannot proceed because
         // primitive keyword resolution (Stage 4) and operator overload
         // resolution depend on stdlib types being present.
-        var stdlibBag = new DiagnosticBag();
+        var stdlibBag = new DiagnosticBag(allDiagnostics.Operation);
         var stdlibUnits = StdlibLoader.LoadFor(stdlibBag);
 
         foreach(var d in stdlibBag.ToImmutableArray())
@@ -295,7 +299,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 }
                 catch(Exception ex)
                 {
-                    allDiagnostics.Report(DriverDiagnostics.FileError, default, path, (object?)path, ex.Message);
+                    allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
                 }
             }
         }
@@ -339,8 +343,8 @@ public sealed class CompilerDriver : ICompilerDriver
             return new ManifestLoad(globalUsings, none);
         }
 
-        var parseBag = new DiagnosticBag();
-        var projectConfig = ProjectFileParser.Parse(options.ProjectFolder, parseBag);
+        var parseBag = new DiagnosticBag(allDiagnostics.Operation);
+        var projectConfig = options.Configuration ?? ProjectFileParser.ParseRoot(options.ProjectFolder, parseBag);
 
         foreach(var d in parseBag.ToImmutableArray())
         {
@@ -363,7 +367,7 @@ public sealed class CompilerDriver : ICompilerDriver
             return new ManifestLoad(globalUsings, none);
         }
 
-        var resolveBag = new DiagnosticBag();
+        var resolveBag = new DiagnosticBag(allDiagnostics.Operation);
         var references = ProjectReferenceLoader.Load(
             options.ProjectFolder, projectConfig.References, options.TargetFramework, resolveBag);
 
@@ -425,7 +429,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 continue;
             }
 
-            var lexBag = new DiagnosticBag();
+            var lexBag = new DiagnosticBag(allDiagnostics.Operation);
             var tokenStream = lexer.Lex(unit.Source, lexBag);
 
             foreach(var d in lexBag.ToImmutableArray())
@@ -494,7 +498,7 @@ public sealed class CompilerDriver : ICompilerDriver
                 continue;
             }
 
-            var parseBag = new DiagnosticBag();
+            var parseBag = new DiagnosticBag(allDiagnostics.Operation);
             var unitParseResult = parser.Parse(tokenStream, parseBag);
 
             foreach(var d in parseBag.ToImmutableArray())

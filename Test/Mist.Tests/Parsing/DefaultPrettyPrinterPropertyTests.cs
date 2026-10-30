@@ -496,7 +496,7 @@ public class DefaultPrettyPrinterPropertyTests
         var result = Parser.Parse(tokens, bag);
 
         var hasStubWarning = bag.ToImmutableArray()
-            .Any(d => d.Id.Value == "MIST_PARSE_STUB");
+            .Any(d => d.Number.Value == "MIST0121");
         var hasErrors = bag.ToImmutableArray()
             .Any(d => d.Severity == DiagnosticSeverity.Error);
 

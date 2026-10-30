@@ -116,7 +116,7 @@ When the return value is explicitly used, the method returns the Void singleton 
 {{#endtab }}
 {{#endtabs }}
 
-A `return` in a body whose result is `void` can carry only a void value: `return;`, `return void;`, or `return` of another void call, which runs the call once and then returns. Any other value is refused at the value with `MIST_PA_NO_IMPLICIT_CONVERSION`, before any C# is generated. The rule covers every body whose result is void: methods, local functions, lambdas whose function type returns `void`, setters, and constructors.
+A `return` in a body whose result is `void` can carry only a void value: `return;`, `return void;`, or `return` of another void call, which runs the call once and then returns. Any other value is refused at the value with `MIST0157`, before any C# is generated. The rule covers every body whose result is void: methods, local functions, lambdas whose function type returns `void`, setters, and constructors.
 
 ## Equality Semantics
 

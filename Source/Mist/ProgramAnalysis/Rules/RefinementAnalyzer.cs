@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
-using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -31,7 +30,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// neither an interval nor a sound literal decision is met only by a value already of that refinement,
 /// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
 /// </summary>
-internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
+internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
 {
     public RefinementAnalyzer()
         : this(LiteralPredicates.MatchLimit)
@@ -86,108 +85,6 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
                 }
             }
         }
-    }
-
-    private static void JudgeClosing(AnalysisContext context, TypeParameter parameter, IMistType argument, Storm.Runtime.SyntaxNode at)
-    {
-        if(DependentFinding(parameter, argument) is not { } finding)
-        {
-            return;
-        }
-
-        if(finding == ProgramAnalysisDiagnostics.DependentArgumentNotAssignable)
-        {
-            context.Report(
-                finding, at, [],
-                argument is LiftedType lifted ? DependentDomains.Spell(lifted.Value) : TypeDisplay.Mist(argument),
-                argument is LiftedType value ? DependentDomains.TypeOfValue(value.Value) : WellKnownTypes.Type.Name,
-                parameter.Name, TypeDisplay.Mist(parameter.Domain!));
-        }
-        else if(finding == ProgramAnalysisDiagnostics.DependentForwardNotConvertible && argument is TypeParameter { Domain: { } from } source)
-        {
-            context.Report(
-                finding, at, [], source.Name, TypeDisplay.Mist(from), Owner(source), parameter.Name, TypeDisplay.Mist(parameter.Domain!), Owner(parameter));
-        }
-        else if(Demanded(parameter) is { } required)
-        {
-            switch(argument)
-            {
-                case LiftedType lifted:
-                    context.Report(finding, at, [], DependentDomains.Spell(lifted.Value), required.Values, parameter.Name);
-                    break;
-
-                case TypeParameter forwarded:
-                    context.Report(
-                        finding, at, [],
-                        forwarded.Name, parameter.Name, Demanded(forwarded) is { } own ? $"'{own.Values}'" : "an unconstrained parameter", required.Values);
-                    break;
-            }
-        }
-    }
-
-    public static DiagnosticDescriptor? DependentFinding(TypeParameter parameter, IMistType argument)
-    {
-        if(DomainFinding(parameter, argument) is { } mismatch)
-        {
-            return mismatch;
-        }
-
-        if(Demanded(parameter) is not { } required || required.Values.IsEverything)
-        {
-            return null;
-        }
-
-        return argument switch
-        {
-            LiftedType lifted when Known(lifted) is { } values && !values.IsSubsetOf(required.Values)
-                => ProgramAnalysisDiagnostics.DependentArgumentViolated,
-            TypeParameter forwarded when !(Demanded(forwarded)?.Values ?? Admitted.Everything).IsSubsetOf(required.Values)
-                => ProgramAnalysisDiagnostics.DependentForwardUnproven,
-            _ => null,
-        };
-    }
-
-    public static DiagnosticDescriptor? DomainFinding(TypeParameter parameter, IMistType argument)
-    {
-        if(parameter is not { IsDependent: true, IsPack: false, Domain: { } domain } || DependentDomains.Primitive(domain) is null)
-        {
-            return null;
-        }
-
-        return argument switch
-        {
-            ErrorType or UnknownType or UnknownValueType => null,
-            LiftedType lifted => DependentDomains.Holds(domain, lifted.Value) ? null : ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
-            TypeParameter { IsDependent: true, IsPack: false, Domain: null } => null,
-            TypeParameter { IsDependent: true, IsPack: false, Domain: { } from }
-                => DependentDomains.Forwards(from, domain) ? null : ProgramAnalysisDiagnostics.DependentForwardNotConvertible,
-            _ => ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
-        };
-    }
-
-    // Only ulong's upper half is boxed as a ulong, and long.MaxValue is the top every interval saturates at.
-    private static Admitted? Known(LiftedType lifted)
-    {
-        return lifted.Value is ulong ? Admitted.Exactly(long.MaxValue) : Requirement.ValuesOf(lifted);
-    }
-
-    private static string Owner(TypeParameter parameter)
-    {
-        return parameter.DeclaringType is { } owner ? TypeDisplay.Mist(owner) : parameter.Name;
-    }
-
-    private static Requirement? Demanded(TypeParameter parameter)
-    {
-        var declared = Requirement.Of(parameter.Refinement);
-        var domain = parameter.Domain is { } type ? Requirement.OfType(type) : null;
-
-        return (declared, domain) switch
-        {
-            (null, null) => null,
-            ({ } only, null) => only,
-            (null, { } alone) => alone,
-            ({ } both, { } and) => both.And(and),
-        };
     }
 
     private sealed class Proving(AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
@@ -367,7 +264,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
 
             context.Report(
                 ProgramAnalysisDiagnostics.IndexOutOfBounds, index.Index.Node, [index.Index, index.Receiver],
-                RefinementFindings.Display(index.Index), RefinementFindings.Display(index.Receiver), "0 <= start <= end <= Length");
+                new NameValue(RefinementFindings.Display(index.Index)), new NameValue(RefinementFindings.Display(index.Receiver)), new NameValue("0 <= start <= end <= Length"));
         }
 
         // What is known of the value that meets an array's or a span's slot. `^k` names the position
@@ -455,19 +352,19 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
             if(LiteralPredicates.Applies(considered[0]))
             {
                 RefinementFindings.ReportLiteral(
-                    context, value, considered[0], TypeDisplay.Mist(target), at,
+                    context, value, considered[0], DiagnosticSnapshot.Type(target), at,
                     Requirement.IsAnonymous(target) ? onConstraint : null, literal, matchLimit);
             }
             else if(Requirement.OfType(considered[0]) is { } required)
             {
                 RefinementFindings.Report(
-                    context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)), TypeDisplay.Mist(target), at,
+                    context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)), DiagnosticSnapshot.Type(target), at,
                     onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null);
             }
             else
             {
                 RefinementFindings.ReportUnreadable(
-                    context, value, considered[0], TypeDisplay.Mist(target), at, Requirement.IsAnonymous(target) ? onConstraint : null);
+                    context, value, considered[0], DiagnosticSnapshot.Type(target), at, Requirement.IsAnonymous(target) ? onConstraint : null);
             }
         }
 
@@ -663,7 +560,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)),
-                    onIndex is { } receiver ? RefinementFindings.Display(receiver) : "", at, onConstraint, onIndex);
+                    new NameValue(onIndex is { } receiver ? RefinementFindings.Display(receiver) : ""), at, onConstraint, onIndex);
             }
         }
 
@@ -674,7 +571,7 @@ internal sealed class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
                 return;
             }
 
-            RefinementFindings.Report(context, known.Values, value, required, RefinementFindings.Display(onIndex), value, onConstraint: null, onIndex);
+            RefinementFindings.Report(context, known.Values, value, required, new NameValue(RefinementFindings.Display(onIndex)), value, onConstraint: null, onIndex);
         }
 
         private static Expression? Measured(Expression? receiver)

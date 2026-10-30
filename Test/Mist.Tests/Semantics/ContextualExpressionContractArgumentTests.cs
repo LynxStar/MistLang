@@ -31,7 +31,7 @@ public sealed class ContextualExpressionContractArgumentTests
 
         _ = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("api"), Call(Enumerable.Range(0, count).Select(_ => Integer()).ToArray())));
 
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0385", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]
@@ -90,8 +90,8 @@ public sealed class ContextualExpressionContractArgumentTests
         _ = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("api"), Call(Contextual(form), Integer())));
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_AMBIGUOUS_OVERLOAD", diagnostic.Id.Value);
-        Assert.Equal(51, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0386", diagnostic.Number.Value);
+        Assert.Equal(51, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -158,8 +158,8 @@ public sealed class ContextualExpressionContractArgumentTests
         Assert.Same(chosen, bound.Method);
         _ = Assert.IsType<ErrorExpression>(bound.Arguments[0]);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", diagnostic.Id.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0385", diagnostic.Number.Value);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class ContextualExpressionContractArgumentTests
 
         _ = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("api"), Call(Contextual("new"))));
 
-        Assert.Equal("MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0391", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Theory]

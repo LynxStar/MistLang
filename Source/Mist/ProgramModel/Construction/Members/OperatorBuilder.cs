@@ -40,12 +40,12 @@ internal sealed class OperatorBuilder
 
         if(!common.Modifiers.IsStatic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorMustBeStatic, opDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.OperatorMustBeStatic, opDecl, null);
         }
 
         if(common.Modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, opDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, opDecl, null);
         }
 
         ValidateParameterCount(kind, common.Parameters.Count, opDecl);
@@ -67,16 +67,19 @@ internal sealed class OperatorBuilder
 
         if(count == 1 && !canBeUnary)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null, "2", count.ToString());
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null,
+                new SequenceValue(SlotKind.Quantity, [new QuantityValue(2)], Separator: " or "), new QuantityValue(count));
         }
         else if(count == 2 && isUnaryOnly)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null, "1", count.ToString());
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null,
+                new SequenceValue(SlotKind.Quantity, [new QuantityValue(1)], Separator: " or "), new QuantityValue(count));
         }
         else if(count is 0 or > 2)
         {
-            var expected = canBeUnary ? "1 or 2" : "2";
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null, expected, count.ToString());
+            var expected = canBeUnary ? new SlotValue[] { new QuantityValue(1), new QuantityValue(2) } : [new QuantityValue(2)];
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.OperatorWrongParameterCount, opDecl, null,
+                new SequenceValue(SlotKind.Quantity, [.. expected], Separator: " or "), new QuantityValue(count));
         }
     }
 

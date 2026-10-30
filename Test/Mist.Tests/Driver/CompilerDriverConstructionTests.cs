@@ -21,7 +21,7 @@ public sealed class CompilerDriverConstructionTests
         var result = driver.Compile(Options(new BackendId("llvm")));
 
         Assert.False(result.Succeeded);
-        Assert.Equal(DriverDiagnostics.UnknownBackend.Id, Assert.Single(result.Diagnostics).Id);
+        Assert.Equal(DriverDiagnostics.UnknownBackend.Number, Assert.Single(result.Diagnostics).Number);
         Assert.Empty(reporter.Stages);
     }
 

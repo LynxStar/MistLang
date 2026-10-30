@@ -23,7 +23,7 @@ An abstract type is declared with the `abstract` keyword followed by a name and 
 {{#endtab }}
 {{#endtabs }}
 
-An abstract type can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`). Every member it declares is an instance member a conforming type supplies, so `static` on a method, property or indexer of an abstract type is refused with `MIST_PM_STATIC_ON_ABSTRACT_MEMBER`; declare a static helper on a concrete type instead.
+An abstract type can contain method signatures (like `Describe()` and `Area()`) and property signatures (like `Name { get; }`). Every member it declares is an instance member a conforming type supplies, so `static` on a method, property or indexer of an abstract type is refused with `MIST0048`; declare a static helper on a concrete type instead.
 
 ## Abstract Type Inheritance
 
@@ -100,7 +100,7 @@ A generic slot is answered by a member with as many type parameters, matched by 
 `Pick<U>` restates the slot's constraint and `Name<V>` asks for none, so both answer. C# requires an implementing member's constraints to match exactly, so `Name` is reached from the interface through an explicit implementation that forwards to it. An answer adding a constraint the slot does not declare is refused: had `IPicker` declared `string Plain<T>(T value);` with no constraint, `Plain<V>(V value) where V : IShow` would not answer it.
 
 ```text
-error MIST_PA_SLOT_CONSTRAINT_STRENGTHENED: 'Picker' does not fill slot 'string Plain<T>(T)' of 'IPicker': its 'Plain' requires 'IShow' of type parameter 'V', which the slot does not promise.
+error MIST0185: 'Picker' does not fill slot 'string Plain<T>(T)' of 'IPicker': its 'Plain' requires 'IShow' of type parameter 'V', which the slot does not promise.
 ```
 
 ## Polymorphic Usage

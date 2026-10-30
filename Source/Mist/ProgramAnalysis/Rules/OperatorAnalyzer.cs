@@ -1,5 +1,7 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -45,7 +47,7 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                 case UnaryExpression { Type: ErrorType } unary when OperatorDecision.Tie(unary.AmbiguousOperators) is { } tie:
                     context.Refuse(
                         unary, tie, [unary.Operand],
-                        $"operator '{Spelling(unary.OperatorKind)}'", OperatorDecision.Signatures(unary.AmbiguousOperators));
+                        OperatorDecision.Callee(unary.AmbiguousOperators, $"operator '{Spelling(unary.OperatorKind)}'"), OperatorDecision.Signatures(unary.AmbiguousOperators));
                     break;
 
                 case UnaryExpression unary when unary.Type is ErrorType
@@ -53,18 +55,18 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     && OperatorDecision.Unary(unary.OperatorKind, unary.Operand.Type) is { } refused:
                     context.Refuse(
                         unary, refused, [],
-                        Spelling(unary.OperatorKind), TypeDisplay.Mist(unary.Operand.Type), TypeDisplay.Mist(unary.Operand.Type));
+                        new NameValue(Spelling(unary.OperatorKind)), DiagnosticSnapshot.Type(unary.Operand.Type), DiagnosticSnapshot.Type(unary.Operand.Type));
                     break;
 
                 case MemberAccessExpression { IsConditional: true } access
                     when OperatorDecision.Conditional(access.Receiver.Type) is { } conditional:
                     context.Refuse(
                         access, conditional, [access.Receiver],
-                        TypeDisplay.Mist(access.Receiver.Type));
+                        DiagnosticSnapshot.Type(access.Receiver.Type));
                     break;
 
                 case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
-                    context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!.Value, [access.Receiver], access.MemberName);
+                    context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!, [access.Receiver], new NameValue(access.MemberName));
                     break;
             }
         }
@@ -81,7 +83,7 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
         {
             context.Refuse(
                 binary, tie, [binary.Left, binary.Right],
-                $"operator '{Spelling(binary.OperatorKind)}'", OperatorDecision.Signatures(binary.AmbiguousOperators));
+                OperatorDecision.Callee(binary.AmbiguousOperators, $"operator '{Spelling(binary.OperatorKind)}'"), OperatorDecision.Signatures(binary.AmbiguousOperators));
             return;
         }
 
@@ -92,7 +94,7 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
 
         context.Refuse(
             binary, descriptor, [binary.Left, binary.Right],
-            Spelling(binary.OperatorKind), TypeDisplay.Mist(binary.Left.Type), TypeDisplay.Mist(binary.Right.Type));
+            new NameValue(Spelling(binary.OperatorKind)), DiagnosticSnapshot.Type(binary.Left.Type), DiagnosticSnapshot.Type(binary.Right.Type));
     }
 
     private static string Spelling(BinaryOperatorKind kind)

@@ -106,11 +106,11 @@ The compiler detects circular references and reports an error. If project A refe
 
 The compiler reports diagnostic errors and halts compilation in the following cases:
 
-- **Missing `mist.toml`**: If the project directory does not contain a `mist.toml` file, the compiler reports `MIST_PROJECT_FILE_NOT_FOUND`.
-- **Invalid TOML syntax**: If `mist.toml` contains malformed TOML, the compiler reports `MIST_PROJECT_TOML_ERROR` with details about the parse failure.
-- **Missing `name` field**: If the required `name` field is absent, the compiler reports `MIST_PROJECT_MISSING_NAME`.
-- **Invalid `name` value**: If the name contains disallowed characters or exceeds 128 characters, the compiler reports `MIST_PROJECT_INVALID_NAME` or `MIST_PROJECT_NAME_TOO_LONG`.
+- **Missing `mist.toml`**: If the project directory does not contain a `mist.toml` file, the compiler reports `MIST0049`.
+- **Invalid TOML syntax**: If `mist.toml` contains malformed TOML, the compiler reports `MIST0051` with details about the parse failure.
+- **Missing `name` field**: If the required `name` field is absent, the compiler reports `MIST0052`.
+- **Invalid `name` value**: If the name contains disallowed characters or exceeds 128 characters, the compiler reports `MIST0054` or `MIST0055`.
 - **Invalid reference path**: If a `[[references]]` entry is missing the `path` field or the path points to a directory without a `mist.toml`, the compiler reports a reference resolution error.
-- **Circular references**: If the reference graph contains a cycle, the compiler reports `MIST_PROJECT_CIRCULAR_REFERENCE`.
+- **Circular references**: If the reference graph contains a cycle, the compiler reports `MIST0064`.
 
 In all error cases, the compiler prints the diagnostic message and stops — no output is produced.

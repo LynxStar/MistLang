@@ -150,7 +150,7 @@ public sealed class NamespaceConstructionTests
         _ = f.Build(Importing("Inferred.Missing"));
         _ = f.Build(new CompilationUnitNode { Items = [.. TopLevel("alias"), .. TopLevel("with")] });
 
-        Assert.Equal("MIST_UNDEFINED_NAMESPACE", Assert.Single(f.Validate()).Id.Value);
+        Assert.Equal("MIST0293", Assert.Single(f.Validate()).Number.Value);
     }
 
     [Fact]

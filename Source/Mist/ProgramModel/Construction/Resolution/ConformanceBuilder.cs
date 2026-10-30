@@ -71,9 +71,7 @@ internal sealed class ConformanceBuilder
 
         if(conformingType is not ConcreteType conformer)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ConformanceSourceNotConcrete, decl, null,
-                TypeDisplay.Mist(conformingType));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConformanceSourceNotConcrete, decl, null, DiagnosticSnapshot.Type(conformingType));
             return;
         }
 
@@ -81,9 +79,7 @@ internal sealed class ConformanceBuilder
 
         if(target is not AbstractType)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ConformanceTargetNotAbstract, decl, null,
-                TypeDisplay.Mist(abstractType), TypeDisplay.Mist(conformingType));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConformanceTargetNotAbstract, decl, null, DiagnosticSnapshot.Type(abstractType), DiagnosticSnapshot.Type(conformingType));
             return;
         }
 
@@ -125,9 +121,7 @@ internal sealed class ConformanceBuilder
 
         if(slots.Count == 0)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ConformanceUnresolvedSlot, node, null,
-                TypeDisplay.Mist(named), targetName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConformanceUnresolvedSlot, node, null, DiagnosticSnapshot.Type(named), new NameValue(targetName));
             return [];
         }
 
@@ -138,9 +132,7 @@ internal sealed class ConformanceBuilder
 
         if(resolved.Count == 0)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.ConformanceMappingUnsatisfied, node, null,
-                sourceName, TypeDisplay.Mist(conformer), targetName, TypeDisplay.Mist(named));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConformanceMappingUnsatisfied, node, null, new NameValue(sourceName), DiagnosticSnapshot.Type(conformer), new NameValue(targetName), DiagnosticSnapshot.Type(named));
         }
 
         return resolved;

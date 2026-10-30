@@ -31,12 +31,12 @@ internal static class IntrinsicMemberValidation
     {
         if(!containerIsIntrinsic)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, containerName);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, new NameValue(containerName));
         }
 
         if(!isPublic)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberMustBePublic, locationNode, null);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberMustBePublic, locationNode, null);
         }
     }
 }

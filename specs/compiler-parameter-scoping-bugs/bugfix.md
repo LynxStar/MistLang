@@ -8,11 +8,11 @@ Three related compiler bugs were discovered while testing the AllFeatures sample
 
 ### Current Behavior (Defect)
 
-1.1 WHEN a method declares two or more parameters THEN the system only registers the first parameter in the method body scope, causing subsequent parameters to produce `MIST_UNDEFINED_IDENTIFIER` errors when referenced
+1.1 WHEN a method declares two or more parameters THEN the system only registers the first parameter in the method body scope, causing subsequent parameters to produce `MIST_UNDEFINED_IDENTIFIER (historical)` errors when referenced
 
 1.2 WHEN a class or struct field declaration includes an initializer expression (e.g., `private int value = 0;`) THEN the system silently drops the entire file's AST during parsing, causing the type declared in that file to be unregistered in the semantic model
 
-1.3 WHEN a file's AST is dropped due to a field initializer THEN the system produces misleading `MIST_UNDEFINED_TYPE` errors in other files that reference the type, and `MIST_TC_0017` (no entry point) if the entry point class is in the affected file, with no parse error diagnostic emitted
+1.3 WHEN a file's AST is dropped due to a field initializer THEN the system produces misleading `MIST_UNDEFINED_TYPE (historical)` errors in other files that reference the type, and `MIST_TC_0017 (historical)` (no entry point) if the entry point class is in the affected file, with no parse error diagnostic emitted
 
 1.4 WHEN `string.Length()` is called on a string variable THEN the system silently crashes during semantic model construction, dropping the entire file's AST — even though `Length` is registered as a method symbol in `CSharpAmbientTypeResolver`
 

@@ -279,7 +279,7 @@ internal sealed class UnionSpecialization
         var requiredMethods = new HashSet<Method>();
         var erased = model.TypesByFQN.Values.OfType<TypeAlias>().SelectMany(alias => alias.TypeParametersList).ToHashSet();
 
-        var overPackElements = new SortedDictionary<string, PackElementType>(StringComparer.Ordinal);
+        var overPackElements = new SortedDictionary<string, (IMistType Type, PackElementType Element)>(StringComparer.Ordinal);
 
         void require(IMistType type)
         {
@@ -295,7 +295,7 @@ internal sealed class UnionSpecialization
                 }
                 else if(parameter is PackElementType element && !erased.Contains(element.Pack))
                 {
-                    _ = overPackElements.TryAdd(TypeDisplay.Mist(type), element);
+                    _ = overPackElements.TryAdd(TypeDisplay.Mist(type), (type, element));
                 }
             }
         }
@@ -335,7 +335,7 @@ internal sealed class UnionSpecialization
         var methods = requiredMethods.ToDictionary(method => method, _ => new List<IReadOnlyList<IMistType>>());
         var seenByDeclaration = new Dictionary<object, HashSet<string>>();
         var units = new Queue<(TypeSubstitution Substitution, IReadOnlyList<TypeParameter> Own)>();
-        var unbounded = new HashSet<string>(StringComparer.Ordinal);
+        var unbounded = new Dictionary<string, SymbolValue>(StringComparer.Ordinal);
 
         HashSet<string> seen(object declaration)
         {
@@ -348,14 +348,14 @@ internal sealed class UnionSpecialization
             return names;
         }
 
-        bool room<T>(List<T> list, string declaration)
+        bool room<T>(List<T> list, SymbolValue declaration)
         {
             if(list.Count < MaximumInstancesPerDeclaration)
             {
                 return true;
             }
 
-            _ = unbounded.Add(declaration);
+            _ = unbounded.TryAdd(declaration.Identity, declaration);
             return false;
         }
 
@@ -364,7 +364,7 @@ internal sealed class UnionSpecialization
             if(candidate.Definition is not MemberType definition
                 || !types.TryGetValue(definition, out var list)
                 || TypeParameterReach.Collect(candidate).Count > 0
-                || !room(list, MistType.StripArity(definition.Name))
+                || !room(list, BackendFacts.Symbol(definition, "", MistType.StripArity(definition.Name)))
                 || !seen(definition).Add(Name(candidate)))
             {
                 return;
@@ -390,7 +390,7 @@ internal sealed class UnionSpecialization
         {
             if(!methods.TryGetValue(method, out var list)
                 || !IsClosed(arguments)
-                || !room(list, method.Name)
+                || !room(list, DiagnosticSnapshot.Symbol(method, method.Name))
                 || !seen(method).Add(Name(method.Name, arguments)))
             {
                 return;
@@ -460,23 +460,25 @@ internal sealed class UnionSpecialization
             .Where(entry => entry.node is not null)
             .ToDictionary(entry => entry.parameter, entry => entry.node!);
 
-        foreach(var (written, element) in overPackElements)
+        foreach(var (written, (type, element)) in overPackElements)
         {
             if(((element.Pack.DeclaringType as MemberType)?.DeclarationNode ?? extensionNodes.GetValueOrDefault(element.Pack)) is { } node)
             {
-                diagnostics.ReportAtNode(BackendDiagnostics.UnionOverPackElement, node, null, written, element.Name, element.Pack.Name);
+                diagnostics.ReportAtNodeTyped(BackendDiagnostics.UnionOverPackElement, node, null, DiagnosticSnapshot.Type(type, written), new NameValue(element.Name), new NameValue(element.Pack.Name));
             }
             else
             {
-                diagnostics.Report(
-                    BackendDiagnostics.UnionOverPackElement, default, string.Empty, written, element.Name, element.Pack.Name);
+                diagnostics.ReportTyped(
+                    BackendDiagnostics.UnionOverPackElement, new ExternalLocation(type.Assembly.Name, type.FullyQualifiedName),
+                    DiagnosticSnapshot.Type(type, written), new NameValue(element.Name), new NameValue(element.Pack.Name));
             }
         }
 
-        foreach(var declaration in unbounded)
+        foreach(var declaration in unbounded.Values)
         {
-            diagnostics.Report(
-                BackendDiagnostics.UnboundedSpecialization, default, string.Empty, declaration, MaximumInstancesPerDeclaration);
+            diagnostics.ReportTyped(
+                BackendDiagnostics.UnboundedSpecialization, new Absent(AbsenceReason.SyntheticWithoutRoot), declaration,
+                new QuantityValue(MaximumInstancesPerDeclaration));
         }
 
         return new UnionSpecialization(types, methods, interner);

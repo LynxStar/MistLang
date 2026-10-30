@@ -1,3 +1,5 @@
+using Mist.Common.Diagnostics;
+
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
@@ -7,6 +9,8 @@ namespace Mist.ProgramAnalysis;
 internal interface IProgramAnalyzer
 {
     string Id { get; }
+
+    MistDiagnostic? OptionalRule => null;
 
     void Analyze(AnalysisContext context);
 }

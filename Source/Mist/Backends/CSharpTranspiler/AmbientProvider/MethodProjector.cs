@@ -25,9 +25,13 @@ internal static class MethodProjector
 
         foreach(var method in methods)
         {
-            if(Judge(method, memberType, resolver, out _) is { } projected)
+            if(Judge(method, memberType, resolver, out var withheld) is { } projected)
             {
                 memberType.MethodsList.Add(projected);
+            }
+            else if(withheld is { } reason)
+            {
+                memberType.WithheldMembers.Add(reason.Snapshot(method));
             }
         }
     }

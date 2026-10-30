@@ -134,7 +134,7 @@ A sample that compiles and prints correct output regardless of whether the featu
 
 ## Rule 5: Samples Must Build With Zero Warnings and Zero Info Diagnostics
 
-All samples under `samples/` MUST compile with zero errors, zero warnings, AND zero informational diagnostics (e.g., `info MIST_*` messages). Treat any diagnostic output from the Mist compiler as a defect.
+All samples under `samples/` MUST compile with zero errors, zero warnings, AND zero informational diagnostics (e.g., `info MISTnnnn` messages). Treat any diagnostic output from the Mist compiler as a defect.
 
 If a sample triggers a diagnostic:
 1. Determine whether the sample code is wrong or the compiler diagnostic is wrong.

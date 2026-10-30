@@ -163,7 +163,7 @@ public sealed class DelegateInvocationBindingTests
         var error = Assert.IsType<ErrorExpression>(f.Bind(BindingFragments.Identifier("callback"), suffix));
 
         Assert.Same(suffix, error.Node);
-        Assert.Equal("MIST_PM_FUNCTION_CALL_ARITY", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0362", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public sealed class DelegateInvocationBindingTests
 
         var diagnostics = f.Built.Analyze(new AssignabilityAnalyzer(), call);
 
-        Assert.Equal("MIST_PA_NO_IMPLICIT_CONVERSION", Assert.Single(diagnostics).Id.Value);
+        Assert.Equal("MIST0157", Assert.Single(diagnostics).Number.Value);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
     }
 

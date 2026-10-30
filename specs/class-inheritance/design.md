@@ -277,11 +277,11 @@ The Storm parser generator will produce these new/modified node types from the g
 
 | ID | Stage | Message Template |
 |---|---|---|
-| `MIST_UNDEFINED_BASE_TYPE` | SemanticModelConstruction | `"The base type '{name}' could not be found."` |
-| `MIST_CANNOT_INHERIT_STRUCT` | SemanticModelConstruction | `"Class '{derived}' cannot inherit from struct '{base}'."` |
-| `MIST_CIRCULAR_INHERITANCE` | SemanticModelConstruction | `"Circular inheritance detected: '{chain}'."` |
-| `MIST_MEMBER_REDECLARATION` | SemanticModelConstruction | `"'{derived}' cannot redeclare member '{name}' already defined in '{base}'."` |
-| `MIST_BASE_CTOR_UNSATISFIED` | SemanticModelConstruction | `"Base class '{base}' requires constructor arguments that are not provided."` |
+| `MIST_UNDEFINED_BASE_TYPE (historical)` | SemanticModelConstruction | `"The base type '{name}' could not be found."` |
+| `MIST_CANNOT_INHERIT_STRUCT (historical)` | SemanticModelConstruction | `"Class '{derived}' cannot inherit from struct '{base}'."` |
+| `MIST_CIRCULAR_INHERITANCE (historical)` | SemanticModelConstruction | `"Circular inheritance detected: '{chain}'."` |
+| `MIST_MEMBER_REDECLARATION (historical)` | SemanticModelConstruction | `"'{derived}' cannot redeclare member '{name}' already defined in '{base}'."` |
+| `MIST_BASE_CTOR_UNSATISFIED (historical)` | SemanticModelConstruction | `"Base class '{base}' requires constructor arguments that are not provided."` |
 
 
 ## Correctness Properties
@@ -344,14 +344,14 @@ All new diagnostics follow the existing pattern: a `DiagnosticId` string, `Diagn
 
 | Error Condition | Diagnostic ID | Pipeline Stage | Recovery |
 |---|---|---|---|
-| Base class name not found | `MIST_UNDEFINED_BASE_TYPE` | SemanticModelConstruction | Set `BaseType = null`, continue. Members won't resolve but cascading errors are suppressed via `UnknownType`. |
-| Inheriting from a struct | `MIST_CANNOT_INHERIT_STRUCT` | SemanticModelConstruction | Set `BaseType = null`, continue. |
-| Self-inheritance | `MIST_CIRCULAR_INHERITANCE` | SemanticModelConstruction | Set `BaseType = null` to break the cycle, continue. |
-| Circular inheritance chain | `MIST_CIRCULAR_INHERITANCE` | SemanticModelConstruction | Set `BaseType = null` on the class that closes the cycle, continue. |
-| Member redeclaration in derived class | `MIST_MEMBER_REDECLARATION` | SemanticModelConstruction | Register the member anyway (the derived class's version shadows for its own scope), emit diagnostic. |
-| Base → derived assignment | `MIST_TC_0001` | Analysis | Existing diagnostic ID, extended message. |
-| Unrelated class assignment | `MIST_TC_0001` | Analysis | Existing diagnostic ID, extended message. |
-| Base constructor args unsatisfied | `MIST_BASE_CTOR_UNSATISFIED` | SemanticModelConstruction | Emit diagnostic, continue compilation. |
+| Base class name not found | `MIST_UNDEFINED_BASE_TYPE (historical)` | SemanticModelConstruction | Set `BaseType = null`, continue. Members won't resolve but cascading errors are suppressed via `UnknownType`. |
+| Inheriting from a struct | `MIST_CANNOT_INHERIT_STRUCT (historical)` | SemanticModelConstruction | Set `BaseType = null`, continue. |
+| Self-inheritance | `MIST_CIRCULAR_INHERITANCE (historical)` | SemanticModelConstruction | Set `BaseType = null` to break the cycle, continue. |
+| Circular inheritance chain | `MIST_CIRCULAR_INHERITANCE (historical)` | SemanticModelConstruction | Set `BaseType = null` on the class that closes the cycle, continue. |
+| Member redeclaration in derived class | `MIST_MEMBER_REDECLARATION (historical)` | SemanticModelConstruction | Register the member anyway (the derived class's version shadows for its own scope), emit diagnostic. |
+| Base → derived assignment | `MIST_TC_0001 (historical)` | Analysis | Existing diagnostic ID, extended message. |
+| Unrelated class assignment | `MIST_TC_0001 (historical)` | Analysis | Existing diagnostic ID, extended message. |
+| Base constructor args unsatisfied | `MIST_BASE_CTOR_UNSATISFIED (historical)` | SemanticModelConstruction | Emit diagnostic, continue compilation. |
 
 ### Error Recovery Principles
 
@@ -371,11 +371,11 @@ The project already uses **FsCheck 3.1.0** with **xUnit** for property-based tes
 |---|---|---|
 | 1: Round-trip | Generate random `ClassDeclarationNode` ASTs with/without inheritance clauses → pretty-print → parse → pretty-print → compare strings | Extend `MistAstGenerator.GenClassDeclaration()` to optionally include a `BaseClass` field with a random identifier |
 | 2: Base type resolution | Generate random two-class programs (A extends B, with forward/backward ordering) → build semantic model → assert `BaseType` is correctly set or null | New generator in `MistProgramGenerator` for inheritance hierarchies |
-| 3: Cycle detection | Generate random cyclic chains (A→B→A, A→A, A→B→C→A) → build semantic model → assert `MIST_CIRCULAR_INHERITANCE` diagnostic | New generator for cyclic class sets |
+| 3: Cycle detection | Generate random cyclic chains (A→B→A, A→A, A→B→C→A) → build semantic model → assert `MIST_CIRCULAR_INHERITANCE (historical)` diagnostic | New generator for cyclic class sets |
 | 4: Inherited member resolution | Generate random hierarchies (depth 1-3) with fields/methods at various levels → build semantic model → resolve member access → assert correct type returned | Extend `MistProgramGenerator` with hierarchy + member access generators |
-| 5: Additive-only | Generate random base class with a member, derived class redeclaring same member name → build semantic model → assert `MIST_MEMBER_REDECLARATION` diagnostic | New generator for redeclaration scenarios |
-| 6: Subtype assignability | Generate random hierarchies → create derived-to-base assignments → run type checker → assert no `MIST_TC_0001` diagnostic | Extend `MistProgramGenerator` with assignment generators |
-| 7: Non-assignability | Generate random unrelated class pairs or base-to-derived assignments → run type checker → assert `MIST_TC_0001` diagnostic | New generator for incompatible assignment scenarios |
+| 5: Additive-only | Generate random base class with a member, derived class redeclaring same member name → build semantic model → assert `MIST_MEMBER_REDECLARATION (historical)` diagnostic | New generator for redeclaration scenarios |
+| 6: Subtype assignability | Generate random hierarchies → create derived-to-base assignments → run type checker → assert no `MIST_TC_0001 (historical)` diagnostic | Extend `MistProgramGenerator` with assignment generators |
+| 7: Non-assignability | Generate random unrelated class pairs or base-to-derived assignments → run type checker → assert `MIST_TC_0001 (historical)` diagnostic | New generator for incompatible assignment scenarios |
 | 8: C# emission | Generate random programs with inheritance → emit C# → assert output contains `class D : B` pattern | Extend existing emission test infrastructure |
 
 ### Unit Tests (Example-Based)

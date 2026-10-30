@@ -282,7 +282,7 @@ becomes more precisely known:
   In a type position `fixed[i]` names the pack's own element `TArgs[i]` rather than a type of its
   own, so a value read out of the pack at that position -- `args is (var first, var second, var third)`
   binds `first` at `TArgs[0]` -- is assignable to it. The binding exists only in the guarded branch, and
-  `fixed[3]` is the same out-of-bounds error `MIST_VAR_0004` a `Type[3]:TArgs` pack draws.
+  `fixed[3]` is the same out-of-bounds error `MIST0410` a `Type[3]:TArgs` pack draws.
 
   The value-side counterpart narrows the pack value with `args is (concrete tuple) x` (for example
   `args is (int, int, int) triple`), enabling a matching fixed-arity forward within that branch; see
@@ -383,7 +383,7 @@ Because `params TArgs args` is a single `(TArgs...)` (`ValueTuple`) parameter, i
   versus `T[]` (single).
 - **One `params` per list, and why.** At most one `params` is allowed per value-parameter list --
   whether it targets a tuple (a pack) or a homogeneous array -- and more than one is diagnostic
-  `MIST_VAR_0001`, the same rule as the type side. The cap is about **authorial intent, not
+  `MIST0405`, the same rule as the type side. The cap is about **authorial intent, not
   ambiguity**: multiple packs could be disambiguated by forcing explicit tuples at the use site,
   exactly as multiple type-side packs are disambiguated with brackets, but `params` is how the
   author designates the single spot where the caller may omit the tuple. This mirrors C#'s
@@ -416,11 +416,11 @@ that accepts that pack for every `TArgs`: another `params TArgs` or `(TArgs...)`
 construction for all `TArgs`, so no per-instantiation reasoning is required.
 
 Spreading a symbolic pack into a **fixed-arity** destination whose parameter list is not provably
-`(TArgs...)` is rejected at the declaration with `MIST_VAR_0011`, because it cannot be proven
+`(TArgs...)` is rejected at the declaration with `MIST0415`, because it cannot be proven
 well-typed for every `TArgs`:
 
 ```mist
-// Rejected with MIST_VAR_0011: Sum3 wants exactly (int, int, int), but TArgs is
+// Rejected with MIST0415: Sum3 wants exactly (int, int, int), but TArgs is
 // symbolic -- this would be ill-typed for, e.g., TArgs = [string].
 int Bad<params TArgs>(params TArgs args) {
     return Sum3(args...);   // Sum3(int, int, int)
@@ -441,17 +441,17 @@ first. This is the value-side counterpart of the type-side `TArgs is Type[N]` na
 Capability Ladder, and it is nothing new: it is ordinary flow narrowing applied to the pack *value*
 through the same `is` form. Inside a branch guarded by `args is (int, int, int) triple`, the pack's
 shape is proven, so `Sum3(triple...)` is well-typed within that branch even though the unnarrowed
-`Sum3(args...)` is rejected with `MIST_VAR_0011`. Different branches may narrow to different shapes --
+`Sum3(args...)` is rejected with `MIST0415`. Different branches may narrow to different shapes --
 a different length and a different element type -- and forward accordingly, while a fallback branch
 that proves nothing about the shape uses only the size-agnostic operations such as `TArgs.Length`. The
 destination check stays honest per branch: forwarding into a destination that does not match the
 narrowed shape -- for example `Sum3(pair...)` where `pair` is `(string, string)` -- is still
-`MIST_VAR_0011`.
+`MIST0415`.
 
 ```mist
 // Narrowing recovers fixed-arity forwarding: inside each `is` branch the pack shape is
 // proven, so the matching fixed-arity call type-checks. A wrong-shape forward in a branch
-// (for example Sum3(pair...)) would still be MIST_VAR_0011.
+// (for example Sum3(pair...)) would still be MIST0415.
 int Categorize<params TArgs>(params TArgs args) {
     if (args is (int, int, int) triple) {
         return Sum3(triple...);        // proven (int, int, int) here
@@ -480,9 +480,9 @@ line rather than only in prose:
 ```mist
 int StillRejected<params TArgs>(params TArgs args) {
     if (args is (string, string) pair) {
-        return Sum3(pair...);   // MIST_VAR_0011: (string, string) cannot fill Sum3(int, int, int)
+        return Sum3(pair...);   // MIST0415: (string, string) cannot fill Sum3(int, int, int)
     }
-    return Sum3(args...);       // MIST_VAR_0011: unnarrowed pack is symbolic here (Property 19)
+    return Sum3(args...);       // MIST0415: unnarrowed pack is symbolic here (Property 19)
 }
 ```
 
@@ -559,7 +559,7 @@ Rules:
   get-only property members.
 - **Reserved names.** The spread owns the stem `Item` and every `Item{i}` name: no other member may
   use `Item` or any `Item{i}`, no two spread stems may prefix one another, and the stem must be
-  non-empty (`MIST_VAR_0007` / `MIST_VAR_0008`).
+  non-empty (`MIST0412` / `MIST_VAR_0008 (historical)`).
 - **Empty and unit packs.** An empty pack yields the empty aggregate and zero projections; a length-1
   pack yields `Item : (T)` and the single projection `Item1` (the suffix is always present).
 - **Correlation.** Multiple spreads of the same pack in one type are correlated at the same `N`.
@@ -614,7 +614,7 @@ both value targets:
 - `params T[] names` slurps a flat argument list into a homogeneous `T[]`.
 
 At most one `params` is allowed per value-parameter list, whether it targets a tuple or an array,
-under diagnostic `MIST_VAR_0001`. Additional packs in the same list are written as explicit
+under diagnostic `MIST0404`. Additional packs in the same list are written as explicit
 `(TArgs...)` tuple parameters. For example, `Foo((TArgs...) a, (TArgs2...) b, params string[] names)`
 carries two explicit-tuple packs and a single `params` array.
 
@@ -716,7 +716,7 @@ logic:
   Data Models) and will emit once the ProgramModel pipeline's analyze and emit stages exist.
 
 The two tracks share the grammar and pretty-printer (one surface syntax feeds both) and the
-`MIST_VAR_*` diagnostics; they diverge at Stage 4 and stay separate through emission. No stage needs a
+`MIST_VAR_* (historical scheme)` diagnostics; they diverge at Stage 4 and stay separate through emission. No stage needs a
 new subsystem; each extends what [dependent-types](../dependent-types/design.md) and
 [generics-type-arguments](../generics-type-arguments/design.md) already established.
 
@@ -765,7 +765,7 @@ graph TD
 Because this feature is being built mid-stream, the two tracks are at different stages:
 
 - **Already built (shared surface + ProgramModel track):** the grammar surface (`Mist.storm`) and the
-  pretty-printer round-trip; the `MIST_VAR_*` diagnostic descriptors; and, in
+  pretty-printer round-trip; the `MIST_VAR_* (historical scheme)` diagnostic descriptors; and, in
   `Source/Mist/ProgramModel/`, the pack model and classification, constructed-type identity
   (`TypeInterner`), the binding rule (`PackBinder`), value-side and spread-generated-member
   construction, and the type-position capability ladder. All of this is reachable only through the
@@ -852,7 +852,7 @@ apply to whichever track is checking or emitting.
 - **Grammar** -- `Source/Mist/Grammar/Mist.storm` (pack declaration, spread suffix, value-level
   `params`).
 - **Pretty-printer** -- `Source/Mist/Parsing/MistPrettyPrinter.cs` (round-trips every surface form).
-- **Diagnostics** -- the `MIST_VAR_*` descriptors.
+- **Diagnostics** -- the `MIST_VAR_* (historical scheme)` descriptors.
 
 **Classic track (`Mist.Semantics`, the default emitting path -- pending):**
 
@@ -924,11 +924,11 @@ actually type-checks programs today.
   decomposition**: it applies to any tuple value, and the tuple's ordered element types must match
   the target argument or parameter slots positionally under assignability -- a decomposition or type
   mismatch (the wrong number of slots, or an element not assignable to its slot) is reported as
-  `MIST_VAR_0011`, and `args...` is just the case where the tuple originated from a pack. In a
+  `MIST0415`, and `args...` is just the case where the tuple originated from a pack. In a
   generic body the spread must be provably well-typed for **every** instantiation, exactly as any
   expression in an open generic is checked; a symbolic value pack spread into a destination that is
   not provably `(TArgs...)`-compatible (a fixed-arity signature such as `Sum3(int, int, int)`) is
-  therefore rejected with `MIST_VAR_0011`, since it cannot be shown well-typed for all `TArgs`.
+  therefore rejected with `MIST0415`, since it cannot be shown well-typed for all `TArgs`.
 - **Constraints.** A whole-pack constraint is discharged elementwise: every element type must
   satisfy the bound before a constrained member may be used on an element or on `args[i]`.
 - **Zip.** Permit `field... = args...` only when both operands are proven equal length (same origin
@@ -965,7 +965,7 @@ emission is monomorphization:
 - **Mist core semantics: arity is unbounded.** A pack is a real dependent value with no inherent cap.
 - **The C# backend has target-imposed ceilings.** When a construction exceeds the target CLR type's
   capacity, the classic `CSharpTranspiler` (consuming the legacy `Mist.Semantics` model -- the only
-  emitting backend today) emits `MIST_VAR_0010`:
+  emitting backend today) emits `MIST0028`:
   - `System.Func` and `System.Action` cap at 16 input parameters.
   - `System.ValueTuple` caps at 7 elements before nesting. The transpiler may auto-nest ValueTuples
     to exceed that; synthesizing delegate types to exceed the `Func`/`Action` cap is a heavier
@@ -976,25 +976,25 @@ emission is monomorphization:
 
 ## Error Handling
 
-Diagnostics use a dedicated `MIST_VAR_*` range so they do not collide with existing ranges. Front-end
+Diagnostics use a dedicated `MIST_VAR_* (historical scheme)` range so they do not collide with existing ranges. Front-end
 diagnostics are emitted at the earliest stage that can detect them; the arity ceiling is a backend
 diagnostic. A code marked reserved has no descriptor at the current revision, so no diagnostic carries it.
 
 | ID | Stage | Condition |
 |----|-------|-----------|
-| `MIST_VAR_0001` | Program model | More than one unbracketed pack (`params`) in a single type-parameter or value-parameter list |
-| `MIST_VAR_0002` | Type checker | Pack identifier used in bare type position (a pack is a value, not a type) |
-| `MIST_VAR_0003` | Type checker | Indexing `TArgs[i]` where the length is not proven to be at least `i + 1` |
-| `MIST_VAR_0004` | Type checker | Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`) |
-| `MIST_VAR_0005` | Type checker | Flat argument list cannot be bound: too few arguments to fill the fixed and bracketed slots |
-| `MIST_VAR_0006` | Type checker (reserved) | Zip between operands not proven to have equal length (different origin, no equal-length proof); no descriptor defines this code |
-| `MIST_VAR_0007` | Program model | Spread stem collides with another member (equals the stem, uses it as a prefix, or two stems prefix one another) |
-| `MIST_VAR_0008` | Program model (reserved) | Empty spread stem; no descriptor defines this code, since the grammar requires a stem identifier |
-| `MIST_VAR_0009` | Type checker (reserved) | A pack element does not satisfy a whole-pack constraint; no descriptor defines this code |
-| `MIST_VAR_0010` | Backend | Construction exceeds the target CLR type capacity (`Func`/`Action` over 16 inputs, or non-nestable ValueTuple over 7) |
-| `MIST_VAR_0011` | Type checker | A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation -- a symbolic value pack (`args...`) spread into a fixed-arity destination, for example. A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments |
-| `MIST_VAR_0012` | Program model | A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter; a value pack (`params TArgs args`) binds inward from both ends and may sit anywhere |
-| `MIST_VAR_0013` | Program model | A `params` parameter that is neither a value pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference |
+| `MIST0404` (type side), `MIST0405` (value side) | Program model | More than one unbracketed pack (`params`) in a single type-parameter or value-parameter list |
+| `MIST0406` | Type checker | Pack identifier used in bare type position (a pack is a value, not a type) |
+| `MIST0409` | Type checker | Indexing `TArgs[i]` where the length is not proven to be at least `i + 1` |
+| `MIST0410` | Type checker | Out-of-bounds index on a fixed-size pack `Type[N]` (for example `TArgs[N]`) |
+| `MIST0411` | Type checker | Flat argument list cannot be bound: too few arguments to fill the fixed and bracketed slots |
+| `MIST_VAR_0006 (historical)` | Type checker (reserved) | Zip between operands not proven to have equal length (different origin, no equal-length proof); no descriptor defines this code |
+| `MIST0412` | Program model | Spread stem collides with another member (equals the stem, uses it as a prefix, or two stems prefix one another) |
+| `MIST_VAR_0008 (historical)` | Program model (reserved) | Empty spread stem; no descriptor defines this code, since the grammar requires a stem identifier |
+| `MIST_VAR_0009 (historical)` | Type checker (reserved) | A pack element does not satisfy a whole-pack constraint; no descriptor defines this code |
+| `MIST0028` | Backend | Construction exceeds the target CLR type capacity (`Func`/`Action` over 16 inputs, or non-nestable ValueTuple over 7) |
+| `MIST0415` | Type checker | A value-side spread whose expansion cannot be proven: the operand's length is not known where it is spread and the destination is not a slot declared over the same pack, so the number of arguments it stands for is not known for every instantiation -- a symbolic value pack (`args...`) spread into a fixed-arity destination, for example. A spread of a tuple whose shape is known is expanded into its elements and judged as ordinary arguments |
+| `MIST0413` | Program model | A value-side `params` collection parameter (`params T[] xs`, or another collection a flat list is gathered into) that is not the last parameter; a value pack (`params TArgs args`) binds inward from both ends and may sit anywhere |
+| `MIST0414` | Program model | A `params` parameter that is neither a value pack nor a collection a flat list is gathered into (an array, a span, a list, or an enumerable interface), or that is passed by reference |
 
 Recovery follows the established pattern: on a binding or position error the offending slot is treated
 as an error type so downstream analysis can continue and report additional diagnostics in one pass.
@@ -1009,7 +1009,7 @@ FsCheck setup, a minimum of 100 iterations per property, and the batched / in-pr
 approach required by the workspace test-process policy (generate all scenarios, compile once, run
 once, compare per scenario). The vocabulary matches the language model above: pack,
 `Unbracketed_Pack`, `Bracketed_Pack`, spread, zip, `Type[]` / `Type[N]`, `(TArgs...)`, and the
-`MIST_VAR_*` diagnostic codes.
+`MIST_VAR_* (historical scheme)` diagnostic codes.
 
 ### Property 1: Print/parse round-trip
 
@@ -1049,7 +1049,7 @@ at least (fixed slots + `Bracketed_Pack` slots), the binding rule yields exactly
 which the leading fixed and bracketed slots take the leading arguments in order, the trailing fixed
 and bracketed slots take the trailing arguments in order, and the `Unbracketed_Pack` takes exactly
 the contiguous middle run (possibly empty); every argument list shorter than that minimum is rejected
-with `MIST_VAR_0005`.
+with `MIST0411`.
 
 **Validates: Requirements 4, 3**
 
@@ -1093,7 +1093,7 @@ absorbs.
 ### Property 9: One sugared pack per list
 
 For any type-parameter or value-parameter list, a list containing exactly one sugared `params`
-`Unbracketed_Pack` is accepted, and a list containing two or more raises `MIST_VAR_0001`. This holds
+`Unbracketed_Pack` is accepted, and a list containing two or more raises `MIST0404`. This holds
 uniformly for type-parameter lists (including method type-parameter lists) and value-parameter lists,
 counting a value pack `params TArgs args` and a homogeneous `params T[]` alike as one `params`.
 
@@ -1102,9 +1102,9 @@ counting a value pack `params TArgs args` and a homogeneous `params T[]` alike a
 ### Property 10: Position-semantics soundness
 
 For any pack identifier: use in expression position denotes the comptime `Type[]` value; use in bare
-type position is rejected with `MIST_VAR_0002`; indexing an unknown-length `Type[]` pack in type
-position is rejected with `MIST_VAR_0003`; indexing a fixed-size `Type[N]` pack at a comptime index i
-is accepted if and only if `0 <= i < N` and otherwise raises `MIST_VAR_0004`; and guard-narrowing an
+type position is rejected with `MIST0406`; indexing an unknown-length `Type[]` pack in type
+position is rejected with `MIST0409`; indexing a fixed-size `Type[N]` pack at a comptime index i
+is accepted if and only if `0 <= i < N` and otherwise raises `MIST0410`; and guard-narrowing an
 unknown-length pack to `Type[N]` restores in-range indexing within the guarded branch.
 
 **Validates: Requirements 6.1, 6.3, 6.4, 6.5, 6.6, 6.7**
@@ -1113,7 +1113,7 @@ unknown-length pack to `Type[N]` restores in-range indexing within the guarded b
 
 For any tuple value `x` and any target slot list, decomposing `x...` into that slot list is
 well-typed if and only if the tuple's ordered element types are positionally assignable to the target
-slots; otherwise it is rejected with `MIST_VAR_0011`. This holds for every tuple value, whether or not
+slots; otherwise it is rejected with `MIST0415`. This holds for every tuple value, whether or not
 it originated from a pack. In a generic body, "well-typed" means provably well-typed for every
 instantiation the signature and constraints permit.
 
@@ -1123,7 +1123,7 @@ instantiation the signature and constraints permit.
 
 For any two spread operands, a zip is accepted if and only if the operands are proven to have equal
 length (same origin or otherwise established), in which case it produces exactly N paired positions
-with each left-hand slot receiving exactly one right-hand value; otherwise it raises `MIST_VAR_0006`.
+with each left-hand slot receiving exactly one right-hand value; otherwise it raises `MIST_VAR_0006 (historical)`.
 
 **Validates: Requirements 8.5, 8.6, 8.7**
 
@@ -1131,14 +1131,14 @@ with each left-hand slot receiving exactly one right-hand value; otherwise it ra
 
 For any family and method over an empty pack, the empty pack yields an arity-0 construction, zero
 spread slots, zero generated members, the zero-argument callable (`Func<TResult>`), and vacuously
-satisfies any whole-pack constraint (no `MIST_VAR_0009`).
+satisfies any whole-pack constraint (no `MIST_VAR_0009 (historical)`).
 
 **Validates: Requirements 4.3, 6.8, 10.6, 11.4, 15.4**
 
 ### Property 14: Unbounded front end, backend ceiling
 
 For any pack of any element count, the grammar, program model, and type checker accept the
-construction and never reject on the basis of pack length; only the backend emits `MIST_VAR_0010`,
+construction and never reject on the basis of pack length; only the backend emits `MIST0028`,
 and then only when a construction exceeds the target CLR capacity (a `System.Func` / `System.Action`
 over 16 inputs, or a non-nestable `System.ValueTuple` over 7), while a `System.ValueTuple` over 7 that
 can be nested is represented by nesting rather than rejected.
@@ -1161,7 +1161,7 @@ retained.
 For any pack declared with a whole-pack constraint C and any non-empty binding, the construction is
 well-typed if and only if every element type independently satisfies C, in which case any member
 declared by C may be used on each element type and on each corresponding `args[i]`; every element
-that fails C raises `MIST_VAR_0009` and is treated as an error type so downstream analysis continues.
+that fails C raises `MIST_VAR_0009 (historical)` and is treated as an error type so downstream analysis continues.
 
 **Validates: Requirements 11.1, 11.2, 11.3**
 
@@ -1190,7 +1190,7 @@ is rejected as an ordinary type error and the parameter is left unbound.
 For any variadic method, the body is type-checked generically and must be well-typed for every
 instantiation. Therefore a symbolic value pack spread `args...` is accepted if and only if its
 destination provably accepts the pack `(TArgs...)` for every `TArgs` -- another `params TArgs` /
-`(TArgs...)` parameter, or a `Func<TArgs..., R>` value -- and is rejected with `MIST_VAR_0011` when
+`(TArgs...)` parameter, or a `Func<TArgs..., R>` value -- and is rejected with `MIST0415` when
 the destination is a fixed-arity signature not provably `(TArgs...)`-compatible (for example
 forwarding `args...` into `Sum3(int, int, int)`), even though that same forward would succeed for the
 single instantiation `TArgs = [int, int, int]`. This is the negative counterpart to Property 15's
@@ -1205,7 +1205,7 @@ For any variadic method body, within a branch guarded by `args is T x` for a con
 `x...` into a destination whose slots match `T` is well-typed inside that branch, even though the same
 spread on the unnarrowed pack is rejected outside it (Property 19). Narrowing to different tuple shapes
 in different branches independently enables the forwarding appropriate to each shape, and a spread into
-a destination that does not match the narrowed shape `T` is still rejected with `MIST_VAR_0011`.
+a destination that does not match the narrowed shape `T` is still rejected with `MIST0415`.
 
 **Validates: Requirements 6.7, 12.9**
 

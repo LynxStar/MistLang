@@ -10,7 +10,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Tests.Backend;
 
-// Tier 1: the two decisions behind MIST_VAR_0010 (variadics Requirement 16), over directly built types
+// Tier 1: the two decisions behind MIST0028 (variadics Requirement 16), over directly built types
 // and closings: which written function type is past the sixteen inputs a C# delegate holds, and which
 // use site closed a pack to a width.
 [Trait("Tier", "1")]

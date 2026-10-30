@@ -325,18 +325,18 @@ New checks added to `TypeCheckerAnalyzer`:
 
 | Check | Diagnostic ID | Description |
 |---|---|---|
-| Property get access | MIST_TC_0019 | Property has no accessible `get` accessor |
-| Property set access | MIST_TC_0020 | Property has no accessible `set`/`init` accessor |
-| Property type mismatch | MIST_TC_0021 | Assigned value type incompatible with property type |
-| Accessor modifier restrictiveness | MIST_TC_0022 | Accessor modifier must be more restrictive than property |
-| `field` outside accessor | MIST_TC_0023 | `field` keyword used outside property accessor body |
-| `field` in computed property | MIST_PA_FIELD_IN_COMPUTED_PROPERTY (classic MIST_TC_0024) | `field` keyword used in computed property (no backing field) |
-| `init` outside constructor/initializer | MIST_TC_0025 | `init`-only property assigned outside constructor context |
-| `this` in static accessor | MIST_TC_0026 | `this` referenced in static property accessor |
-| Static property via instance | MIST_TC_0027 | Static property accessed through instance reference |
-| Expression body type mismatch | MIST_TC_0028 | Expression body type incompatible with property type |
-| Duplicate indexer | MIST_TC_0029 | Duplicate indexer with same parameter types |
-| Missing interface property | MIST_TC_0030 | Implementing type missing required interface property accessor |
+| Property get access | MIST_TC_0019 (historical) | Property has no accessible `get` accessor |
+| Property set access | MIST_TC_0020 (historical) | Property has no accessible `set`/`init` accessor |
+| Property type mismatch | MIST_TC_0021 (historical) | Assigned value type incompatible with property type |
+| Accessor modifier restrictiveness | MIST_TC_0022 (historical) | Accessor modifier must be more restrictive than property |
+| `field` outside accessor | MIST_TC_0023 (historical) | `field` keyword used outside property accessor body |
+| `field` in computed property | MIST0136 (classic MIST_TC_0024 (historical)) | `field` keyword used in computed property (no backing field) |
+| `init` outside constructor/initializer | MIST_TC_0025 (historical) | `init`-only property assigned outside constructor context |
+| `this` in static accessor | MIST_TC_0026 (historical) | `this` referenced in static property accessor |
+| Static property via instance | MIST_TC_0027 (historical) | Static property accessed through instance reference |
+| Expression body type mismatch | MIST_TC_0028 (historical) | Expression body type incompatible with property type |
+| Duplicate indexer | MIST_TC_0029 (historical) | Duplicate indexer with same parameter types |
+| Missing interface property | MIST_TC_0030 (historical) | Implementing type missing required interface property accessor |
 
 The type checker walks property symbols similarly to how it walks method symbols:
 
@@ -518,18 +518,18 @@ NeedsBackingField = !IsComputed && (HasAutoAccessor || UsesFieldKeyword)
 
 ### Parser Errors
 
-- **Malformed accessor list**: If the parser encounters an accessor list that doesn't match any `AccessorDeclaration` alternative, it emits `MIST_PARSE_ERROR` and attempts recovery by skipping to the next `}`.
+- **Malformed accessor list**: If the parser encounters an accessor list that doesn't match any `AccessorDeclaration` alternative, it emits `MIST0122` and attempts recovery by skipping to the next `}`.
 - **Interface property with body**: If an interface property accessor has a block or expression body, the parser rejects it (the `InterfaceAccessorDeclaration` rule only allows semicolons).
-- **Missing accessor**: If a property declaration has an empty accessor list `{ }`, the parser emits `MIST_PARSE_ERROR` (the `+` quantifier on `AccessorDeclaration` requires at least one).
+- **Missing accessor**: If a property declaration has an empty accessor list `{ }`, the parser emits `MIST0122` (the `+` quantifier on `AccessorDeclaration` requires at least one).
 
 ### Semantic Model Errors
 
 - **Duplicate property name**: If a type already has a member with the same name, the existing duplicate detection in `Pass1_CheckMemberRedeclarations` catches it.
-- **Unresolved property type**: If the property's type reference cannot be resolved, the semantic model uses `UnknownType.Instance` and emits `MIST_SEMANTIC_ERROR`.
+- **Unresolved property type**: If the property's type reference cannot be resolved, the semantic model uses `UnknownType.Instance` and emits `MIST_SEMANTIC_ERROR (historical)`.
 
 ### Type Checker Errors
 
-All type checker errors use the diagnostic IDs listed in the Type Checker Changes section (MIST_TC_0019 through MIST_TC_0030). Each diagnostic includes:
+All type checker errors use the diagnostic IDs listed in the Type Checker Changes section (MIST_TC_0019 (historical) through MIST_TC_0030 (historical)). Each diagnostic includes:
 - The diagnostic ID
 - A human-readable message describing the error
 - The source location (via the AST node's span)
@@ -573,8 +573,8 @@ Unit tests cover specific examples and edge cases not well-suited to PBT:
 - **Lexer token recognition**: Verify `get`, `set`, `init`, `field`, `=>` are lexed as correct token types.
 - **Expression-bodied set/init validation**: Verify the type checker accepts valid statement expressions and rejects invalid ones (Requirement 13.7).
 - **Syntax highlighting**: Verify TextMate grammar patterns match expected scopes for property keywords (Requirements 16.1–16.5).
-- **Duplicate indexer detection**: Verify the type checker emits MIST_TC_0029 for duplicate indexers (Requirement 11.6).
-- **Static property `this` rejection**: Verify the type checker emits MIST_TC_0026 when `this` appears in a static accessor (Requirement 8.4).
+- **Duplicate indexer detection**: Verify the type checker emits MIST_TC_0029 (historical) for duplicate indexers (Requirement 11.6).
+- **Static property `this` rejection**: Verify the type checker emits MIST_TC_0026 (historical) when `this` appears in a static accessor (Requirement 8.4).
 
 ### Integration Tests
 

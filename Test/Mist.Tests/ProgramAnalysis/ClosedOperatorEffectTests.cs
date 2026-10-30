@@ -24,9 +24,9 @@ public sealed class ClosedOperatorEffectTests
 
         Assert.Equal(findings, forward.Count);
         Assert.Equal(
-            forward.Select(finding => (finding.Id.Value, finding.Location.Start.Column)),
-            backward.Select(finding => (finding.Id.Value, finding.Location.Start.Column)));
-        Assert.All(forward, finding => Assert.Equal(61, finding.Location.Start.Column));
+            forward.Select(finding => (finding.Number.Value, finding.Position().Start.Column)),
+            backward.Select(finding => (finding.Number.Value, finding.Position().Start.Column)));
+        Assert.All(forward, finding => Assert.Equal(61, finding.Position().Start.Column));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class ClosedOperatorEffectTests
         var finding = Assert.Single(f.Analyze(
             f.Wraps("Read", reads, reader, reader, offset: 40), writes, reads, f.Wraps("Write", writes, writer, writer, offset: 60)));
 
-        Assert.Equal(61, finding.Location.Start.Column);
+        Assert.Equal(61, finding.Position().Start.Column);
     }
 
     [Theory]
@@ -55,6 +55,6 @@ public sealed class ClosedOperatorEffectTests
         var found = f.Model.Analyze(new PurityAnalyzer(), wrap.Body, owner: wrap.DeclaringType, member: wrap);
 
         Assert.Equal(findings, found.Count);
-        Assert.All(found, finding => Assert.Equal(61, finding.Location.Start.Column));
+        Assert.All(found, finding => Assert.Equal(61, finding.Position().Start.Column));
     }
 }

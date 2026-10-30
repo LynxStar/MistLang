@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -39,9 +40,9 @@ internal static class UnspellableTypeGuard
             // with none.
             if(parameter.IsPack && Monomorph.InScope() is null && ReferenceEquals(TypeNameEmitter.Closed(parameter), parameter))
             {
-                diagnostics.ReportAtNode(
+                diagnostics.ReportAtNodeTyped(
                     BackendDiagnostics.DependentTypeParameter, node, null,
-                    parameter.Name, TypeEmitter.DeclaredName(type));
+                    new NameValue(parameter.Name), DiagnosticSnapshot.Type(type, TypeEmitter.DeclaredName(type)));
             }
         }
 
@@ -49,9 +50,9 @@ internal static class UnspellableTypeGuard
         {
             if(FindUnspecializedPack(signatureType, ownParameters) is { } pack)
             {
-                diagnostics.ReportAtNode(
+                diagnostics.ReportAtNodeTyped(
                     BackendDiagnostics.UnspecializedPack, node, null,
-                    $"{TypeEmitter.DeclaredName(type)}.{member}", pack.Name);
+                    BackendFacts.Symbol(type, member, $"{TypeEmitter.DeclaredName(type)}.{member}"), new NameValue(pack.Name));
             }
         }
     }

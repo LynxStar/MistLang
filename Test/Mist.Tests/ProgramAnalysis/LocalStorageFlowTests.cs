@@ -30,7 +30,7 @@ public sealed class LocalStorageFlowTests
         var findings = fixture.Analyze(Fixture.Write(fixture.First), Fixture.Read(fixture.First), Fixture.Read(fixture.Second));
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Id.Value);
+        Assert.Equal("MIST0220", finding.Number.Value);
     }
 
     [Theory]
@@ -154,7 +154,7 @@ public sealed class LocalStorageFlowTests
         var findings = model.Analyze(new DefiniteAssignmentAnalyzer(), body);
 
         Assert.Equal(2, findings.Count);
-        Assert.All(findings, finding => Assert.Equal("MIST_PA_LOCAL_READ_BEFORE_ASSIGNMENT", finding.Id.Value));
+        Assert.All(findings, finding => Assert.Equal("MIST0220", finding.Number.Value));
     }
 
     [Fact]

@@ -18,7 +18,7 @@ Today, the `TypeParameter` grammar rule only accepts `PrimitiveType` as a depend
 - **SemanticModelBuilder**: The compiler component that constructs the semantic model from parsed ASTs, resolving types, symbols, and scopes.
 - **EnsureSpanAliasesRegistered**: A synthetic workaround method in SemanticModelBuilder that registers arity-1 `Span<T>` and `ReadOnlySpan<T>` type aliases because the full declarations fail to parse.
 - **Parse_Completeness_Check**: A post-parse validation that verifies all tokens in the source file were consumed by the parser.
-- **MIST_PARSE_INCOMPLETE**: A diagnostic emitted when the parser fails to consume all tokens in a source file.
+- **MIST0123**: A diagnostic emitted when the parser fails to consume all tokens in a source file.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ Today, the `TypeParameter` grammar rule only accepts `PrimitiveType` as a depend
 #### Acceptance Criteria
 
 1. WHEN a DependentTypeParameter node has an identifier constraint that resolves to a Refinement_Type whose base type is in the Allowed_Dependent_Primitives set, THE SemanticModelBuilder SHALL create a DependentTypeParameterType with the resolved base primitive type as the value type.
-2. WHEN a DependentTypeParameter node has an identifier constraint that resolves to a Refinement_Type whose base type is NOT in the Allowed_Dependent_Primitives set, THE SemanticModelBuilder SHALL emit diagnostic MIST_DT_0001 with a message identifying the disallowed base type.
+2. WHEN a DependentTypeParameter node has an identifier constraint that resolves to a Refinement_Type whose base type is NOT in the Allowed_Dependent_Primitives set, THE SemanticModelBuilder SHALL emit diagnostic MIST0407 with a message identifying the disallowed base type.
 3. WHEN a DependentTypeParameter node has an identifier constraint that does not resolve to any known type, THE SemanticModelBuilder SHALL emit a diagnostic indicating the constraint type could not be found.
 4. WHEN a DependentTypeParameter node has a primitive keyword constraint (e.g., `int`), THE SemanticModelBuilder SHALL continue to validate it using the existing AllowedDependentTypeAnnotations check.
 
@@ -50,10 +50,10 @@ Today, the `TypeParameter` grammar rule only accepts `PrimitiveType` as a depend
 
 #### Acceptance Criteria
 
-1. WHEN the Storm_Parser returns a root node and the parser position is not at the end of the token stream, THE MistParser SHALL emit diagnostic MIST_PARSE_INCOMPLETE with a message indicating the line where unparseable content begins.
-2. WHEN the Storm_Parser returns a root node and the parser position is at the end of the token stream, THE MistParser SHALL not emit the MIST_PARSE_INCOMPLETE diagnostic.
-3. THE MIST_PARSE_INCOMPLETE diagnostic SHALL have severity Error and pipeline stage Parsing.
-4. THE MIST_PARSE_INCOMPLETE diagnostic SHALL include the file path and line position of the first unconsumed token.
+1. WHEN the Storm_Parser returns a root node and the parser position is not at the end of the token stream, THE MistParser SHALL emit diagnostic MIST0123 with a message indicating the line where unparseable content begins.
+2. WHEN the Storm_Parser returns a root node and the parser position is at the end of the token stream, THE MistParser SHALL not emit the MIST0123 diagnostic.
+3. THE MIST0123 diagnostic SHALL have severity Error and pipeline stage Parsing.
+4. THE MIST0123 diagnostic SHALL include the file path and line position of the first unconsumed token.
 
 ### Requirement 4: Stdlib Files Parse Completely
 
@@ -85,8 +85,8 @@ Today, the `TypeParameter` grammar rule only accepts `PrimitiveType` as a depend
 
 1. WHEN `Span.mist` declares an intrinsic constructor and the declaration is fully parsed, THE SemanticModelBuilder SHALL register a constructor symbol in the Span type's member scope.
 2. WHEN user code writes `new Span<int>(arr)`, THE TypeCheckerAnalyzer SHALL resolve the constructor through normal member-scope constructor lookup rather than the dedicated `if (createdType is SpanType)` branch.
-3. WHEN user code writes `new Span<int>(arr)` with a non-array argument, THE TypeCheckerAnalyzer SHALL emit MIST_TC_0011 with the same error message content as before this change.
-4. WHEN user code writes `new Span<int>()` with wrong argument count, THE TypeCheckerAnalyzer SHALL emit MIST_TC_0011 with the same error message content as before this change.
+3. WHEN user code writes `new Span<int>(arr)` with a non-array argument, THE TypeCheckerAnalyzer SHALL emit MIST_TC_0011 (historical) with the same error message content as before this change.
+4. WHEN user code writes `new Span<int>()` with wrong argument count, THE TypeCheckerAnalyzer SHALL emit MIST_TC_0011 (historical) with the same error message content as before this change.
 5. THE TypeCheckerAnalyzer SHALL not contain the dedicated `if (createdType is SpanType)` constructor validation branch after this feature is complete.
 
 ### Requirement 7: Remove Foreach Fast-Path for Array and Span
@@ -111,7 +111,7 @@ Today, the `TypeParameter` grammar rule only accepts `PrimitiveType` as a depend
 
 1. THE compiler SHALL pass all existing test cases (currently 4,257) after the grammar extension, completeness check, and workaround removal are applied.
 2. WHEN a dependent type parameter uses a primitive keyword constraint (e.g., `Size:int`), THE compiler SHALL produce identical semantic model results as before this change.
-3. WHEN user code declares a dependent type parameter with an identifier constraint whose base type is not in the Allowed_Dependent_Primitives set, THE compiler SHALL emit MIST_DT_0001 diagnostic as before this change.
+3. WHEN user code declares a dependent type parameter with an identifier constraint whose base type is not in the Allowed_Dependent_Primitives set, THE compiler SHALL emit MIST0407 diagnostic as before this change.
 
 ### Requirement 9: Round-Trip Property for TypeParameter Parsing
 

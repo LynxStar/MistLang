@@ -54,16 +54,16 @@ public sealed class InitializerTargetBindingTests
         Assert.IsType(found, bound[1].Member);
         Assert.Null(bound[1].TargetType);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Id.Value);
+        Assert.Equal("MIST0381", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"'{name}' on 'Widget' is not a field or a property, so an initializer block cannot assign to it.", diagnostic.Message);
-        Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(TargetSpan, diagnostic.Location);
+        Assert.Equal(BlockPath, diagnostic.Location.Path);
+        Assert.Equal(TargetSpan, diagnostic.Position());
     }
 
     [Theory]
-    [InlineData("Colour", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("Weight", "MIST_PM_AMBIGUOUS_MEMBER")]
+    [InlineData("Colour", "MIST0301")]
+    [InlineData("Weight", "MIST0302")]
     public void AMissingOrAmbiguousNameIsReportedByLookupAlone(string name, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -72,9 +72,9 @@ public sealed class InitializerTargetBindingTests
 
         Assert.Null(bound.TargetType);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(TargetSpan, diagnostic.Location);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(BlockPath, diagnostic.Location.Path);
+        Assert.Equal(TargetSpan, diagnostic.Position());
     }
 
     [Fact]
@@ -89,9 +89,9 @@ public sealed class InitializerTargetBindingTests
     }
 
     [Theory]
-    [InlineData("GlobalSize", typeof(FieldResult), "MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE")]
-    [InlineData("GlobalCount", typeof(PropertyResult), "MIST_PM_INITIALIZER_TARGET_NOT_INSTANCE")]
-    [InlineData("Reset", typeof(MethodGroupResult), "MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE")]
+    [InlineData("GlobalSize", typeof(FieldResult), "MIST0382")]
+    [InlineData("GlobalCount", typeof(PropertyResult), "MIST0382")]
+    [InlineData("Reset", typeof(MethodGroupResult), "MIST0381")]
     public void ADeclaredStaticMemberIsRetainedAndRefusedAtItsEntry(string name, Type member, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -103,9 +103,9 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.TargetType);
         Assert.True(bound.IsTargetFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(BlockPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(TargetSpan, diagnostic.Location);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(BlockPath, diagnostic.Location.Path);
+        Assert.Equal(TargetSpan, diagnostic.Position());
     }
 
     [Fact]
@@ -121,8 +121,8 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.TargetType);
         Assert.True(bound.IsTargetFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_INITIALIZER_TARGET_NOT_ASSIGNABLE", diagnostic.Id.Value);
-        Assert.Equal(TargetSpan, diagnostic.Location);
+        Assert.Equal("MIST0381", diagnostic.Number.Value);
+        Assert.Equal(TargetSpan, diagnostic.Position());
     }
 
     [Fact]
@@ -145,8 +145,8 @@ public sealed class InitializerTargetBindingTests
     }
 
     [Theory]
-    [InlineData(false, "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData(true, "MIST_PM_NOT_CALLABLE")]
+    [InlineData(false, "MIST0301")]
+    [InlineData(true, "MIST0363")]
     public void AnElementWithNoAddMethodKeepsItsValueBehindOneRefusal(bool addIsAField, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -165,8 +165,8 @@ public sealed class InitializerTargetBindingTests
         Assert.Null(bound.Add);
         Assert.Same(f.Built.Type("Int32"), bound.Value.Type);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(TargetSpan, diagnostic.Location);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(TargetSpan, diagnostic.Position());
     }
 
     private static ClassType Widget(BindingFragments f)

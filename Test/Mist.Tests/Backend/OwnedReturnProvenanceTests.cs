@@ -11,7 +11,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class OwnedReturnProvenanceTests
 {
-    private const string NotOwned = "MIST_PA_OWNED_RETURN_NOT_OWNED";
+    private const string NotOwned = "MIST0263";
 
     [Theory]
     [InlineData("owned-return-of-this")]
@@ -19,7 +19,7 @@ public sealed class OwnedReturnProvenanceTests
     [InlineData("owned-return-of-a-static-field")]
     public void AnOwnedReturnOfWhatTheBodyDoesNotOwn_IsRefused(string member)
     {
-        Assert.Equal(NotOwned, Assert.Single(new PuritySpecFragments().Analyze(member)).Id.Value);
+        Assert.Equal(NotOwned, Assert.Single(new PuritySpecFragments().Analyze(member)).Number.Value);
     }
 
     [Theory]

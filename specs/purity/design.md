@@ -32,16 +32,16 @@ Ordered choice already gives Requirement 16.2 for free: every declaration that a
 
 - `MemberModifiers`: `IsPure`, `IsLocal`.
 - `ModifierBuilder.Build`: the two cases; `PURE` sets `IsPure` and `IsReadonly`. Diagnostics, all at the declaration node:
-  - `MIST_PM_PURE_AND_LOCAL` (error): both written on one declaration (Requirement 1.4).
-  - `MIST_PM_READONLY_IMPLIED_BY_PURE` (info): `pure` and `readonly` both written (Requirement 1.3).
-  - `MIST_PM_LOCAL_REQUIRES_INSTANCE` (error): `local` with `static`, or on a constructor (Requirement 1.5).
-  - `MIST_PM_PURITY_MODIFIER_PLACEMENT` (error): `pure` or `local` on a field, a type alias, a newtype, an enum or an associated type, and `local` on an operator or cast operator (`ModifierBuilder.Misplaced`). Admitted on a class, struct or abstract declaration, a method, a constructor (`pure` only), a property, an indexer, an operator (`pure` only), a cast operator (`pure` only), a local function and a lambda. An accessor admits a promise, and this diagnostic never judges one: the placement check reads a declaration's `Modifier` list only, and an accessor's promise is its own grammar rule, `AccessorPromise`, written ahead of the accessor's accessibility (Requirement 1.5). `private pure get` is a parse error.
+  - `MIST0318` (error): both written on one declaration (Requirement 1.4).
+  - `MIST0319` (info): `pure` and `readonly` both written (Requirement 1.3).
+  - `MIST0320` (error): `local` with `static`, or on a constructor (Requirement 1.5).
+  - `MIST0321` (error): `pure` or `local` on a field, a type alias, a newtype, an enum or an associated type, and `local` on an operator or cast operator (`ModifierBuilder.Misplaced`). Admitted on a class, struct or abstract declaration, a method, a constructor (`pure` only), a property, an indexer, an operator (`pure` only), a cast operator (`pure` only), a local function and a lambda. An accessor admits a promise, and this diagnostic never judges one: the placement check reads a declaration's `Modifier` list only, and an accessor's promise is its own grammar rule, `AccessorPromise`, written ahead of the accessor's accessibility (Requirement 1.5). `private pure get` is a parse error.
 - `ModifierBuilder.ForMember`: as it inherits a readonly type's `IsReadonly`, it inherits a pure type's `IsPure` (with `IsReadonly`) onto every member, and a local type's `IsLocal` onto a non-static method, property or indexer that does not itself declare `pure` (Requirements 15.2 and 15.5).
 - `NewtypeCloner` copies the two flags as it copies `readonly`.
 - `LocalFunctionBinder.Refused` leaves `pure` and `local` admitted.
 - `LambdaExpression`: `IsPure` and `IsLocal`. A lambda written `pure` has a pure function type whatever its target; one bound against a pure function type target already has it.
 - `FunctionType`: `IsPure`; `Name` is `pure func<...>` when set, so `IsIdentity` separates the two (Requirement 16.6). `IFunctionType.IsPure`. `TypeInterner.GetOrCreateFunctionType` keys on the flag. `TypeSubstitution.Apply` carries it; `DelegateShape.InvokeShape` never sets it. `TypeDisplay.Mist` prints it.
-- `ScopeResolver`: a `Pure` token on a function reference re-interns the resolved function type as pure. On a named reference it expands the alias and does the same, or reports `MIST_PM_PURE_REQUIRES_FUNCTION_TYPE` naming the type.
+- `ScopeResolver`: a `Pure` token on a function reference re-interns the resolved function type as pure. On a named reference it expands the alias and does the same, or reports `MIST0322` naming the type.
 - Conversions (`ConversionClassifier`, `ConversionRelation`): a pure function type converts implicitly to the same shape without `pure`; nothing converts to a pure function type but a pure function type, a lambda or a method group (Requirement 16.5). `CrossesDelegateShape` never admits a CLR delegate into a pure function type. A cast to a pure function type has no conversion and is refused where casts are.
 - `OverloadSignature` erases the flag, so two overloads differing only in it are the existing `DuplicateSignature` error (Requirement 16.7).
 - The test shells in `AmbientProviderTestHelper.RegisterStandardTypes` set `IsPure` where they set `IsReadonly`, since Standard's declarations do.
@@ -78,7 +78,7 @@ What the rule does not reach, each by design:
 
 The compiler reads no culture itself (Requirement 13.3). `LiteralBinder` reads real literals
 with `NumberStyles.Float` and the invariant culture, refusing non-finite `float`/`double` values
-and decimals outside their range with `MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE`. `IntegerLiterals`
+and decimals outside their range with `MIST0377`. `IntegerLiterals`
 reads decimal, hex and binary forms with separators and suffixes, preserving the exact value
 and choosing an integral type that can represent it. Unary binding admits the signed minimum
 boundaries. Dependent integer arguments use that same reader through `LiftIntegerLiteral`,
@@ -157,17 +157,17 @@ What a body runs without writing it is a call the judge sees through a helper:
 - `Deconstructions`: each target and value of a deconstructing assignment, so every rule sees each write as though it were written alone.
 - `PurityJudge.Exits`: the `Drop` of every linear or relevant binding the body does not hand on, and a declared `Drop`'s droppable fields. It mirrors the backend's `DropInsertion` rather than sharing it, since analysis may not depend on a backend.
 
-Findings, all `MIST_PA_*`, reported through `AnalysisContext.Report`, each naming the operation, the promise and what would be needed (Requirement 10). The last two are reported by amended rules, not the judge:
+Findings, all `MIST_PA_* (historical scheme)`, reported through `AnalysisContext.Report`, each naming the operation, the promise and what would be needed (Requirement 10). The last two are reported by amended rules, not the judge:
 
-- `MIST_PA_PURE_SCOPE_WRITES`: writing what the scope does not own.
-- `MIST_PA_PURE_SCOPE_READS_MUTABLE`: reading what can change between reads.
-- `MIST_PA_PURE_SCOPE_CALLS_IMPURE`: a call the table refuses, naming the callee's promise and what the call would need.
-- `MIST_PA_LOCAL_SCOPE_READS_ARGUMENT`: a read through a reference-typed argument of a local member.
-- `MIST_PA_PURE_SCOPE_STORES_UNOWNED`: Requirement 6.4.
-- `MIST_PA_PURE_FUNCTION_REQUIRED`: a method group converting to a pure function type whose method is not pure.
-- `MIST_PA_DEFAULT_NOT_CONSISTENT`: an operation in a field initializer or default entry that the pure judge refuses, naming the field and the type (Requirement 12.1; defaultability Requirement 6.1).
-- `MIST_PA_PURITY_CONTRACT_NOT_MET`: an implementation that does not keep the promise its abstract member declares (Requirement 8.4). `ConformanceAnalyzer`.
-- `MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE`: a runtime type test or cast to a pure function type, which no runtime value carries evidence for (Requirement 16.5). `CastAnalyzer` and `PatternAnalyzer`.
+- `MIST0137`: writing what the scope does not own.
+- `MIST0138`: reading what can change between reads.
+- `MIST0139`: a call the table refuses, naming the callee's promise and what the call would need.
+- `MIST0140`: a read through a reference-typed argument of a local member.
+- `MIST0141`: Requirement 6.4.
+- `MIST0142`: a method group converting to a pure function type whose method is not pure.
+- `MIST0143`: an operation in a field initializer or default entry that the pure judge refuses, naming the field and the type (Requirement 12.1; defaultability Requirement 6.1).
+- `MIST0144`: an implementation that does not keep the promise its abstract member declares (Requirement 8.4). `ConformanceAnalyzer`.
+- `MIST0145`, `MIST0146`: a runtime type test or cast to a pure function type, which no runtime value carries evidence for (Requirement 16.5). `CastAnalyzer` and `PatternAnalyzer`.
 
 The scope is described in each message as `pure method 'M'`, `local property 'P'`, `the pure lambda`, `local function 'F'`, `the initializer of field 'F' of 'T'`.
 
@@ -177,11 +177,11 @@ Id `purity-checking`, order 13 of the analysis register. It walks every body who
 
 ### Amendments
 
-- `ReadonlyInference` (with `ReadonlyInference.Triggers`) and `ReadonlyAnalyzer` (with `ReadonlyAnalyzer.Frame`), Requirement 11: a write to a field, setter, index or element of an Own value is not a write of the context, and a call to a Local_Member on an Own receiver is admitted, both through `Origins`. The local-rooted index admission already made is a case of this. A write through anything External counts, and `MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF` reports one through a `ref` parameter, an element of an array parameter, an object initializer's setter, a property pattern, an extension property or a conversion operator. `Triggers` adds the static initializers a node runs and the `IFormattable.ToString` a hole calls; `Frame` is the context a body is judged in. Base rule 10 needs nothing: a pure constructor is readonly by the flag.
+- `ReadonlyInference` (with `ReadonlyInference.Triggers`) and `ReadonlyAnalyzer` (with `ReadonlyAnalyzer.Frame`), Requirement 11: a write to a field, setter, index or element of an Own value is not a write of the context, and a call to a Local_Member on an Own receiver is admitted, both through `Origins`. The local-rooted index admission already made is a case of this. A write through anything External counts, and `MIST0261` reports one through a `ref` parameter, an element of an array parameter, an object initializer's setter, a property pattern, an extension property or a conversion operator. `Triggers` adds the static initializers a node runs and the `IFormattable.ToString` a hole calls; `Frame` is the context a body is judged in. Base rule 10 needs nothing: a pure constructor is readonly by the flag.
 - `StableMembers` (Requirement 12.2): a property is also stable when its getter is a Pure_Member by `PurityInference`, which admits a getter that calls pure members over stable fields. `DeclarationShapeAnalyzer` builds the inference for that question. The diagnostic message names the pure route.
-- `ConformanceAnalyzer`, the contract (Requirement 8.4): an implementation keeps each promise its abstract slot declares, or `MIST_PA_PURITY_CONTRACT_NOT_MET` names the promise required and the one kept, and a slot returning `owned` is filled only by a member returning `owned` (`MIST_PA_SLOT_RETURN_NOT_OWNED`). `Fillers` and `Reached` also serve `PurityInference.Abstract`.
-- `CastAnalyzer` and `PatternAnalyzer` (Requirement 16.5): a cast or runtime type test to a pure function type is `MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE`, and `PatternAnalyzer` judges a type parameter's test at every closing that makes it one.
-- `OwnershipAnalyzer`, with `Rules/OwnedDestinations` (ownership-v2 Requirements 1.5, 6.7 and 6.9). The judge's Own origin trusts every owned slot, so both rules hold in every scope, judged or not. The owned-return rule: a `return` in a method returning `owned` is judged by `Origins` -- a construction, a clone, a call returning owned, an owned binding, a local fresh at every assignment, or a value of a type that cannot change -- and anything else is `MIST_PA_OWNED_RETURN_NOT_OWNED`. The owned-source rule: what moves into an owned binding, field, property or parameter yields ownership the same way, or is `MIST_PA_OWNED_SOURCE_NOT_OWNED`; storing an owned binding into an owned field or property moves it.
+- `ConformanceAnalyzer`, the contract (Requirement 8.4): an implementation keeps each promise its abstract slot declares, or `MIST0144` names the promise required and the one kept, and a slot returning `owned` is filled only by a member returning `owned` (`MIST0186`). `Fillers` and `Reached` also serve `PurityInference.Abstract`.
+- `CastAnalyzer` and `PatternAnalyzer` (Requirement 16.5): a cast or runtime type test to a pure function type is `MIST0145`, `MIST0146`, and `PatternAnalyzer` judges a type parameter's test at every closing that makes it one.
+- `OwnershipAnalyzer`, with `Rules/OwnedDestinations` (ownership-v2 Requirements 1.5, 6.7 and 6.9). The judge's Own origin trusts every owned slot, so both rules hold in every scope, judged or not. The owned-return rule: a `return` in a method returning `owned` is judged by `Origins` -- a construction, a clone, a call returning owned, an owned binding, a local fresh at every assignment, or a value of a type that cannot change -- and anything else is `MIST0263`. The owned-source rule: what moves into an owned binding, field, property or parameter yields ownership the same way, or is `MIST0264`; storing an owned binding into an owned field or property moves it.
 - `TierAnalyzer` exposes its lend decisions, so the judge leaves a lend `TierAnalyzer` already refuses to it, and `AssignabilityAnalyzer` checks a `with` block's value against its key type, which a pure function type keys separately.
 
 ## Standard

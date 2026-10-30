@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -50,7 +51,7 @@ internal sealed class DelegateCeiling
         return new Restore(() => inScope = restored);
     }
 
-    public static IDisposable? Emitting(SyntaxNode? node, string name)
+    public static IDisposable? Emitting(SyntaxNode? node, string name, string identity)
     {
         if(inScope is not { } scope)
         {
@@ -58,7 +59,7 @@ internal sealed class DelegateCeiling
         }
 
         var outer = scope.emitting;
-        scope.emitting = new Declaration(node, name);
+        scope.emitting = new Declaration(node, name, identity);
 
         return new Restore(() => scope.emitting = outer);
     }
@@ -83,11 +84,13 @@ internal sealed class DelegateCeiling
 
         if(at is null)
         {
-            scope.diagnostics.Report(BackendDiagnostics.DelegateCeilingExceeded, default, string.Empty, what, inputs, Inputs);
+            scope.diagnostics.ReportTyped(BackendDiagnostics.DelegateCeilingExceeded, new Absent(AbsenceReason.SyntheticWithoutRoot),
+                new SymbolValue(SubjectIdentity(function, scope.emitting?.Identity, monomorph), what), new QuantityValue(inputs), new QuantityValue(Inputs));
         }
         else
         {
-            scope.diagnostics.ReportAtNode(BackendDiagnostics.DelegateCeilingExceeded, at, null, what, inputs, Inputs);
+            scope.diagnostics.ReportAtNodeTyped(BackendDiagnostics.DelegateCeilingExceeded, at, null,
+                new SymbolValue(SubjectIdentity(function, scope.emitting?.Identity, monomorph), what), new QuantityValue(inputs), new QuantityValue(Inputs));
         }
     }
 
@@ -250,9 +253,10 @@ internal sealed class DelegateCeiling
 
         if(reported.Add(member))
         {
-            diagnostics.ReportAtNode(
+            diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.DelegateCeilingExceeded, at, null,
-                $"'{TypeDisplay.Mist(function)}'", function.ParameterTypes.Count(parameter => parameter is not SpreadType), Inputs);
+                new SymbolValue(SubjectIdentity(function, MemberIdentity(member), null), $"'{TypeDisplay.Mist(function)}'"),
+                new QuantityValue(function.ParameterTypes.Count(parameter => parameter is not SpreadType)), new QuantityValue(Inputs));
         }
     }
 
@@ -293,7 +297,28 @@ internal sealed class DelegateCeiling
         }
     }
 
-    private sealed record Declaration(SyntaxNode? Node, string Name);
+    private static string SubjectIdentity(FunctionType function, string? declaration, Monomorph? monomorph)
+    {
+        var packs = monomorph is null ? "" : string.Join(";", monomorph.Packs.Select((pack, i) =>
+            $"{DiagnosticSnapshot.Type(pack).Identity}={monomorph.Widths[i]}"));
+        return $"{DiagnosticSnapshot.Type(function).Identity}|{declaration}|{packs}";
+    }
+
+    private static string MemberIdentity(object member)
+    {
+        return member switch
+        {
+            Method method => DiagnosticSnapshot.Symbol(method, method.Name).Identity,
+            Property property => BackendFacts.Symbol(property.DeclaringType, property.Name).Identity,
+            Field field => BackendFacts.Symbol(field.DeclaringType, field.Name).Identity,
+            Indexer indexer => BackendFacts.Symbol(indexer.DeclaringType,
+                $"this[{string.Join(",", indexer.ParametersList.Select(parameter => DiagnosticSnapshot.Type(parameter.Type).Identity))}]").Identity,
+            MistType type => DiagnosticSnapshot.Type(type).Identity,
+            _ => member.GetType().Name,
+        };
+    }
+
+    private sealed record Declaration(SyntaxNode? Node, string Name, string Identity);
 
     private sealed class Restore(Action restore) : IDisposable
     {

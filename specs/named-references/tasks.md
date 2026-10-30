@@ -13,9 +13,9 @@ Migrate the `mist.toml` project reference format from `[[references]]` (TOML arr
     - _Requirements: 5.1, 5.2, 5.3_
 
   - [x] 1.2 Add 3 new `DiagnosticId` constants
-    - Add `ProjectReferenceInvalidFormat` with value `"MIST_PROJECT_REFERENCE_INVALID_FORMAT"` to `Source/Mist/Common/Diagnostics/DiagnosticId.cs`
-    - Add `ProjectReferenceInvalidName` with value `"MIST_PROJECT_REFERENCE_INVALID_NAME"`
-    - Add `ProjectReferenceNameMismatch` with value `"MIST_PROJECT_REFERENCE_NAME_MISMATCH"`
+    - Add `ProjectReferenceInvalidFormat` with value `"MIST0065"` to `Source/Mist/Common/Diagnostics/DiagnosticId.cs`
+    - Add `ProjectReferenceInvalidName` with value `"MIST0067"`
+    - Add `ProjectReferenceNameMismatch` with value `"MIST0070"`
     - Place them in the existing "Project reference diagnostics" region
     - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
@@ -54,7 +54,7 @@ Migrate the `mist.toml` project reference format from `[[references]]` (TOML arr
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
   - [x] 3.3 Write unit test for name-mismatch detection
-    - Add a test to `ProjectReferenceResolverTests.cs` that creates a reference with key "WrongName" pointing to a project with `name = "CorrectName"` and asserts `MIST_PROJECT_REFERENCE_NAME_MISMATCH` diagnostic is reported
+    - Add a test to `ProjectReferenceResolverTests.cs` that creates a reference with key "WrongName" pointing to a project with `name = "CorrectName"` and asserts `MIST0070` diagnostic is reported
     - Add a test verifying transitive deps of a mismatched reference are not traversed
     - _Requirements: 4.2, 4.3, 4.4_
 

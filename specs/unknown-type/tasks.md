@@ -130,15 +130,15 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
 - [x] 9. Type checker — assignability into `unknown`
   - [x] 9.1 Add the top-type assignability rule to `TypeCheckerAnalyzer.IsAssignable`
     - Early clause after `IsErrorType` cascade-suppression, before all other rules
-    - If target is `UnknownType` and source is `VoidType`: return false (and let the caller emit `MIST_TC_0061`, reallocated from the originally-proposed `MIST_TC_0057`)
+    - If target is `UnknownType` and source is `VoidType`: return false (and let the caller emit `MIST_TC_0061 (historical)`, reallocated from the originally-proposed `MIST_TC_0057 (historical)`)
     - If target is `UnknownType` and source is any other type: return true
-    - If source is `UnknownType` and target is not `UnknownType`: return false (caller emits `MIST_TC_0060`, reallocated from the originally-proposed `MIST_TC_0056`)
+    - If source is `UnknownType` and target is not `UnknownType`: return false (caller emits `MIST_TC_0060 (historical)`, reallocated from the originally-proposed `MIST_TC_0056 (historical)`)
     - `UnknownType → UnknownType`: accepted
     - _Requirements: 4.1, 4.3, 4.5_
 
   - [x] 9.2 Wire diagnostics at the assignability check sites (assignment, argument pass, return, variable initializer)
-    - `MIST_TC_0061` when assigning a `void` expression to an `unknown` target (was `MIST_TC_0057` in the original design; reallocated to avoid collision with the pattern-matching feature's `PatternNotCannotBindVariable`)
-    - `MIST_TC_0060` when assigning an `unknown` value to a non-`unknown` target (was `MIST_TC_0056` in the original design; reallocated to avoid collision with `PatternOrInconsistentVariables`) — unless mediated by pattern narrowing (see Task 24)
+    - `MIST_TC_0061 (historical)` when assigning a `void` expression to an `unknown` target (was `MIST_TC_0057 (historical)` in the original design; reallocated to avoid collision with the pattern-matching feature's `PatternNotCannotBindVariable`)
+    - `MIST_TC_0060 (historical)` when assigning an `unknown` value to a non-`unknown` target (was `MIST_TC_0056 (historical)` in the original design; reallocated to avoid collision with `PatternOrInconsistentVariables`) — unless mediated by pattern narrowing (see Task 24)
     - _Requirements: 4.2, 4.4_
 
   - [x] 9.3 Write property-based test for assignability into `unknown`
@@ -169,62 +169,62 @@ Phase B adds the new `TypeKind.Unknown` variant, the new `UnknownType` singleton
     - _Requirements: 5.1, 7.5, 7.6_
 
 - [x] 11. Enforce storage ban at declaration sites
-  - [x] 11.1 In Pass 1 of `SemanticModelBuilder`, check every field declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0050` if true
+  - [x] 11.1 In Pass 1 of `SemanticModelBuilder`, check every field declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0050 (historical)` if true
     - Diagnostic names the declaring type and the field name
     - _Requirements: 5.1, 16.1_
 
-  - [x] 11.2 Check every property declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0051` if true
+  - [x] 11.2 Check every property declaration with `IsStorageBanned(declaredType)` and emit `MIST_SB_0051 (historical)` if true
     - Diagnostic names the declaring type and the property name
     - _Requirements: 5.2, 16.1_
 
-  - [x] 11.3 Check every indexer declaration's element type with `IsStorageBanned(elementType)` and emit `MIST_SB_0052` if true
+  - [x] 11.3 Check every indexer declaration's element type with `IsStorageBanned(elementType)` and emit `MIST_SB_0052 (historical)` if true
     - Diagnostic names the declaring type and the indexer
     - _Requirements: 5.3, 16.1_
 
   - [x] 11.4 Write unit tests
-    - `class Foo { unknown f; }` emits `MIST_SB_0050`
-    - `class Foo { unknown P { get; set; } }` emits `MIST_SB_0051`
-    - `class Foo { unknown this[int i] { get; set; } }` emits `MIST_SB_0052`
-    - `class Foo { List<unknown> xs; }` emits `MIST_SB_0050` (storage-ban cascade)
-    - `class Foo { Map<string, unknown> m; }` emits `MIST_SB_0050` (storage-ban cascade)
-    - `class Foo { List<Optional<unknown>> nested; }` emits `MIST_SB_0050` (recursive cascade, Req 7.6)
+    - `class Foo { unknown f; }` emits `MIST_SB_0050 (historical)`
+    - `class Foo { unknown P { get; set; } }` emits `MIST_SB_0051 (historical)`
+    - `class Foo { unknown this[int i] { get; set; } }` emits `MIST_SB_0052 (historical)`
+    - `class Foo { List<unknown> xs; }` emits `MIST_SB_0050 (historical)` (storage-ban cascade)
+    - `class Foo { Map<string, unknown> m; }` emits `MIST_SB_0050 (historical)` (storage-ban cascade)
+    - `class Foo { List<Optional<unknown>> nested; }` emits `MIST_SB_0050 (historical)` (recursive cascade, Req 7.6)
     - All tests use `SharedDriver.Compile()` and inspect the diagnostic list in-process
     - _Requirements: 5.1, 5.2, 5.3, 7.5, 7.6, 16.1_
 
 - [x] 12. Enforce storage ban at `new`, `new[]`, and `default` expressions
-  - [x] 12.1 In the Type Checker, when checking a `new T(...)` expression, emit `MIST_SB_0056` if the constructed type equals `UnknownType`
+  - [x] 12.1 In the Type Checker, when checking a `new T(...)` expression, emit `MIST_SB_0056 (historical)` if the constructed type equals `UnknownType`
     - Diagnostic: `unknown` cannot be instantiated
     - _Requirements: 5.4_
 
-  - [x] 12.2 When checking `new T(...)` where T is a constructed generic, apply `IsStorageBanned(T)` and emit `MIST_SB_0053` if true
+  - [x] 12.2 When checking `new T(...)` where T is a constructed generic, apply `IsStorageBanned(T)` and emit `MIST_SB_0053 (historical)` if true
     - Diagnostic names the generic type and the position(s) where `unknown` appears
     - _Requirements: 5.7, 7.5, 16.2_
 
-  - [x] 12.3 When checking `new T[n]`, emit `MIST_SB_0055` if the element type equals `UnknownType`
+  - [x] 12.3 When checking `new T[n]`, emit `MIST_SB_0055 (historical)` if the element type equals `UnknownType`
     - _Requirements: 5.5_
 
-  - [x] 12.4 When checking `default(T)` or default-inferred initializers, emit `MIST_SB_0057` if T equals `UnknownType`
+  - [x] 12.4 When checking `default(T)` or default-inferred initializers, emit `MIST_SB_0057 (historical)` if T equals `UnknownType`
     - _Requirements: 5.6_
 
   - [x] 12.5 Write unit tests for each new/default case
-    - `new unknown()` → `MIST_SB_0056`
-    - `new unknown[5]` → `MIST_SB_0055`
-    - `new List<unknown>()` → `MIST_SB_0053`
-    - `new Map<unknown, int>()` → `MIST_SB_0053`
-    - `default(unknown)` → `MIST_SB_0057`
+    - `new unknown()` → `MIST_SB_0056 (historical)`
+    - `new unknown[5]` → `MIST_SB_0055 (historical)`
+    - `new List<unknown>()` → `MIST_SB_0053 (historical)`
+    - `new Map<unknown, int>()` → `MIST_SB_0053 (historical)`
+    - `default(unknown)` → `MIST_SB_0057 (historical)`
     - _Requirements: 5.4, 5.5, 5.6, 5.7, 7.5, 16.2_
 
 - [x] 13. Enforce inheritance prohibition
-  - [x] 13.1 In Pass 1b (base clause resolution) of `SemanticModelBuilder`, check whether any base or interface reference resolves to `UnknownType`; emit `MIST_SB_0054` and drop the reference from the base/interface list
+  - [x] 13.1 In Pass 1b (base clause resolution) of `SemanticModelBuilder`, check whether any base or interface reference resolves to `UnknownType`; emit `MIST_SB_0054 (historical)` and drop the reference from the base/interface list
     - Applies to classes, structs (interface list), interfaces (base interface list), and traits (base trait position)
     - Diagnostic names the declaring type and states that `unknown` cannot be a base or implemented type
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 16.6_
 
   - [x] 13.2 Write unit tests
-    - `class Foo : unknown { }` → `MIST_SB_0054`
-    - `struct S : unknown { }` → `MIST_SB_0054`
-    - `interface I : unknown { }` → `MIST_SB_0054`
-    - `trait T : unknown { }` → `MIST_SB_0054`
+    - `class Foo : unknown { }` → `MIST_SB_0054 (historical)`
+    - `struct S : unknown { }` → `MIST_SB_0054 (historical)`
+    - `interface I : unknown { }` → `MIST_SB_0054 (historical)`
+    - `trait T : unknown { }` → `MIST_SB_0054 (historical)`
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [x] 14. Permit `unknown` as a type argument in non-storage positions
@@ -361,20 +361,20 @@ Phase C adds `ReachabilityAnalyzer` as a post-Pass-2 step, exposes the `Reachabi
     - Do not apply filtering inside the declaring body of the generic type itself (receiver is fully open)
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6_
 
-  - [x] 21.2 Emit `MIST_TC_0062` when a member is filtered per 21.1 (reallocated from the design-document-proposed `MIST_TC_0050`, which was already in use by the pattern-matching feature's `PatternUndefinedType` diagnostic — see the "Note on numbering" in `design.md`)
+  - [x] 21.2 Emit `MIST_TC_0062 (historical)` when a member is filtered per 21.1 (reallocated from the design-document-proposed `MIST_TC_0050 (historical)`, which was already in use by the pattern-matching feature's `PatternUndefinedType` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic names the receiver's static type, names the member, and states that the operation would write to storage of a type parameter bound to `unknown`
     - Use the same "member not found" shape as the existing missing-member diagnostic, per Req 10.1 and Req 10.7
     - _Requirements: 10.1, 10.3, 10.4, 10.7, 16.3_
 
   - [x] 21.3 Do not apply member filtering to constructor invocations on `Closed_Generic_With_Unknown`
-    - Constructor invocations on such a receiver are already rejected by Task 12.2 (`MIST_SB_0053`)
+    - Constructor invocations on such a receiver are already rejected by Task 12.2 (`MIST_SB_0053 (historical)`)
     - _Requirements: 10.5_
 
   - [x] 21.4 Write unit tests for member filtering
-    - `var xs: List<unknown> = ...; xs.Add(x)` → `MIST_TC_0062` (reallocated from the design-document-proposed `MIST_TC_0050`)
+    - `var xs: List<unknown> = ...; xs.Add(x)` → `MIST_TC_0062 (historical)` (reallocated from the design-document-proposed `MIST_TC_0050 (historical)`)
     - `var xs: List<unknown> = ...; var n = xs.Count` → accepted (read)
     - `var xs: List<unknown> = ...; var e = xs[0]` → accepted (read, result type is `UnknownType`)
-    - `var xs: List<unknown> = ...; xs[0] = x` → `MIST_TC_0062` (indexer write)
+    - `var xs: List<unknown> = ...; xs[0] = x` → `MIST_TC_0062 (historical)` (indexer write)
     - `class List<T> { void Add(T x) { ... this.Add(x); } }` — inside the declaring body, no filtering: the recursive `this.Add(x)` call is accepted
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6, 10.7_
 
@@ -403,7 +403,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
   - [x] 23.3 Integrate the helper into `IsDirectlyAssignable` so trivial casts `(List<unknown>) intList` work without requiring a cast operator
     - _Requirements: 8.4_
 
-  - [x] 23.4 At the widening site (assignment, argument pass, return), detect when the only reason assignability fails is the struct-generic restriction, and emit `MIST_TC_0058`
+  - [x] 23.4 At the widening site (assignment, argument pass, return), detect when the only reason assignability fails is the struct-generic restriction, and emit `MIST_TC_0058 (historical)`
     - Diagnostic: covariant `unknown` widening is only available for class (reference-type) generics
     - _Requirements: 8.6_
 
@@ -418,17 +418,17 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
 
   - [x] 23.7 Write unit tests for nested widening and the defCtx rule
     - `Optional<List<int>>` → `Optional<List<unknown>>` is accepted when `Optional` is a struct and `List` is a class (nested widening on the class boundary)
-    - `Optional<int>` → `Optional<unknown>` is rejected with `MIST_TC_0058` when `Optional` is a struct
+    - `Optional<int>` → `Optional<unknown>` is rejected with `MIST_TC_0058 (historical)` when `Optional` is a struct
     - `List<int>` → `List<unknown>` is accepted
     - `List<unknown>` → `List<int>` is rejected
     - _Requirements: 8.1, 8.3, 8.5, 8.6_
 
 - [x] 24. Pattern narrowing — reject narrow to `unknown` and narrow to `Closed_Generic_With_Unknown`
-  - [x] 24.1 In `TypeCheckerAnalyzer.CheckIsExpression` / `CheckTypePattern`, detect when the pattern type is `UnknownType` and emit `MIST_TC_0063` (reallocated from the design-document-proposed `MIST_TC_0051`, which was already in use by the pattern-matching feature's `PatternConstantTypeMismatch` diagnostic — see the "Note on numbering" in `design.md`)
+  - [x] 24.1 In `TypeCheckerAnalyzer.CheckIsExpression` / `CheckTypePattern`, detect when the pattern type is `UnknownType` and emit `MIST_TC_0063 (historical)` (reallocated from the design-document-proposed `MIST_TC_0051 (historical)`, which was already in use by the pattern-matching feature's `PatternConstantTypeMismatch` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic: narrowing to `unknown` is not meaningful; pattern is tautologically true and introduces no new type information
     - _Requirements: 11.3_
 
-  - [x] 24.2 Detect when the pattern type is a `ConstructedType` with any argument transitively equal to `UnknownType` and emit `MIST_TC_0064` (reallocated from the design-document-proposed `MIST_TC_0052`, which was already in use by the pattern-matching feature's `PatternRelationalNonComparable` diagnostic — see the "Note on numbering" in `design.md`)
+  - [x] 24.2 Detect when the pattern type is a `ConstructedType` with any argument transitively equal to `UnknownType` and emit `MIST_TC_0064 (historical)` (reallocated from the design-document-proposed `MIST_TC_0052 (historical)`, which was already in use by the pattern-matching feature's `PatternRelationalNonComparable` diagnostic — see the "Note on numbering" in `design.md`)
     - Diagnostic: narrowing to a Closed_Generic_With_Unknown is not meaningful; pattern is tautologically true under Covariant_Unknown_Widening and the binding loses information
     - The recursive containment check also covers nested positions such as `Optional<List<unknown>>`
     - _Requirements: 11.4_
@@ -438,36 +438,36 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
     - _Requirements: 11.1, 11.2_
 
   - [x] 24.4 Write unit tests for narrowing rejection and acceptance
-    - `x is unknown u` → `MIST_TC_0063`
-    - `x is List<unknown> lu` → `MIST_TC_0064`
+    - `x is unknown u` → `MIST_TC_0063 (historical)`
+    - `x is List<unknown> lu` → `MIST_TC_0064 (historical)`
     - `x is List<int> li` → accepted; `li.Add(...)` works inside the pattern branch
     - _Requirements: 11.1, 11.2, 11.3, 11.4_
 
 - [x] 25. Bare-unknown member access and operator rejection
   - Current standard-pipeline failure boundary (2026-10-03): `OperatorDecision` reports
-    `MIST_PA_UNKNOWN_HAS_NO_MEMBERS` / `MIST_PA_UNKNOWN_HAS_NO_OPERATORS`. Failed overload and await expressions
+    `MIST0202` / `MIST0201`. Failed overload and await expressions
     retain their inputs for `BodyWalker`, preserving the owning unknown-member/operator refusal for
     inline and local-initializer forms. A deferred overload/await fallback is suppressed only after
     positive ownership is recorded by analysis; `ErrorType` alone and an unrelated diagnostic do not
     count. This preserves Requirements 13.1/13.2 and 16.4 without changing unknown semantics or unary
     admissibility. Verified diagnostic-identity/location evidence and final gates are recorded in the
     operator-and-positional-checks and error-sentinel item (5) tracking entries.
-  - [x] 25.1 In member-access resolution, when the receiver's static type is exactly `UnknownType`, emit `MIST_TC_0065` (reallocated from the design-document-proposed `MIST_TC_0053`, which was already in use by the pattern-matching feature's `PatternUndefinedProperty` diagnostic — see the "Note on numbering" in `design.md`) and return `ErrorType.Instance`
+  - [x] 25.1 In member-access resolution, when the receiver's static type is exactly `UnknownType`, emit `MIST_TC_0065 (historical)` (reallocated from the design-document-proposed `MIST_TC_0053 (historical)`, which was already in use by the pattern-matching feature's `PatternUndefinedProperty` diagnostic — see the "Note on numbering" in `design.md`) and return `ErrorType.Instance`
     - Diagnostic names the receiver's static type and suggests using an `is` pattern to narrow
     - _Requirements: 13.1, 16.4_
 
-  - [x] 25.2 In binary/unary operator resolution, when any operand's static type is `UnknownType`, emit `MIST_TC_0066` (reallocated from the design-document-proposed `MIST_TC_0054`, which was already in use by the pattern-matching feature's `PatternListRequiresArray` diagnostic — see the "Note on numbering" in `design.md`)
+  - [x] 25.2 In binary/unary operator resolution, when any operand's static type is `UnknownType`, emit `MIST_TC_0066 (historical)` (reallocated from the design-document-proposed `MIST_TC_0054 (historical)`, which was already in use by the pattern-matching feature's `PatternListRequiresArray` diagnostic — see the "Note on numbering" in `design.md`)
     - Applies to `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `%`, `&&`, `||`, `!`, and user-defined operators
     - _Requirements: 13.2, 16.4_
-    - Standard-pipeline unary correction (2026-10-03): negation and logical not on a bare `unknown` now bind error-typed unary nodes and receive `MIST_PA_UNKNOWN_HAS_NO_OPERATORS` at source when those nodes survive to analysis. A positive earlier refusal suppresses consequences; an unreported `ErrorType` does not count as an earlier diagnostic. Failed-overload subtree retention/cascade completeness remains the error-tree workstream; generic/closed-with-unknown policy is unchanged. See analysis order 9 for verification evidence. _Requirement: 13.2._
+    - Standard-pipeline unary correction (2026-10-03): negation and logical not on a bare `unknown` now bind error-typed unary nodes and receive `MIST0201` at source when those nodes survive to analysis. A positive earlier refusal suppresses consequences; an unreported `ErrorType` does not count as an earlier diagnostic. Failed-overload subtree retention/cascade completeness remains the error-tree workstream; generic/closed-with-unknown policy is unchanged. See analysis order 9 for verification evidence. _Requirement: 13.2._
 
   - [x] 25.3 Leave `is`-expression handling untouched on bare `unknown` — narrowing is the designated mechanism (Req 13.3)
     - Confirmed by Task 24's tests
     - _Requirements: 13.3_
 
   - [x] 25.4 Write unit tests
-    - `fn f(x: unknown) { x.M() }` → `MIST_TC_0065` (the bare-unknown member access diagnostic)
-    - `fn f(x: unknown, y: unknown) { x + y }` → `MIST_TC_0066` (the bare-unknown operator diagnostic, and for every operator above)
+    - `fn f(x: unknown) { x.M() }` → `MIST_TC_0065 (historical)` (the bare-unknown member access diagnostic)
+    - `fn f(x: unknown, y: unknown) { x + y }` → `MIST_TC_0066 (historical)` (the bare-unknown operator diagnostic, and for every operator above)
     - `fn f(x: unknown) { x is int i; i + 1 }` → accepted
     - _Requirements: 13.1, 13.2, 13.3_
 
@@ -475,7 +475,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
   - [x] 26.1 Extend `TypeCheckerAnalyzer.CheckCastExpression` so a cast `(T) expr` where `expr` is typed `unknown` resolves via the cast-operators feature
     - Search only `T`'s member scope (since `UnknownType` has empty member scope)
     - Accept implicit and explicit operators whose source type is `UnknownType` and target is `T`
-    - If no such operator exists, emit `MIST_TC_0067` (reallocated from the design-document-proposed `MIST_TC_0055`, which was already in use by the pattern-matching feature's `PatternListTooManyElements` diagnostic — see the "Note on numbering" in `design.md`)
+    - If no such operator exists, emit `MIST_TC_0067 (historical)` (reallocated from the design-document-proposed `MIST_TC_0055 (historical)`, which was already in use by the pattern-matching feature's `PatternListTooManyElements` diagnostic — see the "Note on numbering" in `design.md`)
     - _Requirements: 13.4, 13.6_
 
   - [x] 26.2 Accept `(unknown) expr` for any non-`void` `expr` without searching for a cast operator
@@ -484,7 +484,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
 
   - [x] 26.3 Write unit tests for cast resolution
     - `class MyInt { implicit operator MyInt(unknown u) { ... } }` — `(MyInt) someUnknown` resolves and emits the static method call
-    - `(int) someUnknown` with no operator declared → `MIST_TC_0067` (reallocated from the design-document-proposed `MIST_TC_0055`)
+    - `(int) someUnknown` with no operator declared → `MIST_TC_0067 (historical)` (reallocated from the design-document-proposed `MIST_TC_0055 (historical)`)
     - `(unknown) 42` → accepted; emission checked in Task 28
     - _Requirements: 13.4, 13.5, 13.6_
 
@@ -502,7 +502,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
     - For v1, traits do not carry type parameters; reduce to filtering trait members whose classification is `WritesT` where `T` is a position occupied by `UnknownType` in the trait's signature
     - _Requirements: 12.5_
 
-  - [x] 27.4 Confirm that trait field declarations with `unknown` are already rejected by Task 11.1's field check (`MIST_SB_0050`)
+  - [x] 27.4 Confirm that trait field declarations with `unknown` are already rejected by Task 11.1's field check (`MIST_SB_0050 (historical)`)
     - Add a test to lock in the coverage
     - _Requirements: 12.4_
 
@@ -512,7 +512,7 @@ Phase D adds the assignability helper for covariant unknown widening, the class-
     - Trait `trait T { fn get() : Optional<unknown>; }` is NOT satisfied by `class C { fn get() : Optional<int> { ... } }` when `Optional` is a struct (struct generic restriction)
     - Trait `trait T { fn put(x: unknown); }` is NOT satisfied by `class C { fn put(x: int) { ... } }` (exact parameter match)
     - Trait with `unknown` return, invoked on a trait-typed receiver, filters `WritesT` members correctly
-    - Trait with an `unknown` field declaration → `MIST_SB_0050`
+    - Trait with an `unknown` field declaration → `MIST_SB_0050 (historical)`
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
 - [x] 28. Phase D checkpoint
@@ -576,7 +576,7 @@ Phase E completes the feature: C# emission for UnknownType and covariant widenin
     - _Requirements: 15.5_
 
   - [x] 32.3 Write a unit test
-    - `class Foo { unknown f; int g; }` → diagnostic `MIST_SB_0050` is emitted; emitted C# contains field `g` but not `f`
+    - `class Foo { unknown f; int g; }` → diagnostic `MIST_SB_0050 (historical)` is emitted; emitted C# contains field `g` but not `f`
     - _Requirements: 15.5_
 
 - [x] 33. Syntax highlighting

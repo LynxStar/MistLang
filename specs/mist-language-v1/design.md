@@ -1479,24 +1479,24 @@ All type checker diagnostics use `PipelineStage.Analysis` and `AnalyzerName: "Ty
 
 | Diagnostic ID | Trigger | Message Pattern |
 |---|---|---|
-| `MIST_TC_0001` | Assignment type mismatch (R8.1) | `Cannot assign '{rhsType}' to '{lhsType}'` |
-| `MIST_TC_0002` | Argument type mismatch (R8.2) | `Argument type '{argType}' is not assignable to parameter type '{paramType}'` |
-| `MIST_TC_0003` | Arithmetic on non-numeric (R8.3) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
-| `MIST_TC_0004` | Comparison on non-numeric (R8.4) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
-| `MIST_TC_0005` | Equality on incompatible types (R8.5) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
-| `MIST_TC_0006` | Logical on non-bool (R8.6) | `Operator '{op}' requires operands of type 'bool'` |
-| `MIST_TC_0007` | Non-bool condition (R8.7) | `Condition must be of type 'bool', but found '{actualType}'` |
-| `MIST_TC_0008` | Return type mismatch (R8.8) | `Cannot return '{returnType}' from method with return type '{methodType}'` |
-| `MIST_TC_0009` | Var without initializer (R8.10) | `'var' declaration requires an initializer` |
-| `MIST_TC_0010` | Non-integer array index (R8.11) | `Array index must be of type 'int', but found '{indexType}'` |
-| `MIST_TC_0011` | No matching constructor (R8.12) | `Type '{typeName}' does not contain a constructor matching the given arguments` |
-| `MIST_TC_0012` | Non-integer array size (R8.13) | `Array size must be of type 'int', but found '{sizeType}'` |
-| `MIST_TC_0013` | Constructor chain mismatch (R8.14) | `No constructor on '{typeName}' matches the chained arguments` |
-| `MIST_TC_0014` | Private member access (R9.1) | `'{memberName}' is inaccessible due to its protection level` |
-| `MIST_TC_0015` | Static via instance (R9.4) | `Static member '{memberName}' cannot be accessed via an instance` |
-| `MIST_TC_0016` | Instance via type (R9.5) | `Instance member '{memberName}' cannot be accessed via a type name` |
-| `MIST_TC_0017` | No entry point (R10.2) | `Program does not contain a valid entry point (static void Main)` |
-| `MIST_TC_0018` | Multiple entry points (R10.3) | `Program contains multiple entry points` |
+| `MIST_TC_0001 (historical)` | Assignment type mismatch (R8.1) | `Cannot assign '{rhsType}' to '{lhsType}'` |
+| `MIST_TC_0002 (historical)` | Argument type mismatch (R8.2) | `Argument type '{argType}' is not assignable to parameter type '{paramType}'` |
+| `MIST_TC_0003 (historical)` | Arithmetic on non-numeric (R8.3) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
+| `MIST_TC_0004 (historical)` | Comparison on non-numeric (R8.4) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
+| `MIST_TC_0005 (historical)` | Equality on incompatible types (R8.5) | `Operator '{op}' cannot be applied to operands of type '{lhsType}' and '{rhsType}'` |
+| `MIST_TC_0006 (historical)` | Logical on non-bool (R8.6) | `Operator '{op}' requires operands of type 'bool'` |
+| `MIST_TC_0007 (historical)` | Non-bool condition (R8.7) | `Condition must be of type 'bool', but found '{actualType}'` |
+| `MIST_TC_0008 (historical)` | Return type mismatch (R8.8) | `Cannot return '{returnType}' from method with return type '{methodType}'` |
+| `MIST_TC_0009 (historical)` | Var without initializer (R8.10) | `'var' declaration requires an initializer` |
+| `MIST_TC_0010 (historical)` | Non-integer array index (R8.11) | `Array index must be of type 'int', but found '{indexType}'` |
+| `MIST_TC_0011 (historical)` | No matching constructor (R8.12) | `Type '{typeName}' does not contain a constructor matching the given arguments` |
+| `MIST_TC_0012 (historical)` | Non-integer array size (R8.13) | `Array size must be of type 'int', but found '{sizeType}'` |
+| `MIST_TC_0013 (historical)` | Constructor chain mismatch (R8.14) | `No constructor on '{typeName}' matches the chained arguments` |
+| `MIST_TC_0014 (historical)` | Private member access (R9.1) | `'{memberName}' is inaccessible due to its protection level` |
+| `MIST_TC_0015 (historical)` | Static via instance (R9.4) | `Static member '{memberName}' cannot be accessed via an instance` |
+| `MIST_TC_0016 (historical)` | Instance via type (R9.5) | `Instance member '{memberName}' cannot be accessed via a type name` |
+| `MIST_TC_0017 (historical)` | No entry point (R10.2) | `Program does not contain a valid entry point (static void Main)` |
+| `MIST_TC_0018 (historical)` | Multiple entry points (R10.3) | `Program contains multiple entry points` |
 
 ### Backend Errors
 

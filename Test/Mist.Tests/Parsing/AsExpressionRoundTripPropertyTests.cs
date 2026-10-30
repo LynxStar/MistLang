@@ -65,9 +65,9 @@ public class AsExpressionRoundTripPropertyTests
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
 
-        // If the parser is skeletal (MIST_PARSE_STUB warning), verify determinism instead
+        // If the parser is skeletal (MIST0121 warning), verify determinism instead
         var hasStubWarning = bag.ToImmutableArray()
-            .Any(d => d.Id.Value == "MIST_PARSE_STUB");
+            .Any(d => d.Number.Value == "MIST0121");
 
         if(hasStubWarning)
         {

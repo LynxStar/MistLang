@@ -303,7 +303,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     [InlineData("if (a is { Name: var part } whole) { } var kept = whole; var piece = part;")]
     public void WholeAndSubpatternBindings_DoNotEscapeTheGuardedBranch(string statement)
     {
-        Assert.Equal(2, Errors(BuildRun(statement), "MIST_PM_UNRESOLVED_IDENTIFIER").Count());
+        Assert.Equal(2, Errors(BuildRun(statement), "MIST0296").Count());
     }
 
     [Fact]
@@ -338,7 +338,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         var diagnostics = BuildRun(
             "var ok = a switch { Dog { Breed: var part } whole => whole, _ => whole }; var kept = whole; var piece = part;");
 
-        Assert.Equal(3, Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER").Count());
+        Assert.Equal(3, Errors(diagnostics, "MIST0296").Count());
     }
 
     [Theory]
@@ -350,8 +350,8 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun($"if ({test}) {{ var kept = whole; var piece = part; }}");
 
-        Assert.Equal(2, Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED").Count());
-        Assert.Equal(2, Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER").Count());
+        Assert.Equal(2, Errors(diagnostics, "MIST0348").Count());
+        Assert.Equal(2, Errors(diagnostics, "MIST0296").Count());
     }
 
     [Theory]
@@ -373,8 +373,8 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = a is Nonexistent { Breed: var breed } whole;");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_TYPE"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0298"));
+        Assert.Empty(Errors(diagnostics, "MIST0301"));
         _ = InitializerOf<ErrorExpression>("var ok = a is Nonexistent { Breed: var breed } whole;");
     }
 
@@ -407,7 +407,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("if (a is { Name: var who }) { } else { var probe = who; }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -415,7 +415,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var probe = who;", extraPreamble: "if (a is { Name: var who }) { }");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -430,7 +430,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         var diagnostics = BuildRun(
             "var ok = a switch { { Name: var who } => who, _ => who };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     // ── Where a binder may be introduced ─────────────────────────────────
@@ -440,7 +440,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = a is { Name: var who } or { Age: > 3 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     [Fact]
@@ -448,7 +448,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = a is not { Name: var who };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     [Fact]
@@ -464,7 +464,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = a is { Nope: > 3 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0301"));
         _ = InitializerOf<ErrorExpression>("var ok = a is { Nope: > 3 };");
     }
 
@@ -473,8 +473,8 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = a is { Tag: > 3 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_SUBPATTERN_NOT_STORAGE"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0349"));
+        Assert.Empty(Errors(diagnostics, "MIST0301"));
     }
 
     /// <summary>

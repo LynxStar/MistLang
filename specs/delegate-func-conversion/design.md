@@ -394,11 +394,11 @@ The emitter already emits `variable(args)` for invocations. The type checker nee
 
 | ID | Severity | Condition |
 |----|----------|-----------|
-| `MIST_TC_XXXX` | Error | Signature mismatch: func/lambda is not signature-compatible with target DelegateType |
-| `MIST_TC_XXXY` | Error | Nominal mismatch: cannot convert between two distinct named delegates |
-| `MIST_TC_XXXZ` | Error | Cannot narrow System.Delegate to a specific delegate or func type |
-| `MIST_TC_XXXW` | Error | System.Delegate is not directly invocable |
-| `MIST_TC_XXXV` | Error | Ambiguous overload: lambda matches multiple Delegate_Type parameters |
+| `MIST_TC_XXXX (historical)` | Error | Signature mismatch: func/lambda is not signature-compatible with target DelegateType |
+| `MIST_TC_XXXY (historical)` | Error | Nominal mismatch: cannot convert between two distinct named delegates |
+| `MIST_TC_XXXZ (historical)` | Error | Cannot narrow System.Delegate to a specific delegate or func type |
+| `MIST_TC_XXXW (historical)` | Error | System.Delegate is not directly invocable |
+| `MIST_TC_XXXV (historical)` | Error | Ambiguous overload: lambda matches multiple Delegate_Type parameters |
 
 ## Correctness Properties
 
@@ -478,15 +478,15 @@ The emitter already emits `variable(args)` for invocations. The type checker nee
 
 | Condition | Diagnostic | Message Template |
 |-----------|-----------|-----------------|
-| func/lambda signature incompatible with target DelegateType | `MIST_TC_0090` | `Cannot convert '{sourceSignature}' to delegate type '{delegateName}': {mismatchReason}` |
-| Assignment between two distinct named delegates | `MIST_TC_0091` | `Cannot convert delegate '{sourceName}' to '{targetName}': named delegates are nominally distinct even when their signatures match` |
-| Narrowing from System.Delegate to specific type | `MIST_TC_0092` | `Cannot implicitly convert 'System.Delegate' to '{targetTypeName}': use a cast to a specific delegate or func type` |
-| Invocation on System.Delegate | `MIST_TC_0093` | `Cannot invoke a value of type 'System.Delegate' directly: cast to a specific delegate type or func<...> first` |
-| Ambiguous overload resolution with multiple delegate types | `MIST_TC_0094` | `Ambiguous call: argument is compatible with both '{delegateName1}' and '{delegateName2}'` |
-| Method group has zero matching overloads for delegate target | `MIST_TC_0095` | `No overload of '{methodName}' matches delegate type '{delegateName}'` |
-| Method group has multiple matching overloads for delegate target | `MIST_TC_0096` | `Multiple overloads of '{methodName}' match delegate type '{delegateName}'` |
-| Wrong argument count on delegate invocation | existing `MIST_TC_0007` | Reuse existing argument count mismatch diagnostic |
-| Incompatible argument type on delegate invocation | existing `MIST_TC_0008` | Reuse existing type mismatch diagnostic |
+| func/lambda signature incompatible with target DelegateType | `MIST_TC_0090 (historical)` | `Cannot convert '{sourceSignature}' to delegate type '{delegateName}': {mismatchReason}` |
+| Assignment between two distinct named delegates | `MIST_TC_0091 (historical)` | `Cannot convert delegate '{sourceName}' to '{targetName}': named delegates are nominally distinct even when their signatures match` |
+| Narrowing from System.Delegate to specific type | `MIST_TC_0092 (historical)` | `Cannot implicitly convert 'System.Delegate' to '{targetTypeName}': use a cast to a specific delegate or func type` |
+| Invocation on System.Delegate | `MIST_TC_0093 (historical)` | `Cannot invoke a value of type 'System.Delegate' directly: cast to a specific delegate type or func<...> first` |
+| Ambiguous overload resolution with multiple delegate types | `MIST_TC_0094 (historical)` | `Ambiguous call: argument is compatible with both '{delegateName1}' and '{delegateName2}'` |
+| Method group has zero matching overloads for delegate target | `MIST_TC_0095 (historical)` | `No overload of '{methodName}' matches delegate type '{delegateName}'` |
+| Method group has multiple matching overloads for delegate target | `MIST_TC_0096 (historical)` | `Multiple overloads of '{methodName}' match delegate type '{delegateName}'` |
+| Wrong argument count on delegate invocation | existing `MIST_TC_0007 (historical)` | Reuse existing argument count mismatch diagnostic |
+| Incompatible argument type on delegate invocation | existing `MIST_TC_0008 (historical)` | Reuse existing type mismatch diagnostic |
 
 ### Projection Errors (graceful degradation)
 

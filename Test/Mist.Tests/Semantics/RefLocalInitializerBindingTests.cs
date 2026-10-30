@@ -20,7 +20,7 @@ public sealed class RefLocalInitializerBindingTests
         var local = Bind(f, specifier);
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_REF_LOCAL_NEEDS_INITIALIZER", diagnostic.Id.Value);
+        Assert.Equal("MIST0374", diagnostic.Number.Value);
         Assert.Contains("'r'", diagnostic.Message, StringComparison.Ordinal);
         Assert.True(local.IsRef);
         Assert.True(local.IsFailed);

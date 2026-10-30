@@ -76,7 +76,8 @@ internal sealed class ConstraintResolver
         {
             if(typeParam.ConstraintsList.Count > 0)
             {
-                ValidateConstraints(typeParam);
+                ValidateConstraints(typeParam, whereClauses.OfType<GenericConstraintClauseWhereClauseNode>()
+                    .FirstOrDefault(clause => clause.Name.Lexeme == typeParam.Name) ?? DeclarationOf(typeParam));
             }
         }
     }
@@ -109,7 +110,8 @@ internal sealed class ConstraintResolver
 
         foreach(var target in targets.Values.Distinct().Where(target => target.ConstraintsList.Count > 0))
         {
-            ValidateConstraints(target);
+            ValidateConstraints(target, whereClauses.OfType<GenericConstraintClauseWhereClauseNode>()
+                .FirstOrDefault(clause => targets.TryGetValue(clause.Name.Lexeme, out var parameter) && ReferenceEquals(parameter, target)) ?? DeclarationOf(target));
         }
     }
 
@@ -126,8 +128,7 @@ internal sealed class ConstraintResolver
 
         if(target is null)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.UnresolvedConstraintTarget, generic, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnresolvedConstraintTarget, generic, null, new NameValue(name));
             return;
         }
 
@@ -170,8 +171,7 @@ internal sealed class ConstraintResolver
         }
 
         // Name doesn't match any type parameter or method parameter.
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.UnresolvedConstraintTarget, adhoc, null, name);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnresolvedConstraintTarget, adhoc, null, new NameValue(name));
     }
 
     /// <summary>
@@ -293,7 +293,7 @@ internal sealed class ConstraintResolver
     /// - Reports errors for mutually exclusive constraint pairs.
     /// - Reports warnings for duplicate keyword constraints.
     /// </summary>
-    private void ValidateConstraints(TypeParameter typeParam)
+    private void ValidateConstraints(TypeParameter typeParam, Storm.Runtime.SyntaxNode? declaration)
     {
         var seen = new HashSet<TypeParameterConstraintKind>();
 
@@ -308,20 +308,16 @@ internal sealed class ConstraintResolver
             if(!seen.Add(constraint.Kind))
             {
                 // Duplicate keyword constraint.
-                context.Diagnostics.Report(
-                    ProgramModelDiagnostics.DuplicateConstraint,
-                    default,
-                    "",
-                    typeParam.Name,
-                    GetConstraintKeyword(constraint.Kind));
+                ReportConstraint(ProgramModelDiagnostics.DuplicateConstraint, declaration,
+                    new NameValue(typeParam.Name), new EnumValue(GetConstraintKeyword(constraint.Kind)));
             }
         }
 
         // Check mutually exclusive pairs.
-        CheckConflict(typeParam, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Struct);
-        CheckConflict(typeParam, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Stampable);
-        CheckConflict(typeParam, seen, TypeParameterConstraintKind.Readonly, TypeParameterConstraintKind.Mutable);
-        CheckSubstructuralConflicts(typeParam, seen);
+        CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Struct);
+        CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Stampable);
+        CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Readonly, TypeParameterConstraintKind.Mutable);
+        CheckSubstructuralConflicts(typeParam, declaration, seen);
     }
 
     /// <summary>
@@ -329,19 +325,15 @@ internal sealed class ConstraintResolver
     /// </summary>
     private void CheckConflict(
         TypeParameter typeParam,
+        Storm.Runtime.SyntaxNode? declaration,
         HashSet<TypeParameterConstraintKind> seen,
         TypeParameterConstraintKind a,
         TypeParameterConstraintKind b)
     {
         if(seen.Contains(a) && seen.Contains(b))
         {
-            context.Diagnostics.Report(
-                ProgramModelDiagnostics.ConflictingConstraints,
-                default,
-                "",
-                typeParam.Name,
-                GetConstraintKeyword(a),
-                GetConstraintKeyword(b));
+            ReportConstraint(ProgramModelDiagnostics.ConflictingConstraints, declaration,
+                new NameValue(typeParam.Name), new EnumValue(GetConstraintKeyword(a)), new EnumValue(GetConstraintKeyword(b)));
         }
     }
 
@@ -349,7 +341,7 @@ internal sealed class ConstraintResolver
     /// Reports an error if more than one substructural discipline constraint
     /// (linear, affine, relevant) is present on the same type parameter.
     /// </summary>
-    private void CheckSubstructuralConflicts(TypeParameter typeParam, HashSet<TypeParameterConstraintKind> seen)
+    private void CheckSubstructuralConflicts(TypeParameter typeParam, Storm.Runtime.SyntaxNode? declaration, HashSet<TypeParameterConstraintKind> seen)
     {
         var hasLinear = seen.Contains(TypeParameterConstraintKind.Linear);
         var hasAffine = seen.Contains(TypeParameterConstraintKind.Affine);
@@ -357,23 +349,44 @@ internal sealed class ConstraintResolver
 
         if(hasLinear && hasAffine)
         {
-            context.Diagnostics.Report(
-                ProgramModelDiagnostics.ConflictingConstraints, default, "",
-                typeParam.Name, "linear", "affine");
+            ReportConstraint(ProgramModelDiagnostics.ConflictingConstraints, declaration,
+                new NameValue(typeParam.Name), new EnumValue("linear"), new EnumValue("affine"));
         }
 
         if(hasLinear && hasRelevant)
         {
-            context.Diagnostics.Report(
-                ProgramModelDiagnostics.ConflictingConstraints, default, "",
-                typeParam.Name, "linear", "relevant");
+            ReportConstraint(ProgramModelDiagnostics.ConflictingConstraints, declaration,
+                new NameValue(typeParam.Name), new EnumValue("linear"), new EnumValue("relevant"));
         }
 
         if(hasAffine && hasRelevant)
         {
-            context.Diagnostics.Report(
-                ProgramModelDiagnostics.ConflictingConstraints, default, "",
-                typeParam.Name, "affine", "relevant");
+            ReportConstraint(ProgramModelDiagnostics.ConflictingConstraints, declaration,
+                new NameValue(typeParam.Name), new EnumValue("affine"), new EnumValue("relevant"));
+        }
+    }
+
+    private static Storm.Runtime.SyntaxNode? DeclarationOf(TypeParameter parameter)
+    {
+        return parameter.DeclaringMethod?.DeclarationNode ?? (parameter.DeclaringType switch
+        {
+            MemberType member => member.DeclarationNode,
+            TypeAlias alias => alias.DeclarationNode,
+            Newtype newtype => newtype.DeclarationNode,
+            EnumType enumType => enumType.DeclarationNode,
+            _ => null,
+        });
+    }
+
+    private void ReportConstraint(MistDiagnostic descriptor, Storm.Runtime.SyntaxNode? declaration, params ReadOnlySpan<SlotValue> arguments)
+    {
+        if(declaration is not null)
+        {
+            context.Diagnostics.ReportAtNodeTyped(descriptor, declaration, null, arguments);
+        }
+        else
+        {
+            context.Diagnostics.ReportTyped(descriptor, new Absent(AbsenceReason.Unavailable), arguments);
         }
     }
 

@@ -21,7 +21,7 @@ public sealed class UsingValidationTests
 
         var diagnostic = Assert.Single(f.Run());
 
-        Assert.Equal("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE", diagnostic.Id.Value);
+        Assert.Equal("MIST0294", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Contains("'No.Such'", diagnostic.Message);
         Assert.Contains("'Root'", diagnostic.Message);
@@ -53,7 +53,7 @@ public sealed class UsingValidationTests
 
         var diagnostic = Assert.Single(f.Run());
 
-        Assert.Equal("/lib/mist.toml", diagnostic.CompilationUnitPath);
+        Assert.Equal("/lib/mist.toml", diagnostic.Location.Path);
         Assert.Contains("'Lib.Missing'", diagnostic.Message);
         Assert.Contains("'Lib'", diagnostic.Message);
         Assert.Equal<string>(["Shared"], library.GlobalUsings);
@@ -71,7 +71,7 @@ public sealed class UsingValidationTests
 
         var diagnostics = f.Run();
 
-        Assert.All(diagnostics, d => Assert.Equal(("MIST_UNDEFINED_NAMESPACE", DiagnosticSeverity.Error), (d.Id.Value, d.Severity)));
+        Assert.All(diagnostics, d => Assert.Equal(("MIST0293", DiagnosticSeverity.Error), (d.Number.Value, d.Severity)));
         Assert.Equal(
             ["The namespace 'No.Such' could not be found.", "The namespace 'Known.Not' could not be found."],
             diagnostics.Select(d => d.Message));

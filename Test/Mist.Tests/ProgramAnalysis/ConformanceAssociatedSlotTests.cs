@@ -14,8 +14,8 @@ public sealed class ConformanceAssociatedSlotTests
 {
     [Theory]
     [InlineData("String", true, "")]
-    [InlineData("Int32", true, "MIST_PA_SLOT_SIGNATURE_MISMATCH")]
-    [InlineData("Int32", false, "MIST_PA_TYPE_SLOT_UNFILLED")]
+    [InlineData("Int32", true, "MIST0184")]
+    [InlineData("Int32", false, "MIST0191")]
     public void AnAnswerUsesTheSlotsFillerWhereTheSlotIsNamed(string returned, bool filled, string expected)
     {
         var fragment = Build(filled, out var conformer, out _);
@@ -24,14 +24,14 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
-        Assert.All(findings.Where(finding => finding.Id.Value == "MIST_PA_SLOT_SIGNATURE_MISMATCH"),
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
+        Assert.All(findings.Where(finding => finding.Number.Value == "MIST0184"),
             finding => Assert.Contains("slot 'string Get()'", finding.Message, StringComparison.Ordinal));
     }
 
     [Theory]
     [InlineData(false, "")]
-    [InlineData(true, "MIST_PA_SLOT_CONSTRAINT_STRENGTHENED")]
+    [InlineData(true, "MIST0185")]
     public void AGenericAnswerRequiringMoreThanItsSlotPromises_IsRefused(bool constrained, string expected)
     {
         var fragment = Build(filled: true, out var conformer, out var shown);
@@ -40,13 +40,13 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
         Assert.All(findings, finding => Assert.Contains("requires 'IShow' of type parameter 'U'", finding.Message, StringComparison.Ordinal));
     }
 
     [Theory]
     [InlineData(true, "")]
-    [InlineData(false, "MIST_PA_TYPE_SLOT_UNFILLED")]
+    [InlineData(false, "MIST0191")]
     public void AConformerOfADerivedAbstract_OwesTheSlotItInherits(bool filled, string expected)
     {
         var fragment = Build(filled, out var conformer, out _, throughDerived: true);
@@ -55,7 +55,7 @@ public sealed class ConformanceAssociatedSlotTests
 
         var findings = fragment.Run(new ConformanceAnalyzer());
 
-        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Id.Value)));
+        Assert.Equal(expected, string.Join(", ", findings.Select(finding => finding.Number.Value)));
         Assert.All(findings, finding => Assert.Contains("'IBag.Element'", finding.Message, StringComparison.Ordinal));
     }
 

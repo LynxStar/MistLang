@@ -51,7 +51,7 @@ public sealed class PriorFailureConversionTests
 
     private static Diagnostic Deferred()
     {
-        return new Diagnostic(new DiagnosticId("MIST_PM_UNRESOLVABLE_OVERLOAD"), DiagnosticSeverity.Error,
+        return DiagnosticFixtures.Occurrence("MIST0390", DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "No matching overload.", default, "hand-built.mist", null);
     }
 }

@@ -10,12 +10,12 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class PositionDecision
 {
-    public static DiagnosticDescriptor? Coalescing(bool statementPosition)
+    public static MistDiagnostic? Coalescing(bool statementPosition)
     {
         return statementPosition ? null : ProgramAnalysisDiagnostics.CoalescingAssignmentNotAStatement;
     }
 
-    public static DiagnosticDescriptor? Reassignment(LocalVariable target)
+    public static MistDiagnostic? Reassignment(LocalVariable target)
     {
         return target.IsReadonly ? ProgramAnalysisDiagnostics.ReadonlyLocalReassigned : null;
     }
@@ -52,7 +52,7 @@ internal static class PositionDecision
         };
     }
 
-    public static DiagnosticDescriptor? Optional(IMistType inner)
+    public static MistDiagnostic? Optional(IMistType inner)
     {
         return OptionalUnion.ContainsVoid(inner) ? ProgramAnalysisDiagnostics.OptionalOfOptional : null;
     }

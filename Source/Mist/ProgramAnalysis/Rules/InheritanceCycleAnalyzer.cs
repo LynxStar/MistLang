@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -68,12 +69,12 @@ internal sealed class InheritanceCycleAnalyzer : IProgramAnalyzer
             if(cycle.Node is { } node)
             {
                 context.Report(ProgramAnalysisDiagnostics.CyclicInheritance, node, [],
-                    TypeDisplay.Mist(cycle.Owner), TypeDisplay.Mist(cycle.Base));
+                    DiagnosticSnapshot.Type(cycle.Owner), DiagnosticSnapshot.Type(cycle.Base));
             }
             else
             {
                 context.ReportAtProject(ProgramAnalysisDiagnostics.CyclicInheritance, cycle.Owner.Assembly,
-                    TypeDisplay.Mist(cycle.Owner), TypeDisplay.Mist(cycle.Base));
+                    DiagnosticSnapshot.Type(cycle.Owner), DiagnosticSnapshot.Type(cycle.Base));
             }
         }
     }

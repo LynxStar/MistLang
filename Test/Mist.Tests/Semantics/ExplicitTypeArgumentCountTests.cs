@@ -28,13 +28,13 @@ public sealed class ExplicitTypeArgumentCountTests
         OverloadFailure.Report(choice, candidates, arguments, "method 'Convert'", HandBuiltModel.Node(16, CallPath), diagnostics);
 
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_TYPE_ARGUMENT_COUNT_MISMATCH", diagnostic.Id.Value);
+        Assert.Equal("MIST0393", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(
             "The call to method 'Convert' states the wrong number of type arguments. Declared type parameter counts: 0, 1, 2.",
             diagnostic.Message);
-        Assert.Equal(CallPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 17), new LinePosition(1, 18)), diagnostic.Location);
+        Assert.Equal(CallPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 17), new LinePosition(1, 18)), diagnostic.Position());
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class ExplicitTypeArgumentCountTests
 
         Assert.True(choice.NoArityMatch);
         Assert.Empty(choice.TypeArgumentMismatch);
-        Assert.Equal("MIST_PM_NO_APPLICABLE_OVERLOAD", Assert.Single(diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0385", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

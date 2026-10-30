@@ -55,7 +55,7 @@ public class DiagnosticFormatterPropertyTests
     public static Arbitrary<FormatterTestInput> ArbitraryFormatterTestInput()
     {
         var gen =
-            from id in Gen.Elements("MIST001", "MIST002", "MIST_LEX_ERROR", "MIST_PARSE_ERROR", "MIST_UNDEFINED_TYPE")
+            from id in Gen.Elements("MIST001", "MIST002", "MIST0120", "MIST0122", "TEST_UNDEFINED_TYPE")
             from severity in Gen.Elements(DiagnosticSeverity.Error, DiagnosticSeverity.Warning)
             from stage in Gen.Elements(
                 PipelineStage.Lexing, PipelineStage.Parsing,
@@ -92,14 +92,13 @@ public class DiagnosticFormatterPropertyTests
             _ => "<unknown>",
         };
 
-        return new Diagnostic(
-            new DiagnosticId(input.IdValue),
+        return DiagnosticFixtures.Occurrence(input.IdValue,
             input.Severity,
             input.Stage,
             input.Message,
-            Location: location,
-            CompilationUnitPath: compilationUnitPath,
-            AnalyzerName: null);
+            location: location,
+            compilationUnitPath: compilationUnitPath,
+            analyzerName: null);
     }
 
     /// <summary>

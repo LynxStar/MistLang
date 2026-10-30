@@ -70,7 +70,7 @@ public sealed class StampableAllocationAnalysisTests : ProgramModelProbe
         else
         {
             var finding = Assert.Single(errors);
-            Assert.Equal(allocation == "new" ? "MIST_PA_ARRAY_REQUIRES_INITIALIZER" : "MIST_PA_STACKALLOC_ELEMENT_NOT_STAMPABLE", finding.Id.Value);
+            Assert.Equal(allocation == "new" ? "MIST0225" : "MIST0226", finding.Number.Value);
             Assert.Contains("Item", finding.Message, StringComparison.Ordinal);
         }
     }

@@ -14,21 +14,21 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class OperatorPositionRefusalTests
 {
     [Theory]
-    [InlineData("arithmetic-on-a-class", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("arithmetic-on-a-union", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("class-equality-without-operator", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("comparison-not-applicable", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("conditional-access-on-non-optional", "MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL")]
-    [InlineData("union-concatenated-with-string", "MIST_PA_OPERATOR_NOT_APPLICABLE")]
-    [InlineData("unknown-concatenated-with-string", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS")]
-    [InlineData("unknown-has-no-members", "MIST_PA_UNKNOWN_HAS_NO_MEMBERS")]
-    [InlineData("unknown-has-no-operators", "MIST_PA_UNKNOWN_HAS_NO_OPERATORS")]
-    [InlineData("coalescing-assignment-not-a-statement", "MIST_PA_COALESCING_ASSIGNMENT_NOT_A_STATEMENT")]
-    [InlineData("converted-foreach-variable-reassigned", "MIST_PA_READONLY_LOCAL_REASSIGNED")]
-    [InlineData("foreach-variable-reassigned", "MIST_PA_READONLY_LOCAL_REASSIGNED")]
-    [InlineData("readonly-local-coalesced", "MIST_PA_READONLY_LOCAL_REASSIGNED")]
-    [InlineData("readonly-local-reassigned", "MIST_PA_READONLY_LOCAL_REASSIGNED")]
-    [InlineData("optional-of-optional", "MIST_PA_OPTIONAL_OF_OPTIONAL")]
+    [InlineData("arithmetic-on-a-class", "MIST0200")]
+    [InlineData("arithmetic-on-a-union", "MIST0200")]
+    [InlineData("class-equality-without-operator", "MIST0200")]
+    [InlineData("comparison-not-applicable", "MIST0200")]
+    [InlineData("conditional-access-on-non-optional", "MIST0205")]
+    [InlineData("union-concatenated-with-string", "MIST0200")]
+    [InlineData("unknown-concatenated-with-string", "MIST0201")]
+    [InlineData("unknown-has-no-members", "MIST0202")]
+    [InlineData("unknown-has-no-operators", "MIST0201")]
+    [InlineData("coalescing-assignment-not-a-statement", "MIST0206")]
+    [InlineData("converted-foreach-variable-reassigned", "MIST0207")]
+    [InlineData("foreach-variable-reassigned", "MIST0207")]
+    [InlineData("readonly-local-coalesced", "MIST0207")]
+    [InlineData("readonly-local-reassigned", "MIST0207")]
+    [InlineData("optional-of-optional", "MIST0213")]
     public void RefusedExpressionKeepsItsDiagnostic(string caseName, string expected)
     {
         var model = new HandBuiltModel();
@@ -37,7 +37,7 @@ public sealed class OperatorPositionRefusalTests
         var dog = HandBuiltModel.Class("Dog");
         dog.Assembly = new MistAssembly("Probe", MistAssemblyKind.Self);
         var union = model.Interner.GetOrCreateUnionType([integer, text]);
-        DiagnosticDescriptor? binary(BinaryOperatorKind kind, IMistType left, IMistType right)
+        MistDiagnostic? binary(BinaryOperatorKind kind, IMistType left, IMistType right)
         {
             return OperatorDecision.Binary(kind, left, right, type => model.Type(type.Name));
         }
@@ -58,7 +58,7 @@ public sealed class OperatorPositionRefusalTests
             _ => PositionDecision.Reassignment(new LocalVariable("each", caseName == "converted-foreach-variable-reassigned" ? HandBuiltModel.Class("Level") : integer) { IsReadonly = true }),
         };
 
-        Assert.True(diagnostic?.Id.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Id.Value ?? "silence"}");
+        Assert.True(diagnostic?.Number.Value == expected, $"{caseName}: expected {expected}, got {diagnostic?.Number.Value ?? "silence"}");
     }
 
     [Fact]

@@ -122,7 +122,7 @@ New `CheckArrayLiteral` method:
 
 - Recursively type-checks each element expression
 - Validates all elements have compatible types
-- Rejects `void` elements (diagnostic `MIST_TC_0034`)
+- Rejects `void` elements (diagnostic `MIST_TC_0034 (historical)`)
 - Rejects `unknown` elements (diagnostic using `UnknownAsArrayElement`)
 - When target type is known (explicit annotation), validates each element is assignable to the target element type
 
@@ -205,8 +205,8 @@ public sealed class ArrayType : IType
 
 | ID | Condition | Message |
 |----|-----------|---------|
-| `MIST_TC_0034` | Element type is `void` | "Cannot create an array of type 'void'. Void is not permitted as an array element type." |
-| `MIST_TC_0095` | Elements have incompatible types | "Array literal elements have incompatible types: '{type1}' and '{type2}'. All elements must share a common type." |
+| `MIST_TC_0034 (historical)` | Element type is `void` | "Cannot create an array of type 'void'. Void is not permitted as an array element type." |
+| `MIST_TC_0095 (historical)` | Elements have incompatible types | "Array literal elements have incompatible types: '{type1}' and '{type2}'. All elements must share a common type." |
 | Existing `UnknownAsArrayElement` | Element type contains `unknown` | "Cannot create an array with element type containing 'unknown'." |
 
 ### C# Emission Mapping
@@ -293,8 +293,8 @@ public sealed class ArrayType : IType
 
 | ID | Severity | Condition | Message |
 |----|----------|-----------|---------|
-| `MIST_TC_0034` | Error | Element is `void`-typed | "Cannot create an array of type 'void'. Void is not permitted as an array element type." |
-| `MIST_TC_0095` | Error | Elements have no common type | "Array literal elements have incompatible types: '{type1}' and '{type2}'. All elements must share a common type." |
+| `MIST_TC_0034 (historical)` | Error | Element is `void`-typed | "Cannot create an array of type 'void'. Void is not permitted as an array element type." |
+| `MIST_TC_0095 (historical)` | Error | Elements have no common type | "Array literal elements have incompatible types: '{type1}' and '{type2}'. All elements must share a common type." |
 | `UnknownAsArrayElement` | Error | Element type contains `unknown` | "Cannot create an array with element type containing 'unknown'. Array elements are writable storage." |
 
 ### Recovery Strategy

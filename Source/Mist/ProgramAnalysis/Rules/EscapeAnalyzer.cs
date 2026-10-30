@@ -54,7 +54,7 @@ internal sealed partial class EscapeAnalyzer : IProgramAnalyzer
 
             if(kind is not null)
             {
-                context.Report(ProgramAnalysisDiagnostics.CapturedBinding, reference.Node, [reference], kind, reference.Local.Name, closure, reason);
+                context.Report(ProgramAnalysisDiagnostics.CapturedBinding, reference.Node, [reference], new EnumValue(kind), new NameValue(reference.Local.Name), new EnumValue(closure), new NameValue(reason));
             }
         }
     }

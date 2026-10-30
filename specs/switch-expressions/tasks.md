@@ -41,19 +41,19 @@ This plan implements exhaustive switch expressions across the full Mist compiler
   - Ensure all tests pass, ask the user if questions arise.
 
 - [x] 5. Type Checker: Add switch expression diagnostics and exhaustiveness checking
-  - [x] 5.1 Add diagnostic IDs MIST_TC_0060 through MIST_TC_0063 to the diagnostics infrastructure
-    - MIST_TC_0060 (Error): "Switch expression is not exhaustive. Missing cases: {cases}"
-    - MIST_TC_0061 (Error): "Switch arms have incompatible types: '{type1}' and '{type2}'"
-    - MIST_TC_0062 (Error): "When guard must be a boolean expression, got '{actualType}'"
-    - MIST_TC_0063 (Warning): "Switch arm is unreachable"
+  - [x] 5.1 Add diagnostic IDs MIST_TC_0060 (historical) through MIST_TC_0063 (historical) to the diagnostics infrastructure
+    - MIST_TC_0060 (historical) (Error): "Switch expression is not exhaustive. Missing cases: {cases}"
+    - MIST_TC_0061 (historical) (Error): "Switch arms have incompatible types: '{type1}' and '{type2}'"
+    - MIST_TC_0062 (historical) (Error): "When guard must be a boolean expression, got '{actualType}'"
+    - MIST_TC_0063 (historical) (Warning): "Switch arm is unreachable"
     - _Requirements: 6.6, 5.4, 8.2, 7.1_
   - [x] 5.2 Add when guard type validation to `TypeCheckerAnalyzer` in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Walk each switch arm's guard expression and verify it resolves to `bool`
-    - Emit MIST_TC_0062 if the guard type is not `bool`
+    - Emit MIST_TC_0062 (historical) if the guard type is not `bool`
     - _Requirements: 8.1, 8.2_
   - [x] 5.3 Add arm result type compatibility checking to `TypeCheckerAnalyzer`
     - Collect all arm result types and verify they have a common type
-    - Emit MIST_TC_0061 if no common type can be determined
+    - Emit MIST_TC_0061 (historical) if no common type can be determined
     - Verify each arm's result expression is assignable to the inferred result type
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   - [x] 5.4 Create `ExhaustivenessChecker` class in `Source/Mist/Analysis/Builtin/ExhaustivenessChecker.cs`
@@ -63,13 +63,13 @@ This plan implements exhaustive switch expressions across the full Mist compiler
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.7, 6.8, 15.1, 15.2, 15.3, 16.1, 16.2, 16.3, 16.4_
   - [x] 5.5 Integrate `ExhaustivenessChecker` into `TypeCheckerAnalyzer`
     - Invoke `ExhaustivenessChecker.CheckExhaustiveness` for each switch expression
-    - Emit MIST_TC_0060 with the list of missing cases if not exhaustive
+    - Emit MIST_TC_0060 (historical) with the list of missing cases if not exhaustive
     - _Requirements: 6.1, 6.6_
   - [x] 5.6 Add unreachable arm detection to `TypeCheckerAnalyzer`
     - After exhaustiveness checking, perform a second pass to detect unreachable arms
-    - If an unguarded catch-all appears at position `i`, emit MIST_TC_0063 for all arms at positions `> i`
-    - If a constant pattern duplicates a preceding unguarded constant pattern, emit MIST_TC_0063
-    - If a type pattern duplicates a preceding unguarded type pattern for the same type, emit MIST_TC_0063
+    - If an unguarded catch-all appears at position `i`, emit MIST_TC_0063 (historical) for all arms at positions `> i`
+    - If a constant pattern duplicates a preceding unguarded constant pattern, emit MIST_TC_0063 (historical)
+    - If a type pattern duplicates a preceding unguarded type pattern for the same type, emit MIST_TC_0063 (historical)
     - _Requirements: 7.1, 7.2, 7.3_
 
 - [x] 6. Checkpoint — Verify type checker diagnostics
@@ -181,19 +181,19 @@ This plan implements exhaustive switch expressions across the full Mist compiler
     - **Validates: Requirements 6.1, 6.4, 6.5, 6.7, 6.8**
   - [x] 13.6 Write PBT for unreachable arm detection (Property 5)
     - Create `Test/Mist.Tests/Analysis/UnreachableArmPropertyTests.cs`
-    - For any switch expression where an unguarded catch-all appears at position `i`, verify MIST_TC_0063 is emitted for every arm at position `j > i`. For duplicate constant patterns, verify MIST_TC_0063 is emitted for the later arm
+    - For any switch expression where an unguarded catch-all appears at position `i`, verify MIST_TC_0063 (historical) is emitted for every arm at position `j > i`. For duplicate constant patterns, verify MIST_TC_0063 (historical) is emitted for the later arm
     - In-process, no spawning
     - **Property 5: Unreachable Arm Detection**
     - **Validates: Requirements 7.1, 7.2, 7.3**
   - [x] 13.7 Write PBT for guard type validation (Property 6)
     - Create `Test/Mist.Tests/Analysis/GuardTypeValidationPropertyTests.cs`
-    - For any switch arm with a `when` guard whose condition does not evaluate to `bool`, verify MIST_TC_0062 is emitted. For guards that evaluate to `bool`, verify no guard-related diagnostic is emitted
+    - For any switch arm with a `when` guard whose condition does not evaluate to `bool`, verify MIST_TC_0062 (historical) is emitted. For guards that evaluate to `bool`, verify no guard-related diagnostic is emitted
     - In-process, no spawning
     - **Property 6: Guard Type Validation**
     - **Validates: Requirements 8.1, 8.2**
   - [x] 13.8 Write PBT for result type unification (Property 7)
     - Create `Test/Mist.Tests/Analysis/ResultTypeUnificationPropertyTests.cs`
-    - For any switch expression where all arm result expressions have the same type `T`, verify the inferred result type is `T`. For incompatible types, verify MIST_TC_0061 is emitted
+    - For any switch expression where all arm result expressions have the same type `T`, verify the inferred result type is `T`. For incompatible types, verify MIST_TC_0061 (historical) is emitted
     - In-process, no spawning
     - **Property 7: Result Type Unification**
     - **Validates: Requirements 5.1, 5.2, 5.4, 5.5**

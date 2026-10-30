@@ -21,10 +21,10 @@ public sealed class RefStructPositionSiteTests
     private readonly StructType cursor = new("Cursor", "Probe", new Scope(null), null, null) { Modifiers = new MemberModifiers { IsRef = true } };
 
     [Theory]
-    [InlineData("Union", "MIST_PA_REF_STRUCT_UNION_CONSTITUENT")]
-    [InlineData("Tuple", "MIST_PA_REF_STRUCT_ELEMENT")]
-    [InlineData("Array", "MIST_PA_REF_STRUCT_ELEMENT")]
-    [InlineData("TypeArgument", "MIST_PA_REF_STRUCT_TYPE_ARGUMENT")]
+    [InlineData("Union", "MIST0247")]
+    [InlineData("Tuple", "MIST0249")]
+    [InlineData("Array", "MIST0249")]
+    [InlineData("TypeArgument", "MIST0244")]
     public void AWrittenCompositeHoldingARefStructIsRefusedWhereItWasWritten(string kind, string expected)
     {
         model.Model.CompositeApplications.Record(Enum.Parse<CompositeKind>(kind), [cursor, model.Type("String")], HandBuiltModel.Node(37));
@@ -37,7 +37,7 @@ public sealed class RefStructPositionSiteTests
     {
         model.Model.OptionalApplications.Record(cursor, HandBuiltModel.Node(37));
 
-        AssertSite(model.Analyze(new RefStructPositionAnalyzer(), HandBuiltModel.Block()), "MIST_PA_REF_STRUCT_OPTIONAL");
+        AssertSite(model.Analyze(new RefStructPositionAnalyzer(), HandBuiltModel.Block()), "MIST0248");
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public sealed class RefStructPositionSiteTests
     }
 
     [Theory]
-    [InlineData("tuple", "MIST_PA_REF_STRUCT_ELEMENT")]
-    [InlineData("array", "MIST_PA_REF_STRUCT_ELEMENT")]
+    [InlineData("tuple", "MIST0249")]
+    [InlineData("array", "MIST0249")]
     public void AnInferredLiteralHoldingARefStructIsRefusedWhereItIsFormed(string shape, string expected)
     {
         AssertSite(model.Analyze(new RefStructPositionAnalyzer(), new ExpressionStatement(Literal(shape, isTargetTyped: false))), expected);
@@ -67,9 +67,9 @@ public sealed class RefStructPositionSiteTests
     }
 
     [Theory]
-    [InlineData("class-property", "MIST_PA_REF_STRUCT_PROPERTY")]
-    [InlineData("ref-struct-static-field", "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
-    [InlineData("ref-struct-static-auto-property", "MIST_PA_REF_STRUCT_STATIC_STORAGE")]
+    [InlineData("class-property", "MIST0245")]
+    [InlineData("ref-struct-static-field", "MIST0246")]
+    [InlineData("ref-struct-static-auto-property", "MIST0246")]
     public void StorageOffTheStackIsRefusedAtItsDeclaration(string shape, string expected)
     {
         var fragment = new DeclarationFragments();
@@ -97,7 +97,7 @@ public sealed class RefStructPositionSiteTests
         cursor.BaseAbstractTypes.Add(thing);
         var root = new LocalDeclarationStatement(new LocalVariable("t", thing), HandBuiltModel.Literal(cursor, offset: 37));
 
-        AssertSite(model.Analyze(new AssignabilityAnalyzer(), root), "MIST_PA_REF_STRUCT_BOXED");
+        AssertSite(model.Analyze(new AssignabilityAnalyzer(), root), "MIST0250");
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class RefStructPositionSiteTests
         cursor.BaseAbstractTypes.Add(thing);
         var root = new CastExpression(HandBuiltModel.Node(37), HandBuiltModel.Literal(cursor), thing, [], thing);
 
-        AssertSite(model.Analyze(new CastAnalyzer(), root), "MIST_PA_REF_STRUCT_BOXED");
+        AssertSite(model.Analyze(new CastAnalyzer(), root), "MIST0250");
     }
 
     [Theory]
@@ -127,7 +127,7 @@ public sealed class RefStructPositionSiteTests
             _ => new SwitchExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(cursor), [new SwitchArm(HandBuiltModel.Node(), test, null, HandBuiltModel.Literal(boolean))], boolean),
         };
 
-        AssertSite(model.Analyze(new RefStructPositionAnalyzer(), new ExpressionStatement(root)), "MIST_PA_REF_STRUCT_BOXED");
+        AssertSite(model.Analyze(new RefStructPositionAnalyzer(), new ExpressionStatement(root)), "MIST0250");
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public sealed class RefStructPositionSiteTests
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected)
     {
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal(expected, diagnostic.Id.Value);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(expected, diagnostic.Number.Value);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 }

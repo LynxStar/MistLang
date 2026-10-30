@@ -493,18 +493,18 @@ Discipline interactions:
 
 ### Compile-Time Errors
 
-The drop diagnostics follow the convention already used by the flow-sensitive `OwnershipAnalyzer`, which defines analyzer-local descriptive diagnostic IDs (e.g. `MIST_OWN_USE_AFTER_MOVE`, `MIST_OWN_FIELD_NOT_OWNED`) rather than flat numeric codes. The drop diagnostics SHALL likewise be defined as analyzer-local descriptive IDs on the new `DropAnalyzer`, constructed through a `MakeDiagnostic` helper that mirrors the `OwnershipAnalyzer` pattern.
+The drop diagnostics follow the convention already used by the flow-sensitive `OwnershipAnalyzer`, which defines analyzer-local descriptive diagnostic IDs (e.g. `MIST_OWN_USE_AFTER_MOVE (historical)`, `MIST_OWN_FIELD_NOT_OWNED (historical)`) rather than flat numeric codes. The drop diagnostics SHALL likewise be defined as analyzer-local descriptive IDs on the new `DropAnalyzer`, constructed through a `MakeDiagnostic` helper that mirrors the `OwnershipAnalyzer` pattern.
 
 | Error ID | Condition | Message Template |
 |---|---|---|
-| MIST_DROP_USE_AFTER_MOVE | Use-after-drop/move on linear type | "Use of moved/dropped value '{Name}'." |
-| MIST_DROP_USE_AFTER_DROP | Use-after-drop on affine type | "Use of dropped value '{Name}'." |
-| MIST_DROP_FIELD_NOT_OWNED | Non-owned container with affine/linear field | "Non-owned type '{TypeName}' cannot contain {modifier} field '{FieldName}'. Aliasing the container would violate the single-holder invariant of the field." |
-| MIST_DROP_FIELD_OUTSIDE_CONTAINER | Field Drop() outside container's Drop() | "Cannot drop field '{FieldName}' outside of the containing type's Drop() method." |
-| MIST_DROP_CONFLICTING_MODIFIERS | Conflicting modifiers | "Conflicting type modifiers." |
-| MIST_DROP_PARAMETERS | Drop() with parameters | "Drop() method must not accept parameters." |
+| MIST_DROP_USE_AFTER_MOVE (historical) | Use-after-drop/move on linear type | "Use of moved/dropped value '{Name}'." |
+| MIST_DROP_USE_AFTER_DROP (historical) | Use-after-drop on affine type | "Use of dropped value '{Name}'." |
+| MIST_DROP_FIELD_NOT_OWNED (historical) | Non-owned container with affine/linear field | "Non-owned type '{TypeName}' cannot contain {modifier} field '{FieldName}'. Aliasing the container would violate the single-holder invariant of the field." |
+| MIST_DROP_FIELD_OUTSIDE_CONTAINER (historical) | Field Drop() outside container's Drop() | "Cannot drop field '{FieldName}' outside of the containing type's Drop() method." |
+| MIST_DROP_CONFLICTING_MODIFIERS (historical) | Conflicting modifiers | "Conflicting type modifiers." |
+| MIST_DROP_PARAMETERS (historical) | Drop() with parameters | "Drop() method must not accept parameters." |
 
-These IDs are owned by `DropAnalyzer` (analyzer-local), consistent with how `OwnershipAnalyzer` owns its `MIST_OWN_*` IDs. They are NOT registered as flat numeric codes in a central diagnostics table.
+These IDs are owned by `DropAnalyzer` (analyzer-local), consistent with how `OwnershipAnalyzer` owns its `MIST_OWN_* (historical scheme)` IDs. They are NOT registered as flat numeric codes in a central diagnostics table.
 
 ### Error Recovery Strategy
 

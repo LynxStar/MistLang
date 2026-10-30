@@ -120,10 +120,10 @@ public sealed class OptionalLambdaGenericCallTests
     }
 
     [Theory]
-    [InlineData("no-input", "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED")]
-    [InlineData("conflicting-input", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("stated-conflict", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("body-error", "MIST_PM_UNRESOLVED_MEMBER")]
+    [InlineData("no-input", "MIST0391")]
+    [InlineData("conflicting-input", "MIST0392")]
+    [InlineData("stated-conflict", "MIST0392")]
+    [InlineData("body-error", "MIST0301")]
     public void InferenceRefusalsPreserveTheCauseWithoutTrialDiagnostics(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -150,7 +150,7 @@ public sealed class OptionalLambdaGenericCallTests
 
         _ = Call(f, null, [.. arguments]);
 
-        Assert.Equal(diagnosticId, Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal(diagnosticId, Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
         Assert.Null(f.Binding.TargetType);
         Assert.Same(f.Scope, f.Binding.Scope);
     }

@@ -4,6 +4,7 @@ using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -21,6 +22,7 @@ internal static class MethodEmitter
         DiagnosticBag diagnostics,
         MemberType? owner = null)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics, method.DeclarationNode);
         if(IntrinsicCloneEmitter.Forwards(method.Modifiers, method.DeclaringType))
         {
             IntrinsicCloneEmitter.EmitMethod(method, writer, diagnostics);
@@ -63,8 +65,8 @@ internal static class MethodEmitter
     {
         if(method.Modifiers.IsRef && method.Modifiers.IsReadonly && locationNode is not null)
         {
-            diagnostics.ReportAtNode(
-                BackendDiagnostics.ReadonlyRefReturn, locationNode, null, method.Name);
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.ReadonlyRefReturn, locationNode, null, DiagnosticSnapshot.Symbol(method, method.Name));
         }
     }
 
@@ -75,6 +77,7 @@ internal static class MethodEmitter
     /// </summary>
     internal static string EmitSignature(Method method, DiagnosticBag diagnostics, string? qualifiedName = null)
     {
+        using var emission = EmissionDiagnostics.Enter(diagnostics, method.DeclarationNode);
         var returnType = EmitReturnType(method);
         // A specialization declares the pack's expansion in the pack's place and carries the width
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths

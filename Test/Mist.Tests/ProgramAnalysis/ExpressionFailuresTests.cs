@@ -43,9 +43,9 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
-        Assert.Equal("INNER", diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 21), new LinePosition(1, 22)), diagnostic.Location);
+        Assert.Equal("INNER", diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 21), new LinePosition(1, 22)), diagnostic.Position());
     }
 
     [Fact]
@@ -60,8 +60,8 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostics = bag.ToImmutableArray();
-        Assert.Equal(["LEFT", "RIGHT"], diagnostics.Select(diagnostic => diagnostic.Id.Value));
-        Assert.Equal([11, 21], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
+        Assert.Equal(["LEFT", "RIGHT"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
+        Assert.Equal([11, 21], diagnostics.Select(diagnostic => diagnostic.Position().Start.Column));
     }
 
     [Fact]
@@ -75,14 +75,59 @@ public sealed class ExpressionFailuresTests
         failures.Resolve(outer, bag);
 
         var diagnostic = Assert.Single(bag.ToImmutableArray());
-        Assert.Equal("INDEPENDENT", diagnostic.Id.Value);
-        Assert.Equal(21, diagnostic.Location.Start.Column);
+        Assert.Equal("INDEPENDENT", diagnostic.Number.Value);
+        Assert.Equal(21, diagnostic.Position().Start.Column);
+    }
+
+    [Fact]
+    public void DeferredReplayPreservesTheReservedOrdinal()
+    {
+        var failures = new ExpressionFailures();
+        var bag = new DiagnosticBag();
+        var pending = Pending("DEFERRED", 20, new UnresolvedExpression(HandBuiltModel.Node(10)));
+        var withheld = bag.Withhold(() => bag.Add(pending.DeferredDiagnostic!));
+        var original = Assert.Single(withheld.Occurrences);
+        withheld.Discard();
+        bag.Add(DiagnosticFixtures.Occurrence("LATER", DiagnosticSeverity.Error,
+            PipelineStage.Analysis, "Another failure.", new Absent(AbsenceReason.TestOrigin), null));
+
+        failures.Resolve(pending, bag);
+
+        Assert.Same(original, bag.ToImmutableArray()[1]);
+        Assert.True(original.Ordinal < bag.ToImmutableArray()[0].Ordinal);
+    }
+
+    [Fact]
+    public void ACloneFallbackReplaysTheAdmittedSourceOwnersOrdinal()
+    {
+        var bag = new DiagnosticBag();
+        var descriptor = DiagnosticFixtures.Descriptor("DEFERRED", "Deferred failure.");
+        var node = HandBuiltModel.Node(20);
+        var sourceCapture = bag.Withhold(() => bag.ReportAtNodeTyped(descriptor, node, null));
+        var source = Assert.Single(sourceCapture.Occurrences);
+        sourceCapture.Discard();
+        var cloneCapture = bag.Withhold(() => bag.Admit(DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(node), bag.Stage, [])));
+        var clone = Assert.Single(cloneCapture.Occurrences);
+        cloneCapture.Discard();
+        new ExpressionFailures().Resolve(new ErrorExpression(node, [], source), bag);
+
+        Withheld replayed;
+        using(bag.ReplayOwnedFailures())
+        {
+            replayed = bag.Withhold(() => new ExpressionFailures().Resolve(new ErrorExpression(node, [], clone), bag));
+        }
+
+        Assert.NotEqual(source.Ordinal, clone.Ordinal);
+        Assert.Same(source, Assert.Single(replayed.Occurrences));
+        Assert.Same(source, Assert.Single(bag.Admitted));
+        replayed.Discard();
     }
 
     private static ErrorExpression Pending(string id, int offset, params Expression[] children)
     {
         var node = HandBuiltModel.Node(offset);
-        return new ErrorExpression(node, children, new Diagnostic(new DiagnosticId(id), DiagnosticSeverity.Error,
+        return new ErrorExpression(node, children, DiagnosticFixtures.Occurrence(id, DiagnosticSeverity.Error,
             PipelineStage.SemanticModelConstruction, "Deferred failure.",
             new LinePositionSpan(new LinePosition(1, offset + 1), new LinePosition(1, offset + 2)), "hand-built.mist", null));
     }

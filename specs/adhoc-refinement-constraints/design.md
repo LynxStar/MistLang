@@ -125,9 +125,9 @@ During the constraint-resolution pass, for each `AdhocRefinementConstraintWhereC
 1. Look up the name in the declaration's dependent type parameters and value parameters
 2. If found as a dependent type parameter → attach `RefinementPredicate` to the `DependentTypeParameterType`
 3. If found as a value parameter → store `RefinementPredicate` in the parameter refinement map
-4. If not found → emit `MIST_REFINEMENT_0001` diagnostic
-5. If found as a regular type parameter → emit `MIST_REFINEMENT_0002` diagnostic
-6. If duplicate → emit `MIST_REFINEMENT_0003` diagnostic
+4. If not found → emit `MIST_REFINEMENT_0001 (historical)` diagnostic
+5. If found as a regular type parameter → emit `MIST_REFINEMENT_0002 (historical)` diagnostic
+6. If duplicate → emit `MIST_REFINEMENT_0003 (historical)` diagnostic
 
 ### 5. Type Checker (`TypeCheckerAnalyzer`)
 
@@ -161,7 +161,7 @@ Algorithm — `ValidateRefinementConstraintSatisfaction`:
       - **If `interfacePredicate` is non-null and `implPredicate` is null**: accept — no constraint on the implementation means it accepts all values (weaker than any predicate).
       - **If both are non-null**: check `RefinementSolver.Implies(interfacePredicate, implPredicate)`.
         - If `true`: accept — the implementation accepts everything the interface promises.
-        - If `false`: emit `MIST_REFINEMENT_0009` diagnostic — the implementation is stronger (rejects values the interface promises to accept).
+        - If `false`: emit `MIST_REFINEMENT_0009 (historical)` diagnostic — the implementation is stronger (rejects values the interface promises to accept).
    b. Each parameter is validated independently — a violation on one parameter does not prevent validation of others.
 2. The same algorithm applies to indexer parameters.
 
@@ -291,7 +291,7 @@ WhereClauseNode (abstract)
 
 ### Property 9: Interface/trait method refinement constraint satisfaction (Liskov Substitution)
 
-*For any* interface or trait method with a parameter refinement constraint, and any implementing method on a class or struct, the type checker SHALL accept the implementation if and only if, for each parameter position where the interface/trait declares a refinement predicate, either (a) the implementation declares no refinement constraint on that parameter, or (b) `RefinementSolver.Implies(interfacePredicate, implPredicate)` returns `true`. If the implication does not hold (the implementation's constraint is stronger), the type checker SHALL emit a `MIST_REFINEMENT_0009` diagnostic for that parameter. Each parameter position is validated independently.
+*For any* interface or trait method with a parameter refinement constraint, and any implementing method on a class or struct, the type checker SHALL accept the implementation if and only if, for each parameter position where the interface/trait declares a refinement predicate, either (a) the implementation declares no refinement constraint on that parameter, or (b) `RefinementSolver.Implies(interfacePredicate, implPredicate)` returns `true`. If the implication does not hold (the implementation's constraint is stronger), the type checker SHALL emit a `MIST_REFINEMENT_0009 (historical)` diagnostic for that parameter. Each parameter position is validated independently.
 
 **Validates: Requirements 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.8, 17.9**
 
@@ -301,15 +301,15 @@ WhereClauseNode (abstract)
 
 | ID | Condition | Message Template |
 |----|-----------|-----------------|
-| MIST_REFINEMENT_0001 | Where clause references unknown name | "Refinement constraint references '{Name}', which is not a dependent type parameter or parameter on this declaration." |
-| MIST_REFINEMENT_0002 | Where clause targets regular type parameter | "Refinement constraints cannot be applied to type parameter '{Name}'. Refinement constraints apply only to dependent type parameters and value parameters." |
-| MIST_REFINEMENT_0003 | Duplicate where clause on same name | "Duplicate refinement constraint on '{Name}'. Combine predicates using 'and' in a single where clause." |
-| MIST_REFINEMENT_0004 | Dependent argument violates constraint | "Dependent type argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of type '{Type}'." |
-| MIST_REFINEMENT_0005 | Parameter argument violates constraint | "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of method '{Method}'." |
-| MIST_REFINEMENT_0006 | Cannot prove implication for forwarding | "Cannot forward dependent parameter '{SourceName}' with constraint '{SourcePredicate}' to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
-| MIST_REFINEMENT_0007 | Predicate incompatible with type | "Refinement predicate '{Predicate}' is not valid for type '{Type}'. Relational patterns require a comparable type." |
-| MIST_REFINEMENT_0008 | Forwarding unconstrained to constrained | "Cannot forward dependent parameter '{SourceName}' with no constraint to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
-| MIST_REFINEMENT_0009 | Implementation strengthens interface/trait refinement constraint | "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept." |
+| MIST_REFINEMENT_0001 (historical) | Where clause references unknown name | "Refinement constraint references '{Name}', which is not a dependent type parameter or parameter on this declaration." |
+| MIST_REFINEMENT_0002 (historical) | Where clause targets regular type parameter | "Refinement constraints cannot be applied to type parameter '{Name}'. Refinement constraints apply only to dependent type parameters and value parameters." |
+| MIST_REFINEMENT_0003 (historical) | Duplicate where clause on same name | "Duplicate refinement constraint on '{Name}'. Combine predicates using 'and' in a single where clause." |
+| MIST_REFINEMENT_0004 (historical) | Dependent argument violates constraint | "Dependent type argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of type '{Type}'." |
+| MIST_REFINEMENT_0005 (historical) | Parameter argument violates constraint | "Argument '{Value}' does not satisfy refinement constraint '{Predicate}' on parameter '{Name}' of method '{Method}'." |
+| MIST_REFINEMENT_0006 (historical) | Cannot prove implication for forwarding | "Cannot forward dependent parameter '{SourceName}' with constraint '{SourcePredicate}' to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
+| MIST_REFINEMENT_0007 (historical) | Predicate incompatible with type | "Refinement predicate '{Predicate}' is not valid for type '{Type}'. Relational patterns require a comparable type." |
+| MIST_REFINEMENT_0008 (historical) | Forwarding unconstrained to constrained | "Cannot forward dependent parameter '{SourceName}' with no constraint to parameter '{TargetName}' with constraint '{TargetPredicate}' because the compiler cannot prove the implication." |
+| MIST_REFINEMENT_0009 (historical) | Implementation strengthens interface/trait refinement constraint | "Implementation of '{Method}' on '{Type}' has a stronger refinement constraint '{ImplPredicate}' on parameter '{Name}' than the interface '{Interface}' requires '{InterfacePredicate}'. The implementation must accept all values the interface promises to accept." |
 
 ### Syntax Errors
 
@@ -372,7 +372,7 @@ The project uses **FsCheck.Xunit** (already a dependency in `Mist.Tests.csproj`)
 7. **`InterfaceTraitRefinementSatisfactionPropertyTests`** — Property 9
    - Generates random interface/trait method declarations with parameter refinement constraints
    - Pairs them with implementing methods that have: (a) the same predicate, (b) no predicate, (c) a weaker predicate (implication holds), or (d) a stronger predicate (implication fails)
-   - Builds full programs in-process, verifies acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009` diagnostic for case (d)
+   - Builds full programs in-process, verifies acceptance for cases (a)–(c) and `MIST_REFINEMENT_0009 (historical)` diagnostic for case (d)
    - Covers both interfaces and traits, single and multiple parameters, and indexer parameters
    - Generators also produce cases where the interface has no constraint (implementation may add any constraint freely)
    - Uses in-process compilation (no process spawning)
@@ -385,7 +385,7 @@ The project uses **FsCheck.Xunit** (already a dependency in `Mist.Tests.csproj`)
 - Edge cases: `or` in predicate position produces syntax error, empty predicate, deeply nested `and` chains
 - Guard elision optimization verification
 - Inheritance scenarios with fixed dependent values
-- Interface refinement satisfaction: exact diagnostic message format for `MIST_REFINEMENT_0009`
+- Interface refinement satisfaction: exact diagnostic message format for `MIST_REFINEMENT_0009 (historical)`
 - Interface refinement satisfaction: implementation with same predicate (accepted)
 - Interface refinement satisfaction: implementation with no constraint (accepted)
 - Interface refinement satisfaction: implementation with stronger constraint (rejected)

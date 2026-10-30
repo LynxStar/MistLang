@@ -28,7 +28,7 @@ internal static class StorageWriteRoots
     {
         var roots = new List<StorageWriteRoot>();
 
-        _ = context.Diagnostics.Withhold(() => context.ProgramModel.Discarding(() =>
+        context.Diagnostics.Withhold(() => context.ProgramModel.Discarding(() =>
         {
             foreach(var type in SourceMemberTypes(context.ProgramModel))
             {
@@ -44,7 +44,7 @@ internal static class StorageWriteRoots
             }
 
             return 0;
-        }));
+        })).Discard();
 
         return roots;
     }

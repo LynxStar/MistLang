@@ -106,7 +106,7 @@ public sealed class TypePackDeclarationTests : ProgramModelProbe
             extraPreamble: "",
             out var diagnostics);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0301"));
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class TypePackDeclarationTests : ProgramModelProbe
             statement: "", extraTypes: "public class Bad<params A, params B> { }", extraPreamble: "",
             out var diagnostics);
 
-        var error = Assert.Single(Errors(diagnostics, "MIST_VAR_0001"));
+        var error = Assert.Single(Errors(diagnostics, "MIST0404"));
         Assert.Contains("'B' is a second bracket-free pack after 'A'", error.Message);
 
         // The refusal is a verdict, not an abandonment: the second pack still lands as a bracketed

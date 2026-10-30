@@ -42,7 +42,7 @@ internal static class PackBinding
     /// <summary>
     /// The declared slots filled from a flat argument list, with the absorbing slot holding the
     /// arguments the fixed ones did not claim. Null when there are too few to fill the fixed slots,
-    /// which the caller reports as MIST_VAR_0005.
+    /// which the caller reports as MIST0411.
     /// </summary>
     public static IReadOnlyList<IMistType>? Bind(
         IReadOnlyList<TypeParameter> parameters,

@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Mist.Tests" />
+    <InternalsVisibleTo Include="Mist.CLI.Tests" />
   </ItemGroup>
 
   <ItemGroup>

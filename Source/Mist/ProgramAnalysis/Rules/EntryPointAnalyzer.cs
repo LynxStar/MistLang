@@ -25,7 +25,7 @@ internal sealed class EntryPointAnalyzer : IProgramAnalyzer
                     break;
 
                 case EntryPointSelection.None when project.Kind == MistAssemblyKind.Self && !project.IsLibrary:
-                    context.ReportAtProject(EntryPointDiagnostics.MissingEntryPoint, project, project.Name);
+                    context.ReportAtProject(EntryPointDiagnostics.MissingEntryPoint, project, new NameValue(project.Name));
                     break;
             }
         }

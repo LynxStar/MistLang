@@ -101,29 +101,29 @@ public sealed class RealFlowDecisionTests
     }
 
     [Theory]
-    [InlineData("if(!(input > 0.0)) { NonPositive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(!(input <= 0.0)) { Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { return; } NonPositive value = input;", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input >= 0.0) { return; } void TakeNegative(double p) where p < 0.0 { } TakeNegative(input);", "MIST_PA_CONSTRAINT_UNPROVEN")]
-    [InlineData("if(!(input < 0.0) && !(input > 1.0)) { Unit value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input >= 0.0) { Unit value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input >= 0.0 && input <= 1.0) { StrictUnit value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(single <= 0.1f) { Tenth value = single; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("Unit value = input;", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("Unit value = positiveUnit; StrictUnit stricter = value;", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("double number = 0.25; if(flag) { number = 1.5; } Unit value = number;", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { input = other; Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { double copy = input; copy = other; Positive value = copy; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("double copy = input; if(input > 0.0) { Positive value = copy; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { var write = () => { input = other; }; write(); Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { void Write() { input = other; } Write(); Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > 0.0) { double sum = input + 1.0; Positive value = sum; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("void Forward(Positive first) { Positive value = first - first; }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("void Forward(Positive first) { var value = (Positive)(first - first); }", "MIST_PA_REFINEMENT_UNPROVEN")]
-    [InlineData("if(input > limit) { Positive value = input; }", "MIST_PA_REFINEMENT_UNPROVEN")]
+    [InlineData("if(!(input > 0.0)) { NonPositive value = input; }", "MIST0272")]
+    [InlineData("if(!(input <= 0.0)) { Positive value = input; }", "MIST0272")]
+    [InlineData("if(input > 0.0) { return; } NonPositive value = input;", "MIST0272")]
+    [InlineData("if(input >= 0.0) { return; } void TakeNegative(double p) where p < 0.0 { } TakeNegative(input);", "MIST0277")]
+    [InlineData("if(!(input < 0.0) && !(input > 1.0)) { Unit value = input; }", "MIST0272")]
+    [InlineData("if(input >= 0.0) { Unit value = input; }", "MIST0272")]
+    [InlineData("if(input >= 0.0 && input <= 1.0) { StrictUnit value = input; }", "MIST0272")]
+    [InlineData("if(single <= 0.1f) { Tenth value = single; }", "MIST0272")]
+    [InlineData("Unit value = input;", "MIST0272")]
+    [InlineData("Unit value = positiveUnit; StrictUnit stricter = value;", "MIST0272")]
+    [InlineData("double number = 0.25; if(flag) { number = 1.5; } Unit value = number;", "MIST0272")]
+    [InlineData("if(input > 0.0) { input = other; Positive value = input; }", "MIST0272")]
+    [InlineData("if(input > 0.0) { double copy = input; copy = other; Positive value = copy; }", "MIST0272")]
+    [InlineData("double copy = input; if(input > 0.0) { Positive value = copy; }", "MIST0272")]
+    [InlineData("if(input > 0.0) { var write = () => { input = other; }; write(); Positive value = input; }", "MIST0272")]
+    [InlineData("if(input > 0.0) { void Write() { input = other; } Write(); Positive value = input; }", "MIST0272")]
+    [InlineData("if(input > 0.0) { double sum = input + 1.0; Positive value = sum; }", "MIST0272")]
+    [InlineData("void Forward(Positive first) { Positive value = first - first; }", "MIST0272")]
+    [InlineData("void Forward(Positive first) { var value = (Positive)(first - first); }", "MIST0272")]
+    [InlineData("if(input > limit) { Positive value = input; }", "MIST0272")]
     public void AnInsufficientGuardOrUnsupportedProof_RemainsUnproven(string body, string id)
     {
-        Assert.Equal(id, Assert.Single(Analyse(body)).Id.Value);
+        Assert.Equal(id, Assert.Single(Analyse(body)).Number.Value);
     }
 
     [Theory]
@@ -131,13 +131,13 @@ public sealed class RealFlowDecisionTests
     [InlineData("if(amount >= 0.0m && amount <= 1.0m) { double converted = (double)amount; Unit value = converted; }")]
     public void UnsupportedNumericCasts_DoNotTransferTheirSourceFacts(string body)
     {
-        Assert.Equal(["MIST_PA_CAST_HAS_NO_CONVERSION", "MIST_PA_REFINEMENT_UNPROVEN"], Analyse(body).Select(diagnostic => diagnostic.Id.Value).Order());
+        Assert.Equal(["MIST0149", "MIST0272"], Analyse(body).Select(diagnostic => diagnostic.Number.Value).Order());
     }
 
     [Fact]
     public void AReassignmentToAKnownViolatingValue_IsStillViolated()
     {
-        Assert.Equal("MIST_PA_REFINEMENT_VIOLATED", Assert.Single(Analyse("if(input > 0.0) { input = -1.0; Positive value = input; }")).Id.Value);
+        Assert.Equal("MIST0271", Assert.Single(Analyse("if(input > 0.0) { input = -1.0; Positive value = input; }")).Number.Value);
     }
 
     private static ImmutableArray<Diagnostic> Analyse(string body)

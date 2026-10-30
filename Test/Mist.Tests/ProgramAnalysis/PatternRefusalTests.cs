@@ -18,28 +18,28 @@ public sealed class PatternRefusalTests
 {
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("type-test-never-matches", "Int32", "String", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("narrows-to-unknown", "Int32", "unknown", "MIST_PA_PATTERN_NARROWS_TO_UNKNOWN")]
-    [InlineData("conjunct-never-matches", "Dog", "Cat", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("negated-test-never-matches", "Dog", "Cat", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("tuple-element-never-matches", "Int32", "String", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("subpattern-never-matches", "String", "Int32", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("typed-property-pattern-never-matches", "Int32", "Dog", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("sealed-class-against-abstract", "Rock", "IShape", "MIST_PA_PATTERN_NEVER_MATCHES")]
-    [InlineData("newtype-tested-against-its-source", "Position", "Point", "MIST_PA_PATTERN_NEVER_MATCHES")]
+    [InlineData("type-test-never-matches", "Int32", "String", "MIST0193")]
+    [InlineData("narrows-to-unknown", "Int32", "unknown", "MIST0194")]
+    [InlineData("conjunct-never-matches", "Dog", "Cat", "MIST0193")]
+    [InlineData("negated-test-never-matches", "Dog", "Cat", "MIST0193")]
+    [InlineData("tuple-element-never-matches", "Int32", "String", "MIST0193")]
+    [InlineData("subpattern-never-matches", "String", "Int32", "MIST0193")]
+    [InlineData("typed-property-pattern-never-matches", "Int32", "Dog", "MIST0193")]
+    [InlineData("sealed-class-against-abstract", "Rock", "IShape", "MIST0193")]
+    [InlineData("newtype-tested-against-its-source", "Position", "Point", "MIST0193")]
     public void ImpossibleTypeKeepsItsDiagnostic(string caseName, string input, string tested, string expected)
     {
         var fixture = Types();
         var pattern = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[tested], null);
         var finding = PatternAnalyzer.TypeFinding(pattern, fixture.Types[input], fixture.Model.Interner);
-        Assert.True(finding?.Id.Value == expected, $"{caseName}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == expected, $"{caseName}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
     [Trait("Tier", "1")]
-    [InlineData("bound-not-constant", "Int32", "Int32", true, 1, "MIST_PA_PATTERN_BOUND_NOT_CONSTANT")]
-    [InlineData("constant-mismatch", "Int32", "String", false, 0, "MIST_PA_PATTERN_CONSTANT_MISMATCH")]
-    [InlineData("relational-not-comparable", "String", "Int32", false, 2, "MIST_PA_PATTERN_NOT_COMPARABLE")]
+    [InlineData("bound-not-constant", "Int32", "Int32", true, 1, "MIST0198")]
+    [InlineData("constant-mismatch", "Int32", "String", false, 0, "MIST0197")]
+    [InlineData("relational-not-comparable", "String", "Int32", false, 2, "MIST0196")]
     public void InvalidBoundKeepsItsDiagnostic(string caseName, string input, string bound, bool dynamic, int comparison, string expected)
     {
         var fixture = Types();
@@ -50,7 +50,7 @@ public sealed class PatternRefusalTests
             : HandBuiltModel.Literal(type, bound == "String" ? "a" : 3);
         var pattern = new ComparisonPattern(HandBuiltModel.Node(), fixture.Types[input], (ComparisonKind)comparison, value);
         var finding = PatternAnalyzer.ComparisonFinding(pattern, fixture.Types[input], fixture.Model.Interner);
-        Assert.True(finding?.Id.Value == expected, $"{caseName}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == expected, $"{caseName}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -62,7 +62,7 @@ public sealed class PatternRefusalTests
         var fixture = Types();
         var first = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[earlier], null);
         var next = new TypeTestPattern(HandBuiltModel.Node(), fixture.Types[later], null);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", PatternAnalyzer.ArmFinding([first], next, fixture.Types[earlier], fixture.Model.Interner)?.Id.Value);
+        Assert.Equal("MIST0199", PatternAnalyzer.ArmFinding([first], next, fixture.Types[earlier], fixture.Model.Interner)?.Number.Value);
         Assert.Null(PatternAnalyzer.ArmFinding([], next, fixture.Types[earlier], fixture.Model.Interner));
         Assert.NotEmpty(caseName);
     }
@@ -121,7 +121,7 @@ public sealed class PatternRefusalTests
         };
 
         var finding = PatternAnalyzer.ArmFinding([earlier], later, input, fixture.Model.Interner);
-        Assert.Equal(covered ? "MIST_PA_SWITCH_ARM_UNREACHABLE" : null, finding?.Id.Value);
+        Assert.Equal(covered ? "MIST0199" : null, finding?.Number.Value);
     }
 
     [Theory]
@@ -150,7 +150,7 @@ public sealed class PatternRefusalTests
     {
         var (input, earlier, later, interner) = RelationalArms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, interner);
-        Assert.True(finding?.Id.Value == "MIST_PA_SWITCH_ARM_UNREACHABLE", $"{shape}: {finding?.Id.Value ?? "silence"}");
+        Assert.True(finding?.Number.Value == "MIST0199", $"{shape}: {finding?.Number.Value ?? "silence"}");
     }
 
     [Theory]
@@ -172,7 +172,7 @@ public sealed class PatternRefusalTests
     {
         var (input, earlier, later, interner) = RelationalArms(shape);
         var finding = PatternAnalyzer.ArmFinding(earlier, later, input, interner);
-        Assert.True(finding is null, $"{shape}: {finding?.Id.Value}");
+        Assert.True(finding is null, $"{shape}: {finding?.Number.Value}");
     }
 
     [Theory]
@@ -198,15 +198,15 @@ public sealed class PatternRefusalTests
         }
 
         var finding = Assert.Single(findings);
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Id.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal("MIST0199", finding.Number.Value);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]
     [Trait("Tier", "2")]
     [InlineData("mismatched-constant", null)]
     [InlineData("mismatched-constant-beneath-a-refinement", null)]
-    [InlineData("non-constant-bound", "MIST_PA_PATTERN_BOUND_NOT_CONSTANT")]
+    [InlineData("non-constant-bound", "MIST0198")]
     public void ARefinementItsDeclarationRefuses_IsNotJudgedAgainAtEachTest(string shape, string? expected)
     {
         var h = new HandBuiltRefinements();
@@ -221,30 +221,30 @@ public sealed class PatternRefusalTests
 
         var findings = h.Built.Analyze(new PatternAnalyzer(), new IsPatternExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(h.Int), pattern, h.Bool));
 
-        Assert.Equal(expected, findings.SingleOrDefault()?.Id.Value);
+        Assert.Equal(expected, findings.SingleOrDefault()?.Number.Value);
     }
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData("element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("slice", "MIST_PA_PATTERN_NEVER_MATCHES", "Numbers")]
-    [InlineData("nested-list", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("list-in-tuple", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("list-in-property", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("tuple-in-list", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("negated-element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("disjunction-element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("conjunction-element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
-    [InlineData("constant-element", "MIST_PA_PATTERN_CONSTANT_MISMATCH", "int")]
-    [InlineData("constant-in-nested-list", "MIST_PA_PATTERN_CONSTANT_MISMATCH", "int")]
-    [InlineData("switch-arm-element", "MIST_PA_PATTERN_NEVER_MATCHES", "int")]
+    [InlineData("element", "MIST0193", "int")]
+    [InlineData("slice", "MIST0193", "Numbers")]
+    [InlineData("nested-list", "MIST0193", "int")]
+    [InlineData("list-in-tuple", "MIST0193", "int")]
+    [InlineData("list-in-property", "MIST0193", "int")]
+    [InlineData("tuple-in-list", "MIST0193", "int")]
+    [InlineData("negated-element", "MIST0193", "int")]
+    [InlineData("disjunction-element", "MIST0193", "int")]
+    [InlineData("conjunction-element", "MIST0193", "int")]
+    [InlineData("constant-element", "MIST0197", "int")]
+    [InlineData("constant-in-nested-list", "MIST0197", "int")]
+    [InlineData("switch-arm-element", "MIST0193", "int")]
     public void ListSubpatternReportsAtTheFailingSubpattern(string site, string expected, string judgedAgainst)
     {
         var fixture = Types();
         var integer = fixture.Types["Int32"];
         var text = fixture.Types["String"];
         var numbers = HandBuiltModel.Class("Numbers");
-        Pattern rejected = expected == "MIST_PA_PATTERN_CONSTANT_MISMATCH"
+        Pattern rejected = expected == "MIST0197"
             ? new ComparisonPattern(HandBuiltModel.Node(20), integer, ComparisonKind.Equal, HandBuiltModel.Literal(text, "x"))
             : new TypeTestPattern(HandBuiltModel.Node(20), text, null);
         IMistType input = numbers;
@@ -287,8 +287,8 @@ public sealed class PatternRefusalTests
             : new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal(expected, finding.Id.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(expected, finding.Number.Value);
+        Assert.Equal(21, finding.Position().Start.Column);
         Assert.Contains($"'{judgedAgainst}'", finding.Message, StringComparison.Ordinal);
     }
 
@@ -377,15 +377,15 @@ public sealed class PatternRefusalTests
             ? new SwitchExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), [new SwitchArm(HandBuiltModel.Node(), pattern, null, HandBuiltModel.Literal(integer, 1))], integer)
             : new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
-        Assert.Equal("MIST_PA_PATTERN_NEVER_MATCHES", finding.Id.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal("MIST0193", finding.Number.Value);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData("bound-not-constant", "MIST_PA_PATTERN_BOUND_NOT_CONSTANT")]
-    [InlineData("constant-mismatch", "MIST_PA_PATTERN_CONSTANT_MISMATCH")]
-    [InlineData("relational-not-comparable", "MIST_PA_PATTERN_NOT_COMPARABLE")]
+    [InlineData("bound-not-constant", "MIST0198")]
+    [InlineData("constant-mismatch", "MIST0197")]
+    [InlineData("relational-not-comparable", "MIST0196")]
     public void ComparisonReportsAtItsBoundPattern(string shape, string expected)
     {
         var fixture = Types();
@@ -404,8 +404,8 @@ public sealed class PatternRefusalTests
         var expression = new IsPatternExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(input), pattern, fixture.Types["Boolean"]);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal(expected, finding.Id.Value);
-        Assert.Equal(21, finding.Location.Start.Column);
+        Assert.Equal(expected, finding.Number.Value);
+        Assert.Equal(21, finding.Position().Start.Column);
     }
 
     [Fact]
@@ -424,8 +424,8 @@ public sealed class PatternRefusalTests
             [arm(fixture.Types["Dog"]), arm(input), arm(fixture.Types["Cat"], 37)], integer);
         var finding = Assert.Single(fixture.Model.Analyze(new PatternAnalyzer(), expression));
 
-        Assert.Equal("MIST_PA_SWITCH_ARM_UNREACHABLE", finding.Id.Value);
-        Assert.Equal(38, finding.Location.Start.Column);
+        Assert.Equal("MIST0199", finding.Number.Value);
+        Assert.Equal(38, finding.Position().Start.Column);
     }
 
     [Theory]

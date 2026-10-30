@@ -32,14 +32,14 @@ internal static class PackTypePositions
 
         if(pack.PackLength is not { } length)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.UnprovenPackIndex, node, null, pack.Name, index);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnprovenPackIndex, node, null, new NameValue(pack.Name), new QuantityValue(index));
             reportFailure?.Invoke();
             return ErrorType.Instance;
         }
 
         if(index >= length)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.PackIndexOutOfBounds, node, null, pack.Name, index, length);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PackIndexOutOfBounds, node, null, new NameValue(pack.Name), new QuantityValue(index), new QuantityValue(length));
             reportFailure?.Invoke();
             return ErrorType.Instance;
         }
@@ -67,7 +67,7 @@ internal static class PackTypePositions
 
         if(index >= length)
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.PackIndexOutOfBounds, singleRef, null, narrowing.Name, index, length);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PackIndexOutOfBounds, singleRef, null, new NameValue(narrowing.Name), new QuantityValue(index), new QuantityValue(length));
             reportFailure?.Invoke();
             return ErrorType.Instance;
         }

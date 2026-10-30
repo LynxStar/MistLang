@@ -41,12 +41,12 @@ internal sealed class ConstructorBuilder
 
         if(common.Modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, ctorDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, ctorDecl, null);
         }
 
         if(common.DeclaredThisTier is not null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ThisTierOnConstructor, ctorDecl, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ThisTierOnConstructor, ctorDecl, null);
         }
 
         var constructor = new Constructor(concreteType.Name, concreteType, common.Parameters, common.Modifiers)

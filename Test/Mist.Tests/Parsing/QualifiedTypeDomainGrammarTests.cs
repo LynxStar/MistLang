@@ -59,7 +59,7 @@ public sealed class QualifiedTypeDomainGrammarTests
         var diagnostics = new DiagnosticBag();
         _ = new Mist.Parsing.MistParser().Parse(stream, diagnostics);
 
-        Assert.Contains(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Id.Value == "MIST_PARSE_INCOMPLETE");
+        Assert.Contains(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST0123");
     }
 
     private static (CompilationUnitNode Root, SourceText Source) Parse(string text)

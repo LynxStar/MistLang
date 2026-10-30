@@ -8,7 +8,7 @@ Enable tuple positional patterns (`(pattern, pattern, ...)`) in switch expressio
 
 - [ ] 1. Reorder PrimaryPattern grammar alternatives in `Source/Mist/Grammar/Mist.storm`: move `TuplePositionalPattern` to position 2 (after `TypePattern`, before `BareTypePattern`) and `ParenthesizedPattern` to position 3. Rebuild solution to regenerate the parser.
 - [ ] 2. Run full test suite (`dotnet test` on Mist.Tests) and confirm zero regressions. Run `mist run samples/AllFeatures` and `mist run samples/TuplePatternMatching` and confirm correct output.
-- [ ] 3. Verify Pendragon.Tests compiles and passes with the tuple switch version of `IsValidTransition`: run `mist test Pendragon/Pendragon.Tests` and confirm all 4 tests pass with zero `MIST_UNDEFINED_TYPE` errors.
+- [ ] 3. Verify Pendragon.Tests compiles and passes with the tuple switch version of `IsValidTransition`: run `mist test Pendragon/Pendragon.Tests` and confirm all 4 tests pass with zero `MIST_UNDEFINED_TYPE (historical)` errors.
 - [ ] 4. Add enum declarations to `samples/TuplePatternMatching/`: `Direction` (name-only), `LogLevel` (string-backed, explicit values), `LogCategory` (string-backed, auto-inferred), `HttpMethod` (string-backed, auto-inferred), `HttpStatus` (int-backed, explicit values).
 - [ ] 5. Add proof code to `samples/TuplePatternMatching/Program.mist` RunDemo(): enum tuple switch, string-backed enum switch, three-element tuple switch, mixed enum/discard, enum with var binding, cross-type tuple (enum + int). Verify build and run produces expected output.
 - [ ] 6. Update AllFeatures baseline: run `mist run samples/AllFeatures --quiet`, update `samples/__baselines__/AllFeatures.out`, confirm `SamplesCompileAndMatchBaselineTest` passes.

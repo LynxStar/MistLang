@@ -22,18 +22,18 @@
 - [x] Add `CheckClosedUnknownPostfix(PostfixNode, ISemanticModel, DiagnosticBag)` — checks if target type is `IsClosedGenericWithUnknown`, then validates each suffix
 - [x] Add `CheckClosedUnknownAssignment(AssignmentNode, ISemanticModel, DiagnosticBag)` — checks if assignment target goes through a `Closed_Generic_With_Unknown` receiver
 - [x] Register the fifth pass in `Analyze()` after the existing fourth pass
-- [x] Add `ClosedUnknownNonReadonlyAccess` diagnostic ID constant (`MIST_TC_0062`)
+- [x] Add `ClosedUnknownNonReadonlyAccess` diagnostic ID constant (`MIST_TC_0062 (historical)`)
 
 **Requirements:** 2.1, 2.4, 4.1–4.6
 
 ## Task 3: Implement suffix validation logic
 
-- [x] `MethodCallSuffix`: resolve symbol, check `ReadonlyStatus` — emit MIST_TC_0062 if not readonly
-- [x] `MemberAccessSuffix` (field): always permit reads; emit MIST_TC_0062 for field writes
-- [x] `MemberAccessSuffix` (property/indexer): check `ReadonlyStatus` of getter — emit MIST_TC_0062 if not readonly
-- [x] `IndexSuffix` (read): check indexer getter's `ReadonlyStatus` — emit MIST_TC_0062 if not readonly
-- [x] `IndexSuffix` (write): always emit MIST_TC_0062 (setters are never callable in readonly context)
-- [x] Property setter calls: always emit MIST_TC_0062
+- [x] `MethodCallSuffix`: resolve symbol, check `ReadonlyStatus` — emit MIST_TC_0062 (historical) if not readonly
+- [x] `MemberAccessSuffix` (field): always permit reads; emit MIST_TC_0062 (historical) for field writes
+- [x] `MemberAccessSuffix` (property/indexer): check `ReadonlyStatus` of getter — emit MIST_TC_0062 (historical) if not readonly
+- [x] `IndexSuffix` (read): check indexer getter's `ReadonlyStatus` — emit MIST_TC_0062 (historical) if not readonly
+- [x] `IndexSuffix` (write): always emit MIST_TC_0062 (historical) (setters are never callable in readonly context)
+- [x] Property setter calls: always emit MIST_TC_0062 (historical)
 - [x] Diagnostic message format: `"Cannot call non-readonly {kind} '{name}' on '{typeDisplayName}': the type is treated as readonly because it contains an 'unknown' type argument."`
 - [x] Ensure subsequent suffixes after the first are checked against the result type (not the original receiver type) — if the result type is also a `Closed_Generic_With_Unknown`, continue enforcing
 
@@ -42,18 +42,18 @@
 ## Task 4: Ensure variable reassignment is not blocked
 
 - [x] Verify that the fifth pass only fires on `PostfixNode` suffixes and `AssignmentNode` targets that go through member access — bare variable reassignment (`myList = expr`) does not trigger the check
-- [x] Unit test: `List<unknown> xs = new List<int>(); xs = new List<string>();` — no MIST_TC_0062
-- [x] Unit test: passing `List<unknown>` as argument to a method — no MIST_TC_0062 at the call site
+- [x] Unit test: `List<unknown> xs = new List<int>(); xs = new List<string>();` — no MIST_TC_0062 (historical)
+- [x] Unit test: passing `List<unknown>` as argument to a method — no MIST_TC_0062 (historical) at the call site
 
 **Requirements:** 3.1–3.5
 
-## Task 5: Diagnostic differentiation from MIST_RO family
+## Task 5: Diagnostic differentiation from MIST_RO (historical) family
 
-- [x] Verify that when a member access on a `Closed_Generic_With_Unknown` is also inside a readonly method body, only MIST_TC_0062 fires (not both MIST_TC_0062 and MIST_RO_0002)
-- [x] Add logic: if the receiver is `Closed_Generic_With_Unknown`, the fifth pass emits MIST_TC_0062; the first pass (readonly method body) should not double-emit for the same access
-- [x] Approach: the first pass already only fires for members that are themselves readonly — if the enclosing method is not readonly, pass 1 doesn't fire. If it IS readonly, pass 1 would fire MIST_RO_0002 for the same call. Add a guard: if the receiver is `Closed_Generic_With_Unknown`, skip the MIST_RO emission (let MIST_TC_0062 take precedence)
-- [x] Unit test: non-readonly method calling `xs.Add(1)` where `xs: List<unknown>` → only MIST_TC_0062
-- [x] Unit test: readonly method calling `xs.Add(1)` where `xs: List<unknown>` → only MIST_TC_0062 (not MIST_RO_0002)
+- [x] Verify that when a member access on a `Closed_Generic_With_Unknown` is also inside a readonly method body, only MIST_TC_0062 (historical) fires (not both MIST_TC_0062 (historical) and MIST_RO_0002 (historical))
+- [x] Add logic: if the receiver is `Closed_Generic_With_Unknown`, the fifth pass emits MIST_TC_0062 (historical); the first pass (readonly method body) should not double-emit for the same access
+- [x] Approach: the first pass already only fires for members that are themselves readonly — if the enclosing method is not readonly, pass 1 doesn't fire. If it IS readonly, pass 1 would fire MIST_RO_0002 (historical) for the same call. Add a guard: if the receiver is `Closed_Generic_With_Unknown`, skip the MIST_RO (historical) emission (let MIST_TC_0062 (historical) take precedence)
+- [x] Unit test: non-readonly method calling `xs.Add(1)` where `xs: List<unknown>` → only MIST_TC_0062 (historical)
+- [x] Unit test: readonly method calling `xs.Add(1)` where `xs: List<unknown>` → only MIST_TC_0062 (historical) (not MIST_RO_0002 (historical))
 
 **Requirements:** 4.4, 4.6
 
@@ -106,18 +106,18 @@
 
 ## Task 10: Write replacement tests for readonly-based filtering
 
-- [x] Test: method call on `List<unknown>` where method is `Mutable` → MIST_TC_0062
+- [x] Test: method call on `List<unknown>` where method is `Mutable` → MIST_TC_0062 (historical)
 - [x] Test: method call on `List<unknown>` where method is `InferredReadonly` → no diagnostic
 - [x] Test: method call on `List<int>` (concrete) → no diagnostic
 - [x] Test: property read on `List<unknown>` where getter is `InferredReadonly` → no diagnostic
-- [x] Test: property setter on `List<unknown>` → MIST_TC_0062
+- [x] Test: property setter on `List<unknown>` → MIST_TC_0062 (historical)
 - [x] Test: field read on `List<unknown>` → no diagnostic
-- [x] Test: field write on `List<unknown>` → MIST_TC_0062
+- [x] Test: field write on `List<unknown>` → MIST_TC_0062 (historical)
 - [x] Test: self-call inside declaring body (`this.Add(x)` inside `List<T>`) → no diagnostic (open generic)
-- [x] Test: nested unknown (`Optional<List<unknown>>`) → MIST_TC_0062 on non-readonly access
+- [x] Test: nested unknown (`Optional<List<unknown>>`) → MIST_TC_0062 (historical) on non-readonly access
 - [x] Test: variable reassignment `List<unknown> xs = ...; xs = ...;` → no diagnostic
 - [x] Test: `Map<T, unknown>` inside generic body → no diagnostic (open type parameter)
-- [x] Test: `Map<string, unknown>` inside generic body → MIST_TC_0062 on non-readonly access (independently closed)
+- [x] Test: `Map<string, unknown>` inside generic body → MIST_TC_0062 (historical) on non-readonly access (independently closed)
 
 **Requirements:** 2, 3, 4, 8, 11
 
@@ -135,17 +135,17 @@
 
 - [x] Unit test: passing `List<unknown>` to a `readonly` parameter → no error at call site
 - [x] Unit test: passing `List<unknown>` to a non-`readonly` parameter → no error at call site
-- [x] Unit test: inside callee with `List<unknown>` parameter, calling non-readonly method → MIST_TC_0062
+- [x] Unit test: inside callee with `List<unknown>` parameter, calling non-readonly method → MIST_TC_0062 (historical)
 - [x] Verify that pass 3 (readonly parameters) and pass 5 (closed-unknown) do not double-emit when a parameter is both `readonly` and `Closed_Generic_With_Unknown`
 
 **Requirements:** 9.1–9.4
 
 ## Task 13: Interaction with covariant widening and return types
 
-- [x] Unit test: `List<unknown> xs = new List<int>(); xs.Add(1);` → MIST_TC_0062 on Add
-- [x] Unit test: method returning `List<unknown>` — caller accessing non-readonly member on result → MIST_TC_0062
+- [x] Unit test: `List<unknown> xs = new List<int>(); xs.Add(1);` → MIST_TC_0062 (historical) on Add
+- [x] Unit test: method returning `List<unknown>` — caller accessing non-readonly member on result → MIST_TC_0062 (historical)
 - [x] Unit test: `GetList().Count` where `GetList()` returns `List<unknown>` and `Count` is readonly → no diagnostic
-- [x] Unit test: generic method inferred as `unknown` at call site → MIST_TC_0062 on non-readonly access
+- [x] Unit test: generic method inferred as `unknown` at call site → MIST_TC_0062 (historical) on non-readonly access
 
 **Requirements:** 7.1–7.4
 

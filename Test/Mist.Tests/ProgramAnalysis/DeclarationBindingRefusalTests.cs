@@ -17,16 +17,16 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class DeclarationBindingRefusalTests
 {
     [Theory]
-    [InlineData("duplicate-type-name", "MIST_PM_DUPLICATE_TYPE")]
-    [InlineData("intrinsic-reserved-for-standard", "MIST_PM_INTRINSIC_RESERVED")]
-    [InlineData("stampable-modifier-on-a-class", "MIST_PM_STAMPABLE_REQUIRES_STRUCT")]
-    [InlineData("stampable-modifier-on-a-member", "MIST_PM_STAMPABLE_REQUIRES_STRUCT")]
-    [InlineData("static-property-with-an-init-accessor", "MIST_PM_STATIC_INIT_ACCESSOR")]
-    [InlineData("operator-on-abstract", "MIST_PM_MEMBER_NOT_ALLOWED_ON_ABSTRACT")]
-    [InlineData("newtype-over-an-enum", "MIST_PM_NEWTYPE_SOURCE_NOT_SUPPORTED")]
-    [InlineData("enum-variant-omitted-over-an-inferred-union", "MIST_PM_ENUM_VALUE_NOT_INFERABLE")]
-    [InlineData("conformance-mapping-signature-mismatch", "MIST_PM_CONFORMANCE_MAPPING_UNSATISFIED")]
-    [InlineData("newtype-clone-passes-itself-as-its-source", "MIST_PM_NEWTYPE_CLONE_INVALID")]
+    [InlineData("duplicate-type-name", "MIST0295")]
+    [InlineData("intrinsic-reserved-for-standard", "MIST0327")]
+    [InlineData("stampable-modifier-on-a-class", "MIST0317")]
+    [InlineData("stampable-modifier-on-a-member", "MIST0317")]
+    [InlineData("static-property-with-an-init-accessor", "MIST0315")]
+    [InlineData("operator-on-abstract", "MIST0335")]
+    [InlineData("newtype-over-an-enum", "MIST0419")]
+    [InlineData("enum-variant-omitted-over-an-inferred-union", "MIST0398")]
+    [InlineData("conformance-mapping-signature-mismatch", "MIST0402")]
+    [InlineData("newtype-clone-passes-itself-as-its-source", "MIST0418")]
     public void DeclarationBuilderReportsItsRefusal(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -112,8 +112,8 @@ public sealed class DeclarationBindingRefusalTests
         }
 
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     private static TypeBodyDeclarationNode Body(params ModifierNode[] modifiers)
@@ -136,7 +136,7 @@ public sealed class DeclarationBindingRefusalTests
         puma.CloneSourceType = lion;
         puma.NewtypeDeclaration = BindingFragments.At<NewtypeDeclarationNode>();
         var original = Assert.Single(f.Diagnostics.Withhold(() =>
-            f.Diagnostics.ReportAtNode(ProgramAnalysisDiagnostics.NoImplicitConversion, HandBuiltModel.Node(40), null, "Puma", "Lion")));
+            f.Diagnostics.ReportAtNode(ProgramAnalysisDiagnostics.NoImplicitConversion, HandBuiltModel.Node(40), null, "Puma", "Lion")).Occurrences);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
         CloneDiagnostics.Run([puma], _ => f.Diagnostics.Add(original), f.Diagnostics);
     }

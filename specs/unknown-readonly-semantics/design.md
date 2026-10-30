@@ -7,7 +7,7 @@ This design replaces the `ReachabilityAnalyzer` (write-tracking) system with a r
 The change touches three main areas:
 1. **Removal** of `ReachabilityAnalyzer`, `IReachabilityMap`, and the TypeChecker's member-filtering logic
 2. **Addition** of a new analysis pass in `ReadonlyAnalyzer` that detects `Closed_Generic_With_Unknown` receivers and enforces readonly rules
-3. **Diagnostic migration** from the TypeChecker's `MIST_TC_0062` to the ReadonlyAnalyzer, preserving the diagnostic code but changing the message
+3. **Diagnostic migration** from the TypeChecker's `MIST_TC_0062 (historical)` to the ReadonlyAnalyzer, preserving the diagnostic code but changing the message
 
 ## Architecture
 
@@ -121,19 +121,19 @@ When a `PostfixNode`'s target type is a `Closed_Generic_With_Unknown`, each suff
 
 | Suffix Type | Check | Diagnostic |
 |---|---|---|
-| `MethodCallSuffix` | Symbol's `ReadonlyStatus` must be readonly | MIST_TC_0062 |
-| `MemberAccessSuffix` (property/indexer) | Symbol's `ReadonlyStatus` must be readonly | MIST_TC_0062 |
+| `MethodCallSuffix` | Symbol's `ReadonlyStatus` must be readonly | MIST_TC_0062 (historical) |
+| `MemberAccessSuffix` (property/indexer) | Symbol's `ReadonlyStatus` must be readonly | MIST_TC_0062 (historical) |
 | `MemberAccessSuffix` (field read) | Always permitted | — |
-| `IndexSuffix` (read) | Indexer getter's `ReadonlyStatus` must be readonly | MIST_TC_0062 |
-| `IndexSuffix` (write) | Always prohibited | MIST_TC_0062 |
+| `IndexSuffix` (read) | Indexer getter's `ReadonlyStatus` must be readonly | MIST_TC_0062 (historical) |
+| `IndexSuffix` (write) | Always prohibited | MIST_TC_0062 (historical) |
 
 Assignment checking (`CheckClosedUnknownAssignment`):
-- Field assignment on a `Closed_Generic_With_Unknown` receiver → MIST_TC_0062
-- Property/indexer setter on a `Closed_Generic_With_Unknown` receiver → MIST_TC_0062
+- Field assignment on a `Closed_Generic_With_Unknown` receiver → MIST_TC_0062 (historical)
+- Property/indexer setter on a `Closed_Generic_With_Unknown` receiver → MIST_TC_0062 (historical)
 
 ### 4. Diagnostic Messages
 
-The new diagnostic uses `MIST_TC_0062` (same code as the old reachability-based filter) but with an updated message format:
+The new diagnostic uses `MIST_TC_0062 (historical)` (same code as the old reachability-based filter) but with an updated message format:
 
 ```
 Cannot call non-readonly method 'Add' on 'List<unknown>': the type is treated as
@@ -145,7 +145,7 @@ Cannot access non-readonly property 'Items' on 'Map<string, unknown>': the type 
 treated as readonly because it contains an 'unknown' type argument.
 ```
 
-This is distinct from the `MIST_RO_*` family used for general readonly context violations (Req 4.4, 4.6).
+This is distinct from the `MIST_RO_* (historical scheme)` family used for general readonly context violations (Req 4.4, 4.6).
 
 ### 5. Interaction with Existing Passes
 
@@ -210,4 +210,4 @@ The existing `SubstituteClosedUnknownInResultType` helper in the TypeChecker sub
 
 ### Diagnostic Code Ownership
 
-`MIST_TC_0062` moves from the TypeChecker to the ReadonlyAnalyzer. Since both analyzers run in the same pipeline and the old filter logic is removed, there is no risk of double-emission. The ReadonlyAnalyzer declares a new `DiagnosticId` constant for this code.
+`MIST_TC_0062 (historical)` moves from the TypeChecker to the ReadonlyAnalyzer. Since both analyzers run in the same pipeline and the old filter logic is removed, there is no risk of double-emission. The ReadonlyAnalyzer declares a new `DiagnosticId` constant for this code.

@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -79,7 +80,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             if(!inference.IsReadonly(exit.Drop) && !inference.Of(exit.Drop).Local)
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, exit.At, [], exit.Drop.Name, frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, exit.At, [], new NameValue(exit.Drop.Name), new NameValue(frame.Describe()));
             }
         }
     }
@@ -115,7 +116,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, call.Node, [call],
-                        call.Receiver is LocalReferenceExpression named ? named.Local.Name : "the function value", frame.Describe());
+                        new NameValue(call.Receiver is LocalReferenceExpression named ? named.Local.Name : "the function value"), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -129,7 +130,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, invocation.Node, [invocation],
-                        mutable.Name, frame.Describe());
+                        new NameValue(mutable.Name), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -144,7 +145,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                     && !inference.IsReadonly(reached):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyParameterCallsMutable, call.Node, [call],
-                    reached.Name, ReadonlyParameterReceivers.Describe(receiver, through));
+                    new NameValue(reached.Name), new NameValue(ReadonlyParameterReceivers.Describe(receiver, through)));
                 break;
 
             case IndexExpression { Slice.Method: { } sliceMethod } sliced
@@ -153,7 +154,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                     && !inference.IsReadonly(sliceMethod):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyParameterCallsMutable, sliced.Node, [sliced],
-                    sliceMethod.Name, ReadonlyParameterReceivers.Describe(sliced.Receiver, through));
+                    new NameValue(sliceMethod.Name), new NameValue(ReadonlyParameterReceivers.Describe(sliced.Receiver, through)));
                 break;
 
             case IndexExpression { Indexer: { } indexer } read when frame.IsReadonly && context.DirectionOf(node).HasFlag(AccessDirection.Read):
@@ -161,7 +162,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, read.Node, [read],
-                        "this[]", frame.Describe());
+                        new NameValue("this[]"), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -170,33 +171,33 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 when frame.IsReadonly && !inference.IsReadonly(binaryOperator):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, binary.Node, [binary],
-                    $"operator {binaryOperator.Symbol}", frame.Describe());
+                    new NameValue($"operator {binaryOperator.Symbol}"), new NameValue(frame.Describe()));
                 break;
 
             case BinaryExpression { Operator: null } comparison
                 when frame.IsReadonly && ElementComparisons.OfAnonymous(comparison)?.FirstOrDefault(compared => !inference.IsReadonly(compared)) is { } comparing:
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, comparison.Node, [comparison], comparing.Name, frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, comparison.Node, [comparison], new NameValue(comparing.Name), new NameValue(frame.Describe()));
                 break;
 
             case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } unary
                 when frame.IsReadonly && !inference.IsReadonly(unaryOperator):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, unary.Node, [unary],
-                    $"operator {unaryOperator.Symbol}", frame.Describe());
+                    new NameValue($"operator {unaryOperator.Symbol}"), new NameValue(frame.Describe()));
                 break;
 
             case CastExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } cast
                 when frame.IsReadonly && !inference.IsReadonly(conversion):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, cast.Node, [cast],
-                    $"operator {TypeDisplay.Mist(conversion.TargetType)}", frame.Describe());
+                    new NameValue($"operator {TypeDisplay.Mist(conversion.TargetType)}"), new NameValue(frame.Describe()));
                 break;
 
             case ImplicitConversionExpression { Operator: { Modifiers.IsIntrinsic: false } conversion } converted
                 when frame.IsReadonly && !inference.IsReadonly(conversion):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, converted.Node, [converted],
-                    $"operator {TypeDisplay.Mist(conversion.TargetType)}", frame.Describe());
+                    new NameValue($"operator {TypeDisplay.Mist(conversion.TargetType)}"), new NameValue(frame.Describe()));
                 break;
 
             case CloneExpression clone when frame.IsReadonly:
@@ -204,7 +205,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, clone.Node, [clone],
-                        copied.Name, frame.Describe());
+                        new NameValue(copied.Name), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -212,7 +213,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             case DefaultExpression fallback when frame.IsReadonly && PurityJudge.DefaultsTypeParameter(fallback):
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextAllocatesMutable, fallback.Node, [fallback],
-                    TypeDisplay.Mist(fallback.Type), frame.Describe());
+                    DiagnosticSnapshot.Type(fallback.Type), new NameValue(frame.Describe()));
                 break;
 
             case NewExpression allocation when frame.IsReadonly:
@@ -220,7 +221,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextAllocatesMutable, allocation.Node, [allocation],
-                        TypeDisplay.Mist(allocation.Type), frame.Describe());
+                        DiagnosticSnapshot.Type(allocation.Type), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -243,7 +244,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, subpattern.Node, [],
-                        tested.Name, frame.Describe());
+                        new NameValue(tested.Name), new NameValue(frame.Describe()));
                 }
 
                 break;
@@ -266,7 +267,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, at.Node, [at],
-                    $"the static initializers of {trigger.Type.Name}", frame.Describe());
+                    new NameValue($"the static initializers of {trigger.Type.Name}"), new NameValue(frame.Describe()));
                 return;
             }
         }
@@ -292,13 +293,13 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
             if(slice.Method is { } method && !inference.IsReadonly(method) && !frame.LocalOn(sliced.Receiver, method, inference))
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, sliced.Node, [sliced], method.Name, frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, sliced.Node, [sliced], new NameValue(method.Name), new NameValue(frame.Describe()));
             }
         }
 
         if(node is ListPattern list && MutableRead(list, inference) is { } mutable)
         {
-            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, list.Node, [], mutable, frame.Describe());
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, list.Node, [], new NameValue(mutable), new NameValue(frame.Describe()));
         }
     }
 
@@ -372,7 +373,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyFieldAssigned, target.Node, [target],
-                field.Name, field.DeclaringType?.Name ?? "?");
+                new NameValue(field.Name), field.DeclaringType is { } declaring ? DiagnosticSnapshot.Type(declaring, declaring.Name) : new TypeValue("unavailable", "?"));
         }
     }
 
@@ -388,7 +389,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             if(!inference.IsReadonly(add) && !inference.Of(add).Local)
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, entry.Node, [entry.Value], add.Name, frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, entry.Node, [entry.Value], new NameValue(add.Name), new NameValue(frame.Describe()));
             }
 
             return;
@@ -396,7 +397,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
         if(entry.Member is PropertyResult { Property: { Setter: { } setter } property } && inference.Of(setter) is { Readonly: false, Local: false })
         {
-            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, entry.Node, [entry.Value], property.Name, frame.Describe());
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, entry.Node, [entry.Value], new NameValue(property.Name), new NameValue(frame.Describe()));
         }
     }
 
@@ -407,7 +408,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, at.Node, [at],
-                property.Name, frame.Describe());
+                new NameValue(property.Name), new NameValue(frame.Describe()));
         }
     }
 
@@ -417,7 +418,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
         if(ClrCallbacks.IsUnrecorded(loop))
         {
-            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], "GetEnumerator", frame.Describe());
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], new NameValue("GetEnumerator"), new NameValue(frame.Describe()));
             return;
         }
 
@@ -425,7 +426,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             if(method is not null && !inference.IsReadonly(method) && !frame.LocalOn(collection, method, inference))
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], method.Name, frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], new NameValue(method.Name), new NameValue(frame.Describe()));
                 return;
             }
         }
@@ -434,7 +435,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             && !inference.IsReadonlyGetter(current)
             && !(frame.Origins.Of(collection) is Origin.Own && current.Getter is { } getter && inference.Of(getter).Local))
         {
-            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], current.Name, frame.Describe());
+            context.Report(ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, collection.Node, [collection], new NameValue(current.Name), new NameValue(frame.Describe()));
         }
     }
 
@@ -443,7 +444,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         var origin = frame.Origins.Of(value) is Origin.Frozen ? "a frozen input" : "external";
         var named = value is LocalReferenceExpression local ? $"'{local.Local.Name}'" : "the value";
 
-        context.Report(ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], named, $"readonly {frame.Describe()}", origin);
+        context.Report(ProgramAnalysisDiagnostics.PureScopeStoresUnowned, value.Node, [value], new NameValue(named), new NameValue($"readonly {frame.Describe()}"), new NameValue(origin));
     }
 
     private static void JudgeAssignment(
@@ -453,7 +454,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             if(frame.IsReadonly && frame.Member is not Constructor)
             {
-                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughRef, target.Node, [target], "this", frame.Describe());
+                context.Report(ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughRef, target.Node, [target], new NameValue("this"), new NameValue(frame.Describe()));
             }
 
             return;
@@ -465,7 +466,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldAssignedOnReadonlyParameter, target.Node,
-                [target], through.Name, ReadonlyParameterReceivers.Describe(fieldReceiver, parameter));
+                [target], new NameValue(through.Name), new NameValue(ReadonlyParameterReceivers.Describe(fieldReceiver, parameter)));
             return;
         }
 
@@ -476,7 +477,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, target.Node,
-                [target], setOnParameter.Name, ReadonlyParameterReceivers.Describe(setReceiver, setThrough));
+                [target], new NameValue(setOnParameter.Name), new NameValue(ReadonlyParameterReceivers.Describe(setReceiver, setThrough)));
             return;
         }
 
@@ -486,7 +487,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyParameterSetsProperty, target.Node,
-                [target], "this[]", ReadonlyParameterReceivers.Describe(setIndex.Receiver, indexThrough));
+                [target], new NameValue("this[]"), new NameValue(ReadonlyParameterReceivers.Describe(setIndex.Receiver, indexThrough)));
             return;
         }
 
@@ -504,7 +505,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughRef, target.Node, [target],
-                    referencing.Name, frame.Describe());
+                    new NameValue(referencing.Name), new NameValue(frame.Describe()));
             }
 
             return;
@@ -516,7 +517,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughRef, target.Node, [target],
-                    alias.Name, frame.Describe());
+                    new NameValue(alias.Name), new NameValue(frame.Describe()));
             }
 
             return;
@@ -528,7 +529,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughIndex, target.Node,
-                    [target], reached, frame.Describe());
+                    [target], new NameValue(reached), new NameValue(frame.Describe()));
             }
 
             return;
@@ -540,7 +541,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextWritesThroughIndex, target.Node,
-                    [target], element.Receiver is LocalReferenceExpression handed ? handed.Local.Name : "the value", frame.Describe());
+                    [target], new NameValue(element.Receiver is LocalReferenceExpression handed ? handed.Local.Name : "the value"), new NameValue(frame.Describe()));
             }
 
             return;
@@ -557,7 +558,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, target.Node,
-                    [target], "this[]", frame.Describe());
+                    [target], new NameValue("this[]"), new NameValue(frame.Describe()));
             }
 
             return;
@@ -569,7 +570,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.ReadonlyContextSetsProperty, target.Node,
-                    [target], set.Name, frame.Describe());
+                    [target], new NameValue(set.Name), new NameValue(frame.Describe()));
             }
 
             return;
@@ -581,7 +582,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.FieldAssignedInReadonlyMember, target.Node,
-                    [target], "field", frame.MemberName());
+                    [target], new NameValue("field"), new NameValue(frame.MemberName()));
             }
 
             return;
@@ -596,7 +597,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldAssignedInReadonlyBlock, target.Node,
-                [target], field.Name);
+                [target], new NameValue(field.Name));
             return;
         }
 
@@ -609,13 +610,13 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
         {
             context.Report(
                 ProgramAnalysisDiagnostics.FieldAssignedInReadonlyMember, target.Node,
-                [target], field.Name, frame.MemberName());
+                [target], new NameValue(field.Name), new NameValue(frame.MemberName()));
         }
         else if(field.Modifiers.IsReadonly && !frame.Constructs(field, target) && !frame.PurityRefusesWrite(own))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.ReadonlyFieldAssigned, target.Node,
-                [target], field.Name, field.DeclaringType?.Name ?? "?");
+                [target], new NameValue(field.Name), field.DeclaringType is { } declaring ? DiagnosticSnapshot.Type(declaring, declaring.Name) : new TypeValue("unavailable", "?"));
         }
     }
 

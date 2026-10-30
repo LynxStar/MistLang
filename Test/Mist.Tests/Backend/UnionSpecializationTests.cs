@@ -450,7 +450,7 @@ public sealed class UnionSpecializationTests : ProgramModelProbe
         var diagnostics = new DiagnosticBag();
         using var specialization = UnionSpecialization.Enter(model, diagnostics);
 
-        _ = Assert.Single(diagnostics.ToImmutableArray(), d => d.Id.Value == "MIST_BE_UNBOUNDED_SPECIALIZATION");
+        _ = Assert.Single(diagnostics.ToImmutableArray(), d => d.Number.Value == "MIST0027");
     }
 
     [Theory]

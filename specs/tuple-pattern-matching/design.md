@@ -217,10 +217,10 @@ Additionally, the comma-separated subpatterns within parentheses must continue r
 
 | Diagnostic ID | Severity | Message Template |
 |---|---|---|
-| `MIST_TC_XXXX` | Error | `Positional pattern requires a tuple type, but the scrutinee has type '{actualType}'` |
-| `MIST_TC_XXXY` | Error | `Tuple positional pattern has {patternCount} elements, but the tuple type '{tupleDisplayName}' has {tupleArity} elements` |
+| `MIST_TC_XXXX (historical)` | Error | `Positional pattern requires a tuple type, but the scrutinee has type '{actualType}'` |
+| `MIST_TC_XXXY (historical)` | Error | `Tuple positional pattern has {patternCount} elements, but the tuple type '{tupleDisplayName}' has {tupleArity} elements` |
 
-Element-level diagnostics reuse existing diagnostic IDs (e.g., `MIST_TC_0060` for type incompatibility, relational pattern diagnostics for non-comparable types). The position information comes from the source span of the individual element pattern node.
+Element-level diagnostics reuse existing diagnostic IDs (e.g., `MIST_TC_0060 (historical)` for type incompatibility, relational pattern diagnostics for non-comparable types). The position information comes from the source span of the individual element pattern node.
 
 ### 9. Sample Application (`samples/TuplePatternMatching/`)
 

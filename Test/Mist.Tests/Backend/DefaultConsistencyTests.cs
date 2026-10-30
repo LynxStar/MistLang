@@ -10,7 +10,7 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class DefaultConsistencyTests
 {
-    private const string NotConsistent = "MIST_PA_DEFAULT_NOT_CONSISTENT";
+    private const string NotConsistent = "MIST0143";
 
     [Theory]
     [InlineData("initializer-allocating-through-a-pure-constructor-of-a-pure-type")]
@@ -38,7 +38,7 @@ public sealed class DefaultConsistencyTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(declaration));
 
-        Assert.Equal(NotConsistent, finding.Id.Value);
+        Assert.Equal(NotConsistent, finding.Number.Value);
         Assert.Contains($"'{field}'", finding.Message, StringComparison.Ordinal);
         Assert.Contains("Box", finding.Message, StringComparison.Ordinal);
     }

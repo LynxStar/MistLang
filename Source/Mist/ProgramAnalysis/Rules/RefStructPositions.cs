@@ -13,7 +13,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// </summary>
 internal static class RefStructPositions
 {
-    public static DiagnosticDescriptor? Field(MemberType container, Field field)
+    public static MistDiagnostic? Field(MemberType container, Field field)
     {
         if(!RefStructs.Is(field.Type))
         {
@@ -28,7 +28,7 @@ internal static class RefStructPositions
         return container is StructType { IsRef: true } ? null : ProgramAnalysisDiagnostics.RefStructField;
     }
 
-    public static DiagnosticDescriptor? Property(MemberType container, Property property)
+    public static MistDiagnostic? Property(MemberType container, Property property)
     {
         if(!RefStructs.Is(property.Type))
         {

@@ -33,7 +33,7 @@ The matrix follows directly from matching container promises against field requi
 - **Relevant containers** may be dropped multiple times, so they cannot hold fields that require at most one drop (linear, affine).
 - **Unrestricted containers** make no guarantees at all — only unrestricted fields are safe.
 
-An array is an unrestricted container too, so an array literal or `new T[n]` whose element type is `linear` or `affine` is refused with `MIST_PA_ARRAY_ELEMENT_DISCIPLINE`.
+An array is an unrestricted container too, so an array literal or `new T[n]` whose element type is `linear` or `affine` is refused with `MIST0458`.
 
 {{#tabs }}
 {{#tab name="Mist" }}

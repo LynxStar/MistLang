@@ -33,7 +33,7 @@ public sealed class SizedArrayLengthTests
         var f = Fragments();
 
         _ = Assert.IsType<ErrorType>(f.Builder.Resolver.Resolve(IntArray(size), f.Scope));
-        Assert.Equal("MIST_PM_NUMERIC_LITERAL_OUT_OF_RANGE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0377", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     private static BindingFragments Fragments()

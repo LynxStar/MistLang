@@ -150,8 +150,9 @@ internal static class DropInsertion
     /// </summary>
     public static string FieldDrop(Field field)
     {
+        // A held discipline-constrained value excludes absence without a corresponding C# generic constraint.
         return IsDroppableParameter(field.Type)
-            ? $"((dynamic)this.{IdentifierSpelling.Of(field.Name)}).Drop();"
+            ? $"((dynamic)this.{IdentifierSpelling.Of(field.Name)}!).Drop();"
             : $"{DropChain($"this.{IdentifierSpelling.Of(field.Name)}", field.Type)};"
             ;
     }

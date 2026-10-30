@@ -72,7 +72,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [Fact]
     public void TooFewForTheFixedParameters_IsStillRefused()
     {
-        _ = Assert.Single(Errors(Run("var n = Calls.Middle(1);"), "MIST_PM_NO_APPLICABLE_OVERLOAD"));
+        _ = Assert.Single(Errors(Run("var n = Calls.Middle(1);"), "MIST0385"));
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     {
         _ = Assert.Single(Errors(
             BuildRun("", "public class Bad { public static int M(params int[] xs, string tail) { return 0; } }"),
-            "MIST_VAR_0012"));
+            "MIST0413"));
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [InlineData("public static int M<TFirst, params TMid, TLast>(TFirst f, params TMid m, TLast l) { return 0; }")]
     public void ADeclarationCSharpWouldAccept_AndAMiddlePack_AreNot(string declaration)
     {
-        Assert.Empty(Errors(BuildRun("", $"public class Fine {{ {declaration} }}"), "MIST_VAR_0012"));
+        Assert.Empty(Errors(BuildRun("", $"public class Fine {{ {declaration} }}"), "MIST0413"));
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [InlineData("public class Bad<params TArgs> { public void M(params int[] a, params TArgs b) { } }")]
     public void ASecondParamsInOneList_IsRefusedAtTheDeclaration(string declaration)
     {
-        var error = Assert.Single(Errors(BuildRun("", declaration), "MIST_VAR_0001"));
+        var error = Assert.Single(Errors(BuildRun("", declaration), "MIST0405"));
 
         Assert.Contains("'b' is a second 'params' parameter after 'a'", error.Message);
     }
@@ -139,7 +139,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     {
         var errors = Errors(
             BuildRun("", "public class Bad<params TArgs> { public void M(params TArgs a, params TArgs b, params TArgs c) { } }"),
-            "MIST_VAR_0001").ToList();
+            "MIST0405").ToList();
 
         Assert.Equal(["'b' is a second", "'c' is a second"], errors.Select(error => error.Message[..15]));
     }
@@ -147,7 +147,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [Fact]
     public void ASecondParamsInALocalFunctionsList_IsRefused()
     {
-        _ = Assert.Single(Errors(Run("int Count(params int[] a, int mid, params int[] b) { return 0; }"), "MIST_VAR_0001"));
+        _ = Assert.Single(Errors(Run("int Count(params int[] a, int mid, params int[] b) { return 0; }"), "MIST0405"));
     }
 
     [Fact]
@@ -169,7 +169,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [InlineData("public static int M(params int x, string tail) { return 0; }", 0)]
     public void OnlyAWellFormedArrayStillAbsorbing_IsRefusedForItsPosition(string declaration, int notLast)
     {
-        Assert.Equal(notLast, Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST_VAR_0012").Count());
+        Assert.Equal(notLast, Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST0413").Count());
     }
 
     [Theory]
@@ -180,7 +180,7 @@ public sealed class ValuePackTests : ProgramModelProbe
     [InlineData("public static int M(params ref Standard.List<int> xs) { return 0; }", "it is passed by reference")]
     public void AParamsThatCannotCollectAFlatListOfValues_IsRefused(string declaration, string reason)
     {
-        var error = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST_VAR_0013"));
+        var error = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), "MIST0414"));
 
         Assert.Contains(reason, error.Message);
     }
@@ -212,9 +212,9 @@ public sealed class ValuePackTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("public static int M(params Standard.List<int> xs, string tail) { return 0; }", "MIST_VAR_0012")]
-    [InlineData("public static int M(params Standard.List<int> a, params Standard.List<int> b) { return 0; }", "MIST_VAR_0001")]
-    [InlineData("public static int M<params TArgs>(params TArgs a, params Standard.List<int> b) { return 0; }", "MIST_VAR_0001")]
+    [InlineData("public static int M(params Standard.List<int> xs, string tail) { return 0; }", "MIST0413")]
+    [InlineData("public static int M(params Standard.List<int> a, params Standard.List<int> b) { return 0; }", "MIST0405")]
+    [InlineData("public static int M<params TArgs>(params TArgs a, params Standard.List<int> b) { return 0; }", "MIST0405")]
     public void AParamsCollection_CountsAsTheOneParamsOfItsList(string declaration, string id)
     {
         _ = Assert.Single(Errors(BuildRun("", $"public class Bad {{ {declaration} }}"), id));
@@ -245,7 +245,7 @@ public sealed class ValuePackTests : ProgramModelProbe
         _ = Assert.Single(
             Errors(
                 Run("var b = new Packs.Bundle<int, string, bool>(); var x = b.Item4;"),
-                "MIST_PM_UNRESOLVED_MEMBER"));
+                "MIST0301"));
     }
 
     private const string Inheriting = """
@@ -275,14 +275,14 @@ public sealed class ValuePackTests : ProgramModelProbe
     [Fact]
     public void AnInheritedProjectionPastTheEndOfTheBasesPack_IsRefused()
     {
-        _ = Assert.Single(Errors(BuildRun("var sub = new Sub(); var x = sub.Item3;", Inheriting), "MIST_PM_UNRESOLVED_MEMBER"));
+        _ = Assert.Single(Errors(BuildRun("var sub = new Sub(); var x = sub.Item3;", Inheriting), "MIST0301"));
     }
 
     [Fact]
     public void SpreadOfSomethingWithNoKnownLength_IsRefused()
     {
         _ = Assert.Single(
-            Errors(Run("var n = 5; var s = Calls.Add2(n...);"), "MIST_VAR_0011"));
+            Errors(Run("var n = 5; var s = Calls.Add2(n...);"), "MIST0415"));
     }
 
     [Fact]
@@ -295,6 +295,6 @@ public sealed class ValuePackTests : ProgramModelProbe
             }
             """);
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_VAR_0011"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0415"));
     }
 }

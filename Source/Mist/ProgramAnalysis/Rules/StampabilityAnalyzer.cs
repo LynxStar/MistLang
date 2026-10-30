@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
@@ -21,7 +22,7 @@ internal sealed class StampabilityAnalyzer : IProgramAnalyzer
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.StampableDeclarationNotSatisfied, declaration, [],
-                    TypeDisplay.Mist(type), reason);
+                    DiagnosticSnapshot.Type(type), new NameValue(reason));
             }
         }
 
@@ -32,13 +33,13 @@ internal sealed class StampabilityAnalyzer : IProgramAnalyzer
                 case ArrayCreationExpression array when WhyNot(array.ElementType) is { } reason:
                     context.Report(
                         ProgramAnalysisDiagnostics.ArrayRequiresInitializer, array.Node, [array],
-                        TypeDisplay.Mist(array.ElementType), reason);
+                        DiagnosticSnapshot.Type(array.ElementType), new NameValue(reason));
                     break;
 
                 case StackallocExpression allocation when WhyNot(allocation.ElementType) is { } reason:
                     context.Report(
                         ProgramAnalysisDiagnostics.StackallocElementNotStampable, allocation.Node, [allocation],
-                        TypeDisplay.Mist(allocation.ElementType), reason);
+                        DiagnosticSnapshot.Type(allocation.ElementType), new NameValue(reason));
                     break;
             }
         }

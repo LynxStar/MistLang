@@ -84,8 +84,7 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
 
         if(functions.ContainsKey(local.Name) || !locals.TryAdd(local.Name, local))
         {
-            diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.DuplicateLocalVariable, declaration, nameSpan ?? declaration.Span, null, local.Name);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateLocalVariable, declaration, nameSpan ?? declaration.Span, null, new NameValue(local.Name));
         }
     }
 
@@ -95,7 +94,7 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
 
         if(locals.ContainsKey(function.Name) || !functions.TryAdd(function.Name, function))
         {
-            diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateLocalFunction, node, null, function.Name);
+            diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateLocalFunction, node, null, new NameValue(function.Name));
         }
     }
 }

@@ -166,12 +166,12 @@ This implementation unifies Mist's `interface` and `trait` keywords into a singl
 
   - [x] 1.23b Diagnostic IDs and field names
     - `DiagnosticId.cs`: rename fields `DefaultOnInterface` → `DefaultOnAbstract`, `TargetNewInterface` → `TargetNewAbstract`
-    - `DiagnosticId.cs`: rename string values `"MIST_DEFAULT_ON_INTERFACE"` → `"MIST_DEFAULT_ON_ABSTRACT"`, `"MIST_TARGET_NEW_INTERFACE"` → `"MIST_TARGET_NEW_ABSTRACT"`
-    - `SemanticModelBuilder.cs`: rename field `MissingInterfaceOverload` → `MissingAbstractOverload` (keep string `"MIST_SM_0022"` unchanged — it's a stable ID)
+    - `DiagnosticId.cs`: rename string values `"MIST_DEFAULT_ON_INTERFACE (historical)"` → `"MIST_DEFAULT_ON_ABSTRACT (historical)"`, `"MIST_TARGET_NEW_INTERFACE (historical)"` → `"MIST_TARGET_NEW_ABSTRACT (historical)"`
+    - `SemanticModelBuilder.cs`: rename field `MissingInterfaceOverload` → `MissingAbstractOverload` (keep string `"MIST_SM_0022 (historical)"` unchanged — it's a stable ID)
     - `SemanticModelBuilder.cs`: rename field `RefinementConstraintStrongerThanInterface` → `RefinementConstraintStrongerThanAbstract`
-    - `SemanticModelBuilder.cs`: rename string IDs `"MIST_UNDEFINED_INTERFACE"` → `"MIST_UNDEFINED_ABSTRACT"`, `"MIST_NOT_AN_INTERFACE"` → `"MIST_NOT_AN_ABSTRACT"`, `"MIST_CIRCULAR_INTERFACE_INHERITANCE"` → `"MIST_CIRCULAR_ABSTRACT_INHERITANCE"`, `"MIST_MISSING_INTERFACE_PROPERTY"` → `"MIST_MISSING_ABSTRACT_PROPERTY"`, `"MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR"` → `"MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR"`
+    - `SemanticModelBuilder.cs`: rename string IDs `"MIST_UNDEFINED_INTERFACE (historical)"` → `"MIST_UNDEFINED_ABSTRACT (historical)"`, `"MIST_NOT_AN_INTERFACE (historical)"` → `"MIST_NOT_AN_ABSTRACT (historical)"`, `"MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)"` → `"MIST_CIRCULAR_ABSTRACT_INHERITANCE (historical)"`, `"MIST_MISSING_INTERFACE_PROPERTY (historical)"` → `"MIST_MISSING_ABSTRACT_PROPERTY (historical)"`, `"MIST_MISSING_INTERFACE_PROPERTY_ACCESSOR (historical)"` → `"MIST_MISSING_ABSTRACT_PROPERTY_ACCESSOR (historical)"`
     - `SemanticModelBuilder.cs`: update diagnostic MESSAGE strings ("interface" → "abstract type" in user-facing text)
-    - `OwnershipAnalyzer.cs`: rename field `InterfaceForbidden` → `AbstractForbidden`, rename string `"MIST_OWN_INTERFACE_FORBIDDEN"` → `"MIST_OWN_ABSTRACT_FORBIDDEN"`
+    - `OwnershipAnalyzer.cs`: rename field `InterfaceForbidden` → `AbstractForbidden`, rename string `"MIST_OWN_INTERFACE_FORBIDDEN (historical)"` → `"MIST_OWN_ABSTRACT_FORBIDDEN (historical)"`
     - `TypeCheckerAnalyzer.cs`: rename field `ConstraintInterfaceNotImplemented` → `ConstraintAbstractNotImplemented`, update message strings
     - Update all tests that assert on these diagnostic ID strings (e.g., `InvalidAbstractReferencePropertyTests`, `AbstractCycleDetectionPropertyTests`, `ConstraintDiagnosticsTests`, `TargetTypedNewDiagnosticTests`, `InvalidEnumerableImplementationPropertyTests`, `OwnedTypeConstraintPropertyTests`)
 

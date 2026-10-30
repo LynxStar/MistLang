@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.Common.Diagnostics;
 
 namespace Mist.Driver.Contracts;
 
@@ -50,6 +51,10 @@ namespace Mist.Driver.Contracts;
 /// a dedicated <c>&lt;PropertyGroup&gt;</c> in the generated <c>.csproj</c> file.
 /// Defaults to an empty array when no <c>[csproj_properties]</c> section is present.
 /// </param>
+/// <param name="Diagnostics">
+/// The policy declared by the <c>[diagnostics]</c> table in <c>mist.toml</c>, already validated
+/// against the registry. Defaults to <see cref="DiagnosticPolicy.Default"/> when the table is absent.
+/// </param>
 /// <param name="OutputType">
 /// The kind of output artifact the project produces. Parsed from the optional
 /// <c>output_type</c> field in <c>mist.toml</c>. Valid values are <c>"executable"</c>
@@ -66,4 +71,8 @@ public sealed record ProjectConfiguration(
     ImmutableArray<FrameworkReference> FrameworkReferences = default,
     string TargetFramework = "net10.0",
     ImmutableArray<CsprojProperty> CsprojProperties = default,
-    ProjectOutputType OutputType = ProjectOutputType.Executable);
+    ProjectOutputType OutputType = ProjectOutputType.Executable,
+    DiagnosticPolicy? Diagnostics = null)
+{
+    public DiagnosticPolicy Diagnostics { get; } = Diagnostics ?? DiagnosticPolicy.Default;
+}

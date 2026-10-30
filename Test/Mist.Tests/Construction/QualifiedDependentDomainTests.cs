@@ -97,9 +97,9 @@ public sealed class QualifiedDependentDomainTests
         else
         {
             var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-            Assert.Equal("MIST_DT_0001", diagnostic.Id.Value);
-            Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-            Assert.Equal(31, diagnostic.Location.Start.Column);
+            Assert.Equal("MIST0407", diagnostic.Number.Value);
+            Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+            Assert.Equal(31, diagnostic.Position().Start.Column);
         }
     }
 
@@ -117,10 +117,10 @@ public sealed class QualifiedDependentDomainTests
         Assert.True(parameter.IsDependent);
         Assert.Null(parameter.Domain);
         Assert.Equal(spelling, parameter.DomainTypeName);
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST0298", diagnostic.Number.Value);
         Assert.Contains(spelling, diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
         Assert.Empty(f.Model.TypeNamings.Namings);
     }
 
@@ -136,10 +136,10 @@ public sealed class QualifiedDependentDomainTests
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
 
         Assert.Null(Assert.Single(owner.TypeParametersList).Domain);
-        Assert.Equal("MIST_PM_AMBIGUOUS_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST0299", diagnostic.Number.Value);
         Assert.Contains("Ranges.Small", diagnostic.Message, StringComparison.Ordinal);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -163,8 +163,8 @@ public sealed class QualifiedDependentDomainTests
         f.Context.Domains.Resolve(owner.TypeParametersList, declaration);
 
         var diagnostics = f.Diagnostics.ToImmutableArray();
-        Assert.Equal([21, 41], diagnostics.Select(diagnostic => diagnostic.Location.Start.Column));
-        Assert.All(diagnostics, diagnostic => Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value));
+        Assert.Equal([21, 41], diagnostics.Select(diagnostic => diagnostic.Position().Start.Column));
+        Assert.All(diagnostics, diagnostic => Assert.Equal("MIST0298", diagnostic.Number.Value));
         Assert.All(owner.TypeParametersList, parameter => Assert.Null(parameter.Domain));
     }
 

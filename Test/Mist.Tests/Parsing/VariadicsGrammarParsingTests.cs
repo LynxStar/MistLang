@@ -316,7 +316,7 @@ public class VariadicsGrammarParsingTests
     // ═══════════════════════════════════════════════════════════════════════
     // Requirement 1.8 — more than one `params` in a single type-parameter or
     // value-parameter list parses WITHOUT a parse-error diagnostic; each `params`
-    // is parsed as a valid pack declaration and the at-most-one check (MIST_VAR_0001)
+    // is parsed as a valid pack declaration and the at-most-one check (MIST0404)
     // is left to the program model.
     // ═══════════════════════════════════════════════════════════════════════
 

@@ -48,7 +48,7 @@ public sealed class RealImplementationDecisionTests
     [InlineData("decimal", "", ">= 0.0m")]
     public void AStricterRealImplementation_IsRefused(string type, string promised, string demanded)
     {
-        Assert.Equal("MIST_PA_CONSTRAINT_STRENGTHENED", Assert.Single(Analyse(type, promised, demanded)).Id.Value);
+        Assert.Equal("MIST0283", Assert.Single(Analyse(type, promised, demanded)).Number.Value);
     }
 
     private static ImmutableArray<Diagnostic> Analyse(string type, string promised, string demanded)

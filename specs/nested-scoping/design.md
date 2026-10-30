@@ -206,11 +206,11 @@ The pretty printer already tracks indentation via `_indent` and increments it wh
 
 | Code | Message | Location |
 |------|---------|----------|
-| `MIST0301` | "Only one file-scoped namespace is permitted per file." | Second file-scoped namespace declaration |
-| `MIST0302` | "File-scoped and block namespaces cannot be mixed in the same file." | The conflicting declaration |
-| `MIST0303` | "Duplicate type '{name}' in type '{parent}'." | Second nested type with same name |
-| `MIST0304` | "Type '{name}' conflicts with type parameter '{name}' on '{parent}'." | Nested type declaration |
-| `MIST0305` | "File-scoped namespace declarations cannot appear inside a block namespace." | File-scoped namespace inside block |
+| `MIST0290` | "Only one file-scoped namespace is permitted per file." | Second file-scoped namespace declaration |
+| `MIST0291` | "File-scoped and block namespaces cannot be mixed in the same file." | The conflicting declaration |
+| `MIST0303 (historical)` | "Duplicate type '{name}' in type '{parent}'." | Second nested type with same name |
+| `MIST0304 (historical)` | "Type '{name}' conflicts with type parameter '{name}' on '{parent}'." | Nested type declaration |
+| `MIST0292` | "File-scoped namespace declarations cannot appear inside a block namespace." | File-scoped namespace inside block |
 
 ## Data Models
 

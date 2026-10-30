@@ -28,7 +28,7 @@ You can use all the same constructs you'd use inside a method body: variable dec
 A project may have at most **one** file containing top-level statements. If the compiler finds statements at file scope in more than one file, it reports an error listing all the conflicting files:
 
 ```
-error MIST_EP_0001: Multiple files contain top-level statements. Only one file
+error MIST0109: Multiple files contain top-level statements. Only one file
 per project may have top-level statements. Files: Program.mist, Script.mist
 ```
 
@@ -43,7 +43,7 @@ When a project has both a top-level statement file and a class with `static void
 If your project has a file with top-level statements and a class with `static void Main`, and no `entry_point` field in `mist.toml`, the compiler reports:
 
 ```
-error MIST_EP_0002: Project has both top-level statements (in 'Program.mist') and
+error MIST0110: Project has both top-level statements (in 'Program.mist') and
 a static void Main (in 'MyApp.Launcher'). Add entry_point = "top-level" to
 mist.toml to resolve this conflict.
 ```
@@ -55,7 +55,7 @@ A top-level statement file must always be the entry point when present — you c
 If your project has multiple classes with `static void Main` (and no top-level statements), the compiler also reports an error:
 
 ```
-error MIST_EP_0004: Multiple classes contain static void Main: MyApp.Launcher,
+error MIST0112: Multiple classes contain static void Main: MyApp.Launcher,
 MyApp.Program. Add entry_point = "MyApp.Launcher" to mist.toml to specify
 which one to use.
 ```
@@ -148,7 +148,7 @@ In this example, `Helper` belongs to the `MyApp` namespace and is accessible fro
 **Block namespace declarations** (e.g., `namespace Foo { ... }`) are not allowed in top-level statement files. The compiler reports an error if you try:
 
 ```
-error MIST_EP_0006: Top-level statements cannot coexist with block namespace
+error MIST0114: Top-level statements cannot coexist with block namespace
 declarations in the same file. Use a file-scoped namespace (namespace X;) instead.
 ```
 

@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -68,13 +69,13 @@ internal static class Callability
             return false;
         }
 
-        var type = TypeDisplay.Mist(callee is MemberAccessExpression { IsConditional: true }
+        var type = callee is MemberAccessExpression { IsConditional: true }
             ? OptionalLifting.NonVoidPortion(callee.Type, context.ProgramModel.TypeInterner)
-            : callee.Type);
+            : callee.Type;
 
         if(NameOf(callee) is not { } name)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ValueNotCallable, call, null, type);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ValueNotCallable, call, null, DiagnosticSnapshot.Type(type));
             return true;
         }
 
@@ -83,16 +84,11 @@ internal static class Callability
                 ReceiverType(access, context), name, VisibilityOf(access), context.ProgramModel)
             : [];
 
-        if(offering.Count == 0)
-        {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.NotCallable, call, null, name, type);
-        }
-        else
-        {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.NotCallableExtensionNotImported, call, null,
-                name, type, string.Join(", ", offering.Select(ns => $"'{ns}'")));
-        }
+        var namespaces = offering.Count == 0 ? null
+            : new SequenceValue(SlotKind.Name, [.. offering.Select(name => (SlotValue)new NameValue(name))], ItemPrefix: "'", ItemSuffix: "'");
+        context.Diagnostics.ReportAtNodeTyped(
+            ProgramModelDiagnostics.NotCallable, call, null,
+            new NameValue(name), DiagnosticSnapshot.Type(type), new OptionalValue(SlotKind.Sequence, namespaces));
 
         return true;
     }

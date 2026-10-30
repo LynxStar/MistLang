@@ -13,10 +13,10 @@ namespace Mist.Tests.Parsing;
 
 /// <summary>
 /// Property-based tests verifying that the parser does NOT emit
-/// <c>MIST_PARSE_INCOMPLETE</c> for fully valid source files.
+/// <c>MIST0123</c> for fully valid source files.
 ///
 /// For all source files where the Storm parser returns a non-null root and
-/// consumes all default-channel tokens, no <c>MIST_PARSE_INCOMPLETE</c>
+/// consumes all default-channel tokens, no <c>MIST0123</c>
 /// diagnostic is emitted.
 ///
 /// **Validates: Requirements 3.2**
@@ -246,7 +246,7 @@ public class CompletenessSilencePropertyTests
     /// Property 6: Completeness Silence on Full Consumption.
     ///
     /// For all source files where the Storm parser returns a non-null root and
-    /// consumes all default-channel tokens, no <c>MIST_PARSE_INCOMPLETE</c>
+    /// consumes all default-channel tokens, no <c>MIST0123</c>
     /// diagnostic is emitted.
     ///
     /// **Validates: Requirements 3.2**
@@ -259,7 +259,7 @@ public class CompletenessSilencePropertyTests
         var diagnostics = ParseAndGetDiagnostics(scenario.Source);
 
         var incompleteDiags = diagnostics
-            .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+            .Where(d => d.Number.Value == "MIST0123")
             .ToList();
 
         return incompleteDiags.Count == 0;
@@ -269,7 +269,7 @@ public class CompletenessSilencePropertyTests
 
     /// <summary>
     /// Validates that a curated set of known-valid programs produce no
-    /// MIST_PARSE_INCOMPLETE diagnostics. These cover structural patterns
+    /// MIST0123 diagnostics. These cover structural patterns
     /// that the random generator might not exercise.
     /// </summary>
     [Fact]
@@ -315,12 +315,12 @@ public class CompletenessSilencePropertyTests
         {
             var diagnostics = ParseAndGetDiagnostics(source);
             var incompleteDiags = diagnostics
-                .Where(d => d.Id.Value == "MIST_PARSE_INCOMPLETE")
+                .Where(d => d.Number.Value == "MIST0123")
                 .ToList();
 
             Assert.True(
                 incompleteDiags.Count == 0,
-                $"Source produced MIST_PARSE_INCOMPLETE but is valid:\n---\n{source}\n---\nDiagnostic: {(incompleteDiags.Count > 0 ? incompleteDiags[0].Message : "")}");
+                $"Source produced MIST0123 but is valid:\n---\n{source}\n---\nDiagnostic: {(incompleteDiags.Count > 0 ? incompleteDiags[0].Message : "")}");
         }
     }
 }

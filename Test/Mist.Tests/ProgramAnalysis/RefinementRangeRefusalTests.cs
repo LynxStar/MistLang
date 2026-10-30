@@ -13,34 +13,34 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RefinementRangeRefusalTests
 {
     [Theory]
-    [InlineData("copied-invalid-slice-has-one-refusal", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("custom-slice-name-does-not-prove-length", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-a-copied-symbolic-range-bound-is-written", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("index-after-a-range-bound-is-reassigned-before-reconstruction", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-equal-length-different-range-joins", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-equivalent-stored-range-is-reassigned", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-equivalent-stored-range-is-written-by-a-lambda", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-range-from-end-marker-disagreement", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-repeated-unsupported-range-bounds", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-same-named-range-bounds-from-distinct-scopes", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-after-stored-index-marker-disagreement", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-past-a-range-the-paths-disagree-on", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("index-past-a-stored-range", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("index-past-equivalent-stored-range-join", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("negative-from-end-slice-offset-with-unknown-receiver", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("negative-slice-start", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("range-index-conversion-does-not-capture-its-operand", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("range-index-member-does-not-lift-a-getter-body", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("range-member-does-not-read-a-field-initializer", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("reversed-from-end-slice-endpoints", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("reversed-slice-endpoints", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("slice-constant-index-out-of-bounds", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("slice-end-beyond-receiver", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("slice-from-end-beyond-receiver", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("slice-past-decoded-string-length", "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("stored-index-owned-field-ref-alias-is-unproven", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("stored-index-owned-this-field-ref-alias-is-unproven", "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("user-comparison-does-not-prove-an-index-conversion-offset", "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("copied-invalid-slice-has-one-refusal", "MIST0274")]
+    [InlineData("custom-slice-name-does-not-prove-length", "MIST0275")]
+    [InlineData("index-after-a-copied-symbolic-range-bound-is-written", "MIST0274")]
+    [InlineData("index-after-a-range-bound-is-reassigned-before-reconstruction", "MIST0275")]
+    [InlineData("index-after-equal-length-different-range-joins", "MIST0275")]
+    [InlineData("index-after-equivalent-stored-range-is-reassigned", "MIST0275")]
+    [InlineData("index-after-equivalent-stored-range-is-written-by-a-lambda", "MIST0275")]
+    [InlineData("index-after-range-from-end-marker-disagreement", "MIST0275")]
+    [InlineData("index-after-repeated-unsupported-range-bounds", "MIST0275")]
+    [InlineData("index-after-same-named-range-bounds-from-distinct-scopes", "MIST0275")]
+    [InlineData("index-after-stored-index-marker-disagreement", "MIST0275")]
+    [InlineData("index-past-a-range-the-paths-disagree-on", "MIST0275")]
+    [InlineData("index-past-a-stored-range", "MIST0274")]
+    [InlineData("index-past-equivalent-stored-range-join", "MIST0274")]
+    [InlineData("negative-from-end-slice-offset-with-unknown-receiver", "MIST0274")]
+    [InlineData("negative-slice-start", "MIST0274")]
+    [InlineData("range-index-conversion-does-not-capture-its-operand", "MIST0275")]
+    [InlineData("range-index-member-does-not-lift-a-getter-body", "MIST0275")]
+    [InlineData("range-member-does-not-read-a-field-initializer", "MIST0275")]
+    [InlineData("reversed-from-end-slice-endpoints", "MIST0274")]
+    [InlineData("reversed-slice-endpoints", "MIST0274")]
+    [InlineData("slice-constant-index-out-of-bounds", "MIST0274")]
+    [InlineData("slice-end-beyond-receiver", "MIST0274")]
+    [InlineData("slice-from-end-beyond-receiver", "MIST0274")]
+    [InlineData("slice-past-decoded-string-length", "MIST0274")]
+    [InlineData("stored-index-owned-field-ref-alias-is-unproven", "MIST0275")]
+    [InlineData("stored-index-owned-this-field-ref-alias-is-unproven", "MIST0275")]
+    [InlineData("user-comparison-does-not-prove-an-index-conversion-offset", "MIST0275")]
     public void CapturedRangeFactsMustProveTheSlice(string name, string expected)
     {
         var h = new HandBuiltRefinements();
@@ -167,7 +167,7 @@ public sealed class RefinementRangeRefusalTests
                     statements.Add(HandBuiltRefinements.If(comparison,
                         HandBuiltRefinements.Give(slice, new IndexExpression(HandBuiltModel.Node(), receiver, range, h.Sequence()) { ParameterType = h.Range }),
                         HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(access)))));
-                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                    Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
                 }
 
                 break;
@@ -191,7 +191,7 @@ public sealed class RefinementRangeRefusalTests
                     [h.Literal(0L), h.Literal(3L)], h.Sequence(), customMethod, [h.Int, h.Int]);
                 statements.Add(HandBuiltRefinements.Give(slice, customCall));
                 statements.Add(HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(2L))));
-                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value); return;
+                Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value); return;
         }
 
         var sliced = new IndexExpression(HandBuiltModel.Node(), receiver, range, h.Sequence()) { ParameterType = h.Range };
@@ -206,7 +206,7 @@ public sealed class RefinementRangeRefusalTests
         }
         else if(!directlyRefused) { statements.Add(HandBuiltRefinements.Evaluate(h.At(slice, h.Literal(access)))); }
 
-        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Id.Value);
+        Assert.Equal(expected, Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
     private static InvocationExpression Unsupported(HandBuiltRefinements h)

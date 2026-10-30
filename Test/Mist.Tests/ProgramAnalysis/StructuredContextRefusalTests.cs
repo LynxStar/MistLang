@@ -1,5 +1,6 @@
 // Tier 2 (Functional): the structured-context rule judges hand-built bodies and the calls between them.
 
+using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -35,9 +36,12 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
 
-        Assert.True(diagnostic.Id.Value == "MIST_CTX_0001", $"{caseName}: got {diagnostic.Id.Value}");
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
-        Assert.EndsWith($"hand-built.mist:1:{StructuredContextFragments.Site + 1}.", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(diagnostic.Number.Value == "MIST0129", $"{caseName}: got {diagnostic.Number.Value}");
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
+        var reachedAt = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.Instantiation, reachedAt.Role);
+        Assert.Equal("hand-built.mist", reachedAt.Location.Path);
+        Assert.Equal(StructuredContextFragments.Site + 1, reachedAt.Location.Lines!.Value.Start.Column);
     }
 
     [Theory]
@@ -76,9 +80,12 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
 
-        Assert.True(diagnostic.Id.Value == "MIST_CTX_0001", $"{caseName}: got {diagnostic.Id.Value}");
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
-        Assert.EndsWith($"hand-built.mist:1:{StructuredContextFragments.Outer + 1}.", diagnostic.Message, StringComparison.Ordinal);
+        Assert.True(diagnostic.Number.Value == "MIST0129", $"{caseName}: got {diagnostic.Number.Value}");
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
+        var reachedAt = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.Instantiation, reachedAt.Role);
+        Assert.Equal("hand-built.mist", reachedAt.Location.Path);
+        Assert.Equal(StructuredContextFragments.Outer + 1, reachedAt.Location.Lines!.Value.Start.Column);
     }
 
     [Theory]
@@ -147,8 +154,8 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze("runtime-called-Clone"));
 
-        Assert.Equal("MIST_CTX_0001", diagnostic.Id.Value);
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0129", diagnostic.Number.Value);
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
     }
 
     [Fact]
@@ -163,7 +170,8 @@ public sealed class StructuredContextRefusalTests
         var owed = Assert.Single(new StructuredContextFragments().Analyze("call-with-no-context"));
         var built = Assert.Single(new StructuredContextFragments().Analyze("constructor-with-no-context"));
 
-        Assert.StartsWith("Method 'Read' requires context of type 'string', but no matching context declaration is in scope at ", owed.Message, StringComparison.Ordinal);
+        Assert.Equal("Method 'Read' requires context of type 'string', but no matching context declaration is in scope.", owed.Message);
+        Assert.Equal(RelatedRole.Instantiation, Assert.Single(owed.Related).Role);
         Assert.StartsWith("Constructor 'Greeter' requires context of type 'string',", built.Message, StringComparison.Ordinal);
     }
 
@@ -172,7 +180,7 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze("call-owed-two-keys-under-one"));
 
-        Assert.Equal("MIST_CTX_0001", diagnostic.Id.Value);
+        Assert.Equal("MIST0129", diagnostic.Number.Value);
         Assert.Contains("'Both' requires context of type 'int'", diagnostic.Message, StringComparison.Ordinal);
     }
 
@@ -184,8 +192,8 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
 
-        Assert.Equal("MIST_CTX_0005", diagnostic.Id.Value);
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0132", diagnostic.Number.Value);
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
         Assert.Equal($"Context-bound variable 's' {expected}", diagnostic.Message);
     }
 
@@ -206,9 +214,13 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
 
-        Assert.Equal("MIST_CTX_0002", diagnostic.Id.Value);
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
-        Assert.EndsWith("'c0' already binds it at hand-built.mist:1:1.", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0130", diagnostic.Number.Value);
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
+        Assert.EndsWith("'c0' already binds it.", diagnostic.Message, StringComparison.Ordinal);
+        var previous = Assert.Single(diagnostic.Related);
+        Assert.Equal(RelatedRole.PreviousDeclaration, previous.Role);
+        Assert.Equal("hand-built.mist", previous.Location.Path);
+        Assert.Equal(1, previous.Location.Lines!.Value.Start.Column);
     }
 
     [Fact]
@@ -216,7 +228,7 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostics = new StructuredContextFragments().Analyze("clause-key-bound-twice-and-called-with-no-context");
 
-        Assert.Equal(["MIST_CTX_0002", "MIST_CTX_0001"], diagnostics.Select(diagnostic => diagnostic.Id.Value));
+        Assert.Equal(["MIST0130", "MIST0129"], diagnostics.Select(diagnostic => diagnostic.Number.Value));
     }
 
     [Fact]
@@ -233,8 +245,8 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze(caseName));
 
-        Assert.Equal("MIST_CTX_0006", diagnostic.Id.Value);
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0133", diagnostic.Number.Value);
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
         Assert.Equal(
             $"Method 'Pull' on type 'Tap' must declare the same `with` clauses as the slot it fills on abstract 'Source': {expected}",
             diagnostic.Message);
@@ -251,7 +263,7 @@ public sealed class StructuredContextRefusalTests
     {
         var diagnostic = Assert.Single(new StructuredContextFragments().Analyze("anonymous-key"));
 
-        Assert.Equal("MIST_CTX_0004", diagnostic.Id.Value);
-        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Location.Start.Column);
+        Assert.Equal("MIST0131", diagnostic.Number.Value);
+        Assert.Equal(StructuredContextFragments.Site + 1, diagnostic.Position().Start.Column);
     }
 }

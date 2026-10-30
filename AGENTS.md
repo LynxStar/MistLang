@@ -246,7 +246,7 @@ Easy to get wrong because the C# instinct is different.
 
 **No `new T[] { ... }`.** The grammar's array creation requires an explicit size, so
 `new T[]` with a braced initializer is a parse error — and it surfaces as
-`MIST_PARSE_INCOMPLETE` at the enclosing method or class, which makes it look like the
+`MIST0123` at the enclosing method or class, which makes it look like the
 signature is at fault. Use an array literal instead:
 
 | C# | Mist |

@@ -180,7 +180,7 @@ Extension blocks complement Mist's existing traits (structural typing) and inter
 3. WHEN multiple extension members with the same name are found from different extension blocks, THE Type_Checker SHALL apply overload resolution rules to select the best candidate.
 4. THE Type_Checker SHALL prefer a type's own members over extension members with the same name (own members shadow extensions).
 5. THE Type_Checker SHALL prefer more-specific receiver types over less-specific ones (e.g., `extension(string self)` is preferred over `extension(unknown self)` when calling on a string).
-6. IF no matching extension member is found after searching all applicable extensions, THEN THE Type_Checker SHALL emit the standard `MIST_UNDEFINED_MEMBER` diagnostic.
+6. IF no matching extension member is found after searching all applicable extensions, THEN THE Type_Checker SHALL emit the standard `MIST_UNDEFINED_MEMBER (historical)` diagnostic.
 
 ---
 

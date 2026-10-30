@@ -47,7 +47,7 @@ internal static class IdentifierBinder
             // results the binder cannot represent yet -- an enum variant named bare, among them.
             // Those are the compiler being unfinished and must stay silent; this one is the program
             // being wrong.
-            NotFoundResult => ReportUnresolved(node, name, context),
+            NotFoundResult => ReportUnresolved(node, name, ctx, context),
 
             _ => new UnresolvedExpression(node),
         };
@@ -60,9 +60,10 @@ internal static class IdentifierBinder
         return path.Count == 0 ? null : TypeSubstitution.ForPath(receiver: null, path, interner).Apply(declared, interner);
     }
 
-    private static Expression ReportUnresolved(IdentifierExpressionPrimaryNode node, string name, BuilderContext context)
+    private static Expression ReportUnresolved(IdentifierExpressionPrimaryNode node, string name, BindingContext ctx, BuilderContext context)
     {
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnresolvedIdentifier, node, null, name);
+        ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.UnresolvedIdentifier, node,
+            ProjectedWithholding.Frames(ctx.Scope, name), new NameValue(name));
 
         // ErrorExpression, not UnresolvedExpression: the name will not resolve on a later pass, and
         // the emitter must not report a second time for the same cause.
@@ -72,8 +73,8 @@ internal static class IdentifierBinder
     private static Expression ReportAmbiguous(
         IdentifierExpressionPrimaryNode node, string name, AmbiguousResult ambiguous, BuilderContext context)
     {
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.AmbiguousIdentifier, node, null, name, MemberResolution.Describe(ambiguous));
+        context.Diagnostics.ReportAtNodeTyped(
+            ProgramModelDiagnostics.AmbiguousIdentifier, node, null, new NameValue(name), MemberResolution.Describe(ambiguous));
 
         return new ErrorExpression(node);
     }

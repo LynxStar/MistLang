@@ -139,7 +139,7 @@ Key characteristics:
 
 1. WHEN a member access expression targets a variable typed as a TraitType, THE Semantic_Model_Builder SHALL resolve the member name against the TraitType's Member_Scope.
 2. WHEN the member name is found in the TraitType's Member_Scope, THE Semantic_Model_Builder SHALL return the member's declared type.
-3. WHEN the member name is not found in the TraitType's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER` diagnostic error.
+3. WHEN the member name is not found in the TraitType's Member_Scope, THE Semantic_Model_Builder SHALL emit a `MIST_UNDEFINED_MEMBER (historical)` diagnostic error.
 4. WHEN a method call targets a trait-typed variable, THE Type_Checker SHALL validate the arguments against the trait method's parameter types.
 
 ### Requirement 9: C# Code Emission for Traits

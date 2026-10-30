@@ -81,7 +81,7 @@ public sealed class CompilationUnitParsingTests
     {
         var failed = Unit("Standard", "Rejected.mist") with { IsStdlib = true };
         var user = Unit("App", "Program.mist");
-        var error = new Diagnostic(new("MIST_TEST_PARSE_REJECTED"), DiagnosticSeverity.Error,
+        var error = DiagnosticFixtures.Occurrence("TEST_PARSE_REJECTED", DiagnosticSeverity.Error,
             PipelineStage.Parsing, "Rejected by the parser", new(new(2, 3), new(2, 7)), failed.Source.Path, null);
         var parser = new RecordingParser(failed.Source.Path, error, reportInBag);
         var cache = new StdlibParseCache();

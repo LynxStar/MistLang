@@ -43,8 +43,8 @@ Add interface types to the Mist programming language compiler. The implementatio
     - For classes: parse the base clause to separate base class from interface names; resolve each interface name to `InterfaceType`; store on `ClassType.Interfaces`
     - For structs: resolve each interface name to `InterfaceType`; store on `StructType.Interfaces`
     - For interfaces: resolve each interface name to `InterfaceType`; store on `InterfaceType.Interfaces`
-    - Emit `MIST_UNDEFINED_INTERFACE` when an interface name is not found
-    - Emit `MIST_NOT_AN_INTERFACE` when a name resolves to a class or struct
+    - Emit `MIST_UNDEFINED_INTERFACE (historical)` when an interface name is not found
+    - Emit `MIST_NOT_AN_INTERFACE (historical)` when a name resolves to a class or struct
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
   - [x] 3.2 Write property test for interface resolution
@@ -58,7 +58,7 @@ Add interface types to the Mist programming language compiler. The implementatio
   - [x] 3.4 Implement Pass 1c extension: detect interface inheritance cycles
     - Add `Pass1_DetectInterfaceCycles` after interface list resolution
     - Walk each interface's `Interfaces` chain using a visited set
-    - Emit `MIST_CIRCULAR_INTERFACE_INHERITANCE` when a cycle is detected
+    - Emit `MIST_CIRCULAR_INTERFACE_INHERITANCE (historical)` when a cycle is detected
     - Break cycles by removing the back-edge from the `Interfaces` list
     - _Requirements: 6.1, 6.2, 6.3_
 
@@ -70,8 +70,8 @@ Add interface types to the Mist programming language compiler. The implementatio
     - Add `Pass1_ValidateInterfaceSatisfaction` after cycle detection
     - For each class and struct implementing interfaces, collect all required methods transitively (using visited set for diamond inheritance)
     - For each required method, search the implementing type's member scope (and base type chain for classes) for a matching method (name, return type, parameter types)
-    - Emit `MIST_MISSING_INTERFACE_METHOD` for each unmatched method
-    - Emit `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH` when a method name matches but signature differs
+    - Emit `MIST_MISSING_INTERFACE_METHOD (historical)` for each unmatched method
+    - Emit `MIST_INTERFACE_METHOD_SIGNATURE_MISMATCH (historical)` when a method name matches but signature differs
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
   - [x] 3.7 Write property test for interface satisfaction

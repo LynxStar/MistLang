@@ -141,7 +141,7 @@ if (targetType.IsVoid() && memberName == "Void")
 }
 ```
 
-New diagnostic ID: `MIST_SM_0023` (next available in the SM series).
+New diagnostic ID: `MIST_SM_0023 (historical)` (next available in the SM series).
 
 ### 2. Standard Library: Implicit Void → Type Operator
 
@@ -263,7 +263,7 @@ public readonly struct MistVoid : System.IEquatable<MistVoid>
 
 | ID | Severity | Message |
 |----|----------|---------|
-| `MIST_SM_0023` | Warning | "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton." |
+| `MIST_SM_0023 (historical)` | Warning | "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton." |
 
 ### Modified Emitter State
 
@@ -299,7 +299,7 @@ public readonly struct MistVoid : System.IEquatable<MistVoid>
 
 ### Property 3: Void.Void deprecation warning count
 
-*For any* program containing N occurrences of the `Void.Void` member access expression, the compiler SHALL emit exactly N warning diagnostics with ID `MIST_SM_0023`, each with a source location pointing to the corresponding `Void.Void` expression.
+*For any* program containing N occurrences of the `Void.Void` member access expression, the compiler SHALL emit exactly N warning diagnostics with ID `MIST_SM_0023 (historical)`, each with a source location pointing to the corresponding `Void.Void` expression.
 
 **Validates: Requirements 5.2, 5.3**
 
@@ -317,13 +317,13 @@ public readonly struct MistVoid : System.IEquatable<MistVoid>
 
 | ID | Severity | Message | Emitted By |
 |----|----------|---------|------------|
-| `MIST_SM_0023` | Warning | "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton." | SemanticModelBuilder |
+| `MIST_SM_0023 (historical)` | Warning | "Use 'void' in expression position instead of 'Void.Void' to obtain the Void singleton." | SemanticModelBuilder |
 
 ### Existing Diagnostics (Unchanged Behavior)
 
 | Scenario | Diagnostic | Notes |
 |----------|-----------|-------|
-| `void` assigned to `int` variable | `MIST_TC_0001` (type mismatch) | `Standard.Type` is not assignable to `int` — same as today |
+| `void` assigned to `int` variable | `MIST_TC_0001 (historical)` (type mismatch) | `Standard.Type` is not assignable to `int` — same as today |
 | `Void.Void` still compiles | None (error) | Continues to work, just with a warning |
 | `void == void` in void-typed context | None | Both sides resolve as VoidType, equality accepted |
 
@@ -370,7 +370,7 @@ The project uses **FsCheck 3.x** with **xunit** for property-based testing. Test
 | `void` in generic context `Result<void>(void, true)` accepted | Req 1.5 |
 | `void v = void; Type t = v;` accepted (implicit conversion) | Req 4.2 |
 | `Void.Void` still resolves as VoidType | Req 5.1 |
-| `Void.Void` emits MIST_SM_0023 warning | Req 5.2 |
+| `Void.Void` emits MIST_SM_0023 (historical) warning | Req 5.2 |
 | Emitter produces `MistVoid.Instance` for void value literal | Req 6.1 |
 | Emitter produces `typeof(MistVoid)` for void type literal | Req 6.2 |
 | Emitter produces `null` for void in optional context | Req 6.4 |

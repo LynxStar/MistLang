@@ -41,9 +41,9 @@ public sealed class AccessorSiteTests
         var expected = Assert.Single(fragment.Decide());
         var diagnostic = Assert.Single(fragment.Analyze());
 
-        Assert.Equal(expected.Id.Value, diagnostic.Id.Value);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(38, diagnostic.Location.Start.Column);
+        Assert.Equal(expected.Number.Value, diagnostic.Number.Value);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
     [Theory]

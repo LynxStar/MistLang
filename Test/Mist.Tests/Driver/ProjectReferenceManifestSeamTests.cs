@@ -28,15 +28,15 @@ public sealed class ProjectReferenceManifestSeamTests : IDisposable
 
         Assert.Equal(targetPath, Assert.Single(result).CanonicalTomlPath);
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Id, diagnostic.Id);
+        Assert.Equal(DriverDiagnostics.ProjectReferenceNameMismatch.Number, diagnostic.Number);
         Assert.Contains("'Alias'", diagnostic.Message);
         Assert.Contains("'Target'", diagnostic.Message);
-        Assert.Equal(targetPath, diagnostic.CompilationUnitPath);
+        Assert.Equal(targetPath, diagnostic.Location.Path);
     }
 
     [Theory]
-    [InlineData("version = \"1.0.0\"", "MIST_PROJECT_MISSING_NAME")]
-    [InlineData("name = [", "MIST_PROJECT_TOML_ERROR")]
+    [InlineData("version = \"1.0.0\"", "MIST0052")]
+    [InlineData("name = [", "MIST0051")]
     public void ManifestParserToResolver_RepeatedFailedLoadsPropagateOneErrorAndKeepValidSiblings(string content, string expectedId)
     {
         var brokenFolder = WriteProject("Broken", content);
@@ -56,9 +56,9 @@ public sealed class ProjectReferenceManifestSeamTests : IDisposable
 
         Assert.Equal("Valid", Assert.Single(result).Configuration.Name);
         var diagnostic = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal(expectedId, diagnostic.Id.Value);
+        Assert.Equal(expectedId, diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(Path.Combine(brokenFolder, ProjectFileParser.FileName), diagnostic.CompilationUnitPath);
+        Assert.Equal(Path.Combine(brokenFolder, ProjectFileParser.FileName), diagnostic.Location.Path);
     }
 
     public void Dispose()

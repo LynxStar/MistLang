@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -67,8 +68,7 @@ internal sealed class TypeParameterDomainResolver
                 && typeParameter.PackKind == TypePackKind.None
                 && !CarryableDomains.Contains(Underlying(domain).FullyQualifiedName))
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.DisallowedDependentDomain, annotation, null, domain.Name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DisallowedDependentDomain, annotation, null, DiagnosticSnapshot.Type(domain, domain.Name));
             }
         }
     }

@@ -40,14 +40,14 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 #### Acceptance Criteria
 
-1. WHEN a constructor body reads an instance field of the constructed type on a control-flow path where that field has not been definitely assigned, THE Definite_Assignment_Analyzer SHALL emit a `MIST_FIELD_READ_BEFORE_ASSIGNMENT` error naming the field and the constructor.
+1. WHEN a constructor body reads an instance field of the constructed type on a control-flow path where that field has not been definitely assigned, THE Definite_Assignment_Analyzer SHALL emit a `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)` error naming the field and the constructor.
 2. WHERE a field has an explicit field initializer, THE Definite_Assignment_Analyzer SHALL treat that field as definitely assigned at the start of the constructor body.
 3. WHERE a field's declared type is defaultable and the field has no explicit initializer (Synthetic_Default_Injection applies), THE Definite_Assignment_Analyzer SHALL treat that field as definitely assigned at the start of the constructor body.
-4. WHEN a field is assigned on some but not all branches of a conditional and is then read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the field as not definitely assigned at the read and SHALL emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT`.
+4. WHEN a field is assigned on some but not all branches of a conditional and is then read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the field as not definitely assigned at the read and SHALL emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)`.
 5. WHEN a field is assigned on every branch of a conditional before a read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the field as definitely assigned at that read and SHALL NOT emit a diagnostic.
 6. WHEN a field is read after it has been definitely assigned earlier in the same constructor, THE Definite_Assignment_Analyzer SHALL NOT emit a diagnostic.
-7. WHERE the existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` check applies, THE Definite_Assignment_Analyzer SHALL continue to emit that diagnostic for fields not assigned on all paths by the end of the constructor, independently of the read-before-assignment check.
-8. WHEN `this` is passed as an argument, returned, or has a method invoked on it before all non-defaultable fields are definitely assigned, THE Definite_Assignment_Analyzer SHALL treat that as a read of all not-yet-assigned fields and SHALL emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT`.
+7. WHERE the existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` check applies, THE Definite_Assignment_Analyzer SHALL continue to emit that diagnostic for fields not assigned on all paths by the end of the constructor, independently of the read-before-assignment check.
+8. WHEN `this` is passed as an argument, returned, or has a method invoked on it before all non-defaultable fields are definitely assigned, THE Definite_Assignment_Analyzer SHALL treat that as a read of all not-yet-assigned fields and SHALL emit `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)`.
 
 ### Requirement 2: Local Variable Read-Before-Assignment Detection
 
@@ -55,12 +55,12 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 #### Acceptance Criteria
 
-1. WHEN a local variable declared without an initializer is read on a control-flow path where it has not been definitely assigned, THE Definite_Assignment_Analyzer SHALL emit a `MIST_LOCAL_READ_BEFORE_ASSIGNMENT` error naming the local.
+1. WHEN a local variable declared without an initializer is read on a control-flow path where it has not been definitely assigned, THE Definite_Assignment_Analyzer SHALL emit a `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)` error naming the local.
 2. WHERE a local variable is declared with an initializer expression, THE Definite_Assignment_Analyzer SHALL treat it as definitely assigned immediately after its declaration.
-3. WHEN a local variable is assigned on some but not all branches of a conditional and is then read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the local as not definitely assigned at that read and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`.
+3. WHEN a local variable is assigned on some but not all branches of a conditional and is then read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the local as not definitely assigned at that read and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)`.
 4. WHEN a local variable is assigned on every branch of a conditional before a read after the merge point, THE Definite_Assignment_Analyzer SHALL treat the local as definitely assigned at that read and SHALL NOT emit a diagnostic.
-5. WHEN a local variable is read within a loop body on a path where it may not have been assigned in a prior iteration or before the loop, THE Definite_Assignment_Analyzer SHALL treat it as not definitely assigned and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`.
-6. WHEN a local variable is used as the target of a compound assignment (e.g. `x += 1`) before being definitely assigned, THE Definite_Assignment_Analyzer SHALL treat the compound assignment as a read and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT`.
+5. WHEN a local variable is read within a loop body on a path where it may not have been assigned in a prior iteration or before the loop, THE Definite_Assignment_Analyzer SHALL treat it as not definitely assigned and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)`.
+6. WHEN a local variable is used as the target of a compound assignment (e.g. `x += 1`) before being definitely assigned, THE Definite_Assignment_Analyzer SHALL treat the compound assignment as a read and SHALL emit `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)`.
 
 ### Requirement 3: Stampable Type Classification
 
@@ -83,10 +83,10 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 1. WHEN the Type_Checker encounters a bare array creation `new T[size]` and `T` is a Stampable_Type, THE Type_Checker SHALL accept it and the CSharp_Emitter SHALL emit a Stamp_Fill (CLR zero-fill or replicated stamp value) with no per-element factory call.
 1a. WHERE a Stampable_Type's stamp value is equal to the CLR zero-fill bit pattern, THE CSharp_Emitter SHALL rely on the CLR zero-fill and SHALL NOT emit a replication step.
 1b. WHERE a Stampable_Type's stamp value differs from the CLR zero-fill bit pattern, THE CSharp_Emitter SHALL emit the replicated stamp value into every slot.
-2. WHEN the Type_Checker encounters a bare array creation `new T[size]` and `T` is NOT a Stampable_Type, THE Type_Checker SHALL emit a `MIST_ARRAY_REQUIRES_INITIALIZER` error stating that `T` is not stampable and that an initializer-based array construction is required.
+2. WHEN the Type_Checker encounters a bare array creation `new T[size]` and `T` is NOT a Stampable_Type, THE Type_Checker SHALL emit a `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` error stating that `T` is not stampable and that an initializer-based array construction is required.
 3. WHERE `T` is a Stampable_Type whose `default` is the all-zero value, THE CSharp_Emitter SHALL rely on the CLR's zero-fill and SHALL NOT emit any per-element initialization loop.
 4. THE CSharp_Emitter SHALL NOT emit the default-fill loop introduced by the interim array-default behavior; that behavior is removed by this feature.
-5. WHEN the Type_Checker encounters a bare array creation whose element type is a reference type, THE Type_Checker SHALL emit `MIST_ARRAY_REQUIRES_INITIALIZER` (a specialization of AC 2).
+5. WHEN the Type_Checker encounters a bare array creation whose element type is a reference type, THE Type_Checker SHALL emit `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` (a specialization of AC 2).
 6. THE bare `new T[size]` form SHALL be lowered as a compiler intrinsic (Stamp_Fill) and SHALL NOT invoke any `Array` constructor.
 
 ### Requirement 5: Initializer-Based Array Construction
@@ -123,9 +123,9 @@ This feature supersedes the interim "emit a default-fill loop for array creation
 
 #### Acceptance Criteria
 
-1. WHEN `MIST_FIELD_READ_BEFORE_ASSIGNMENT` is emitted, THE diagnostic message SHALL name the field, the constructor, and SHALL be located at the offending read expression.
-2. WHEN `MIST_LOCAL_READ_BEFORE_ASSIGNMENT` is emitted, THE diagnostic message SHALL name the local variable and SHALL be located at the offending read expression.
-3. WHEN `MIST_ARRAY_REQUIRES_INITIALIZER` is emitted, THE diagnostic message SHALL name the element type, SHALL state why it is not stampable (reference type, or struct with a non-stampable field), and SHALL direct the developer to use the initializer-based construction form.
+1. WHEN `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)` is emitted, THE diagnostic message SHALL name the field, the constructor, and SHALL be located at the offending read expression.
+2. WHEN `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)` is emitted, THE diagnostic message SHALL name the local variable and SHALL be located at the offending read expression.
+3. WHEN `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` is emitted, THE diagnostic message SHALL name the element type, SHALL state why it is not stampable (reference type, or struct with a non-stampable field), and SHALL direct the developer to use the initializer-based construction form.
 4. THE diagnostic messages SHALL be phrased in terms of the Mist source construct, not the underlying CLR/C# emission.
 
 ### Requirement 8: Migration of Affected Samples and Standard Library

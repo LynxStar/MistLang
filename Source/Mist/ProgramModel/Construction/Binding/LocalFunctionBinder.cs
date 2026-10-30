@@ -44,12 +44,12 @@ internal static class LocalFunctionBinder
 
         foreach(var refused in Refused(modifiers))
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalFunctionModifier, node, null, refused);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LocalFunctionModifier, node, null, new EnumValue(refused));
         }
 
         if(node.TypeParams is not null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalFunctionGeneric, node, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LocalFunctionGeneric, node, null, new NameValue(name));
         }
 
         var scope = node.TypeParams is { } typeParameters

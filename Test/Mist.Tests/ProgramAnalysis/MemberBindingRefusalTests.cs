@@ -16,16 +16,16 @@ public sealed class MemberBindingRefusalTests
 {
     [Theory]
     [Trait("Tier", "2")]
-    [InlineData("unresolved-identifier", "MIST_PM_UNRESOLVED_IDENTIFIER")]
-    [InlineData("unresolved-receiver-called-as-argument", "MIST_PM_UNRESOLVED_IDENTIFIER")]
-    [InlineData("refused-member-access-as-an-argument", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("refused-conditional-member-access-as-an-argument", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("refused-static-member-as-an-argument", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("refused-member-call-as-an-argument", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("local-from-a-refused-member-access-passed-on", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("local-from-an-ambiguous-call-passed-on", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("local-from-an-ambiguous-index-passed-on", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("unknown-receiver-member-reaches-its-call", "MIST_PM_UNRESOLVABLE_OVERLOAD")]
+    [InlineData("unresolved-identifier", "MIST0296")]
+    [InlineData("unresolved-receiver-called-as-argument", "MIST0296")]
+    [InlineData("refused-member-access-as-an-argument", "MIST0301")]
+    [InlineData("refused-conditional-member-access-as-an-argument", "MIST0301")]
+    [InlineData("refused-static-member-as-an-argument", "MIST0301")]
+    [InlineData("refused-member-call-as-an-argument", "MIST0301")]
+    [InlineData("local-from-a-refused-member-access-passed-on", "MIST0301")]
+    [InlineData("local-from-an-ambiguous-call-passed-on", "MIST0386")]
+    [InlineData("local-from-an-ambiguous-index-passed-on", "MIST0386")]
+    [InlineData("unknown-receiver-member-reaches-its-call", "MIST0390")]
     public void RefusalSurvivesBindingWithoutDownstreamCascades(string refusal, string diagnosticId)
     {
         var f = new BindingFragments();
@@ -109,8 +109,8 @@ public sealed class MemberBindingRefusalTests
         }
 
 
-        Assert.Equal(diagnosticId, diagnostic.Id.Value);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.Equal(diagnosticId, diagnostic.Number.Value);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     [Theory]
@@ -134,8 +134,8 @@ public sealed class MemberBindingRefusalTests
         var root = HandBuiltModel.Block(declared, new ExpressionStatement(assignment), bad);
         Assert.Empty(f.Built.Analyze(new DefiniteAssignmentAnalyzer(), root));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.True(diagnostic.Id.Value == "MIST_PM_UNRESOLVED_MEMBER", refusal);
-        Assert.Equal(31, diagnostic.Location.Start.Column);
+        Assert.True(diagnostic.Number.Value == "MIST0301", refusal);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
     }
 
     private static VariableDeclarationStatementStatementNode Declare(string name, ExpressionNode initializer)

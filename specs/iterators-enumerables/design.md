@@ -105,11 +105,11 @@ The current implementation only checks the collection expression and body. The e
 
 1. Resolves the collection expression's type
 2. Searches the type's interface list for `IEnumerable<TElement>` (checking both direct implementations and through `ConstructedType` unwrapping)
-3. If not found: emits diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE` with the resolved type name
+3. If not found: emits diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` with the resolved type name
 4. If found: extracts `TElement` from the `IEnumerable<TElement>` implementation
 5. Binds the iteration variable to `TElement`
 6. If an explicit type annotation is present: validates assignability from `TElement` to the declared type
-7. If not assignable: emits diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH`
+7. If not assignable: emits diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH (historical)`
 
 #### Interface Implementation Validation
 
@@ -158,8 +158,8 @@ The `SemanticModelBuilder` registers the new interfaces during Pass 1 (type regi
 
 | ID | Stage | Description |
 |----|-------|-------------|
-| `MIST_TC_FOREACH_NOT_ENUMERABLE` | TypeChecker | Collection expression does not implement `IEnumerable<TElement>` |
-| `MIST_TC_FOREACH_TYPE_MISMATCH` | TypeChecker | Explicit element type not assignable from resolved `TElement` |
+| `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` | TypeChecker | Collection expression does not implement `IEnumerable<TElement>` |
+| `MIST_TC_FOREACH_TYPE_MISMATCH (historical)` | TypeChecker | Explicit element type not assignable from resolved `TElement` |
 
 ### Interface Resolution for Foreach
 
@@ -203,13 +203,13 @@ Algorithm:
 
 ### Property 4: Foreach over non-IEnumerable types produces a diagnostic
 
-*For any* type that does not implement `IEnumerable<TElement>`, a `foreach` statement with a collection expression of that type SHALL cause the type checker to emit diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE`.
+*For any* type that does not implement `IEnumerable<TElement>`, a `foreach` statement with a collection expression of that type SHALL cause the type checker to emit diagnostic `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)`.
 
 **Validates: Requirements 3.2**
 
 ### Property 5: Explicit element type annotation compatibility
 
-*For any* `foreach` statement with an explicit element type annotation, if the declared type is assignable from the resolved `TElement`, the type checker SHALL accept it without diagnostics. If the declared type is NOT assignable from `TElement`, the type checker SHALL emit diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH`.
+*For any* `foreach` statement with an explicit element type annotation, if the declared type is assignable from the resolved `TElement`, the type checker SHALL accept it without diagnostics. If the declared type is NOT assignable from `TElement`, the type checker SHALL emit diagnostic `MIST_TC_FOREACH_TYPE_MISMATCH (historical)`.
 
 **Validates: Requirements 3.4, 3.5**
 
@@ -225,18 +225,18 @@ Algorithm:
 
 | Diagnostic ID | Severity | Message Template |
 |---|---|---|
-| `MIST_TC_FOREACH_NOT_ENUMERABLE` | Error | `Type '{typeName}' does not implement 'IEnumerable<TElement>' and cannot be used in a foreach statement` |
-| `MIST_TC_FOREACH_TYPE_MISMATCH` | Error | `Cannot convert element type '{resolvedTElement}' to declared type '{declaredType}' in foreach statement` |
+| `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` | Error | `Type '{typeName}' does not implement 'IEnumerable<TElement>' and cannot be used in a foreach statement` |
+| `MIST_TC_FOREACH_TYPE_MISMATCH (historical)` | Error | `Cannot convert element type '{resolvedTElement}' to declared type '{declaredType}' in foreach statement` |
 
 ### Error Recovery
 
-- When `MIST_TC_FOREACH_NOT_ENUMERABLE` fires, the type checker still processes the foreach body (binding the iteration variable to `ErrorType`) to avoid cascading errors.
-- When `MIST_TC_FOREACH_TYPE_MISMATCH` fires, the iteration variable is bound to the declared type (not `TElement`) so the body type-checks against the user's intent.
+- When `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` fires, the type checker still processes the foreach body (binding the iteration variable to `ErrorType`) to avoid cascading errors.
+- When `MIST_TC_FOREACH_TYPE_MISMATCH (historical)` fires, the iteration variable is bound to the declared type (not `TElement`) so the body type-checks against the user's intent.
 - If the `IEnumerable` or `IEnumerator` stdlib interfaces fail to load, the type checker skips foreach validation entirely (falls back to current pass-through behavior) and emits a stdlib-load diagnostic.
 
 ### Existing Diagnostics (reused)
 
-The existing interface member validation diagnostics (`MIST_SM_0022` — `MissingInterfaceOverload`) already cover the case where a type claims to implement `IEnumerator<TElement>` or `IEnumerable<TElement>` but is missing required members. No new diagnostics are needed for interface member validation.
+The existing interface member validation diagnostics (`MIST_SM_0022 (historical)` — `MissingInterfaceOverload`) already cover the case where a type claims to implement `IEnumerator<TElement>` or `IEnumerable<TElement>` but is missing required members. No new diagnostics are needed for interface member validation.
 
 ## Testing Strategy
 
@@ -265,8 +265,8 @@ Property-based tests validate the universal correctness properties defined above
 | `Array_HasEnumeratorStruct` | Array has nested `Enumerator` struct with `MoveNext()` and `Current` |
 | `Foreach_ArrayInfersElementType` | `foreach (int x in intArray)` resolves `x` as `int` |
 | `Foreach_UserDefinedEnumerable` | `foreach` over a class implementing `IEnumerable<string>` compiles |
-| `Foreach_NonEnumerable_Diagnostic` | `foreach` over a plain class emits `MIST_TC_FOREACH_NOT_ENUMERABLE` |
-| `Foreach_TypeMismatch_Diagnostic` | `foreach (string x in intEnumerable)` emits `MIST_TC_FOREACH_TYPE_MISMATCH` |
+| `Foreach_NonEnumerable_Diagnostic` | `foreach` over a plain class emits `MIST_TC_FOREACH_NOT_ENUMERABLE (historical)` |
+| `Foreach_TypeMismatch_Diagnostic` | `foreach (string x in intEnumerable)` emits `MIST_TC_FOREACH_TYPE_MISMATCH (historical)` |
 | `Emitter_IEnumerable_MapsToSystemCollections` | Emitted C# contains `System.Collections.Generic.IEnumerable<int>` |
 | `Emitter_Foreach_NoDesugaring` | Emitted foreach is a plain `foreach` statement |
 

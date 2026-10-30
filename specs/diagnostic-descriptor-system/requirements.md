@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Superseded in part by `specs/diagnostics/requirements.md`.** That document supersedes Requirements 1.2 to 1.5 and 2.1 to 2.12 here by its Requirements 1, 2 and 3; Requirements 3.1 to 3.5 by its Requirements 5 and 7; Requirements 4.1 to 4.5 and 5.1 to 5.4 by its Requirements 1, 5 and 15; and Requirement 7 in full, there being no steering file. Requirements 6.4 and 6.5 remain in force as the wording freeze of its Requirement 7.9. The rest of this document, including the `MIST_...` spellings it cites, is left as history and is not rewritten; `specs/diagnostics/crosswalk.md` translates them.
+
 ## Introduction
 
 The Mist compiler currently scatters diagnostic creation across dozens of emission sites. Each site manually constructs a `Diagnostic` record with inline `DiagnosticId` strings, hardcoded severity, and interpolated messages. This makes it difficult to maintain consistent messaging, enumerate all diagnostics, or change severity without touching every call site.

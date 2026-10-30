@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -69,52 +70,36 @@ internal static class ProjectionInspector
 
     public static string Describe(Withholding? withheld)
     {
-        return withheld switch
+        return Describe(withheld?.Reason.ToString(), withheld?.Offending);
+    }
+
+    public static string Describe(WithholdingFrame withheld)
+    {
+        return Describe(withheld.Reason.Token, withheld.Offending);
+    }
+
+    private static string Describe(string? reason, TypeValue? offending)
+    {
+        return reason switch
         {
-            { Reason: WithholdingReason.NonPublic } => "HIDDEN: non-public",
-            { Reason: WithholdingReason.AccessorOrOperator } => "HIDDEN: accessor or operator",
-            { Reason: WithholdingReason.Finalizer } => "HIDDEN: finalizer",
-            { Reason: WithholdingReason.UnresolvableConstraint } => "HIDDEN: unresolvable generic constraint",
-            { Reason: WithholdingReason.UnresolvableType, Offending: { } offending } => $"HIDDEN: signature uses {ClrName(offending)}",
+            nameof(WithholdingReason.NonPublic) => "HIDDEN: non-public",
+            nameof(WithholdingReason.AccessorOrOperator) => "HIDDEN: accessor or operator",
+            nameof(WithholdingReason.Finalizer) => "HIDDEN: finalizer",
+            nameof(WithholdingReason.UnresolvableConstraint) => "HIDDEN: unresolvable generic constraint",
+            nameof(WithholdingReason.UnresolvableType) when offending is not null => $"HIDDEN: signature uses {offending.Spelling}",
             _ => "HIDDEN: unknown reason",
         };
     }
 
     public static string ClrName(Type type)
     {
-        if(type.IsByRef)
-        {
-            return ClrName(type.GetElementType()!);
-        }
+        return ClrTypeSnapshot.Spelling(type);
+    }
 
-        if(type.IsPointer)
-        {
-            return $"{ClrName(type.GetElementType()!)}*";
-        }
-
-        if(type.IsArray)
-        {
-            return $"{ClrName(type.GetElementType()!)}[]";
-        }
-
-        if(type.IsFunctionPointer)
-        {
-            return "delegate*";
-        }
-
-        if(type.IsGenericParameter)
-        {
-            return type.Name;
-        }
-
-        var arity = type.Name.IndexOf('`');
-        var name = arity < 0 ? type.Name : type.Name[..arity];
-        var qualifier = type.IsNested ? $"{ClrName(type.DeclaringType!)}." : type.Namespace is null ? "" : $"{type.Namespace}.";
-        var arguments = type.IsGenericType && !type.IsGenericTypeDefinition
-            ? $"<{string.Join(", ", type.GetGenericArguments().Select(ClrName))}>"
-            : "";
-
-        return qualifier + name + arguments;
+    internal static HiddenMember? Retained(MemberInfo definition, MemberType declaring, string? from)
+    {
+        var retained = declaring.WithheldMembers.Find(frame => frame.Member.Identity == Withholding.MemberIdentity(definition));
+        return retained is null ? null : new HiddenMember(definition.Name, Describe(retained), from, retained);
     }
 
     private static void Judge(
@@ -125,6 +110,12 @@ internal static class ProjectionInspector
         List<VisibleMember> visible,
         List<HiddenMember> hidden)
     {
+        if(Retained(definition, declaring, from) is { } retained)
+        {
+            hidden.Add(retained);
+            return;
+        }
+
         Withholding? withheld;
 
         switch(definition)
@@ -160,7 +151,8 @@ internal static class ProjectionInspector
                 return;
         }
 
-        hidden.Add(new HiddenMember(definition.Name, Describe(withheld), from));
+        var reason = withheld?.Snapshot(definition);
+        hidden.Add(new HiddenMember(definition.Name, Describe(withheld), from, reason));
     }
 
     private static VisibleMember Shown(Method method, string? from)

@@ -88,48 +88,47 @@ public static class PackageResolver
         Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore,
         string? runtimeIdentifier = null)
     {
-        if(packages.IsDefaultOrEmpty)
-        {
-            return new PackageResolutionResult(
-                ImmutableArray<string>.Empty,
-                ImmutableArray<ResolvedPackageInfo>.Empty,
-                FailureCount: 0);
-        }
+        return ResolveValidated(packages, diagnostics, beforeRestore,
+            valid => RestorePackages(valid, frameworkReferences, targetFramework, diagnostics, restore, runtimeIdentifier));
+    }
 
-        // Validate version strings up-front (same behavior as before — invalid
-        // versions produce MIST_PKG_002 without hitting the network).
-        var validPackages = ImmutableArray.CreateBuilder<NuGetPackageReference>();
+    internal static PackageResolutionResult ResolveValidated(
+        ImmutableArray<NuGetPackageReference> packages, DiagnosticBag diagnostics,
+        Action? beforeRestore, Func<ImmutableArray<NuGetPackageReference>, PackageResolutionResult> restore)
+    {
+        var valid = ImmutableArray.CreateBuilder<NuGetPackageReference>();
         var failureCount = 0;
-
-        foreach(var pkg in packages)
+        foreach(var package in packages.IsDefault ? [] : packages)
         {
-            if(!NuGetVersion.TryParse(pkg.Version, out _))
+            if(NuGetVersion.TryParse(package.Version, out _))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNotFound.Id,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Package '{pkg.Name}' version '{pkg.Version}' could not be found on any configured NuGet feed (https://api.nuget.org/v3/index.json); the version string is not a valid NuGet version.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
-                failureCount++;
-                continue;
+                valid.Add(package);
             }
-
-            validPackages.Add(pkg);
+            else
+            {
+                PackageDiagnosticFacts.InvalidVersion(package, diagnostics);
+                failureCount++;
+            }
         }
 
-        if(validPackages.Count == 0)
+        if(valid.Count == 0)
         {
-            return new PackageResolutionResult(
-                ImmutableArray<string>.Empty,
-                ImmutableArray<ResolvedPackageInfo>.Empty,
-                FailureCount: failureCount);
+            return new PackageResolutionResult([], [], failureCount);
         }
 
         beforeRestore?.Invoke();
+        var result = restore(valid.ToImmutable());
+        return result with { FailureCount = result.FailureCount + failureCount };
+    }
 
+    private static PackageResolutionResult RestorePackages(
+        ImmutableArray<NuGetPackageReference> packages,
+        ImmutableArray<FrameworkReference> frameworkReferences,
+        string targetFramework,
+        DiagnosticBag diagnostics,
+        Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore,
+        string? runtimeIdentifier)
+    {
         // Generate a temporary .csproj and run dotnet restore
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist-restore-{Guid.NewGuid():N}");
 
@@ -137,52 +136,40 @@ public static class PackageResolver
         {
             _ = Directory.CreateDirectory(tempDir);
 
-            var csprojPath = GenerateCsproj(tempDir, validPackages.ToImmutable(), frameworkReferences, targetFramework);
-            var (restoreExitCode, restoreStdout, restoreStderr) = restore(csprojPath, tempDir);
+            var csprojPath = GenerateCsproj(tempDir, packages, frameworkReferences, targetFramework);
+            if(NuGetRestoreFailure.Invoke(() => restore(csprojPath, tempDir), csprojPath, diagnostics) is not { } outcome)
+            {
+                return new PackageResolutionResult([], [], packages.Length);
+            }
+
+            var (restoreExitCode, restoreStdout, restoreStderr) = outcome;
 
             if(restoreExitCode != 0)
             {
-                // Parse the restore output to identify which packages failed
-                return HandleRestoreFailure(
-                    validPackages.ToImmutable(), restoreStdout, restoreStderr,
-                    failureCount, diagnostics);
+                return NuGetRestoreFailure.Report(packages, restoreStdout, restoreStderr, diagnostics);
             }
 
             // Parse project.assets.json to extract resolved assembly paths
             var assetsPath = Path.Combine(tempDir, "obj", "project.assets.json");
             if(!File.Exists(assetsPath))
             {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNetworkError.Id,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    "Package restore completed but project.assets.json was not generated.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
+                PackageDiagnosticFacts.Network(diagnostics, "", assetsMissing: assetsPath);
                 return new PackageResolutionResult(
                     ImmutableArray<string>.Empty,
                     ImmutableArray<ResolvedPackageInfo>.Empty,
-                    FailureCount: failureCount + validPackages.Count);
+                    FailureCount: packages.Length);
             }
 
-            return ParseAssetsFile(assetsPath, validPackages.ToImmutable(),
-                targetFramework, failureCount, diagnostics, runtimeIdentifier);
+            return ParseAssetsFile(assetsPath, packages,
+                targetFramework, 0, diagnostics, runtimeIdentifier);
         }
         catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.PackageNetworkError.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Failed to create temporary restore project: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
+            PackageDiagnosticFacts.Network(diagnostics, ex.Message, temporaryProject: tempDir);
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
-                FailureCount: failureCount + validPackages.Count);
+                FailureCount: packages.Length);
         }
         finally
         {
@@ -245,97 +232,6 @@ public static class PackageResolver
     }
 
     /// <summary>
-    /// Handles a failed <c>dotnet restore</c> by parsing the error output to
-    /// determine which packages failed and emitting appropriate diagnostics.
-    /// </summary>
-    private static PackageResolutionResult HandleRestoreFailure(
-        ImmutableArray<NuGetPackageReference> validPackages,
-        string stdout,
-        string stderr,
-        int priorFailureCount,
-        DiagnosticBag diagnostics)
-    {
-        var combinedOutput = $"{stdout}\n{stderr}";
-        var packageFailures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Try to identify specific package failures from the output
-        foreach(var pkg in validPackages)
-        {
-            if(combinedOutput.Contains(pkg.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                _ = packageFailures.Add(pkg.Name);
-            }
-        }
-
-        // If we can't identify specific failures, report all as failed
-        if(packageFailures.Count == 0)
-        {
-            // Check if it's a network/connection issue
-            if(combinedOutput.Contains("Unable to load the service index", StringComparison.OrdinalIgnoreCase)
-                || combinedOutput.Contains("network", StringComparison.OrdinalIgnoreCase)
-                || combinedOutput.Contains("timeout", StringComparison.OrdinalIgnoreCase)
-                || combinedOutput.Contains("connection", StringComparison.OrdinalIgnoreCase)
-                || combinedOutput.Contains("certificate", StringComparison.OrdinalIgnoreCase)
-                || combinedOutput.Contains("signature", StringComparison.OrdinalIgnoreCase))
-            {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNetworkError.Id,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Connection or network failure while restoring packages: {stderr.Trim()}",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
-            }
-            else
-            {
-                // Generic failure — report each package individually
-                foreach(var pkg in validPackages)
-                {
-                    diagnostics.Add(new Diagnostic(
-                        CommonDiagnostics.PackageNotFound.Id,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                        Location: default,
-                        CompilationUnitPath: string.Empty,
-                        AnalyzerName: null));
-                }
-            }
-
-            return new PackageResolutionResult(
-                ImmutableArray<string>.Empty,
-                ImmutableArray<ResolvedPackageInfo>.Empty,
-                FailureCount: priorFailureCount + validPackages.Length);
-        }
-
-        // Report individual package failures
-        var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
-        var newFailures = 0;
-
-        foreach(var pkg in validPackages)
-        {
-            if(packageFailures.Contains(pkg.Name))
-            {
-                diagnostics.Add(new Diagnostic(
-                    CommonDiagnostics.PackageNotFound.Id,
-                    DiagnosticSeverity.Error,
-                    PipelineStage.Driver,
-                    $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                    Location: default,
-                    CompilationUnitPath: string.Empty,
-                    AnalyzerName: null));
-                newFailures++;
-            }
-        }
-
-        return new PackageResolutionResult(
-            ImmutableArray<string>.Empty,
-            resolvedInfos.ToImmutable(),
-            FailureCount: priorFailureCount + newFailures);
-    }
-
-    /// <summary>
     /// Parses <c>project.assets.json</c> to extract resolved assembly paths for
     /// the target framework. Deduplicates against assemblies provided by referenced
     /// shared frameworks to prevent duplicate assembly loading.
@@ -356,14 +252,7 @@ public static class PackageResolver
         }
         catch(Exception ex) when(ex is JsonException or IOException)
         {
-            diagnostics.Add(new Diagnostic(
-                CommonDiagnostics.PackageNetworkError.Id,
-                DiagnosticSeverity.Error,
-                PipelineStage.Driver,
-                $"Failed to parse project.assets.json: {ex.Message}",
-                Location: default,
-                CompilationUnitPath: string.Empty,
-                AnalyzerName: null));
+            PackageDiagnosticFacts.Network(diagnostics, ex.Message, assetsRead: assetsPath);
             return new PackageResolutionResult(
                 ImmutableArray<string>.Empty,
                 ImmutableArray<ResolvedPackageInfo>.Empty,
@@ -518,14 +407,7 @@ public static class PackageResolver
             {
                 if(!resolvedDeclaredPackages.Contains(pkg.Name))
                 {
-                    diagnostics.Add(new Diagnostic(
-                        CommonDiagnostics.PackageNotFound.Id,
-                        DiagnosticSeverity.Error,
-                        PipelineStage.Driver,
-                        $"Package '{pkg.Name}' version '{pkg.Version}' was not found on any configured NuGet feed. Searched: https://api.nuget.org/v3/index.json.",
-                        Location: default,
-                        CompilationUnitPath: string.Empty,
-                        AnalyzerName: null));
+                    PackageDiagnosticFacts.Missing(pkg, "", null, diagnostics);
                     failureCount++;
                 }
             }

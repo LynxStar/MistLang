@@ -42,7 +42,7 @@ flowchart TD
 | `SemanticModelBuilder.ComputeStampability` (new) | Classify each `StructType` as stampable/not, mirroring `ComputeDefaultability`'s topological walk and cycle handling. |
 | `StructType.IsStampable` (new property) | Cache the classification result on the type. |
 | `DefiniteAssignmentAnalyzer` (generalized) | Forward dataflow that tracks the assigned-set and flags reads of not-yet-assigned fields/locals. Replaces the assignment-only `ComputeDefinitelyAssigned`. |
-| `TypeCheckerAnalyzer.CheckArrayCreation` (new/extended) | Gate bare `new T[size]` on `T` stampable; emit `MIST_ARRAY_REQUIRES_INITIALIZER` otherwise. |
+| `TypeCheckerAnalyzer.CheckArrayCreation` (new/extended) | Gate bare `new T[size]` on `T` stampable; emit `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` otherwise. |
 | `TypeCheckerAnalyzer` initializer-construction check (new) | Validate `new Array<T, Size>(fn)` — `fn` is index→value, result assignable to `T`. |
 | `CSharpEmitter` array emission (modified) | Emit intrinsic stamp-fill for bare form; per-index `fn` loop for initializer form; remove `__CreateDefault` fill loop. |
 | `Array.mist` bootstrap (modified) | Add explicit `(fn)` constructor; this suppresses the inferred parameterless `new()`. |
@@ -99,8 +99,8 @@ The analysis walks statements in order, threading a mutable `AssignmentState`. O
 #### Read detection
 
 Every expression is visited for **reads**. A read of:
-- `this.field` (member access on `this`) where `field ∉ AssignedFields` and `field` is not in the initially-assigned set (initializer or synthetic default) → `MIST_FIELD_READ_BEFORE_ASSIGNMENT` (Req 1.1, 1.4).
-- a local identifier where `localSymbol ∉ AssignedLocals` and the local had no initializer → `MIST_LOCAL_READ_BEFORE_ASSIGNMENT` (Req 2.1, 2.3).
+- `this.field` (member access on `this`) where `field ∉ AssignedFields` and `field` is not in the initially-assigned set (initializer or synthetic default) → `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)` (Req 1.1, 1.4).
+- a local identifier where `localSymbol ∉ AssignedLocals` and the local had no initializer → `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)` (Req 2.1, 2.3).
 
 Assignment targets are *writes*, not reads: the left-hand `this.field` / local of a simple assignment is recorded into the assigned set and not flagged. **Compound assignments** (`x += 1`) read-then-write: the read is checked first (Req 2.6), then the target is recorded.
 
@@ -114,7 +114,7 @@ Assignment targets are *writes*, not reads: the left-hand `this.field` / local o
 #### Integration
 
 - The generalized dataflow runs once per constructor body (covering both field reads and locals declared in the constructor) and once per non-constructor method/function body (covering locals only).
-- The existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` check (Req 1.7) is preserved: the final intersected `AssignedFields` set feeds it exactly as today.
+- The existing end-of-constructor `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` check (Req 1.7) is preserved: the final intersected `AssignedFields` set feeds it exactly as today.
 
 #### Array-construction sites are fully-assigned producers
 
@@ -199,11 +199,11 @@ The `where TValue : default` constraint is **removed** because initializer const
 
 | ID | Severity | Stage | Trigger |
 |---|---|---|---|
-| `MIST_FIELD_READ_BEFORE_ASSIGNMENT` | Error | Analysis | Read of a constructor field before definite assignment (Req 1) |
-| `MIST_LOCAL_READ_BEFORE_ASSIGNMENT` | Error | Analysis | Read of a local before definite assignment (Req 2) |
-| `MIST_ARRAY_REQUIRES_INITIALIZER` | Error | Analysis | Bare `new T[size]` with non-stampable `T` (Req 4.2, 4.5) |
+| `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)` | Error | Analysis | Read of a constructor field before definite assignment (Req 1) |
+| `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)` | Error | Analysis | Read of a local before definite assignment (Req 2) |
+| `MIST_ARRAY_REQUIRES_INITIALIZER (historical)` | Error | Analysis | Bare `new T[size]` with non-stampable `T` (Req 4.2, 4.5) |
 
-The existing `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` is retained unchanged (Req 1.7).
+The existing `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` is retained unchanged (Req 1.7).
 
 ## Data Models
 
@@ -238,13 +238,13 @@ These are the formal, executable correctness properties the implementation must 
 
 ### Property 1: Field read-before-assignment soundness
 
-For any constructor body, the analyzer emits `MIST_FIELD_READ_BEFORE_ASSIGNMENT` for a non-defaultable field read if and only if there exists a control-flow path reaching that read on which the field has not been assigned (and is not pre-assigned via initializer or synthetic default).
+For any constructor body, the analyzer emits `MIST_FIELD_READ_BEFORE_ASSIGNMENT (historical)` for a non-defaultable field read if and only if there exists a control-flow path reaching that read on which the field has not been assigned (and is not pre-assigned via initializer or synthetic default).
 
 **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8**
 
 ### Property 2: Local read-before-assignment soundness
 
-For any method/constructor body, the analyzer emits `MIST_LOCAL_READ_BEFORE_ASSIGNMENT` for a local read if and only if there exists a control-flow path reaching that read on which the local has not been assigned (and had no initializer).
+For any method/constructor body, the analyzer emits `MIST_LOCAL_READ_BEFORE_ASSIGNMENT (historical)` for a local read if and only if there exists a control-flow path reaching that read on which the local has not been assigned (and had no initializer).
 
 **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
 
@@ -256,7 +256,7 @@ A struct receiver is stampable when its substituted instance storage, including 
 
 ### Property 4: Bare-array stampability gate
 
-`new T[size]` type-checks successfully if and only if `T` is a primitive or a stampable struct; for every other `T` it emits exactly one `MIST_ARRAY_REQUIRES_INITIALIZER`.
+`new T[size]` type-checks successfully if and only if `T` is a primitive or a stampable struct; for every other `T` it emits exactly one `MIST_ARRAY_REQUIRES_INITIALIZER (historical)`.
 
 **Validates: Requirements 4.1, 4.2, 4.5, 4.6**
 
@@ -285,7 +285,7 @@ The six Correctness Properties above are each realized as a property-based test.
 - Field: assigned-on-all-branches (no diagnostic), assigned-on-one-branch (diagnostic), read-after-assign (no diagnostic), `this`-escape before full assignment (diagnostic), initializer/synthetic-default pre-assignment (no diagnostic), end-of-constructor not-assigned still fires.
 - Local: declared-with-initializer (no diagnostic), read-before-assign (diagnostic), conditional-merge assigned (no diagnostic), loop-body read (diagnostic), compound-assignment-before-assign (diagnostic).
 - Stampability: primitive struct (stampable), nested stampable struct, struct-with-class-field (not), closed generic with substituted primitive storage (stampable), open generic with stampable proof (stampable), unresolved type-parameter storage without proof (not), struct-with-string-field (not, string is reference).
-- Array: bare stampable (compiles), bare reference (`MIST_ARRAY_REQUIRES_INITIALIZER`), bare non-stampable struct (error), `new Array<Class,N>(fn)` (compiles), array literal of reference types (compiles).
+- Array: bare stampable (compiles), bare reference (`MIST_ARRAY_REQUIRES_INITIALIZER (historical)`), bare non-stampable struct (error), `new Array<Class,N>(fn)` (compiles), array literal of reference types (compiles).
 - Emitter: bare stampable emits no fill loop; `new Array<T,N>(fn)` emits per-index `fn` loop; verify `__CreateDefault` is not emitted in any array path.
 
 ### Migration Verification

@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 
@@ -98,7 +99,7 @@ internal static class ClosedContainment
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.FieldDisciplineContainment, node, [],
-                            DisciplineAnalyzer.Capitalised(container.Discipline), TypeDisplay.Mist(closed), DisciplineAnalyzer.Display(held), field.Name, reason + route);
+                            new EnumValue(DisciplineAnalyzer.Capitalised(container.Discipline)), DiagnosticSnapshot.Type(closed), new EnumValue(DisciplineAnalyzer.Display(held)), new NameValue(field.Name), new NameValue(reason + route));
                     }
 
                     break;

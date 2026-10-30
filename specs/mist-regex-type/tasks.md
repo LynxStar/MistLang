@@ -51,7 +51,7 @@ This plan implements `regex` as a first-class type in Mist, spanning the full co
 
   - [x] 3.2 Implement compile-time regex validation in the type checker
     - Validate regex literal patterns using `new System.Text.RegularExpressions.Regex(pattern, RegexOptions.None)` at compile time
-    - Emit `MIST_TC_REGEX_INVALID` diagnostic on failure with error description and offset
+    - Emit `MIST_TC_REGEX_INVALID (historical)` diagnostic on failure with error description and offset
     - Still record expression type as `Standard.Regex` on failure (prevent cascading errors)
     - _Requirements: 4.6, 5.3, 5.4, 5.5_
 
@@ -65,7 +65,7 @@ This plan implements `regex` as a first-class type in Mist, spanning the full co
 
   - [x] 3.4 Implement regex pattern matching validation in the type checker
     - Validate scrutinee type is `string` when regex pattern is used in `is` or switch arm
-    - Emit `MIST_TC_REGEX_SCRUTINEE` diagnostic if scrutinee is not `string`
+    - Emit `MIST_TC_REGEX_SCRUTINEE (historical)` diagnostic if scrutinee is not `string`
     - Validate regex pattern syntax at pattern position (emit diagnostic if invalid)
     - Ignore capture groups in regex patterns (no bindings introduced)
     - _Requirements: 7.2, 7.3, 7.4, 7.7, 7.8_
@@ -76,11 +76,11 @@ This plan implements `regex` as a first-class type in Mist, spanning the full co
     - _Requirements: 7.5_
 
   - [x] 3.6 Implement regex refinement type support
-    - Validate regex refinement predicates are only on `string` base types (emit `MIST_TC_REGEX_REFINEMENT` otherwise)
+    - Validate regex refinement predicates are only on `string` base types (emit `MIST_TC_REGEX_REFINEMENT (historical)` otherwise)
     - Validate regex pattern syntax in refinement predicates
     - Evaluate regex against string literals at compile time using full-match semantics
-    - Emit `MIST_TC_REFINEMENT_FAIL` if literal doesn't match
-    - Emit `MIST_TC_REFINEMENT_NONCONST` for non-constant string assigned to regex-refined type
+    - Emit `MIST_TC_REFINEMENT_FAIL (historical)` if literal doesn't match
+    - Emit `MIST_TC_REFINEMENT_NONCONST (historical)` for non-constant string assigned to regex-refined type
     - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
 
 - [x] 4. Checkpoint - Verify semantic analysis passes

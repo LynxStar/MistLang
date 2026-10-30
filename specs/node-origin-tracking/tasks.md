@@ -92,7 +92,7 @@ This plan replaces the span-containment heuristic for resolving AST node source 
 - [x] 5. Assign ParsedOrigin in MistParser
   - [x] 5.1 Add origin assignment to `MistParser.Parse()`
     - In `Source/Mist/Parsing/MistParser.cs`, after the Storm-generated parser returns `root`
-    - Add a null check for `tokens.Source` — if null, report `MIST_PARSE_ERROR` diagnostic and return `ParseResult` with null `Root`
+    - Add a null check for `tokens.Source` — if null, report `MIST0122` diagnostic and return `ParseResult` with null `Root`
     - If `root` is not null, walk the tree recursively and set `Origin = new ParsedOrigin(tokens.Source)` on every node
     - Add private static method `AssignOrigin(Storm.Runtime.SyntaxNode node, ParsedOrigin origin)` that sets `node.Origin = origin` and recurses into `node.Children()`
     - _Requirements: 3.1, 3.2, 3.3_

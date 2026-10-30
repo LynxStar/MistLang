@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design replaces the binary "is the container owned?" field containment check in `DropAnalyzer.cs` with a discipline-compatibility matrix, adds substructural constraint syntax for generic type parameters, enforces the matrix on generic fields at the definition site, validates constraint satisfaction at instantiation sites, and removes the now-obsolete `MIST_TC_0110` diagnostic.
+This design replaces the binary "is the container owned?" field containment check in `DropAnalyzer.cs` with a discipline-compatibility matrix, adds substructural constraint syntax for generic type parameters, enforces the matrix on generic fields at the definition site, validates constraint satisfaction at instantiation sites, and removes the now-obsolete `MIST_TC_0110 (historical)` diagnostic.
 
 The core insight: each substructural discipline makes a specific promise about how many times `Drop()` fires on the container. A field's discipline requires certain guarantees from its container. The compatibility matrix encodes which container promises satisfy which field requirements.
 
@@ -40,7 +40,7 @@ graph TD
 1. **Parsing** — The Storm grammar's `Constraint` rule gains three new alternatives (`LinearConstraint`, `AffineConstraint`, `RelevantConstraint`). The parser already recognizes `linear`, `affine`, `relevant` as keywords.
 2. **Semantic model building** — `ResolveConstraintClause` recognizes the new constraint node types and sets corresponding booleans on `TypeParameterConstraints`.
 3. **Drop analysis** — `ValidateFieldContainment` replaces the owned check with the compatibility matrix, handling both concrete types and type parameter fields.
-4. **Type checking** — A new validation pass checks that type arguments at instantiation sites satisfy substructural constraints, following the discipline lattice. The `MIST_TC_0110` check is deleted.
+4. **Type checking** — A new validation pass checks that type arguments at instantiation sites satisfy substructural constraints, following the discipline lattice. The `MIST_TC_0110 (historical)` check is deleted.
 
 ## Components and Interfaces
 
@@ -191,7 +191,7 @@ Unconstrained type parameter message:
 
 "{Discipline} type '{Container}' contains field '{Field}' of unconstrained type parameter '{T}'. Add a substructural constraint (e.g., 'where {T} : {suggested_constraint}') to ensure the field's discipline is compatible."
 
-All use the existing `MIST_DROP_FIELD_NOT_OWNED` diagnostic ID.
+All use the existing `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostic ID.
 
 ### 6. TypeCheckerAnalyzer — Instantiation-Site Constraint Satisfaction
 
@@ -242,12 +242,12 @@ private static bool SatisfiesConstraint(SubstructuralDiscipline argument, Substr
 
 This runs at: `new` expressions, base class specifications, field type arguments, method call type arguments, variable declarations with explicit generic types.
 
-### 7. MIST_TC_0110 Removal
+### 7. MIST_TC_0110 (historical) Removal
 
 Delete from `TypeCheckerAnalyzer.cs`:
 - The `TaskStorageRestriction` diagnostic ID declaration
 - The `IsTaskLikeType` usage in field/property validation (lines around 3349-3430)
-- The section header comment "Task<T> storage restriction (MIST_TC_0110)"
+- The section header comment "Task<T> storage restriction (MIST_TC_0110 (historical))"
 
 After removal, `Task<T>` (relevant discipline) and `ValueTask<T>` (linear discipline) are handled by the DropAnalyzer's compatibility matrix like any other substructural type:
 - Task in relevant container → ✓ (relevant holds relevant)
@@ -309,7 +309,7 @@ graph TD
 
 ### Property 1: Discipline-Compatibility Matrix
 
-*For any* container discipline `C` ∈ {linear, affine, relevant, unrestricted} and any field discipline `F` ∈ {linear, affine, relevant, unrestricted}, compiling a container of discipline `C` with a field of discipline `F` SHALL produce zero `MIST_DROP_FIELD_NOT_OWNED` diagnostics if and only if the compatibility matrix permits the (C, F) pair. When the matrix rejects the pair, exactly one diagnostic SHALL be produced with a message that names the container, the field, the field's discipline keyword, and the specific invariant violation.
+*For any* container discipline `C` ∈ {linear, affine, relevant, unrestricted} and any field discipline `F` ∈ {linear, affine, relevant, unrestricted}, compiling a container of discipline `C` with a field of discipline `F` SHALL produce zero `MIST_DROP_FIELD_NOT_OWNED (historical)` diagnostics if and only if the compatibility matrix permits the (C, F) pair. When the matrix rejects the pair, exactly one diagnostic SHALL be produced with a message that names the container, the field, the field's discipline keyword, and the specific invariant violation.
 
 **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.7, 2.1, 2.2, 2.3, 2.4, 9.2, 9.3, 9.4, 9.5**
 
@@ -378,7 +378,7 @@ Example-based tests covering:
 - Specific instantiation site kinds (new, base class, field, method call, variable)
 - Error type suppression (edge case)
 - The exact diagnostic message text for each container/field combination
-- MIST_TC_0110 removal verification (Task/ValueTask in various containers)
+- MIST_TC_0110 (historical) removal verification (Task/ValueTask in various containers)
 
 ### Integration Tests
 
@@ -394,5 +394,5 @@ Example-based tests covering:
 | `ConstraintCombinationPropertyTests` | PBT | Property 3 |
 | `GenericFieldContainmentPropertyTests` | PBT | Property 4 |
 | `ConstraintSatisfactionLatticePropertyTests` | PBT | Property 5 |
-| `TaskStorageRestrictionDiagnosticTests` (updated) | Unit | MIST_TC_0110 removal / matrix behavior |
+| `TaskStorageRestrictionDiagnosticTests` (updated) | Unit | MIST_TC_0110 (historical) removal / matrix behavior |
 | `TaskStorageRestrictionPropertyTests` (updated) | PBT | Task/ValueTask in containers per matrix |

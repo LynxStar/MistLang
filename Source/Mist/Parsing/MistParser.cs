@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
+using Mist.Lexing;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 
@@ -14,6 +15,7 @@ public sealed class MistParser : IParser
 {
     public ParseResult Parse(TokenStream tokens, DiagnosticBag diagnostics)
     {
+        diagnostics.Stage = PipelineStage.Parsing;
         // Pre-process the token stream to reclassify keyword tokens as IDENTIFIER
         // when they appear as segments in dotted qualified identifiers following
         // `using` or `namespace`. This allows CLR namespaces containing keyword-
@@ -35,28 +37,22 @@ public sealed class MistParser : IParser
         {
             // The Storm-generated parser is skeletal — parse methods are not yet implemented.
             // This is expected during early development. Return null root gracefully.
-            diagnostics.Report(ParserDiagnostics.ParseStub, default, tokens.Source.Path);
+            diagnostics.ReportTyped(ParserDiagnostics.ParseStub, new FileOnly(tokens.Source.Path));
         }
 
         // Map Storm diagnostics to Mist diagnostics.
         foreach(var entry in stormDiagnostics.Entries)
         {
-            var location = (entry.Line > 0 && entry.Column > 0)
-                ? new LinePositionSpan(
-                    new LinePosition(entry.Line, entry.Column),
-                    new LinePosition(entry.Line, entry.Column))
-                : default;
-
-            diagnostics.Report(ParserDiagnostics.ParseError, location, entry.FilePath ?? tokens.Source.Path, entry.Message);
+            diagnostics.ReportTyped(ParserDiagnostics.ParseError, StormEntryLocation.Of(tokens.Source, entry.FilePath, entry.Line, entry.Column), new TextValue(entry.Message));
         }
 
         // The Storm-generated parser is a backtracking PEG parser: when the
         // `stackalloc T[n]` alternative fails partway (e.g. the `[size]` is
         // missing or empty), it truncates its own diagnostics and backtracks,
-        // leaving only a generic MIST_PARSE_ERROR. Requirements 3.4 and 3.5
+        // leaving only a generic MIST0122. Requirements 3.4 and 3.5
         // call for a specific recovery diagnostic identifying the missing or
         // empty stackalloc size. We detect those shapes here with a focused
-        // token scan and emit MIST_PARSE_STACKALLOC_SIZE; parsing still
+        // token scan and emit MIST0124; parsing still
         // continues (no node is produced for the malformed expression).
         DetectStackallocSizeErrors(tokens, diagnostics);
 
@@ -82,15 +78,12 @@ public sealed class MistParser : IParser
         // it relies on the semantic modifier list attached to each declaration node.
         if(root is not null)
         {
+            AssignOrigin(root, new ParsedOrigin(tokens.Source));
             ValidateAccessModifierCombinations(root, diagnostics);
         }
 
-        // Assign ParsedOrigin to every node in the tree so diagnostics
-        // can resolve source locations without span-containment heuristics.
         if(root is not null)
         {
-            AssignOrigin(root, new ParsedOrigin(tokens.Source));
-
             // Completeness check: verify the parser consumed all default-channel tokens.
             // The CompilationUnit rule does not consume the EOF sentinel, so we exclude it
             // from the comparison — only flag genuinely unconsumed content tokens.
@@ -104,11 +97,8 @@ public sealed class MistParser : IParser
             if(lastPos < contentTokenCount)
             {
                 var unconsumedToken = defaultTokens[lastPos];
-                var location = new LinePositionSpan(
-                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column),
-                    new LinePosition(unconsumedToken.Start.Line, unconsumedToken.Start.Column));
 
-                diagnostics.Report(ParserDiagnostics.ParseIncomplete, location, tokens.Source.Path, unconsumedToken.Start.Line);
+                diagnostics.ReportTyped(ParserDiagnostics.ParseIncomplete, TokenLocation(tokens.Source, unconsumedToken, point: true), new QuantityValue(unconsumedToken.Start.Line));
             }
         }
 
@@ -120,7 +110,7 @@ public sealed class MistParser : IParser
     }
 
     /// <summary>
-    /// Walks the parsed AST and emits a <c>MIST_PARSE_MULTIPLE_ACCESS</c> diagnostic
+    /// Walks the parsed AST and emits a <c>MIST0128</c> diagnostic
     /// for every declaration whose modifier list contains more than one access modifier.
     /// Uses <see cref="AccessModifierSyntax.CountAccessModifiers"/> as the single source of
     /// truth for counting access modifiers (Requirement 2.6).
@@ -149,10 +139,7 @@ public sealed class MistParser : IParser
     {
         if(AccessModifierSyntax.CountAccessModifiers(node.Modifiers) > 1)
         {
-            diagnostics.ReportAtNode(
-                ParserDiagnostics.MultipleAccessModifiers,
-                (Storm.Runtime.SyntaxNode)node,
-                null);
+            diagnostics.ReportAtNodeTyped(ParserDiagnostics.MultipleAccessModifiers, (Storm.Runtime.SyntaxNode)node, null);
         }
     }
 
@@ -160,7 +147,7 @@ public sealed class MistParser : IParser
     /// Scans the token stream for malformed <c>stackalloc</c> expressions that lack a
     /// bracketed size (<c>stackalloc T</c>, Requirement 3.4) or use empty brackets
     /// (<c>stackalloc T[]</c>, Requirement 3.5) and emits a
-    /// <c>MIST_PARSE_STACKALLOC_SIZE</c> recovery diagnostic for each.
+    /// <c>MIST0124</c> recovery diagnostic for each.
     /// </summary>
     /// <remarks>
     /// The grammar's <c>StackallocExpression</c> alternative requires
@@ -197,7 +184,7 @@ public sealed class MistParser : IParser
             if(!hasOpenBracket)
             {
                 // Requirement 3.4: `stackalloc T` with no bracketed size.
-                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
+                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
                 continue;
             }
 
@@ -207,23 +194,23 @@ public sealed class MistParser : IParser
             if(isEmptyBrackets)
             {
                 // Requirement 3.5: `stackalloc T[]` with empty brackets.
-                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source.Path, diagnostics);
+                AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
             }
         }
     }
 
     private static void AddStackallocSizeDiagnostic(
         Storm.Runtime.Token stackallocToken,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
-        var location = (stackallocToken.Start.Line > 0 && stackallocToken.Start.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(stackallocToken.Start.Line, stackallocToken.Start.Column),
-                new LinePosition(stackallocToken.End.Line, stackallocToken.End.Column))
-            : default;
+        diagnostics.ReportTyped(ParserDiagnostics.StackallocSize, TokenLocation(source, stackallocToken, point: false));
+    }
 
-        diagnostics.Report(ParserDiagnostics.StackallocSize, location, sourcePath);
+    private static Location TokenLocation(SourceText source, Storm.Runtime.Token token, bool point)
+    {
+        var identity = new SourceIdentity(source);
+        return point ? new SourcePoint(identity, token.Span.Start) : new SourceRange(identity, token.Span.Start, token.Span.Length);
     }
 
     /// <summary>
@@ -245,14 +232,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "interface")
             {
-                var token = defaultTokens[i];
-                var location = (token.Start.Line > 0 && token.Start.Column > 0)
-                    ? new LinePositionSpan(
-                        new LinePosition(token.Start.Line, token.Start.Column),
-                        new LinePosition(token.End.Line, token.End.Column))
-                    : default;
-
-                diagnostics.Report(ParserDiagnostics.RemovedInterfaceKeyword, location, tokens.Source.Path);
+                diagnostics.ReportTyped(ParserDiagnostics.RemovedInterfaceKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -277,14 +257,7 @@ public sealed class MistParser : IParser
             if(defaultTokens[i].Kind == identifierKind
                 && defaultTokens[i].Lexeme == "trait")
             {
-                var token = defaultTokens[i];
-                var location = (token.Start.Line > 0 && token.Start.Column > 0)
-                    ? new LinePositionSpan(
-                        new LinePosition(token.Start.Line, token.Start.Column),
-                        new LinePosition(token.End.Line, token.End.Column))
-                    : default;
-
-                diagnostics.Report(ParserDiagnostics.RemovedTraitKeyword, location, tokens.Source.Path);
+                diagnostics.ReportTyped(ParserDiagnostics.RemovedTraitKeyword, TokenLocation(tokens.Source, defaultTokens[i], point: false));
             }
         }
     }
@@ -293,7 +266,7 @@ public sealed class MistParser : IParser
     /// Scans each abstract type body for property declarations that carry a body
     /// (block accessors like <c>get { ... }</c>, expression accessors like
     /// <c>get =&gt; ...;</c>, or an expression-bodied property like
-    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST_ABSTRACT_PROPERTY_DEFAULT</c>
+    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST0127</c>
     /// diagnostic. Only methods may have default implementations in an abstract
     /// type; property slots must always be filled by the implementer
     /// (Requirement 13.3).
@@ -343,7 +316,7 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            ScanAbstractBodyForPropertyDefaults(defaultTokens, open, tokens.Source.Path, diagnostics);
+            ScanAbstractBodyForPropertyDefaults(defaultTokens, open, tokens.Source, diagnostics);
         }
     }
 
@@ -355,7 +328,7 @@ public sealed class MistParser : IParser
     private static void ScanAbstractBodyForPropertyDefaults(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int bodyOpenIndex,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
         var leftBraceKind = (int)Generated.TokenKind.LEFT_BRACE;
@@ -381,7 +354,7 @@ public sealed class MistParser : IParser
                     && AccessorBlockHasBody(tokens, i))
                 {
                     // `Type Name { get { ... } }` or `Type Name { get => ...; }`.
-                    AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+                    AddPropertyDefaultDiagnostic(tokens[i], source, diagnostics);
                 }
 
                 depth++;
@@ -418,7 +391,7 @@ public sealed class MistParser : IParser
             else if(kind == suchThatKind && !memberIsMethodOrType)
             {
                 // `Type Name => expr;` expression-bodied property at member level.
-                AddPropertyDefaultDiagnostic(tokens[i], sourcePath, diagnostics);
+                AddPropertyDefaultDiagnostic(tokens[i], source, diagnostics);
             }
             else if(kind == semicolonKind)
             {
@@ -486,16 +459,10 @@ public sealed class MistParser : IParser
 
     private static void AddPropertyDefaultDiagnostic(
         Storm.Runtime.Token token,
-        string sourcePath,
+        SourceText source,
         DiagnosticBag diagnostics)
     {
-        var location = (token.Start.Line > 0 && token.Start.Column > 0)
-            ? new LinePositionSpan(
-                new LinePosition(token.Start.Line, token.Start.Column),
-                new LinePosition(token.End.Line, token.End.Column))
-            : default;
-
-        diagnostics.Report(ParserDiagnostics.AbstractPropertyDefault, location, sourcePath);
+        diagnostics.ReportTyped(ParserDiagnostics.AbstractPropertyDefault, TokenLocation(source, token, point: false));
     }
 
     /// <summary>

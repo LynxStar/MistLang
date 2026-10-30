@@ -189,8 +189,6 @@ internal static class UnknownViews
 
     public static void Report(HiddenMember hidden, IMistType receiverType, SyntaxNode node, BuilderContext context)
     {
-        context.Diagnostics.ReportAtNode(
-            ProgramModelDiagnostics.UnknownViewHidesWriter, node, null,
-            TypeDisplay.Mist(receiverType), hidden.Name, hidden.Operation, hidden.Parameter.Name);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnknownViewHidesWriter, node, null, DiagnosticSnapshot.Type(receiverType), new NameValue(hidden.Name), new TextValue(hidden.Operation), new NameValue(hidden.Parameter.Name));
     }
 }

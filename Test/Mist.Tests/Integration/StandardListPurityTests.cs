@@ -14,8 +14,8 @@ namespace Mist.Tests.Integration;
 [Trait("Tier", "3")]
 public sealed class StandardListPurityTests
 {
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
+    private const string CallsImpure = "MIST0139";
+    private const string Writes = "MIST0137";
 
     private const string Admitted = """
         public class Holder
@@ -73,7 +73,7 @@ public sealed class StandardListPurityTests
     {
         var error = Assert.Single(Errors("owned var xs = new List<int>(); var read = Listed.Bad(xs);", ReadsAnUnrestrictedList));
 
-        Assert.Equal(CallsImpure, error.Id.Value);
+        Assert.Equal(CallsImpure, error.Number.Value);
         Assert.Contains("Count", error.Message, StringComparison.Ordinal);
         Assert.Contains("local readonly", error.Message, StringComparison.Ordinal);
         Assert.Contains("owned or frozen receiver", error.Message, StringComparison.Ordinal);
@@ -84,7 +84,7 @@ public sealed class StandardListPurityTests
     {
         var error = Assert.Single(Errors("owned var xs = new List<int>(); xs.Add(0); var poked = Listed.Poke(xs);", WritesAFrozenList));
 
-        Assert.Equal(Writes, error.Id.Value);
+        Assert.Equal(Writes, error.Number.Value);
         Assert.Contains("frozen", error.Message, StringComparison.Ordinal);
     }
 

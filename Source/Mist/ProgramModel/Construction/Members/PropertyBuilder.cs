@@ -54,7 +54,7 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, exprProp, null);
         }
 
         if(modifiers.IsIntrinsic)
@@ -63,7 +63,7 @@ internal sealed class PropertyBuilder
 
             // An expression-bodied property supplies a getter body, so it can never
             // be a valid intrinsic (backend-provided) property.
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprProp, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprProp, null, new NameValue(name));
         }
 
         var getter = new PropertyAccessor { ExpressionBody = new UnresolvedExpression(exprProp.Body) };
@@ -90,7 +90,7 @@ internal sealed class PropertyBuilder
 
         if(modifiers.IsAsync)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AsyncOnlyOnMethods, blockProp, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AsyncOnlyOnMethods, blockProp, null);
         }
 
         if(modifiers.IsIntrinsic)
@@ -108,8 +108,7 @@ internal sealed class PropertyBuilder
                 or AutoSetAccessorAccessorDeclarationNode
                 or AutoInitAccessorAccessorDeclarationNode)
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.ExtensionPropertyCannotHaveAutoAccessor, accessor, null, name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ExtensionPropertyCannotHaveAutoAccessor, accessor, null, new NameValue(name));
             }
 
             // An intrinsic property is backend-provided: every accessor must be an
@@ -120,8 +119,7 @@ internal sealed class PropertyBuilder
                 AutoSetAccessorAccessorDeclarationNode or
                 AutoInitAccessorAccessorDeclarationNode))
             {
-                context.Diagnostics.ReportAtNode(
-                    ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, accessor, null, name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, accessor, null, new NameValue(name));
             }
 
             getter = accessor switch
@@ -155,7 +153,7 @@ internal sealed class PropertyBuilder
 
         if(getter is null && setter is null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.EmptyAccessorList, blockProp, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.EmptyAccessorList, blockProp, null, new NameValue(name));
         }
 
         context.Attributes.Build(blockProp.Attributes, property.DeclaredAttributesList, host.Scope);

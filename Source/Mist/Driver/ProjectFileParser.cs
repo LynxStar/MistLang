@@ -48,12 +48,28 @@ public static partial class ProjectFileParser
     /// </summary>
     public static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics)
     {
+        return Parse(projectFolder, diagnostics, root: false);
+    }
+
+    /// <summary>
+    /// Parses the manifest of the project being compiled, whose <c>[diagnostics]</c> table is the
+    /// policy of the whole operation: it is handed to <paramref name="diagnostics"/>' operation before
+    /// the rest of the manifest is read, so the manifest's own warnings already obey it. A referenced
+    /// project's manifest goes through <see cref="Parse(string, DiagnosticBag)"/> and sets no policy.
+    /// </summary>
+    public static ProjectConfiguration? ParseRoot(string projectFolder, DiagnosticBag diagnostics)
+    {
+        return Parse(projectFolder, diagnostics, root: true);
+    }
+
+    private static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics, bool root)
+    {
         var filePath = Path.Combine(projectFolder, FileName);
 
         // 1. File existence check
         if(!File.Exists(filePath))
         {
-            diagnostics.Report(DriverDiagnostics.ProjectFileNotFound, default, filePath, (object?)filePath);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectFileNotFound, new FileOnly(filePath), new PathValue(filePath));
             return null;
         }
 
@@ -65,7 +81,7 @@ public static partial class ProjectFileParser
         }
         catch(Exception ex)
         {
-            diagnostics.Report(DriverDiagnostics.ProjectFileReadError, default, filePath, (object?)filePath, ex.Message);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectFileReadError, new FileOnly(filePath), new PathValue(filePath), new TextValue(ex.Message));
             return null;
         }
 
@@ -77,14 +93,24 @@ public static partial class ProjectFileParser
         }
         catch(TomlException ex)
         {
-            diagnostics.Report(DriverDiagnostics.ProjectTomlError, default, filePath, (object?)filePath, ex.Message);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectTomlError, new FileOnly(filePath), new PathValue(filePath), new TextValue(ex.Message));
             return null;
+        }
+
+        if(ReadDiagnosticsPolicy(model, filePath, diagnostics) is not { } policy)
+        {
+            return null;
+        }
+
+        if(root)
+        {
+            diagnostics.Operation.Policy = diagnostics.Operation.Overrides.Apply(policy);
         }
 
         // 4. name field presence check
         if(!model.TryGetValue("name", out var nameObj) || nameObj is not string)
         {
-            diagnostics.Report(DriverDiagnostics.ProjectMissingName, default, filePath, (object?)filePath);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectMissingName, new FileOnly(filePath), new PathValue(filePath));
             return null;
         }
 
@@ -93,7 +119,7 @@ public static partial class ProjectFileParser
         // 5. name non-empty/non-whitespace check
         if(string.IsNullOrWhiteSpace(name))
         {
-            diagnostics.Report(DriverDiagnostics.ProjectEmptyName, default, filePath, (object?)filePath);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectEmptyName, new FileOnly(filePath), new PathValue(filePath));
             return null;
         }
 
@@ -104,16 +130,15 @@ public static partial class ProjectFileParser
                 .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
                 .Distinct()
                 .OrderBy(c => c);
-            var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-            diagnostics.Report(DriverDiagnostics.ProjectInvalidName, default, filePath, (object?)filePath, invalidList);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectInvalidName, new FileOnly(filePath), new PathValue(filePath), new SequenceValue(SlotKind.Name, [.. invalidChars.Select(character => new NameValue(character.ToString()))], ItemPrefix: "'", ItemSuffix: "'"));
             return null;
         }
 
         // 7. name length check
         if(name.Length > MaxNameLength)
         {
-            diagnostics.Report(DriverDiagnostics.ProjectNameTooLong, default, filePath, (object?)filePath, MaxNameLength, name.Length);
+            diagnostics.ReportTyped(DriverDiagnostics.ProjectNameTooLong, new FileOnly(filePath), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(name.Length));
             return null;
         }
 
@@ -124,7 +149,7 @@ public static partial class ProjectFileParser
             // 8a. non-empty/non-whitespace check
             if(string.IsNullOrWhiteSpace(nsRootStr))
             {
-                diagnostics.Report(DriverDiagnostics.ProjectEmptyNamespaceRoot, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectEmptyNamespaceRoot, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
@@ -135,9 +160,8 @@ public static partial class ProjectFileParser
                     .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
                     .Distinct()
                     .OrderBy(c => c);
-                var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                diagnostics.Report(DriverDiagnostics.ProjectInvalidNamespaceRoot, default, filePath, (object?)filePath, invalidList);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectInvalidNamespaceRoot, new FileOnly(filePath), new PathValue(filePath), new SequenceValue(SlotKind.Name, [.. invalidChars.Select(character => new NameValue(character.ToString()))], ItemPrefix: "'", ItemSuffix: "'"));
                 return null;
             }
 
@@ -155,7 +179,7 @@ public static partial class ProjectFileParser
         {
             if(string.IsNullOrWhiteSpace(epStr))
             {
-                diagnostics.Report(DriverDiagnostics.ProjectEmptyEntryPoint, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectEmptyEntryPoint, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
@@ -169,7 +193,7 @@ public static partial class ProjectFileParser
         {
             if(refsObj is not TomlTable refsTable)
             {
-                diagnostics.Report(DriverDiagnostics.ProjectReferencesNotTable, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectReferencesNotTable, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
@@ -178,39 +202,39 @@ public static partial class ProjectFileParser
                 // 9a. Validate reference key name (empty → pattern → length)
                 if(string.IsNullOrWhiteSpace(refName))
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceEmptyName, default, filePath, (object?)refName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceEmptyName, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
                 if(!ValidNamePattern().IsMatch(refName))
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceInvalidName, default, filePath, (object?)refName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceInvalidName, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
                 if(refName.Length > MaxNameLength)
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceNameTooLong, default, filePath, (object?)refName, filePath, MaxNameLength, refName.Length);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceNameTooLong, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(refName.Length));
                     return null;
                 }
 
                 // 9b. Validate reference value is a table
                 if(refValue is not TomlTable refEntry)
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceInvalidFormat, default, filePath, (object?)refName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceInvalidFormat, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
                 // 9c. Extract and validate 'path' field
                 if(!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceMissingPath, default, filePath, (object?)refName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceMissingPath, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
                 if(string.IsNullOrWhiteSpace(rawPath))
                 {
-                    diagnostics.Report(DriverDiagnostics.ProjectReferenceEmptyPath, default, filePath, (object?)refName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceEmptyPath, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
@@ -220,7 +244,7 @@ public static partial class ProjectFileParser
                 // 9e. Classify: a directory or a missing path is left for the resolver to judge
                 if(ReferenceTo(refName, normalizedPath) is not { } reference)
                 {
-                    diagnostics.Report(DriverDiagnostics.ReferenceUnsupportedPath, default, filePath, (object?)refName, normalizedPath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ReferenceUnsupportedPath, new FileOnly(filePath), new NameValue(refName), new PathValue(normalizedPath));
                     return null;
                 }
 
@@ -235,19 +259,19 @@ public static partial class ProjectFileParser
         {
             if(guObj is not TomlTable guTable)
             {
-                diagnostics.Report(DriverDiagnostics.GlobalUsingInvalidFormat, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingInvalidFormat, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
             if(!guTable.TryGetValue("namespaces", out var nsObj))
             {
-                diagnostics.Report(DriverDiagnostics.GlobalUsingMissingNamespaces, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingMissingNamespaces, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
             if(nsObj is not TomlArray nsArray)
             {
-                diagnostics.Report(DriverDiagnostics.GlobalUsingNamespacesNotArray, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingNamespacesNotArray, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
@@ -258,13 +282,13 @@ public static partial class ProjectFileParser
             {
                 if(nsArray[i] is not string entry)
                 {
-                    diagnostics.Report(DriverDiagnostics.GlobalUsingElementNotString, default, filePath, (object?)i, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingElementNotString, new FileOnly(filePath), new QuantityValue(i), new PathValue(filePath));
                     return null;
                 }
 
                 if(string.IsNullOrWhiteSpace(entry))
                 {
-                    diagnostics.Report(DriverDiagnostics.GlobalUsingEmptyNamespace, default, filePath, (object?)i, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingEmptyNamespace, new FileOnly(filePath), new QuantityValue(i), new PathValue(filePath));
                     return null;
                 }
 
@@ -274,15 +298,14 @@ public static partial class ProjectFileParser
                         .Where(c => !char.IsLetterOrDigit(c) && c != '_' && c != '.')
                         .Distinct()
                         .OrderBy(c => c);
-                    var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                    diagnostics.Report(DriverDiagnostics.GlobalUsingInvalidNamespace, default, filePath, (object?)entry, filePath, invalidList);
+                    diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingInvalidNamespace, new FileOnly(filePath), new NameValue(entry), new PathValue(filePath), new SequenceValue(SlotKind.Name, [.. invalidChars.Select(character => new NameValue(character.ToString()))], ItemPrefix: "'", ItemSuffix: "'"));
                     return null;
                 }
 
                 if(!seen.Add(entry))
                 {
-                    diagnostics.Report(DriverDiagnostics.GlobalUsingDuplicateNamespace, default, filePath, (object?)entry, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.GlobalUsingDuplicateNamespace, new FileOnly(filePath), new NameValue(entry), new PathValue(filePath));
                     continue;
                 }
 
@@ -299,7 +322,7 @@ public static partial class ProjectFileParser
         {
             if(pkgsObj is not TomlTable pkgsTable)
             {
-                diagnostics.Report(DriverDiagnostics.PackageTableExpected, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.PackageTableExpected, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
@@ -314,29 +337,28 @@ public static partial class ProjectFileParser
                         .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
                         .Distinct()
                         .OrderBy(c => c);
-                    var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                    diagnostics.Report(DriverDiagnostics.PackageInvalidName, default, filePath, (object?)pkgName, filePath, invalidList);
+                    diagnostics.ReportTyped(DriverDiagnostics.PackageInvalidName, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath), new SequenceValue(SlotKind.Name, [.. invalidChars.Select(character => new NameValue(character.ToString()))], ItemPrefix: "'", ItemSuffix: "'"));
                     continue;
                 }
 
                 // 11b. Validate package name: length check
                 if(pkgName.Length > MaxNameLength)
                 {
-                    diagnostics.Report(DriverDiagnostics.PackageNameTooLong, default, filePath, (object?)pkgName, filePath, MaxNameLength, pkgName.Length);
+                    diagnostics.ReportTyped(DriverDiagnostics.PackageNameTooLong, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(pkgName.Length));
                     continue;
                 }
 
                 // 11c. Validate version value: must be a non-empty string
                 if(pkgValue is not string versionStr)
                 {
-                    diagnostics.Report(DriverDiagnostics.PackageInvalidVersion, default, filePath, (object?)pkgName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.PackageInvalidVersion, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath));
                     continue;
                 }
 
                 if(string.IsNullOrWhiteSpace(versionStr))
                 {
-                    diagnostics.Report(DriverDiagnostics.PackageEmptyVersion, default, filePath, (object?)pkgName, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.PackageEmptyVersion, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath));
                     continue;
                 }
 
@@ -364,7 +386,7 @@ public static partial class ProjectFileParser
             {
                 // Present but not a table → emit diagnostic, produce empty list,
                 // and continue (do not abort the parse).
-                diagnostics.Report(DriverDiagnostics.FrameworkReferenceTableExpected, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceTableExpected, new FileOnly(filePath), new PathValue(filePath));
             }
             else
             {
@@ -378,21 +400,21 @@ public static partial class ProjectFileParser
                     // 13a. Validate framework name: empty/whitespace after trim
                     if(fwName.Length == 0)
                     {
-                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceInvalidName, default, filePath, (object?)rawFwName, filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceInvalidName, new FileOnly(filePath), new NameValue(rawFwName), new PathValue(filePath));
                         continue;
                     }
 
                     // 13b. Validate framework name: length check (after trim)
                     if(fwName.Length > MaxFrameworkReferenceNameLength)
                     {
-                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceNameTooLong, default, filePath, (object?)fwName, filePath, MaxFrameworkReferenceNameLength, fwName.Length);
+                        diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceNameTooLong, new FileOnly(filePath), new NameValue(fwName), new PathValue(filePath), new QuantityValue(MaxFrameworkReferenceNameLength), new QuantityValue(fwName.Length));
                         continue;
                     }
 
                     // 13c. Validate value: must be a TOML boolean
                     if(fwValue is not bool enabled)
                     {
-                        diagnostics.Report(DriverDiagnostics.FrameworkReferenceInvalidValue, default, filePath, (object?)fwName, filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceInvalidValue, new FileOnly(filePath), new NameValue(fwName), new PathValue(filePath));
                         continue;
                     }
 
@@ -420,7 +442,7 @@ public static partial class ProjectFileParser
         {
             if(csprojPropsObj is not TomlTable csprojPropsTable)
             {
-                diagnostics.Report(DriverDiagnostics.CsprojPropertyTableExpected, default, filePath, (object?)filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyTableExpected, new FileOnly(filePath), new PathValue(filePath));
             }
             else
             {
@@ -431,7 +453,7 @@ public static partial class ProjectFileParser
                     // 14a. Validate key: empty/whitespace
                     if(string.IsNullOrWhiteSpace(rawKey))
                     {
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyEmptyKey, default, filePath, (object?)filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyEmptyKey, new FileOnly(filePath), new PathValue(filePath));
                         continue;
                     }
 
@@ -442,37 +464,36 @@ public static partial class ProjectFileParser
                             .Where(c => !char.IsLetterOrDigit(c) && c != '-' && c != '_' && c != '.')
                             .Distinct()
                             .OrderBy(c => c);
-                        var invalidList = string.Join(", ", invalidChars.Select(c => $"'{c}'"));
 
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyInvalidKey, default, filePath, (object?)rawKey, filePath, invalidList);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyInvalidKey, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath), new SequenceValue(SlotKind.Name, [.. invalidChars.Select(character => new NameValue(character.ToString()))], ItemPrefix: "'", ItemSuffix: "'"));
                         continue;
                     }
 
                     // 14c. Validate key: length check
                     if(rawKey.Length > MaxNameLength)
                     {
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyKeyTooLong, default, filePath, (object?)(rawKey[..32] + "..."), filePath, MaxNameLength, rawKey.Length);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyKeyTooLong, new FileOnly(filePath), new NameValue(rawKey[..32] + "..."), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(rawKey.Length));
                         continue;
                     }
 
                     // 14d. Validate value: must be a string
                     if(propValue is not string valueStr)
                     {
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyInvalidValue, default, filePath, (object?)rawKey, filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyInvalidValue, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
                         continue;
                     }
 
                     // 14e. Validate value: non-empty/non-whitespace
                     if(string.IsNullOrWhiteSpace(valueStr))
                     {
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyEmptyValue, default, filePath, (object?)rawKey, filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyEmptyValue, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
                         continue;
                     }
 
                     // 14f. Warn if key shadows a compiler-managed property
                     if(CompilerManagedProperties.Contains(rawKey))
                     {
-                        diagnostics.Report(DriverDiagnostics.CsprojPropertyManagedOverride, default, filePath, (object?)rawKey, filePath);
+                        diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyManagedOverride, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
                     }
 
                     csprojPropBuilder.Add(new CsprojProperty(rawKey, valueStr));
@@ -489,7 +510,7 @@ public static partial class ProjectFileParser
         {
             if(outputTypeObj is not string outputTypeStr)
             {
-                diagnostics.Report(DriverDiagnostics.ProjectInvalidOutputType, default, filePath, (object?)"<non-string>", filePath);
+                diagnostics.ReportTyped(DriverDiagnostics.ProjectInvalidOutputType, new FileOnly(filePath), new EnumValue("<non-string>"), new PathValue(filePath));
                 return null;
             }
 
@@ -502,12 +523,105 @@ public static partial class ProjectFileParser
                     outputType = ProjectOutputType.Library;
                     break;
                 default:
-                    diagnostics.Report(DriverDiagnostics.ProjectInvalidOutputType, default, filePath, (object?)outputTypeStr, filePath);
+                    diagnostics.ReportTyped(DriverDiagnostics.ProjectInvalidOutputType, new FileOnly(filePath), new EnumValue(outputTypeStr), new PathValue(filePath));
                     return null;
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType);
+        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType, policy);
+    }
+
+    internal static DiagnosticPolicy? ReadDiagnosticsPolicy(TomlTable model, string filePath, DiagnosticBag diagnostics)
+    {
+        if(!model.TryGetValue("diagnostics", out var value))
+        {
+            return DiagnosticPolicy.Default;
+        }
+
+        if(value is not TomlTable table)
+        {
+            diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsTableExpected, new FileOnly(filePath), new PathValue(filePath));
+            return null;
+        }
+
+        var faults = 0;
+        var promoteAll = false;
+        var promoted = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+        var disabled = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+        var enabled = ImmutableHashSet.CreateBuilder<DiagnosticNumber>();
+
+        foreach(var (key, entry) in table)
+        {
+            switch(key)
+            {
+                case "warnings_as_errors" when entry is bool all:
+                    promoteAll = all;
+                    break;
+
+                case "warnings_as_errors" when entry is TomlArray numbers:
+                    faults += Numbers(numbers, key, filePath, diagnostics, switchable: false, promoted);
+                    break;
+
+                case "warnings_as_errors":
+                    diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("true, false or an array of diagnostic numbers"));
+                    faults++;
+                    break;
+
+                case "disable" or "enable" when entry is TomlArray numbers:
+                    faults += Numbers(numbers, key, filePath, diagnostics, switchable: true, key == "disable" ? disabled : enabled);
+                    break;
+
+                case "disable" or "enable":
+                    diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("an array of diagnostic numbers"));
+                    faults++;
+                    break;
+
+                default:
+                    diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsKeyUnknown, new FileOnly(filePath), new NameValue(key), new PathValue(filePath));
+                    faults++;
+                    break;
+            }
+        }
+
+        return faults > 0 ? null : new DiagnosticPolicy(promoteAll, promoted.ToImmutable(), disabled.ToImmutable(), enabled.ToImmutable());
+    }
+
+    private static int Numbers(
+        TomlArray numbers,
+        string key,
+        string filePath,
+        DiagnosticBag diagnostics,
+        bool switchable,
+        ImmutableHashSet<DiagnosticNumber>.Builder into)
+    {
+        var faults = 0;
+        foreach(var item in numbers)
+        {
+            if(item is not string code)
+            {
+                diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("an array of diagnostic numbers written as strings"));
+                faults++;
+                continue;
+            }
+
+            if(DiagnosticRegistry.Index.Find(code) is not { } descriptor)
+            {
+                diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsNumberUnknown, new FileOnly(filePath), new NameValue(code), new NameValue(key), new PathValue(filePath));
+                faults++;
+                continue;
+            }
+
+            if(switchable && descriptor.Policy != PolicyClass.Optional)
+            {
+                diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsNumberNotOptional, new FileOnly(filePath), new NameValue(code), new NameValue(key), new PathValue(filePath), new EnumValue(descriptor.Policy.ToString()));
+                faults++;
+                continue;
+            }
+
+            _ = into.Add(descriptor.Number);
+        }
+
+        return faults;
     }
 
     private static ProjectReference? ReferenceTo(string refName, string normalizedPath)

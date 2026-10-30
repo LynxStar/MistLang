@@ -80,13 +80,13 @@ This plan implements the `DelegateType` and `BaseDelegateType` type representati
   - [x] 5.2 Add delegate invocation type checking
     - When a DelegateType-typed value has an invocation suffix, validate arguments against `DelegateType.FuncSignature`
     - Result type is the FuncSignature's return type
-    - BaseDelegateType is NOT invocable — produce error diagnostic `MIST_TC_0093`
+    - BaseDelegateType is NOT invocable — produce error diagnostic `MIST_TC_0093 (historical)`
     - _Requirements: 8.1, 8.3, 3.6, 3.7_
   - [x] 5.3 Add error diagnostics for delegate type mismatches
-    - `MIST_TC_0090`: Signature mismatch (func/lambda incompatible with target DelegateType)
-    - `MIST_TC_0091`: Nominal mismatch (two distinct named delegates)
-    - `MIST_TC_0092`: Cannot narrow System.Delegate to specific type
-    - `MIST_TC_0093`: System.Delegate not directly invocable
+    - `MIST_TC_0090 (historical)`: Signature mismatch (func/lambda incompatible with target DelegateType)
+    - `MIST_TC_0091 (historical)`: Nominal mismatch (two distinct named delegates)
+    - `MIST_TC_0092 (historical)`: Cannot narrow System.Delegate to specific type
+    - `MIST_TC_0093 (historical)`: System.Delegate not directly invocable
     - _Requirements: 2.5, 6.6, 6.7, 3.7_
   - [x] 5.4 Write property test for func-to-delegate assignability (Property 3)
     - **Property 3: func-to-delegate assignability iff signature-compatible**
@@ -119,7 +119,7 @@ This plan implements the `DelegateType` and `BaseDelegateType` type representati
     - `func<...>` argument → prefer `func<...>` overload over DelegateType overload
     - Lambda argument → prefer DelegateType overload over `func<...>` overload (target-type inference favors nominal)
     - DelegateType overload vs BaseDelegateType overload → prefer DelegateType (more specific)
-    - Ambiguity across multiple DelegateTypes → error diagnostic `MIST_TC_0094`
+    - Ambiguity across multiple DelegateTypes → error diagnostic `MIST_TC_0094 (historical)`
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
   - [x] 6.2 Add target-type inference for lambdas targeting DelegateType
     - When a lambda with implicit parameter types targets a DelegateType, infer parameter types from the DelegateType's FuncSignature
@@ -127,7 +127,7 @@ This plan implements the `DelegateType` and `BaseDelegateType` type representati
     - _Requirements: 2.8_
   - [x] 6.3 Add method group resolution for DelegateType targets
     - Single compatible overload in method group → select it
-    - Zero or multiple compatible overloads → error diagnostic (`MIST_TC_0095` / `MIST_TC_0096`)
+    - Zero or multiple compatible overloads → error diagnostic (`MIST_TC_0095 (historical)` / `MIST_TC_0096 (historical)`)
     - _Requirements: 2.7, 2.9_
   - [x] 6.4 Write property test for overload resolution preference (Property 10)
     - **Property 10: Overload resolution prefers more specific delegate type**
@@ -227,7 +227,7 @@ This plan implements the `DelegateType` and `BaseDelegateType` type representati
 - **Process spawning:** only task 11.3 spawns a process (approved single-spawn exception). All other tests use in-process compilation via a shared `CompilerDriver`.
 - **Proof code is immutable:** the Requirement 10 proof code must compile and run verbatim; if it cannot, stop and report the gap rather than weakening the sample.
 - **No AllFeatures integration:** the sample requires `Microsoft.AspNetCore.App` and is excluded from the full-suite baseline run.
-- **Diagnostic IDs:** use `MIST_TC_0090`–`MIST_TC_0096` as specified in the design document's Error Handling section.
+- **Diagnostic IDs:** use `MIST_TC_0090 (historical)`–`MIST_TC_0096 (historical)` as specified in the design document's Error Handling section.
 
 ## Task Dependency Graph
 

@@ -154,7 +154,7 @@ case TypedTupleDeconstructionVariableDeclarationStatementNode typedTuple:
 
 Add a new check in the assignment validation logic. The check should run early in the assignment handling (in the `CheckAssignment` or equivalent method that processes `Assignment` nodes with a non-null `Value`).
 
-**New diagnostic ID:** `MIST_READONLY_LOCAL_0001`
+**New diagnostic ID:** `MIST_READONLY_LOCAL_0001 (historical)`
 
 **Check location:** In the assignment handling code (around line 4820), after the existing ref-readonly checks, add:
 
@@ -277,8 +277,8 @@ CSharpTranspilerBackend (Emission)
 
 | Scenario | Diagnostic ID | Message |
 |----------|--------------|---------|
-| Simple reassignment | MIST_READONLY_LOCAL_0001 | Cannot reassign readonly local variable 'x' |
-| Ref argument | MIST_READONLY_LOCAL_0001 | Cannot pass readonly local variable 'x' by mutable reference |
+| Simple reassignment | MIST_READONLY_LOCAL_0001 (historical) | Cannot reassign readonly local variable 'x' |
+| Ref argument | MIST_READONLY_LOCAL_0001 (historical) | Cannot pass readonly local variable 'x' by mutable reference |
 
 ## Testing Strategy
 

@@ -11,9 +11,9 @@ namespace Mist.Tests.Backend;
 [Trait("Tier", "2")]
 public sealed class PurityContractTests
 {
-    private const string ContractNotMet = "MIST_PA_PURITY_CONTRACT_NOT_MET";
-    private const string Untestable = "MIST_PA_PURE_FUNCTION_TYPE_UNTESTABLE";
-    private const string NoConversion = "MIST_PA_CAST_HAS_NO_CONVERSION";
+    private const string ContractNotMet = "MIST0144";
+    private const string Untestable = "MIST0145";
+    private const string NoConversion = "MIST0149";
 
     [Theory]
     [InlineData("pure-slot-answered-by-a-method-reading-a-mutable-static", "Area")]
@@ -23,7 +23,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(implementation));
 
-        Assert.Equal(ContractNotMet, finding.Id.Value);
+        Assert.Equal(ContractNotMet, finding.Number.Value);
         Assert.Contains(member, finding.Message, StringComparison.Ordinal);
     }
 
@@ -44,7 +44,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze(test));
 
-        Assert.Equal(Untestable, finding.Id.Value);
+        Assert.Equal(Untestable, finding.Number.Value);
         Assert.Contains("pure func<", finding.Message, StringComparison.Ordinal);
     }
 
@@ -53,7 +53,7 @@ public sealed class PurityContractTests
     {
         var finding = Assert.Single(new PuritySpecFragments().Analyze("plain-function-in-an-object-cast-to-a-pure-function-type"));
 
-        Assert.Equal(NoConversion, finding.Id.Value);
+        Assert.Equal(NoConversion, finding.Number.Value);
         Assert.Contains("pure func<", finding.Message, StringComparison.Ordinal);
     }
 

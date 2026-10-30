@@ -35,7 +35,7 @@ public sealed class IntrinsicIndexDecisionTests
         }
         """;
 
-    private static readonly string[] BoundsIds = ["MIST_PA_INDEX_UNPROVEN", "MIST_PA_INDEX_OUT_OF_BOUNDS"];
+    private static readonly string[] BoundsIds = ["MIST0275", "MIST0274"];
 
     [Theory]
     [InlineData("var e = array[1];", "ArrayBounds")]
@@ -96,7 +96,7 @@ public sealed class IntrinsicIndexDecisionTests
 
     private static void AssertOnlyBoundsJudged(string statement)
     {
-        Assert.DoesNotContain(Errors(Analyse(statement)), diagnostic => !BoundsIds.Contains(diagnostic.Id.Value));
+        Assert.DoesNotContain(Errors(Analyse(statement)), diagnostic => !BoundsIds.Contains(diagnostic.Number.Value));
     }
 
     private static List<Diagnostic> Analyse(string statement)

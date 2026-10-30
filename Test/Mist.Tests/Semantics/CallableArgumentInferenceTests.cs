@@ -195,19 +195,19 @@ public sealed class CallableArgumentInferenceTests : ProgramModelProbe
     }
 
     [Theory]
-    [InlineData("var r = Api.Apply(1, (string s) => s);", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("var r = Api.Apply2(1, \"x\", x => x);", "MIST_PM_TYPE_ARGUMENTS_CONFLICT")]
-    [InlineData("var r = Api.Fixed(x => x);", "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED")]
-    [InlineData("var r = Api.Apply(\"w\", Api.Next);", "MIST_PM_TYPE_ARGUMENTS_NOT_INFERRED")]
-    [InlineData("var r = Api.Tie(x => 1);", "MIST_PM_AMBIGUOUS_OVERLOAD")]
-    [InlineData("var r = Api.Apply(1, x => x.Nope);", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("var r = Api.Transform(3, v => v.Nope);", "MIST_PM_UNRESOLVED_MEMBER")]
-    [InlineData("var r = Api.Measure(true switch { _ => Api.Next });", "MIST_PM_METHOD_GROUP_NOT_CONVERTED")]
+    [InlineData("var r = Api.Apply(1, (string s) => s);", "MIST0392")]
+    [InlineData("var r = Api.Apply2(1, \"x\", x => x);", "MIST0392")]
+    [InlineData("var r = Api.Fixed(x => x);", "MIST0391")]
+    [InlineData("var r = Api.Apply(\"w\", Api.Next);", "MIST0391")]
+    [InlineData("var r = Api.Tie(x => 1);", "MIST0386")]
+    [InlineData("var r = Api.Apply(1, x => x.Nope);", "MIST0301")]
+    [InlineData("var r = Api.Transform(3, v => v.Nope);", "MIST0301")]
+    [InlineData("var r = Api.Measure(true switch { _ => Api.Next });", "MIST0387")]
     public void ACallItsCallablesCannotCompleteIsOneDiagnostic(string statement, string id)
     {
         var error = Assert.Single(AllErrors(BuildRun(statement)));
 
-        Assert.Equal(id, error.Id.Value);
+        Assert.Equal(id, error.Number.Value);
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class ProjectedCallableArgumentInferenceTests
         Assert.Null(choice.Selected);
         Assert.Equal(methods, choice.Unresolvable);
         OverloadFailure.Report(choice, methods, arguments, "method 'Where'", HandBuiltModel.Node(), f.Diagnostics);
-        Assert.Equal("MIST_PM_UNRESOLVABLE_OVERLOAD", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0390", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

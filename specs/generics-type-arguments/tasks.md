@@ -87,7 +87,7 @@ This plan implements generics (type parameters and type arguments) for the Mist 
     - _Requirements: 8.1, 8.3_
 
 - [x] 5. Add new diagnostic IDs for generics
-  - Add `MIST_ARITY_MISMATCH`, `MIST_NOT_GENERIC`, `MIST_MISSING_TYPE_ARGUMENTS`, `MIST_DUPLICATE_TYPE_PARAMETER`, `MIST_TYPE_PARAMETER_SHADOWS_TYPE`, `MIST_METHOD_ARITY_MISMATCH`, and `MIST_UNDEFINED_TYPE_ARGUMENT` diagnostic IDs
+  - Add `MIST_ARITY_MISMATCH (historical)`, `MIST_NOT_GENERIC (historical)`, `MIST_MISSING_TYPE_ARGUMENTS (historical)`, `MIST_DUPLICATE_TYPE_PARAMETER (historical)`, `MIST_TYPE_PARAMETER_SHADOWS_TYPE (historical)`, `MIST_METHOD_ARITY_MISMATCH (historical)`, and `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` diagnostic IDs
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6_
 
 - [x] 6. Checkpoint — Verify semantic model types compile
@@ -105,8 +105,8 @@ This plan implements generics (type parameters and type arguments) for the Mist 
     - Register in the method's local scope so they take precedence over enclosing type parameters
     - _Requirements: 6.2, 9.4_
   - [x] 7.3 Emit diagnostics for duplicate type parameter names and shadowing
-    - Check for duplicate type parameter names within the same `TypeParameterList` and emit `MIST_DUPLICATE_TYPE_PARAMETER`
-    - Check if a type parameter name shadows the enclosing type name and emit `MIST_TYPE_PARAMETER_SHADOWS_TYPE` warning
+    - Check for duplicate type parameter names within the same `TypeParameterList` and emit `MIST_DUPLICATE_TYPE_PARAMETER (historical)`
+    - Check if a type parameter name shadows the enclosing type name and emit `MIST_TYPE_PARAMETER_SHADOWS_TYPE (historical)` warning
     - _Requirements: 6.5, 6.6, 13.3_
   - [x] 7.4 Write property test for type parameter registration (Property 2)
     - **Property 2: Type parameter registration**
@@ -118,7 +118,7 @@ This plan implements generics (type parameters and type arguments) for the Mist 
   - [x] 7.5 Write property test for duplicate type parameter diagnostic (Property 3)
     - **Property 3: Duplicate type parameter diagnostic**
     - Generate type/method declarations with duplicate type parameter names
-    - Verify `MIST_DUPLICATE_TYPE_PARAMETER` diagnostic is emitted for each duplicate
+    - Verify `MIST_DUPLICATE_TYPE_PARAMETER (historical)` diagnostic is emitted for each duplicate
     - Test class: `DuplicateTypeParameterPropertyTests` in `Test/Mist.Tests/Semantics/`
     - **Validates: Requirements 6.5, 13.3**
 
@@ -134,9 +134,9 @@ This plan implements generics (type parameters and type arguments) for the Mist 
     - Store on the type's `Interfaces` property
     - _Requirements: 8.3_
   - [x] 8.3 Emit diagnostics for arity mismatches, non-generic type arguments, and missing type arguments in inheritance
-    - Emit `MIST_ARITY_MISMATCH` when type argument count doesn't match type parameter count
-    - Emit `MIST_NOT_GENERIC` when type arguments are provided to a non-generic type
-    - Emit `MIST_MISSING_TYPE_ARGUMENTS` when a non-generic type inherits from a generic type without providing type arguments
+    - Emit `MIST_ARITY_MISMATCH (historical)` when type argument count doesn't match type parameter count
+    - Emit `MIST_NOT_GENERIC (historical)` when type arguments are provided to a non-generic type
+    - Emit `MIST_MISSING_TYPE_ARGUMENTS (historical)` when a non-generic type inherits from a generic type without providing type arguments
     - _Requirements: 7.2, 7.3, 8.4, 13.1, 13.2, 13.5_
   - [x] 8.4 Write property test for generic inheritance resolution (Property 7)
     - **Property 7: Generic inheritance resolution**
@@ -147,7 +147,7 @@ This plan implements generics (type parameters and type arguments) for the Mist 
   - [x] 8.5 Write property test for missing type arguments diagnostic (Property 8)
     - **Property 8: Missing type arguments diagnostic**
     - Generate non-generic types inheriting from generic types without type arguments
-    - Verify `MIST_MISSING_TYPE_ARGUMENTS` diagnostic is emitted
+    - Verify `MIST_MISSING_TYPE_ARGUMENTS (historical)` diagnostic is emitted
     - Test class: `MissingTypeArgumentsPropertyTests` in `Test/Mist.Tests/Semantics/`
     - **Validates: Requirements 8.4, 13.5**
 
@@ -169,10 +169,10 @@ This plan implements generics (type parameters and type arguments) for the Mist 
     - Validate arity
     - _Requirements: 4.2, 4.4_
   - [x] 9.4 Emit diagnostics for arity mismatches, non-generic type arguments, and undefined type arguments in type references
-    - Emit `MIST_ARITY_MISMATCH` for type reference arity mismatches
-    - Emit `MIST_NOT_GENERIC` for type arguments on non-generic types
-    - Emit `MIST_METHOD_ARITY_MISMATCH` for method invocation arity mismatches
-    - Emit `MIST_UNDEFINED_TYPE_ARGUMENT` for unresolvable type arguments
+    - Emit `MIST_ARITY_MISMATCH (historical)` for type reference arity mismatches
+    - Emit `MIST_NOT_GENERIC (historical)` for type arguments on non-generic types
+    - Emit `MIST_METHOD_ARITY_MISMATCH (historical)` for method invocation arity mismatches
+    - Emit `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` for unresolvable type arguments
     - _Requirements: 7.2, 7.3, 11.6, 13.1, 13.2, 13.4, 13.6_
   - [x] 9.5 Write property test for constructed type resolution (Property 4)
     - **Property 4: Constructed type resolution**
@@ -184,19 +184,19 @@ This plan implements generics (type parameters and type arguments) for the Mist 
   - [x] 9.6 Write property test for arity mismatch diagnostic (Property 5)
     - **Property 5: Arity mismatch diagnostic**
     - Generate type references and method invocations with wrong number of type arguments
-    - Verify `MIST_ARITY_MISMATCH` or `MIST_METHOD_ARITY_MISMATCH` diagnostic is emitted
+    - Verify `MIST_ARITY_MISMATCH (historical)` or `MIST_METHOD_ARITY_MISMATCH (historical)` diagnostic is emitted
     - Test class: `ArityMismatchPropertyTests` in `Test/Mist.Tests/Semantics/`
     - **Validates: Requirements 7.2, 11.6, 13.1, 13.4**
   - [x] 9.7 Write property test for non-generic type argument diagnostic (Property 6)
     - **Property 6: Non-generic type argument diagnostic**
     - Generate type references that provide type arguments to non-generic types
-    - Verify `MIST_NOT_GENERIC` diagnostic is emitted
+    - Verify `MIST_NOT_GENERIC (historical)` diagnostic is emitted
     - Test class: `NonGenericTypeArgumentPropertyTests` in `Test/Mist.Tests/Semantics/`
     - **Validates: Requirements 7.3, 13.2**
   - [x] 9.8 Write property test for undefined type argument diagnostic (Property 13)
     - **Property 13: Undefined type argument diagnostic**
     - Generate type references where a type argument name cannot be resolved
-    - Verify `MIST_UNDEFINED_TYPE_ARGUMENT` diagnostic is emitted
+    - Verify `MIST_UNDEFINED_TYPE_ARGUMENT (historical)` diagnostic is emitted
     - Test class: `UndefinedTypeArgumentPropertyTests` in `Test/Mist.Tests/Semantics/`
     - **Validates: Requirements 13.6**
 

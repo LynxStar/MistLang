@@ -21,8 +21,8 @@ This plan implements inferred namespaces for the Mist compiler, touching every s
     - In `Source/Mist/Driver/ProjectFileParser.cs`, after reading `name`:
       - Check for optional `namespace_root` field in the TOML model
       - If present and non-empty: validate characters using the same `ValidNamePattern()` regex, use as `NamespaceRoot`
-      - If present but empty/whitespace: report `MIST_PROJECT_EMPTY_NAMESPACE_ROOT` error and return null
-      - If present but invalid characters: report `MIST_PROJECT_INVALID_NAMESPACE_ROOT` error listing invalid chars and return null
+      - If present but empty/whitespace: report `MIST0056` error and return null
+      - If present but invalid characters: report `MIST0057` error listing invalid chars and return null
       - If absent: default `NamespaceRoot` to `name`
     - Return `new ProjectConfiguration(name, namespaceRoot)` with the resolved value
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
@@ -145,7 +145,7 @@ This plan implements inferred namespaces for the Mist compiler, touching every s
       2. Set file-level scope parent to the primary namespace scope so `Lookup` searches: local → file → namespace → global
       3. For `using` declarations, add imported namespace scopes to the file scope
       4. When resolving a type name, after checking the scope chain, also check imported namespaces
-      5. If multiple imported namespaces contain the same type name, report `MIST_AMBIGUOUS_TYPE` error
+      5. If multiple imported namespaces contain the same type name, report `MIST_AMBIGUOUS_TYPE (historical)` error
       6. If a `using` references a non-existent namespace, report a diagnostic
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 7.1, 7.2, 7.3, 7.4_
 

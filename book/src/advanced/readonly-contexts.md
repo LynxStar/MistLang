@@ -108,8 +108,8 @@ A `readonly` parameter promises the caller that the method will not change the a
 Adding `panel.Main.Raise();` and `panel.Main.Level = 0;` to `Report` is refused at each statement, naming the receiver and the parameter it was reached through:
 
 ```text
-error MIST_PA_READONLY_PARAMETER_CALLS_MUTABLE: Cannot call 'Raise' on 'panel.Main', reached through readonly parameter 'panel': it is not readonly.
-error MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER: Cannot assign to field 'Level' of 'panel.Main', reached through readonly parameter 'panel'.
+error MIST0253: Cannot call 'Raise' on 'panel.Main', reached through readonly parameter 'panel': it is not readonly.
+error MIST0252: Cannot assign to field 'Level' of 'panel.Main', reached through readonly parameter 'panel'.
 ```
 
 Only the chain written on the parameter is followed: a local that copies `panel.Main` is an ordinary local. A field written through a `readonly ref` parameter is refused at any depth too; its calls follow [`readonly ref` Parameters](./ref-parameters.md#readonly-ref-parameters).
@@ -134,7 +134,7 @@ Interpolating a value, or concatenating it into a string, calls its `ToString(fo
 `Celsius.ToString` only reads, so it is inferred readonly and `Label(new Celsius(21.5))` is admitted, as is `Label(7)`. Had it changed a field, the call that gives `T` the type `Celsius` would be refused:
 
 ```text
-error MIST_PA_READONLY_CONTEXT_FORMATS_MUTABLE: Cannot use 'Celsius' as type argument 'T': readonly method 'Label' formats it, and the 'ToString' of 'Celsius' is not readonly.
+error MIST0258: Cannot use 'Celsius' as type argument 'T': readonly method 'Label' formats it, and the 'ToString' of 'Celsius' is not readonly.
 ```
 
 The check follows the type parameter wherever it goes. A generic method that is not readonly but passes its own parameter on to `Label` is refused where its parameter is given `Celsius`, a readonly extension method formatting its block's type parameter is refused at the call whose receiver gives it that type, and a readonly method that calls an unmarked generic formatter with such a type is refused at that call. A method that is not readonly may still format a value whose `ToString` changes it.

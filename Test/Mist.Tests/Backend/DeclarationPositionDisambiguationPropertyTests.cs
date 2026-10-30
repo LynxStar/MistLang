@@ -257,7 +257,7 @@ public sealed class DeclarationPositionDisambiguationPropertyTests
             if(parseErrors.Count > 0)
             {
                 var errorDetails = string.Join("\n",
-                    parseErrors.Select(d => $"  {d.Stage} {d.Id.Value}: {d.Message} at {d.Location}"));
+                    parseErrors.Select(d => $"  {d.Stage} {d.Number.Value}: {d.Message} at {d.Location}"));
 
                 failures.Add(
                     $"Scenario {i} had parse errors (disambiguation failure):\n" +

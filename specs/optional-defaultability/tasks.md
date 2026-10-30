@@ -35,9 +35,9 @@ This plan implements optional defaultability for the Mist compiler — making it
 - [x] 2. Semantic Model: Modify ComputeDefaultability for constructor-aware classification
   - [x] 2.1 Modify `ComputeDefaultabilityForType` (ClassType and StructType overloads) to check for user-defined constructors
     - In `SemanticModelBuilder.cs`, after the explicit default block check, add constructor-presence detection
-    - If type has constructors and no default block → set `NotDefaultable` WITHOUT emitting `MIST_DEFAULT_REQUIRES_BINDING`
+    - If type has constructors and no default block → set `NotDefaultable` WITHOUT emitting `MIST_DEFAULT_REQUIRES_BINDING (historical)`
     - If type has constructors and has default block → keep `Explicit` (existing path)
-    - If type has no constructors and has non-defaultable fields → emit `MIST_DEFAULT_REQUIRES_BINDING` as before
+    - If type has no constructors and has non-defaultable fields → emit `MIST_DEFAULT_REQUIRES_BINDING (historical)` as before
     - Update diagnostic message to suggest adding a constructor as an alternative
     - _Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 4.3, 4.4_
 
@@ -50,7 +50,7 @@ This plan implements optional defaultability for the Mist compiler — making it
     - Add `IsDefault` bool field to `EnumMemberInfo`
     - Add `Defaultability` and `DefaultMember` properties to `EnumType`
     - Wire `IsDefault` from the parsed AST node during enum member registration
-    - Implement `ComputeDefaultabilityForEnum`: scan members for `IsDefault`, set `Explicit` if exactly one, emit `MIST_ENUM_MULTIPLE_DEFAULTS` if more than one, set `NotDefaultable` if zero
+    - Implement `ComputeDefaultabilityForEnum`: scan members for `IsDefault`, set `Explicit` if exactly one, emit `MIST_ENUM_MULTIPLE_DEFAULTS (historical)` if more than one, set `NotDefaultable` if zero
     - Call `ComputeDefaultabilityForEnum` from the `ComputeDefaultability` pass
     - _Requirements: 6.1, 6.3, 6.4, 6.7_
 
@@ -87,7 +87,7 @@ This plan implements optional defaultability for the Mist compiler — making it
     - Compute initial set: fields with initializers + fields with defaultable types are pre-assigned
     - Forward dataflow: track `this.field = expr` assignments, intersect at control-flow merges
     - At every exit point: verify all fields are in the definitely-assigned set
-    - Emit `MIST_FIELD_NOT_DEFINITELY_ASSIGNED` for unassigned non-defaultable fields
+    - Emit `MIST_FIELD_NOT_DEFINITELY_ASSIGNED (historical)` for unassigned non-defaultable fields
     - Add new `DiagnosticId` entries: `FieldNotDefinitelyAssigned`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
@@ -102,18 +102,18 @@ This plan implements optional defaultability for the Mist compiler — making it
 - [x] 5. Type Checker: Default constraint satisfaction and default(T) validation
   - [x] 5.1 Update `default(T)` validation for type parameters with `default` constraint
     - When validating `default(T)` where `T` is a type parameter, check `HasDefaultConstraint` — if true, allow it
-    - Existing `MIST_DEFAULT_ON_TYPE_PARAMETER` behavior unchanged for unconstrained type params
+    - Existing `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)` behavior unchanged for unconstrained type params
     - _Requirements: 5.4, 5.5_
 
   - [x] 5.2 Add constraint satisfaction checking for `where T : default` at instantiation sites
     - When a generic with `where T : default` is instantiated, check that the type argument is defaultable
-    - Emit `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED` if not satisfied
+    - Emit `MIST_DEFAULT_CONSTRAINT_NOT_SATISFIED (historical)` if not satisfied
     - Add new `DiagnosticId` entry: `DefaultConstraintNotSatisfied`
     - _Requirements: 5.6, 8.5, 9.2_
 
   - [x] 5.3 Update `default(EnumType)` and `default(UnionType)` validation
-    - For enums: valid only if `Defaultability == Explicit`; emit `MIST_DEFAULT_NOT_SUPPORTED` otherwise
-    - For unions: valid only if contains `VoidType`; emit `MIST_DEFAULT_NOT_SUPPORTED` otherwise
+    - For enums: valid only if `Defaultability == Explicit`; emit `MIST_DEFAULT_NOT_SUPPORTED (historical)` otherwise
+    - For unions: valid only if contains `VoidType`; emit `MIST_DEFAULT_NOT_SUPPORTED (historical)` otherwise
     - _Requirements: 6.5, 6.6, 7.3, 7.4_
 
   - [x] 5.4 Write property tests: Default constraint satisfaction (Property 7)
@@ -158,9 +158,9 @@ This plan implements optional defaultability for the Mist compiler — making it
 
 - [x] 8. Inheritance defaultability and remaining diagnostics
   - [x] 8.1 Implement inheritance defaultability rules
-    - Derived with no constructors + non-defaultable base → emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE`
+    - Derived with no constructors + non-defaultable base → emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)`
     - Derived with constructors + non-defaultable base → allow without error (constructor handles init)
-    - Derived with constructors + default block + non-defaultable base → emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE`
+    - Derived with constructors + default block + non-defaultable base → emit `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)`
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
   - [x] 8.2 Write property tests: Inheritance defaultability (Property 12)

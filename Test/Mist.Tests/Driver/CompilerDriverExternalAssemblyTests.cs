@@ -113,7 +113,7 @@ public sealed class CompilerDriverExternalAssemblyTests : IDisposable
     {
         return string.Join("\n", result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
-            .Select(d => $"  {d.Id.Value}: {d.Message}"));
+            .Select(d => $"  {d.Number.Value}: {d.Message}"));
     }
 
     private sealed class FixtureTypes(AmbientTypeProviderV2 provider) : IAmbientTypeSource

@@ -38,8 +38,8 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 
 1. THE `Project_File_Parser` SHALL accept an optional `[[references]]` array in `mist.toml`.
 2. WHEN a `[[references]]` entry is present, THE `Project_File_Parser` SHALL require each entry to contain a `path` field of type string.
-3. WHEN a `[[references]]` entry is missing the `path` field, THE `Project_File_Parser` SHALL report a `MIST_PROJECT_REFERENCE_MISSING_PATH` error diagnostic and return `null`.
-4. WHEN a `[[references]]` entry contains a `path` field that is empty or whitespace, THE `Project_File_Parser` SHALL report a `MIST_PROJECT_REFERENCE_EMPTY_PATH` error diagnostic and return `null`.
+3. WHEN a `[[references]]` entry is missing the `path` field, THE `Project_File_Parser` SHALL report a `MIST0060` error diagnostic and return `null`.
+4. WHEN a `[[references]]` entry contains a `path` field that is empty or whitespace, THE `Project_File_Parser` SHALL report a `MIST0061` error diagnostic and return `null`.
 5. WHEN no `[[references]]` array is present, THE `Project_File_Parser` SHALL produce a `Project_Configuration` with an empty references list.
 6. THE `Project_Configuration` SHALL expose the list of declared `Project_Reference` entries parsed from `mist.toml`.
 
@@ -56,9 +56,9 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 3. THE `Project_File_Parser` SHALL normalize the intermediate absolute path to a canonical form (no `.` or `..` segments).
 4. WHEN the normalized path points directly to a file named `mist.toml`, THE `Project_File_Parser` SHALL use that file as the `Resolved_Path`.
 5. WHEN the normalized path points to a directory, THE `Project_File_Parser` SHALL append `mist.toml` to that directory path to produce the `Resolved_Path`.
-6. WHEN the normalized path points to a directory that does not contain a `mist.toml` file, THE `Compiler_Driver` SHALL report a `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE` error diagnostic and abort compilation.
-7. WHEN the normalized path does not point to an existing file or directory, THE `Compiler_Driver` SHALL report a `MIST_PROJECT_REFERENCE_NOT_FOUND` error diagnostic and abort compilation.
-8. WHEN the normalized path points to an existing file that is not named `mist.toml`, THE `Compiler_Driver` SHALL report a `MIST_PROJECT_REFERENCE_NOT_FOUND` error diagnostic and abort compilation.
+6. WHEN the normalized path points to a directory that does not contain a `mist.toml` file, THE `Compiler_Driver` SHALL report a `MIST0063` error diagnostic and abort compilation.
+7. WHEN the normalized path does not point to an existing file or directory, THE `Compiler_Driver` SHALL report a `MIST0062` error diagnostic and abort compilation.
+8. WHEN the normalized path points to an existing file that is not named `mist.toml`, THE `Compiler_Driver` SHALL report a `MIST0062` error diagnostic and abort compilation.
 
 ---
 
@@ -80,7 +80,7 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 
 #### Acceptance Criteria
 
-1. WHEN a `Circular_Reference` is detected during reference resolution, THE `Compiler_Driver` SHALL report a `MIST_PROJECT_CIRCULAR_REFERENCE` error diagnostic that names the cycle.
+1. WHEN a `Circular_Reference` is detected during reference resolution, THE `Compiler_Driver` SHALL report a `MIST0064` error diagnostic that names the cycle.
 2. WHEN a `Circular_Reference` is detected, THE `Compiler_Driver` SHALL abort compilation without processing any further references in the cycle.
 3. THE `Compiler_Driver` SHALL detect both direct circular references (A → A) and transitive circular references (A → B → A).
 
@@ -102,7 +102,7 @@ References are declared in the `mist.toml` project file using a `[[references]]`
 > **Amendment note (2026-09-27).** Criterion 1 said "all `.mist` source files", and the resolver
 > implemented it literally. Lex mode writes a reconstructed `.mist` beside each token dump in
 > `<folder>/out/lexer/`, and building a project that references the lexed one does not clean the
-> referenced project's output, so every type compiled twice (`MIST_PM_DUPLICATE_TYPE`). Criterion 6
+> referenced project's output, so every type compiled twice (`MIST0295`). Criterion 6
 > is a clarification added with that fix; it was not part of the original design. It differs on
 > purpose from Source_Discovery for the project being built (`project-based-build-model`
 > Requirement 2.4–2.5), which excludes the current invocation's effective output and bin directories.
@@ -141,9 +141,9 @@ Visibility is deliberately flat. Mist mirrors C#, where the only visibility boun
 
 #### Acceptance Criteria
 
-1. WHEN reporting a `MIST_PROJECT_REFERENCE_NOT_FOUND` diagnostic, THE `Compiler_Driver` SHALL include the normalized path in the message.
-2. WHEN reporting a `MIST_PROJECT_CIRCULAR_REFERENCE` diagnostic, THE `Compiler_Driver` SHALL include the full reference chain (e.g. `A → B → A`) in the message.
-3. WHEN reporting a `MIST_PROJECT_REFERENCE_MISSING_PATH` or `MIST_PROJECT_REFERENCE_EMPTY_PATH` diagnostic, THE `Project_File_Parser` SHALL include the path to the `mist.toml` file in the message.
+1. WHEN reporting a `MIST0062` diagnostic, THE `Compiler_Driver` SHALL include the normalized path in the message.
+2. WHEN reporting a `MIST0064` diagnostic, THE `Compiler_Driver` SHALL include the full reference chain (e.g. `A → B → A`) in the message.
+3. WHEN reporting a `MIST0060` or `MIST0061` diagnostic, THE `Project_File_Parser` SHALL include the path to the `mist.toml` file in the message.
 4. THE `Compiler_Driver` SHALL report all resolvable reference errors before aborting, rather than stopping at the first error.
 
 ---

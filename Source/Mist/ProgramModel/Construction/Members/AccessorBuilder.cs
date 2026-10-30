@@ -29,11 +29,11 @@ internal sealed class AccessorBuilder
         {
             if(site.IsAbstract)
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, site.MemberName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, new NameValue(site.MemberName));
             }
             else
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.GetterCannotHaveModifier, locationNode, null, site.MemberName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.GetterCannotHaveModifier, locationNode, null, new NameValue(site.MemberName));
             }
         }
 
@@ -56,7 +56,7 @@ internal sealed class AccessorBuilder
         {
             if(site.IsAbstract)
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, site.MemberName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AbstractAccessorCannotHaveModifier, locationNode, null, new NameValue(site.MemberName));
             }
             else if(modifier is PrivateModifierModifierNode)
             {
@@ -64,7 +64,7 @@ internal sealed class AccessorBuilder
             }
             else
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SetterModifierMustBePrivate, locationNode, null, site.MemberName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SetterModifierMustBePrivate, locationNode, null, new NameValue(site.MemberName));
             }
         }
 
@@ -85,7 +85,7 @@ internal sealed class AccessorBuilder
     {
         if(site.IsAbstract)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.AbstractPropertyInitAccessor, locationNode, null, site.MemberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.AbstractPropertyInitAccessor, locationNode, null, new NameValue(site.MemberName));
             return null;
         }
 
@@ -93,7 +93,7 @@ internal sealed class AccessorBuilder
 
         if(isStatic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.StaticPropertyInitAccessor, locationNode, null, site.MemberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.StaticPropertyInitAccessor, locationNode, null, new NameValue(site.MemberName));
         }
 
         // Built as a plain setter once refused, rather than dropped as the abstract case is, so a write to it is
@@ -123,7 +123,7 @@ internal sealed class AccessorBuilder
             {
                 if(local)
                 {
-                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.PureAndLocal, locationNode, null);
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PureAndLocal, locationNode, null);
                 }
 
                 pure = true;
@@ -135,7 +135,7 @@ internal sealed class AccessorBuilder
 
         if(local && site.Owner.IsStatic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.LocalRequiresInstance, locationNode, null);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.LocalRequiresInstance, locationNode, null);
         }
 
         return site.Owner with { IsPure = pure, IsReadonly = isReadonly || pure, IsLocal = local };
@@ -155,7 +155,7 @@ internal sealed class AccessorBuilder
             return false;
         }
 
-        context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.PurityModifierPlacement, locationNode, null, written, "an accessor", string.Empty);
+        context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PurityModifierPlacement, locationNode, null, new EnumValue(written), new TextValue("an accessor"), new TextValue(string.Empty));
         return true;
     }
 }

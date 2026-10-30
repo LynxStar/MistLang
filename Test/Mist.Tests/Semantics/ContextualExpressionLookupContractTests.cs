@@ -31,11 +31,11 @@ public sealed class ContextualExpressionLookupContractTests
         Assert.True(bound.IsReported);
         Assert.True(PriorFailure.Of(bound));
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_AMBIGUOUS_IDENTIFIER", diagnostic.Id.Value);
+        Assert.Equal("MIST0303", diagnostic.Number.Value);
         Assert.Contains("property 'Probe.First.Value'", diagnostic.Message);
         Assert.Contains("property 'Probe.Second.Value'", diagnostic.Message);
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 31), new LinePosition(1, 32)), diagnostic.Location);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 31), new LinePosition(1, 32)), diagnostic.Position());
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class ContextualExpressionLookupContractTests
         var bound = Assert.IsType<TypeReferenceExpression>(IdentifierBinder.BindIdentifier(BindingFragments.Identifier("Widget"), f.Binding, f.Builder));
 
         _ = Assert.IsType<ErrorType>(bound.ReferencedType);
-        Assert.Equal("MIST_PM_AMBIGUOUS_TYPE", Assert.Single(f.Diagnostics.ToImmutableArray()).Id.Value);
+        Assert.Equal("MIST0299", Assert.Single(f.Diagnostics.ToImmutableArray()).Number.Value);
     }
 
     [Fact]

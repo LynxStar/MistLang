@@ -19,7 +19,7 @@ internal static class StatedMethodArguments
 
         if(member is not MethodGroupExpression group)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.TypeArgumentsOnANonMethod, node, null, name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.TypeArgumentsOnANonMethod, node, null, new NameValue(name));
             return new ErrorExpression(node);
         }
 
@@ -41,8 +41,8 @@ internal static class StatedMethodArguments
                     var anchor = argumentNodes[index] is TypeReferenceTypeArgumentTypeArgumentNode type
                         ? type.Type.First : (SyntaxNode)argumentNodes[index];
                     var spread = (SpreadType)arguments[index];
-                    context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.SpreadNonPackArgument, anchor, null,
-                        spread.Operand.Name, name);
+                    ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.SpreadNonPackArgument, anchor,
+                        ProjectedWithholding.Frames(group, ctx.Scope, context.ProgramModel.TypeInterner), new NameValue(spread.Operand.Name), new NameValue(name));
                     return new ErrorExpression(node, [group]);
                 }
 

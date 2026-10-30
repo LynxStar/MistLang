@@ -101,7 +101,7 @@ internal sealed class BaseTypeResolver
         {
             var ownerKind = typeDef is ClassType ? "class" : "struct";
             var baseKind = resolvedConcrete is ClassType ? "class" : "struct";
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, ownerKind, baseKind, QualifiedNameHelper.Build(baseTypeRef.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.BaseTypeKindMismatch, baseTypeRef, null, new EnumValue(ownerKind), new EnumValue(baseKind), new NameValue(QualifiedNameHelper.Build(baseTypeRef.Name)));
             return true;
         }
 
@@ -127,13 +127,13 @@ internal sealed class BaseTypeResolver
 
         if(definition is ConcreteType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, QualifiedNameHelper.Build(baseTypeRef.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ConcreteInAbstractList, baseTypeRef, null, new NameValue(QualifiedNameHelper.Build(baseTypeRef.Name)));
             return;
         }
 
         if(definition is not AbstractType)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, QualifiedNameHelper.Build(baseTypeRef.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InvalidBaseType, baseTypeRef, null, new NameValue(QualifiedNameHelper.Build(baseTypeRef.Name)));
             return;
         }
 

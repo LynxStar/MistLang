@@ -1,4 +1,3 @@
-using System.Globalization;
 using SourceSpan = Storm.Runtime.SourceSpan;
 using SyntaxNode = Storm.Runtime.SyntaxNode;
 
@@ -15,7 +14,7 @@ public static class DiagnosticBagExtensions
     /// </summary>
     public static void ReportAtNode(
         this DiagnosticBag bag,
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         SyntaxNode node,
         string? analyzerName,
         params ReadOnlySpan<object?> args)
@@ -25,25 +24,37 @@ public static class DiagnosticBagExtensions
 
     public static void ReportAtNode(
         this DiagnosticBag bag,
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         SyntaxNode node,
         SourceSpan span,
         string? analyzerName,
         params ReadOnlySpan<object?> args)
     {
-        var (path, location, _) = DiagnosticHelper.ResolveLocation(node, span);
+        bag.AdmitOwned(node, DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
+            LegacyArguments.For(descriptor, args).AsSpan(), analyzerName: analyzerName));
+    }
 
-        var message = args.Length > 0
-            ? string.Format(CultureInfo.InvariantCulture, descriptor.MessageTemplate, args.ToArray())
-            : descriptor.MessageTemplate;
+    public static void ReportAtNodeTyped(
+        this DiagnosticBag bag,
+        MistDiagnostic descriptor,
+        SyntaxNode node,
+        string? analyzerName,
+        params ReadOnlySpan<SlotValue> arguments)
+    {
+        bag.ReportAtNodeTyped(descriptor, node, node.Span, analyzerName, arguments);
+    }
 
-        bag.Add(new Diagnostic(
-            descriptor.Id,
-            descriptor.DefaultSeverity,
-            descriptor.Stage,
-            message,
-            location,
-            path,
-            analyzerName));
+    public static void ReportAtNodeTyped(
+        this DiagnosticBag bag,
+        MistDiagnostic descriptor,
+        SyntaxNode node,
+        SourceSpan span,
+        string? analyzerName,
+        params ReadOnlySpan<SlotValue> arguments)
+    {
+        bag.AdmitOwned(node, DiagnosticFactory.Create(
+            descriptor, DiagnosticHelper.ResolveLocation(node, span), bag.Stage,
+            arguments, analyzerName: analyzerName));
     }
 }

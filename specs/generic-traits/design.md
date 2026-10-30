@@ -236,19 +236,19 @@ When registering a `TraitDeclaration` that has a `TypeParameterList`:
 1. For each identifier in the `TypeParameterList`, create a `TypeParameterType(name, ordinal)`.
 2. Store the list on `traitType.TypeParameters = typeParams`.
 3. Register each `TypeParameterType` as a symbol in the trait's member scope so that trait member signatures can reference them.
-4. Check for duplicate type parameter names and emit `MIST_DUPLICATE_TYPE_PARAMETER` if found.
+4. Check for duplicate type parameter names and emit `MIST_DUPLICATE_TYPE_PARAMETER (historical)` if found.
 
 #### Pass 1: Resolve Parent Trait References
 
 After all types are registered, resolve the inheritance clause on each trait:
 
 1. For each `BaseTypeRef` in the `parents` list:
-   - Resolve the name to a symbol. If it's not a `TraitType`, emit `MIST_TRAIT_PARENT_NOT_TRAIT`.
-   - If the parent trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS`.
-   - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH`.
+   - Resolve the name to a symbol. If it's not a `TraitType`, emit `MIST_TRAIT_PARENT_NOT_TRAIT (historical)`.
+   - If the parent trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`.
+   - If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`.
    - If the parent trait is generic with correct type arguments, construct a `ConstructedTraitType`.
    - If the parent trait is non-generic and no type arguments are provided, use the `TraitType` directly.
-2. Check for duplicate parents (same trait with same type arguments). Emit `MIST_TRAIT_DUPLICATE_PARENT` if found.
+2. Check for duplicate parents (same trait with same type arguments). Emit `MIST_TRAIT_DUPLICATE_PARENT (historical)` if found.
 3. Store the resolved list on `traitType.ParentTraits`.
 
 #### Pass 1: Detect Trait Inheritance Cycles
@@ -257,7 +257,7 @@ A dedicated sub-pass performs DFS on the trait inheritance graph:
 
 1. Build an adjacency list from each trait to its parent traits (using the `GenericTraitDefinition` for constructed parents).
 2. Run DFS with coloring (white/gray/black). When a gray node is revisited, a cycle is detected.
-3. Emit `MIST_TRAIT_INHERITANCE_CYCLE` for each trait involved in a cycle.
+3. Emit `MIST_TRAIT_INHERITANCE_CYCLE (historical)` for each trait involved in a cycle.
 4. Mark cyclic traits so they are excluded from satisfaction computation.
 
 #### Pass 1: Extend `with` Block Resolution for Generic Traits
@@ -265,8 +265,8 @@ A dedicated sub-pass performs DFS on the trait inheritance graph:
 When resolving a `WithDeclaration`:
 
 1. Resolve `traitName` + `traitTypeArgs` to either a `TraitType` (non-generic) or `ConstructedTraitType` (generic).
-2. If the trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS`.
-3. If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH`.
+2. If the trait is generic and no type arguments are provided, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`.
+3. If type arguments are provided but arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`.
 4. When validating member mappings, substitute type parameters with type arguments before checking type compatibility. For example, if the trait member is `T Value` and `T=int`, the source member must be compatible with `int`.
 
 #### Pass 1: Extend Trait Satisfaction for Generic Traits
@@ -287,10 +287,10 @@ Extend type reference resolution:
 
 1. When a `NamedTypeRef` resolves to a `TraitType` with type parameters:
    - If type arguments are provided and arity matches, construct a `ConstructedTraitType`.
-   - If type arguments are missing, emit `MIST_MISSING_TYPE_ARGUMENTS`.
-   - If arity doesn't match, emit `MIST_ARITY_MISMATCH`.
+   - If type arguments are missing, emit `MIST_MISSING_TYPE_ARGUMENTS (historical)`.
+   - If arity doesn't match, emit `MIST_ARITY_MISMATCH (historical)`.
 2. When a `NamedTypeRef` resolves to a non-generic `TraitType`:
-   - If type arguments are provided, emit `MIST_NOT_GENERIC`.
+   - If type arguments are provided, emit `MIST_NOT_GENERIC (historical)`.
    - Otherwise, return the `TraitType` directly.
 
 ### TypeCheckerAnalyzer Extensions
@@ -412,17 +412,17 @@ The existing non-generic `trait` declaration-name pattern remains as a fallback 
 
 | ID | Stage | Message |
 |---|---|---|
-| `MIST_TRAIT_PARENT_NOT_TRAIT` | SemanticModelConstruction | '{name}' in the trait inheritance clause is not a trait. Only traits can be extended by other traits. |
-| `MIST_TRAIT_INHERITANCE_CYCLE` | SemanticModelConstruction | Trait inheritance cycle detected: {cycle_description}. |
-| `MIST_TRAIT_DUPLICATE_PARENT` | SemanticModelConstruction | Trait '{traitName}' lists parent '{parentName}' more than once. |
+| `MIST_TRAIT_PARENT_NOT_TRAIT (historical)` | SemanticModelConstruction | '{name}' in the trait inheritance clause is not a trait. Only traits can be extended by other traits. |
+| `MIST_TRAIT_INHERITANCE_CYCLE (historical)` | SemanticModelConstruction | Trait inheritance cycle detected: {cycle_description}. |
+| `MIST_TRAIT_DUPLICATE_PARENT (historical)` | SemanticModelConstruction | Trait '{traitName}' lists parent '{parentName}' more than once. |
 
 Existing diagnostics reused with trait-specific context:
-- `MIST_ARITY_MISMATCH` — when a generic trait is referenced with wrong number of type arguments
-- `MIST_MISSING_TYPE_ARGUMENTS` — when a generic trait is referenced without type arguments
-- `MIST_NOT_GENERIC` — when type arguments are provided to a non-generic trait
-- `MIST_DUPLICATE_TYPE_PARAMETER` — when a trait's type parameter list has duplicates
-- `MIST_TRAIT_UNSATISFIED` — extended to show substituted types for generic traits
-- `MIST_TRAIT_WITH_TYPE_MISMATCH` — extended to show substituted types
+- `MIST_ARITY_MISMATCH (historical)` — when a generic trait is referenced with wrong number of type arguments
+- `MIST_MISSING_TYPE_ARGUMENTS (historical)` — when a generic trait is referenced without type arguments
+- `MIST_NOT_GENERIC (historical)` — when type arguments are provided to a non-generic trait
+- `MIST_DUPLICATE_TYPE_PARAMETER (historical)` — when a trait's type parameter list has duplicates
+- `MIST_TRAIT_UNSATISFIED (historical)` — extended to show substituted types for generic traits
+- `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` — extended to show substituted types
 
 ## Data Models
 
@@ -565,13 +565,13 @@ Checking IntSorter against Sortable<int>:
 
 ### Property 2: Trait type parameter registration
 
-*For any* generic trait declaration with N type parameters (N ≥ 1), the semantic model builder SHALL create exactly N `TypeParameterType` instances with correct ordinals (0 through N-1), store them on the `TraitType.TypeParameters` property, and register each as a resolvable type in the trait's member scope. Trait member signatures that reference a type parameter name SHALL resolve to the corresponding `TypeParameterType`. *For any* trait whose `TypeParameterList` contains duplicate identifier names, the semantic model builder SHALL emit a `MIST_DUPLICATE_TYPE_PARAMETER` diagnostic.
+*For any* generic trait declaration with N type parameters (N ≥ 1), the semantic model builder SHALL create exactly N `TypeParameterType` instances with correct ordinals (0 through N-1), store them on the `TraitType.TypeParameters` property, and register each as a resolvable type in the trait's member scope. Trait member signatures that reference a type parameter name SHALL resolve to the corresponding `TypeParameterType`. *For any* trait whose `TypeParameterList` contains duplicate identifier names, the semantic model builder SHALL emit a `MIST_DUPLICATE_TYPE_PARAMETER (historical)` diagnostic.
 
 **Validates: Requirements 10.1, 10.2, 10.3, 10.4**
 
 ### Property 3: Trait inheritance validation diagnostics
 
-*For any* trait declaration whose inheritance clause references a name that resolves to a class, struct, or interface (not a trait), the semantic model builder SHALL emit a `MIST_TRAIT_PARENT_NOT_TRAIT` diagnostic. *For any* trait inheritance graph containing a cycle, the semantic model builder SHALL emit a `MIST_TRAIT_INHERITANCE_CYCLE` diagnostic for each trait involved. *For any* trait that lists the same parent trait more than once in its inheritance clause, the semantic model builder SHALL emit a `MIST_TRAIT_DUPLICATE_PARENT` diagnostic.
+*For any* trait declaration whose inheritance clause references a name that resolves to a class, struct, or interface (not a trait), the semantic model builder SHALL emit a `MIST_TRAIT_PARENT_NOT_TRAIT (historical)` diagnostic. *For any* trait inheritance graph containing a cycle, the semantic model builder SHALL emit a `MIST_TRAIT_INHERITANCE_CYCLE (historical)` diagnostic for each trait involved. *For any* trait that lists the same parent trait more than once in its inheritance clause, the semantic model builder SHALL emit a `MIST_TRAIT_DUPLICATE_PARENT (historical)` diagnostic.
 
 **Validates: Requirements 3.2, 3.5, 3.6, 17.6, 17.7, 17.8**
 
@@ -623,18 +623,18 @@ Checking IntSorter against Sortable<int>:
 
 | Scenario | Diagnostic ID | Severity | Recovery |
 |---|---|---|---|
-| Parent reference is not a trait | `MIST_TRAIT_PARENT_NOT_TRAIT` | Error | Skip parent, continue with remaining parents |
-| Cycle in trait inheritance | `MIST_TRAIT_INHERITANCE_CYCLE` | Error | Exclude cyclic traits from satisfaction computation |
-| Duplicate parent trait | `MIST_TRAIT_DUPLICATE_PARENT` | Error | Use first occurrence, ignore duplicate |
-| Generic trait referenced without type args | `MIST_MISSING_TYPE_ARGUMENTS` | Error | Skip reference, return `UnknownType` |
-| Wrong number of type arguments on trait | `MIST_ARITY_MISMATCH` | Error | Skip reference, return `UnknownType` |
-| Type arguments on non-generic trait | `MIST_NOT_GENERIC` | Error | Ignore type arguments, use trait directly |
-| Duplicate type parameter name on trait | `MIST_DUPLICATE_TYPE_PARAMETER` | Error | Use first occurrence, skip duplicate |
-| Type does not satisfy constructed trait | `MIST_TRAIT_UNSATISFIED` | Error | Report unsatisfied members with substituted types, continue |
-| With block type mismatch after substitution | `MIST_TRAIT_WITH_TYPE_MISMATCH` | Error | Skip mapping, continue |
-| Incomplete with block after substitution | `MIST_TRAIT_WITH_UNSATISFIED` | Error | Report missing members with substituted types, continue |
-| With block references generic trait without type args | `MIST_MISSING_TYPE_ARGUMENTS` | Error | Skip with block, continue |
-| With block references generic trait with wrong arity | `MIST_ARITY_MISMATCH` | Error | Skip with block, continue |
+| Parent reference is not a trait | `MIST_TRAIT_PARENT_NOT_TRAIT (historical)` | Error | Skip parent, continue with remaining parents |
+| Cycle in trait inheritance | `MIST_TRAIT_INHERITANCE_CYCLE (historical)` | Error | Exclude cyclic traits from satisfaction computation |
+| Duplicate parent trait | `MIST_TRAIT_DUPLICATE_PARENT (historical)` | Error | Use first occurrence, ignore duplicate |
+| Generic trait referenced without type args | `MIST_MISSING_TYPE_ARGUMENTS (historical)` | Error | Skip reference, return `UnknownType` |
+| Wrong number of type arguments on trait | `MIST_ARITY_MISMATCH (historical)` | Error | Skip reference, return `UnknownType` |
+| Type arguments on non-generic trait | `MIST_NOT_GENERIC (historical)` | Error | Ignore type arguments, use trait directly |
+| Duplicate type parameter name on trait | `MIST_DUPLICATE_TYPE_PARAMETER (historical)` | Error | Use first occurrence, skip duplicate |
+| Type does not satisfy constructed trait | `MIST_TRAIT_UNSATISFIED (historical)` | Error | Report unsatisfied members with substituted types, continue |
+| With block type mismatch after substitution | `MIST_TRAIT_WITH_TYPE_MISMATCH (historical)` | Error | Skip mapping, continue |
+| Incomplete with block after substitution | `MIST_TRAIT_WITH_UNSATISFIED (historical)` | Error | Report missing members with substituted types, continue |
+| With block references generic trait without type args | `MIST_MISSING_TYPE_ARGUMENTS (historical)` | Error | Skip with block, continue |
+| With block references generic trait with wrong arity | `MIST_ARITY_MISMATCH (historical)` | Error | Skip with block, continue |
 
 ### Error Recovery Strategy
 

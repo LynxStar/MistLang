@@ -90,11 +90,11 @@ This plan implements C#-style method and constructor overloading for the Mist co
 
 - [x] 6. Add new diagnostic IDs
   - [x] 6.1 Add overloading diagnostic IDs to the codebase
-    - Add `MIST_SM_0020` (duplicate method signature) to SemanticModelBuilder usage
-    - Add `MIST_SM_0021` (duplicate constructor signature) to SemanticModelBuilder usage
-    - Add `MIST_SM_0022` (missing interface overload) to SemanticModelBuilder usage
-    - Add `MIST_TC_0031` (no applicable overload) to TypeCheckerAnalyzer usage
-    - Add `MIST_TC_0032` (ambiguous overload) to TypeCheckerAnalyzer usage
+    - Add `MIST_SM_0020 (historical)` (duplicate method signature) to SemanticModelBuilder usage
+    - Add `MIST_SM_0021 (historical)` (duplicate constructor signature) to SemanticModelBuilder usage
+    - Add `MIST_SM_0022 (historical)` (missing interface overload) to SemanticModelBuilder usage
+    - Add `MIST_TC_0031 (historical)` (no applicable overload) to TypeCheckerAnalyzer usage
+    - Add `MIST_TC_0032 (historical)` (ambiguous overload) to TypeCheckerAnalyzer usage
     - Note: `DiagnosticId` is a simple record struct wrapping a string, so no enum changes needed — just use the new string IDs in diagnostic creation
     - _Requirements: 1.2, 2.2, 3.4, 4.1, 6.3_
 
@@ -103,9 +103,9 @@ This plan implements C#-style method and constructor overloading for the Mist co
     - Add `Pass1_CheckDuplicateSignatures` method to `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
     - Run after Pass 2 (type resolution) so parameter types are resolved
     - Group methods by name within each type scope; for groups with count > 1, check all pairs for identical parameter signatures
-    - Emit `MIST_SM_0020` for duplicate method signatures
+    - Emit `MIST_SM_0020 (historical)` for duplicate method signatures
     - Group constructors within each type scope; check all pairs for identical parameter signatures
-    - Emit `MIST_SM_0021` for duplicate constructor signatures
+    - Emit `MIST_SM_0021 (historical)` for duplicate constructor signatures
     - Wire the new pass into the `Build` method after Pass 2
     - _Requirements: 1.2, 1.4, 2.2_
 
@@ -122,7 +122,7 @@ This plan implements C#-style method and constructor overloading for the Mist co
   - [x] 7.4 Update `Pass1_CheckMemberRedeclarations` for overloading
     - Modify `Source/Mist/Semantics/Model/SemanticModelBuilder.cs` `Pass1_CheckMemberRedeclarations`
     - For methods: relax the check so that same name with a different parameter signature is a valid overload (not a redeclaration error)
-    - Only emit `MIST_MEMBER_REDECLARATION` when a derived method has the same name AND identical parameter signature as a base method
+    - Only emit `MIST_MEMBER_REDECLARATION (historical)` when a derived method has the same name AND identical parameter signature as a base method
     - Fields continue to use name-only matching (unchanged)
     - _Requirements: 5.1, 5.2_
 
@@ -140,7 +140,7 @@ This plan implements C#-style method and constructor overloading for the Mist co
     - Modify `ValidateInterfaceSatisfaction` in `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`
     - Update interface method matching to match by name AND parameter signature (not just name)
     - For each interface method, find all methods in the implementing type with the same name, then check if any has a matching parameter signature
-    - Emit `MIST_SM_0022` with the specific signature when no match is found
+    - Emit `MIST_SM_0022 (historical)` with the specific signature when no match is found
     - _Requirements: 6.1, 6.2, 6.3_
 
   - [x] 7.8 Write property test for interface overload satisfaction (Property 13)
@@ -158,16 +158,16 @@ This plan implements C#-style method and constructor overloading for the Mist co
       1. Collect the full overload set via `LookupAll` on the target type's member scope, plus inherited methods from base types
       2. Collect argument types from the call site
       3. Call `OverloadResolver.Resolve(candidates, argTypes, model)`
-      4. On `NoApplicableCandidate`: emit `MIST_TC_0031` with method name and argument types
-      5. On `AmbiguousCall`: emit `MIST_TC_0032` with conflicting candidate signatures
+      4. On `NoApplicableCandidate`: emit `MIST_TC_0031 (historical)` with method name and argument types
+      5. On `AmbiguousCall`: emit `MIST_TC_0032 (historical)` with conflicting candidate signatures
       6. On `Success`: proceed with the resolved symbol for further type checking
-    - Preserve existing single-method diagnostics (`MIST_TC_0002`, `MIST_TC_0011`) when only one candidate exists
+    - Preserve existing single-method diagnostics (`MIST_TC_0002 (historical)`, `MIST_TC_0011 (historical)`) when only one candidate exists
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.1, 4.2_
 
   - [x] 9.2 Update constructor call resolution in TypeCheckerAnalyzer
     - Update `CheckObjectCreation` to use `OverloadResolver.Resolve` for `new T(args)` expressions
     - Collect all constructors from the target type's member scope
-    - Apply overload resolution and emit `MIST_TC_0031` or `MIST_TC_0032` as appropriate
+    - Apply overload resolution and emit `MIST_TC_0031 (historical)` or `MIST_TC_0032 (historical)` as appropriate
     - _Requirements: 2.3, 4.3_
 
   - [x] 9.3 Update constructor chain resolution in TypeCheckerAnalyzer
@@ -182,8 +182,8 @@ This plan implements C#-style method and constructor overloading for the Mist co
     - **Validates: Requirements 3.6, 5.3**
 
   - [x] 9.5 Write unit tests for TypeChecker overload diagnostics
-    - Test `MIST_TC_0031` diagnostic message content for no-match scenarios
-    - Test `MIST_TC_0032` diagnostic message content includes conflicting candidate signatures
+    - Test `MIST_TC_0031 (historical)` diagnostic message content for no-match scenarios
+    - Test `MIST_TC_0032 (historical)` diagnostic message content includes conflicting candidate signatures
     - Test ambiguous constructor call diagnostic (Requirement 4.3)
     - Test backward compatibility: single-method programs produce no new diagnostics
     - _Requirements: 3.4, 3.5, 4.1, 4.2, 4.3_

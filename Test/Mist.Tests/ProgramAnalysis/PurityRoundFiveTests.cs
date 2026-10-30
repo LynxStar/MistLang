@@ -7,17 +7,17 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class PurityRoundFiveTests
 {
-    private const string Writes = "MIST_PA_PURE_SCOPE_WRITES";
-    private const string ReadsMutable = "MIST_PA_PURE_SCOPE_READS_MUTABLE";
-    private const string CallsImpure = "MIST_PA_PURE_SCOPE_CALLS_IMPURE";
-    private const string StoresUnowned = "MIST_PA_PURE_SCOPE_STORES_UNOWNED";
-    private const string PureFunctionRequired = "MIST_PA_PURE_FUNCTION_REQUIRED";
-    private const string OwnedSourceNotOwned = "MIST_PA_OWNED_SOURCE_NOT_OWNED";
-    private const string OwnedReturnNotOwned = "MIST_PA_OWNED_RETURN_NOT_OWNED";
-    private const string ReadonlyCallsMutable = "MIST_PA_READONLY_CONTEXT_CALLS_MUTABLE";
-    private const string ReadonlyAllocatesMutable = "MIST_PA_READONLY_CONTEXT_ALLOCATES_MUTABLE";
-    private const string ReadonlyWritesThroughRef = "MIST_PA_READONLY_CONTEXT_WRITES_THROUGH_REF";
-    private const string FieldAssignedInReadonlyMember = "MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER";
+    private const string Writes = "MIST0137";
+    private const string ReadsMutable = "MIST0138";
+    private const string CallsImpure = "MIST0139";
+    private const string StoresUnowned = "MIST0141";
+    private const string PureFunctionRequired = "MIST0142";
+    private const string OwnedSourceNotOwned = "MIST0264";
+    private const string OwnedReturnNotOwned = "MIST0263";
+    private const string ReadonlyCallsMutable = "MIST0257";
+    private const string ReadonlyAllocatesMutable = "MIST0260";
+    private const string ReadonlyWritesThroughRef = "MIST0261";
+    private const string FieldAssignedInReadonlyMember = "MIST0251";
 
     [Theory]
     [InlineData("clone-returning-this-into-an-owned-binding", "owned binding 'c'")]
@@ -72,7 +72,7 @@ public sealed class PurityRoundFiveTests
     [Fact]
     public void OwnedFieldReadIntoAnUnrestrictedLocalMovesItOutOfTheOwner()
     {
-        Refused("owned-field-read-into-a-local-then-parent-moved", "MIST_PA_COMPOSITE_STATE", "owned field 'Items' is moved");
+        Refused("owned-field-read-into-a-local-then-parent-moved", "MIST0234", "owned field 'Items' is moved");
     }
 
     [Fact]
@@ -352,7 +352,7 @@ public sealed class PurityRoundFiveTests
     {
         var finding = Assert.Single(new PurityFragments().RoundFive(fragment));
 
-        Assert.True(finding.Id.Value == expected, $"{fragment}: expected {expected}, got {finding.Id.Value}: {finding.Message}");
+        Assert.True(finding.Number.Value == expected, $"{fragment}: expected {expected}, got {finding.Number.Value}: {finding.Message}");
         Assert.Contains(named, finding.Message, StringComparison.Ordinal);
     }
 

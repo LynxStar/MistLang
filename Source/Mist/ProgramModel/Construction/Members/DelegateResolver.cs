@@ -156,18 +156,18 @@ internal sealed class DelegateResolver
     {
         if(host.IsAbstract)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicNotValidOnMember, locationNode, null, "abstract members");
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicNotValidOnMember, locationNode, null, new TextValue("abstract members"));
             return;
         }
 
         if(body is not null)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, locationNode, null, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, locationNode, null, new NameValue(memberName));
         }
 
         if(!host.IsIntrinsic)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, host.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, new NameValue(host.Name));
         }
     }
 
@@ -179,7 +179,7 @@ internal sealed class DelegateResolver
     {
         if(body is null && !host.IsAbstract)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.MethodMustHaveBody, locationNode, null, memberName);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.MethodMustHaveBody, locationNode, null, new NameValue(memberName));
         }
     }
 }

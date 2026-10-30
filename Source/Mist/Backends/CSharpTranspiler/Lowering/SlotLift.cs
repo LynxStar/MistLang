@@ -231,7 +231,7 @@ internal static class SlotLift
             if(slot.TypeParametersList.Count > 0 && Bound(slot) is null)
             {
                 Report(BackendDiagnostics.UnboundedParameterizedTypeSlot, type, diagnostics,
-                    TypeDisplay.Mist(type), MistType.StripArity(slot.Name));
+                    DiagnosticSnapshot.Type(type), new NameValue(MistType.StripArity(slot.Name)));
             }
         }
     }
@@ -256,18 +256,18 @@ internal static class SlotLift
     }
 
     private static void Report(
-        DiagnosticDescriptor descriptor,
+        MistDiagnostic descriptor,
         MemberType type,
         DiagnosticBag diagnostics,
-        params object?[] arguments)
+        params SlotValue[] arguments)
     {
         if(type.DeclarationNode is { } node)
         {
-            diagnostics.ReportAtNode(descriptor, node, null, arguments);
+            diagnostics.ReportAtNodeTyped(descriptor, node, null, arguments);
             return;
         }
 
-        diagnostics.Report(descriptor, default, "<unknown>", arguments);
+        diagnostics.ReportTyped(descriptor, new ExternalLocation(type.Assembly.Name, type.FullyQualifiedName), arguments);
     }
 
     public static IMistType Definition(IMistType type)

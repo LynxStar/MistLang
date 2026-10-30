@@ -94,8 +94,6 @@ public sealed class PackTypePositionEmissionTests
     }
 
     [Theory]
-    [InlineData("Indexed", "public T1 First;")]
-    [InlineData("Indexed", "public T2 Second;")]
     [InlineData("Indexed", "public Indexed_2(T1 first, T2 second)")]
     [InlineData("Indexed", "public T2 Copy()")]
     [InlineData("Indexed", "T2 copy = this.Second;")]

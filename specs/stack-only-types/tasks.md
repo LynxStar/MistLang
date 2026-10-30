@@ -25,7 +25,7 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
   - [x] 1.3 Write property test for missing/empty stackalloc size recovery
     - **Property 3: Stackalloc missing/empty size is rejected and recovered**
     - **Validates: Requirements 3.4, 3.5**
-    - In-process via `MistParser`; assert `stackalloc T` and `stackalloc T[]` produce no `StackallocExpression` node, emit `MIST_PARSE_STACKALLOC_SIZE`, and parsing continues; min 100 iterations
+    - In-process via `MistParser`; assert `stackalloc T` and `stackalloc T[]` produce no `StackallocExpression` node, emit `MIST0124`, and parsing continues; min 100 iterations
 
 - [x] 2. Introduce the `SpanType` IType (mirror `ArrayType`)
   - [x] 2.1 Create `SpanType` modeled field-for-field on `ArrayType`
@@ -69,7 +69,7 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
     - In `Source/Mist/Backends/CSharpTranspiler/CSharpTypeMap.cs`, beside the `ArrayType a => $"{...}[]"` branch, add `SpanType s when s.IsReadOnly => "System.ReadOnlySpan<...>"` and `SpanType s => "System.Span<...>"`, resolving the element via `GetTypeName`; add a `SpanType s => TypeContainsUnknown(s.ElementType)` arm to `TypeContainsUnknown` (the erased `Length` is irrelevant to emission)
     - This MUST be the Array length-erasure path, NOT the `Task`/`IntrinsicTypeMap` ConstructedType path
     - _Requirements: 6.2, 6.3, 7.1, 7.2 (design: CSharpEmitter — CSharpTypeMap)_
-    - Standard-pipeline runtime-test correction (2026-10-03): the erasure is a spelling of the type and stops at a runtime test. `five is Span<int, 3> three` over an unknown-length span emits `five is System.Span<int> { Length: 3 } three`, and the same holds for `ReadOnlySpan` and for distinct sized span switch arms; declarations, parameters and locals still spell `System.Span<T>`. Span `as` (`MIST_PM_AS_NO_RELATIONSHIP`) and optional spans stay refused. See emitter order 139. _Requirements: 6.2, 7.1._
+    - Standard-pipeline runtime-test correction (2026-10-03): the erasure is a spelling of the type and stops at a runtime test. `five is Span<int, 3> three` over an unknown-length span emits `five is System.Span<int> { Length: 3 } three`, and the same holds for `ReadOnlySpan` and for distinct sized span switch arms; declarations, parameters and locals still spell `System.Span<T>`. Span `as` (`MIST0403`) and optional spans stay refused. See emitter order 139. _Requirements: 6.2, 7.1._
 
   - [x] 5.2 Write property test for length-erasing emission
     - **Property 13: Length-erasing emission**
@@ -101,21 +101,21 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
 
 - [x] 8. Stackalloc type-checking: target, size, stampability, widening, read-only, slice
   - [x] 8.1 Implement stackalloc target-type and size-type checks
-    - In `TypeCheckerAnalyzer.cs`, verify the stackalloc result is consumed only in `var` / `Span<T,Length>` / `ReadOnlySpan<T,Length>` (or alias) context, else emit `MIST_TC_0150` naming both the result type and expected type; verify the size is integer-typed via `IsIntLike`, else emit `MIST_TC_0151` naming the size type
+    - In `TypeCheckerAnalyzer.cs`, verify the stackalloc result is consumed only in `var` / `Span<T,Length>` / `ReadOnlySpan<T,Length>` (or alias) context, else emit `MIST_TC_0150 (historical)` naming both the result type and expected type; verify the size is integer-typed via `IsIntLike`, else emit `MIST_TC_0151 (historical)` naming the size type
     - _Requirements: 4.6, 4.7, 4.8, 14.4 (design: TypeCheckerAnalyzer; Stackalloc Type-Inference Rules)_
 
   - [x] 8.2 Write property test for stackalloc target-type restriction
     - **Property 6: Stackalloc target-type restriction**
     - **Validates: Requirements 4.6, 14.4**
-    - In-process; assert accepted iff `var` / Span family / ReadOnlySpan family target, else rejected with `MIST_TC_0150` whose message names both types
+    - In-process; assert accepted iff `var` / Span family / ReadOnlySpan family target, else rejected with `MIST_TC_0150 (historical)` whose message names both types
 
   - [x] 8.3 Write property test for stackalloc size integer-typedness
     - **Property 7: Stackalloc size must be integer-typed**
     - **Validates: Requirements 4.7, 4.8**
-    - In-process; assert accepted (w.r.t. size) iff size type is `Int32` or implicitly convertible to `Int32`, else `MIST_TC_0151` naming the size type
+    - In-process; assert accepted (w.r.t. size) iff size type is `Int32` or implicitly convertible to `Int32`, else `MIST_TC_0151 (historical)` naming the size type
 
   - [x] 8.4 Implement the element-type stampability gate with specific reasons
-    - In `TypeCheckerAnalyzer.cs`, reuse `StructType.IsStampable` (+ `IsPrimitiveStructByName` fallback) — the same gate `new T[size]` uses — anchored at the element-type node; on rejection assign no span type and emit exactly one reason: `MIST_TC_0152` (reference type), `MIST_TC_0153` (non-stampable struct), `MIST_TC_0154` (ref struct), `MIST_TC_0155` (unconstrained type parameter)
+    - In `TypeCheckerAnalyzer.cs`, reuse `StructType.IsStampable` (+ `IsPrimitiveStructByName` fallback) — the same gate `new T[size]` uses — anchored at the element-type node; on rejection assign no span type and emit exactly one reason: `MIST_TC_0152 (historical)` (reference type), `MIST_TC_0153 (historical)` (non-stampable struct), `MIST_TC_0154 (historical)` (ref struct), `MIST_TC_0155 (historical)` (unconstrained type parameter)
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 14.3 (design: TypeCheckerAnalyzer — element-type stampability gate)_
 
   - [x] 8.5 Write property test for the stampability gate (array parity)
@@ -126,10 +126,10 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
   - [x] 8.6 Write property test for non-stampable rejection reason
     - **Property 9: Non-stampable element rejection carries the correct reason**
     - **Validates: Requirements 5.4, 5.5, 5.6, 5.7, 14.3**
-    - In-process; for each non-stampable category assert the exact diagnostic ID (`MIST_TC_0152`/`0153`/`0154`/`0155`), no span type assigned, anchored at the element type
+    - In-process; for each non-stampable category assert the exact diagnostic ID (`MIST_TC_0152 (historical)`/`0153`/`0154`/`0155`), no span type assigned, anchored at the element type
 
   - [x] 8.7 Implement known→unknown widening, read-only indexer rejection, and slice inference
-    - In `TypeCheckerAnalyzer.cs`, accept `SpanType(T, known)` initializer assigned to a `Span<T>`/`ReadOnlySpan<T>` (unknown) binding as a permitted length-erasing widening (kind must match), reusing the array assignability path; reject assignment whose target is the indexer of a read-only `SpanType` with `MIST_TC_0156`, independent of length validation; infer `Slice(start, len)` result as a `SpanType` of the same kind with `KnownLength = len` for a literal `len`, unknown otherwise
+    - In `TypeCheckerAnalyzer.cs`, accept `SpanType(T, known)` initializer assigned to a `Span<T>`/`ReadOnlySpan<T>` (unknown) binding as a permitted length-erasing widening (kind must match), reusing the array assignability path; reject assignment whose target is the indexer of a read-only `SpanType` with `MIST_TC_0156 (historical)`, independent of length validation; infer `Slice(start, len)` result as a `SpanType` of the same kind with `KnownLength = len` for a literal `len`, unknown otherwise
     - _Requirements: 2.8, 4.4, 4.5, 1.6, 2.6 (design: TypeCheckerAnalyzer; Length inference and widening)_
 
   - [x] 8.8 Write property test for known-to-unknown widening
@@ -140,7 +140,7 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
   - [x] 8.9 Write property test for read-only indexer assignment rejection
     - **Property 10: Read-only indexer assignment is always rejected**
     - **Validates: Requirements 2.8**
-    - In-process; for any index (in or out of range), assert assignment through a `ReadOnlySpan` indexer is rejected with `MIST_TC_0156` independently of length validation
+    - In-process; for any index (in or out of range), assert assignment through a `ReadOnlySpan` indexer is rejected with `MIST_TC_0156 (historical)` independently of length validation
 
   - [x] 8.10 Write property test for slice length inference
     - **Property 12: Slice length inference**
@@ -179,13 +179,13 @@ Tasks build bottom-up: grammar/AST + `SpanType` + stdlib declaration first, then
 
 - [x] 11. Route span values through ref-struct heap-escape recognition
   - [x] 11.1 Extend `IsRefStructType` and route inline ref-struct match sites
-    - Extend the central `IsRefStructType(IType)` predicate to return `true` for `SpanType`, and route the inline `StructType { IsRefStruct: true }` match sites through it: `MIST2002` field, `MIST2003` property, `MIST2005` union (in `SemanticModelBuilder` and `TypeCheckerAnalyzer`), `RefStructCannotBeOptional`, `MIST2004` generic arg, `MIST2007` interface, and `MIST_TC_0123` capture — reusing existing IDs unchanged
+    - Extend the central `IsRefStructType(IType)` predicate to return `true` for `SpanType`, and route the inline `StructType { IsRefStruct: true }` match sites through it: `MIST2002` field, `MIST2003` property, `MIST2005` union (in `SemanticModelBuilder` and `TypeCheckerAnalyzer`), `RefStructCannotBeOptional`, `MIST2004` generic arg, `MIST2007` interface, and `MIST_TC_0123 (historical)` capture — reusing existing IDs unchanged
     - _Requirements: 9.3 (design: Data Models — heap-escape reuse; Diagnostic identifiers)_
 
   - [x] 11.2 Write property test for span heap-escape parity
     - **Property 19: Spans obey heap-escape rules like any ref struct**
     - **Validates: Requirements 9.3**
-    - In-process, model-based against a known ref struct; for each heap-escape position assert the same existing diagnostic (`MIST2002`/`2003`/`2004`/`2005`/`2007`/`RefStructCannotBeOptional`/`MIST_TC_0123`) fires for span values and compilation halts
+    - In-process, model-based against a known ref struct; for each heap-escape position assert the same existing diagnostic (`MIST2002`/`2003`/`2004`/`2005`/`2007`/`RefStructCannotBeOptional`/`MIST_TC_0123 (historical)`) fires for span values and compilation halts
 
 - [x] 12. Checkpoint — Ensure all tests pass
   - Ensure all tests pass and the build is at zero warnings, ask the user if questions arise.

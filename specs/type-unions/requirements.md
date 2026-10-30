@@ -126,7 +126,7 @@ Out of scope for this spec: union type narrowing via control flow analysis (beyo
 > **Amendment note (2026-10-20, operator decision).** Criterion 3 originally required a warning, with the
 > emitter keeping the dead check. The owner settled it as an error on 2026-10-20 ("I think the error for
 > the dead arm is the best. Amend the spec to match."), which is what the compiler reports as
-> `MIST_PM_PATTERN_TYPE_NOT_A_CONSTITUENT`. The same decision amends Requirement 12.5. Do not reopen it
+> `MIST0345`. The same decision amends Requirement 12.5. Do not reopen it
 > without a new owner decision.
 
 ### Requirement 9: C# Emission — Helper Type Generation

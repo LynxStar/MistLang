@@ -13,7 +13,7 @@ namespace Mist.Tests.Semantics;
 [Trait("Tier", "3")]
 public sealed class UnknownViewFilteringTests : ProgramModelProbe
 {
-    private const string Hidden = "MIST_PM_UNKNOWN_VIEW_HIDES_WRITER";
+    private const string Hidden = "MIST0395";
 
     public UnknownViewFilteringTests()
         : base("MistUnknownView_")
@@ -176,6 +176,6 @@ public sealed class UnknownViewFilteringTests : ProgramModelProbe
         Assert.Equal(
             Errors(userFirst, Hidden).Select(diagnostic => diagnostic.Message),
             Errors(boxFirst, Hidden).Select(diagnostic => diagnostic.Message));
-        Assert.Empty(userFirst.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id.Value != Hidden));
+        Assert.Empty(userFirst.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Number.Value != Hidden));
     }
 }

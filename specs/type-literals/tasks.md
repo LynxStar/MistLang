@@ -38,7 +38,7 @@ Add type literal expressions to the Mist language, allowing type names to be use
 - [x] 3. Implement semantic model and type checker support
   - [x] 3.1 Add TypeLiteralExpression handling in SemanticModelBuilder
     - In `Source/Mist/Semantics/Model/SemanticModelBuilder.cs`, add a case for `TypeLiteralExpressionPrimaryNode` in the `ResolvePrimary` method
-    - Call `ResolveTypeReference` on the node's `TypeRef` to validate the referenced type (emits `MIST_UNDEFINED_TYPE` if unresolved)
+    - Call `ResolveTypeReference` on the node's `TypeRef` to validate the referenced type (emits `MIST_UNDEFINED_TYPE (historical)` if unresolved)
     - Record `TypeType.Instance` as the expression type in the expression type map
     - _Requirements: 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
@@ -59,12 +59,12 @@ Add type literal expressions to the Mist language, allowing type names to be use
 
   - [x] 3.5 Write property test: Unresolved type literals produce diagnostics (Property 6)
     - **Property 6: Unresolved type literals produce diagnostics**
-    - A type name in `TypeLiteralExpression` that cannot be resolved SHALL emit `MIST_UNDEFINED_TYPE`
+    - A type name in `TypeLiteralExpression` that cannot be resolved SHALL emit `MIST_UNDEFINED_TYPE (historical)`
     - **Validates: Requirements 4.1**
 
   - [x] 3.6 Write property test: Type mismatch for type literal assigned to non-Type variable (Property 7)
     - **Property 7: Type mismatch when assigning type literal to non-Type variable**
-    - `D x = T;` where D is not `Type` SHALL produce `MIST_TC_0001`
+    - `D x = T;` where D is not `Type` SHALL produce `MIST_TC_0001 (historical)`
     - **Validates: Requirements 4.4**
 
 - [x] 4. Checkpoint

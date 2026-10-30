@@ -66,7 +66,7 @@ internal static class StatementBinder
 
         if(isRef)
         {
-            context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.RefLocalNeedsInitializer, node, null, node.Name.Lexeme);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.RefLocalNeedsInitializer, node, null, new NameValue(node.Name.Lexeme));
         }
 
         var local = new LocalVariable(node.Name.Lexeme, resolution.Type)
@@ -375,17 +375,14 @@ internal static class StatementBinder
 
         if(initializer.Type is not ITupleType tuple)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.DeconstructionSourceNotATuple, node, null, initializer.Type.Name);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DeconstructionSourceNotATuple, node, null, DiagnosticSnapshot.Type(initializer.Type, initializer.Type.Name));
 
             return null;
         }
 
         if(tuple.ElementTypes.Count != targetCount)
         {
-            context.Diagnostics.ReportAtNode(
-                ProgramModelDiagnostics.DeconstructionArityMismatch, node, null,
-                initializer.Type.Name, tuple.ElementTypes.Count, targetCount);
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DeconstructionArityMismatch, node, null, DiagnosticSnapshot.Type(initializer.Type, initializer.Type.Name), new QuantityValue(tuple.ElementTypes.Count), new QuantityValue(targetCount));
 
             return null;
         }
@@ -561,9 +558,7 @@ internal static class StatementBinder
                 variableType = EnumerableElement.Of(collection.Type) ?? ErrorType.Instance;
                 if(variableType is ErrorType && collection.Type is not ErrorType)
                 {
-                    context.Diagnostics.ReportAtNode(
-                        ProgramModelDiagnostics.ForEachElementNotInferable, varForeach.Collection, null,
-                        TypeDisplay.Mist(collection.Type));
+                    context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ForEachElementNotInferable, varForeach.Collection, null, DiagnosticSnapshot.Type(collection.Type));
                 }
 
                 failed = variableType is ErrorType

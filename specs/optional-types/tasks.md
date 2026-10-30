@@ -65,8 +65,8 @@ This plan implements optional type syntax (`T?`), the `Optional<T>` type alias, 
   - [x] 4.1 Update the semantic model builder to handle the `optional:QUESTION?` field on type reference nodes
     - When `optional` is present: resolve base type T, then create `UnionType([T, VoidType])` with canonical ordering
     - If T already contains void (union flattening), return T unchanged
-    - If T is void itself, flag for diagnostic warning (`MIST_TC_0046`)
-    - If T is already optional (double-`?`), flag for diagnostic error (`MIST_TC_0045`)
+    - If T is void itself, flag for diagnostic warning (`MIST_TC_0046 (historical)`)
+    - If T is already optional (double-`?`), flag for diagnostic error (`MIST_TC_0045 (historical)`)
     - _Requirements: 1.1, 1.3, 1.5, 1.7_
 
   - [x] 4.2 Write property test for void deduplication (Property 2)
@@ -91,34 +91,34 @@ This plan implements optional type syntax (`T?`), the `Optional<T>` type alias, 
 
 - [x] 6. Type checker: Validate `?.`, `??`, and `??=` operators
   - [x] 6.1 Implement type checking for `OptionalMemberAccessSuffix` and `OptionalMethodCallSuffix`
-    - Verify receiver type is a union containing void; emit `MIST_TC_0040` if not
+    - Verify receiver type is a union containing void; emit `MIST_TC_0040 (historical)` if not
     - Compute projected type T by removing void from union constituents
     - Resolve member/method on T; result type is `R | void` (flattened if R already contains void)
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
   - [x] 6.2 Implement type checking for `VoidCoalescing` expressions
-    - Verify left operand type contains void; emit `MIST_TC_0041` if not
-    - Compute non-void portion T; verify right operand is assignable to T; emit `MIST_TC_0044` if not
+    - Verify left operand type contains void; emit `MIST_TC_0041 (historical)` if not
+    - Compute non-void portion T; verify right operand is assignable to T; emit `MIST_TC_0044 (historical)` if not
     - Result type is T (void removed)
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
   - [x] 6.3 Implement type checking for `VoidCoalescingAssignment` with flow narrowing
-    - Verify left operand is a mutable variable; emit `MIST_TC_0043` if not
-    - Verify left operand type contains void; emit `MIST_TC_0042` if not
-    - Verify right operand assignable to non-void portion T; emit `MIST_TC_0044` if not
+    - Verify left operand is a mutable variable; emit `MIST_TC_0043 (historical)` if not
+    - Verify left operand type contains void; emit `MIST_TC_0042 (historical)` if not
+    - Verify right operand assignable to non-void portion T; emit `MIST_TC_0044 (historical)` if not
     - Narrow variable type to T for all subsequent statements in same scope via `MethodFlowState`
-    - Verify `??=` is used as a statement, not a sub-expression; emit `MIST_TC_0047` if misused
+    - Verify `??=` is used as a statement, not a sub-expression; emit `MIST_TC_0047 (historical)` if misused
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8_
 
   - [x] 6.4 Write property tests for `?.` type checking (Properties 8, 9)
     - **Property 8: Optional chaining projects receiver and wraps result type** — `?.` on `T | void` calling a method returning R infers `R | void`
-    - **Property 9: Optional chaining requires optional type** — `?.` on a non-optional type produces `MIST_TC_0040`
+    - **Property 9: Optional chaining requires optional type** — `?.` on a non-optional type produces `MIST_TC_0040 (historical)`
     - Place in `Test/Mist.Tests/Analysis/OptionalChainingPropertyTests.cs`
     - Use in-process compilation via shared `CompilerDriver`
     - **Validates: Requirements 3.1, 3.3, 3.4, 3.7, 3.8**
 
   - [x] 6.5 Write property tests for `??` type checking (Properties 11, 12)
-    - **Property 11: Void-coalescing requires optional left operand** — `??` on non-optional type produces `MIST_TC_0041`
+    - **Property 11: Void-coalescing requires optional left operand** — `??` on non-optional type produces `MIST_TC_0041 (historical)`
     - **Property 12: Void-coalescing result type inference** — `T | void ?? T` infers result type T
     - Place in `Test/Mist.Tests/Analysis/VoidCoalescingPropertyTests.cs`
     - Use in-process compilation via shared `CompilerDriver`
@@ -127,7 +127,7 @@ This plan implements optional type syntax (`T?`), the `Optional<T>` type alias, 
   - [x] 6.6 Write property tests for `??=` type checking (Properties 14, 15, 16)
     - **Property 14: Void-coalescing assignment requires mutable optional variable** — `??=` on readonly/non-variable/non-optional produces errors
     - **Property 15: Void-coalescing assignment flow narrowing** — After `x ??= value`, x has type T (not T | void)
-    - **Property 16: Void-coalescing assignment is statement-only** — Using `??=` as sub-expression produces `MIST_TC_0047`
+    - **Property 16: Void-coalescing assignment is statement-only** — Using `??=` as sub-expression produces `MIST_TC_0047 (historical)`
     - Place in `Test/Mist.Tests/Analysis/VoidCoalescingAssignmentPropertyTests.cs`
     - Use in-process compilation via shared `CompilerDriver`
     - **Validates: Requirements 5.1, 5.4, 5.6, 5.7, 5.8**

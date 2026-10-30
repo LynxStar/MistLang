@@ -179,7 +179,7 @@ A spread into a fixed-arity destination that is not provably compatible is rejec
 
 ```mist
 int Bad<params TArgs>(params TArgs args) {
-    return Sum3(args...);   // MIST_VAR_0011: Sum3 wants (int, int, int)
+    return Sum3(args...);   // MIST0415: Sum3 wants (int, int, int)
 }
 ```
 
@@ -400,4 +400,4 @@ The Mist language imposes no limit on pack length. The front end (grammar, model
 - `System.Func` / `System.Action` cap at 16 input parameters.
 - `System.ValueTuple` caps at 7 elements before nesting (the backend auto-nests beyond 7).
 
-When a construction exceeds the target capacity, the backend emits `MIST_VAR_0010`. This is a backend concern, not a language limit.
+When a construction exceeds the target capacity, the backend emits `MIST0028`. This is a backend concern, not a language limit.

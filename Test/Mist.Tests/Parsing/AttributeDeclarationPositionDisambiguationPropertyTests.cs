@@ -188,7 +188,7 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
             if(!succeeded)
             {
                 var errorMessages = string.Join("\n",
-                    errors.Select(e => $"  {e.Id.Value}: {e.Message}"));
+                    errors.Select(e => $"  {e.Number.Value}: {e.Message}"));
                 throw new Exception(
                     $"Property failed on scenario {i}/{scenarios.Count}.\n" +
                     $"  Scenario: {scenario}\n" +

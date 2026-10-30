@@ -8,11 +8,11 @@ namespace Mist.Driver;
 /// entry: a failed dependency leaves the ASTs describing the program, so binding and analysis must
 /// still run (csharp-interop-v2 Requirements 2.3 and 2.6).
 /// </summary>
-internal sealed class ResolutionDiagnostics(int preceding, IResolutionDiagnosticListener? listener)
+internal sealed class ResolutionDiagnostics(int preceding, IResolutionDiagnosticListener? listener, DiagnosticOperation? operation = null)
 {
     private int delivered;
 
-    public DiagnosticBag Reported { get; } = new();
+    public DiagnosticBag Reported { get; } = new(operation ?? new DiagnosticOperation());
 
     public void Deliver()
     {

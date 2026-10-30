@@ -15,17 +15,17 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 {
     private static readonly string[] Ids =
     [
-        "MIST_PA_USE_AFTER_MOVE", "MIST_PA_LOOP_MOVE", "MIST_PA_LEASE_VIOLATION", "MIST_PA_INCOMPATIBLE_LEND",
-        "MIST_PA_COMPOSITE_STATE", "MIST_PA_FIELD_STATE_CALL",
-        "MIST_PA_THIS_TIER_MISMATCH", "MIST_PA_THIS_TIER_INSUFFICIENT", "MIST_PA_SHARED_EXTRACT",
-        "MIST_PA_OWNED_ABSTRACT", "MIST_PA_OWNED_SUBSTRUCTURAL_BINDING", "MIST_PA_CONFLICTING_DISCIPLINE",
-        "MIST_PA_FIELD_DISCIPLINE_CONTAINMENT", "MIST_PA_FIELD_TYPE_PARAMETER_UNCONSTRAINED",
-        "MIST_PA_REF_ON_CLASS", "MIST_PA_REF_STRUCT_FIELD", "MIST_PA_REF_STRUCT_TYPE_ARGUMENT",
-        "MIST_PA_FIELD_ASSIGNED_IN_READONLY_MEMBER", "MIST_PA_FIELD_ASSIGNED_ON_READONLY_PARAMETER",
-        "MIST_PA_READONLY_FIELD_ASSIGNED", "MIST_PA_STACK_SPAN_RETURNED", "MIST_PA_CAPTURED_BINDING",
-        "MIST_PA_STACK_SPAN_STORED", "MIST_PA_STACK_SPAN_PASSED", "MIST_PA_REF_RETURN_ESCAPES", "MIST_PA_REF_STRUCT_PROPERTY",
-        "MIST_PA_REF_STRUCT_STATIC_STORAGE", "MIST_PA_REF_STRUCT_UNION_CONSTITUENT", "MIST_PA_REF_STRUCT_OPTIONAL",
-        "MIST_PA_REF_STRUCT_ELEMENT", "MIST_PA_REF_STRUCT_BOXED",
+        "MIST0227", "MIST0228", "MIST0229", "MIST0230",
+        "MIST0234", "MIST0235",
+        "MIST0231", "MIST0232", "MIST0233",
+        "MIST0236", "MIST0238", "MIST0239",
+        "MIST0240", "MIST0241",
+        "MIST0242", "MIST0243", "MIST0244",
+        "MIST0251", "MIST0252",
+        "MIST0262", "MIST0265", "MIST0269",
+        "MIST0266", "MIST0267", "MIST0268", "MIST0245",
+        "MIST0246", "MIST0247", "MIST0248",
+        "MIST0249", "MIST0250",
     ];
 
     public OwnershipDecisionTests()
@@ -380,7 +380,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     [InlineData("owned var car = new Car(); var f = car.Front; Console.WriteLine(car.Front.Get());")]
     public void AnOwnedFieldReadOutOfAnOwnedHolder_IsAMoveOfThatField(string statement)
     {
-        Assert.Equal("MIST_PA_USE_AFTER_MOVE", Assert.Single(Analyse(statement)).Id.Value);
+        Assert.Equal("MIST0227", Assert.Single(Analyse(statement)).Number.Value);
     }
 
     [Theory]
@@ -436,7 +436,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
         AssertTaskBound(statement, "v");
         var finding = Assert.Single(Analyse(statement));
 
-        Assert.Equal("MIST_PA_USE_AFTER_MOVE", finding.Id.Value);
+        Assert.Equal("MIST0227", finding.Number.Value);
     }
 
     private void AssertTaskBound(string statement, string name)
@@ -460,6 +460,6 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 
         ProgramAnalysisRunner.Run(model, findings);
 
-        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Id.Value))];
+        return [.. findings.ToImmutableArray().Where(d => Ids.Contains(d.Number.Value))];
     }
 }

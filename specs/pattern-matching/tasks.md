@@ -66,17 +66,17 @@ This plan implements C#-style `is` expression pattern matching in the Mist compi
 
 - [x] 7. Implement type checker validation for patterns
   - [x] 7.1 Add pattern matching diagnostic IDs to `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
-    - Add static `DiagnosticId` fields: `MIST_TC_0050` (undefined type), `MIST_TC_0051` (constant type mismatch), `MIST_TC_0052` (non-comparable relational), `MIST_TC_0053` (undefined property), `MIST_TC_0054` (list requires array), `MIST_TC_0055` (list too many elements — warning), `MIST_TC_0056` (or inconsistent variables), `MIST_TC_0057` (not cannot bind variable)
+    - Add static `DiagnosticId` fields: `MIST_TC_0050 (historical)` (undefined type), `MIST_TC_0051 (historical)` (constant type mismatch), `MIST_TC_0052 (historical)` (non-comparable relational), `MIST_TC_0053 (historical)` (undefined property), `MIST_TC_0054 (historical)` (list requires array), `MIST_TC_0055 (historical)` (list too many elements — warning), `MIST_TC_0056 (historical)` (or inconsistent variables), `MIST_TC_0057 (historical)` (not cannot bind variable)
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
   - [x] 7.2 Add `CheckPattern` method and wire into `CheckRelationalNode` in `Source/Mist/Analysis/Builtin/TypeCheckerAnalyzer.cs`
     - Add `CheckPattern(PatternNode, IType scrutineeType, ISemanticModel, DiagnosticBag)` that recursively validates each pattern kind:
-      - **Type pattern**: verify type exists in scope → `MIST_TC_0050` if not
-      - **Constant pattern**: verify constant type compatible with scrutinee → `MIST_TC_0051` if not
-      - **Relational pattern**: verify scrutinee supports comparison → `MIST_TC_0052`; verify constant type compatible → `MIST_TC_0051`
-      - **Property pattern**: verify each property name exists on scrutinee type (or pattern type prefix) → `MIST_TC_0053`; recursively validate subpatterns
-      - **List pattern**: verify scrutinee is array type → `MIST_TC_0054`; warn if too many fixed elements → `MIST_TC_0055`; recursively validate element patterns against element type
-      - **Or pattern**: validate each alternative; verify all alternatives introduce same variables with same types → `MIST_TC_0056`
-      - **Not pattern**: validate operand; verify operand introduces no variables → `MIST_TC_0057`
+      - **Type pattern**: verify type exists in scope → `MIST_TC_0050 (historical)` if not
+      - **Constant pattern**: verify constant type compatible with scrutinee → `MIST_TC_0051 (historical)` if not
+      - **Relational pattern**: verify scrutinee supports comparison → `MIST_TC_0052 (historical)`; verify constant type compatible → `MIST_TC_0051 (historical)`
+      - **Property pattern**: verify each property name exists on scrutinee type (or pattern type prefix) → `MIST_TC_0053 (historical)`; recursively validate subpatterns
+      - **List pattern**: verify scrutinee is array type → `MIST_TC_0054 (historical)`; warn if too many fixed elements → `MIST_TC_0055 (historical)`; recursively validate element patterns against element type
+      - **Or pattern**: validate each alternative; verify all alternatives introduce same variables with same types → `MIST_TC_0056 (historical)`
+      - **Not pattern**: validate operand; verify operand introduces no variables → `MIST_TC_0057 (historical)`
       - **And pattern**: validate each operand against scrutinee type
       - **Var pattern**: always valid
       - **Discard pattern**: always valid
@@ -151,15 +151,15 @@ This plan implements C#-style `is` expression pattern matching in the Mist compi
     - **Validates: Requirements 6.1**
   - [x] 11.6 Write property test for undefined type diagnostic (Property 5) in `Test/Mist.Tests/Analysis/PatternUndefinedTypeDiagnosticPropertyTests.cs`
     - **Property 5: Undefined Type in Pattern Produces Diagnostic**
-    - Generate programs with type patterns referencing non-existent types, run type checker in-process, verify `MIST_TC_0050` diagnostic emitted
+    - Generate programs with type patterns referencing non-existent types, run type checker in-process, verify `MIST_TC_0050 (historical)` diagnostic emitted
     - **Validates: Requirements 6.2, 10.1**
   - [x] 11.7 Write property test for or-pattern variable consistency (Property 6) in `Test/Mist.Tests/Analysis/OrPatternVariableConsistencyPropertyTests.cs`
     - **Property 6: Or-Pattern Variable Consistency**
-    - Generate programs with `or` patterns having inconsistent variable bindings, run type checker in-process, verify `MIST_TC_0056` diagnostic emitted
+    - Generate programs with `or` patterns having inconsistent variable bindings, run type checker in-process, verify `MIST_TC_0056 (historical)` diagnostic emitted
     - **Validates: Requirements 7.1, 10.6**
   - [x] 11.8 Write property test for not-pattern variable restriction (Property 7) in `Test/Mist.Tests/Analysis/NotPatternVariableRestrictionPropertyTests.cs`
     - **Property 7: Not-Pattern Variable Restriction**
-    - Generate programs with `not` patterns containing variable bindings, run type checker in-process, verify `MIST_TC_0057` diagnostic emitted
+    - Generate programs with `not` patterns containing variable bindings, run type checker in-process, verify `MIST_TC_0057 (historical)` diagnostic emitted
     - **Validates: Requirements 7.2, 10.7**
   - [x] 11.9 Write property test for emission structural correctness (Property 8) in `Test/Mist.Tests/Backend/PatternEmissionPropertyTests.cs`
     - **Property 8: Emission Structural Correctness**

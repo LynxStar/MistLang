@@ -59,16 +59,16 @@ public sealed class StoredRangeDecisionTests
     }
 
     [Theory]
-    [InlineData("0..3", "0..3", 3, "MIST_PA_INDEX_OUT_OF_BOUNDS")]
-    [InlineData("0..3", "1..4", 0, "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("0..1", "0..3", 1, "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("0..3", "0..^3", 0, "MIST_PA_INDEX_UNPROVEN")]
-    [InlineData("^3..^1", "3..^1", 0, "MIST_PA_INDEX_UNPROVEN")]
+    [InlineData("0..3", "0..3", 3, "MIST0274")]
+    [InlineData("0..3", "1..4", 0, "MIST0275")]
+    [InlineData("0..1", "0..3", 1, "MIST0275")]
+    [InlineData("0..3", "0..^3", 0, "MIST0275")]
+    [InlineData("^3..^1", "3..^1", 0, "MIST0275")]
     public void AJoinKeepsNeitherDifferingBoundsNorAnOutOfBoundsProof(string before, string assigned, int last, string id)
     {
         var model = BuildResolved($"Range window = {before}; if(flag) {{ window = {assigned}; }} var slice = numbers[window]; var last = slice[{last}];");
 
-        Assert.Equal(id, Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal(id, Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public sealed class StoredRangeDecisionTests
         Assert.Equal(bounds[0].Local.Name, bounds[1].Local.Name);
         Assert.NotSame(bounds[0].Local, bounds[1].Local);
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -131,7 +131,7 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
 
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -154,7 +154,7 @@ public sealed class StoredRangeDecisionTests
         });
 
         Assert.True(inspected);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
 
         Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
@@ -176,7 +176,7 @@ public sealed class StoredRangeDecisionTests
     {
         var model = BuildResolved($"Range window = 0..3; if(flag) {{ window = 0..3; }} {write} var slice = numbers[window]; var last = slice[2];", types);
 
-        Assert.Equal("MIST_PA_INDEX_UNPROVEN", Assert.Single(Findings(model)).Id.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     private static ProgramModelClass BuildResolved(string statements, string types = "")

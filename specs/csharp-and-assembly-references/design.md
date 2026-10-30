@@ -133,7 +133,7 @@ dotnet msbuild "<csproj>" -getProperty:TargetPath -p:Configuration=Debug -p:Targ
 
 and reads the single line of output. The closure is every `.dll` in `TargetPath`'s directory other than
 `TargetPath` itself, and `RuntimeConfigPath` is the sibling `<name>.runtimeconfig.json` when it exists. A
-non-zero exit or a timeout of 600 seconds reports `MIST_CSHARP_PROJECT_BUILD_FAILED` with the build's error
+non-zero exit or a timeout of 600 seconds reports `MIST0074` with the build's error
 lines, filtered to lines containing `error`.
 
 Order: the driver walks the resolved Mist graph deepest first, as it already does for loading units, and
@@ -144,8 +144,8 @@ The bridge inside a referenced C# project typically runs `mist build ../App.Data
 depends on. That nested compilation inherits `MIST_BUILD_CHAIN`, sees that `App.Data`'s manifest is not in
 the chain, and proceeds as an ordinary build of that library into its own `out/` and `bin/`, which the outer
 compilation does not write. If the C# project instead bridges to the root project, the nested build finds
-the root manifest in the chain and reports `MIST_REFERENCE_CYCLE`; MSBuild surfaces that as the C# build's
-failure, and the outer build reports `MIST_CSHARP_PROJECT_BUILD_FAILED` carrying the inner message.
+the root manifest in the chain and reports `MIST0075`; MSBuild surfaces that as the C# build's
+failure, and the outer build reports `MIST0074` carrying the inner message.
 
 ### 3. The frontend
 
@@ -172,7 +172,7 @@ In `CSharpCompilationDriver.Compile`, before `CSharpCompilation.Create`:
 3. Any reference path, external or closure member, whose file stem is a composed name is removed from the
    reference list and marked not-for-deployment.
 4. For each composed name that some external assembly references: if it is the root's name, report
-   `MIST_REFERENCE_CYCLE`; otherwise `FacadeEmitter.Emit(name, programModel, primaryOutputIdentity)`.
+   `MIST0075`; otherwise `FacadeEmitter.Emit(name, programModel, primaryOutputIdentity)`.
 5. Facade paths are appended to Roslyn's references.
 
 `FacadeEmitter` receives its forwarded names from the compilation's declared types, attributed to projects
@@ -200,10 +200,10 @@ Determinism: the source text is sorted by full type name, and the facade compila
 The copy loop in `CSharpCompilationDriver` gains the external assemblies and their closures. Before copying
 a closure member whose simple name the compiler's own resolution already supplies, the backend compares the
 two files' assembly versions through `AssemblyReferenceScan.Version(path)`; equal versions skip the copy,
-unequal versions report `MIST_REFERENCE_ASSEMBLY_CONFLICT`. Shadowed files are never copied. Facades are
+unequal versions report `MIST0004`. Shadowed files are never copied. Facades are
 written beside the primary output. When a closure's `runtimeconfig.json` lists a framework under
 `runtimeOptions.frameworks` that the Mist manifest's `framework_references` does not declare, the backend
-reports `MIST_REFERENCE_FRAMEWORK_MISSING`.
+reports `MIST0005`.
 
 ### 6. CLI
 
@@ -215,17 +215,17 @@ The Stage 1 detail gains "N C# projects built, M external assemblies".
 
 | Situation | Where | Diagnostic |
 | --- | --- | --- |
-| `path = "libs/Foo.txt"` | parser | `MIST_REFERENCE_UNSUPPORTED_PATH` |
-| `path = "../Lib/Lib.csproj"`, file absent | resolver | `MIST_REFERENCE_FILE_NOT_FOUND` |
-| directory with `A.csproj` and `B.csproj` | resolver | `MIST_REFERENCE_AMBIGUOUS` listing both |
-| directory with `mist.toml` and `A.csproj` | resolver | `MIST_REFERENCE_AMBIGUOUS` listing both |
-| directory with no candidate | resolver | `MIST_PROJECT_REFERENCE_NO_PROJECT_FILE` (reworded) |
-| key `Migrations`, output `App.Migrations.dll` | resolver, after build | `MIST_PROJECT_REFERENCE_NAME_MISMATCH` |
-| `dotnet build` fails | builder | `MIST_CSHARP_PROJECT_BUILD_FAILED` with MSBuild errors |
-| C# project bridges to the root | nested compiler | `MIST_REFERENCE_CYCLE`, surfaced through the build failure |
-| external assembly references the root by name | backend | `MIST_REFERENCE_CYCLE` |
-| closure has `Newtonsoft.Json` 13.0.1, Mist resolved 13.0.3 | backend | `MIST_REFERENCE_ASSEMBLY_CONFLICT` |
-| C# project targets `Microsoft.AspNetCore.App`, manifest does not | backend | `MIST_REFERENCE_FRAMEWORK_MISSING` |
+| `path = "libs/Foo.txt"` | parser | `MIST0071` |
+| `path = "../Lib/Lib.csproj"`, file absent | resolver | `MIST0072` |
+| directory with `A.csproj` and `B.csproj` | resolver | `MIST0073` listing both |
+| directory with `mist.toml` and `A.csproj` | resolver | `MIST0073` listing both |
+| directory with no candidate | resolver | `MIST0063` (reworded) |
+| key `Migrations`, output `App.Migrations.dll` | resolver, after build | `MIST0070` |
+| `dotnet build` fails | builder | `MIST0074` with MSBuild errors |
+| C# project bridges to the root | nested compiler | `MIST0075`, surfaced through the build failure |
+| external assembly references the root by name | backend | `MIST0075` |
+| closure has `Newtonsoft.Json` 13.0.1, Mist resolved 13.0.3 | backend | `MIST0004` |
+| C# project targets `Microsoft.AspNetCore.App`, manifest does not | backend | `MIST0005` |
 
 ## Correctness Properties
 

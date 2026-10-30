@@ -10,4 +10,7 @@
     <Project Path="Test/Mist.Tests/Mist.Tests.csproj" />
     <Project Path="Test/Mist.CLI.Tests/Mist.CLI.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/diagnostics/DiagnosticCatalog/DiagnosticCatalog.csproj" />
+  </Folder>
 </Solution>

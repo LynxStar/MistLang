@@ -138,7 +138,7 @@ public sealed class QualifiedNominalBaseResolutionTests
         Assert.True(derived.BaseUnresolved);
         Assert.Empty(derived.BaseAbstractTypes);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST0298", diagnostic.Number.Value);
         Assert.Equal($"The type '{lookedUpName}' could not be found.", diagnostic.Message);
         AssertBaseSite(diagnostic);
     }
@@ -159,7 +159,7 @@ public sealed class QualifiedNominalBaseResolutionTests
         Assert.Null(derived.BaseType);
         Assert.Empty(derived.BaseAbstractTypes);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_BASE_TYPE_KIND_MISMATCH", diagnostic.Id.Value);
+        Assert.Equal("MIST0306", diagnostic.Number.Value);
         Assert.Equal($"A {ownerKind} cannot inherit from a {baseKind} ('Library.Base').", diagnostic.Message);
         AssertBaseSite(diagnostic);
     }
@@ -179,7 +179,7 @@ public sealed class QualifiedNominalBaseResolutionTests
         Assert.Same(first, derived.BaseType);
         Assert.Empty(derived.BaseAbstractTypes);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_CONCRETE_IN_ABSTRACT_LIST", diagnostic.Id.Value);
+        Assert.Equal("MIST0307", diagnostic.Number.Value);
         Assert.Contains("'Library.Second'", diagnostic.Message, StringComparison.Ordinal);
         AssertBaseSite(diagnostic);
     }
@@ -197,7 +197,7 @@ public sealed class QualifiedNominalBaseResolutionTests
         Assert.False(derived.BaseUnresolved);
         Assert.Empty(derived.BaseAbstractTypes);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_UNRESOLVED_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST0298", diagnostic.Number.Value);
         Assert.Equal("The type 'Library.Missing' could not be found.", diagnostic.Message);
         AssertBaseSite(diagnostic);
     }
@@ -216,7 +216,7 @@ public sealed class QualifiedNominalBaseResolutionTests
         Assert.Null(derived.BaseType);
         Assert.Empty(derived.BaseAbstractTypes);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_INVALID_BASE_TYPE", diagnostic.Id.Value);
+        Assert.Equal("MIST0308", diagnostic.Number.Value);
         Assert.Equal("'Library.Choice' is not an abstract and cannot be used as a base type.", diagnostic.Message);
         AssertBaseSite(diagnostic);
     }
@@ -342,10 +342,10 @@ public sealed class QualifiedNominalBaseResolutionTests
 
     private static void AssertBaseSite(Diagnostic diagnostic)
     {
-        Assert.Equal("hand-built.mist", diagnostic.CompilationUnitPath);
-        Assert.Equal(1, diagnostic.Location.Start.Line);
-        Assert.Equal(51, diagnostic.Location.Start.Column);
-        Assert.Equal(52, diagnostic.Location.End.Column);
+        Assert.Equal("hand-built.mist", diagnostic.Location.Path);
+        Assert.Equal(1, diagnostic.Position().Start.Line);
+        Assert.Equal(51, diagnostic.Position().Start.Column);
+        Assert.Equal(52, diagnostic.Position().End.Column);
     }
 
     private sealed class Fragments

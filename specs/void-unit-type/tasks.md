@@ -7,8 +7,8 @@ Promote Mist's existing `VoidType` from a return-type-only marker to a fully pow
 ## Tasks
 
 - [ ] 1. Register the new diagnostic ID
-  - [x] 1.1 Add `MIST_TC_0034` to `DiagnosticId.cs`
-    - Add `VoidArrayNotPermitted` field: `public static readonly DiagnosticId VoidArrayNotPermitted = new("MIST_TC_0034");`
+  - [x] 1.1 Add `MIST_TC_0034 (historical)` to `DiagnosticId.cs`
+    - Add `VoidArrayNotPermitted` field: `public static readonly DiagnosticId VoidArrayNotPermitted = new("MIST_TC_0034 (historical)");`
     - Place it in a new "Void type diagnostics" section
     - _Requirements: 8.1, 8.2_
 
@@ -52,11 +52,11 @@ Promote Mist's existing `VoidType` from a return-type-only marker to a fully pow
 - [ ] 4. Type checker changes
   - [x] 4.1 Add void array restriction in `CheckArrayCreation` in `TypeCheckerAnalyzer.cs`
     - After checking the size expression, check if the element type is `VoidType`
-    - If `elementType is ArrayType at && at.ElementType is VoidType`, emit `MIST_TC_0034` diagnostic
+    - If `elementType is ArrayType at && at.ElementType is VoidType`, emit `MIST_TC_0034 (historical)` diagnostic
     - _Requirements: 8.2_
 
   - [x] 4.2 Add void array restriction in `CheckVariableDeclarationStatement` in `TypeCheckerAnalyzer.cs`
-    - When the resolved variable type is `ArrayType` with `VoidType` element, emit `MIST_TC_0034` diagnostic
+    - When the resolved variable type is `ArrayType` with `VoidType` element, emit `MIST_TC_0034 (historical)` diagnostic
     - Covers `void[] x = ...` declarations
     - _Requirements: 8.1_
 
@@ -79,7 +79,7 @@ Promote Mist's existing `VoidType` from a return-type-only marker to a fully pow
 
   - [x] 4.6 Write property test for void array restriction (Property 5)
     - **Property 5: Void array restriction**
-    - For any program with `void[]` declaration or `new void[n]`, the type checker emits `MIST_TC_0034`
+    - For any program with `void[]` declaration or `new void[n]`, the type checker emits `MIST_TC_0034 (historical)`
     - Create `Test/Mist.Tests/Analysis/VoidArrayRestrictionPropertyTests.cs`
     - **Validates: Requirements 8.1, 8.2**
 

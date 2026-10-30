@@ -341,12 +341,12 @@ IType
 
 | Diagnostic ID | Stage | Condition | Message Template |
 |---|---|---|---|
-| `MIST_TC_0070` | Type Checker | Literal violates refinement predicate | `Value '{value}' does not satisfy refinement '{predicate}' on type '{typeName}'` |
-| `MIST_TC_0071` | Type Checker | Non-constant assigned to refinement type | `Cannot assign '{exprType}' to '{refinementType}' without proving the refinement. Use pattern matching to validate at runtime` |
-| `MIST_TC_0072` | Type Checker | Refinement predicate incompatible with base type | `Refinement predicate '{predicate}' is not valid for base type '{baseType}'. Relational patterns require a comparable type` |
-| `MIST_TC_0073` | Type Checker | Mutable member in refinement predicate | `Refinement predicate on type '{typeName}' references mutable member '{memberName}'. All members in a refinement predicate must be readonly` |
-| `MIST_TC_0074` | Type Checker | Cannot prove subset relationship | `Cannot assign '{sourceType}' to '{targetType}' because the compiler cannot prove that '{sourcePredicate}' implies '{targetPredicate}'` |
-| `MIST_TC_0075` | Type Checker | Refinement type used in inline position | `Refinement types can only be defined via type alias declarations` |
+| `MIST_TC_0070 (historical)` | Type Checker | Literal violates refinement predicate | `Value '{value}' does not satisfy refinement '{predicate}' on type '{typeName}'` |
+| `MIST_TC_0071 (historical)` | Type Checker | Non-constant assigned to refinement type | `Cannot assign '{exprType}' to '{refinementType}' without proving the refinement. Use pattern matching to validate at runtime` |
+| `MIST_TC_0072 (historical)` | Type Checker | Refinement predicate incompatible with base type | `Refinement predicate '{predicate}' is not valid for base type '{baseType}'. Relational patterns require a comparable type` |
+| `MIST_TC_0073 (historical)` | Type Checker | Mutable member in refinement predicate | `Refinement predicate on type '{typeName}' references mutable member '{memberName}'. All members in a refinement predicate must be readonly` |
+| `MIST_TC_0074 (historical)` | Type Checker | Cannot prove subset relationship | `Cannot assign '{sourceType}' to '{targetType}' because the compiler cannot prove that '{sourcePredicate}' implies '{targetPredicate}'` |
+| `MIST_TC_0075 (historical)` | Type Checker | Refinement type used in inline position | `Refinement types can only be defined via type alias declarations` |
 
 **Error recovery strategy:**
 - When a literal violates a refinement, report the diagnostic and continue type checking (the variable gets the refinement type for downstream analysis).
@@ -373,11 +373,11 @@ IType
 
 ### Unit Tests (example-based)
 
-- Literal violating predicate produces `MIST_TC_0070`
-- Non-constant assignment produces `MIST_TC_0071`
-- Incompatible predicate produces `MIST_TC_0072`
-- Mutable member in predicate produces `MIST_TC_0073`
-- Non-provable subset produces `MIST_TC_0074`
+- Literal violating predicate produces `MIST_TC_0070 (historical)`
+- Non-constant assignment produces `MIST_TC_0071 (historical)`
+- Incompatible predicate produces `MIST_TC_0072 (historical)`
+- Mutable member in predicate produces `MIST_TC_0073 (historical)`
+- Non-provable subset produces `MIST_TC_0074 (historical)`
 - Flow narrowing from `if (x >= 18)` narrows to `AdultAge`
 - Flow narrowing invalidated by reassignment
 - No narrowing on closure-captured variables

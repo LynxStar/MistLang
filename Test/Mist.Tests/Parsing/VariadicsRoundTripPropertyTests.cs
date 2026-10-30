@@ -251,7 +251,7 @@ public class VariadicsRoundTripPropertyTests
 
     private static string DescribeDiagnostics(ImmutableArray<Diagnostic> diagnostics)
     {
-        var lines = diagnostics.Select(d => $"{d.Id.Value} [{d.Stage}] {d.Message}").ToList();
+        var lines = diagnostics.Select(d => $"{d.Number.Value} [{d.Stage}] {d.Message}").ToList();
         return lines.Count == 0 ? "(no diagnostics)" : string.Join("; ", lines);
     }
 }

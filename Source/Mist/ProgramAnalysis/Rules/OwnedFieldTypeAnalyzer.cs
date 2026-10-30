@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -20,9 +21,9 @@ internal sealed class OwnedFieldTypeAnalyzer : IProgramAnalyzer
                 {
                     context.Report(
                         ProgramAnalysisDiagnostics.OwnedFieldType, at, [],
-                        violation.Slot.Property is null ? "Field" : "Property",
-                        violation.InheritedFrom is { } inheritedFrom ? $"{TypeDisplay.Mist(inheritedFrom)}.{violation.Slot.Name}" : violation.Slot.Name,
-                        TypeDisplay.Mist(type), TypeDisplay.Mist(violation.Type), violation.Reason);
+                        new EnumValue(violation.Slot.Property is null ? "Field" : "Property"),
+                        new NameValue(violation.InheritedFrom is { } inheritedFrom ? $"{TypeDisplay.Mist(inheritedFrom)}.{violation.Slot.Name}" : violation.Slot.Name),
+                        DiagnosticSnapshot.Type(type), DiagnosticSnapshot.Type(violation.Type), new NameValue(violation.Reason));
                 }
             }
         }

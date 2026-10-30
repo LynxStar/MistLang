@@ -15,7 +15,7 @@ The design prioritizes simplicity: global usings are represented as an `Immutabl
 
 ### Current implementation and historical sections
 
-The feature now runs through the standard pipeline. Each project's global usings are recorded on its assembly (`MistAssembly.GlobalUsings`) and searched by `AssemblyScope`. `UsingValidation` reports `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE`. `CSharpEmitterV2` writes the directives that `UsingSelection` keeps (Requirement 6).
+The feature now runs through the standard pipeline. Each project's global usings are recorded on its assembly (`MistAssembly.GlobalUsings`) and searched by `AssemblyScope`. `UsingValidation` reports `MIST0294`. `CSharpEmitterV2` writes the directives that `UsingSelection` keeps (Requirement 6).
 
 The Architecture diagram, Data Flow, and the `ISemanticModelBuilder`, `SemanticModelBuilder` and `CSharpSourceWriter` sections, together with "Semantic-Time Warnings (SemanticModelBuilder)", are historical, as is every other mention of those classes (the Overview's component list, the CompilerDriver section, Backward Compatibility and the unit-test notes). They describe the classic compiler this feature was first built in, which is no longer in the tree, and are not current compiler guidance. The requirements and correctness properties are the contract.
 
@@ -66,19 +66,19 @@ if (model.TryGetValue("global_usings", out var guObj))
     if (guObj is not TomlTable guTable)
     {
         // Section exists but is not a table — report error
-        diagnostics.Add(...MIST_GLOBAL_USING_INVALID_FORMAT...);
+        diagnostics.Add(...MIST0076...);
         return null;
     }
 
     if (!guTable.TryGetValue("namespaces", out var nsObj))
     {
-        diagnostics.Add(...MIST_GLOBAL_USING_MISSING_NAMESPACES...);
+        diagnostics.Add(...MIST0079...);
         return null;
     }
 
     if (nsObj is not TomlArray nsArray)
     {
-        diagnostics.Add(...MIST_GLOBAL_USING_INVALID_FORMAT...);
+        diagnostics.Add(...MIST0077...);
         return null;
     }
 
@@ -89,25 +89,25 @@ if (model.TryGetValue("global_usings", out var guObj))
     {
         if (nsArray[i] is not string entry)
         {
-            diagnostics.Add(...MIST_GLOBAL_USING_INVALID_FORMAT at index i...);
+            diagnostics.Add(...MIST0078 at index i...);
             return null;
         }
 
         if (string.IsNullOrWhiteSpace(entry))
         {
-            diagnostics.Add(...MIST_GLOBAL_USING_EMPTY_NAMESPACE...);
+            diagnostics.Add(...MIST0080...);
             return null;
         }
 
         if (!ValidNamespacePattern().IsMatch(entry))
         {
-            diagnostics.Add(...MIST_GLOBAL_USING_INVALID_NAMESPACE...);
+            diagnostics.Add(...MIST0081...);
             return null;
         }
 
         if (!seen.Add(entry))
         {
-            diagnostics.Add(...MIST_GLOBAL_USING_DUPLICATE_NAMESPACE warning...);
+            diagnostics.Add(...MIST0082 warning...);
             continue; // skip duplicate, continue parsing
         }
 
@@ -176,7 +176,7 @@ foreach (var globalNs in globalUsings)
     else
     {
         diagnostics.Add(new Diagnostic(
-            new DiagnosticId("MIST_GLOBAL_USING_UNDEFINED_NAMESPACE"),
+            new DiagnosticId("MIST0294"),
             DiagnosticSeverity.Warning,
             PipelineStage.SemanticModelConstruction,
             $"Global using namespace '{globalNs}' could not be found.",
@@ -188,7 +188,7 @@ foreach (var globalNs in globalUsings)
 ```
 
 Global usings are added to the file scope's imported namespaces with the same mechanism as explicit `using` declarations. This means:
-- Ambiguity detection works identically (same `MIST_AMBIGUOUS_TYPE` diagnostic).
+- Ambiguity detection works identically (same `MIST_AMBIGUOUS_TYPE (historical)` diagnostic).
 - Redundant explicit usings are silently accepted (the `HashSet` in `AddImportedNamespace` deduplicates).
 - No special priority logic is needed — global and explicit usings have equal priority by design.
 
@@ -265,12 +265,12 @@ public sealed record CompilerOptions(
 
 | ID | Severity | Stage | Description |
 |----|----------|-------|-------------|
-| `MIST_GLOBAL_USING_MISSING_NAMESPACES` | Error | Driver | `[global_usings]` section present but missing `namespaces` field |
-| `MIST_GLOBAL_USING_EMPTY_NAMESPACE` | Error | Driver | Empty or whitespace-only namespace entry |
-| `MIST_GLOBAL_USING_INVALID_NAMESPACE` | Error | Driver | Namespace entry contains invalid characters |
-| `MIST_GLOBAL_USING_INVALID_FORMAT` | Error | Driver | `namespaces` field is not an array or contains non-string elements |
-| `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` | Warning | Driver | Duplicate namespace entry (removed, parsing continues) |
-| `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` | Warning | SemanticModelConstruction | Global using namespace not found in semantic model |
+| `MIST0079` | Error | Driver | `[global_usings]` section present but missing `namespaces` field |
+| `MIST0080` | Error | Driver | Empty or whitespace-only namespace entry |
+| `MIST0081` | Error | Driver | Namespace entry contains invalid characters |
+| `MIST0077`, `MIST0078` | Error | Driver | `namespaces` field is not an array or contains non-string elements |
+| `MIST0082` | Warning | Driver | Duplicate namespace entry (removed, parsing continues) |
+| `MIST0294` | Warning | SemanticModelConstruction | Global using namespace not found in semantic model |
 
 ### TOML Format
 
@@ -312,13 +312,13 @@ Unknown fields in `[global_usings]` are silently discarded during parsing (forwa
 
 ### Property 2: Invalid namespace rejection
 
-*For any* string that is either empty, whitespace-only, or contains characters outside the set `[a-zA-Z0-9_.]`, parsing a `mist.toml` with that string in the `namespaces` array SHALL produce an error diagnostic (either `MIST_GLOBAL_USING_EMPTY_NAMESPACE` or `MIST_GLOBAL_USING_INVALID_NAMESPACE`) and return `null`.
+*For any* string that is either empty, whitespace-only, or contains characters outside the set `[a-zA-Z0-9_.]`, parsing a `mist.toml` with that string in the `namespaces` array SHALL produce an error diagnostic (either `MIST0080` or `MIST0081`) and return `null`.
 
 **Validates: Requirements 2.1, 2.2**
 
 ### Property 3: Duplicate detection and removal
 
-*For any* `namespaces` array containing at least one duplicate entry (case-sensitive), parsing SHALL produce a `MIST_GLOBAL_USING_DUPLICATE_NAMESPACE` warning diagnostic and the resulting `GlobalUsings` list SHALL contain each namespace at most once, preserving the order of first occurrence.
+*For any* `namespaces` array containing at least one duplicate entry (case-sensitive), parsing SHALL produce a `MIST0082` warning diagnostic and the resulting `GlobalUsings` list SHALL contain each namespace at most once, preserving the order of first occurrence.
 
 **Validates: Requirements 2.5**
 
@@ -342,7 +342,7 @@ Unknown fields in `[global_usings]` are silently discarded during parsing (forwa
 
 ### Property 7: Undefined namespace warning
 
-*For any* namespace name listed in global usings that does not exist as either a user-defined namespace or an ambient namespace, the semantic model builder SHALL produce a `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` warning diagnostic.
+*For any* namespace name listed in global usings that does not exist as either a user-defined namespace or an ambient namespace, the semantic model builder SHALL produce a `MIST0294` warning diagnostic.
 
 **Validates: Requirements 4.3**
 
@@ -364,8 +364,8 @@ All parse-time errors follow the existing pattern: report a diagnostic and retur
 
 ### Semantic-Time Warnings (SemanticModelBuilder)
 
-- `MIST_GLOBAL_USING_UNDEFINED_NAMESPACE` is a **warning**, not an error. Compilation continues. This matches the behavior of C# where `global using` for a non-existent namespace produces a warning.
-- Ambiguity errors (`MIST_AMBIGUOUS_TYPE`) use the existing diagnostic infrastructure — no new error handling needed.
+- `MIST0294` is a **warning**, not an error. Compilation continues. This matches the behavior of C# where `global using` for a non-existent namespace produces a warning.
+- Ambiguity errors (`MIST_AMBIGUOUS_TYPE (historical)`) use the existing diagnostic infrastructure — no new error handling needed.
 
 ### Backward Compatibility
 

@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -15,7 +14,7 @@ namespace Mist.ProgramAnalysis;
 internal sealed class AnalysisBoundary
 {
     private readonly HashSet<SyntaxNode> nodes = new(ReferenceEqualityComparer.Instance);
-    private readonly HashSet<(string Path, LinePositionSpan Location)> locations = [];
+    private readonly HashSet<Location> locations = [];
 
     public AnalysisBoundary(IEnumerable<SyntaxNode> syntax)
     {
@@ -28,8 +27,7 @@ internal sealed class AnalysisBoundary
                 continue;
             }
 
-            var location = DiagnosticHelper.ResolveLocation(node);
-            _ = locations.Add((location.Path, location.Location));
+            _ = locations.Add(DiagnosticHelper.ResolveLocation(node).Location);
 
             foreach(var child in node.Children().OfType<SyntaxNode>())
             {
@@ -45,7 +43,7 @@ internal sealed class AnalysisBoundary
 
     public bool Contains(Diagnostic diagnostic)
     {
-        return locations.Contains((diagnostic.CompilationUnitPath, diagnostic.Location));
+        return locations.Contains(diagnostic.Location);
     }
 
     public static AnalysisBoundary ForBody(SourceRoot root)

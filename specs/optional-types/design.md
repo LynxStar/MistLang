@@ -130,7 +130,7 @@ For double-optional (`T??`), the parser will see `T?` followed by another `?`. S
 
 When the type checker encounters an `OptionalMemberAccessSuffix` or `OptionalMethodCallSuffix`:
 
-1. Check that the receiver type is a `UnionType` containing void. If not, emit `MIST_TC_XXXX` error.
+1. Check that the receiver type is a `UnionType` containing void. If not, emit `MIST_TC_XXXX (historical)` error.
 2. Compute the "projected type" `T` by removing void from the union constituents. If only one constituent remains, `T` is that type. If multiple remain, `T` is a new union of the remaining constituents.
 3. Resolve the member/method on `T`. If not found, emit the standard member-not-found error.
 4. The result type is `R | void` where `R` is the member's return type (flattened if `R` already contains void).
@@ -403,14 +403,14 @@ This narrowing persists for all subsequent statements in the same block scope an
 
 | Code | Severity | Condition | Message |
 |------|----------|-----------|---------|
-| `MIST_TC_0040` | Error | `?.` applied to non-optional type | "Optional chaining operator '?.' requires a type of the form 'T \| void', but found '{type}'" |
-| `MIST_TC_0041` | Error | `??` left operand is not optional | "Void-coalescing operator '??' requires the left operand to be of type 'T \| void', but found '{type}'" |
-| `MIST_TC_0042` | Error | `??=` left operand is not optional | "Void-coalescing assignment '??=' requires the left operand to be of type 'T \| void', but found '{type}'" |
-| `MIST_TC_0043` | Error | `??=` left operand is not assignable | "Void-coalescing assignment '??=' requires the left operand to be a mutable variable" |
-| `MIST_TC_0044` | Error | `??` / `??=` right operand type mismatch | "Cannot assign '{rightType}' to the non-void portion '{T}' of '{leftType}'" |
-| `MIST_TC_0045` | Error | Double-optional `T??` | "The optional suffix '?' cannot be applied to a type that already contains 'void'" |
-| `MIST_TC_0046` | Warning | `void?` redundancy | "Applying '?' to 'void' is redundant — the type is already 'void'" |
-| `MIST_TC_0047` | Error | `??=` used as expression | "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression" |
+| `MIST_TC_0040 (historical)` | Error | `?.` applied to non-optional type | "Optional chaining operator '?.' requires a type of the form 'T \| void', but found '{type}'" |
+| `MIST_TC_0041 (historical)` | Error | `??` left operand is not optional | "Void-coalescing operator '??' requires the left operand to be of type 'T \| void', but found '{type}'" |
+| `MIST_TC_0042 (historical)` | Error | `??=` left operand is not optional | "Void-coalescing assignment '??=' requires the left operand to be of type 'T \| void', but found '{type}'" |
+| `MIST_TC_0043 (historical)` | Error | `??=` left operand is not assignable | "Void-coalescing assignment '??=' requires the left operand to be a mutable variable" |
+| `MIST_TC_0044 (historical)` | Error | `??` / `??=` right operand type mismatch | "Cannot assign '{rightType}' to the non-void portion '{T}' of '{leftType}'" |
+| `MIST_TC_0045 (historical)` | Error | Double-optional `T??` | "The optional suffix '?' cannot be applied to a type that already contains 'void'" |
+| `MIST_TC_0046 (historical)` | Warning | `void?` redundancy | "Applying '?' to 'void' is redundant — the type is already 'void'" |
+| `MIST_TC_0047 (historical)` | Error | `??=` used as expression | "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression" |
 
 ### Error Recovery
 

@@ -134,7 +134,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = numbers is [.. var a, 30, .. var b];");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LIST_PATTERN_MULTIPLE_SLICES"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0357"));
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = g is [var a];");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LIST_PATTERN_SCRUTINEE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0356"));
     }
 
     /// <summary>
@@ -155,7 +155,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = u is [var a];");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_LIST_PATTERN_SCRUTINEE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0356"));
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = numbers is [var a, 20] or [10, var b];");
 
-        Assert.Equal(2, Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED").Count());
+        Assert.Equal(2, Errors(diagnostics, "MIST0348").Count());
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var ok = numbers is not [.. var middle];");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     private Pattern PatternOf(string statement)

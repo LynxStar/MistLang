@@ -56,7 +56,7 @@ and for a named runtime when I ask, so that native libraries match the process t
    `arm`).
 3. WHEN `--rid <rid>` is given, THE compiler SHALL use it as the Target_Rid, taking precedence over
    `--platform`.
-4. IF the Target_Rid is not a key of the Rid_Graph, THEN THE compiler SHALL report `MIST_RID_UNKNOWN` naming
+4. IF the Target_Rid is not a key of the Rid_Graph, THEN THE compiler SHALL report `MIST0100` naming
    it and SHALL stop before Stage 2. The graph comes from the restore's assets file, and the restore runs
    after Stage 1 because referenced manifests add packages during loading, so the check cannot run earlier.
    Without packages there is no restore and no graph, and any identifier is accepted with the built-in
@@ -139,7 +139,7 @@ diagnosable from the build output.
    asset prints the line, and some builds that select nothing print it too.
 2. THE Backend's progress detail SHALL state how many runtime assets were deployed when the number is not
    zero.
-3. THE compiler SHALL define `MIST_RID_UNKNOWN`, severity Error, Driver stage, in `DriverDiagnostics`.
+3. THE compiler SHALL define `MIST0100`, severity Error, Driver stage, in `DriverDiagnostics`.
 
 ### Requirement 6: Verification
 

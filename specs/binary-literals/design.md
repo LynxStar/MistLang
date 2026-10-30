@@ -217,7 +217,7 @@ No new data models are introduced. The feature uses existing types:
 
 ### Lexer Errors
 
-- **Missing binary digits after prefix**: `0b` or `0B` with no following binary digit produces a lexer error diagnostic. The Storm-generated lexer handles this automatically — the token regex requires at least one binary digit after the prefix, so `0b` alone won't match `BINARY_LITERAL`. It will instead match as `0` (INTEGER_LITERAL) followed by `b` (IDENTIFIER), which will likely cause a parser error downstream. If the Storm lexer reports an explicit error, it is mapped to a `MIST_LEX_ERROR` diagnostic by `MistLexer.cs`.
+- **Missing binary digits after prefix**: `0b` or `0B` with no following binary digit produces a lexer error diagnostic. The Storm-generated lexer handles this automatically — the token regex requires at least one binary digit after the prefix, so `0b` alone won't match `BINARY_LITERAL`. It will instead match as `0` (INTEGER_LITERAL) followed by `b` (IDENTIFIER), which will likely cause a parser error downstream. If the Storm lexer reports an explicit error, it is mapped to a `MIST0120` diagnostic by `MistLexer.cs`.
 
 - **Invalid separator placement**: Underscores in forbidden positions (after prefix, before suffix, adjacent to decimal point, consecutive, trailing) cause the token regex to not match the full intended literal. The lexer will tokenize the valid prefix and leave the rest as separate tokens, producing parse errors. For example, `0b_1010` would lex as `0` + `b_1010` (identifier), and `1__000` would lex as `1` + `__000` (identifier).
 

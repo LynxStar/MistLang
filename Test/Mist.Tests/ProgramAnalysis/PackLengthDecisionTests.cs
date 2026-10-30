@@ -53,9 +53,9 @@ public sealed class PackLengthDecisionTests
 
         var finding = Assert.Single(fragment.Run(new ConstraintAnalyzer()));
 
-        Assert.Equal("MIST_PA_CONSTRAINT_NOT_SATISFIED", finding.Id.Value);
+        Assert.Equal("MIST0178", finding.Number.Value);
         Assert.Contains("'Type[2]' constraint on type parameter 'TArgs'", finding.Message);
-        Assert.Equal(56, finding.Location.Start.Column);
+        Assert.Equal(56, finding.Position().Start.Column);
     }
 
     private static TypeParameter Pack(string name, int? length)

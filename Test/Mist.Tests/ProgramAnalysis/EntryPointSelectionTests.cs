@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using System.Globalization;
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -68,7 +68,7 @@ public sealed class EntryPointSelectionTests
     public void SeveralTopLevelFiles_AreRefusedNamingEachFile(string files, string mains, string? setting)
     {
         Assert.Equal(
-            "MIST_EP_0001: Multiple files contain top-level statements. Only one file per project may have top-level statements. "
+            "MIST0109: Multiple files contain top-level statements. Only one file per project may have top-level statements. "
             + "Files: First.mist, Second.mist",
             Decide(files, mains, setting));
     }
@@ -79,7 +79,7 @@ public sealed class EntryPointSelectionTests
     public void TopLevelStatementsBesideAMain_WithNoSetting_AreRefusedNamingEveryCandidate(string mains, string named)
     {
         Assert.Equal(
-            $"MIST_EP_0002: Project has both top-level statements (in 'Program.mist') and a static void Main (in {named}). "
+            $"MIST0110: Project has both top-level statements (in 'Program.mist') and a static void Main (in {named}). "
             + "Add entry_point = \"top-level\" to mist.toml to resolve this conflict.",
             Decide("Program.mist", mains, setting: null));
     }
@@ -91,7 +91,7 @@ public sealed class EntryPointSelectionTests
     public void AClassSetting_BesideTopLevelStatements_IsRefusedWhetherOrNotTheClassHasAMain(string mains)
     {
         Assert.Equal(
-            "MIST_EP_0003: Cannot specify entry_point = \"Probe.A\" when a top-level statement file exists. "
+            "MIST0111: Cannot specify entry_point = \"Probe.A\" when a top-level statement file exists. "
             + "A top-level statement file must always be the entry point. Use entry_point = \"top-level\" instead.",
             Decide("Program.mist", mains, "Probe.A"));
     }
@@ -103,7 +103,7 @@ public sealed class EntryPointSelectionTests
     public void SeveralMains_WithNoSetting_AreRefusedSuggestingOne(string mains)
     {
         Assert.Equal(
-            "MIST_EP_0004: Multiple classes contain static void Main: Probe.A, Probe.B. "
+            "MIST0112: Multiple classes contain static void Main: Probe.A, Probe.B. "
             + "Add entry_point = \"Probe.A\" to mist.toml to specify which one to use.",
             Decide("", mains, setting: null));
     }
@@ -115,7 +115,7 @@ public sealed class EntryPointSelectionTests
     public void TheTopLevelSetting_WithNoTopLevelFile_IsRefused(string mains, bool isLibrary)
     {
         Assert.Equal(
-            "MIST_EP_0005: entry_point = \"top-level\" specified in mist.toml but no file contains top-level statements.",
+            "MIST0113: entry_point = \"top-level\" specified in mist.toml but no file contains top-level statements.",
             Decide("", mains, "top-level", isLibrary));
     }
 
@@ -127,7 +127,7 @@ public sealed class EntryPointSelectionTests
     public void AClassSetting_NamingNoClassWithAMain_IsRefusedNamingIt(string mains, bool isLibrary)
     {
         Assert.Equal(
-            "MIST_EP_0007: entry_point specifies 'Probe.NoSuch' but no class with that name contains a static void Main method.",
+            "MIST0115: entry_point specifies 'Probe.NoSuch' but no class with that name contains a static void Main method.",
             Decide("", mains, "Probe.NoSuch", isLibrary));
     }
 
@@ -139,7 +139,7 @@ public sealed class EntryPointSelectionTests
     public void ALibraryWithTopLevelStatements_IsRefusedWhateverTheSetting(string files, string? setting, string named)
     {
         Assert.Equal(
-            $"MIST_EP_0008: Library projects cannot have top-level statements. Files: {named}",
+            $"MIST0116: Library projects cannot have top-level statements. Files: {named}",
             Decide(files, "Lib.A", setting, isLibrary: true));
     }
 
@@ -149,7 +149,7 @@ public sealed class EntryPointSelectionTests
     public void TheEntryClass_DeclaringTwoMains_IsRefused(string mains, string? setting)
     {
         Assert.Equal(
-            "MIST_PM_DUPLICATE_ENTRY_POINT: 'Probe.A' is the program's entry point but declares more than one 'Main' that can be one. "
+            "MIST0117: 'Probe.A' is the program's entry point but declares more than one 'Main' that can be one. "
             + "A program can have only one entry point.",
             Decide("", mains, setting));
     }
@@ -162,7 +162,7 @@ public sealed class EntryPointSelectionTests
     public void TheSelectedFile_DeclaringABlockNamespace_IsRefusedNamingTheFileAndTheNamespace(string mains, string? setting)
     {
         Assert.Equal(
-            "MIST_EP_0006: File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }. "
+            "MIST0114: File 'Program.mist' has both top-level statements and a block namespace declaration: namespace Foo { ... }. "
             + "Top-level statements cannot coexist with block namespace declarations in the same file. "
             + "Use a file-scoped namespace (namespace X;) instead.",
             Decide("Program.mist[Foo]", mains, setting));
@@ -174,19 +174,19 @@ public sealed class EntryPointSelectionTests
     public void EveryBlockNamespaceIsNamedOnce_InDeclarationOrder(string files, string named)
     {
         Assert.StartsWith(
-            $"MIST_EP_0006: File 'Program.mist' has both top-level statements and a block namespace declaration: {named}. ",
+            $"MIST0114: File 'Program.mist' has both top-level statements and a block namespace declaration: {named}. ",
             Decide(files, "", setting: null),
             StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("Program.mist[Foo]", "Lib.A", null, true, "MIST_EP_0008")]
-    [InlineData("Program.mist[Foo]", "", "top-level", true, "MIST_EP_0008")]
-    [InlineData("First.mist[Foo];Second.mist", "", null, false, "MIST_EP_0001")]
-    [InlineData("First.mist[Foo];Second.mist[Baz]", "", "top-level", false, "MIST_EP_0001")]
-    [InlineData("Program.mist[Foo]", "Probe.A", null, false, "MIST_EP_0002")]
-    [InlineData("Program.mist[Foo]", "Probe.A", "Probe.A", false, "MIST_EP_0003")]
-    [InlineData("Program.mist[Foo]", "", "Probe.A", false, "MIST_EP_0003")]
+    [InlineData("Program.mist[Foo]", "Lib.A", null, true, "MIST0116")]
+    [InlineData("Program.mist[Foo]", "", "top-level", true, "MIST0116")]
+    [InlineData("First.mist[Foo];Second.mist", "", null, false, "MIST0109")]
+    [InlineData("First.mist[Foo];Second.mist[Baz]", "", "top-level", false, "MIST0109")]
+    [InlineData("Program.mist[Foo]", "Probe.A", null, false, "MIST0110")]
+    [InlineData("Program.mist[Foo]", "Probe.A", "Probe.A", false, "MIST0111")]
+    [InlineData("Program.mist[Foo]", "", "Probe.A", false, "MIST0111")]
     public void ABlockNamespace_InStatementsTheProjectWouldNotStartAt_IsNotWhatIsRefused(
         string files, string mains, string? setting, bool isLibrary, string refusal)
     {
@@ -200,8 +200,8 @@ public sealed class EntryPointSelectionTests
             EntryPointSelection.TopLevelStatements statements => $"statements {statements.File}",
             EntryPointSelection.Main main => $"main {main.Class}",
             EntryPointSelection.Refused refused =>
-                $"{refused.Descriptor.Id.Value}: "
-                + string.Format(CultureInfo.InvariantCulture, refused.Descriptor.MessageTemplate, [.. refused.Arguments]),
+                $"{refused.Descriptor.Number.Value}: "
+                + DiagnosticRenderer.Render(refused.Descriptor, refused.Arguments),
             _ => "none",
         };
     }

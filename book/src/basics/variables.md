@@ -44,7 +44,7 @@ A typed, inferred, or loop declaration named `_` evaluates its initializer witho
 
 An ordinary assignment used inside another expression produces the type of the storage it writes, after any implicit conversion. Assigning an `int` value to a `long` local therefore produces a `long` result, which `var` also infers as `long`. The same rule applies to fields, properties, and indexers, and the value being assigned is evaluated once. [Void-coalescing assignment](../type-system/optional-types.md) is a statement and cannot be used as a subexpression.
 
-The left-hand side of an assignment must be somewhere a value can be stored: a variable, a field, an array or span element, or a result returned by `ref`, or else a property or indexer whose setter is available. A literal, the result of an ordinary call or operator, a type name, a dependent type parameter, a tuple literal, and a field, property, or indexer of a struct that is itself an unstored value are refused at the target with `MIST_PA_NOT_ASSIGNABLE`. The value on the right is not judged against such a target, so the mistake is reported once.
+The left-hand side of an assignment must be somewhere a value can be stored: a variable, a field, an array or span element, or a result returned by `ref`, or else a property or indexer whose setter is available. A literal, the result of an ordinary call or operator, a type name, a dependent type parameter, a tuple literal, and a field, property, or indexer of a struct that is itself an unstored value are refused at the target with `MIST0210`. The value on the right is not judged against such a target, so the mistake is reported once.
 
 ## Scoping Rules
 

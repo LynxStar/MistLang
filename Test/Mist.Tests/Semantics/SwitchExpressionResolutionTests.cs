@@ -53,7 +53,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("""var label = n switch { 1 => "one", _ => 2 };""");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0347"));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("""string label = n switch { 1 => "one", _ => 2 };""");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"));
+        Assert.Empty(Errors(diagnostics, "MIST0347"));
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = n switch { };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_SWITCH_NO_ARMS"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0346"));
     }
 
     [Fact]
@@ -77,8 +77,8 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = n switch { int i => 0, _ => i };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_SWITCH_ARMS_NO_COMMON_TYPE"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
+        Assert.Empty(Errors(diagnostics, "MIST0347"));
     }
 
     // ── Arms ─────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i => i, _ => 0 };");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i when i > 5 => 1, _ => 0 };");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i => 0, _ => i };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i => 0, string s when i > 5 => 1, _ => 2 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
         var diagnostics = BuildRun(
             "var probe = i;", extraPreamble: "var label = u switch { int i => 0, _ => 1 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -166,8 +166,8 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i => i, string i => 0, _ => 1 };");
 
-        Assert.Empty(Errors(diagnostics, "MIST_PM_DUPLICATE_LOCAL"));
-        Assert.Empty(Errors(diagnostics, "MIST_PM_UNRESOLVED_IDENTIFIER"));
+        Assert.Empty(Errors(diagnostics, "MIST0367"));
+        Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         var diagnostics = BuildRun("var label = u switch { int i or string => 0, _ => 1 };");
 
-        _ = Assert.Single(Errors(diagnostics, "MIST_PM_PATTERN_BINDING_NOT_ESTABLISHED"));
+        _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
 
     // ── Harness ──────────────────────────────────────────────────────────

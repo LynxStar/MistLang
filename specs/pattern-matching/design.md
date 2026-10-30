@@ -313,13 +313,13 @@ The `CheckPattern` method recursively validates each pattern kind:
 
 | Pattern Kind | Validation |
 |---|---|
-| Type pattern | Verify type exists in scope (MIST_TC_0050) |
-| Constant pattern | Verify constant type is compatible with scrutinee (MIST_TC_0051) |
-| Relational pattern | Verify scrutinee supports comparison operators (MIST_TC_0052); verify constant type compatible (MIST_TC_0051) |
-| Property pattern | Verify each property name exists on scrutinee type (MIST_TC_0053); recursively validate subpatterns |
-| List pattern | Verify scrutinee is array type (MIST_TC_0054); warn if too many fixed elements (MIST_TC_0055); recursively validate element patterns against element type |
-| Or pattern | Validate each alternative; verify all alternatives introduce same variables with same types (MIST_TC_0056) |
-| Not pattern | Validate operand; verify operand introduces no variables (MIST_TC_0057) |
+| Type pattern | Verify type exists in scope (MIST_TC_0050 (historical)) |
+| Constant pattern | Verify constant type is compatible with scrutinee (MIST_TC_0051 (historical)) |
+| Relational pattern | Verify scrutinee supports comparison operators (MIST_TC_0052 (historical)); verify constant type compatible (MIST_TC_0051 (historical)) |
+| Property pattern | Verify each property name exists on scrutinee type (MIST_TC_0053 (historical)); recursively validate subpatterns |
+| List pattern | Verify scrutinee is array type (MIST_TC_0054 (historical)); warn if too many fixed elements (MIST_TC_0055 (historical)); recursively validate element patterns against element type |
+| Or pattern | Validate each alternative; verify all alternatives introduce same variables with same types (MIST_TC_0056 (historical)) |
+| Not pattern | Validate operand; verify operand introduces no variables (MIST_TC_0057 (historical)) |
 | And pattern | Validate each operand against scrutinee type |
 | Var pattern | Always valid; type is scrutinee type |
 | Discard pattern | Always valid |
@@ -434,14 +434,14 @@ No new `IType` or `ISymbol` subtypes are needed. Pattern variables are registere
 
 | ID | Severity | Stage | Description |
 |---|---|---|---|
-| `MIST_TC_0050` | Error | Analysis | Type pattern references undefined type |
-| `MIST_TC_0051` | Error | Analysis | Constant pattern type incompatible with scrutinee |
-| `MIST_TC_0052` | Error | Analysis | Relational pattern on non-comparable type |
-| `MIST_TC_0053` | Error | Analysis | Property pattern references undefined property |
-| `MIST_TC_0054` | Error | Analysis | List pattern applied to non-array type |
-| `MIST_TC_0055` | Warning | Analysis | List pattern has more fixed elements than array |
-| `MIST_TC_0056` | Error | Analysis | Or pattern has inconsistent variable bindings |
-| `MIST_TC_0057` | Error | Analysis | Not pattern attempts to bind a variable |
+| `MIST_TC_0050 (historical)` | Error | Analysis | Type pattern references undefined type |
+| `MIST_TC_0051 (historical)` | Error | Analysis | Constant pattern type incompatible with scrutinee |
+| `MIST_TC_0052 (historical)` | Error | Analysis | Relational pattern on non-comparable type |
+| `MIST_TC_0053 (historical)` | Error | Analysis | Property pattern references undefined property |
+| `MIST_TC_0054 (historical)` | Error | Analysis | List pattern applied to non-array type |
+| `MIST_TC_0055 (historical)` | Warning | Analysis | List pattern has more fixed elements than array |
+| `MIST_TC_0056 (historical)` | Error | Analysis | Or pattern has inconsistent variable bindings |
+| `MIST_TC_0057 (historical)` | Error | Analysis | Not pattern attempts to bind a variable |
 
 ## Correctness Properties
 
@@ -473,19 +473,19 @@ No new `IType` or `ISymbol` subtypes are needed. Pattern variables are registere
 
 ### Property 5: Undefined Type in Pattern Produces Diagnostic
 
-*For any* type pattern that references a type name not defined in any reachable scope, the type checker SHALL emit a diagnostic with ID `MIST_TC_0050`.
+*For any* type pattern that references a type name not defined in any reachable scope, the type checker SHALL emit a diagnostic with ID `MIST_TC_0050 (historical)`.
 
 **Validates: Requirements 6.2, 10.1**
 
 ### Property 6: Or-Pattern Variable Consistency
 
-*For any* `or` pattern whose alternatives introduce different sets of variable names (or the same names with different types), the type checker SHALL emit a diagnostic with ID `MIST_TC_0056`.
+*For any* `or` pattern whose alternatives introduce different sets of variable names (or the same names with different types), the type checker SHALL emit a diagnostic with ID `MIST_TC_0056 (historical)`.
 
 **Validates: Requirements 7.1, 10.6**
 
 ### Property 7: Not-Pattern Variable Restriction
 
-*For any* `not` pattern whose operand introduces a pattern variable (via type pattern or var pattern), the type checker SHALL emit a diagnostic with ID `MIST_TC_0057`.
+*For any* `not` pattern whose operand introduces a pattern variable (via type pattern or var pattern), the type checker SHALL emit a diagnostic with ID `MIST_TC_0057 (historical)`.
 
 **Validates: Requirements 7.2, 10.7**
 
@@ -499,7 +499,7 @@ No new `IType` or `ISymbol` subtypes are needed. Pattern variables are registere
 
 ### Parse Errors
 
-The Storm-generated parser handles parse errors via its existing error recovery mechanism. If a pattern is syntactically malformed (e.g., `x is {` without closing brace), the parser emits a `MIST_PARSE_ERROR` diagnostic and attempts recovery. No special pattern-specific parse error handling is needed beyond what Storm provides.
+The Storm-generated parser handles parse errors via its existing error recovery mechanism. If a pattern is syntactically malformed (e.g., `x is {` without closing brace), the parser emits a `MIST0122` diagnostic and attempts recovery. No special pattern-specific parse error handling is needed beyond what Storm provides.
 
 ### Semantic Errors
 
@@ -515,7 +515,7 @@ Following the existing pattern in the type checker, if the scrutinee type is `Un
 
 ### Zero Warnings Policy
 
-All new code must compile with zero warnings. The new diagnostic ID `MIST_TC_0055` (list pattern too many elements) is a **warning**, not an error. This is intentional — it warns about a pattern that will never match but is not a type error. No `#pragma warning disable` suppressions are introduced.
+All new code must compile with zero warnings. The new diagnostic ID `MIST_TC_0055 (historical)` (list pattern too many elements) is a **warning**, not an error. This is intentional — it warns about a pattern that will never match but is not a type error. No `#pragma warning disable` suppressions are introduced.
 
 ## Testing Strategy
 

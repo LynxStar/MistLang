@@ -52,15 +52,15 @@ public sealed class AwaitOperandBindingTests
 
         Assert.Same(syntax, error.Node);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Id.Value);
+        Assert.Equal("MIST0297", diagnostic.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal($"'await' requires a task, but '{operandTypeName}' is not one.", diagnostic.Message);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Theory]
-    [InlineData("unresolved-name", "MIST_PM_UNRESOLVED_IDENTIFIER")]
+    [InlineData("unresolved-name", "MIST0296")]
     [InlineData("failed-local", null)]
     public void AwaitOfAValueThatAlreadyFailedAddsNoSecondComplaint(string operand, string? firstComplaint)
     {
@@ -75,7 +75,7 @@ public sealed class AwaitOperandBindingTests
 
         Assert.Same(syntax, error.Node);
         string[] expected = firstComplaint is null ? [] : [firstComplaint];
-        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Id.Value));
+        Assert.Equal(expected, f.Diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Number.Value));
     }
 
     [Fact]
@@ -92,9 +92,9 @@ public sealed class AwaitOperandBindingTests
         var operand = Assert.IsType<LocalReferenceExpression>(Assert.Single(error.Children));
         Assert.False(operand.Local.IsFailed);
         var diagnostic = Assert.Single(f.Diagnostics.ToImmutableArray());
-        Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Id.Value);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal("MIST0297", diagnostic.Number.Value);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Fact]
@@ -115,9 +115,9 @@ public sealed class AwaitOperandBindingTests
         Assert.Equal("Length", access.MemberName);
         _ = Assert.IsType<LocalReferenceExpression>(access.Receiver);
         var diagnostic = Assert.IsType<Diagnostic>(error.DeferredDiagnostic);
-        Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", diagnostic.Id.Value);
-        Assert.Equal(AwaitPath, diagnostic.CompilationUnitPath);
-        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Location);
+        Assert.Equal("MIST0297", diagnostic.Number.Value);
+        Assert.Equal(AwaitPath, diagnostic.Location.Path);
+        Assert.Equal(new LinePositionSpan(new LinePosition(1, 13), new LinePosition(1, 14)), diagnostic.Position());
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class AwaitOperandBindingTests
         Assert.Same(box, binary.Left.Type);
         Assert.Same(f.Built.Type("Int32"), binary.Right.Type);
         Assert.Equal(BinaryOperatorKind.Add, binary.OperatorKind);
-        Assert.Equal("MIST_PM_AWAIT_OF_NON_TASK", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Id.Value);
+        Assert.Equal("MIST0297", Assert.IsType<Diagnostic>(error.DeferredDiagnostic).Number.Value);
     }
 
     private static (ClassType Definition, Method Drop) TaskDefinition(BindingFragments f, string namespaceName, string name)

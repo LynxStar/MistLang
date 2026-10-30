@@ -45,7 +45,7 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 1. WHEN a class or struct has at least one user-defined constructor and no `default {}` block, THE Semantic_Model_Builder SHALL classify the type as Non_Defaultable without emitting a diagnostic error.
 2. WHEN a class or struct has at least one user-defined constructor, has no `default {}` block, and has fields with non-defaultable types (interface or trait fields without type bindings), THE Semantic_Model_Builder SHALL classify the type as Non_Defaultable without emitting a diagnostic error.
 3. WHEN a class or struct has no user-defined constructor and has at least one field whose type is non-defaultable, THE Semantic_Model_Builder SHALL emit a diagnostic error indicating that either a constructor or a `default {}` block with a type binding is required.
-4. WHEN `default(T)` is used on a Non_Defaultable_Type, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_NOT_SUPPORTED` diagnostic error.
+4. WHEN `default(T)` is used on a Non_Defaultable_Type, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_NOT_SUPPORTED (historical)` diagnostic error.
 
 ### Requirement 2: Implicit Constructor for Constructor-less Types
 
@@ -91,7 +91,7 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 2. THE Parser SHALL parse `default` in a constraint position and produce a `DefaultConstraintConstraintNode` AST node.
 3. THE Semantic_Model_Builder SHALL record the `default` constraint on the type parameter's constraint set.
 4. WHEN `default(T)` is used on a type parameter that has a `default` constraint, THE Type_Checker SHALL treat the expression as valid.
-5. WHEN `default(T)` is used on a type parameter that does NOT have a `default` constraint, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_TYPE_PARAMETER` diagnostic error.
+5. WHEN `default(T)` is used on a type parameter that does NOT have a `default` constraint, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_TYPE_PARAMETER (historical)` diagnostic error.
 6. WHEN a generic type or method with a `where T : default` constraint is instantiated with a type argument that is not defaultable, THE Type_Checker SHALL emit a diagnostic error indicating that the type argument does not satisfy the `default` constraint.
 7. THE Pretty_Printer SHALL format the `default` constraint as `default` within the constraint clause.
 8. FOR ALL valid Mist ASTs containing `default` constraints, parsing then pretty-printing then parsing SHALL produce an equivalent AST (round-trip property).
@@ -107,7 +107,7 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 3. WHEN an enum type declares a variant with the `default` modifier, THE Semantic_Model_Builder SHALL classify the enum as defaultable with the designated variant as its default value.
 4. WHEN an enum type does not have any variant with the `default` modifier, THE Semantic_Model_Builder SHALL classify the enum as Non_Defaultable.
 5. WHEN `default(EnumType)` is used on an enum that has a designated default variant, THE Type_Checker SHALL treat the expression as valid and assign it the enum type.
-6. WHEN `default(EnumType)` is used on an enum that does NOT have a designated default variant, THE Type_Checker SHALL emit the `MIST_DEFAULT_NOT_SUPPORTED` diagnostic error.
+6. WHEN `default(EnumType)` is used on an enum that does NOT have a designated default variant, THE Type_Checker SHALL emit the `MIST_DEFAULT_NOT_SUPPORTED (historical)` diagnostic error.
 7. WHEN an enum declares more than one variant with the `default` modifier, THE Compiler SHALL emit a diagnostic error indicating that only one variant may be designated as the default.
 
 ### Requirement 7: Union Type Defaultability
@@ -119,7 +119,7 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 1. WHEN a union type includes `void` as one of its constituents (e.g., `T | void` or the sugar `T?`), THE Compiler SHALL classify the union type as defaultable with `void` as the default value.
 2. WHEN a union type does NOT include `void` as one of its constituents, THE Compiler SHALL classify the union type as Non_Defaultable.
 3. WHEN `default(T?)` is used (where `T?` desugars to `T | void`), THE Type_Checker SHALL treat the expression as valid and produce the `void` value.
-4. WHEN `default(A | B)` is used on a union that does not include `void`, THE Type_Checker SHALL emit the `MIST_DEFAULT_NOT_SUPPORTED` diagnostic error.
+4. WHEN `default(A | B)` is used on a union that does not include `void`, THE Type_Checker SHALL emit the `MIST_DEFAULT_NOT_SUPPORTED (historical)` diagnostic error.
 
 ### Requirement 8: Interface and Trait Non-Defaultability
 
@@ -129,8 +129,8 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 
 1. THE Compiler SHALL classify all InterfaceType instances as Non_Defaultable.
 2. THE Compiler SHALL classify all TraitType instances as Non_Defaultable.
-3. WHEN `default(InterfaceType)` is used, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_INTERFACE` diagnostic error.
-4. WHEN `default(TraitType)` is used, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_TRAIT` diagnostic error.
+3. WHEN `default(InterfaceType)` is used, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_INTERFACE (historical)` diagnostic error.
+4. WHEN `default(TraitType)` is used, THE Type_Checker SHALL emit the existing `MIST_DEFAULT_ON_TRAIT (historical)` diagnostic error.
 5. WHEN a `default` constraint is used on a type parameter, THE Compiler SHALL NOT allow an interface or trait type to satisfy that constraint.
 
 ### Requirement 9: Array Defaultability Constraint
@@ -150,9 +150,9 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 #### Acceptance Criteria
 
 1. WHEN a derived class has no user-defined constructors and its base class is defaultable, THE Semantic_Model_Builder SHALL allow the derived class to be defaultable if all of its own new fields are also defaultable.
-2. WHEN a derived class has no user-defined constructors and its base class is NOT defaultable, THE Semantic_Model_Builder SHALL classify the derived class as Non_Defaultable and emit the existing `MIST_DEFAULT_BASE_NOT_DEFAULTABLE` diagnostic error (since the implicit constructor requires base defaultability).
+2. WHEN a derived class has no user-defined constructors and its base class is NOT defaultable, THE Semantic_Model_Builder SHALL classify the derived class as Non_Defaultable and emit the existing `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)` diagnostic error (since the implicit constructor requires base defaultability).
 3. WHEN a derived class has user-defined constructors and its base class is NOT defaultable, THE Semantic_Model_Builder SHALL allow the derived class to be Non_Defaultable without error (the constructor handles initialization).
-4. WHEN a derived class has user-defined constructors and an explicit `default {}` block, but its base class is NOT defaultable, THE Semantic_Model_Builder SHALL emit the `MIST_DEFAULT_BASE_NOT_DEFAULTABLE` diagnostic error (a derived default still requires the base to be defaultable because inherited fields need base defaults).
+4. WHEN a derived class has user-defined constructors and an explicit `default {}` block, but its base class is NOT defaultable, THE Semantic_Model_Builder SHALL emit the `MIST_DEFAULT_BASE_NOT_DEFAULTABLE (historical)` diagnostic error (a derived default still requires the base to be defaultable because inherited fields need base defaults).
 5. THE Semantic_Model_Builder SHALL continue to process defaultability in topological order (base-before-derived) as currently implemented.
 
 ### Requirement 11: Diagnostic Messages for Optional Defaultability

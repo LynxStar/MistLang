@@ -374,11 +374,13 @@ internal sealed class TypeBuilder
 
             if(declared is null)
             {
-                context.Diagnostics.Report(ProgramModelDiagnostics.DuplicateTypeName, default, "", typeDef.Name, typeDef.NamespaceName);
+                context.Diagnostics.ReportTyped(ProgramModelDiagnostics.DuplicateTypeName,
+                    new ExternalLocation(typeDef.Assembly.Name, typeDef.FullyQualifiedName),
+                    new NameValue(typeDef.Name), new NameValue(typeDef.NamespaceName));
             }
             else
             {
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.DuplicateTypeName, declared, null, typeDef.Name, typeDef.NamespaceName);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.DuplicateTypeName, declared, null, new NameValue(typeDef.Name), new NameValue(typeDef.NamespaceName));
             }
         }
 
@@ -469,7 +471,7 @@ internal sealed class TypeBuilder
                 return alias;
 
             default:
-                context.Diagnostics.ReportAtNode(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, typeDecl.GetType().Name);
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnknownTypeDeclaration, typeDecl, null, new NameValue(typeDecl.GetType().Name));
                 return null;
         }
     }

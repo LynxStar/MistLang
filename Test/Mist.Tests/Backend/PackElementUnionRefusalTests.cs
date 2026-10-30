@@ -80,7 +80,7 @@ public sealed class PackElementUnionRefusalTests : ProgramModelProbe
             var refusal = Assert.Single(refusals);
 
             Assert.Contains("it names 'T[0]'", refusal.Message, StringComparison.Ordinal);
-            Assert.NotEmpty(refusal.CompilationUnitPath);
+            Assert.False(string.IsNullOrEmpty(refusal.Location.Path));
         }
     }
 
@@ -93,6 +93,6 @@ public sealed class PackElementUnionRefusalTests : ProgramModelProbe
 
         specialization = UnionSpecialization.Enter(model, diagnostics);
 
-        return (model, [.. diagnostics.ToImmutableArray().Where(d => d.Id.Value == "MIST_BE_UNION_OVER_PACK_ELEMENT")]);
+        return (model, [.. diagnostics.ToImmutableArray().Where(d => d.Number.Value == "MIST0026")]);
     }
 }

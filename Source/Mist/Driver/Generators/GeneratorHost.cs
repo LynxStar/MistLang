@@ -65,7 +65,7 @@ internal sealed class GeneratorHost(
             }
 
             var key = GeneratorKeys.Run(request.ToolchainIdentity, request.CompileKey, request.ConsumerName,
-                request.ConsumerManifest, reference.Arguments, request.Inputs);
+                request.ConsumerManifest, reference.Arguments, request.Inputs, reference.Seed);
             var reported = false;
             var published = cache.Use("runs", key, reference.TimeLimit, staging =>
             {

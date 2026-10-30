@@ -125,6 +125,20 @@ public sealed class GeneratorHostTests
         Assert.Equal(seeded.Reference.Arguments, entry.Provenance.Arguments);
     }
 
+    [Fact]
+    public void ChangingSeedStatusCannotReuseAnUnseededProvenanceRecord()
+    {
+        var fixture = new Fixture();
+        var original = fixture.Host.Prepare(fixture.Request, new DiagnosticBag());
+        var seeded = fixture.Request with { Reference = fixture.Request.Reference with { Seed = true } };
+        var changed = fixture.Host.Prepare(seeded, new DiagnosticBag());
+        Assert.False(original!.Provenance.SeedTool);
+        Assert.True(changed!.Provenance.SeedTool);
+        Assert.NotEqual(original.Provenance.RunKey, changed.Provenance.RunKey);
+        Assert.Equal(1, fixture.Compiles);
+        Assert.Equal(2, fixture.Invocations.Count);
+    }
+
     private sealed class Fixture
     {
         public MemoryFiles Files { get; } = new();

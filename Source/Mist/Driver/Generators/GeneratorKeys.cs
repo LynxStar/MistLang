@@ -18,9 +18,9 @@ public static class GeneratorKeys
     }
 
     public static string Run(string toolchain, string generator, string consumerName, string consumerManifest,
-        IEnumerable<string> arguments, IEnumerable<ContentHash> inputs)
+        IEnumerable<string> arguments, IEnumerable<ContentHash> inputs, bool seedTool = false)
     {
-        return Hash([[toolchain], [generator], [consumerName, consumerManifest], arguments, Flatten(inputs)]);
+        return Hash([[toolchain], [generator], [consumerName, consumerManifest], arguments, Flatten(inputs), [seedTool ? "seed" : "generator"]]);
     }
 
     private static IEnumerable<string> Flatten(IEnumerable<ContentHash> values)

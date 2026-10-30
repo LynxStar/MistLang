@@ -293,6 +293,8 @@ are arrays of `{ Path, Sha256 }` records; hashes are lowercase SHA-256 hex. Vers
 including protocol files and input copies; `Outputs` identifies the Mist sources that are materialized or
 captured as declared seed sources. The record is written last, and readers reject an unknown version.
 A seed-source capture is checked against `Outputs`, so it need not retain staging inputs or protocol files.
+Run keys also include the declared seed status, so a change of declaration cannot reuse a record that
+attributes the same outputs to a different seed status.
 Seed declarations produce the promotable seed diagnostic on cold and warm builds, including stage-zero
 tools as Correctness Property 4 requires.
 

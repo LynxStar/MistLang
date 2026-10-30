@@ -460,6 +460,8 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0450 | Cannot run a library | The command cannot proceed with this input. Correct the named argument or project setting and retry. | Error | Fixed | None | None |
 | MIST0452 | Inspection type required | The command cannot proceed with this input. Correct the named argument or project setting and retry. | Error | Fixed | None | None |
 | MIST0453 | Inspection type is not qualified | The command cannot proceed with this input. Correct the named argument or project setting and retry. | Error | Fixed | type: Name | None |
+| MIST0459 | Invalid generator project | The generator project declares an unsupported project type or library output. Declare source\_generator with executable output, or use regular for an ordinary project. | Error | Fixed | reason: Text | None |
+| MIST0460 | Invalid generator reference | A generator declaration has an invalid name, path or protocol option, or targets an ordinary project. Correct the declaration and declare generators separately from ordinary references. | Error | Fixed | name: Name, reason: Text | None |
 
 ## DEP
 

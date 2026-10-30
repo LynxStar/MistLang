@@ -267,6 +267,26 @@ public static class DriverDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name), new Slot("directory", SlotKind.Path), new Slot("candidates", SlotKind.Sequence, SlotKind.Path)]);
 
+    public static readonly MistDiagnostic GeneratorProjectInvalid = new(
+        DiagnosticNumber.Mint("MIST0459"),
+        Title: "Invalid generator project",
+        Template: "Invalid source-generator project: {reason}.",
+        Description: "The generator project declares an unsupported project type or library output. Declare source_generator with executable output, or use regular for an ordinary project.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("reason", SlotKind.Text)]);
+
+    public static readonly MistDiagnostic GeneratorReferenceInvalid = new(
+        DiagnosticNumber.Mint("MIST0460"),
+        Title: "Invalid generator reference",
+        Template: "Invalid source-generator reference '{name}': {reason}.",
+        Description: "A generator declaration has an invalid name, path or protocol option, or targets an ordinary project. Correct the declaration and declare generators separately from ordinary references.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name), new Slot("reason", SlotKind.Text)]);
+
     public static readonly MistDiagnostic CSharpProjectBuildFailed = new(
         DiagnosticNumber.Mint("MIST0074"),
         Title: "C# project build failed",

@@ -72,7 +72,10 @@ public sealed record ProjectConfiguration(
     string TargetFramework = "net10.0",
     ImmutableArray<CsprojProperty> CsprojProperties = default,
     ProjectOutputType OutputType = ProjectOutputType.Executable,
-    DiagnosticPolicy? Diagnostics = null)
+    DiagnosticPolicy? Diagnostics = null,
+    MistProjectType ProjectType = MistProjectType.Regular,
+    ImmutableArray<GeneratorReference> Generators = default,
+    SeedSources? SeedSources = null)
 {
     public DiagnosticPolicy Diagnostics { get; } = Diagnostics ?? DiagnosticPolicy.Default;
 }

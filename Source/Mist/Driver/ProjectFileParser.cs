@@ -528,7 +528,8 @@ public static partial class ProjectFileParser
             }
         }
 
-        return new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType, policy);
+        var configuration = new ProjectConfiguration(name, namespaceRoot, references.ToImmutable(), entryPoint, globalUsings, packages, frameworkReferences, targetFramework, csprojProperties, outputType, policy);
+        return ReadGenerators(model, filePath, configuration, diagnostics);
     }
 
     internal static DiagnosticPolicy? ReadDiagnosticsPolicy(TomlTable model, string filePath, DiagnosticBag diagnostics)

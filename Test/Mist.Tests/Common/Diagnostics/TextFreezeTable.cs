@@ -466,5 +466,7 @@ internal static class TextFreezeTable
         ["CommandDiagnostics.ProcessStartFailed"] = "Failed to start 'arg0' process.",
         ["CommandDiagnostics.ProcessLaunchFailed"] = "Failed to launch 'arg0': arg1",
         ["BackendDiagnostics.EmissionFallback"] = "Internal compiler error: no emission for arg0 'arg1'. This is a compiler bug; please report it with the program that caused it.",
+        ["DriverDiagnostics.GeneratorProjectInvalid"] = "Invalid source-generator project: arg0.",
+        ["DriverDiagnostics.GeneratorReferenceInvalid"] = "Invalid source-generator reference 'arg0': arg1.",
     };
 }

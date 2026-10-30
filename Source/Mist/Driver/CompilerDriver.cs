@@ -138,7 +138,7 @@ public sealed class CompilerDriver : ICompilerDriver
         ImmutableArray<ComposedProject> ComposedProjects,
         int BuiltCSharpProjectCount);
 
-    private sealed record ManifestLoad(ImmutableArray<string> GlobalUsings, LoadedReferences References);
+    private sealed record ManifestLoad(ImmutableArray<string> GlobalUsings, LoadedReferences References, SeedSources? SeedSources = null);
 
     private static ImmutableArray<string> WithExternalAssemblies(ImmutableArray<string> resolved, LoadResult loadResult)
     {
@@ -229,6 +229,11 @@ public sealed class CompilerDriver : ICompilerDriver
         var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         foreach(var path in options.SourcePaths)
         {
+            if(manifest.SeedSources is { } seed && SourcePathSelection.IsWithin(Path.GetFullPath(path), seed.Path))
+            {
+                continue;
+            }
+
             try
             {
                 var contents = File.ReadAllText(path);
@@ -373,7 +378,7 @@ public sealed class CompilerDriver : ICompilerDriver
             allDiagnostics.Add(d);
         }
 
-        return resolveBag.HasErrors ? null : new ManifestLoad(globalUsings, references);
+        return resolveBag.HasErrors ? null : new ManifestLoad(globalUsings, references, projectConfig.SeedSources);
     }
 
     private static ImmutableArray<ComposedProject> ComposedProjects(

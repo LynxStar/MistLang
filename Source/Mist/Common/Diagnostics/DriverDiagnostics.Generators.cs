@@ -91,4 +91,15 @@ public static partial class DriverDiagnostics
         Policy: PolicyClass.Promotable,
         DefaultSeverity: DiagnosticSeverity.Warning,
         Slots: [new Slot("message", SlotKind.Text)]);
+
+    public static readonly MistDiagnostic GeneratorSeedUsed = new(
+        DiagnosticNumber.Mint("MIST0468"),
+        Title: "Source generation seed used",
+        Template: "Source-generation seed '{path}' is in use.",
+        Description: "This build consumed a declared stage-zero tool or captured generated sources. Replace the seed declaration with a Mist generator before claiming a closed later-stage build; this warning can be promoted to an error.",
+        Category: DiagnosticCategory.Cfg,
+        Policy: PolicyClass.Promotable,
+        DefaultSeverity: DiagnosticSeverity.Warning,
+        Slots: [new Slot("path", SlotKind.Path)]);
+
 }

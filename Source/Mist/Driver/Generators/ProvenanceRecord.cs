@@ -13,6 +13,8 @@ public sealed record ProvenanceRecord(
     ImmutableArray<ContentHash> Outputs,
     bool SeedTool)
 {
+    public int Version { get; init; } = 1;
+
     public ImmutableArray<ContentHash> Files { get; init; } = [];
 
     public string? ArtifactPath { get; init; }

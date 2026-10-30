@@ -475,5 +475,6 @@ internal static class TextFreezeTable
         ["DriverDiagnostics.GeneratorInputNotFound"] = "Source-generator input 'arg0' does not exist.",
         ["DriverDiagnostics.GeneratorReportedError"] = "arg0",
         ["DriverDiagnostics.GeneratorReportedWarning"] = "arg0",
+        ["DriverDiagnostics.GeneratorSeedUsed"] = "Source-generation seed 'arg0' is in use.",
     };
 }

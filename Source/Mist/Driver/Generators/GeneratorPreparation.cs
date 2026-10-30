@@ -61,7 +61,7 @@ internal static class GeneratorPreparation
             GeneratorReferenceValidation.Validate(node, configurations, diagnostics);
         }
 
-        if(diagnostics.HasErrors || nodes.All(node => node.Configuration.Generators.IsDefaultOrEmpty))
+        if(diagnostics.HasErrors || nodes.All(node => node.Configuration.Generators.IsDefaultOrEmpty && node.Configuration.SeedSources is null))
         {
             return overlay;
         }
@@ -79,13 +79,23 @@ internal static class GeneratorPreparation
         {
             foreach(var node in nodes)
             {
-                if(node.Configuration.Generators.IsDefaultOrEmpty || overlay.ContainsKey(node.Manifest))
+                if(overlay.ContainsKey(node.Manifest))
                 {
                     continue;
                 }
 
                 var generated = ImmutableArray.CreateBuilder<ResolvedProjectReference>();
-                foreach(var reference in node.Configuration.Generators)
+                if(node.Configuration.SeedSources is not null)
+                {
+                    if(GeneratorSeeds.Prepare(node, new GeneratorFiles(), diagnostics) is not { } seed)
+                    {
+                        return overlay;
+                    }
+
+                    generated.Add(Materialize(node, "SeedSources", seed));
+                }
+
+                foreach(var reference in node.Configuration.Generators.IsDefault ? [] : node.Configuration.Generators)
                 {
                     if(!configurations.TryGetValue(reference.ProjectPath, out var generator))
                     {
@@ -124,6 +134,15 @@ internal static class GeneratorPreparation
                     if(host.Prepare(request, diagnostics) is not { } entry)
                     {
                         return overlay;
+                    }
+
+                    if(reference.Seed)
+                    {
+                        diagnostics.ReportTyped(DriverDiagnostics.GeneratorSeedUsed, new ProjectLocation(node.Manifest, null), new PathValue(reference.ProjectPath));
+                        if(diagnostics.HasErrors)
+                        {
+                            return overlay;
+                        }
                     }
 
                     generated.Add(Materialize(node, reference.Name, entry));

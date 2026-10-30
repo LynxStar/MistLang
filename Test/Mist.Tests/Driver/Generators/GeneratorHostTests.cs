@@ -110,6 +110,21 @@ public sealed class GeneratorHostTests
         Assert.Equal(2, fixture.Invocations.Count);
     }
 
+    [Fact]
+    public void SeedFlagIsRecordedOnEveryRun()
+    {
+        var fixture = new Fixture();
+        var seeded = fixture.Request with { Reference = fixture.Request.Reference with { Seed = true } };
+        var entry = fixture.Host.Prepare(seeded, new DiagnosticBag());
+        Assert.True(entry!.Provenance.SeedTool);
+        Assert.Equal(seeded.ToolchainIdentity, entry.Provenance.ToolchainIdentity);
+        Assert.Equal(seeded.CompileKey, entry.Provenance.GeneratorIdentity);
+        Assert.Equal(seeded.ConsumerName, entry.Provenance.ConsumerName);
+        Assert.Equal(seeded.ConsumerManifest, entry.Provenance.ConsumerManifestPath);
+        Assert.Equal(seeded.Inputs, entry.Provenance.Inputs);
+        Assert.Equal(seeded.Reference.Arguments, entry.Provenance.Arguments);
+    }
+
     private sealed class Fixture
     {
         public MemoryFiles Files { get; } = new();

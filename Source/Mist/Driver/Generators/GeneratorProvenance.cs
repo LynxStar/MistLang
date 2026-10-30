@@ -16,7 +16,8 @@ public static class GeneratorProvenance
     {
         try
         {
-            return JsonSerializer.Deserialize<ProvenanceRecord>(text);
+            var record = JsonSerializer.Deserialize<ProvenanceRecord>(text);
+            return record?.Version == 1 ? record : null;
         }
         catch(JsonException)
         {

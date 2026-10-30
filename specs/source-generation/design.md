@@ -286,6 +286,16 @@ public sealed record GeneratedProject(
     ProvenanceRecord Provenance);
 ```
 
+The persisted provenance is JSON with the PascalCase property names shown above. `Inputs` and `Outputs`
+are arrays of `{ Path, Sha256 }` records; hashes are lowercase SHA-256 hex. Version 1 additionally carries
+`Version = 1`, `Files` (the path/hash inventory of **all** published files except `provenance.json`) and
+`ArtifactPath` (the compiled generator's relative DLL path, null for runs). `Files` verifies cache integrity
+including protocol files and input copies; `Outputs` identifies the Mist sources that are materialized or
+captured as declared seed sources. The record is written last, and readers reject an unknown version.
+A seed-source capture is checked against `Outputs`, so it need not retain staging inputs or protocol files.
+Seed declarations produce the promotable seed diagnostic on cold and warm builds, including stage-zero
+tools as Correctness Property 4 requires.
+
 ## Detailed Design
 
 ### 1. Declaration

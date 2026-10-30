@@ -58,6 +58,9 @@ public static class ProjectReferenceLoader
                 ProjectReferenceResolver.EnumerateSources, overlay);
         }
 
+        resolution = resolution with { Projects = [.. resolution.Projects.Select(project => project.Configuration.SeedSources is { } seed
+            ? project with { SourcePaths = [.. project.SourcePaths.Where(path => !SourcePathSelection.IsWithin(Path.GetFullPath(path), seed.Path))] }
+            : project)] };
         if(diagnostics.HasErrors || resolution.ExternalReferences.IsEmpty)
         {
             return new LoadedReferences(resolution.Projects, [], 0);

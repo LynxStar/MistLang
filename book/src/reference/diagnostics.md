@@ -463,6 +463,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0459 | Invalid generator project | The generator project declares an unsupported project type or library output. Declare source\_generator with executable output, or use regular for an ordinary project. | Error | Fixed | reason: Text | None |
 | MIST0460 | Invalid generator reference | A generator declaration has an invalid name, path or protocol option, or targets an ordinary project. Correct the declaration and declare generators separately from ordinary references. | Error | Fixed | name: Name, reason: Text | None |
 | MIST0465 | Source generator input missing | A declared input is absent. Restore the file or correct its path in the consumer manifest. | Error | Fixed | path: Path | None |
+| MIST0468 | Source generation seed used | This build consumed a declared stage-zero tool or captured generated sources. Replace the seed declaration with a Mist generator before claiming a closed later-stage build; this warning can be promoted to an error. | Warning | Promotable | path: Path | None |
 
 ## DEP
 

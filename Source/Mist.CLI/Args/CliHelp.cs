@@ -15,6 +15,7 @@ public static class CliHelp
         output.WriteLine("  steering           Install Mist steering files");
         output.WriteLine("  inspect <TypeName> Inspect a CLR type's projected and hidden members");
         output.WriteLine("  restore            Resolve packages, framework references and C# project references without building");
+        output.WriteLine("  clean --generators Remove cached generators and runs");
         output.WriteLine("  version            Print the compiler version");
         output.WriteLine();
         output.WriteLine("Options:");

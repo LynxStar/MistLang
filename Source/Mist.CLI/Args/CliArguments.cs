@@ -23,6 +23,7 @@ public enum CliCommand
     Restore,
     /// <summary>Print the compiler version.</summary>
     Version,
+    Clean,
 }
 
 /// <summary>
@@ -41,7 +42,8 @@ public sealed record CliArguments(
     string Pipeline = "standard",
     TargetPlatform? Platform = null,
     string? RuntimeIdentifier = null,
-    DiagnosticControls? Diagnostics = null);
+    DiagnosticControls? Diagnostics = null,
+    bool Generators = false);
 
 /// <summary>
 /// The compiler execution mode.

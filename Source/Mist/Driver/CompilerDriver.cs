@@ -5,6 +5,7 @@ using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver.Contracts;
+using Mist.Driver.Generators;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
 
@@ -212,7 +213,7 @@ public sealed class CompilerDriver : ICompilerDriver
         return runtimeIdentifier is null ? references : [.. references, $"runtime identifier {runtimeIdentifier}"];
     }
 
-    private static LoadResult? ReadCompilationUnits(
+    private LoadResult? ReadCompilationUnits(
         CompilerOptions options,
         DiagnosticBag allDiagnostics)
     {
@@ -332,7 +333,7 @@ public sealed class CompilerDriver : ICompilerDriver
     /// Many test scenarios and CLI invocations supply a ProjectFolder without a mist.toml; those fall
     /// back to <see cref="CompilerOptions.GlobalUsings"/> and resolve no references.
     /// </summary>
-    private static ManifestLoad? ReadManifest(CompilerOptions options, DiagnosticBag allDiagnostics)
+    private ManifestLoad? ReadManifest(CompilerOptions options, DiagnosticBag allDiagnostics)
     {
         var globalUsings = options.GlobalUsings.IsDefault ? ImmutableArray<string>.Empty : options.GlobalUsings;
         var none = new LoadedReferences([], [], 0);
@@ -362,14 +363,10 @@ public sealed class CompilerDriver : ICompilerDriver
         }
 
         globalUsings = projectConfig.GlobalUsings.IsDefault ? ImmutableArray<string>.Empty : projectConfig.GlobalUsings;
-        if(projectConfig.References.IsEmpty)
-        {
-            return new ManifestLoad(globalUsings, none);
-        }
-
         var resolveBag = new DiagnosticBag(allDiagnostics.Operation);
         var references = ProjectReferenceLoader.Load(
-            options.ProjectFolder, projectConfig.References, options.TargetFramework, resolveBag);
+            options.ProjectFolder, projectConfig, resolveBag, progressReporter, options.GeneratedProjects,
+            options.GeneratorServices ?? new GeneratorServices());
 
         foreach(var d in resolveBag.ToImmutableArray())
         {

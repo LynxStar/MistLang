@@ -9,6 +9,7 @@ using Mist.CLI.Steering;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
 using Mist.Driver.Contracts;
+using Mist.Driver.Generators;
 using Mist.Lexing;
 using Mist.Parsing;
 
@@ -36,6 +37,7 @@ internal partial class Program
             case CliCommand.Steering: return RunSteeringCommand(cliArgs, output);
             case CliCommand.Inspect: return RunInspectCommand(cliArgs, output);
             case CliCommand.Restore: return RunRestoreCommand(cliArgs, output);
+            case CliCommand.Clean: return RunCleanCommand(cliArgs, output);
             default: return 1;
         }
     }
@@ -382,7 +384,7 @@ internal partial class Program
         }
 
         var referenceDiagnostics = new DiagnosticBag(output.Operation);
-        var references = ProjectReferenceLoader.Load(projectFolder, config.References, config.TargetFramework, referenceDiagnostics);
+        var references = ProjectReferenceLoader.Load(projectFolder, config, referenceDiagnostics);
         foreach(var diagnostic in referenceDiagnostics.Admitted)
         {
             output.Stream(diagnostic);

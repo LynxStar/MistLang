@@ -48,6 +48,7 @@ public static class CliArgumentParser
         var mode = CompilerMode.Compile;
         var quiet = false;
         var verbose = false;
+        var generators = false;
         var pipeline = "standard";
         TargetPlatform? platform = null;
         string? runtimeIdentifier = null;
@@ -171,6 +172,10 @@ public static class CliArgumentParser
                     runtimeIdentifier = args[i];
                 }
             }
+            else if(arg == "--generators")
+            {
+                generators = true;
+            }
             else if(arg.StartsWith("--"))
             {
                 errors.Add(new CliParseError(CommandDiagnostics.UnknownFlag, [new NameValue(arg)]));
@@ -230,6 +235,11 @@ public static class CliArgumentParser
             command = CliCommand.Restore;
             positionalArgs.RemoveAt(0);
         }
+        else if(positionalArgs.Count > 0 && positionalArgs[0] == "clean")
+        {
+            command = CliCommand.Clean;
+            positionalArgs.RemoveAt(0);
+        }
         else if(positionalArgs.Count > 0 && positionalArgs[0] == "version")
         {
             command = CliCommand.Version;
@@ -253,6 +263,17 @@ public static class CliArgumentParser
         if(command == CliCommand.None && positionalArgs.Count > 0)
         {
             command = CliCommand.Build;
+        }
+
+        if(generators && command != CliCommand.Clean)
+        {
+            errors.Add(new CliParseError(CommandDiagnostics.UnknownFlag, [new NameValue("--generators")]));
+        }
+
+        if(command == CliCommand.Clean && generators)
+        {
+            return errors.Count > 0 ? new CliParseResult(null, errors)
+                : new CliParseResult(new CliArguments("", Command: command, Quiet: quiet, Generators: true), errors);
         }
 
         // Version command needs no project folder or further validation.

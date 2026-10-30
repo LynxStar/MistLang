@@ -43,7 +43,8 @@ public static class ProjectReferenceResolver
         ImmutableArray<ProjectReference> references,
         DiagnosticBag diagnostics,
         Func<string, DiagnosticBag, ProjectConfiguration?> loadManifest,
-        Func<string, ImmutableArray<string>> enumerateSources)
+        Func<string, ImmutableArray<string>> enumerateSources,
+        ImmutableDictionary<string, ImmutableArray<ResolvedProjectReference>>? generated = null)
     {
         var loads = new Dictionary<string, ProjectConfiguration?>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -61,6 +62,7 @@ public static class ProjectReferenceResolver
             visit(reference, rootCanonicalTomlPath, rootExternals);
         }
 
+        addGenerated(rootCanonicalTomlPath);
         externals.AddRange(rootExternals);
         return new ProjectReferenceResolution(result.ToImmutableArray(), externals.ToImmutableArray());
 
@@ -138,6 +140,7 @@ public static class ProjectReferenceResolver
                 visit(transRef, canonicalTomlPath, own);
             }
 
+            addGenerated(canonicalTomlPath);
             externals.AddRange(own);
             var projectFolder = Path.GetDirectoryName(canonicalTomlPath)!;
             result.Add(new ResolvedProjectReference(
@@ -149,6 +152,20 @@ public static class ProjectReferenceResolver
             _ = visited.Add(canonicalTomlPath);
             _ = inProgress.Remove(canonicalTomlPath);
             chain.RemoveAt(chain.Count - 1);
+        }
+
+        void addGenerated(string consumer)
+        {
+            if(generated is not null && generated.TryGetValue(consumer, out var projects))
+            {
+                foreach(var project in projects)
+                {
+                    if(visited.Add(project.CanonicalTomlPath))
+                    {
+                        result.Add(project);
+                    }
+                }
+            }
         }
 
         void reportCycle(string canonicalTomlPath)
@@ -226,7 +243,7 @@ public static class ProjectReferenceResolver
         }
     }
 
-    private static ProjectConfiguration? LoadManifest(string canonicalTomlPath, DiagnosticBag diagnostics)
+    internal static ProjectConfiguration? LoadManifest(string canonicalTomlPath, DiagnosticBag diagnostics)
     {
         if(!File.Exists(canonicalTomlPath))
         {

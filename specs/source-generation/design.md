@@ -372,7 +372,7 @@ without touching the consumer.
 
 The published Run's outputs are copied into `<consumer>/out/generated/<Generator>/`, which the CLI cleans on
 every build and Source_Discovery excludes, and a synthesized `ProjectConfiguration` named
-`<Consumer>.Generated.<Generator>` with `output_type = "library"`, the consumer's `namespace_root` and global
+`<Consumer>.Generated.<Generator>` with `output_type = "library"`, its own synthesized namespace root and the consumer's global
 usings, is handed to `ProjectReferenceResolver` through the overlay keyed by the consumer's canonical
 manifest path. The resolver visits it after the consumer's ordinary references, so a generated source may
 use any referenced type, and composition is flat, so the consumer and its other references see the

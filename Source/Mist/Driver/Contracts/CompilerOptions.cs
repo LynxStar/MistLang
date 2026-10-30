@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
+using Mist.Driver.Generators;
 
 namespace Mist.Driver.Contracts;
 
@@ -49,6 +50,11 @@ public sealed record CompilerOptions(
     public DiagnosticOperation? DiagnosticOperation { get; init; }
 
     public ProjectConfiguration? Configuration { get; init; }
+
+    public ImmutableDictionary<string, ImmutableArray<ResolvedProjectReference>> GeneratedProjects { get; init; }
+        = ImmutableDictionary<string, ImmutableArray<ResolvedProjectReference>>.Empty;
+
+    internal GeneratorServices? GeneratorServices { get; init; }
 
     public TargetPlatform EffectivePlatform => Platform ?? TargetPlatforms.Host;
 

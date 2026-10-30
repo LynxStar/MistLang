@@ -59,7 +59,8 @@ public static partial class SdkDiscovery
         var tfm = targetFramework;
 
         // Locate the dotnet root (the directory containing packs/).
-        var sdkRoot = FindDotnetRoot();
+        var runtimeRoot = Path.GetFullPath(Path.Combine(RuntimeEnvironment.GetRuntimeDirectory(), "..", "..", ".."));
+        var sdkRoot = Directory.Exists(Path.Combine(runtimeRoot, "packs")) ? runtimeRoot : TryWellKnownPaths();
 
         if(sdkRoot is null)
         {

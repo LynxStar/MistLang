@@ -57,6 +57,7 @@ internal static class FieldEmitter
         {
             // Undecided generic storage retains CLR zero without granting a semantic default to its type.
             var storageZero = field.Initializer is null && field.DeclaringType is ClassType
+                && !TypeNameEmitter.IsValueKind(type)
                 && Defaultability.IsUndecided(TypeNameEmitter.Closed(type)) ? " = default!" : "";
             writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)}{storageZero};");
             return;

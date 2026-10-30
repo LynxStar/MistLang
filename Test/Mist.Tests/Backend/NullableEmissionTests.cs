@@ -116,6 +116,42 @@ public sealed class NullableEmissionTests
     }
 
     [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(0, "T1")]
+    [InlineData(1, "T2")]
+    public void IndexedPackStorageKeepsItsSpecializedTypeAndClrZero(int index, string expectedType)
+    {
+        var owner = HandBuiltModel.Class("Indexed");
+        var pack = new TypeParameter("TArgs", 0, owner.Scope, owner) { PackKind = TypePackKind.Unbracketed };
+        var name = index == 0 ? "First" : "Second";
+        var field = new Field(name, pack.ElementAt(index), OwnershipKind.Unrestricted, DeclarationFragments.Public)
+        { DeclaringType = owner };
+        var writer = new CSharpWriter();
+        using var specialization = Monomorph.For([pack], [2])!.Enter();
+
+        FieldEmitter.Emit(field, false, writer, new DiagnosticBag());
+
+        Assert.Equal($"public {expectedType} {name} = default!;", writer.ToString().Trim());
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void TupleStorageKeepsItsValueCarrierDeclaration()
+    {
+        var built = new HandBuiltModel();
+        var owner = HandBuiltModel.Class("Storage");
+        var parameter = new TypeParameter("T", 0, owner.Scope, owner);
+        var field = new Field("item", built.Interner.GetOrCreateTupleType([parameter, parameter]),
+            OwnershipKind.Unrestricted, DeclarationFragments.Public)
+        { DeclaringType = owner };
+        var writer = new CSharpWriter();
+
+        FieldEmitter.Emit(field, false, writer, new DiagnosticBag());
+
+        Assert.Equal("public (T, T) item;", writer.ToString().Trim());
+    }
+
+    [Theory]
     [InlineData(TypeParameterConstraintKind.Linear)]
     [InlineData(TypeParameterConstraintKind.Affine)]
     [InlineData(TypeParameterConstraintKind.Relevant)]

@@ -1,5 +1,6 @@
 using System.Text;
 using Mist.Common.Diagnostics;
+using Mist.Driver;
 using Mist.Driver.Contracts;
 using Mist.Driver.Generators;
 
@@ -30,6 +31,7 @@ public sealed class GeneratorSeedsTests
     [InlineData("missing-source")]
     [InlineData("extra-source")]
     [InlineData("escape")]
+    [InlineData("missing-marker")]
     public void UnattributableCapturedSetsAreRefused(string damage)
     {
         var files = new MemoryFiles();
@@ -41,6 +43,7 @@ public sealed class GeneratorSeedsTests
             case "missing-source": _ = files.Content.Remove("/capture/Gen.mist"); break;
             case "extra-source": files.Put("/capture/Extra.mist", "extra"); break;
             case "escape": files.Put("/record.json", GeneratorProvenance.Serialize(Record() with { Outputs = [new ContentHash("../Gen.mist", "hash")] })); break;
+            case "missing-marker": _ = files.Content.Remove("/capture/" + SourcePathSelection.GeneratedMarker); break;
         }
 
         var diagnostics = new DiagnosticBag();
@@ -109,6 +112,7 @@ public sealed class GeneratorSeedsTests
     {
         public Dictionary<string, byte[]> Content { get; } = new()
         {
+            ["/capture/" + SourcePathSelection.GeneratedMarker] = [],
             ["/capture/Gen.mist"] = Encoding.UTF8.GetBytes("source"),
             ["/record.json"] = Encoding.UTF8.GetBytes(GeneratorProvenance.Serialize(Record()))
         };

@@ -336,7 +336,9 @@ paths do (`named-references`). A `[references]` entry whose target is a generato
 
 A Stage_Zero_Tool is declared in the same table with `seed = true`, which marks every Run's
 Provenance_Record. Pre_Generated_Sources are declared as `seed_sources = { path = "...", provenance = "..." }`
-and reported by `GeneratorSeedUsed`.
+and reported by `GeneratorSeedUsed`. The captured directory must contain a `.mist-generated` marker;
+an unmarked capture is `GeneratorReferenceInvalid`. Keep that marker with the captured files so that
+removing `seed_sources` leaves them outside ordinary Source_Discovery for root and referenced consumers.
 
 ### 2. The graph
 

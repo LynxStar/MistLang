@@ -14,6 +14,11 @@ internal static class GeneratorSeeds
 
         try
         {
+            if(!files.Exists(Path.Combine(declaration.Path, SourcePathSelection.GeneratedMarker)))
+            {
+                return invalid("captured output directory must contain a .mist-generated marker");
+            }
+
             if(!files.Exists(declaration.Provenance)
                 || GeneratorProvenance.Deserialize(Encoding.UTF8.GetString(files.Read(declaration.Provenance))) is not { } record
                 || record.Outputs.IsDefaultOrEmpty)
@@ -46,10 +51,10 @@ internal static class GeneratorSeeds
             return invalid();
         }
 
-        CachedGeneration? invalid()
+        CachedGeneration? invalid(string reason = "provenance does not match the captured output set")
         {
             diagnostics.ReportTyped(DriverDiagnostics.GeneratorReferenceInvalid, new ProjectLocation(consumer.Manifest, null),
-                new NameValue("seed_sources"), new TextValue("provenance does not match the captured output set"));
+                new NameValue("seed_sources"), new TextValue(reason));
             return null;
         }
     }

@@ -686,6 +686,52 @@ On a value of a CLR class you reach the members that the class and its base clas
 
 Abstract types cannot be instantiated with `new` (the compiler reports an error), and sealed types cannot be inherited from in Mist code.
 
+### Filling a CLR Base Class's Slots
+
+A CLR class's `abstract` and `virtual` members are slots, the same as an abstract type's. A Mist class
+that derives from the CLR class fills one by declaring a member with the same name, parameters, return
+type and accessibility. There is no keyword: the member replaces the CLR default, and the runtime calls
+it through the base type too. The emitted C# spells the fill `override`, or `sealed override` if the
+Mist member is `sealed`.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/filling-clr-slots.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/filling-clr-slots.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+`Collection<int>.Add` calls the virtual `InsertItem`, so both adds reach the fill, including the one made
+through a `Collection<int>` variable. The program prints `inserts=2 count=0`. The count is zero because
+the fill replaces the default, which is what stores the item, and a fill cannot call the default it
+replaces.
+
+`System.Object` is not an implicit base of a Mist class. A Mist class fills `ToString`, `Equals` or
+`GetHashCode` only when it reaches `System.Object` through a CLR base class. A parameter written
+`object` or `object | void` matches the slot's `System.Object` parameter, so `public bool Equals(object other)`
+fills `Equals`. That match is made only against a CLR slot: between Mist members, `object` and
+`System.Object` stay different parameter types. Three cases are refused
+instead of hiding the CLR member:
+
+```
+error MIST0459: 'Catalog' does not fill slot 'string GetKeyForItem(Item)' of 'KeyedCollection': the CLR declares it abstract and no member of 'Catalog' or a base answers it.
+error MIST0460: 'Mine.Twice' cannot fill slot 'int Twice(int)' of 'SealingDerived': the CLR declares it sealed.
+error MIST0177: 'Loud' cannot redeclare member 'Add' already defined in 'Collection'.
+```
+
+The last error is for a member that repeats a CLR member that is not virtual. A member that repeats a
+slot's name and parameters but differs in its return type, accessibility or accessors is `MIST0461`.
+A fill may leave out an accessor the slot has only if the accessor it keeps has a body:
+`public string HelpLink { get; }` over `Exception.HelpLink`, which has a setter, is refused, because an
+auto-property override must override every accessor. A generic method fill may repeat its slot's
+type parameter constraints or leave them out, but may not add one the slot does not have.
+
 ## Iterating CLR Collections
 
 CLR types implementing `IEnumerable<T>` can be iterated with `foreach`. The compiler resolves the element type from the `IEnumerable<T>` implementation and emits a standard C# `foreach` loop:
@@ -717,6 +763,7 @@ The Assembly Type Provider gives you access to the full .NET ecosystem from Mist
 - **Null safety** is enforced — reference returns are `T | void`, requiring narrowing
 - **Cross-assembly inheritance** is resolved — derived types are assignable to base types across assemblies
 - **Inherited members** are callable on derived types
+- **CLR slots** are filled by declaring the matching member, and the emitter writes `override`
 - **CLR calls** take optional parameters, `params` lists and `System.Object` targets the way C# does, and are checked in your Mist source
 - **Per-overload hiding** — only overloads using genuinely unsupported types are hidden
 - **Ref structs** are projected as stack-only structs and remain usable

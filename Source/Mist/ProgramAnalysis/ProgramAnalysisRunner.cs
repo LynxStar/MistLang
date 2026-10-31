@@ -31,6 +31,7 @@ internal static class ProgramAnalysisRunner
         new DefaultabilityAnalyzer(),
         new UnknownClosureAnalyzer(),
         new ConformanceAnalyzer(),
+        new NativeSlotAnalyzer(),
         new PatternAnalyzer(),
         new RegexAnalyzer(),
         new PositionAnalyzer(),

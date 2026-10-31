@@ -3,6 +3,7 @@ using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -139,6 +140,7 @@ internal sealed partial class CSharpEmitterV2
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);

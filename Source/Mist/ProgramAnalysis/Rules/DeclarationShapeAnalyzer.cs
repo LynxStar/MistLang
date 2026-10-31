@@ -366,6 +366,10 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         var interner = context.Model.TypeInterner;
         var path = new List<ConstructedType>();
         var seen = new HashSet<ConcreteType>();
+        var slotted = NativeSlotFills.Of(type, interner).Select(fill => fill.Filler.Member)
+            .Concat(NativeSlotFills.Collisions(type, interner).Where(collision => collision.Kind != NativeSlotKind.None).Select(collision => collision.Member.Member))
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+        var reportedAgainstProjected = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
         for(var baseType = type.BaseType; Inherits(baseType) is { } ancestor && seen.Add(ancestor); baseType = ancestor.BaseType)
         {
@@ -375,10 +379,12 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
             }
 
             var inheritance = TypeSubstitution.ForPath(null, path, interner);
+            var projected = ancestor.Assembly.Kind == MistAssemblyKind.Ambient;
 
-            foreach(var member in Members(type).Where(member => member.Node is not null))
+            foreach(var member in Members(type).Where(member => member.Node is not null && !slotted.Contains(member.Source)))
             {
-                if(!Members(ancestor).Any(other => other.Name == member.Name && Hides(member, other, inheritance, interner)))
+                if(!Members(ancestor).Any(other => other.Name == member.Name && Hides(member, other, inheritance, interner, projected))
+                    || (projected && !reportedAgainstProjected.Add(member.Source)))
                 {
                     continue;
                 }
@@ -407,34 +413,36 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static bool Hides(Member member, Member inherited, TypeSubstitution inheritance, TypeInterner interner)
+    private static bool Hides(Member member, Member inherited, TypeSubstitution inheritance, TypeInterner interner, bool projected)
     {
         return member.Overload is not { } later || inherited.Overload is not { } earlier
-            || OverloadSignature.Repeats(later, earlier, inheritance, interner);
+            || (projected
+                ? OverloadSignature.RepeatsProjected(later, earlier, inheritance, interner, slot: false)
+                : OverloadSignature.Repeats(later, earlier, inheritance, interner));
     }
 
     private static IEnumerable<Member> Members(MemberType type)
     {
         foreach(var method in type.MethodsList)
         {
-            yield return new Member(method.Name, method.DeclarationNode, method);
+            yield return new Member(method.Name, method.DeclarationNode, method, method);
         }
 
         foreach(var indexer in type.IndexersList)
         {
-            yield return new Member("this[]", indexer.DeclarationNode, indexer);
+            yield return new Member("this[]", indexer.DeclarationNode, indexer, indexer);
         }
 
         foreach(var property in type.PropertiesList)
         {
-            yield return new Member(property.Name, property.DeclarationNode, null);
+            yield return new Member(property.Name, property.DeclarationNode, null, property);
         }
 
         if(type is ConcreteType concrete)
         {
             foreach(var field in concrete.FieldsList)
             {
-                yield return new Member(field.Name, field.DeclarationNode, null);
+                yield return new Member(field.Name, field.DeclarationNode, null, field);
             }
         }
     }
@@ -486,7 +494,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
                 .SequenceEqual(right.ParametersList.Select(parameter => parameter.Type.FullyQualifiedName));
     }
 
-    private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload);
+    private readonly record struct Member(string Name, SyntaxNode? Node, IOverload? Overload, object Source);
 
     private static void Report(AnalysisContext context, SyntaxNode? at, MistDiagnostic descriptor, params SlotValue[] args)
     {

@@ -1,0 +1,103 @@
+// ClrSlotFilling -- a member repeating a CLR base class's virtual or abstract member fills that slot
+// (clr-slot-filling Requirement 2), and the runtime dispatches to it through the base type.
+// V2-ONLY: written after classic was retired; its lines were captured from v2 and read against the
+// program by hand.
+
+using Standard;
+using System;
+using System.Collections.ObjectModel;
+
+namespace ClrSlotFilling;
+
+public class Loud : Collection<int>
+{
+    public int inserts;
+
+    protected void InsertItem(int index, int item)
+    {
+        inserts = inserts + 1;
+    }
+}
+
+public class Item
+{
+    public string name;
+    public int qty;
+
+    public Item(string name, int qty)
+    {
+        this.name = name;
+        this.qty = qty;
+    }
+}
+
+public class Catalog : KeyedCollection<string, Item>
+{
+    protected string GetKeyForItem(Item item)
+    {
+        return item.name;
+    }
+}
+
+public class Marker : Attribute
+{
+    public bool IsDefaultAttribute()
+    {
+        return true;
+    }
+}
+
+public class Tally : Collection<int>
+{
+    public string ToString()
+    {
+        return $"tally of {Count}";
+    }
+}
+
+public class Oops : Exception
+{
+    public string Message
+    {
+        get
+        {
+            return "oops from mist";
+        }
+    }
+}
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== CLR Slot Filling ===");
+
+        var loud = new Loud();
+        loud.Add(1);
+        loud.Add(2);
+        Console.WriteLine($"inserts={loud.inserts} count={loud.Count}");
+
+        var cat = new Catalog();
+        cat.Add(new Item("apple", 3));
+        cat.Add(new Item("pear", 7));
+        Console.WriteLine($"keyed={cat["pear"].qty} has={cat.Contains("apple")}");
+
+        Attribute marker = new Marker();
+        Console.WriteLine(marker.IsDefaultAttribute());
+
+        var tally = new Tally();
+        tally.Add(4);
+        Collection<int> counted = tally;
+        Console.WriteLine(counted.ToString());
+
+        Exception thrown = new Oops();
+        Console.WriteLine(thrown.Message);
+
+        Console.WriteLine("=== CLR Slot Filling Done ===");
+    }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
+}

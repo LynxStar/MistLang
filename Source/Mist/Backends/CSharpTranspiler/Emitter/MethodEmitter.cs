@@ -29,13 +29,14 @@ internal static class MethodEmitter
             return;
         }
 
-        var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly)
-            + (HidesObjectToString(method) ? "new " : "")
+        var fills = NativeSlotFills.Fills(method);
+        var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly, fills)
+            + (!fills && HidesObjectToString(method) ? "new " : "")
             + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
-        ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true);
+        ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true, overriding: fills);
         using(writer.Block())
         {
             if(method.Body is not null)

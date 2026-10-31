@@ -110,6 +110,7 @@ internal static class MethodProjector
             Scope = methodScope,
             SequenceLengthOperation = ClrSequenceLengths.Of(method),
             HasNativeBody = method.DeclaringType is { IsInterface: true } && method.IsPublic && !method.IsStatic && !method.IsAbstract,
+            SlotKind = SlotKindOf(method),
         };
 
         projected.TypeParametersList.AddRange(typeParameters);
@@ -119,9 +120,30 @@ internal static class MethodProjector
         }
 
         AttributeProjector.Project(method, projected.AttributesList, methodScope, resolver);
-        SentinelAttributes.ApplyMethodAttributes(method, projected.AttributesList);
 
         return projected;
+    }
+
+    internal static NativeSlotKind SlotKindOf(MethodInfo? method)
+    {
+        if(method is null || !method.IsVirtual || method.DeclaringType is { IsInterface: true })
+        {
+            return NativeSlotKind.None;
+        }
+
+        if(method.IsAbstract)
+        {
+            return NativeSlotKind.Required;
+        }
+
+        if(!method.IsFinal)
+        {
+            return NativeSlotKind.Defaulted;
+        }
+
+        // A final new slot is how the CLR spells a non-virtual member implementing an interface member, not a
+        // sealed override, so C# offers nothing to fill and the member is an ordinary one.
+        return (method.Attributes & MethodAttributes.NewSlot) == 0 ? NativeSlotKind.Sealed : NativeSlotKind.None;
     }
 
     /// <summary>

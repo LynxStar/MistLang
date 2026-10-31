@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -20,7 +21,7 @@ internal static class PropertyEmitter
         }
 
         using var constructionScope = property.Modifiers.IsStatic ? ConstructorWitnesses.NativeScope() : null;
-        var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly);
+        var modifiers = MemberModifierEmitter.Emit(property.Modifiers, emitReadonly, NativeSlotFills.Fills(property));
         var typeName = TypeNameEmitter.Emit(property.Type);
         var declaration = $"{modifiers}{(hides ? "new " : "")}{typeName} {IdentifierSpelling.Of(property.Name)}";
         var storage = BackingStorage.DeclaredField(property);

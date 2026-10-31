@@ -2523,3 +2523,10 @@ Box=later
 [parameter] Int32/Int32/Int32 Gadget/Gadget/Gadget
 [class parameter] shelf of Boolean
 [receiver] 3
+=== CLR Slot Filling ===
+inserts=2 count=0
+keyed=7 has=True
+True
+tally of 1
+oops from mist
+=== CLR Slot Filling Done ===

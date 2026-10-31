@@ -17,13 +17,18 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class MemberModifierEmitter
 {
-    public static string Emit(MemberModifiers modifiers, bool emitReadonly)
+    public static string Emit(MemberModifiers modifiers, bool emitReadonly, bool fills = false)
     {
         var parts = new List<string>();
 
         if(Keyword(modifiers.Accessibility) is { } accessibility)
         {
             parts.Add(accessibility);
+        }
+
+        if(fills)
+        {
+            parts.Add(modifiers.IsSealed ? "sealed override" : "override");
         }
 
         if(modifiers.IsStatic)

@@ -9,8 +9,8 @@ This guarantee eliminates an entire class of bugs — null reference exceptions,
 A constructor must assign every instance field on all control-flow paths before the constructor completes, and before any code reads the field. Reading a field that hasn't been assigned yet is a compile-time error:
 
 ```
-error MIST_FIELD_READ_BEFORE_ASSIGNMENT: Field 'Name' is read before it is
-      definitely assigned in constructor 'Connection(string, int)'
+error MIST0222: Field 'Name' is read before being definitely assigned in
+      constructor 'Connection'.
 ```
 
 Fields with explicit initializers or whose types are defaultable (and thus receive a synthetic default) are considered pre-assigned at the start of the constructor body.
@@ -37,8 +37,8 @@ The compiler tracks assignments through branches: if a field is assigned on ever
 The same rule applies to local variables. A local declared without an initializer must be assigned before it can be read:
 
 ```
-error MIST_LOCAL_READ_BEFORE_ASSIGNMENT: Local variable 'result' is read
-      before it is definitely assigned
+error MIST0220: Local variable 'result' is read before being definitely
+      assigned.
 ```
 
 Locals declared with an initializer (`var x = expr`) are immediately considered assigned. For locals without initializers, the compiler tracks assignments through branches and loops, using the same conservative analysis as fields — a variable assigned only inside a loop body is not considered assigned after the loop (the body may not execute).
@@ -73,9 +73,9 @@ Mist infers stampability from instance storage, substituting actual arguments fo
 Attempting `new T[size]` with a non-stampable type, such as a class or a struct containing reference storage, produces a compile-time error:
 
 ```
-error MIST_ARRAY_REQUIRES_INITIALIZER: Cannot create a bare array of 'Widget'
-      because it is a reference type and is not stampable. Use initializer-based
-      construction: new Array<Widget, N>(i => ...)
+error MIST0225: Cannot create a bare array 'new Widget[size]' because it is a
+      reference type. Use 'new Array<Widget, Size>(i => ...)' to supply a value
+      for each element, or use an array literal with explicit elements.
 ```
 
 ## Initializer-Based Array Construction

@@ -103,7 +103,9 @@ or three overloads is acceptable. What is fixed is the algorithm:
    The repetition question is `OverloadSignature.Of(later, Empty) == Of(earlier, inheritance)` with the
    declaration-node guard of `Repeats` lifted for the earlier member. A new overload
    `OverloadSignature.RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner)`
-   expresses that; `Repeats` itself is unchanged for its Mist-to-Mist callers. Properties repeat by name
+   expresses that; `Repeats` itself is unchanged for its Mist-to-Mist callers. `RepeatsProjected` compares
+   position by position, and a source parameter of type `unknown` or `unknown | void` repeats a projected
+   `System.Object` one there and nowhere else (Requirement 6.4). Properties repeat by name
    alone, indexers by parameter signature. Only an instance ancestor member is a match; a static source
    member is matched against a `Required` or `Defaulted` slot only, to be refused as `"static"`.
 3. Classify by the nearest match's `SlotKind`:

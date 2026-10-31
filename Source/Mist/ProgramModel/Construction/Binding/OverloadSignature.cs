@@ -46,11 +46,27 @@ internal static class OverloadSignature
             && signature == Of(earlier, inherited ?? TypeSubstitution.Empty, interner);
     }
 
+    /// <summary>
+    /// <see cref="Repeats"/> against a projected member, which has no declaration node, asked only to match
+    /// a CLR slot. Here alone a parameter Mist spells <c>object</c>, <c>unknown</c> or its optional, repeats
+    /// a projected <c>System.Object</c> one, because <c>object</c> resolves to <c>unknown</c> and a fill of
+    /// <c>Object.Equals</c> must not hide instead (clr-slot-filling Requirement 6.4).
+    /// </summary>
     public static bool RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner? interner)
     {
-        return later.DeclarationNode is not null
-            && Of(later, TypeSubstitution.Empty, null) is { } signature
-            && signature == Of(earlier, inherited, interner);
+        if(later.DeclarationNode is null || later.TypeParametersList.Count != earlier.TypeParametersList.Count)
+        {
+            return false;
+        }
+
+        var mine = ValuePack.Expand(later.ParametersList, TypeSubstitution.Empty, null);
+        var theirs = ValuePack.Expand(earlier.ParametersList, inherited, interner);
+
+        return mine.Count == theirs.Count
+            && mine.Zip(theirs).All(pair => pair.First.Modifier.IsRef == pair.Second.Modifier.IsRef
+                && (StandsForObject(pair.First.Type, pair.Second.Type)
+                    || (Render(pair.First.Type, later.TypeParametersList) is { } type
+                        && type == Render(pair.Second.Type, earlier.TypeParametersList))));
     }
 
     public static string? ExtensionReceiver(ExtensionBlock block)
@@ -75,6 +91,12 @@ internal static class OverloadSignature
     public static string? TypeOf(IMistType type, List<TypeParameter>? own = null)
     {
         return Render(type, own ?? []);
+    }
+
+    private static bool StandsForObject(IMistType mine, IMistType projected)
+    {
+        return (ConversionRelation.Unrefined(mine) is UnknownType || OptionalUnion.InnerType(mine) is UnknownType)
+            && projected is ClassType { FullyQualifiedName: "System.Object", Assembly.Kind: MistAssemblyKind.Ambient };
     }
 
     private static string? Render(IMistType type, List<TypeParameter> own, List<TypeParameter>? block = null)

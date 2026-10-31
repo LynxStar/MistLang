@@ -201,10 +201,21 @@ class that extends a CLR class fills `System.Object`'s slots through the chain l
    ordinary members emitted as today, `==` operator suppression included.
 3. WHEN a Source_Type declares `System.Object` as its base explicitly, or reaches it through a
    Projected_Ancestor, its matching members ARE Fills under Requirements 2 to 5.
+4. WHEN Native_Slot_Fills compares a Source_Type member's parameters with a Projected_Ancestor
+   member's, a parameter of type `unknown`, which is what Mist's `object` resolves to, or of its
+   optional `unknown | void`, SHALL repeat a parameter whose projected type is `System.Object`, so
+   `public bool Equals(object other)` fills `Object.Equals` instead of hiding it. The rule is
+   confined to that comparison: `OverloadSignature.Repeats`, and with it the redeclaration and
+   overload rules between Mist members, is unchanged, and `unknown` repeats no projected type but
+   `System.Object`, at the top of a parameter only.
 
 Decision recorded 2026-10-24 (Arthur): slot filling is the model and `override` is only the emitter's
 spelling of a fill; `System.Object` is not an implicit root and is reached only through an explicit CLR
 base chain.
+
+Decision recorded 2026-10-31 (Arthur): "Let unknown repeat a projected System.Object for slot matching
+only." That is criterion 4. The alternatives were refusing the collision with the shape diagnostic and
+leaving the silent hide; a member that silently never runs is the failure this specification removes.
 
 ### Requirement 7: Delivered shapes are banked
 

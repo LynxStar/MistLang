@@ -713,7 +713,10 @@ the fill replaces the default, which is what stores the item, and a fill cannot 
 replaces.
 
 `System.Object` is not an implicit base of a Mist class. A Mist class fills `ToString`, `Equals` or
-`GetHashCode` only when it reaches `System.Object` through a CLR base class. Three cases are refused
+`GetHashCode` only when it reaches `System.Object` through a CLR base class. A parameter written
+`object` or `object | void` matches the slot's `System.Object` parameter, so `public bool Equals(object other)`
+fills `Equals`. That match is made only against a CLR slot: between Mist members, `object` and
+`System.Object` stay different parameter types. Three cases are refused
 instead of hiding the CLR member:
 
 ```

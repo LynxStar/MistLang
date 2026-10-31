@@ -1,6 +1,10 @@
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -183,6 +187,49 @@ public sealed class NativeSlotFillsTests
         Assert.Same(slot, Assert.Single(NativeSlotFills.Of(source, f.Built.Interner)).Slot.Member);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnUnknownParameter_RepeatsAProjectedSystemObjectOne(bool optional)
+    {
+        var f = new NativeSlotFragments();
+        var root = ClrObject();
+        var equals = NativeSlotFragments.Slot(root, "Equals", NativeSlotKind.Defaulted, f.Built.Type("Boolean"), Accessibility.Public, root);
+        var source = f.Source("Tagged", NativeSlotFragments.Projected("Collection", root));
+        var parameter = optional ? f.Built.Interner.GetOrCreateUnionType([UnknownType.Instance, f.Void]) : UnknownType.Instance;
+        var filler = f.Member(source, "Equals", f.Built.Type("Boolean"), parameters: parameter);
+
+        var fill = Assert.Single(NativeSlotFills.Of(source, f.Built.Interner));
+
+        Assert.Equal((filler, equals), (fill.Filler.Member, fill.Slot.Member));
+        Assert.Empty(NativeSlotFills.Collisions(source, f.Built.Interner));
+    }
+
+    [Fact]
+    public void AnUnknownParameter_RepeatsNoOtherProjectedType()
+    {
+        var f = new NativeSlotFragments();
+        var clr = NativeSlotFragments.Projected("Named");
+        _ = NativeSlotFragments.Slot(clr, "Rename", NativeSlotKind.Defaulted, f.Void, Accessibility.Public, f.Text);
+        var source = f.Source("Mine", clr);
+        _ = f.Member(source, "Rename", f.Void, parameters: UnknownType.Instance);
+
+        Assert.Empty(NativeSlotFills.Of(source, f.Built.Interner));
+        Assert.Empty(NativeSlotFills.Collisions(source, f.Built.Interner));
+    }
+
+    [Fact]
+    public void BetweenMistMembers_AnUnknownParameterStillOverloadsASystemObjectOne()
+    {
+        var f = new NativeSlotFragments();
+        var source = f.Source("Mine", null);
+        var spelledObject = f.Member(source, "Equals", f.Built.Type("Boolean"), parameters: UnknownType.Instance);
+        var spelledSystemObject = f.Member(source, "Equals", f.Built.Type("Boolean"), parameters: ClrObject());
+
+        Assert.False(OverloadSignature.Repeats(spelledObject, spelledSystemObject));
+        Assert.False(OverloadSignature.Repeats(spelledSystemObject, spelledObject));
+    }
+
     [Fact]
     public void AChainWithAnUnresolvedBase_AnswersNothing()
     {
@@ -210,6 +257,11 @@ public sealed class NativeSlotFillsTests
 
         Assert.Empty(NativeSlotFills.Of(source, f.Built.Interner));
         Assert.Empty(NativeSlotFills.Collisions(source, f.Built.Interner));
+    }
+
+    private static ClassType ClrObject()
+    {
+        return new ClassType("Object", "System", new Scope(null), null, null) { Assembly = MistAssembly.Ambient };
     }
 
     private static NativeSlotKind Kind(string name)

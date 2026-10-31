@@ -49,6 +49,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- The Razor parser's Tier 1 corpus is the spec's fixture, read from the assembly rather than the checkout. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\specs\razor-components\fixture\Components\*.razor"
+                      LogicalName="RazorFixture.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Tier 1 receives the committed page in memory without reading the checkout at runtime. -->
   <PropertyGroup>
     <DiagnosticCatalogPage>$([MSBuild]::ConvertToBase64($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/../../book/src/reference/diagnostics.md'))))</DiagnosticCatalogPage>

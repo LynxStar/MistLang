@@ -75,7 +75,9 @@ Under `Source/Mist/Backends/CSharpTranspiler/`:
 - `Razor/ComponentCatalog` and `Razor/CatalogBuilder`.
 - `Razor/RazorComponentTranslator : ISourceTranslator`, `Razor/MistWriter` (text plus origin segments),
   `Razor/RenderProtocolWriter`, `Razor/DirectiveLowering`, `Razor/ImportsResolution`.
-- `Razor/RazorDiagnostics`: the descriptors of Requirement 12.1.
+- `RazorDiagnostics`: the descriptors of Requirement 12.1, in the registry folder
+  `Source/Mist/Common/Diagnostics/Descriptors/` beside `BackendDiagnostics`, where the registry, the text
+  freeze table and the catalog page read them. Their text names no file extension.
 - `StaticAssetDeployment`: the `wwwroot/` and `_framework/` rules of Requirement 11.
 
 ### Modified
@@ -195,10 +197,42 @@ and children, component tags, text, comments, Code_Region leaves of the kinds ab
 Malformed input is reported with the descriptors of Requirement 12.1 at the original offset, and the file
 produces no unit.
 
-Storm with lexer modes (`storm-lexer-modes`) is the preferred way to write this grammar, as
-`Razor/Grammar/RazorMarkup.storm`, so the parser is generated and its tests are grammar tests. If the mode
-switches above exceed what Storm's modes express, a hand-written scanner in the same folder is the
-fallback; either is an implementation choice inside the backend and changes nothing above.
+**Decided at task 3: a hand-written scanner, not a Storm grammar.** Storm with lexer modes
+(`storm-lexer-modes`) was attempted first, as `Razor/Grammar/RazorMarkup.storm` beside `Mist.storm` in
+`Mist.csproj`'s `AdditionalFiles`, and the build failed with `STORM0010`: the generator accepts one
+`grammar` declaration per compilation and, finding two, emits nothing for either, so the Mist grammar
+itself disappears. A second grammar would need its own project, which the core would then have to reference
+for a backend's markup, or a change to the generator in the Storm submodule. Neither is worth it, because the
+mode switches above also exceed what token actions express: a Storm mode changes only when a token matches,
+while an implicit expression ends at the first character that cannot continue it without consuming that
+character, a directive is recognized only at the start of a line, code mode switches to markup only where a
+statement could begin, and an end tag must name the element it closes. The scanner is
+`Razor/RazorParser`, one partial class split by mode: `RazorParser.cs` (entry and cursor),
+`RazorParser.Markup.cs`, `RazorParser.Transitions.cs`, `RazorParser.Code.cs` and
+`RazorParser.Directives.cs`; `Razor/MistBalancer` holds the Mist lexical knowledge; `Razor/Syntax/` holds
+the tree. Its tests are Tier 1 over text, `Test/Mist.Tests/Backend/Razor/`.
+
+The dialect the scanner fixes, beyond the transitions above:
+
+- A **directive line** is a line of the file's root markup, not inside an element or block, whose first
+  non-blank character is `@` followed by a name. A known directive name is a directive whatever follows it;
+  an MVC directive or `@functions` is refused and its brace block, on that line or the next, is skipped. Any
+  other lowercase name followed by blanks and an argument on the same line is *Unknown directive*; a line that
+  is only `@name`, `@name.Member` or `@Name text` is an implicit expression. `@(name) text` writes an
+  expression followed by text on such a line.
+- In code mode, markup begins at the first non-blank character of a line or the first after `{`, `}` or `;`,
+  when that character is `<` followed by a letter, `</`, or `@:`; `<text>` is a `TextTag` only there, and an
+  ordinary element in markup. `@*` is a comment in either mode.
+- `@` between two letters or digits, as in an e-mail address, is literal text, as in Razor.
+- The void HTML elements (`br`, `input`, `img` and the rest of the HTML list) take no end tag; `script` and
+  `style` bodies are text with transitions and no tags.
+- A directive attribute's value is a Code_Region, quoted or not, and a leading `@` or `@( … )` inside the
+  quotes is dropped; `@name:parameter` splits at the first colon.
+- Recovery: an end tag naming an open ancestor reports *Unclosed element* for each element it skips; any other
+  wrong end tag is *Mismatched end tag* and closes the current element; an unclosed `<!--` is *Unclosed
+  element*; an unterminated explicit expression
+  or control header resumes at the end of its line. Every error is reported before the tree is returned, and
+  `RazorSyntaxTree.HasErrors` tells the translator to produce no unit.
 
 ### 4. The component catalog
 
@@ -426,6 +460,8 @@ pack's from there. A file under the project's `wwwroot/` wins over a pack file a
 | `<div>` never closed | parser | *Unclosed element* at the open tag |
 | `</span>` closing a `<div>` | parser | *Mismatched end tag* at the end tag |
 | `@(` or `@{` without its close | parser | *Unterminated code region* at the transition |
+| `@if`, `@code`, `@*` or `@name(` without its close | parser | *Unterminated code region* at the transition |
+| `@` followed by whitespace, a digit or other non-transition | parser | *Invalid transition* at the `@`; minted at task 3 for Requirement 4.9's "transition the grammar does not admit", which Requirement 12.1 names no descriptor for |
 | `@foo` where `foo` is not a directive, on a directive line | parser | *Unknown directive* |
 | `@model`, `@section` | parser | *Directive not valid in a component* |
 | `<Widget>` resolving to nothing | translator | *Unknown component* at the tag |
@@ -457,8 +493,9 @@ pack's from there. A file under the project's `wwwroot/` wins over a pack file a
 
 The binding rules are the root `AGENTS.md` "Tests" section and `.claude/skills/testing-philosophy/SKILL.md`.
 
-- **Tier 1.** `RazorParserTests`: text in, tree out, every shape of Requirement 13.1, every malformed shape
-  with its position. `OriginMapTests`: hand-built segments, Requirement 13.2. `ComponentCatalogTests`:
+- **Tier 1.** `RazorParserTests`, split by mode into `RazorParserMarkupTests`, `RazorParserCodeTests`,
+  `RazorParserDirectiveTests` and `RazorParserMalformedTests`: text in, tree out, every shape of
+  Requirement 13.1, every malformed shape with its position, and the fixture's components. `OriginMapTests`: hand-built segments, Requirement 13.2. `ComponentCatalogTests`:
   resolution and shapes over hand-written facts. `SourcePathSelectionTests`: extensions enumerated and
   excluded like `.mist`. `RenderProtocolWriterTests`: sequence numbering over hand-built nodes. `StaticAssetDeploymentTests`: the
   pack-inference rule and the deployment selection over hand-built listings. `ArtifactLaunchTests`: the
@@ -514,7 +551,6 @@ The binding rules are the root `AGENTS.md` "Tests" section and `.claude/skills/t
 
 ## Open Items
 
-- **Storm or scanner** for the markup grammar, decided when task 3 starts.
 - **`mist run` content root**: decided in task 6, `--contentRoot <bin>` for a program referencing
   `Microsoft.AspNetCore.App`; section 9 records the reason.
 - **Whitespace fidelity.** Requirement 5.8 states Razor's default; the exact rules Razor applies are read

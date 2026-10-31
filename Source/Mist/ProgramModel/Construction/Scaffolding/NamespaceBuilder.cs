@@ -165,7 +165,7 @@ internal sealed class NamespaceBuilder
     /// Computes the inferred namespace for a source file based on its location
     /// relative to the project folder.
     /// </summary>
-    private static string ComputeInferredNamespace(string filePath, string namespaceRoot, string projectFolder)
+    internal static string ComputeInferredNamespace(string filePath, string namespaceRoot, string projectFolder)
     {
         if(string.IsNullOrEmpty(filePath))
         {

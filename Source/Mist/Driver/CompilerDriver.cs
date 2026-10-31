@@ -102,7 +102,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
         var servesFrameworkAssets = StaticAssetDeployment.ServesFrameworkAssets(
             options.OutputType,
             options.FrameworkReferences,
-            () => StaticAssetDeployment.HasComponentFiles(options.ProjectFolder, options.OutputDirectory, options.BinDirectory));
+            () => StaticAssetDeployment.HasComponentFiles(loadResult.ClaimedInputs, options.ProjectFolder));
         options = options with
         {
             Packages = StaticAssetDeployment.WithFrameworkAssetsPack(

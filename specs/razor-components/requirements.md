@@ -408,10 +408,10 @@ position, so that nothing about Razor's C# compiler reaches me.
 
 1. THE translator's own diagnostics SHALL be descriptors in the registry with Numbers minted at
    implementation under `diagnostics` Requirement 1.4; this spec names them by Title: *Unclosed element*,
-   *Mismatched end tag*, *Unterminated code region*, *Unknown directive*, *Directive not valid in a
-   component*, *Unknown component*, *Ambiguous component name*, *Nested type in code block*, *Reserved
-   identifier*, *Expression parameter not supported*, *Generic component not supported*, *Functions
-   directive not supported*, *Constructor beside inject*.
+   *Mismatched end tag*, *Unterminated code region*, *Invalid transition*, *Unknown directive*,
+   *Directive not valid in a component*, *Unknown component*, *Ambiguous component name*, *Nested type
+   in code block*, *Reserved identifier*, *Expression parameter not supported*, *Generic component not
+   supported*, *Functions directive not supported*, *Constructor beside inject*.
 2. EVERY diagnostic a Translated_Unit produces in Stages 2 to 6, including a Roslyn error the backend
    admits, SHALL carry a mapped location in the Component_File.
 3. A valid Component_File SHALL produce no Roslyn error; IF one appears, THEN it is a translator or emitter

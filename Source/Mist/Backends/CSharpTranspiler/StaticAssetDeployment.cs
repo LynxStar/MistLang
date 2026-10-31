@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
-using Mist.Driver;
 using Mist.Driver.Contracts;
 
 namespace Mist.Backends.CSharpTranspiler;
@@ -40,19 +39,11 @@ internal static class StaticAssetDeployment
         return declared.Add(new NuGetPackageReference(FrameworkAssetsPack, version));
     }
 
-    /// <summary>
-    /// Stands in for the backend's project facts, which will say whether the project has Component_Files; until then
-    /// the project folder is enumerated with the exclusions source discovery applies.
-    /// </summary>
-    public static bool HasComponentFiles(string projectFolder, string outputDirectory, string binDirectory)
+    public static bool HasComponentFiles(ImmutableArray<ClaimedInput> claimedInputs, string projectFolder)
     {
-        if(string.IsNullOrEmpty(projectFolder) || !Directory.Exists(projectFolder))
-        {
-            return false;
-        }
-
-        var candidates = Directory.EnumerateFiles(Path.GetFullPath(projectFolder), "*" + ComponentExtension, SearchOption.AllDirectories);
-        return !SourcePathSelection.Select(candidates, Directory.GetCurrentDirectory(), outputDirectory, binDirectory).IsEmpty;
+        return !string.IsNullOrEmpty(projectFolder) && claimedInputs.Any(input =>
+            string.Equals(Path.GetExtension(input.Text.Path), ComponentExtension, StringComparison.OrdinalIgnoreCase)
+            && Path.GetFullPath(input.Project.ProjectFolder) == Path.GetFullPath(projectFolder));
     }
 
     public static string? FrameworkAssetsDirectory(bool servesFrameworkAssets, PackageResolutionResult packages)

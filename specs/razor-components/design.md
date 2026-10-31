@@ -451,10 +451,9 @@ probe on 2026-10-30, `mist run` from the repository root on a host with `UseStat
 `Content root path: <project>/bin` and served `/_framework/blazor.web.js` and `/css/app.css` from
 `<bin>/wwwroot/`.
 
-Whether a project has Component_Files is decided by `StaticAssetDeployment.HasComponentFiles`, which
-enumerates `*.razor` under the project folder with the `out/` and `bin/` exclusions of
-`SourcePathSelection.Select`. It stands in for the backend's `ProjectFacts` until that lands and is the
-one call to replace then. The driver adds the pack to the declared packages after the referenced projects'
+Whether a project has Component_Files is decided by `StaticAssetDeployment.HasComponentFiles` from the
+Claimed_Inputs the driver discovered for the root project, so discovery's `SourcePathSelection` is the one
+place that enumerates them and applies the `out/` and `bin/` exclusions. The driver adds the pack to the declared packages after the referenced projects'
 dependencies are joined and before Stage 1.5, so the restore, the resolver and its verbose lines treat it
 as any declared package; the resolver records each restored package's folder, and the backend reads the
 pack's from there. A file under the project's `wwwroot/` wins over a pack file at the same deployed path.

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 
 namespace Mist.Tests.Backend;
@@ -52,6 +53,27 @@ public sealed class StaticAssetDeploymentTests
     {
         Assert.False(StaticAssetDeployment.ServesFrameworkAssets(
             ProjectOutputType.Executable, [], () => throw new InvalidOperationException("searched")));
+    }
+
+    [Theory]
+    [InlineData("/repo/App/Components/Counter.razor", true)]
+    [InlineData("/repo/App/Counter.RAZOR", true)]
+    [InlineData("/repo/App/Components/Counter.probe", false)]
+    public void AComponentFileIsAClaimedRazorInputOfTheRootProject(string path, bool expected)
+    {
+        Assert.Equal(expected, StaticAssetDeployment.HasComponentFiles([Claimed(path, Project)], Project));
+    }
+
+    [Fact]
+    public void AReferencedProjectsComponentFilesDoNotCount()
+    {
+        Assert.False(StaticAssetDeployment.HasComponentFiles([Claimed("/repo/Lib/Widget.razor", "/repo/Lib")], Project));
+    }
+
+    [Fact]
+    public void NoClaimedInputsMeansNoComponentFiles()
+    {
+        Assert.False(StaticAssetDeployment.HasComponentFiles([], Project));
     }
 
     [Fact]
@@ -189,6 +211,11 @@ public sealed class StaticAssetDeploymentTests
         files.Listings["wwwroot"] = ["app.css"];
 
         Assert.Empty(StaticAssetDeployment.Plan(Bin, "", null, files));
+    }
+
+    private static ClaimedInput Claimed(string path, string projectFolder)
+    {
+        return new ClaimedInput(new SourceText(path, ""), new MistProject("App", projectFolder, Path.Combine(projectFolder, "mist.toml")));
     }
 
     private sealed class StubFiles : IDeploymentFileSource

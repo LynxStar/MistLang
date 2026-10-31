@@ -2523,4 +2523,13 @@ Box=later
 [parameter] Int32/Int32/Int32 Gadget/Gadget/Gadget
 [class parameter] shelf of Boolean
 [receiver] 3
+=== Type Reflection ===
+[direct] True
+[inferred] Int32 True
+[literal] String True True
+[explicit] Int32 True
+[lookup] String True
+[assembly] String True
+[outbound] Int32
+[metadata] Int32 True
 Generated answer: 42

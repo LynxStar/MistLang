@@ -306,3 +306,11 @@ The following items are intentionally not pinned down in requirements — they r
 6. **Pure-Mist tier contents.** Requirement 13.6 defers non-trivial Pure_Mist_Tier content. The user may want at least one "real" pure-Mist example (e.g., `Optional<T>` or a single utility struct) in v1 to prove the tier works end-to-end. Design should propose whether v1 ships with a minimal pure-Mist tier demo or an empty one.
 
 These questions are recorded here so the requirements review can confirm they are left open deliberately rather than being overlooked.
+
+### Requirement 16: Canonical Runtime Type Descriptors
+
+1. In the C# backend, `Standard.Type` and the qualified name `System.Type` SHALL resolve to the same model instance through the well-known Standard/CLR mapping used by `Int32`, rather than a conversion between distinct types.
+2. `Type.Of(value)` SHALL return the runtime descriptor of the value. Type literals SHALL return the descriptor of the named type. Both SHALL expose the reflection surface explicitly declared by `Standard.Type`, including `Name`, `Assembly`, `GetMethods()` and `GetMethod(string, Type[])`, without requiring a `System.Type` local annotation.
+3. CLR parameters and results naming `System.Type`, including array elements and optional results, SHALL use this canonical identity. This includes `System.Type.GetType`, assembly type lookup, and types returned by reflection metadata.
+4. Intrinsic declarations SHALL preserve nullable lookup results as optional `Type` or optional metadata members. Identity unification SHALL NOT implicitly import undeclared CLR members into a Standard type.
+5. Full `MetadataLoadContext` loading and error recovery remain the separate SH-002 part 2 proof gate; canonical signature identity alone does not establish that gate.

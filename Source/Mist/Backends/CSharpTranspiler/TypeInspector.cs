@@ -8,6 +8,7 @@ using Mist.Driver.Contracts;
 using Mist.Lexing;
 using Mist.Parsing;
 using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler;
@@ -94,7 +95,7 @@ public static class TypeInspector
     /// Standard aliases resolves to Standard's own declaration. Standard alone is the smallest such
     /// model, and nothing else a build adds to it changes how a CLR member is projected.
     /// </summary>
-    internal static bool ProjectBesideStandard(AmbientTypeProviderV2 provider, DiagnosticBag diagnostics)
+    internal static bool ProjectBesideStandard(IAmbientTypeProvider provider, DiagnosticBag diagnostics)
     {
         var units = StdlibLoader.LoadFor(diagnostics);
         var lexer = new MistLexer();

@@ -21,7 +21,7 @@ public static class CliHost
             var parsed = (parse ?? CliArgumentParser.Parse)(args);
             var arguments = parsed.Arguments;
             output = (parsed.Diagnostics ?? new DiagnosticControls()).CreateOutput(stderr,
-                arguments?.Command.ToString().ToLowerInvariant() ?? "build", arguments?.ProjectFolder ?? "");
+                arguments?.Command.ToString().ToLowerInvariant() ?? "build", arguments?.ProjectFolder ?? "", arguments?.Verbose ?? false);
             if(parsed.DiagnosticError is { } reason)
             {
                 var bag = new DiagnosticBag(output.Operation);

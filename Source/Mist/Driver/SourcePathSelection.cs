@@ -10,10 +10,18 @@ public static class SourcePathSelection
 
     private const string DefaultBinFolder = "bin";
 
-    public static IEnumerable<string> EnumerateCandidates(string folder)
+    public static IEnumerable<string> EnumerateCandidates(string folder, IEnumerable<string>? claimedExtensions = null)
     {
-        return Directory.EnumerateFiles(folder, "*.mist", SearchOption.AllDirectories)
-            .Concat(Directory.EnumerateFiles(folder, GeneratedMarker, SearchOption.AllDirectories).Where(IsMarker));
+        return EnumerateCandidates(folder, claimedExtensions ?? [],
+            (root, pattern) => Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories));
+    }
+
+    internal static IEnumerable<string> EnumerateCandidates(
+        string folder, IEnumerable<string> claimedExtensions, Func<string, string, IEnumerable<string>> enumerateFiles)
+    {
+        var extensions = new[] { ".mist" }.Concat(claimedExtensions).Distinct(StringComparer.OrdinalIgnoreCase);
+        return extensions.SelectMany(extension => enumerateFiles(folder, "*" + extension))
+            .Concat(enumerateFiles(folder, GeneratedMarker).Where(IsMarker));
     }
 
     /// <summary>A reference records no output location, so the referencing invocation's <c>--output</c> and <c>--bin</c> play no part.</summary>

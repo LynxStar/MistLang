@@ -17,4 +17,5 @@ public sealed record PipelineInput(
     ImmutableArray<ComposedProject> ComposedProjects = default,
     ImmutableArray<string> RuntimeIdentifiers = default,
     ImmutableArray<RuntimeAsset> RuntimeAssets = default,
-    string? FrameworkAssetsDirectory = null);
+    string? FrameworkAssetsDirectory = null,
+    IAmbientTypeSource? AmbientTypes = null);

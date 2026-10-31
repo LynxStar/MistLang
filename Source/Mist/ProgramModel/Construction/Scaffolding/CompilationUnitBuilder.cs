@@ -46,7 +46,7 @@ internal sealed class CompilationUnitBuilder
         var fileScope = new FileScope(context.ScopeFor(assembly), context.ProgramModel, context.Diagnostics);
 
         // Validate namespaces and populate the file's usings.
-        var fileNamespace = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder);
+        var fileNamespace = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder, unit.SourcePath);
         if(fileNamespace is null)
         {
             return null;
@@ -59,7 +59,7 @@ internal sealed class CompilationUnitBuilder
         var result = typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
 
         // Read off the scope AFTER namespaceBuilder ran, which is what populated the imports.
-        var relativePath = ComputeRelativePath(sourceText.Path, unit.ProjectFolder);
+        var relativePath = ComputeRelativePath(unit.SourcePath ?? sourceText.Path, unit.ProjectFolder);
         var modelUnit = new ModelCompilationUnit
         {
             SourcePath = sourceText.Path,

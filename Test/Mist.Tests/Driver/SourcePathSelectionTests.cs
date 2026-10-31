@@ -134,4 +134,52 @@ public sealed class SourcePathSelectionTests
             [At("Lib", "Alpha.mist"), At("Lib", "Zulu.mist"), At("Lib", "alpha", "Zed.mist"), At("Lib", "beta.mist")],
             sources);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ClaimedInputs_UseTheSameSelectionAtTheRootAndInReferences(bool referenced)
+    {
+        var folder = At("Lib");
+        var candidates = SourcePathSelection.EnumerateCandidates(folder, [".probe"], (_, pattern) => pattern switch
+        {
+            "*.mist" => [At("Lib", "Program.mist")],
+            "*.probe" => [At("Lib", "Part.probe"), At("Lib", "nested", "Other.probe"),
+                At("Lib", "out", "Stale.probe"), At("Lib", "bin", "Stale.probe"), At("Lib", "generated", "Stale.probe")],
+            SourcePathSelection.GeneratedMarker => [At("Lib", "generated", SourcePathSelection.GeneratedMarker)],
+            _ => throw new InvalidOperationException(pattern),
+        });
+
+        var sources = referenced
+            ? SourcePathSelection.ForReferencedProject(folder, candidates)
+            : SourcePathSelection.Select(candidates, folder, At("Lib", "out"), At("Lib", "bin"));
+
+        Assert.Equal<string>([At("Lib", "Part.probe"), At("Lib", "Program.mist"), At("Lib", "nested", "Other.probe")], sources);
+    }
+
+    [Fact]
+    public void NoClaims_EnumeratesOnlyMistAndGeneratedMarkers()
+    {
+        var patterns = new List<string>();
+        var candidates = SourcePathSelection.EnumerateCandidates(Root, [], (_, pattern) =>
+        {
+            patterns.Add(pattern);
+            return pattern == "*.mist" ? [At("Program.mist")] : [];
+        }).ToArray();
+
+        Assert.Equal(["*.mist", SourcePathSelection.GeneratedMarker], patterns.Order(StringComparer.Ordinal));
+        Assert.Equal([At("Program.mist")], candidates);
+    }
+
+    [Fact]
+    public void DuplicateClaims_EnumerateEachExtensionOnce()
+    {
+        var patterns = new List<string>();
+        _ = SourcePathSelection.EnumerateCandidates(Root, [".probe", ".PROBE", ".mist"], (_, pattern) =>
+        {
+            patterns.Add(pattern);
+            return [];
+        }).ToArray();
+
+        Assert.Equal(["*.mist", "*.probe", SourcePathSelection.GeneratedMarker], patterns.Order(StringComparer.Ordinal));
+    }
 }

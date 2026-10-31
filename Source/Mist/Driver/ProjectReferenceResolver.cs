@@ -23,9 +23,11 @@ public static class ProjectReferenceResolver
     public static ProjectReferenceResolution ResolveAll(
         string rootProjectFolder,
         ImmutableArray<ProjectReference> references,
-        DiagnosticBag diagnostics)
+        DiagnosticBag diagnostics,
+        IEnumerable<string>? claimedExtensions = null)
     {
-        return ResolveAll(rootProjectFolder, references, diagnostics, LoadManifest, EnumerateSources);
+        return ResolveAll(rootProjectFolder, references, diagnostics, LoadManifest,
+            folder => [.. SourcePathSelection.EnumerateCandidates(folder, claimedExtensions)]);
     }
 
     internal static ImmutableArray<ResolvedProjectReference> Resolve(

@@ -16,6 +16,9 @@ public sealed record CompilationUnit(
     /// </summary>
     public bool IsStdlib { get; init; }
 
+    // Generated text keeps its physical path for diagnostics and its input path for namespace inference.
+    public string? SourcePath { get; init; }
+
     /// <summary>
     /// The canonical path of the project that directly declared this unit as a
     /// reference. <c>null</c> for stdlib units and for the top-level user

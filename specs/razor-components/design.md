@@ -160,7 +160,9 @@ creates the ambient source inside Stage 4. The stage order becomes:
 2. The driver creates `IAmbientTypeSource` from those paths, once, and puts it on `PipelineInput`.
 3. Stages 2 and 3 lex and parse the `.mist` units.
 4. Stage 3.5 builds a `TranslationContext` per translator and collects `TranslatedUnit`s. Each is written
-   to `<OutputDirectory>/translated/<relative>.mist`, its `SourceText.Path` is that file and its `Origin`
+   to `<OutputDirectory>/<project name>/translated/<relative>.mist`, for the root and every referenced
+   project alike, beside that project's emitted C#. The relative path is measured from the owning
+   project folder. Its `SourceText.Path` is that file and its `Origin`
    is the map. The stage then lexes and parses them with the same lexer and parser and appends the units
    to the compilation under the owning project.
 5. Stage 4 builds the model over all units, using the ambient source it was handed.
@@ -409,7 +411,7 @@ the segment by binary search: a verbatim segment shifts the offset; a synthesize
 construct's span. The resolver produces `GeneratedLocation(text.Path, native, Mapped)`; `DiagnosticHelper`
 already excerpts from `Mapped`; the formatter gains one arm so that a mapped `GeneratedLocation` prints as
 `Components/Counter.razor(31,13): error MISTnnnn: …`, and verbose output appends
-`(translated: out/translated/Components/Counter.razor.mist(58,25))`.
+`(translated: out/RazorComponents/translated/Components/Counter.razor.mist(58,25))`.
 
 ### 9. Hosting and static assets
 

@@ -30,14 +30,14 @@ internal sealed class NamespaceBuilder
     /// items at all -- which is <c>TypeBuilder</c>'s to know, since it is the one walking them.
     /// </para>
     /// </summary>
-    public string? Build(FileScope fileScope, CompilationUnitNode ast, SourceText sourceText, string namespaceRoot, string projectFolder)
+    public string? Build(FileScope fileScope, CompilationUnitNode ast, SourceText sourceText, string namespaceRoot, string projectFolder, string? sourcePath = null)
     {
         if(ValidateNamespaceDeclarations(ast))
         {
             return null;
         }
 
-        var fileNamespace = DetermineFileNamespace(ast, sourceText, namespaceRoot, projectFolder);
+        var fileNamespace = DetermineFileNamespace(ast, sourceText, namespaceRoot, projectFolder, sourcePath);
 
         RegisterNamespaces(ast, fileNamespace);
         PopulateImports(ast, sourceText, fileScope);
@@ -146,7 +146,8 @@ internal sealed class NamespaceBuilder
         CompilationUnitNode ast,
         SourceText sourceText,
         string namespaceRoot,
-        string projectFolder)
+        string projectFolder,
+        string? sourcePath)
     {
         foreach(var item in ast.Items)
         {
@@ -157,16 +158,15 @@ internal sealed class NamespaceBuilder
             }
         }
 
-        return ComputeInferredNamespace(sourceText, namespaceRoot, projectFolder);
+        return ComputeInferredNamespace(sourcePath ?? sourceText.Path, namespaceRoot, projectFolder);
     }
 
     /// <summary>
     /// Computes the inferred namespace for a source file based on its location
     /// relative to the project folder.
     /// </summary>
-    private static string ComputeInferredNamespace(SourceText sourceText, string namespaceRoot, string projectFolder)
+    private static string ComputeInferredNamespace(string filePath, string namespaceRoot, string projectFolder)
     {
-        var filePath = sourceText.Path;
         if(string.IsNullOrEmpty(filePath))
         {
             return namespaceRoot;

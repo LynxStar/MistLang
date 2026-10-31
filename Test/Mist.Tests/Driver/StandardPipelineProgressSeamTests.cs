@@ -61,12 +61,12 @@ public sealed class StandardPipelineProgressSeamTests : IDisposable
         Assert.Equal("Probe", userUnit.NamespaceRoot);
         Assert.Equal(scratchDir, userUnit.ProjectFolder);
         Assert.Equal(Path.Combine(scratchDir, "Program.mist"), userUnit.Source.Path);
-        Assert.NotNull(userUnit.Ast);
+        Assert.Null(userUnit.Ast);
         Assert.All(observedInput.Compilation.Units.Where(unit => unit.IsStdlib), unit =>
         {
             Assert.Equal("Standard", unit.NamespaceRoot);
             Assert.Equal(Path.Combine(AppContext.BaseDirectory, "Standard"), unit.ProjectFolder);
-            Assert.NotNull(unit.Ast);
+            Assert.Null(unit.Ast);
         });
     }
 

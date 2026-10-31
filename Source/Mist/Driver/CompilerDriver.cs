@@ -1,10 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Mist.Backends.Contracts;
 using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
-using Mist.Common.Source;
 using Mist.Driver.Contracts;
 using Mist.Lexing.Contracts;
 using Mist.Parsing.Contracts;
@@ -15,7 +13,7 @@ namespace Mist.Driver;
 /// Orchestrates Stages 1-3 (loading, lexing, parsing), then dispatches to
 /// the selected <see cref="ICompilationPipeline"/> for Stages 4-6.
 /// </summary>
-public sealed class CompilerDriver : ICompilerDriver
+public sealed partial class CompilerDriver : ICompilerDriver
 {
     private readonly ILexer lexer;
     private readonly IParser parser;
@@ -23,14 +21,17 @@ public sealed class CompilerDriver : ICompilerDriver
     private readonly ICompilationProgressReporter progressReporter;
     private readonly IResolutionDiagnosticListener? resolutionListener;
     private readonly ICompilationPipeline standardPipeline;
+    private readonly BackendRegistry backendRegistry;
+    private readonly Func<PipelineInput, IAmbientTypeSource> ambientTypes;
 
     public CompilerDriver(
         ILexer lexer,
         IParser parser,
         ICompilationProgressReporter? progressReporter = null,
         IResolutionDiagnosticListener? resolutionListener = null,
-        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null)
-        : this(lexer, parser, StdlibParseCache.Shared, progressReporter, resolutionListener, ambientTypes)
+        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null,
+        BackendRegistry? backendRegistry = null)
+        : this(lexer, parser, StdlibParseCache.Shared, progressReporter, resolutionListener, ambientTypes, backendRegistry)
     {
     }
 
@@ -40,14 +41,18 @@ public sealed class CompilerDriver : ICompilerDriver
         StdlibParseCache stdlibParseCache,
         ICompilationProgressReporter? progressReporter = null,
         IResolutionDiagnosticListener? resolutionListener = null,
-        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null)
+        Func<PipelineInput, IAmbientTypeSource>? ambientTypes = null,
+        BackendRegistry? backendRegistry = null,
+        ICompilationPipeline? pipeline = null)
     {
         this.lexer = lexer;
         this.parser = parser;
         this.stdlibParseCache = stdlibParseCache;
         this.progressReporter = progressReporter ?? NullProgressReporter.Instance;
         this.resolutionListener = resolutionListener;
-        standardPipeline = new StandardPipeline(this.progressReporter, ambientTypes);
+        standardPipeline = pipeline ?? new StandardPipeline(this.progressReporter);
+        this.ambientTypes = ambientTypes ?? StandardPipeline.LoadAmbientTypes;
+        this.backendRegistry = backendRegistry ?? new BackendRegistry();
     }
 
     public CompilerResult Compile(CompilerOptions options)
@@ -61,7 +66,8 @@ public sealed class CompilerDriver : ICompilerDriver
         var operation = options.DiagnosticOperation ?? new DiagnosticOperation();
         var allDiagnostics = new DiagnosticBag(operation);
 
-        if(options.Backend != BackendId.CSharp)
+        var backend = backendRegistry.Resolve(options.Backend);
+        if(backend is null)
         {
             allDiagnostics.ReportTyped(DriverDiagnostics.UnknownBackend, new Absent(AbsenceReason.Unavailable), new NameValue(options.Backend.Value));
 
@@ -85,7 +91,7 @@ public sealed class CompilerDriver : ICompilerDriver
             options.Platform, RuntimeInformation.RuntimeIdentifier, RuntimeInformation.OSArchitecture, options.RuntimeIdentifier);
 
         // Stage 1: Loading
-        var loadResult = LoadCompilationUnits(options, runtimeIdentifier, allDiagnostics);
+        var loadResult = LoadCompilationUnits(options, backend, runtimeIdentifier, allDiagnostics);
         if(loadResult is null)
         {
             return new CompilerResult(false, null, allDiagnostics.ToImmutableArray());
@@ -117,6 +123,16 @@ public sealed class CompilerDriver : ICompilerDriver
             return resolutionDiagnostics.JoinInto(new CompilerResult(false, null, allDiagnostics.ToImmutableArray()));
         }
 
+        var pipelineInput = new PipelineInput(
+            compilation, resolvedAssemblyPaths,
+            options, allDiagnostics, resolutionDiagnostics.Reported,
+            loadResult.ExternalAssemblies, loadResult.ComposedProjects,
+            RidGraph.FallbackOrder(ridGraph, runtimeIdentifier), packages.RuntimeAssets,
+            StaticAssetDeployment.FrameworkAssetsDirectory(servesFrameworkAssets, packages));
+
+        using var ambient = ambientTypes(pipelineInput);
+        pipelineInput = pipelineInput with { AmbientTypes = ambient };
+
         // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);
 
@@ -128,282 +144,15 @@ public sealed class CompilerDriver : ICompilerDriver
             lexResult.CachedStdlib,
             allDiagnostics);
 
-        // Dispatch to the compilation pipeline (Stages 4-6).
-        var pipelineInput = new PipelineInput(
-            compilation, resolvedAssemblyPaths,
-            options, allDiagnostics, resolutionDiagnostics.Reported,
-            loadResult.ExternalAssemblies, loadResult.ComposedProjects,
-            RidGraph.FallbackOrder(ridGraph, runtimeIdentifier), packages.RuntimeAssets,
-            StaticAssetDeployment.FrameworkAssetsDirectory(servesFrameworkAssets, packages));
+        if(!backend.SourceTranslators.IsEmpty)
+        {
+            compilation = new TranslationStage(lexer, parser, progressReporter).Run(
+                backend, loadResult.ClaimedInputs, compilation, pipelineInput, ambient);
+        }
+
+        pipelineInput = pipelineInput with { Compilation = compilation };
 
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
-    }
-
-    /// <summary>
-    /// Result of Stage 1 (Loading): the combined compilation and the configurations of the
-    /// projects it references.
-    /// </summary>
-    private sealed record LoadResult(
-        MistCompilation Compilation,
-        ImmutableArray<ProjectConfiguration> ReferencedConfigurations,
-        ImmutableArray<ExternalAssembly> ExternalAssemblies,
-        ImmutableArray<ComposedProject> ComposedProjects,
-        int BuiltCSharpProjectCount);
-
-    private sealed record ManifestLoad(ImmutableArray<string> GlobalUsings, LoadedReferences References);
-
-    private static ImmutableArray<string> WithExternalAssemblies(ImmutableArray<string> resolved, LoadResult loadResult)
-    {
-        var composedNames = loadResult.ComposedProjects.Select(project => project.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var paths = resolved.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return resolved.AddRange(loadResult.ExternalAssemblies
-            .Select(external => external.Path)
-            .Where(path => !composedNames.Contains(Path.GetFileNameWithoutExtension(path)) && paths.Add(path)));
-    }
-
-    /// <summary>
-    /// Stage 1 – Loading: reads user source files, stdlib, and project
-    /// references, combining them into a single <see cref="MistCompilation"/>.
-    /// Returns <c>null</c> when a fatal error prevents compilation from proceeding.
-    /// </summary>
-    private LoadResult? LoadCompilationUnits(
-        CompilerOptions options,
-        string runtimeIdentifier,
-        DiagnosticBag allDiagnostics)
-    {
-        var loadingStopwatch = Stopwatch.StartNew();
-        progressReporter.ReportStageStart("1", "Loading");
-
-        var loadResult = ReadCompilationUnits(options, allDiagnostics);
-
-        loadingStopwatch.Stop();
-        progressReporter.ReportStageComplete(
-            "1",
-            loadingStopwatch.Elapsed,
-            LoadingDetails(
-                loadResult?.Compilation,
-                loadResult?.BuiltCSharpProjectCount ?? 0,
-                loadResult?.ExternalAssemblies.Length ?? 0,
-                loadResult is not null && MayDeployRuntimeAssets(options, loadResult) ? runtimeIdentifier : null));
-
-        return loadResult;
-    }
-
-    // Stage 1 completes before Stage 1.5 restores the packages, so it states the identifier whenever a package or an
-    // external assembly could supply a runtime asset, which covers every build in which one is selected.
-    private static bool MayDeployRuntimeAssets(CompilerOptions options, LoadResult loadResult)
-    {
-        return !options.Packages.IsDefaultOrEmpty
-            || !loadResult.ExternalAssemblies.IsDefaultOrEmpty
-            || loadResult.ReferencedConfigurations.Any(configuration => !configuration.Packages.IsDefaultOrEmpty);
-    }
-
-    internal static IReadOnlyList<string> LoadingDetails(
-        MistCompilation? compilation, int builtCSharpProjects, int externalAssemblies, string? runtimeIdentifier = null)
-    {
-        if(compilation is null)
-        {
-            return [];
-        }
-
-        var stdlibCount = compilation.Units.Count(u => u.IsStdlib);
-        var refCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is not null);
-        var userFileCount = compilation.Units.Count(u => !u.IsStdlib && u.OriginProjectPath is null);
-
-        string[] files =
-        [
-            $"{stdlibCount} stdlib files",
-            $"{refCount} referenced project files",
-            $"{userFileCount} user files",
-        ];
-
-        var references = builtCSharpProjects == 0 && externalAssemblies == 0
-            ? files
-            : [.. files, $"{builtCSharpProjects} C# projects built", $"{externalAssemblies} external assemblies"];
-
-        return runtimeIdentifier is null ? references : [.. references, $"runtime identifier {runtimeIdentifier}"];
-    }
-
-    private static LoadResult? ReadCompilationUnits(
-        CompilerOptions options,
-        DiagnosticBag allDiagnostics)
-    {
-        // Step 1a: Read the manifest and resolve its references, building every referenced C# project
-        // before any source is read (csharp-and-assembly-references Requirement 4.1).
-        var manifest = ReadManifest(options, allDiagnostics);
-        if(manifest is null)
-        {
-            return null;
-        }
-
-        // Step 1b: Load source files into CompilationUnits
-        var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
-        foreach(var path in options.SourcePaths)
-        {
-            try
-            {
-                var contents = File.ReadAllText(path);
-                var sourceText = new SourceText(path, contents);
-                userUnits.Add(new CompilationUnit(sourceText, options.NamespaceRoot, options.ProjectFolder));
-            }
-            catch(Exception ex)
-            {
-                allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
-            }
-        }
-
-        // Step 1c: Load Standard Library sources and prepend them to the
-        // user units (design § 8). The loader reads every *.mist file under
-        // AppContext.BaseDirectory/Standard and returns them as
-        // CompilationUnits with IsStdlib=true. If the loader emits any
-        // MIST0031 error, the compilation cannot proceed because
-        // primitive keyword resolution (Stage 4) and operator overload
-        // resolution depend on stdlib types being present.
-        var stdlibBag = new DiagnosticBag(allDiagnostics.Operation);
-        var stdlibUnits = StdlibLoader.LoadFor(stdlibBag);
-
-        foreach(var d in stdlibBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        if(stdlibBag.HasErrors)
-        {
-            return null;
-        }
-
-        // Step 1d: Load the referenced projects' source files
-        var resolved = manifest.References.Projects;
-        var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
-        var refProjectBuilder = ImmutableArray.CreateBuilder<MistProject>(resolved.Length);
-        var refConfigurationBuilder = ImmutableArray.CreateBuilder<ProjectConfiguration>(resolved.Length);
-        foreach(var proj in resolved)
-        {
-            refConfigurationBuilder.Add(proj.Configuration);
-
-            // Record the project itself alongside its files, so later
-            // stages can group units by project without inferring the
-            // grouping back out of per-unit fields.
-            var projGlobalUsings = proj.Configuration.GlobalUsings.IsDefault
-                ? ImmutableArray<string>.Empty
-                : proj.Configuration.GlobalUsings;
-
-            refProjectBuilder.Add(new MistProject(
-                proj.Configuration.NamespaceRoot,
-                proj.ProjectFolder,
-                proj.CanonicalTomlPath)
-            {
-                GlobalUsings = projGlobalUsings,
-                EntryPoint = proj.Configuration.EntryPoint,
-                OutputType = proj.Configuration.OutputType,
-            });
-
-            foreach(var path in proj.SourcePaths)
-            {
-                try
-                {
-                    var contents = File.ReadAllText(path);
-                    var sourceText = new SourceText(path, contents);
-                    refUnitBuilder.Add(new CompilationUnit(sourceText, proj.Configuration.NamespaceRoot, proj.ProjectFolder)
-                    {
-                        OriginProjectPath = proj.CanonicalTomlPath,
-                    });
-                }
-                catch(Exception ex)
-                {
-                    allDiagnostics.ReportTyped(DriverDiagnostics.FileError, new FileOnly(path), new PathValue(path), new TextValue(ex.Message));
-                }
-            }
-        }
-
-        // Step 1e: Combine units
-        // Order: stdlib → referenced project units (deepest first) → user units
-        var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
-            stdlibUnits.Length + refUnitBuilder.Count + userUnits.Count);
-        combinedUnits.AddRange(stdlibUnits);
-        combinedUnits.AddRange(refUnitBuilder);
-        combinedUnits.AddRange(userUnits);
-
-        var compilation = new MistCompilation(combinedUnits.ToImmutable(), options.EntryPoint, options.OutputType)
-        {
-            Projects = refProjectBuilder.ToImmutable(),
-            HasStandardLibrary = !stdlibUnits.IsEmpty,
-            GlobalUsings = manifest.GlobalUsings,
-        };
-
-        return new LoadResult(
-            compilation,
-            refConfigurationBuilder.ToImmutable(),
-            manifest.References.ExternalAssemblies,
-            ComposedProjects(options, resolved),
-            manifest.References.BuiltCSharpProjectCount);
-    }
-
-    /// <summary>
-    /// The root manifest's global usings and its resolved references, or <c>null</c> when either fails.
-    /// Many test scenarios and CLI invocations supply a ProjectFolder without a mist.toml; those fall
-    /// back to <see cref="CompilerOptions.GlobalUsings"/> and resolve no references.
-    /// </summary>
-    private static ManifestLoad? ReadManifest(CompilerOptions options, DiagnosticBag allDiagnostics)
-    {
-        var globalUsings = options.GlobalUsings.IsDefault ? ImmutableArray<string>.Empty : options.GlobalUsings;
-        var none = new LoadedReferences([], [], 0);
-
-        if(string.IsNullOrEmpty(options.ProjectFolder)
-            || !File.Exists(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName)))
-        {
-            return new ManifestLoad(globalUsings, none);
-        }
-
-        var parseBag = new DiagnosticBag(allDiagnostics.Operation);
-        var projectConfig = options.Configuration ?? ProjectFileParser.ParseRoot(options.ProjectFolder, parseBag);
-
-        foreach(var d in parseBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        if(parseBag.HasErrors)
-        {
-            return null;
-        }
-
-        if(projectConfig is null)
-        {
-            return new ManifestLoad(globalUsings, none);
-        }
-
-        globalUsings = projectConfig.GlobalUsings.IsDefault ? ImmutableArray<string>.Empty : projectConfig.GlobalUsings;
-        if(projectConfig.References.IsEmpty)
-        {
-            return new ManifestLoad(globalUsings, none);
-        }
-
-        var resolveBag = new DiagnosticBag(allDiagnostics.Operation);
-        var references = ProjectReferenceLoader.Load(
-            options.ProjectFolder, projectConfig.References, options.TargetFramework, resolveBag);
-
-        foreach(var d in resolveBag.ToImmutableArray())
-        {
-            allDiagnostics.Add(d);
-        }
-
-        return resolveBag.HasErrors ? null : new ManifestLoad(globalUsings, references);
-    }
-
-    private static ImmutableArray<ComposedProject> ComposedProjects(
-        CompilerOptions options, ImmutableArray<ResolvedProjectReference> references)
-    {
-        var rootManifest = string.IsNullOrEmpty(options.ProjectFolder)
-            ? ""
-            : Path.GetFullPath(Path.Combine(options.ProjectFolder, ProjectFileParser.FileName));
-
-        return
-        [
-            new ComposedProject(options.ProjectName, rootManifest),
-            .. references.Select(reference => new ComposedProject(reference.Configuration.Name, reference.CanonicalTomlPath)),
-        ];
     }
 
     /// <summary>

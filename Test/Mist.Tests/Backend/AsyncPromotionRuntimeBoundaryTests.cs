@@ -20,6 +20,7 @@ using Accessibility = Mist.ProgramModel.Model.Enums.Accessibility;
 namespace Mist.Tests.Backend;
 
 [Trait("Tier", "4")]
+[Collection(WallClockCollection.Name)]
 public sealed class AsyncPromotionRuntimeBoundaryTests
 {
     [Fact]
@@ -28,7 +29,8 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
         var fixture = new Fixture();
         var source = fixture.Emit();
         var compilation = CSharpCompilation.Create("AsyncPromotionBoundary" + Guid.NewGuid().ToString("N"),
-            [CSharpSyntaxTree.ParseText(source)], CSharpCompilationDriver.CoreReferences,
+            [CSharpSyntaxTree.ParseText(source)], CSharpCompilationDriver.CoreReferences.Add(
+                MetadataReference.CreateFromFile(typeof(RuntimeBoundaryTasks).Assembly.Location)),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         using var stream = new MemoryStream();
         var result = compilation.Emit(stream);
@@ -174,9 +176,27 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                     {
                         Helpers.Reset();
                         var pending = action();
-                        await Helpers.Started.Task.WaitAsync(System.TimeSpan.FromSeconds(5));
-                        if(pending.IsCompleted) throw new System.InvalidOperationException("returned before completion");
-                        Helpers.Gate.SetResult(7);
+                        var gate = Helpers.Gate;
+                        System.Exception failure = null;
+                        try
+                        {
+                            await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                                Helpers.Started.Task, pending, System.TimeSpan.FromSeconds(5));
+                            if(pending.IsCompleted) throw new System.InvalidOperationException("returned before completion");
+                        }
+                        catch(System.Exception error)
+                        {
+                            failure = error;
+                            throw;
+                        }
+                        finally
+                        {
+                            gate.TrySetResult(7);
+                            if(failure is not null)
+                            {
+                                await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(pending, System.TimeSpan.FromSeconds(5), failure);
+                            }
+                        }
                         if(await pending != 7 || Helpers.Calls != 1 || Helpers.Completed != 1)
                             throw new System.InvalidOperationException("lost or duplicated work");
                     }
@@ -200,9 +220,27 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                         await Check(async () => (await Optional(reader)).Value);
                         Helpers.Reset();
                         var dropped = reader.DropWork();
-                        await Helpers.Started.Task.WaitAsync(System.TimeSpan.FromSeconds(5));
-                        if(dropped.IsCompleted) throw new System.InvalidOperationException("orphaned drop");
-                        Helpers.Gate.SetResult(7);
+                        var gate = Helpers.Gate;
+                        System.Exception failure = null;
+                        try
+                        {
+                            await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                                Helpers.Started.Task, dropped, System.TimeSpan.FromSeconds(5));
+                            if(dropped.IsCompleted) throw new System.InvalidOperationException("orphaned drop");
+                        }
+                        catch(System.Exception error)
+                        {
+                            failure = error;
+                            throw;
+                        }
+                        finally
+                        {
+                            gate.TrySetResult(7);
+                            if(failure is not null)
+                            {
+                                await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(dropped, System.TimeSpan.FromSeconds(5), failure);
+                            }
+                        }
                         await dropped;
                         if(Helpers.Completed != 1 || Helpers.Calls != 1 || Reader.Captures != 1 || Reader.MaybeCalls != 2)
                             throw new System.InvalidOperationException("completion accounting");

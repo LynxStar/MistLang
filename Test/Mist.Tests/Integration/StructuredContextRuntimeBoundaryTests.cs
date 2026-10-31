@@ -18,6 +18,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Integration;
 
 [Trait("Tier", "4")]
+[Collection(WallClockCollection.Name)]
 public sealed class StructuredContextRuntimeBoundaryTests
 {
     [Fact]
@@ -173,16 +174,35 @@ public sealed class StructuredContextRuntimeBoundaryTests
                     var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                     var releaseSecond = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                     var first = Task.Run(() => Worker("first", firstReady, releaseFirst.Task, false));
-                    await firstReady.Task.WaitAsync(TimeSpan.FromSeconds(5));
-                    var second = Task.Run(() => Worker("second", secondReady, releaseSecond.Task, true));
-                    await secondReady.Task.WaitAsync(TimeSpan.FromSeconds(5));
-                    observations.Add("parent-overlap:" + Snapshot());
-                    releaseFirst.SetResult();
-                    observations.AddRange(await first.WaitAsync(TimeSpan.FromSeconds(5)));
-                    observations.Add("parent-after-first:" + Snapshot());
-                    releaseSecond.SetResult();
-                    observations.AddRange(await second.WaitAsync(TimeSpan.FromSeconds(5)));
-                    observations.Add("parent-after-second:" + Snapshot());
+                    Task<string[]>? second = null;
+                    Exception? failure = null;
+                    try
+                    {
+                        await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                            firstReady.Task, first, TimeSpan.FromSeconds(5));
+                        second = Task.Run(() => Worker("second", secondReady, releaseSecond.Task, true));
+                        await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                            secondReady.Task, second, TimeSpan.FromSeconds(5));
+                        observations.Add("parent-overlap:" + Snapshot());
+                        releaseFirst.SetResult();
+                        observations.AddRange(await first.WaitAsync(TimeSpan.FromSeconds(5)));
+                        observations.Add("parent-after-first:" + Snapshot());
+                        releaseSecond.SetResult();
+                        observations.AddRange(await second.WaitAsync(TimeSpan.FromSeconds(5)));
+                        observations.Add("parent-after-second:" + Snapshot());
+                    }
+                    catch(Exception error)
+                    {
+                        failure = error;
+                        throw;
+                    }
+                    finally
+                    {
+                        releaseFirst.TrySetResult();
+                        releaseSecond.TrySetResult();
+                        await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(
+                            second is null ? first : Task.WhenAll(first, second), TimeSpan.FromSeconds(5), failure);
+                    }
                     observations.Add(await Task.Run(() =>
                     {
                         MistContext.Pop(typeof(string));
@@ -227,7 +247,8 @@ public sealed class StructuredContextRuntimeBoundaryTests
         var parse = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
         var compilation = CSharpCompilation.Create("StructuredContextRuntime_" + Guid.NewGuid().ToString("N"),
             [CSharpSyntaxTree.ParseText(runtime.ToString(), parse, path: "__Context.g.cs"), CSharpSyntaxTree.ParseText(source, parse, path: "Probe.cs")],
-            CSharpCompilationDriver.CoreReferences,
+            CSharpCompilationDriver.CoreReferences.Add(
+                MetadataReference.CreateFromFile(typeof(RuntimeBoundaryTasks).Assembly.Location)),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
         using var stream = new MemoryStream();
         var emitted = compilation.Emit(stream);

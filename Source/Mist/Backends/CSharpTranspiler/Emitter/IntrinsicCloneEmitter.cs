@@ -161,6 +161,12 @@ internal static class IntrinsicCloneEmitter
 
     private static string Wrap(IMistType type, ConcreteType clone, string expression)
     {
+        if(type is ConstructedType { Definition.FullyQualifiedName: "Standard.Array<,>", TypeArguments: [var element, _] }
+            && IsItself(element, clone))
+        {
+            return $"System.Array.ConvertAll({expression}, item => new {TypeNameEmitter.Emit(element)}(item))";
+        }
+
         return IsItself(type, clone)
             ? $"new {TypeNameEmitter.Emit(type)}({expression})"
             : expression;

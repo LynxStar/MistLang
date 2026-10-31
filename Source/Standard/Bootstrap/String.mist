@@ -21,4 +21,52 @@ intrinsic public readonly owned class String : IClonable<String>
     intrinsic public pure Boolean Contains(String value);
     intrinsic public pure String ToUpper();
     intrinsic public pure Char[] ToCharArray();
+    intrinsic public pure Boolean Contains(Char value);
+    intrinsic public Boolean Contains(String value, System.StringComparison comparisonType);
+    intrinsic public Boolean Contains(Char value, System.StringComparison comparisonType);
+    intrinsic public pure String Replace(Char oldChar, Char newChar);
+    intrinsic public pure String Replace(String oldValue, String? newValue);
+    intrinsic public String Replace(String oldValue, String? newValue, System.StringComparison comparisonType);
+    intrinsic public pure String ReplaceLineEndings(String replacementText);
+    intrinsic public pure Boolean StartsWith(Char value);
+    intrinsic public pure Boolean StartsWith(String value);
+    intrinsic public Boolean StartsWith(String value, System.StringComparison comparisonType);
+    intrinsic public pure Boolean EndsWith(String value);
+    intrinsic public Boolean EndsWith(String value, System.StringComparison comparisonType);
+
+    intrinsic public pure Int32? IndexOf(Char value);
+    intrinsic public pure Int32? IndexOf(Char value, Int32 startIndex);
+    intrinsic public Int32? IndexOf(Char value, System.StringComparison comparisonType);
+    intrinsic public Int32? IndexOf(String value, System.StringComparison comparisonType);
+    intrinsic public pure Int32? LastIndexOf(Char value);
+    intrinsic public Int32? LastIndexOf(String value, System.StringComparison comparisonType);
+    intrinsic public Int32? IndexOfAny(Char[] anyOf);
+    intrinsic public Int32? IndexOfAny(Char[] anyOf, Int32 startIndex);
+
+    intrinsic public pure String ToLowerInvariant();
+    intrinsic public pure String ToUpperInvariant();
+    intrinsic public pure String Trim();
+    intrinsic public pure String TrimEnd();
+    intrinsic public pure String TrimEnd(Char trimChar);
+    intrinsic public String TrimEnd(params Char[] trimChars);
+    intrinsic public pure String TrimStart();
+    intrinsic public String TrimStart(params Char[] trimChars);
+    intrinsic public pure String[] Split(Char separator);
+    intrinsic public pure String[] Split(Char separator, System.StringSplitOptions options);
+    intrinsic public pure String[] Split(String? separator);
+    intrinsic public pure String[] Split(String? separator, System.StringSplitOptions options);
+    intrinsic public String[] Split(params Char[] separator);
+    intrinsic public String[] Split(Char[]? separator, System.StringSplitOptions options);
+
+    intrinsic public pure static Boolean IsNullOrEmpty(String? value);
+    intrinsic public pure static Boolean IsNullOrWhiteSpace(String? value);
+    intrinsic public static String Join(String? separator, params (String?)[] values);
+    intrinsic public static String Join(Char separator, params (String?)[] values);
+    intrinsic public static String Join(String? separator, IEnumerable<String?> values);
+    intrinsic public static String Join<T>(String? separator, IEnumerable<T> values);
+    intrinsic public static String Join<T>(Char separator, IEnumerable<T> values);
+    intrinsic public static String Concat(params (String?)[] values);
+    intrinsic public static String Concat(IEnumerable<String?> values);
+    intrinsic public static String Concat<T>(IEnumerable<T> values);
+    intrinsic public static String Format(System.IFormatProvider? provider, String format, params (unknown)[] args);
 }

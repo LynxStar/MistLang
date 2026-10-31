@@ -47,6 +47,8 @@ internal static class IntrinsicCalls
         InvariantConversion,
 
         InvariantOrder,
+
+        Text,
     }
 
     public static bool Respells(Method? callee)
@@ -82,6 +84,7 @@ internal static class IntrinsicCalls
             Respelling.InvariantCase => $"{Receiver(callee, receiver)}{access}{callee.Name}Invariant()",
             Respelling.InvariantConversion => $"System.Convert.{callee.Name}({string.Join(", ", arguments)}, {InvariantCulture.Provider})",
             Respelling.InvariantOrder => $"{Receiver(callee, receiver)}{access}Sort({InvariantCulture.Order(receiverType)})",
+            Respelling.Text => TextCalls.Rewrite(callee, receiver, arguments, conditional),
             _ => throw new InvalidOperationException(
                 $"ICE: '{callee.Name}' is not an invocation the backend respells."),
         };
@@ -109,6 +112,7 @@ internal static class IntrinsicCalls
 
         return callee switch
         {
+            _ when TextCalls.Respells(callee) => Respelling.Text,
             Constructor constructor when ArrayLowering.Generates(constructor) => Respelling.ArrayGeneration,
             _ when ArrayEnumeration.Enumerates(callee) => Respelling.ArrayEnumerator,
             { Name: "Of", ParametersList.Count: 1 }

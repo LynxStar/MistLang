@@ -61,7 +61,9 @@ public sealed class IntrinsicSupplyTests : IDisposable
     [Fact]
     public void EveryIntrinsicStandardDeclaresIsSupplied()
     {
-        var audit = IntrinsicSupply.Audit(StandardModelProbe.Build("", out _), FindClrType);
+        var model = StandardModelProbe.Build("", out var diagnostics);
+        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
+        var audit = IntrinsicSupply.Audit(model, FindClrType);
         var missing = audit.Where(entry => entry.Kind == IntrinsicSupply.Kind.Missing).Select(entry => entry.Description).ToList();
 
         Assert.NotEmpty(audit);

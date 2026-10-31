@@ -2524,3 +2524,48 @@ Box=later
 [class parameter] shelf of Boolean
 [receiver] 3
 Generated answer: 42
+=== Text Capabilities ===
+y
+A
+True
+True
+a,b
+True
+indexes=0,3,3,Void
+any=0,2,Void
+compare=0,1,3
+empty=0,4
+edge=Void,Void,Void
+receiver once
+0
+conditional=Void
+contains=True,True,True,True
+replace=xbcx,bc,xbcx,bc
+prefix=True,True,True
+suffix=True,True
+ordinal=False,False
+invariant=True,True
+case=I,i,I,I,i
+trim=[word],[word],[word],[word],[word],[word]
+lines=a|b|c
+split=a||b;a|b
+separator=a|b||c;a|b|c
+chars=a|b|c;a|b|c
+whitespace=a|b
+trim-fields=a|b
+nulls=True,False,True,True,False
+join=left//right;left//right;left//right
+generic=1.25;2.5;1.25;2.5;ab;1.252.5
+concat=leftright;leftright;abc
+empty-sequence=[],[] separator=leftright
+newtype-part=a
+newtype-part=b
+[  1.25] text True 7
+[  1.25] text True 7
+1,25
+native=bc||abca|bca|1.25
+unicode=True,True,True,True
+ascii=False,False,True,True,True,True
+char-order=-1,1,0
+utf16=3,2,x
+=== Text Capabilities Done ===

@@ -21,8 +21,8 @@ internal static class StandardModelProbe
 {
     /// <summary>
     /// Wraps <paramref name="statements"/> in a probe method, builds the model alongside Standard's own
-    /// sources, and hands back both. The default ambient provider adds nothing; callers judging CLR
-    /// declarations supply their own provider.
+    /// sources, and hands back both. The default provider supplies Standard's signature dependencies
+    /// without loading CLR metadata. Callers judging CLR declarations supply their own provider.
     /// </summary>
     public static ProgramModelClass Build(
         string statements, out ImmutableArray<Diagnostic> diagnostics, string extraTypes = "", IAmbientTypeProvider? ambient = null)
@@ -74,7 +74,7 @@ internal static class StandardModelProbe
             },
             options,
             buildDiagnostics,
-            ambient ?? NullAmbientTypeProvider.Instance);
+            ambient ?? StandardSignatureAmbientProvider.Instance);
 
         diagnostics = buildDiagnostics.ToImmutableArray();
         return Assert.IsType<ProgramModelClass>(model);

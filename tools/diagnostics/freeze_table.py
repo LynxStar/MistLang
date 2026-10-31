@@ -10,15 +10,26 @@ for Name, Type, Symbol, Path, Enum, Text, as the single element of a Sequence an
 value of an Optional. Quantity and Boolean use render-only argi sentinels to preserve the
 frozen text independently of schema migration. A descriptor with Optional slots
 gets one extra row per Optional slot with that slot absent, keyed "Field|absent:slot".
+
+Sources are matched case-sensitively and read in POSIX path order, so every platform writes the
+same table.
 """
+import fnmatch
 import glob
 import os
 import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-REGISTRY = sorted(glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/Descriptors/*.cs')) +
-                  glob.glob(os.path.join(ROOT, 'Source/Mist/Common/Diagnostics/*Diagnostics*.cs')))
+
+
+def sources(pattern):
+    found = (os.path.relpath(path, ROOT).replace(os.sep, '/') for path in glob.glob(os.path.join(ROOT, pattern)))
+    return [path for path in found if fnmatch.fnmatchcase(path, pattern)]
+
+
+REGISTRY = sorted(sources('Source/Mist/Common/Diagnostics/Descriptors/*.cs') +
+                  sources('Source/Mist/Common/Diagnostics/*Diagnostics*.cs'))
 OUTPUT = os.path.join(ROOT, 'Test/Mist.Tests/Common/Diagnostics/TextFreezeTable.cs')
 
 FIELD = re.compile(
@@ -86,7 +97,7 @@ def render(template, value_of, present):
 
 def rows():
     for path in REGISTRY:
-        src = open(path, encoding='utf-8').read()
+        src = open(os.path.join(ROOT, path), encoding='utf-8').read()
         cls = re.search(r'class (\w+)', src).group(1)
         for m in FIELD.finditer(src):
             field, template, rest = m.group(1), template_text(m.group(2)), m.group(3)

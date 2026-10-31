@@ -85,13 +85,13 @@ internal sealed class NativeSlotFragments
         return property;
     }
 
-    public Property MemberProperty(MemberType owner, string name, IMistType type, bool settable)
+    public Property MemberProperty(MemberType owner, string name, IMistType type, bool settable, bool bodied = false)
     {
         var property = new Property(name, type, DeclarationFragments.Public)
         {
             DeclarationNode = HandBuiltModel.Node(Next()),
             DeclaringType = owner,
-            Getter = new PropertyAccessor { Accessibility = Accessibility.Public },
+            Getter = new PropertyAccessor { Accessibility = Accessibility.Public, Body = bodied ? HandBuiltModel.Block() : null },
             Setter = settable ? new PropertyAccessor { Accessibility = Accessibility.Public } : null,
         };
         owner.PropertiesList.Add(property);

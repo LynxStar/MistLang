@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.Tests.Helpers;
@@ -70,6 +71,52 @@ public sealed class NativeSlotAnalyzerTests
 
         Assert.Equal("MIST0461", diagnostic.Number.Value);
         Assert.Contains("differs in set accessor: the slot declares no set accessor.", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnAutoPropertyFillOmittingTheSlotsSetter_IsReportedNamingTheAccessor()
+    {
+        var f = new NativeSlotFragments();
+        var clr = NativeSlotFragments.Projected("Exception");
+        _ = NativeSlotFragments.SlotProperty(clr, "HelpLink", NativeSlotKind.Defaulted, f.Text, settable: true);
+        var member = f.MemberProperty(f.Source("Oops", clr), "HelpLink", f.Text, settable: false);
+
+        var diagnostic = Assert.Single(f.Run(new NativeSlotAnalyzer()));
+
+        Assert.Equal("MIST0461", diagnostic.Number.Value);
+        Assert.Contains(
+            "'Oops.HelpLink' fills slot 'string HelpLink' of 'Exception' but differs in set accessor: the slot declares a set accessor, which an auto-property filling it must declare too.",
+            diagnostic.Message, StringComparison.Ordinal);
+        Assert.Equal(member.DeclarationNode!.Span.Start + 1, diagnostic.Position().Start.Column);
+    }
+
+    [Fact]
+    public void ABodiedGetterFillOmittingTheSlotsSetter_IsAdmittedSilently()
+    {
+        var f = new NativeSlotFragments();
+        var clr = NativeSlotFragments.Projected("Exception");
+        _ = NativeSlotFragments.SlotProperty(clr, "HelpLink", NativeSlotKind.Defaulted, f.Text, settable: true);
+        _ = f.MemberProperty(f.Source("Oops", clr), "HelpLink", f.Text, settable: false, bodied: true);
+
+        Assert.Empty(f.Run(new NativeSlotAnalyzer()));
+    }
+
+    [Fact]
+    public void AGenericFillStrengtheningItsSlot_IsReportedNamingTheConstraint()
+    {
+        var f = new NativeSlotFragments();
+        var clr = NativeSlotFragments.Projected("Ranker");
+        var slot = NativeSlotFragments.Slot(clr, "First", NativeSlotKind.Defaulted, f.Void);
+        slot.ParametersList.Add(new Parameter("a", DeclarationFragments.Parameter(slot, slot.Scope, "T")));
+        var filler = f.Member(f.Source("Larger", clr), "First", f.Void);
+        var u = DeclarationFragments.Parameter(filler, filler.Scope, "T");
+        filler.ParametersList.Add(new Parameter("a", u));
+        u.ConstraintsList.Add(new TypeConstraint(NativeSlotFragments.Projected("IRanked")));
+
+        var diagnostic = Assert.Single(f.Run(new NativeSlotAnalyzer()));
+
+        Assert.Equal("MIST0461", diagnostic.Number.Value);
+        Assert.Contains("differs in the constraints of 'T': the slot declares no 'IRanked' constraint.", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

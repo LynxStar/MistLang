@@ -110,9 +110,12 @@ or three overloads is acceptable. What is fixed is the algorithm:
    member is matched against a `Required` or `Defaulted` slot only, to be refused as `"static"`.
 3. Classify by the nearest match's `SlotKind`:
    - `Required` or `Defaulted`: check return-type agreement with `SlotSignatures.Agree`, accessibility
-     equality, and for properties the accessor subset. All pass: a `Fill`. Any fails: a `Collision` with
-     `Mismatch` naming what differs (`"static"`, `"return type"`, `"accessibility"`, `"get accessor"`,
-     `"set accessor"`) and `Declared` saying what the slot declares. A CLR result the metadata leaves
+     equality, for properties the accessor subset, for a property none of whose accessors has a body
+     (a C# auto-property) every accessor the slot has (Requirement 4.4), and for a generic method that
+     `SlotSignatures.Strengthened` finds no constraint the slot does not promise (Requirement 4.7). All
+     pass: a `Fill`. Any fails: a `Collision` with `Mismatch` naming what differs (`"static"`,
+     `"return type"`, `"accessibility"`, `"get accessor"`, `"set accessor"`, `"the constraints of 'T'"`)
+     and `Declared` saying what the slot declares. A CLR result the metadata leaves
      nullable projects as `T | void`; a fill returning `T` agrees with it, as C# lets an `override` of
      `string? ToString()` return `string`.
    - `Sealed`: a `Collision` with `Kind = Sealed`.
@@ -181,6 +184,10 @@ The callers learn whether a member fills from a per-emission scope, `NativeSlotF
 built the way `NativeSlotNullability.Enter` is: computed once before anything is written, held
 thread-statically for the emission, queried by member identity. The two scopes can share one walk.
 
+A generic method fill writes only its `class` and `struct` constraints, through
+`ConstraintEmitter.Lines(..., overriding: true)`: C# refuses any other restated on an override (CS0460)
+and the override inherits them from the slot (Requirement 5.6).
+
 `MethodEmitter.HidesObjectToString` yields to a fill: `new` is written only when the method is not in
 the fill set (Requirement 5.3). A source type with no projected ancestor has no fills, so its `ToString`
 keeps `new` and nothing observable changes for it.
@@ -243,7 +250,10 @@ Hand-built with `HandBuiltModel`: a projected `ConcreteType` whose members carry
 type deriving it. Rows: fill of a `Defaulted` method; fill of a `Required` method; `Unfilled` reports a
 `Required` slot and not a `Defaulted` one; a `Sealed` match is a `Collision`; a `None` match is a
 `Collision`; return-type, accessibility and static mismatches each name their `Mismatch`; a property
-fill with a subset of accessors is a fill and one adding a setter is a shape collision; a generic
+fill with a subset of accessors is a fill when it has a body, an auto-property omitting one is a shape
+collision, and one adding a setter is a shape collision; a generic method fill restating its slot's
+constraints is a fill and one strengthening them is a shape collision; `unknown` and `unknown | void`
+repeat a projected `System.Object` parameter and no other projected type; a generic
 ancestor read through `TypeSubstitution.ForPath` (`Collection<int>.InsertItem(int, int)`); a derived
 type restating a Mist ancestor's fill is a fill; a method whose own type parameter is positionally
 matched (`SlotSignatures` already answers this for abstract slots); a chain with an unresolved base

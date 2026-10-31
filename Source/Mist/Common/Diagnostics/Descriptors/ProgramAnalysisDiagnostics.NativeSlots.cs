@@ -28,7 +28,7 @@ public static partial class ProgramAnalysisDiagnostics
         DiagnosticNumber.Mint("MIST0461"),
         Title: "CLR slot fill shape mismatch",
         Template: "'{type}.{member}' fills slot '{slot}' of '{base}' but differs in {difference}: the slot declares {declared}.",
-        Description: "The member repeats the name and parameters of a virtual or abstract CLR base member, so it fills that slot, but it differs from the slot in return type, accessibility, being static, or an accessor the slot lacks. Change the member to match what the slot declares.",
+        Description: "The member repeats the name and parameters of a virtual or abstract CLR base member, so it fills that slot, but it differs from the slot in return type, accessibility, being static, an accessor the slot lacks, an accessor the slot has that an auto-property omits, or a type parameter constraint the slot does not promise. Change the member to match what the slot declares.",
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,

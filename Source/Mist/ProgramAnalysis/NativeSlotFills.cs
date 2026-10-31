@@ -1,6 +1,8 @@
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -179,7 +181,34 @@ internal static class NativeSlotFills
             return ("set accessor", "no set accessor");
         }
 
+        if(member.Member is Property property && IsAuto(property))
+        {
+            if(member.Getter is null && slot.Getter is not null)
+            {
+                return ("get accessor", "a get accessor, which an auto-property filling it must declare too");
+            }
+
+            if(member.Setter is null && slot.Setter is not null)
+            {
+                return ("set accessor", "a set accessor, which an auto-property filling it must declare too");
+            }
+        }
+
+        if(member.Member is Method generic && slot.Member is Method promised && member.DeclarationNode is { } at
+            && SlotSignatures.Strengthened(promised, generic, inheritance, TypeSubstitution.Empty, at, interner).FirstOrDefault()
+                is ({ } parameter, { } constraint))
+        {
+            var spelled = constraint is TypeConstraint typed ? TypeDisplay.Mist(typed.ConstraintType) : ConformanceAnalyzer.Spelled(constraint);
+            return ($"the constraints of '{parameter.Name}'", $"no '{spelled}' constraint");
+        }
+
         return null;
+    }
+
+    private static bool IsAuto(Property property)
+    {
+        return property.Getter is null or { Body: null, ExpressionBody: null }
+            && property.Setter is null or { Body: null, ExpressionBody: null };
     }
 
     private static bool ReturnAgrees(SlotMember slot, IMistType slotType, IMistType fillerType, TypeInterner interner)

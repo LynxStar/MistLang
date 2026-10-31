@@ -84,15 +84,19 @@ public sealed class NativeSlotFillsTests
     }
 
     [Theory]
-    [InlineData(true, false, null)]
-    [InlineData(false, true, "set accessor")]
-    public void APropertyFill_MayOmitAnAccessorButNotAddOne(bool slotSettable, bool fillSettable, string? mismatch)
+    [InlineData(true, false, true, null)]
+    [InlineData(true, false, false, "set accessor")]
+    [InlineData(true, true, false, null)]
+    [InlineData(false, false, false, null)]
+    [InlineData(false, true, false, "set accessor")]
+    [InlineData(false, true, true, "set accessor")]
+    public void APropertyFill_MayOmitAnAccessorOnlyWithABodyAndNeverAddOne(bool slotSettable, bool fillSettable, bool bodied, string? mismatch)
     {
         var f = new NativeSlotFragments();
         var clr = NativeSlotFragments.Projected("Labeled");
         _ = NativeSlotFragments.SlotProperty(clr, "Label", NativeSlotKind.Defaulted, f.Text, slotSettable);
         var source = f.Source("Mine", clr);
-        _ = f.MemberProperty(source, "Label", f.Text, fillSettable);
+        _ = f.MemberProperty(source, "Label", f.Text, fillSettable, bodied);
 
         Assert.Equal(mismatch is null ? 1 : 0, NativeSlotFills.Of(source, f.Built.Interner).Count());
         Assert.Equal(mismatch, NativeSlotFills.Collisions(source, f.Built.Interner).SingleOrDefault()?.Mismatch);
@@ -188,6 +192,31 @@ public sealed class NativeSlotFillsTests
     }
 
     [Theory]
+    [InlineData("class", "class", null)]
+    [InlineData("IShow", "IShow", null)]
+    [InlineData("IShow", "", null)]
+    [InlineData("", "class", "the constraints of 'U'")]
+    [InlineData("", "IShow", "the constraints of 'U'")]
+    public void AGenericFill_MayRestateItsSlotsConstraintsButNotStrengthenThem(string promised, string required, string? mismatch)
+    {
+        var f = new NativeSlotFragments();
+        var show = NativeSlotFragments.Projected("IShow");
+        var clr = NativeSlotFragments.Projected("Ranker");
+        var slot = NativeSlotFragments.Slot(clr, "Pick", NativeSlotKind.Defaulted, f.Void);
+        var t = DeclarationFragments.Parameter(slot, slot.Scope, "T");
+        slot.ParametersList.Add(new Parameter("value", t));
+        var source = f.Source("Mine", clr);
+        var filler = f.Member(source, "Pick", f.Void);
+        var u = DeclarationFragments.Parameter(filler, filler.Scope, "U");
+        filler.ParametersList.Add(new Parameter("value", u));
+        Constrain(t, promised, show);
+        Constrain(u, required, show);
+
+        Assert.Equal(mismatch is null ? 1 : 0, NativeSlotFills.Of(source, f.Built.Interner).Count());
+        Assert.Equal(mismatch, NativeSlotFills.Collisions(source, f.Built.Interner).SingleOrDefault()?.Mismatch);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void AnUnknownParameter_RepeatsAProjectedSystemObjectOne(bool optional)
@@ -257,6 +286,15 @@ public sealed class NativeSlotFillsTests
 
         Assert.Empty(NativeSlotFills.Of(source, f.Built.Interner));
         Assert.Empty(NativeSlotFills.Collisions(source, f.Built.Interner));
+    }
+
+    private static void Constrain(TypeParameter parameter, string constraint, ClassType show)
+    {
+        if(constraint.Length > 0)
+        {
+            parameter.ConstraintsList.Add(
+                constraint == "class" ? new KeywordConstraint(TypeParameterConstraintKind.Class) : new TypeConstraint(show));
+        }
     }
 
     private static ClassType ClrObject()

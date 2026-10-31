@@ -727,6 +727,10 @@ error MIST0177: 'Loud' cannot redeclare member 'Add' already defined in 'Collect
 
 The last error is for a member that repeats a CLR member that is not virtual. A member that repeats a
 slot's name and parameters but differs in its return type, accessibility or accessors is `MIST0461`.
+A fill may leave out an accessor the slot has only if the accessor it keeps has a body:
+`public string HelpLink { get; }` over `Exception.HelpLink`, which has a setter, is refused, because an
+auto-property override must override every accessor. A generic method fill may repeat its slot's
+type parameter constraints or leave them out, but may not add one the slot does not have.
 
 ## Iterating CLR Collections
 

@@ -36,7 +36,7 @@ internal static class MethodEmitter
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);
         writer.WriteLine($"{modifiers}{EmitSignature(method, diagnostics)}");
-        ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true);
+        ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true, overriding: fills);
         using(writer.Block())
         {
             if(method.Body is not null)

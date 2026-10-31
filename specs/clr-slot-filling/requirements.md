@@ -158,12 +158,19 @@ method.
    static, THE Analyzer SHALL report `MIST0461` at the member, naming what differs
    and what the slot declares.
 4. WHEN a property or indexer Fill declares an accessor its slot does not, THE Analyzer SHALL report
-   `MIST0461` naming the accessor. A Fill may omit an accessor the slot has.
+   `MIST0461` naming the accessor. A Fill may omit an accessor the slot has, unless it is an
+   auto-property: WHEN a property Fill none of whose accessors has a body omits an accessor its slot
+   has, THE Analyzer SHALL report `MIST0461` naming the omitted accessor, since C# requires an
+   auto-property override to override every accessor (CS8080). A get-only Fill with a body is admitted.
 5. A Source_Type member whose name matches an ancestor member but whose parameter signature does not
    is an overload, admitted as today.
 6. THE purity, readonly and ownership modifiers of a Fill are the Filler's own and SHALL NOT be judged
    against the slot: a CLR member promises none of them. A `ref` return SHALL agree, as
    `SlotSignatures` already requires of abstract slots.
+7. WHEN a generic method Fill constrains a type parameter by a constraint its slot's corresponding
+   parameter does not entail, judged as `SlotSignatures.Strengthened` judges an abstract slot's answer,
+   THE Analyzer SHALL report `MIST0461` naming the parameter and the constraint. A Fill may restate
+   the slot's constraints or omit them.
 
 ### Requirement 5: A fill is emitted as an override
 
@@ -186,6 +193,9 @@ for it, so that the runtime dispatches to the Mist member.
    emitted C# compiles without CS8765.
 5. THE Emitter SHALL write nothing for a Defaulted_Slot the Source_Type leaves unfilled: inheritance
    supplies the native default.
+6. WHEN a generic method Fill restates constraints, THE Emitter SHALL write only its `class` or
+   `struct` constraints, the only ones C# lets an override restate (CS0460); the override inherits the
+   rest from the slot, and 4.7 has ensured the Fill requires no more.
 
 ### Requirement 6: System.Object is a projected type like any other
 

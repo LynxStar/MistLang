@@ -57,6 +57,12 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
         return null;
     }
 
+    public Type? FindClrType(string fullName, bool ignoreArity)
+    {
+        return AmbientTypeLookup.Find(fullName, ignoreArity, FindClrType,
+            namespaceName => LoadedAssemblies.SelectMany(assembly => assembly.NamespaceIndex.GetValueOrDefault(namespaceName, [])));
+    }
+
     internal MistType? ProjectionOf(Type clrType)
     {
         return resolver?.Declared(clrType);

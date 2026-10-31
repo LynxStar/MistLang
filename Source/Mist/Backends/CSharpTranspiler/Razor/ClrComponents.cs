@@ -9,7 +9,6 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
     private const string ComponentInterface = "Microsoft.AspNetCore.Components.IComponent";
     private const string EventHandlersType = "Microsoft.AspNetCore.Components.Web.EventHandlers";
     private const string EventHandlerAttribute = "Microsoft.AspNetCore.Components.EventHandlerAttribute";
-    private const int MaximumArity = 4;
 
     private static readonly string[] ParameterAttributes =
         ["Microsoft.AspNetCore.Components.ParameterAttribute", "Microsoft.AspNetCore.Components.CascadingParameterAttribute"];
@@ -31,6 +30,19 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
     public bool IsComponentBase(string fullName)
     {
         return Find(fullName) is not null || Lookup(fullName)?.FullName == ComponentInterface;
+    }
+
+    public ComponentFacts? FindBase(string fullName, ImmutableArray<string> arguments)
+    {
+        if(arguments.IsEmpty)
+        {
+            return Find(fullName);
+        }
+
+        var type = ambientTypes.FindClrType($"{fullName}`{arguments.Length}");
+        return type is not null && Read(type) is { } facts
+            ? facts with { Parameters = CatalogTypeText.Substitute(facts.Parameters, type.GetGenericArguments().Select(argument => argument.Name), arguments) }
+            : null;
     }
 
     public ImmutableArray<EventFacts> Events()
@@ -69,12 +81,7 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
     {
         if(!types.TryGetValue(fullName, out var type))
         {
-            // A tag or base name carries no arity and a generic type's metadata name does, so the arities are tried in turn.
-            for(var arity = 0; arity <= MaximumArity && type is null; arity++)
-            {
-                type = ambientTypes.FindClrType(arity == 0 ? fullName : $"{fullName}`{arity}");
-            }
-
+            type = ambientTypes.FindClrType(fullName, ignoreArity: true);
             types[fullName] = type;
         }
 

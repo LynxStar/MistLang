@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Reflection.Emit;
+using Mist.Backends.CSharpTranspiler.Razor;
 using Mist.Driver.Contracts;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
@@ -22,6 +23,13 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
     {
         Asked.Add(fullName);
         return !eventHandlers && fullName == $"{Components}.Web.EventHandlers" ? null : Emitted.Value.GetType(fullName);
+    }
+
+    public Type? FindClrType(string fullName, bool ignoreArity)
+    {
+        return FindClrType(fullName) ?? (ignoreArity
+            ? Emitted.Value.GetTypes().FirstOrDefault(type => ClrTypeText.Name(type) == fullName)
+            : null);
     }
 
     public void BuildAndRegister(ProgramModelClass programModel)
@@ -65,6 +73,16 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
         var virtualize = module.DefineType($"{Components}.Web.Virtualize`1", TypeAttributes.Public, componentBaseType);
         _ = virtualize.DefineGenericParameters("TItem");
         _ = virtualize.CreateType();
+
+        var genericBase = module.DefineType($"{Components}.GenericBase`1", TypeAttributes.Public, componentBaseType);
+        var genericParameter = genericBase.DefineGenericParameters("T")[0];
+        Property(genericBase, "Value", genericParameter, parameter);
+        Property(genericBase, "Items", genericParameter.MakeArrayType(), parameter);
+        _ = genericBase.CreateType();
+
+        var five = module.DefineType($"{Components}.Five`5", TypeAttributes.Public, componentBaseType);
+        _ = five.DefineGenericParameters("T1", "T2", "T3", "T4", "T5");
+        _ = five.CreateType();
 
         var mouse = module.DefineType($"{Components}.Web.MouseEventArgs", TypeAttributes.Public, typeof(EventArgs)).CreateType();
         var handler = module.DefineType($"{Components}.EventHandlerAttribute", TypeAttributes.Public | TypeAttributes.Sealed, typeof(Attribute));

@@ -5,8 +5,9 @@ using Mist.Backends.CSharpTranspiler.Razor.Syntax;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver.Contracts;
-using Mist.Lexing;
-using Mist.Parsing;
+using Mist.Generated;
+using MistLexer = Mist.Lexing.MistLexer;
+using MistParser = Mist.Parsing.MistParser;
 
 namespace Mist.Tests.Backend.Razor;
 
@@ -98,18 +99,10 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AMistClassDerivingAComponentClassIsAComponentTransitivelyAndInheritsItsParameters()
     {
-        var unit = Unit("Components/Fancy.mist",
-            """
-            public class Fancier : Fancy
-            {
-                [Parameter] public string Title { get; set; } = "";
-            }
-
-            public class Fancy : Counter
-            {
-                [Parameter] public int Step { get; set; }
-            }
-            """);
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Components/Fancy.mist",
+            CatalogAst.Class("Fancier", ast.Base("Fancy"), [ast.Property("Title", "string")]),
+            CatalogAst.Class("Fancy", ast.Base("Counter"), [ast.Property("Step", "int")]));
 
         var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), [unit],
             [Component("App.Components.Counter", "[Parameter] public int Count { get; set; }\n[Parameter] public int Title { get; set; }")]);
@@ -127,14 +120,8 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AMistClassDerivingAClrComponentThroughAUsingIsAComponentAndInheritsItsParameters()
     {
-        var unit = Unit("Layout/MainLayout.mist",
-            $$"""
-            using {{Components}};
-
-            public class MainLayout : LayoutComponentBase
-            {
-            }
-            """);
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Layout/MainLayout.mist", [CatalogAst.Class("MainLayout", ast.Base("LayoutComponentBase"))], usings: [Components]);
 
         var layout = Resolved(Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []), "MainLayout", Scope("App.Layout"));
 
@@ -145,7 +132,8 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AMistClassImplementingTheComponentInterfaceIsAComponent()
     {
-        var unit = Unit("Direct.mist", $"public class Direct : {Components}.IComponent\n{{\n}}\n");
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Direct.mist", CatalogAst.Class("Direct", ast.Base($"{Components}.IComponent")));
 
         Assert.Equal("App.Direct", Resolved(Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []), "Direct", Scope("App")).FullName);
     }
@@ -153,23 +141,12 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AClassWithoutAComponentBaseIsNotAComponent()
     {
-        var unit = Unit("Models/Model.mist",
-            $$"""
-            using {{Components}};
-
-            public class Model : Record
-            {
-                [Parameter] public int Count { get; set; }
-            }
-
-            public class Record
-            {
-            }
-
-            public abstract Shape
-            {
-            }
-            """);
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Models/Model.mist", [
+            CatalogAst.Class("Model", ast.Base("Record"), [ast.Property("Count", "int")]),
+            CatalogAst.Class("Record"),
+            CatalogAst.Class("Shape", keyword: new AbstractKeywordTypeKeywordNode()),
+        ], usings: [Components]);
 
         var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []);
 
@@ -180,7 +157,8 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void ABaseCycleIsNotAComponentAndDoesNotStopTheBuild()
     {
-        var unit = Unit("Cycle.mist", "public class Ping : Pong\n{\n}\n\npublic class Pong : Ping\n{\n}\n");
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Cycle.mist", CatalogAst.Class("Ping", ast.Base("Pong")), CatalogAst.Class("Pong", ast.Base("Ping")));
 
         var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []);
 
@@ -190,10 +168,11 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AMistClassIsNamedByItsDeclaredOrInferredNamespace()
     {
+        var ast = new CatalogAst();
         var units = ImmutableArray.Create(
-            Unit("Widgets/Inferred.mist", $"public class Inferred : {Components}.ComponentBase\n{{\n}}\n"),
-            Unit("Widgets/Declared.mist", $"namespace Other.Place;\n\npublic class Declared : {Components}.ComponentBase\n{{\n}}\n"),
-            Unit("Widgets/Blocks.mist", $"namespace Outer\n{{\n    namespace Inner\n    {{\n        public class Nested : {Components}.ComponentBase\n        {{\n        }}\n    }}\n}}\n"));
+            ast.Unit("Widgets/Inferred.mist", CatalogAst.Class("Inferred", ast.Base($"{Components}.ComponentBase"))),
+            ast.Unit("Widgets/Declared.mist", [CatalogAst.Class("Declared", ast.Base($"{Components}.ComponentBase"))], declaredNamespace: "Other.Place"),
+            ast.BlockUnit("Widgets/Blocks.mist", "Outer", "Inner", CatalogAst.Class("Nested", ast.Base($"{Components}.ComponentBase"))));
 
         var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), units, []);
 
@@ -205,9 +184,10 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void ABaseNameResolvesThroughTheEnclosingNamespacesAndTheGlobalUsings()
     {
+        var ast = new CatalogAst();
         var units = ImmutableArray.Create(
-            Unit("Shared/Base.mist", "public class SharedBase : ComponentBase\n{\n}\n"),
-            Unit("Shared/Deep/Derived.mist", "public class Derived : SharedBase\n{\n}\n"));
+            ast.Unit("Shared/Base.mist", CatalogAst.Class("SharedBase", ast.Base("ComponentBase"))),
+            ast.Unit("Shared/Deep/Derived.mist", CatalogAst.Class("Derived", ast.Base("SharedBase"))));
 
         var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), units, [], [Components]);
 
@@ -217,7 +197,8 @@ public sealed class CatalogBuilderTests
     [Fact]
     public void AGenericMistComponentRecordsItsArity()
     {
-        var unit = Unit("Grid.mist", $"public class Grid<TItem, TKey> : {Components}.ComponentBase\n{{\n}}\n");
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Grid.mist", CatalogAst.Class("Grid", ast.Base($"{Components}.ComponentBase"), typeParameters: ["TItem", "TKey"]));
 
         Assert.Equal(2, Resolved(Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []), "Grid", Scope("App")).TypeParameterCount);
     }
@@ -259,6 +240,86 @@ public sealed class CatalogBuilderTests
         var virtualize = Resolved(Build(), "Virtualize", Scope($"{Components}.Web"));
 
         Assert.Equal(($"{Components}.Web.Virtualize", 1), (virtualize.FullName, virtualize.TypeParameterCount));
+    }
+
+    [Fact]
+    public void AClrComponentWithFiveTypeParametersIsFoundWithoutAnArityLimit()
+    {
+        var component = Resolved(Build(), "Five", Scope(Components));
+
+        Assert.Equal(($"{Components}.Five", 5), (component.FullName, component.TypeParameterCount));
+    }
+
+    [Theory]
+    [InlineData("string", nameof(ParameterShape.String))]
+    [InlineData("string?", nameof(ParameterShape.String))]
+    [InlineData("RenderFragment", nameof(ParameterShape.RenderFragment))]
+    [InlineData("RenderFragment<Item>", nameof(ParameterShape.TemplatedFragment))]
+    [InlineData("EventCallback<int>", nameof(ParameterShape.EventCallback))]
+    [InlineData("int", nameof(ParameterShape.Plain))]
+    public void AConstructedMistBaseSubstitutesInheritedParametersBeforeDecidingTheirShape(string argument, string shape)
+    {
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Generic.mist",
+            CatalogAst.Class("Derived", ast.Base("Middle", argument)),
+            CatalogAst.Class("Middle", ast.Base("Base", "U"), typeParameters: ["U"]),
+            CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"),
+                [ast.Property("Value", "T"), ast.Property("Rows", "RenderFragment<T>"), ast.Property("Items", "T[]")], ["T"]));
+
+        var component = Resolved(Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], []), "Derived", Scope("App"));
+
+        Assert.Equal(("Value", argument, Enum.Parse<ParameterShape>(shape)), Facts(component.Parameters).First());
+        Assert.Equal($"RenderFragment<{argument}>", component.Parameters[1].TypeText);
+        Assert.Equal(argument + "[]", component.Parameters[2].TypeText);
+    }
+
+    [Fact]
+    public void AnInheritsConstructedMistBaseSubstitutesItsInheritedParameters()
+    {
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Generic.mist", CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), [ast.Property("Value", "T")], ["T"]));
+        var source = new ComponentSource("App.Shell", "Base<string>", Scope("App"), []);
+
+        var component = Resolved(Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], [source]), "Shell", Scope("App"));
+
+        Assert.Equal([("Value", "string", ParameterShape.String)], Facts(component.Parameters));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AConstructedClrBaseSubstitutesInheritedParameterTypes(bool componentFile)
+    {
+        var ast = new CatalogAst();
+        var unit = ast.Unit("Shell.mist", CatalogAst.Class("Shell", ast.Base($"{Components}.GenericBase", "string")));
+        var source = new ComponentSource("App.Shell", "GenericBase<string>", Scope("App", Components), []);
+        var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), componentFile ? [] : [unit], componentFile ? [source] : []);
+
+        Assert.Equal(
+            [("Value", "string", ParameterShape.String), ("Items", "string[]", ParameterShape.Plain)],
+            Facts(Resolved(catalog, "Shell", Scope("App")).Parameters));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NestedMistComponentsResolveWithTheirContainingNamesAndScope(bool structContainer)
+    {
+        var ast = new CatalogAst();
+        var nestedBase = CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), [ast.Property("Title", "string")]);
+        var nestedDerived = CatalogAst.Class("Inner", ast.Base("Base"));
+        var middle = CatalogAst.Class("Middle", members: [new NestedBodyTypeMemberMemberDeclarationNode { NestedBody = nestedDerived }]);
+        var outer = CatalogAst.Class("Outer", members:
+        [
+            new NestedBodyTypeMemberMemberDeclarationNode { NestedBody = nestedBase },
+            new NestedBodyTypeMemberMemberDeclarationNode { NestedBody = middle },
+        ], keyword: structContainer ? new StructKeywordTypeKeywordNode() : new ClassKeywordTypeKeywordNode());
+        var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), [ast.Unit("Nested.mist", outer)], []);
+
+        var component = Resolved(catalog, "Outer.Middle.Inner", Scope("App"));
+        Assert.Equal("App.Outer.Middle.Inner", component.FullName);
+        Assert.Equal([("Title", "string", ParameterShape.String)], Facts(component.Parameters));
+        Assert.Equal(ResolutionKind.Unknown, catalog.Resolve("Outer", Scope("App")).Kind);
     }
 
     [Fact]
@@ -321,16 +382,6 @@ public sealed class CatalogBuilderTests
     {
         var span = new SourceSpan(0, members.Length);
         return new CodeBlock(new CodeRegion(members, span), span);
-    }
-
-    private static CompilationUnit Unit(string relativePath, string contents)
-    {
-        var source = new SourceText(Path.Combine(Folder, relativePath), contents);
-        var diagnostics = new DiagnosticBag();
-        var parsed = Parser.Parse(Lexer.Lex(source, diagnostics), diagnostics);
-        Assert.Empty(diagnostics.ToImmutableArray());
-        Assert.Empty(parsed.Diagnostics);
-        return new CompilationUnit(source, "App", Folder) { Ast = parsed.Root };
     }
 
     private static ComponentScope Scope(params string[] namespaces)

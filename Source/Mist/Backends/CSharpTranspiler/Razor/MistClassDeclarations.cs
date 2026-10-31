@@ -16,7 +16,7 @@ internal sealed record MistClass(
     ImmutableArray<string> BaseNames,
     ImmutableArray<string> Scope,
     ImmutableArray<ParameterFacts> Parameters,
-    int TypeParameterCount,
+    ImmutableArray<string> TypeParameters,
     bool IsComponentClass);
 
 internal sealed record ComponentSource(string FullName, string? BaseTypeText, ComponentScope Scope, ImmutableArray<CodeBlock> CodeBlocks);
@@ -71,9 +71,7 @@ internal static class MistClassDeclarations
             .SelectMany(block => ParseClassBody(simpleName, block, lexer, parser, operation))
             .ToImmutableArray();
         var baseText = component.BaseTypeText ?? ComponentBase;
-        var open = baseText.IndexOf('<');
-        var baseName = (open < 0 ? baseText : baseText[..open]).Trim();
-        return new MistClass(component.FullName, [baseName], component.Scope.Namespaces, parameters, 0, IsComponentClass: true);
+        return new MistClass(component.FullName, [baseText], component.Scope.Namespaces, parameters, [], IsComponentClass: true);
     }
 
     private static IEnumerable<ParameterFacts> ParseClassBody(
@@ -122,18 +120,28 @@ internal static class MistClassDeclarations
     private static void Declare(
         TypeDeclarationNode declaration, string namespaceName, SourceText source, ImmutableArray<string> usings, List<MistClass> classes)
     {
-        if(declaration is not BodyTypeTypeDeclarationNode { TypeBody: { Keyword: ClassKeywordTypeKeywordNode } body })
+        if(declaration is not BodyTypeTypeDeclarationNode { TypeBody: var body })
         {
             return;
         }
 
-        var bases = body.BaseList is { } list
-            ? list.BaseTypeRefs.Prepend(list.First).Select(entry => QualifiedNameHelper.Build(entry.Name)).ToImmutableArray()
-            : [];
-        var scope = Enclosing(namespaceName).Concat(usings).ToImmutableArray();
-        var arity = body.TypeParams is { } typeParameters ? typeParameters.TypeParameters.Length + 1 : 0;
         var fullName = string.IsNullOrEmpty(namespaceName) ? body.Name.Lexeme : $"{namespaceName}.{body.Name.Lexeme}";
-        classes.Add(new MistClass(fullName, bases, scope, [.. Parameters(body.Members, source)], arity, IsComponentClass: false));
+        if(body.Keyword is ClassKeywordTypeKeywordNode)
+        {
+            var bases = body.BaseList is { } list
+                ? list.BaseTypeRefs.Prepend(list.First).Select(entry => source.Contents.Substring(entry.Span.Start, entry.Span.Length)).ToImmutableArray()
+                : [];
+            var scope = Enclosing(namespaceName).Concat(usings).ToImmutableArray();
+            var typeParameters = body.TypeParams is { } listParameters
+                ? listParameters.TypeParameters.Prepend(listParameters.TypeParameter).Select(parameter => parameter.GetName().Lexeme).ToImmutableArray()
+                : [];
+            classes.Add(new MistClass(fullName, bases, scope, [.. Parameters(body.Members, source)], typeParameters, IsComponentClass: false));
+        }
+
+        foreach(var nested in body.Members.OfType<NestedBodyTypeMemberMemberDeclarationNode>())
+        {
+            Declare(new BodyTypeTypeDeclarationNode { TypeBody = nested.NestedBody }, fullName, source, usings, classes);
+        }
     }
 
     private static IEnumerable<string> Enclosing(string namespaceName)

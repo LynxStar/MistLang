@@ -42,13 +42,13 @@ internal sealed class CatalogBuilder
         var mistComponents = builder.classes.Values
             .Where(declaration => builder.components.Contains(declaration.FullName))
             .Select(declaration => new ComponentFacts(
-                declaration.FullName, builder.Parameters(declaration, []), declaration.TypeParameterCount, IsMist: true));
+                declaration.FullName, builder.Parameters(declaration, []), declaration.TypeParameters.Length, IsMist: true));
         return new ComponentCatalog([.. mistComponents], clr.Find, clr.Events());
     }
 
     private bool BaseIsComponent(string baseName, ImmutableArray<string> scope)
     {
-        var candidates = Candidates(baseName, scope).ToArray();
+        var candidates = Candidates(CatalogTypeText.Parse(baseName).Name, scope).ToArray();
         return candidates.FirstOrDefault(classes.ContainsKey) is { } mist
             ? components.Contains(mist)
             : candidates.Any(clr.IsComponentBase);
@@ -72,14 +72,15 @@ internal sealed class CatalogBuilder
 
     private ImmutableArray<ParameterFacts> Inherited(string baseName, ImmutableArray<string> scope, HashSet<string> visiting)
     {
-        foreach(var candidate in Candidates(baseName, scope))
+        var baseType = CatalogTypeText.Parse(baseName);
+        foreach(var candidate in Candidates(baseType.Name, scope))
         {
             if(classes.TryGetValue(candidate, out var mist))
             {
-                return Parameters(mist, visiting);
+                return CatalogTypeText.Substitute(Parameters(mist, visiting), mist.TypeParameters, baseType.Arguments);
             }
 
-            if(clr.Find(candidate) is { } facts)
+            if(clr.FindBase(candidate, baseType.Arguments) is { } facts)
             {
                 return facts.Parameters;
             }

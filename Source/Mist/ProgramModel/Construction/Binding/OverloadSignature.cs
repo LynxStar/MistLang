@@ -46,6 +46,13 @@ internal static class OverloadSignature
             && signature == Of(earlier, inherited ?? TypeSubstitution.Empty, interner);
     }
 
+    public static bool RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner? interner)
+    {
+        return later.DeclarationNode is not null
+            && Of(later, TypeSubstitution.Empty, null) is { } signature
+            && signature == Of(earlier, inherited, interner);
+    }
+
     public static string? ExtensionReceiver(ExtensionBlock block)
     {
         return block.ResolvedReceiverType is { } receiver

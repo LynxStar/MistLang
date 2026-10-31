@@ -200,7 +200,7 @@ internal static class SlotSignatures
         return true;
     }
 
-    private static bool SameReturnPassing(MemberModifiers slot, MemberModifiers filler)
+    internal static bool SameReturnPassing(MemberModifiers slot, MemberModifiers filler)
     {
         return slot.IsRef == filler.IsRef && slot.ReturnsReadonlyRef == filler.ReturnsReadonlyRef;
     }

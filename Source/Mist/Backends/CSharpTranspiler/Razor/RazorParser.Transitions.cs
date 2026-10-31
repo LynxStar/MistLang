@@ -83,7 +83,20 @@ internal sealed partial class RazorParser
     private ImplicitExpression ParseImplicitExpression(int limit)
     {
         var start = position;
-        var end = ScanIdentifier(start + 1);
+        var (end, unclosed) = ScanImplicitExpression(start + 1, limit);
+        if(unclosed >= 0)
+        {
+            Report(RazorDiagnostics.UnterminatedCodeRegion, start, unclosed + 1 - start, new EnumValue("implicit expression"));
+            end = Math.Min(EndOfLine(unclosed), limit);
+        }
+
+        position = end;
+        return new ImplicitExpression(new CodeRegion(text[(start + 1)..end], new SourceSpan(start + 1, end - start - 1)), SpanFrom(start));
+    }
+
+    private (int End, int Unclosed) ScanImplicitExpression(int nameStart, int limit)
+    {
+        var end = ScanIdentifier(nameStart);
         while(end < limit)
         {
             if(text[end] == '.' && end + 1 < limit && IsIdentifierStart(text[end + 1]))
@@ -100,16 +113,13 @@ internal sealed partial class RazorParser
             var close = MistBalancer.FindClose(text, end);
             if(close < 0 || close >= limit)
             {
-                Report(RazorDiagnostics.UnterminatedCodeRegion, start, end + 1 - start, new EnumValue("implicit expression"));
-                end = Math.Min(EndOfLine(end), limit);
-                break;
+                return (end, end);
             }
 
             end = close + 1;
         }
 
-        position = end;
-        return new ImplicitExpression(new CodeRegion(text[(start + 1)..end], new SourceSpan(start + 1, end - start - 1)), SpanFrom(start));
+        return (end, -1);
     }
 
     private StatementBlock ParseStatementBlock()

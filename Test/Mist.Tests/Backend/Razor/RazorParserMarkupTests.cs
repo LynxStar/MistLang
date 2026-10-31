@@ -78,6 +78,35 @@ public sealed class RazorParserMarkupTests
         Assert.Equal(" end", Assert.IsType<MarkupText>(parts[4]).Text);
     }
 
+    [Theory]
+    [InlineData("<a href=\"@Url(\"Index\")\">x</a>", "Url(\"Index\")")]
+    [InlineData("<p title=\"@(n + \"!\")\">a</p>", "n + \"!\"")]
+    [InlineData("<p title='@(c == 'x' ? \"a\" : \"b\")'>a</p>", "c == 'x' ? \"a\" : \"b\"")]
+    [InlineData("<p title='@Pick(\"a\", 'b')'>a</p>", "Pick(\"a\", 'b')")]
+    public void AQuoteInsideACodeRegionDoesNotEndTheAttributeValue(string markup, string code)
+    {
+        var element = RazorParse.Single<MarkupElement>(markup);
+
+        var part = Assert.Single(Value(element).Parts);
+        var region = part is ImplicitExpression implicitPart ? implicitPart.Code : Assert.IsType<ExplicitExpression>(part).Code;
+        Assert.Equal(code, region.Text);
+        Assert.Equal(code, markup.Substring(region.Span.Start, region.Span.Length));
+        _ = Assert.IsType<MarkupText>(Assert.Single(element.Children));
+    }
+
+    [Fact]
+    public void AnAttributeValueMixesTextWithCodeRegionsHoldingQuotes()
+    {
+        var element = RazorParse.Single<MarkupElement>("<p title=\"say @Format(\"x\") and @(n + \"!\") \" data-x=\"y\">a</p>");
+
+        Assert.Equal(["title", "data-x"], element.Attributes.Cast<HtmlAttribute>().Select(attribute => attribute.Name));
+        var parts = Assert.IsType<HtmlAttribute>(element.Attributes[0]).Value!.Parts;
+        Assert.Equal(5, parts.Length);
+        Assert.Equal("Format(\"x\")", Assert.IsType<ImplicitExpression>(parts[1]).Code.Text);
+        Assert.Equal(" and ", Assert.IsType<MarkupText>(parts[2]).Text);
+        Assert.Equal("n + \"!\"", Assert.IsType<ExplicitExpression>(parts[3]).Code.Text);
+    }
+
     [Fact]
     public void AnAtBetweenLettersIsAnEmailAddressNotATransition()
     {
@@ -159,6 +188,7 @@ public sealed class RazorParserMarkupTests
     [InlineData("<button @onclick=\"@Increment\">a</button>", "Increment")]
     [InlineData("<button @onclick=\"@(() => count = count + 1)\">a</button>", "() => count = count + 1")]
     [InlineData("<button @onclick='() => Say(\"hi\")'>a</button>", "() => Say(\"hi\")")]
+    [InlineData("<button @onclick=\"@(e => heading = \"New heading!!!\")\">a</button>", "e => heading = \"New heading!!!\"")]
     public void ADirectiveAttributeValueMayRepeatTheTransition(string markup, string code)
     {
         var element = RazorParse.Single<MarkupElement>(markup);
@@ -178,6 +208,32 @@ public sealed class RazorParserMarkupTests
             [("Title", "Counter says"), ("Count", "count")],
             component.Attributes.Cast<HtmlAttribute>().Select(attribute => (attribute.Name, Assert.IsType<MarkupText>(Assert.Single(attribute.Value!.Parts)).Text)));
         Assert.Equal("em", Assert.IsType<MarkupElement>(Assert.Single(component.Children)).Name);
+    }
+
+    [Theory]
+    [InlineData("<Link Href=\"/x\">Home</Link>", "Link")]
+    [InlineData("<Source Name=\"a\"><p>x</p></Source>", "Source")]
+    [InlineData("<Meta>t</Meta>", "Meta")]
+    [InlineData("<Input>t</Input>", "Input")]
+    public void AComponentNamedLikeAVoidElementTakesChildrenAndAnEndTag(string markup, string name)
+    {
+        var component = RazorParse.Single<MarkupElement>(markup);
+
+        Assert.Equal(name, component.Name);
+        Assert.NotEmpty(component.Children);
+        _ = Assert.NotNull(component.EndTag);
+    }
+
+    [Theory]
+    [InlineData("<Style>t <b>x</b> @x</Style>", "Style")]
+    [InlineData("<Script>t <b>x</b> @x</Script>", "Script")]
+    public void AComponentNamedLikeARawTextElementHoldsMarkupChildren(string markup, string name)
+    {
+        var component = RazorParse.Single<MarkupElement>(markup);
+
+        Assert.Equal(name, component.Name);
+        Assert.Equal("b", Assert.IsType<MarkupElement>(component.Children[1]).Name);
+        Assert.Equal("x", Assert.IsType<ImplicitExpression>(component.Children[3]).Code.Text);
     }
 
     [Fact]

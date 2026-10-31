@@ -221,11 +221,15 @@ The dialect the scanner fixes, beyond the transitions above:
   is only `@name`, `@name.Member` or `@Name text` is an implicit expression. `@(name) text` writes an
   expression followed by text on such a line.
 - In code mode, markup begins at the first non-blank character of a line or the first after `{`, `}` or `;`,
-  when that character is `<` followed by a letter, `</`, or `@:`; `<text>` is a `TextTag` only there, and an
-  ordinary element in markup. `@*` is a comment in either mode.
+  when that character is `<` followed by a letter, `</`, `<!--` (an HTML comment), or `@:`; `<text>` is a
+  `TextTag` only there, and an ordinary element in markup. `@*` is a comment in either mode.
 - `@` between two letters or digits, as in an e-mail address, is literal text, as in Razor.
 - The void HTML elements (`br`, `input`, `img` and the rest of the HTML list) take no end tag; `script` and
-  `style` bodies are text with transitions and no tags.
+  `style` bodies are text with transitions and no tags. Both lists are lowercase names matched exactly, so
+  `<Link>`, `<Meta>` or `<Style>` is a component with an end tag and markup children.
+- A quoted attribute value ends at the first matching quote outside a Code_Region: an `@( … )` or implicit
+  expression inside it is balanced first, so `title="@Format("x")"` is one value. An attribute name cannot
+  begin with a quote or `=`; one that does leaves the start tag *Unclosed element*.
 - A directive attribute's value is a Code_Region, quoted or not, and a leading `@` or `@( … )` inside the
   quotes is dropped; `@name:parameter` splits at the first colon.
 - Recovery: an end tag naming an open ancestor reports *Unclosed element* for each element it skips; any other

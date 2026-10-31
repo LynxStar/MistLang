@@ -72,7 +72,7 @@ internal sealed partial class RazorParser
 
     private bool AtCodeMarkup()
     {
-        return (Peek() == '<' && (IsTagNameStart(Peek(1)) || Peek(1) == '/')) || At("@:");
+        return (Peek() == '<' && (IsTagNameStart(Peek(1)) || Peek(1) == '/')) || At("<!--") || At("@:");
     }
 
     private RazorNode? ParseCodeMarkup()
@@ -80,6 +80,11 @@ internal sealed partial class RazorParser
         if(At("@*"))
         {
             return ParseRazorComment();
+        }
+
+        if(At("<!--"))
+        {
+            return ParseHtmlComment();
         }
 
         if(At("@:"))

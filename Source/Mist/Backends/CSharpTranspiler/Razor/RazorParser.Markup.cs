@@ -7,12 +7,12 @@ namespace Mist.Backends.CSharpTranspiler.Razor;
 
 internal sealed partial class RazorParser
 {
-    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> VoidElements = new(StringComparer.Ordinal)
     {
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr",
     };
 
-    private static readonly HashSet<string> RawTextElements = new(StringComparer.OrdinalIgnoreCase) { "script", "style" };
+    private static readonly HashSet<string> RawTextElements = new(StringComparer.Ordinal) { "script", "style" };
 
     private enum StartTagEnd
     {
@@ -136,7 +136,7 @@ internal sealed partial class RazorParser
     {
         var end = index + 2 + name.Length;
         return At(index, "</")
-            && string.Compare(text, index + 2, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0
+            && string.CompareOrdinal(text, index + 2, name, 0, name.Length) == 0
             && (end >= text.Length || !IsTagNamePart(text[end]));
     }
 
@@ -274,6 +274,11 @@ internal sealed partial class RazorParser
     private MarkupAttribute? ParseAttribute()
     {
         var start = position;
+        if(text[start] is '"' or '\'' or '=')
+        {
+            return null;
+        }
+
         var nameEnd = position + 1;
         while(nameEnd < text.Length && !char.IsWhiteSpace(text[nameEnd]) && text[nameEnd] is not ('=' or '>' or '<' or '"' or '\'') && !At(nameEnd, "/>"))
         {
@@ -296,7 +301,7 @@ internal sealed partial class RazorParser
 
         if(text[valueStart] is '"' or '\'')
         {
-            var close = text.IndexOf(text[valueStart], valueStart + 1);
+            var close = FindQuotedValueClose(valueStart);
             return close < 0 ? null : Attribute(start, nameSpan, (valueStart + 1, close), close + 1);
         }
 
@@ -307,6 +312,40 @@ internal sealed partial class RazorParser
         }
 
         return Attribute(start, nameSpan, (valueStart, valueEnd), valueEnd);
+    }
+
+    private int FindQuotedValueClose(int open)
+    {
+        var index = open + 1;
+        while(index < text.Length && text[index] != text[open])
+        {
+            index = text[index] == '@' ? SkipValueTransition(index) : index + 1;
+        }
+
+        return index < text.Length ? index : -1;
+    }
+
+    private int SkipValueTransition(int at)
+    {
+        var next = at + 1 < text.Length ? text[at + 1] : '\0';
+        if(next == '@')
+        {
+            return at + 2;
+        }
+
+        if(next == '(')
+        {
+            var close = MistBalancer.FindClose(text, at + 1);
+            return close < 0 ? at + 1 : close + 1;
+        }
+
+        if(!IsIdentifierStart(next) || IsEmailAt(at))
+        {
+            return at + 1;
+        }
+
+        var (end, unclosed) = ScanImplicitExpression(at + 1, text.Length);
+        return unclosed < 0 ? end : unclosed;
     }
 
     private MarkupAttribute Attribute(int start, SourceSpan nameSpan, (int Start, int End)? value, int end)

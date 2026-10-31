@@ -20,6 +20,19 @@ public sealed class RazorParserMalformedTests
         Assert.Equal("The element 'div' is opened here and never closed.", error.Message);
     }
 
+    [Theory]
+    [InlineData("<p \"x\">a</p>")]
+    [InlineData("<p title=\"a\" 'b'>a</p>")]
+    [InlineData("<p =\"x\">a</p>")]
+    public void AnAttributeNameStartingWithAQuoteOrEqualsLeavesTheStartTagUnclosed(string markup)
+    {
+        var (tree, diagnostics) = RazorParse.Text(markup);
+
+        Assert.True(tree.HasErrors);
+        Assert.Same(RazorDiagnostics.UnclosedElement, diagnostics[0].Descriptor);
+        Assert.Equal((0, 2), RazorParse.Where(diagnostics[0]));
+    }
+
     [Fact]
     public void AnEndTagClosingAnAncestorReportsTheUnclosedChildOnce()
     {
@@ -72,6 +85,8 @@ public sealed class RazorParserMalformedTests
     [InlineData("@code\n<p>a</p>", 0, 5, "code block")]
     [InlineData("@* never closed", 0, 2, "comment")]
     [InlineData("@Show(a, \")\"", 0, 6, "implicit expression")]
+    [InlineData("<p class=\"@(a\">x</p>", 10, 2, "explicit expression")]
+    [InlineData("<p class=\"@Show(a\">x</p>", 10, 6, "implicit expression")]
     public void ACodeRegionWithoutItsCloseIsUnterminatedAtTheTransition(string markup, int offset, int length, string region)
     {
         var error = RazorParse.Error(markup);

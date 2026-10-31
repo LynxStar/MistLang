@@ -176,6 +176,19 @@ public sealed class RazorParserCodeTests
     }
 
     [Fact]
+    public void AnHtmlCommentAtAStatementStartIsMarkup()
+    {
+        var control = RazorParse.Single<ControlBlock>("@if (a) { <!-- c --> }");
+        var block = RazorParse.Single<StatementBlock>("@{\n    <!-- } -->\n    var a = 1;\n}");
+
+        var comment = Assert.IsType<HtmlComment>(Assert.Single(Assert.Single(control.Arms).Body));
+        Assert.Equal("<!-- c -->", comment.Text);
+        Assert.Equal(new SourceSpan(10, 10), comment.Span);
+        Assert.Equal("<!-- } -->", Assert.IsType<HtmlComment>(block.Body[0]).Text);
+        Assert.Equal("var a = 1;", Assert.IsType<CodeRegion>(block.Body[1]).Text);
+    }
+
+    [Fact]
     public void ARazorCommentInCodeIsItsOwnNode()
     {
         var block = RazorParse.Single<StatementBlock>("@{ @* not } code *@ var a = 1; }");

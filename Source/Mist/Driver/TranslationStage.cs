@@ -42,7 +42,7 @@ internal sealed class TranslationStage(ILexer lexer, IParser parser, ICompilatio
                 {
                     _ = Directory.CreateDirectory(Path.GetDirectoryName(generatedPath)!);
                     File.WriteAllText(generatedPath, unit.Text.Contents);
-                    source = new SourceText(generatedPath, unit.Text.Contents);
+                    source = new SourceText(generatedPath, unit.Text.Contents) { Origin = unit.Text.Origin };
                 }
                 catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
                 {

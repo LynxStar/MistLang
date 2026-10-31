@@ -8,14 +8,14 @@ namespace Mist.Tests.Driver;
 public sealed class BackendRegistryTests
 {
     [Fact]
-    public void DefaultRegistry_ResolvesOnlyCSharpWithoutClaims()
+    public void DefaultRegistry_ResolvesOnlyCSharpClaimingComponentFiles()
     {
         var registry = new BackendRegistry();
         var backend = Assert.IsAssignableFrom<IBackend>(registry.Resolve(BackendId.CSharp));
 
         Assert.Equal(BackendId.CSharp, backend.Id);
-        Assert.Empty(backend.SourceTranslators);
-        Assert.Empty(backend.ClaimedExtensions);
+        _ = Assert.Single(backend.SourceTranslators);
+        Assert.Equal([".razor"], backend.ClaimedExtensions.ToArray());
         Assert.Null(registry.Resolve(new BackendId("probe")));
     }
 

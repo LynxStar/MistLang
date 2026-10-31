@@ -144,4 +144,34 @@ public static class RazorDiagnostics
         Category: DiagnosticCategory.Dec,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
+
+    public static readonly MistDiagnostic DirectiveNotSupportedYet = new(
+        DiagnosticNumber.Mint("MIST0476"),
+        Title: "Directive not supported yet",
+        Template: "'@{name}' is a component directive the translator does not support yet.",
+        Description: "Razor defines the directive for components, but lowering it needs work the backend has not done: '@typeparam' needs the type arguments of generic components decided from markup, and '@preservewhitespace' needs the whitespace rules made optional. Remove the directive; a generic component can be declared in a .mist file, and the default whitespace rules apply to every component.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic UsingFormNotSupported = new(
+        DiagnosticNumber.Mint("MIST0477"),
+        Title: "Using form not supported",
+        Template: "'@using {form}' has no Mist form; a Mist using directive names a namespace.",
+        Description: "Razor accepts '@using static' and '@using Alias = Type' because C# has both, and Mist's using directive names a namespace and nothing else, so the directive cannot be lowered. Write '@using' with the namespace and qualify the static members or the aliased type where they are used.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("form", SlotKind.Text)]);
+
+    public static readonly MistDiagnostic UnknownDirectiveAttribute = new(
+        DiagnosticNumber.Mint("MIST0478"),
+        Title: "Unknown directive attribute",
+        Template: "'@{name}' is not a directive attribute the translator lowers on {target}.",
+        Description: "An attribute whose name begins with '@' is a directive attribute, and only '@on' events with ':preventDefault' and ':stopPropagation', '@bind' with ':event', ':format' and ':culture', '@key', '@ref' and '@attributes' on elements, and '@bind-', '@key', '@ref', '@attributes' and '@rendermode' on components are lowered. Correct the attribute's name, or remove it.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name), new Slot("target", SlotKind.Enum)]);
 }

@@ -266,7 +266,11 @@ divergence from Razor and is documented.
 
 For `fixture/Components/Counter.razor`, the translator writes, in order:
 
-1. The `using` directives: the Imports_Files' `@using`s outermost first, then the file's own.
+1. The `using` directives: `Microsoft.AspNetCore.Components` and `Microsoft.AspNetCore.Components.Rendering`,
+   then the Imports_Files' `@using`s outermost first, then the file's own, each namespace once. The first is
+   the import Razor gives every component, which `[Parameter]` and `RenderFragment` in the fixture's
+   `Greeting.razor` rely on; the second names `RenderTreeBuilder` for the render method. Mist's `using`
+   names a namespace only, so `@using static` and `@using Alias = Type` are *Using form not supported*.
 2. No `namespace`: the unit is placed by the inferred-namespace rule, so `Components/Counter.razor`
    lands in `RazorComponents.Components` like a `.mist` file beside it would. `@namespace` writes one.
 3. Attributes from directives: `[Route("/counter")]`, `[Layout(MainLayout)]`, each `@attribute`, and the
@@ -275,7 +279,9 @@ For `fixture/Components/Counter.razor`, the translator writes, in order:
 5. The Code_Block members verbatim, each a verbatim segment of the origin map.
 6. The render method.
 
-The render method for the fixture's `Counter.razor`:
+The render method for the fixture's `Counter.razor`, as task 5 measured it against the C# the Razor compiler
+generates for the same component (the whitespace calls 3, 9, 23 and 28 and the numbering after them are the
+measured change from the sketch this section first showed; the rules are in section 6):
 
 ```mist
 protected void BuildRenderTree(RenderTreeBuilder __builder)
@@ -286,49 +292,57 @@ protected void BuildRenderTree(RenderTreeBuilder __builder)
         __b1.AddContent(2, "Counter");
     }));
     __builder.CloseComponent();
-    __builder.AddMarkupContent(3, "<h1>Counter</h1>\n\n");
-    __builder.OpenElement(4, "p");
-    __builder.AddAttribute(5, "role", "status");
-    __builder.AddContent(6, "Current count: ");
-    __builder.AddContent(7, count);
+    __builder.AddMarkupContent(3, "\n\n");
+    __builder.AddMarkupContent(4, "<h1>Counter</h1>\n\n");
+    __builder.OpenElement(5, "p");
+    __builder.AddAttribute(6, "role", "status");
+    __builder.AddContent(7, "Current count: ");
+    __builder.AddContent(8, count);
     __builder.CloseElement();
-    __builder.OpenElement(8, "p");
-    __builder.AddContent(9, "The count is a ");
-    __builder.AddContent(10, int.Name);
-    __builder.AddContent(11, ".");
+    __builder.AddMarkupContent(9, "\n");
+    __builder.OpenElement(10, "p");
+    __builder.AddContent(11, "The count is a ");
+    __builder.AddContent(12, int.Name);
+    __builder.AddContent(13, ".");
     __builder.CloseElement();
     if (lastReset is void)
     {
-        __builder.AddMarkupContent(12, "<p>Never reset.</p>");
+        __builder.AddMarkupContent(14, "<p>Never reset.</p>");
     }
     else
     {
-        __builder.OpenElement(13, "p");
-        __builder.AddContent(14, "Last reset at count ");
-        __builder.AddContent(15, lastReset);
-        __builder.AddContent(16, ".");
+        __builder.OpenElement(15, "p");
+        __builder.AddContent(16, "Last reset at count ");
+        __builder.AddContent(17, lastReset);
+        __builder.AddContent(18, ".");
         __builder.CloseElement();
     }
-    __builder.OpenElement(17, "button");
-    __builder.AddAttribute(18, "class", "btn btn-primary");
-    __builder.AddAttribute(19, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, Increment));
-    __builder.AddContent(20, "Click me");
+    __builder.OpenElement(19, "button");
+    __builder.AddAttribute(20, "class", "btn btn-primary");
+    __builder.AddAttribute(21, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, Increment));
+    __builder.AddContent(22, "Click me");
     __builder.CloseElement();
-    __builder.OpenElement(21, "button");
-    __builder.AddAttribute(22, "class", "btn btn-secondary");
-    __builder.AddAttribute(23, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, Reset));
-    __builder.AddContent(24, "Reset");
+    __builder.AddMarkupContent(23, "\n");
+    __builder.OpenElement(24, "button");
+    __builder.AddAttribute(25, "class", "btn btn-secondary");
+    __builder.AddAttribute(26, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, Reset));
+    __builder.AddContent(27, "Reset");
     __builder.CloseElement();
-    __builder.OpenComponent<Greeting>(25);
-    __builder.AddComponentParameter(26, "Title", "Counter says");
-    __builder.AddComponentParameter(27, "Count", count);
-    __builder.AddComponentParameter(28, "ChildContent", (RenderFragment)((RenderTreeBuilder __b2) =>
+    __builder.AddMarkupContent(28, "\n\n");
+    __builder.OpenComponent<Greeting>(29);
+    __builder.AddComponentParameter(30, "Title", "Counter says");
+    __builder.AddComponentParameter(31, "Count", count);
+    __builder.AddComponentParameter(32, "ChildContent", (RenderFragment)((RenderTreeBuilder __b2) =>
     {
-        __b2.AddMarkupContent(29, "<em>Nested from the counter.</em>");
+        __b2.AddMarkupContent(33, "<em>Nested from the counter.</em>");
     }));
     __builder.CloseComponent();
 }
 ```
+
+Razor's own output makes the same 34 calls with the same numbers, passing child content through
+`AddAttribute` where this translation uses `AddComponentParameter`, which writes the same frame. The fixture's
+`Program.mist` renders the translated `Counter` to HTML byte-identical to the C# component's.
 
 Every expression, `count`, `int.Name`, `lastReset is void`, `Increment`, is a verbatim segment pointing at
 its `.razor` span; every builder call is a synthesized segment pointing at the element, attribute or tag it
@@ -356,7 +370,7 @@ fallback if a cast ever fails to target-type.
 | `@on<e>:stopPropagation` | `AddEventStopPropagationAttribute(seq, "on<e>", true)` |
 | `@key="k"` | `SetKey(k)` |
 | `@ref="f"` on element | `AddElementReferenceCapture(seq, (ElementReference __r) => { f = __r; })` |
-| `@ref="f"` on component `T` | `AddComponentReferenceCapture(seq, (object __r) => { f = (T)__r; })` |
+| `@ref="f"` on component `T` | `AddComponentReferenceCapture(seq, (System.Object __r) => { if (__r is T __c) { f = __c; } })` |
 | `@attributes="d"` | `AddMultipleAttributes(seq, d)` |
 | `@bind="f"` | `AddAttribute(seq, "value", BindConverter.FormatValue(f))`; `AddAttribute(seq, "onchange", EventCallback.Factory.CreateBinder(this, (T __v) => { f = __v; }, f))` |
 | `<Comp A="x">` | `OpenComponent<Comp>(seq)`; `AddComponentParameter(seq, "A", x or "x")`; `CloseComponent()` |
@@ -367,6 +381,57 @@ fallback if a cast ever fails to target-type.
 
 Sequence numbers count every call in source order, including the calls inside fragments, which is how the
 Razor compiler numbers them and what the differ relies on.
+
+**Decided at task 5, measured against the Razor compiler's output:**
+
+- An element's attributes lower in source order, events and `@attributes` in place; `SetKey` follows them,
+  then the reference capture. A component's parameters lower in source order, then its child content and
+  templates in child order, then `SetKey`, the reference capture and `AddComponentRenderMode`.
+- Mist has no downcast from `System.Object`, so a component reference narrows with `is` instead of the cast
+  Razor writes; `object` in a Mist lambda is the unknown type, so the parameter is `System.Object`.
+- An event's argument type is the catalog's full name, written without its namespace when the unit imports
+  it. A literal attribute value for an `EventCallback` parameter is wrapped in
+  `EventCallback.Factory.Create<T>(this, ...)`, as Razor does; a minimized one passes `true`.
+- `@bind`'s `T` is the declared type of the field or property of that name in the Code_Blocks; a value that
+  names no such member gets an untyped lambda. `:format` is a string literal and `:culture` an expression,
+  both passed by position, since Mist has no named arguments.
+- An attribute with no value or an empty one is `AddAttribute(seq, name)`; a mixed value parenthesizes each
+  expression, `"a " + (expr) + " b"`.
+- A `@{ ... }` block's code is written inline, without braces, so its locals reach the markup after it, as in
+  Razor. A control block is its Mist statement with the keyword and header copied.
+- An HTML comment is markup (Requirement 5.7) and folds with static siblings; Razor's component compiler drops
+  HTML comments instead, a divergence the requirement decides.
+
+**Whitespace (Requirement 5.8), measured at task 5.** Read from the C# that the Razor compiler of SDK
+10.0.113 generated for the fixture, rewritten in C#, and for probe components beside it in a throwaway Blazor
+project outside the repository; `MarkupWhitespaceTests` and `StaticMarkupTests` pin each rule:
+
+1. Whitespace-only text is dropped at the start and end of the file's root content, of each element's
+   children, of each component's child content and template, and of each block body.
+2. Whitespace-only text on either side of code, a control block, a `@{ ... }` block or a statement inside a
+   block, is dropped; a Razor comment between them changes nothing.
+3. Other whitespace-only text is kept: between root siblings (Counter's `"\n\n"` after `</PageTitle>` and
+   `"\n"` between its two `<p>` elements) and between the children of an element.
+4. Text that holds anything besides whitespace is kept whole, its leading and trailing whitespace included,
+   except that the line break ending a code block's line belongs to the block.
+5. Inside a block, the line break and indentation between two markup lines, elements, HTML comments or `@:`
+   lines, are markup; a `@:` line keeps its own line break; the indentation around a `<text>` tag is code,
+   and the tag's content stays apart from the text beside it.
+6. An element with no Code_Region, component or directive attribute anywhere inside is static, and static
+   siblings fold into one `AddMarkupContent`. A static node joins its static left sibling only when it has no
+   static content of its own, because Razor folds siblings in a postorder walk that meets an element's
+   children first: `"\n\n"` before `<h1>` stays its own call while `"<h1>Counter</h1>\n\n"` folds.
+7. Text that folds with no element is `AddContent` with its entities decoded, unless it holds a line break, a
+   tab, a character outside ASCII or an `&` that begins no decodable entity; then it is `AddMarkupContent` with
+   the text as written. Decoding uses `WebUtility.HtmlDecode`, which knows the HTML 4 entity names, so an
+   HTML5-only name stays markup where Razor would decode it.
+8. Static HTML is written as Razor writes it: a void element without an end tag, a self-closed non-void one
+   with its end tag, an empty attribute value minimized, a single-quoted value in single quotes and every
+   other value in double quotes.
+
+Requirement 5.8 says whitespace between the children of the file's root is dropped; the measured output keeps
+it (rule 3), and the translator follows the measurement, which is what the requirement's "as the Razor
+compiler drops it" and the acceptance criterion of task 5 ask.
 
 ### 7. Directives
 
@@ -387,7 +452,10 @@ Razor compiler numbers them and what the differ relies on.
 
 Imports_Files are resolved by walking from the project folder to the file's folder; their directives are
 prepended in that order, and `@inherits`, `@layout` and `@rendermode` from an inner file override an outer
-one, as Razor applies them.
+one, as Razor applies them. An Imports_File contributes only the directives Requirement 4.5 lists; its `@page` and
+`@namespace` are ignored. `@typeparam` and `@preservewhitespace` are *Directive not supported yet* wherever they
+appear. The render-mode attribute class is `__RenderModeAttribute`, nested in the component, its `Mode` an
+expression-bodied property, and the class carries `[<Name>.__RenderModeAttribute]`.
 
 A file with at least one `@inject` gets one synthesized public constructor: a parameter per injected member
 in directive order, a body that assigns each field, and no base call, since `ComponentBase` constructs
@@ -477,6 +545,9 @@ pack's from there. A file under the project's `wwwroot/` wins over a pack file a
 | `<Grid TItem="…">` | translator | *Generic component not supported* |
 | `@functions` | parser | *Functions directive not supported* |
 | a constructor in `@code` in a file that has an `@inject` | translator | *Constructor beside inject* at the constructor |
+| `@typeparam`, `@preservewhitespace` | translator | *Directive not supported yet* at the keyword; minted at task 5 as MIST0476 for Requirement 8.10, which Requirement 12.1 names no descriptor for |
+| `@using static X`, `@using A = B` | translator | *Using form not supported* at the directive; minted at task 5 as MIST0477 for Requirement 8.5 |
+| `@foo` on an element, `@rendermode` on an element, `@onclick` on a component | translator | *Unknown directive attribute* at the attribute's name; minted at task 5 as MIST0478 |
 | `pure` misuse, unresolved name, type error inside a Code_Region | Mist stages 4 and 5 | the ordinary Mist diagnostic, mapped to the `.razor` position |
 | `.razor` under a backend claiming nothing | nobody | ignored, as any non-`.mist` file is today |
 
@@ -558,5 +629,4 @@ The binding rules are the root `AGENTS.md` "Tests" section and `.claude/skills/t
 
 - **`mist run` content root**: decided in task 6, `--contentRoot <bin>` for a program referencing
   `Microsoft.AspNetCore.App`; section 9 records the reason.
-- **Whitespace fidelity.** Requirement 5.8 states Razor's default; the exact rules Razor applies are read
-  from its generated output for the fixture during task 5 and recorded as Tier 1 cases.
+- **Whitespace fidelity**: decided in task 5 from the Razor compiler's output; section 6 records the rules.

@@ -16,8 +16,11 @@ internal sealed record MistClass(
     ImmutableArray<string> BaseNames,
     ImmutableArray<string> Scope,
     ImmutableArray<ParameterFacts> Parameters,
-    ImmutableArray<string> TypeParameters,
-    bool IsComponentClass);
+    ImmutableArray<ImmutableArray<string>> TypeParameterScopes,
+    bool IsComponentClass)
+{
+    public ImmutableArray<string> TypeParameters => [.. TypeParameterScopes.SelectMany(scope => scope)];
+}
 
 internal sealed record ComponentSource(string FullName, string? BaseTypeText, ComponentScope Scope, ImmutableArray<CodeBlock> CodeBlocks);
 
@@ -118,7 +121,7 @@ internal static class MistClassDeclarations
     }
 
     private static void Declare(
-        TypeDeclarationNode declaration, string namespaceName, ImmutableArray<string> enclosingTypeParameters,
+        TypeDeclarationNode declaration, string namespaceName, ImmutableArray<ImmutableArray<string>> enclosingTypeParameterScopes,
         SourceText source, ImmutableArray<string> usings, List<MistClass> classes)
     {
         if(declaration is not BodyTypeTypeDeclarationNode { TypeBody: var body })
@@ -127,21 +130,22 @@ internal static class MistClassDeclarations
         }
 
         var fullName = string.IsNullOrEmpty(namespaceName) ? body.Name.Lexeme : $"{namespaceName}.{body.Name.Lexeme}";
-        var typeParameters = body.TypeParams is { } listParameters
-            ? enclosingTypeParameters.AddRange(listParameters.TypeParameters.Prepend(listParameters.TypeParameter).Select(parameter => parameter.GetName().Lexeme))
-            : enclosingTypeParameters;
+        var ownTypeParameters = body.TypeParams is { } listParameters
+            ? listParameters.TypeParameters.Prepend(listParameters.TypeParameter).Select(parameter => parameter.GetName().Lexeme).ToImmutableArray()
+            : [];
+        var typeParameterScopes = enclosingTypeParameterScopes.Add(ownTypeParameters);
         if(body.Keyword is ClassKeywordTypeKeywordNode)
         {
             var bases = body.BaseList is { } list
                 ? list.BaseTypeRefs.Prepend(list.First).Select(entry => source.Contents.Substring(entry.Span.Start, entry.Span.Length)).ToImmutableArray()
                 : [];
             var scope = Enclosing(namespaceName).Concat(usings).ToImmutableArray();
-            classes.Add(new MistClass(fullName, bases, scope, [.. Parameters(body.Members, source)], typeParameters, IsComponentClass: false));
+            classes.Add(new MistClass(fullName, bases, scope, [.. Parameters(body.Members, source)], typeParameterScopes, IsComponentClass: false));
         }
 
         foreach(var nested in body.Members.OfType<NestedBodyTypeMemberMemberDeclarationNode>())
         {
-            Declare(new BodyTypeTypeDeclarationNode { TypeBody = nested.NestedBody }, fullName, typeParameters, source, usings, classes);
+            Declare(new BodyTypeTypeDeclarationNode { TypeBody = nested.NestedBody }, fullName, typeParameterScopes, source, usings, classes);
         }
     }
 

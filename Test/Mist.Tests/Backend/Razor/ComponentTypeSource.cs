@@ -86,6 +86,7 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
 
         DefineNestedComponents(module, componentBaseType, parameter);
         DefineConstructedNestedComponents(module, componentBaseType, parameter);
+        NestedBaseMetadata.Define(module, componentBaseType, parameter, templatedType);
 
         var mouse = module.DefineType($"{Components}.Web.MouseEventArgs", TypeAttributes.Public, typeof(EventArgs)).CreateType();
         var handler = module.DefineType($"{Components}.EventHandlerAttribute", TypeAttributes.Public | TypeAttributes.Sealed, typeof(Attribute));

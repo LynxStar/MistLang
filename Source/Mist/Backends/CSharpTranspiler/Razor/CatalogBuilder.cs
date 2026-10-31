@@ -77,7 +77,7 @@ internal sealed class CatalogBuilder
         {
             if(classes.TryGetValue(candidate, out var mist))
             {
-                return CatalogTypeText.Substitute(Parameters(mist, visiting), mist.TypeParameters, baseType.Arguments);
+                return CatalogTypeText.Substitute(Parameters(mist, visiting), mist.TypeParameters, baseType.ArgumentsFor(mist.TypeParameterScopes));
             }
 
             if(clr.FindBase(candidate, baseType.Arguments) is { } facts)

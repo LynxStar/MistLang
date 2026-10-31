@@ -3,11 +3,14 @@ using System.Text;
 
 namespace Mist.Backends.CSharpTranspiler.Razor;
 
-internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Arguments)
+internal sealed record CatalogTypeSegment(string Name, ImmutableArray<string> Arguments);
+
+internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Arguments, ImmutableArray<CatalogTypeSegment> Segments)
 {
     public static CatalogTypeText Parse(string text)
     {
         var name = new StringBuilder();
+        var segments = ImmutableArray.CreateBuilder<CatalogTypeSegment>();
         var arguments = ImmutableArray.CreateBuilder<string>();
         var start = 0;
         var depth = 0;
@@ -20,6 +23,12 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
                 {
                     start = index + 1;
                     depth = 1;
+                }
+                else if(current == '.')
+                {
+                    segments.Add(new CatalogTypeSegment(name.ToString(), arguments.ToImmutable()));
+                    _ = name.Clear();
+                    arguments.Clear();
                 }
                 else if(!char.IsWhiteSpace(current))
                 {
@@ -45,7 +54,22 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
             }
         }
 
-        return new CatalogTypeText(name.ToString(), arguments.ToImmutable());
+        segments.Add(new CatalogTypeSegment(name.ToString(), arguments.ToImmutable()));
+        return new CatalogTypeText(string.Join('.', segments.Select(segment => segment.Name)),
+            [.. segments.SelectMany(segment => segment.Arguments)], segments.ToImmutable());
+    }
+
+    public ImmutableArray<string> ArgumentsFor(ImmutableArray<ImmutableArray<string>> typeParameterScopes)
+    {
+        var result = ImmutableArray.CreateBuilder<string>();
+        for(var index = 0; index < typeParameterScopes.Length; index++)
+        {
+            var segmentIndex = Segments.Length - typeParameterScopes.Length + index;
+            var supplied = segmentIndex >= 0 ? Segments[segmentIndex].Arguments : [];
+            result.AddRange(supplied.IsEmpty ? typeParameterScopes[index] : supplied);
+        }
+
+        return result.ToImmutable();
     }
 
     public static ImmutableArray<ParameterFacts> Substitute(

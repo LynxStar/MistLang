@@ -107,6 +107,11 @@ internal sealed class CatalogAst
         return result;
     }
 
+    public BaseTypeRefNode BaseText(string text)
+    {
+        return new BaseTypeRefNode { Span = Append(text) };
+    }
+
     public MemberDeclarationNode Property(string name, string type)
     {
         return new PropertyMemberMemberDeclarationNode

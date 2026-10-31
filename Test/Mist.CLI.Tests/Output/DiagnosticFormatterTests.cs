@@ -70,6 +70,32 @@ public class DiagnosticFormatterTests
         Assert.Equal("error MIST0036: Package 'BadPkg' version 'not-valid' could not be found", result);
     }
 
+    [Theory]
+    [InlineData(false, "Components/Counter.razor(2,3): error MIST005: Mapped")]
+    [InlineData(true, "Components/Counter.razor(2,3): error MIST005: Mapped (translated: out/translated/Counter.razor.mist(58,25))")]
+    public void Format_MappedGeneratedLocation_PrintsTheMappedPositionAndTheTranslatedOneOnlyWhenVerbose(bool verbose, string expected)
+    {
+        var razor = new SourceText("Components/Counter.razor", "<p>\n  @count\n</p>");
+        var mapped = new SourceRange(new SourceIdentity(razor), 6, 6);
+        var native = new LinePositionSpan(new LinePosition(58, 25), new LinePosition(58, 30));
+        var diagnostic = DiagnosticFixtures.Occurrence("MIST005", DiagnosticSeverity.Error, PipelineStage.Analysis, "Mapped",
+            new GeneratedLocation("out/translated/Counter.razor.mist", native, mapped));
+
+        Assert.Equal(expected, DiagnosticFormatter.Format(diagnostic, verbose));
+    }
+
+    [Fact]
+    public void Format_Verbose_LeavesEveryUnmappedShapeAsItIs()
+    {
+        var ranged = DiagnosticFixtures.Occurrence("MIST006", DiagnosticSeverity.Error, PipelineStage.Parsing, "Ranged",
+            new LinePositionSpan(new LinePosition(10, 5), new LinePosition(10, 8)), compilationUnitPath: "src/main.mist");
+        var generated = DiagnosticFixtures.Occurrence("MIST007", DiagnosticSeverity.Error, PipelineStage.Backend, "CS1",
+            new GeneratedLocation("out/Program.cs", new LinePositionSpan(new LinePosition(3, 4), new LinePosition(3, 5)), null));
+
+        Assert.Equal("src/main.mist(10,5): error MIST006: Ranged", DiagnosticFormatter.Format(ranged, verbose: true));
+        Assert.Equal("out/Program.cs: error MIST007: CS1", DiagnosticFormatter.Format(generated, verbose: true));
+    }
+
     [Fact]
     public void Format_WarningSeverity_UsesWarningLabel()
     {

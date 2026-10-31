@@ -134,6 +134,33 @@ public sealed class LocationResolutionTests
     }
 
     [Fact]
+    public void ANodeOrHandBuiltPlaceInATranslatedTextResolvesToAGeneratedLocationMappedIntoTheOriginal()
+    {
+        var razor = new Text("Counter.razor", "<p>\n@count</p>");
+        var translated = new Text("out/translated/Counter.razor.mist", "x(\ncount);")
+        {
+            Origin = new([
+                new OriginSegment(0, 3, razor, 4, 6, Verbatim: false),
+                new OriginSegment(3, 5, razor, 5, 5, Verbatim: true),
+                new OriginSegment(8, 2, razor, 4, 6, Verbatim: false),
+            ]),
+        };
+        var node = new BlockNode { Origin = new ParsedOrigin(translated), Span = new Storm.Runtime.SourceSpan(4, 2) };
+        var bag = new DiagnosticBag(PipelineStage.Parsing);
+
+        bag.ReportAt(Probe, new SourcePoint(new SourceIdentity(translated), 9));
+        bag.ReportAt(Probe, new SourceRange(new SourceIdentity(translated), 9, 2));
+
+        var native = new LinePositionSpan(new LinePosition(2, 2), new LinePosition(2, 4));
+        Assert.Equal(new GeneratedLocation(translated.Path, native, new SourceRange(new SourceIdentity(razor), 6, 2)),
+            DiagnosticHelper.ResolveLocation(node).Location);
+        var admitted = bag.ToImmutableArray();
+        Assert.Equal(new SourceRange(new SourceIdentity(razor), 4, 6), Assert.IsType<GeneratedLocation>(admitted[0].Location).Mapped);
+        Assert.Equal("Counter.razor(2,1): error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admitted[0]));
+        Assert.Equal(new Absent(AbsenceReason.OutOfBounds), admitted[1].Location);
+    }
+
+    [Fact]
     public void TestAndUnattachedOriginsAreAbsentWithTheirReason()
     {
         var test = new BlockNode { Origin = TestOrigin.Instance, Span = new Storm.Runtime.SourceSpan(0, 1) };

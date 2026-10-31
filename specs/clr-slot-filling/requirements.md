@@ -216,8 +216,9 @@ class that extends a CLR class fills `System.Object`'s slots through the chain l
    optional `unknown | void`, SHALL repeat a parameter whose projected type is `System.Object`, so
    `public bool Equals(object other)` fills `Object.Equals` instead of hiding it. The rule is
    confined to that comparison: `OverloadSignature.Repeats`, and with it the redeclaration and
-   overload rules between Mist members, is unchanged, and `unknown` repeats no projected type but
-   `System.Object`, at the top of a parameter only.
+   overload rules between Mist members, is unchanged, the redeclaration rule against a
+   Projected_Ancestor's members (MIST0177) compares as before, and `unknown` repeats no projected
+   type but `System.Object`, at the top of a parameter only.
 
 Decision recorded 2026-10-24 (Arthur): slot filling is the model and `override` is only the emitter's
 spelling of a fill; `System.Object` is not an implicit root and is reached only through an explicit CLR

@@ -47,12 +47,14 @@ internal static class OverloadSignature
     }
 
     /// <summary>
-    /// <see cref="Repeats"/> against a projected member, which has no declaration node, asked only to match
-    /// a CLR slot. Here alone a parameter Mist spells <c>object</c>, <c>unknown</c> or its optional, repeats
-    /// a projected <c>System.Object</c> one, because <c>object</c> resolves to <c>unknown</c> and a fill of
-    /// <c>Object.Equals</c> must not hide instead (clr-slot-filling Requirement 6.4).
+    /// <see cref="Repeats"/> against a projected member, which has no declaration node. Only when
+    /// <paramref name="slot"/> asks it to match a CLR slot does a parameter Mist spells <c>object</c>,
+    /// <c>unknown</c> or its optional, repeat a projected <c>System.Object</c> one, because <c>object</c>
+    /// resolves to <c>unknown</c> and a fill of <c>Object.Equals</c> must not hide instead; a redeclaration
+    /// asks without it (clr-slot-filling Requirement 6.4).
     /// </summary>
-    public static bool RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner? interner)
+    public static bool RepeatsProjected(
+        IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner? interner, bool slot)
     {
         if(later.DeclarationNode is null || later.TypeParametersList.Count != earlier.TypeParametersList.Count)
         {
@@ -64,7 +66,7 @@ internal static class OverloadSignature
 
         return mine.Count == theirs.Count
             && mine.Zip(theirs).All(pair => pair.First.Modifier.IsRef == pair.Second.Modifier.IsRef
-                && (StandsForObject(pair.First.Type, pair.Second.Type)
+                && ((slot && StandsForObject(pair.First.Type, pair.Second.Type))
                     || (Render(pair.First.Type, later.TypeParametersList) is { } type
                         && type == Render(pair.Second.Type, earlier.TypeParametersList))));
     }

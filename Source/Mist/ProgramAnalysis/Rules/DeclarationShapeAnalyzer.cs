@@ -417,7 +417,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
     {
         return member.Overload is not { } later || inherited.Overload is not { } earlier
             || (projected
-                ? OverloadSignature.RepeatsProjected(later, earlier, inheritance, interner)
+                ? OverloadSignature.RepeatsProjected(later, earlier, inheritance, interner, slot: false)
                 : OverloadSignature.Repeats(later, earlier, inheritance, interner));
     }
 

@@ -1,6 +1,10 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -34,6 +38,29 @@ public sealed class DeclarationShapeNativeRedeclarationTests
         _ = f.MemberProperty(f.Source("Mine", clr), "Message", f.Text, settable: false);
 
         Assert.Equal(refused ? 1 : 0, f.Run(new DeclarationShapeAnalyzer()).Count(each => each.Number.Value == "MIST0177"));
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 1)]
+    public void AStaticEqualsBesideAProjectedObjectOne_IsARedeclarationOnlyWhenSpelledSystemObject(bool spelledClr, int reported)
+    {
+        var f = new NativeSlotFragments();
+        var root = new ClassType("Object", "System", new Scope(null), null, null) { Assembly = MistAssembly.Ambient };
+        var boolean = f.Built.Type("Boolean");
+        _ = NativeSlotFragments.Slot(root, "Equals", NativeSlotKind.Defaulted, boolean, Accessibility.Public, root);
+        root.MethodsList.Add(new Method(
+            "Equals", boolean, [new Parameter("objA", root), new Parameter("objB", root)],
+            new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true, IsClrProjected = true })
+        {
+            DeclaringType = root,
+            Scope = new Scope(root.Scope),
+            SlotKind = NativeSlotKind.None,
+        });
+        IMistType parameter = spelledClr ? root : UnknownType.Instance;
+        _ = f.Member(f.Source("Tagged", NativeSlotFragments.Projected("Collection", root)), "Equals", boolean, isStatic: true, parameters: [parameter, parameter]);
+
+        Assert.Equal(reported, f.Run(new DeclarationShapeAnalyzer()).Count(each => each.Number.Value == "MIST0177"));
     }
 
     [Fact]

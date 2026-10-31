@@ -102,10 +102,11 @@ or three overloads is acceptable. What is fixed is the algorithm:
    ancestor member of the same name whose parameter signature repeats under the inheritance substitution.
    The repetition question is `OverloadSignature.Of(later, Empty) == Of(earlier, inheritance)` with the
    declaration-node guard of `Repeats` lifted for the earlier member. A new overload
-   `OverloadSignature.RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner)`
+   `OverloadSignature.RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner, bool slot)`
    expresses that; `Repeats` itself is unchanged for its Mist-to-Mist callers. `RepeatsProjected` compares
-   position by position, and a source parameter of type `unknown` or `unknown | void` repeats a projected
-   `System.Object` one there and nowhere else (Requirement 6.4). Properties repeat by name
+   position by position, and only with `slot: true`, which this step alone passes, does a source parameter
+   of type `unknown` or `unknown | void` repeat a projected `System.Object` one (Requirement 6.4); the
+   redeclaration check against a projected ancestor asks with `slot: false`. Properties repeat by name
    alone, indexers by parameter signature. Only an instance ancestor member is a match; a static source
    member is matched against a `Required` or `Defaulted` slot only, to be refused as `"static"`.
 3. Classify by the nearest match's `SlotKind`:
@@ -263,7 +264,8 @@ yields nothing.
 
 Hand-built models driven through the analyzer alone, after `ConformanceDecisionTests`: each of the three
 new diagnostics reported once at the right node; `MIST0177` for a `None` collision
-against a projected ancestor; no redeclaration for a restated fill; silence for an unfilled `Defaulted`
+against a projected ancestor; no redeclaration for a restated fill; no redeclaration for a static
+`Equals(unknown, unknown)` beside a projected `System.Object.Equals(System.Object, System.Object)`; silence for an unfilled `Defaulted`
 slot; silence under an unresolved base.
 
 ### Tiers 1 and 2: emission (`MethodEmitterOverrideTests`, property and indexer rows)

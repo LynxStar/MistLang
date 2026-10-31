@@ -125,7 +125,7 @@ internal static class NativeSlotFills
                 if(!candidate.Modifiers.IsStatic && (!member.Modifiers.IsStatic || native)
                     && candidate.Name == member.Name && candidate.Member.GetType() == member.Member.GetType()
                     && (candidate.Overload is not { } earlier || member.Overload is not { } later
-                        || OverloadSignature.RepeatsProjected(later, earlier, inheritance, interner)))
+                        || OverloadSignature.RepeatsProjected(later, earlier, inheritance, interner, slot: true)))
                 {
                     return (candidate, ancestor, inheritance);
                 }

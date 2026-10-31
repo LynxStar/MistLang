@@ -85,6 +85,7 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
         _ = five.CreateType();
 
         DefineNestedComponents(module, componentBaseType, parameter);
+        DefineConstructedNestedComponents(module, componentBaseType, parameter);
 
         var mouse = module.DefineType($"{Components}.Web.MouseEventArgs", TypeAttributes.Public, typeof(EventArgs)).CreateType();
         var handler = module.DefineType($"{Components}.EventHandlerAttribute", TypeAttributes.Public | TypeAttributes.Sealed, typeof(Attribute));
@@ -122,6 +123,23 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
         Property(generic, "Value", argument, parameter);
         _ = generic.CreateType();
         _ = outer.CreateType();
+    }
+
+    private static void DefineConstructedNestedComponents(ModuleBuilder module, Type componentBase, Type parameter)
+    {
+        var box = module.DefineType("Vendor.Box`1", TypeAttributes.Public);
+        _ = box.DefineGenericParameters("T");
+        var inner = box.DefineNestedType("Inner", TypeAttributes.NestedPublic, componentBase);
+        var inherited = inner.DefineGenericParameters("T")[0];
+        Property(inner, "Value", inherited, parameter);
+        _ = inner.CreateType();
+
+        var generic = box.DefineNestedType("GenericInner`1", TypeAttributes.NestedPublic, componentBase);
+        var arguments = generic.DefineGenericParameters("T", "U");
+        Property(generic, "Value", arguments[0], parameter);
+        Property(generic, "Other", arguments[1], parameter);
+        _ = generic.CreateType();
+        _ = box.CreateType();
     }
 
     private static Type DefineAttribute(ModuleBuilder module, string name)

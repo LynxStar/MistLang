@@ -7,29 +7,35 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
 {
     public static CatalogTypeText Parse(string text)
     {
-        var open = text.IndexOf('<');
-        if(open < 0)
-        {
-            return new CatalogTypeText(text.Trim(), []);
-        }
-
+        var name = new StringBuilder();
         var arguments = ImmutableArray.CreateBuilder<string>();
-        var start = open + 1;
+        var start = 0;
         var depth = 0;
-        for(var index = start; index < text.Length; index++)
+        for(var index = 0; index < text.Length; index++)
         {
             var current = text[index];
-            if(depth == 0 && current is ',' or '>')
+            if(depth == 0)
+            {
+                if(current == '<')
+                {
+                    start = index + 1;
+                    depth = 1;
+                }
+                else if(!char.IsWhiteSpace(current))
+                {
+                    _ = name.Append(current);
+                }
+            }
+            else if(depth == 1 && current is ',' or '>')
             {
                 arguments.Add(text[start..index].Trim());
                 start = index + 1;
                 if(current == '>')
                 {
-                    break;
+                    depth = 0;
                 }
             }
-
-            if(current is '<' or '[' or '(')
+            else if(current is '<' or '[' or '(')
             {
                 depth++;
             }
@@ -39,7 +45,7 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
             }
         }
 
-        return new CatalogTypeText(text[..open].Trim(), arguments.ToImmutable());
+        return new CatalogTypeText(name.ToString(), arguments.ToImmutable());
     }
 
     public static ImmutableArray<ParameterFacts> Substitute(

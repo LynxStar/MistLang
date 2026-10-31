@@ -11,6 +11,11 @@ public sealed class CatalogTypeTextTests
     [InlineData("App.Base< string, int >", "App.Base", "string|int")]
     [InlineData("Base<Dictionary<int, string>, T[,]>", "Base", "Dictionary<int, string>|T[,]")]
     [InlineData("Base<(int, string), List<T[]>>", "Base", "(int, string)|List<T[]>")]
+    [InlineData("Vendor.Box<string>.Inner", "Vendor.Box.Inner", "string")]
+    [InlineData("Vendor.Box<string>.Inner<int>", "Vendor.Box.Inner", "string|int")]
+    [InlineData("Box<Dictionary<int, string>>.Inner<T[,]>", "Box.Inner", "Dictionary<int, string>|T[,]")]
+    [InlineData("Box<(int, string)>.Middle.Inner<T[]>", "Box.Middle.Inner", "(int, string)|T[]")]
+    [InlineData(" Box< string > . Inner < int > ", "Box.Inner", "string|int")]
     public void BaseArgumentsKeepNestedSeparators(string text, string name, string arguments)
     {
         var parsed = CatalogTypeText.Parse(text);

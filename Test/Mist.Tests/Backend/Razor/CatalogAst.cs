@@ -90,6 +90,23 @@ internal sealed class CatalogAst
         };
     }
 
+    public BaseTypeRefNode NestedBase(string outer, string argument, string nested, params string[] arguments)
+    {
+        var result = Base(nested, arguments);
+        result.Name = Name(outer);
+        result.Enclosing = new BaseTypeEnclosingNode
+        {
+            OuterArgs = new TypeArgumentListNode
+            {
+                TypeArgument = new TypeReferenceTypeArgumentTypeArgumentNode { Type = Type(argument) },
+                TypeArguments = [],
+            },
+            Nested = Name(nested),
+        };
+        result.Span = Append(outer + "<" + argument + ">." + nested + (arguments.Length == 0 ? "" : "<" + string.Join(", ", arguments) + ">"));
+        return result;
+    }
+
     public MemberDeclarationNode Property(string name, string type)
     {
         return new PropertyMemberMemberDeclarationNode

@@ -21,6 +21,9 @@ public sealed class CatalogClrTypeLookupTests
         { "System.Collections.Generic.Dictionary.KeyCollection", 2, typeof(Dictionary<,>.KeyCollection) },
         { "System.Collections.Generic.Dictionary.KeyCollection", 1, null },
         { "System.Collections.Generic.List.Enumerator", null, typeof(List<>.Enumerator) },
+        { "System.Collections.Generic.List.Enumerator", 1, typeof(List<>.Enumerator) },
+        { "System.Collections.Generic.List.Enumerator", 0, null },
+        { "System.Collections.Generic.Dictionary.ValueCollection", 2, typeof(Dictionary<,>.ValueCollection) },
     };
 
     [Theory]

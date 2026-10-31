@@ -284,6 +284,35 @@ public sealed class CatalogBuilderTests
     }
 
     [Theory]
+    [InlineData(false, "Box", "string", false)]
+    [InlineData(true, "Box", "string", false)]
+    [InlineData(false, "Vendor.Box", "string", false)]
+    [InlineData(true, "Vendor.Box", "string", false)]
+    [InlineData(false, "Box", "string", true)]
+    [InlineData(true, "Box", "string", true)]
+    [InlineData(false, "Box", "Dictionary<int, string>", true)]
+    [InlineData(true, "Box", "Dictionary<int, string>", true)]
+    public void AConstructedEnclosingClrBaseKeepsItsNestedPathAndAllTypeArguments(
+        bool componentFile, string outer, string argument, bool genericInner)
+    {
+        var ast = new CatalogAst();
+        var nested = genericInner ? "GenericInner" : "Inner";
+        var arguments = genericInner ? new[] { "int" } : [];
+        var unit = ast.Unit("Shell.mist", [CatalogAst.Class("Shell", ast.NestedBase(outer, argument, nested, arguments))], usings: ["Vendor"]);
+        var baseText = outer + "<" + argument + ">." + nested + (genericInner ? "<int>" : "");
+        var source = new ComponentSource("App.Shell", baseText, Scope("App", "Vendor"), []);
+        var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), componentFile ? [] : [unit], componentFile ? [source] : []);
+
+        var parameters = Resolved(catalog, "Shell", Scope("App")).Parameters;
+        Assert.Equal(genericInner ? 2 : 1, parameters.Length);
+        Assert.Equal(ParameterFacts.Declared("Value", argument), parameters[0]);
+        if(genericInner)
+        {
+            Assert.Equal(ParameterFacts.Declared("Other", "int"), parameters[1]);
+        }
+    }
+
+    [Theory]
     [InlineData("string", nameof(ParameterShape.String))]
     [InlineData("string?", nameof(ParameterShape.String))]
     [InlineData("RenderFragment", nameof(ParameterShape.RenderFragment))]

@@ -13,6 +13,11 @@ public sealed class ClrTypeTextTests
         { typeof(int?), "int?" },
         { typeof(string[]), "string[]" },
         { typeof(int[,]), "int[,]" },
+        { typeof(Dictionary<int, string>.KeyCollection), "System.Collections.Generic.Dictionary<int, string>.KeyCollection" },
+        { typeof(Dictionary<,>.KeyCollection), "System.Collections.Generic.Dictionary<TKey, TValue>.KeyCollection" },
+        { typeof(List<int>.Enumerator), "System.Collections.Generic.List<int>.Enumerator" },
+        { typeof(Box<int>.Middle<string>.Item<bool>), "Mist.Tests.Backend.Razor.ClrTypeTextTests.Box<int>.Middle<string>.Item<bool>" },
+        { typeof(Dictionary<int, string>.KeyCollection[]), "System.Collections.Generic.Dictionary<int, string>.KeyCollection[]" },
         { typeof(DateTime), "System.DateTime" },
         { typeof(List<string>), "System.Collections.Generic.List<string>" },
         { typeof(Dictionary<string, int?>), "System.Collections.Generic.Dictionary<string, int?>" },
@@ -31,5 +36,13 @@ public sealed class ClrTypeTextTests
     public void AGenericDefinitionIsNamedWithoutItsArity()
     {
         Assert.Equal("System.Collections.Generic.Dictionary", ClrTypeText.Name(typeof(Dictionary<,>)));
+    }
+
+    internal sealed class Box<T>
+    {
+        public sealed class Middle<TMiddle>
+        {
+            public sealed class Item<TItem>;
+        }
     }
 }

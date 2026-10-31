@@ -138,6 +138,36 @@ public sealed class NestedBaseCatalogTests
         }
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ANestedBaseIsInheritedFromTheEnclosingTypesBase(bool clr, bool componentFile)
+    {
+        var ast = new CatalogAst();
+        var nested = CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), ParameterMembers(ast, "T"));
+        var box = CatalogAst.Class("Box", members: [Nested(nested)], typeParameters: ["T"]);
+        var derived = CatalogAst.Class("D", ast.BaseText(clr ? "Inner" : "Base"));
+        var sub = CatalogAst.Class("Sub", ast.BaseText(clr ? "Vendor.MatrixBox<S>" : "Box<S>"), [Nested(derived)], ["S"]);
+        var shell = CatalogAst.Class("Shell", ast.BaseText("Sub<string>.D"));
+        var declarations = new List<TypeBodyDeclarationNode> { sub };
+        if(!clr)
+        {
+            declarations.Add(box);
+        }
+
+        if(!componentFile)
+        {
+            declarations.Add(shell);
+        }
+
+        var catalog = Build([ast.Unit("Inherited.mist", [.. declarations])], componentFile ? "Sub<string>.D" : "Shell");
+
+        AssertParameters(Resolved(catalog, "Page").Parameters, "string", clr, generic: true);
+        Assert.Equal(1, Resolved(catalog, "Sub.D").TypeParameterCount);
+    }
+
     private static ImmutableArray<MemberDeclarationNode> ParameterMembers(CatalogAst ast, string argument)
     {
         return

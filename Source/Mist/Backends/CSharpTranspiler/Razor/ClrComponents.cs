@@ -77,7 +77,7 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
         return new ComponentFacts(ClrTypeText.Name(type), [.. parameters], arity, IsMist: false);
     }
 
-    private Type? Lookup(string fullName)
+    public Type? Lookup(string fullName)
     {
         if(!types.TryGetValue(fullName, out var type))
         {

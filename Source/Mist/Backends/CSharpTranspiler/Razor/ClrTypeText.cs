@@ -41,9 +41,38 @@ internal static class ClrTypeText
         }
 
         var arguments = type.GetGenericArguments();
-        return name == "System.Nullable"
-            ? Of(arguments[0]) + "?"
-            : name + "<" + string.Join(", ", arguments.Select(Of)) + ">";
+        if(name == "System.Nullable")
+        {
+            return Of(arguments[0]) + "?";
+        }
+
+        var declaring = new Stack<Type>();
+        for(var segment = type; segment is not null; segment = segment.DeclaringType)
+        {
+            declaring.Push(segment);
+        }
+
+        var segments = new List<string>();
+        var offset = 0;
+        foreach(var segment in declaring)
+        {
+            var count = segment.GetGenericArguments().Length - offset;
+            var segmentName = segment.Name.Split('`')[0];
+            if(segments.Count == 0 && !string.IsNullOrEmpty(segment.Namespace))
+            {
+                segmentName = segment.Namespace + "." + segmentName;
+            }
+
+            if(count > 0)
+            {
+                segmentName += "<" + string.Join(", ", arguments.Skip(offset).Take(count).Select(Of)) + ">";
+            }
+
+            segments.Add(segmentName);
+            offset += count;
+        }
+
+        return string.Join('.', segments);
     }
 
     public static string Name(Type type)

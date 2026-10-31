@@ -7,6 +7,11 @@ internal static class NestedBaseMetadata
 {
     public static void Define(ModuleBuilder module, Type componentBase, Type parameter, Type fragment)
     {
+        var textBase = module.DefineType("Vendor.NestedTextBase`1", TypeAttributes.Public, componentBase);
+        var textArgument = textBase.DefineGenericParameters("T")[0];
+        Property(textBase, "Keys", typeof(Dictionary<,>.KeyCollection).MakeGenericType(textArgument, typeof(string)), parameter);
+        _ = textBase.CreateType();
+
         var outer = module.DefineType("Vendor.MatrixOuter", TypeAttributes.Public);
         DefineInner(outer, componentBase, parameter, fragment, [], enclosingGeneric: false, genericInner: false);
         DefineInner(outer, componentBase, parameter, fragment, ["V"], enclosingGeneric: false, genericInner: true);

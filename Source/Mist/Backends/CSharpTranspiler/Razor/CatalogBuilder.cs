@@ -9,6 +9,7 @@ internal sealed class CatalogBuilder
     private readonly HashSet<string> components = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ImmutableArray<ParameterFacts>> parameters = new(StringComparer.Ordinal);
     private readonly ClrComponents clr;
+    private readonly CatalogBaseLookup bases;
 
     private CatalogBuilder(IEnumerable<MistClass> declared, ClrComponents clr)
     {
@@ -18,6 +19,7 @@ internal sealed class CatalogBuilder
         }
 
         this.clr = clr;
+        bases = new CatalogBaseLookup(classes, clr.Lookup);
         components.UnionWith(classes.Values.Where(declaration => declaration.IsComponentClass).Select(declaration => declaration.FullName));
         var changed = true;
         while(changed)
@@ -48,10 +50,10 @@ internal sealed class CatalogBuilder
 
     private bool BaseIsComponent(string baseName, ImmutableArray<string> scope)
     {
-        var candidates = Candidates(CatalogTypeText.Parse(baseName).Name, scope).ToArray();
-        return candidates.FirstOrDefault(classes.ContainsKey) is { } mist
-            ? components.Contains(mist)
-            : candidates.Any(clr.IsComponentBase);
+        var resolved = bases.Resolve(baseName, scope);
+        return resolved?.Mist is { } mist
+            ? components.Contains(mist.FullName)
+            : resolved is not null && clr.IsComponentBase(resolved.FullName);
     }
 
     private ImmutableArray<ParameterFacts> Parameters(MistClass declaration, HashSet<string> visiting)
@@ -72,25 +74,12 @@ internal sealed class CatalogBuilder
 
     private ImmutableArray<ParameterFacts> Inherited(string baseName, ImmutableArray<string> scope, HashSet<string> visiting)
     {
-        var baseType = CatalogTypeText.Parse(baseName);
-        foreach(var candidate in Candidates(baseType.Name, scope))
+        var resolved = bases.Resolve(baseName, scope);
+        if(resolved?.Mist is { } mist)
         {
-            if(classes.TryGetValue(candidate, out var mist))
-            {
-                return CatalogTypeText.Substitute(Parameters(mist, visiting), mist.TypeParameters, baseType.ArgumentsFor(mist.TypeParameterScopes));
-            }
-
-            if(clr.FindBase(candidate, baseType.Arguments) is { } facts)
-            {
-                return facts.Parameters;
-            }
+            return CatalogTypeText.Substitute(Parameters(mist, visiting), mist.TypeParameters, resolved.Arguments);
         }
 
-        return [];
-    }
-
-    private static IEnumerable<string> Candidates(string name, ImmutableArray<string> scope)
-    {
-        return scope.Select(namespaceName => namespaceName + "." + name).Prepend(name).Distinct(StringComparer.Ordinal);
+        return resolved is not null && clr.FindBase(resolved.FullName, resolved.Arguments) is { } facts ? facts.Parameters : [];
     }
 }

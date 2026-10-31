@@ -50,7 +50,7 @@ internal static class MistClassDeclarations
             switch(item)
             {
                 case TypeItemTopLevelItemNode type:
-                    Declare(type.TypeDeclaration, fileNamespace, unit.Source, usings, classes);
+                    Declare(type.TypeDeclaration, fileNamespace, [], unit.Source, usings, classes);
                     break;
                 case NamespaceItemTopLevelItemNode { NamespaceDeclaration: FileScopedNamespaceNamespaceDeclarationNode declaration }:
                     DeclareBody(declaration.Body, fileNamespace, unit.Source, usings, classes);
@@ -108,7 +108,7 @@ internal static class MistClassDeclarations
             switch(item)
             {
                 case NamespaceTypeItemNamespaceBodyItemNode type:
-                    Declare(type.TypeDeclaration, namespaceName, source, usings, classes);
+                    Declare(type.TypeDeclaration, namespaceName, [], source, usings, classes);
                     break;
                 case NamespaceNamespaceItemNamespaceBodyItemNode { NamespaceDeclaration: BlockNamespaceNamespaceDeclarationNode block }:
                     DeclareBlock(block, namespaceName, source, usings, classes);
@@ -118,7 +118,8 @@ internal static class MistClassDeclarations
     }
 
     private static void Declare(
-        TypeDeclarationNode declaration, string namespaceName, SourceText source, ImmutableArray<string> usings, List<MistClass> classes)
+        TypeDeclarationNode declaration, string namespaceName, ImmutableArray<string> enclosingTypeParameters,
+        SourceText source, ImmutableArray<string> usings, List<MistClass> classes)
     {
         if(declaration is not BodyTypeTypeDeclarationNode { TypeBody: var body })
         {
@@ -126,21 +127,21 @@ internal static class MistClassDeclarations
         }
 
         var fullName = string.IsNullOrEmpty(namespaceName) ? body.Name.Lexeme : $"{namespaceName}.{body.Name.Lexeme}";
+        var typeParameters = body.TypeParams is { } listParameters
+            ? enclosingTypeParameters.AddRange(listParameters.TypeParameters.Prepend(listParameters.TypeParameter).Select(parameter => parameter.GetName().Lexeme))
+            : enclosingTypeParameters;
         if(body.Keyword is ClassKeywordTypeKeywordNode)
         {
             var bases = body.BaseList is { } list
                 ? list.BaseTypeRefs.Prepend(list.First).Select(entry => source.Contents.Substring(entry.Span.Start, entry.Span.Length)).ToImmutableArray()
                 : [];
             var scope = Enclosing(namespaceName).Concat(usings).ToImmutableArray();
-            var typeParameters = body.TypeParams is { } listParameters
-                ? listParameters.TypeParameters.Prepend(listParameters.TypeParameter).Select(parameter => parameter.GetName().Lexeme).ToImmutableArray()
-                : [];
             classes.Add(new MistClass(fullName, bases, scope, [.. Parameters(body.Members, source)], typeParameters, IsComponentClass: false));
         }
 
         foreach(var nested in body.Members.OfType<NestedBodyTypeMemberMemberDeclarationNode>())
         {
-            Declare(new BodyTypeTypeDeclarationNode { TypeBody = nested.NestedBody }, fullName, source, usings, classes);
+            Declare(new BodyTypeTypeDeclarationNode { TypeBody = nested.NestedBody }, fullName, typeParameters, source, usings, classes);
         }
     }
 

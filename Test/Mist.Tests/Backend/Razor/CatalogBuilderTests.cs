@@ -313,6 +313,41 @@ public sealed class CatalogBuilderTests
     }
 
     [Theory]
+    [InlineData(false, "", "string")]
+    [InlineData(true, "", "string")]
+    [InlineData(false, "U", "string")]
+    [InlineData(true, "U", "string")]
+    [InlineData(false, "T", "int")]
+    [InlineData(true, "T", "int")]
+    public void AGenericEnclosingMistClassFlattensItsTypeParametersAheadOfTheNestedOnes(
+        bool componentFile, string innerParameter, string expectedValue)
+    {
+        var ast = new CatalogAst();
+        var genericInner = innerParameter.Length > 0;
+        var members = ImmutableArray.Create(ast.Property("Value", "T"));
+        var inner = CatalogAst.Class(
+            "Inner", ast.Base($"{Components}.ComponentBase"),
+            genericInner ? members.Add(ast.Property("Other", innerParameter)) : members,
+            genericInner ? [innerParameter] : []);
+        var box = CatalogAst.Class("Box", members: [new NestedBodyTypeMemberMemberDeclarationNode { NestedBody = inner }], typeParameters: ["T"]);
+        var arguments = genericInner ? new[] { "int" } : [];
+        var shell = CatalogAst.Class("Shell", ast.NestedBase("Box", "string", "Inner", arguments));
+        var unit = componentFile ? ast.Unit("Box.mist", box) : ast.Unit("Box.mist", box, shell);
+        var source = new ComponentSource("App.Shell", "Box<string>.Inner" + (genericInner ? "<int>" : ""), Scope("App"), []);
+        var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), [unit], componentFile ? [source] : []);
+
+        var parameters = Facts(Resolved(catalog, "Shell", Scope("App")).Parameters).ToArray();
+        Assert.Equal(genericInner ? 2 : 1, parameters.Length);
+        Assert.Equal(("Value", expectedValue), (parameters[0].Name, parameters[0].TypeText));
+        if(genericInner)
+        {
+            Assert.Equal(("Other", "int", ParameterShape.Plain), parameters[1]);
+        }
+
+        Assert.Equal(genericInner ? 2 : 1, Resolved(catalog, "Box.Inner", Scope("App")).TypeParameterCount);
+    }
+
+    [Theory]
     [InlineData("string", nameof(ParameterShape.String))]
     [InlineData("string?", nameof(ParameterShape.String))]
     [InlineData("RenderFragment", nameof(ParameterShape.RenderFragment))]

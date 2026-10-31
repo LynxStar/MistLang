@@ -51,7 +51,12 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
     public static ImmutableArray<ParameterFacts> Substitute(
         ImmutableArray<ParameterFacts> parameters, IEnumerable<string> names, ImmutableArray<string> arguments)
     {
-        var substitutions = names.Zip(arguments).ToDictionary(pair => pair.First, pair => pair.Second, StringComparer.Ordinal);
+        var substitutions = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach(var (name, argument) in names.Zip(arguments))
+        {
+            substitutions[name] = argument;
+        }
+
         return [.. parameters.Select(parameter => ParameterFacts.Declared(parameter.Name, Substitute(parameter.TypeText, substitutions)))];
     }
 

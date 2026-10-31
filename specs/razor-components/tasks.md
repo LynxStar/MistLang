@@ -83,12 +83,12 @@ no Razor and can land first; tasks 3 to 5 are the backend; task 7 cannot bank un
   - [ ] 5.8 Read the whitespace Razor's compiler emits for the fixture and pin the rules as Tier 1 cases
     - _Requirements: 5.8_
 
-- [ ] 6. Hosting and static assets
-  - [ ] 6.1 `StaticAssetDeployment`: infer the `Internal.Assets` pack from the framework reference for an executable with Component_Files, a `[packages]` entry pinning it; package `_framework/` to `<bin>/wwwroot/_framework/`, project `wwwroot/` to `<bin>/wwwroot/`
+- [x] 6. Hosting and static assets
+  - [x] 6.1 `StaticAssetDeployment`: infer the `Internal.Assets` pack from the framework reference for an executable with Component_Files, a `[packages]` entry pinning it; package `_framework/` to `<bin>/wwwroot/_framework/`, project `wwwroot/` to `<bin>/wwwroot/`
     - _Requirements: 11.2, 11.3_
-  - [ ] 6.2 `mist run` content root: read how the CLI launches today, choose working directory or `--contentRoot`, record in `design.md`
+  - [x] 6.2 `mist run` content root: read how the CLI launches today, choose working directory or `--contentRoot`, record in `design.md`
     - _Requirements: 11.4_
-  - [ ] 6.3 Tier 1 tests of the pack-inference rule (executable, Component_Files, framework reference, pin wins) and of the selection rules over hand-built package listings
+  - [x] 6.3 Tier 1 tests of the pack-inference rule (executable, Component_Files, framework reference, pin wins) and of the selection rules over hand-built package listings
     - _Requirements: 11.2_
 
 - [ ] 7. Sample and acceptance

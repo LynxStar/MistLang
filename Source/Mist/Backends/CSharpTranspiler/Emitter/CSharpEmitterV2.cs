@@ -32,6 +32,7 @@ internal sealed class CSharpEmitterV2
     private readonly ImmutableArray<ComposedProject> composedProjects;
     private readonly ImmutableArray<string> runtimeIdentifiers;
     private readonly ImmutableArray<RuntimeAsset> runtimeAssets;
+    private readonly string? frameworkAssetsDirectory;
     private readonly List<string> emittedFiles = [];
     private readonly Dictionary<string, DeclarationOrigin> unitOrigins = [];
 
@@ -44,10 +45,12 @@ internal sealed class CSharpEmitterV2
         ImmutableArray<ExternalAssembly> externalAssemblies = default,
         ImmutableArray<ComposedProject> composedProjects = default,
         ImmutableArray<string> runtimeIdentifiers = default,
-        ImmutableArray<RuntimeAsset> runtimeAssets = default)
+        ImmutableArray<RuntimeAsset> runtimeAssets = default,
+        string? frameworkAssetsDirectory = null)
     {
         this.runtimeIdentifiers = runtimeIdentifiers;
         this.runtimeAssets = runtimeAssets;
+        this.frameworkAssetsDirectory = frameworkAssetsDirectory;
         this.programModel = programModel;
         this.options = options;
         this.referencePaths = referencePaths;
@@ -96,7 +99,9 @@ internal sealed class CSharpEmitterV2
             declarationOrigins: FacadeTypeSelection.Origins(emittedFiles, unitOrigins),
             frameworkReferences: options.FrameworkReferences,
             runtimeIdentifiers: runtimeIdentifiers,
-            runtimeAssets: runtimeAssets);
+            runtimeAssets: runtimeAssets,
+            projectFolder: options.ProjectFolder,
+            frameworkAssetsDirectory: frameworkAssetsDirectory);
 
         if(!compileResult.Succeeded)
         {

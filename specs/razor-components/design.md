@@ -392,11 +392,32 @@ reference, at the resolved targeting pack's version, with a `[packages]` entry p
 (Requirement 11.2); the pack is on nuget.org and 2.4 MB on disk. It then copies the pack's `_framework/`
 folder, which the package lays out at its root, to `<bin>/wwwroot/_framework/`, and the project's
 `wwwroot/` to `<bin>/wwwroot/`. The host calls `UseStaticFiles()`, which serves the web root.
-`mist run` today starts `dotnet <artifact>` through `ProcessStartInfo` with no working directory and no
-program arguments, so the content root is whatever directory the user ran `mist run` from. Task 6 picks
+`mist run` started `dotnet <artifact>` through `ProcessStartInfo` with no working directory and no
+program arguments, so the content root was whatever directory the user ran `mist run` from. The choice was
 between setting the working directory to `<bin>`, which changes where every program's relative paths
 resolve, and passing `--contentRoot <bin>` to programs that reference `Microsoft.AspNetCore.App`, which
 `WebApplication.CreateBuilder(args)` honors and a console program never sees.
+
+**Decision: `--contentRoot <bin>`** (`ArtifactLaunch.StartInfo` in `Mist.CLI`). When the root project's
+`[framework_references]` enables `Microsoft.AspNetCore.App`, `mist run` starts `dotnet <artifact> --contentRoot
+<bin>`; otherwise it starts `dotnet <artifact>` as before, and the working directory stays the user's in both
+cases. The reasons: the content root is an ASP.NET Core setting, so it is set through ASP.NET Core's own
+switch and reaches only programs that build a host; a console program's relative paths, which resolve
+against the user's directory today, do not move; and `<bin>` is where the backend deploys `wwwroot/`, so
+the default web root is the deployed folder. The cost is that a web program's `args` carries the two
+words, which a host passes to `CreateBuilder` and a program that parses its own arguments must skip. The
+switch is the root project's own reference, not one inherited through a referenced project. Section 9's
+probe on 2026-10-30, `mist run` from the repository root on a host with `UseStaticFiles()`, logged
+`Content root path: <project>/bin` and served `/_framework/blazor.web.js` and `/css/app.css` from
+`<bin>/wwwroot/`.
+
+Whether a project has Component_Files is decided by `StaticAssetDeployment.HasComponentFiles`, which
+enumerates `*.razor` under the project folder with the `out/` and `bin/` exclusions of
+`SourcePathSelection.Select`. It stands in for the backend's `ProjectFacts` until that lands and is the
+one call to replace then. The driver adds the pack to the declared packages after the referenced projects'
+dependencies are joined and before Stage 1.5, so the restore, the resolver and its verbose lines treat it
+as any declared package; the resolver records each restored package's folder, and the backend reads the
+pack's from there. A file under the project's `wwwroot/` wins over a pack file at the same deployed path.
 
 ## Error Handling
 
@@ -439,7 +460,9 @@ The binding rules are the root `AGENTS.md` "Tests" section and `.claude/skills/t
 - **Tier 1.** `RazorParserTests`: text in, tree out, every shape of Requirement 13.1, every malformed shape
   with its position. `OriginMapTests`: hand-built segments, Requirement 13.2. `ComponentCatalogTests`:
   resolution and shapes over hand-written facts. `SourcePathSelectionTests`: extensions enumerated and
-  excluded like `.mist`. `RenderProtocolWriterTests`: sequence numbering over hand-built nodes.
+  excluded like `.mist`. `RenderProtocolWriterTests`: sequence numbering over hand-built nodes. `StaticAssetDeploymentTests`: the
+  pack-inference rule and the deployment selection over hand-built listings. `ArtifactLaunchTests`: the
+  `mist run` start information.
 - **Tier 2.** `RazorComponentTranslatorTests`: a parsed Component_File and a hand-built catalog produce the
   expected Mist and map, with the fixture files among the cases. `CatalogBuilderTests`: Code_Blocks parsed
   by the real parser yield parameter facts.
@@ -492,7 +515,7 @@ The binding rules are the root `AGENTS.md` "Tests" section and `.claude/skills/t
 ## Open Items
 
 - **Storm or scanner** for the markup grammar, decided when task 3 starts.
-- **`mist run` content root**: working directory or `--contentRoot`, decided in task 6; section 9 records
-  what the CLI does today.
+- **`mist run` content root**: decided in task 6, `--contentRoot <bin>` for a program referencing
+  `Microsoft.AspNetCore.App`; section 9 records the reason.
 - **Whitespace fidelity.** Requirement 5.8 states Razor's default; the exact rules Razor applies are read
   from its generated output for the fixture during task 5 and recorded as Tier 1 cases.

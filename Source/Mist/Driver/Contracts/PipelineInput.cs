@@ -16,4 +16,5 @@ public sealed record PipelineInput(
     ImmutableArray<ExternalAssembly> ExternalAssemblies = default,
     ImmutableArray<ComposedProject> ComposedProjects = default,
     ImmutableArray<string> RuntimeIdentifiers = default,
-    ImmutableArray<RuntimeAsset> RuntimeAssets = default);
+    ImmutableArray<RuntimeAsset> RuntimeAssets = default,
+    string? FrameworkAssetsDirectory = null);

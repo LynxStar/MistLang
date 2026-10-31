@@ -10,4 +10,6 @@ internal interface IDeploymentFileSource
 
     /// <summary>Every file beneath <paramref name="outputDirectory"/>'s <c>runtimes</c> folder, relative to <paramref name="outputDirectory"/> itself.</summary>
     ImmutableArray<string> RuntimesListing(string outputDirectory);
+
+    ImmutableArray<string> Listing(string directory);
 }

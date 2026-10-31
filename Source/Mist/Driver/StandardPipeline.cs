@@ -167,7 +167,8 @@ public sealed class StandardPipeline : ICompilationPipeline
     {
         var emitter = new CSharpEmitterV2(
             programModel, input.Options, input.ResolvedAssemblyPaths, input.Diagnostics, clrType,
-            input.ExternalAssemblies, input.ComposedProjects, input.RuntimeIdentifiers, input.RuntimeAssets);
+            input.ExternalAssemblies, input.ComposedProjects, input.RuntimeIdentifiers, input.RuntimeAssets,
+            input.FrameworkAssetsDirectory);
         var result = emitter.Emit();
 
         return new Emission(result, emitter.EmittedFileCount, emitter.RuntimeAssetsDeployed);

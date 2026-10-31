@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Mist.Backends.Contracts;
+using Mist.Backends.CSharpTranspiler;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Driver.Contracts;
@@ -92,6 +93,17 @@ public sealed class CompilerDriver : ICompilerDriver
 
         var compilation = loadResult.Compilation;
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
+        var servesFrameworkAssets = StaticAssetDeployment.ServesFrameworkAssets(
+            options.OutputType,
+            options.FrameworkReferences,
+            () => StaticAssetDeployment.HasComponentFiles(options.ProjectFolder, options.OutputDirectory, options.BinDirectory));
+        options = options with
+        {
+            Packages = StaticAssetDeployment.WithFrameworkAssetsPack(
+                options.Packages,
+                servesFrameworkAssets,
+                () => FrameworkReferenceResolver.ResolvedVersion(StaticAssetDeployment.AspNetCoreFramework, options.TargetFramework)),
+        };
 
         // Stage 1.5: Package Resolution (runs only when deps are declared)
         var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener, operation);
@@ -121,7 +133,8 @@ public sealed class CompilerDriver : ICompilerDriver
             compilation, resolvedAssemblyPaths,
             options, allDiagnostics, resolutionDiagnostics.Reported,
             loadResult.ExternalAssemblies, loadResult.ComposedProjects,
-            RidGraph.FallbackOrder(ridGraph, runtimeIdentifier), packages.RuntimeAssets);
+            RidGraph.FallbackOrder(ridGraph, runtimeIdentifier), packages.RuntimeAssets,
+            StaticAssetDeployment.FrameworkAssetsDirectory(servesFrameworkAssets, packages));
 
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
     }

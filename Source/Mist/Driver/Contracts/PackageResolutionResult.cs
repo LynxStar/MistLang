@@ -30,6 +30,9 @@ public sealed record PackageResolutionResult(
 
     /// <summary>The SDK graph the restore named; <see langword="null"/> when no restore ran or the graph could not be read.</summary>
     public RidGraph? RuntimeIdentifierGraph { get; init; }
+
+    public ImmutableDictionary<string, string> PackageDirectories { get; init; } =
+        ImmutableDictionary<string, string>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>

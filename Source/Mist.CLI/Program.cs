@@ -294,12 +294,12 @@ internal partial class Program
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, configuration, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
     }
 
-    private static int RunBuiltArtifact(CompilerResult result, DiagnosticOutput output)
+    private static int RunBuiltArtifact(CompilerResult result, ProjectConfiguration configuration, DiagnosticOutput output)
     {
-        return RunArtifact(result.PrimaryOutputArtifactPath!, output);
+        return ChildProcessRunner.Run(ArtifactLaunch.StartInfo(result.PrimaryOutputArtifactPath!, configuration.FrameworkReferences), output);
     }
 
     private static int RunSteeringCommand(CliArguments cliArgs, DiagnosticOutput output)
@@ -445,11 +445,6 @@ internal partial class Program
         var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
         return DependencyRestore.Run(projectFolder, config, parseDiagnostics.ToImmutableArray(), Console.Out, Console.Error, output.Operation, output.Stream);
-    }
-
-    private static int RunArtifact(string artifactPath, DiagnosticOutput output)
-    {
-        return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", [artifactPath]) { UseShellExecute = false }, output);
     }
 
     /// <summary>

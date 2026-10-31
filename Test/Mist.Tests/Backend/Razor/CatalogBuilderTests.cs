@@ -251,6 +251,39 @@ public sealed class CatalogBuilderTests
     }
 
     [Theory]
+    [InlineData("Outer.Inner", "Vendor", "Vendor.Outer.Inner", 0)]
+    [InlineData("Vendor.Outer.Inner", "App", "Vendor.Outer.Inner", 0)]
+    [InlineData("Inner", "Vendor.Outer", "Vendor.Outer.Inner", 0)]
+    [InlineData("Outer.Middle.Deep", "Vendor", "Vendor.Outer.Middle.Deep", 0)]
+    [InlineData("Outer.GenericBase", "Vendor", "Vendor.Outer.GenericBase", 1)]
+    public void ANestedClrComponentResolvesThroughItsContainingTypes(string tag, string namespaceName, string fullName, int arity)
+    {
+        var component = Resolved(Build(), tag, Scope(namespaceName));
+
+        Assert.Equal((fullName, arity, false), (component.FullName, component.TypeParameterCount, component.IsMist));
+        Assert.Equal(arity == 0 ? "Title" : "Value", Assert.Single(component.Parameters).Name);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ANestedClrBaseSuppliesParametersToMistAndComponentClasses(bool componentFile, bool generic)
+    {
+        var ast = new CatalogAst();
+        var baseName = generic ? "Outer.GenericBase" : "Outer.Inner";
+        var arguments = generic ? new[] { "string" } : [];
+        var unit = ast.Unit("Shell.mist", [CatalogAst.Class("Shell", ast.Base(baseName, arguments))], usings: ["Vendor"]);
+        var source = new ComponentSource("App.Shell", baseName + (generic ? "<string>" : ""), Scope("App", "Vendor"), []);
+        var catalog = Build(new DiagnosticBag(), new ComponentTypeSource(), componentFile ? [] : [unit], componentFile ? [source] : []);
+
+        Assert.Equal(
+            [(generic ? "Value" : "Title", "string", ParameterShape.String)],
+            Facts(Resolved(catalog, "Shell", Scope("App")).Parameters));
+    }
+
+    [Theory]
     [InlineData("string", nameof(ParameterShape.String))]
     [InlineData("string?", nameof(ParameterShape.String))]
     [InlineData("RenderFragment", nameof(ParameterShape.RenderFragment))]

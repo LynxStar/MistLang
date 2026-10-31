@@ -28,7 +28,7 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
     public Type? FindClrType(string fullName, bool ignoreArity)
     {
         return FindClrType(fullName) ?? (ignoreArity
-            ? Emitted.Value.GetTypes().FirstOrDefault(type => ClrTypeText.Name(type) == fullName)
+            ? Emitted.Value.GetTypes().FirstOrDefault(type => type.DeclaringType is null && ClrTypeText.Name(type) == fullName)
             : null);
     }
 
@@ -84,6 +84,8 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
         _ = five.DefineGenericParameters("T1", "T2", "T3", "T4", "T5");
         _ = five.CreateType();
 
+        DefineNestedComponents(module, componentBaseType, parameter);
+
         var mouse = module.DefineType($"{Components}.Web.MouseEventArgs", TypeAttributes.Public, typeof(EventArgs)).CreateType();
         var handler = module.DefineType($"{Components}.EventHandlerAttribute", TypeAttributes.Public | TypeAttributes.Sealed, typeof(Attribute));
         var handlerConstructor = handler.DefineConstructor(
@@ -100,6 +102,26 @@ internal sealed class ComponentTypeSource(bool eventHandlers = true) : IAmbientT
         _ = handlers.CreateType();
 
         return assembly;
+    }
+
+    private static void DefineNestedComponents(ModuleBuilder module, Type componentBase, Type parameter)
+    {
+        var outer = module.DefineType("Vendor.Outer", TypeAttributes.Public);
+        var inner = outer.DefineNestedType("Inner", TypeAttributes.NestedPublic, componentBase);
+        Property(inner, "Title", typeof(string), parameter);
+        _ = inner.CreateType();
+
+        var middle = outer.DefineNestedType("Middle", TypeAttributes.NestedPublic);
+        var deep = middle.DefineNestedType("Deep", TypeAttributes.NestedPublic, componentBase);
+        Property(deep, "Title", typeof(string), parameter);
+        _ = deep.CreateType();
+        _ = middle.CreateType();
+
+        var generic = outer.DefineNestedType("GenericBase`1", TypeAttributes.NestedPublic, componentBase);
+        var argument = generic.DefineGenericParameters("T")[0];
+        Property(generic, "Value", argument, parameter);
+        _ = generic.CreateType();
+        _ = outer.CreateType();
     }
 
     private static Type DefineAttribute(ModuleBuilder module, string name)

@@ -39,7 +39,7 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
             return Find(fullName);
         }
 
-        var type = ambientTypes.FindClrType($"{fullName}`{arguments.Length}");
+        var type = CatalogClrTypeLookup.Find(fullName, ambientTypes.FindClrType, arguments.Length);
         return type is not null && Read(type) is { } facts
             ? facts with { Parameters = CatalogTypeText.Substitute(facts.Parameters, type.GetGenericArguments().Select(argument => argument.Name), arguments) }
             : null;
@@ -81,7 +81,7 @@ internal sealed class ClrComponents(IAmbientTypeSource ambientTypes)
     {
         if(!types.TryGetValue(fullName, out var type))
         {
-            type = ambientTypes.FindClrType(fullName, ignoreArity: true);
+            type = CatalogClrTypeLookup.Find(fullName, ambientTypes.FindClrType);
             types[fullName] = type;
         }
 

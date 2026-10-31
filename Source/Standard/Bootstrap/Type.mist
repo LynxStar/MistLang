@@ -3,5 +3,9 @@ namespace Standard;
 intrinsic public class Type
 {
     intrinsic public string Name { get; }
+    intrinsic public System.Reflection.Assembly Assembly { get; }
     intrinsic public static Type Of(unknown value);
+    intrinsic public static Type? GetType(string typeName);
+    intrinsic public System.Reflection.MethodInfo[] GetMethods();
+    intrinsic public System.Reflection.MethodInfo? GetMethod(string name, Type[] types);
 }

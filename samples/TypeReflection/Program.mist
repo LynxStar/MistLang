@@ -1,0 +1,34 @@
+using Standard;
+using System.Reflection;
+
+namespace TypeReflection;
+
+public class Program
+{
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Type Reflection ===");
+        Console.WriteLine($"[direct] {Type.Of(42).GetMethods().Length > 0}");
+        var inferred = Type.Of(42);
+        Console.WriteLine($"[inferred] {inferred.Name} {inferred.GetMethods().Length > 0}");
+        var literal = string;
+        Console.WriteLine($"[literal] {literal.Name} {literal.GetMethods().Length > 0} {string.GetMethods().Length > 0}");
+        System.Type projected = inferred;
+        Type canonical = projected;
+        Console.WriteLine($"[explicit] {canonical.Name} {projected.GetMethods().Length > 0}");
+        var found = System.Type.GetType("System.String");
+        Console.WriteLine($"[lookup] {found?.Name} {(found?.GetMethods()?.Length ?? 0) > 0}");
+        var assembly = inferred.Assembly;
+        var metadata = assembly.GetType("System.String");
+        Console.WriteLine($"[assembly] {metadata?.Name} {(metadata?.GetMethods()?.Length ?? 0) > 0}");
+        var owner = Assembly.GetAssembly(literal);
+        Console.WriteLine($"[outbound] {owner?.GetType("System.Int32")?.Name}");
+        var method = literal.GetMethod("CompareTo", [string]);
+        Console.WriteLine($"[metadata] {method?.ReturnType?.Name} {(method?.ReturnType?.GetMethods()?.Length ?? 0) > 0}");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

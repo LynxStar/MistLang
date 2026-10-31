@@ -102,6 +102,7 @@ ClosedOperators = { path = "../ClosedOperators" }
 SliceableTypes = { path = "../SliceableTypes" }
 GenericSelfReceivers = { path = "../GenericSelfReceivers" }
 TypeValues = { path = "../TypeValues" }
+TypeReflection = { path = "../TypeReflection" }
 SourceGeneration = { path = "../SourceGeneration" }
 
 TextCapabilities = { path = "../TextCapabilities" }

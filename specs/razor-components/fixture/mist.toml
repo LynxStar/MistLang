@@ -1,0 +1,6 @@
+name = "RazorComponents"
+namespace_root = "RazorComponents"
+output_type = "executable"
+
+[framework_references]
+"Microsoft.AspNetCore.App" = true

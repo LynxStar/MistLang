@@ -1,0 +1,19 @@
+<section class="greeting">
+    <h2>@Title</h2>
+    @if (ChildContent is RenderFragment body)
+    {
+        <div class="body">@body</div>
+    }
+    <p>Shown @Count times.</p>
+</section>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Hello";
+
+    [Parameter]
+    public int Count { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

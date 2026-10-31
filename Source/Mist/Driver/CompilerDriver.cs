@@ -144,7 +144,7 @@ public sealed partial class CompilerDriver : ICompilerDriver
             lexResult.CachedStdlib,
             allDiagnostics);
 
-        if(!backend.SourceTranslators.IsEmpty)
+        if(!backend.SourceTranslators.IsEmpty && !loadResult.ClaimedInputs.IsEmpty)
         {
             compilation = new TranslationStage(lexer, parser, progressReporter).Run(
                 backend, loadResult.ClaimedInputs, compilation, pipelineInput, ambient);

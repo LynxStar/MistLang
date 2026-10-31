@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
@@ -23,7 +24,7 @@ internal static class IndexerEmitter
             return;
         }
 
-        var modifiers = MemberModifierEmitter.Emit(indexer.Modifiers, emitReadonly);
+        var modifiers = MemberModifierEmitter.Emit(indexer.Modifiers, emitReadonly, NativeSlotFills.Fills(indexer));
         var type = TypeNameEmitter.Emit(indexer.Type);
         var parameters = ParameterEmitter.Emit(indexer.ParametersList, diagnostics);
 

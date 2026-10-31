@@ -22,6 +22,8 @@ internal sealed class Indexer(
 
     public Storm.Runtime.SyntaxNode? DeclarationNode { get; init; }
 
+    public NativeSlotKind SlotKind { get; init; }
+
     /// <summary>
     /// The attributes applied to this indexer.
     /// </summary>

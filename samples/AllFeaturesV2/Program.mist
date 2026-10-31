@@ -120,5 +120,6 @@ public class Program
         SliceableTypes.Program.RunDemo();
         GenericSelfReceivers.Program.RunDemo();
         TypeValues.Program.RunDemo();
+        ClrSlotFilling.Program.RunDemo();
     }
 }

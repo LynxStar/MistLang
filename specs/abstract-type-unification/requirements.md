@@ -448,6 +448,15 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 5. WHEN a Mist type does NOT fill a slot that originated from a C# `virtual` method, THE Emitter SHALL NOT emit any method, keyword, or metadata for that slot (the base class's implementation is inherited normally through standard C# inheritance semantics).
 6. THE distinction between CLR interop override (this requirement) and Mist concrete hiding (Requirement 26) SHALL be: `override` is emitted ONLY for filling slots that originate from CLR `abstract` or `virtual` members on base classes. Mist-to-Mist concrete class inheritance always uses hiding semantics with `new`.
 
+**Delivery note (2026-10-30):** criteria 25.2 to 25.4 are delivered by `specs/clr-slot-filling/`, which
+extends them to properties and indexers. A projected class member records its slot kind, a Mist member
+repeating a CLR `abstract` or `virtual` member's name and signature fills it, and the emitter spells
+the fill `override`, or `sealed override` where the Mist member is `sealed`. An abstract CLR member left
+unfilled is `MIST0459`; a member repeating a CLR `sealed override` is `MIST0460`; a member repeating a
+slot's name and parameters but not its return type, accessibility or accessors is `MIST0461`. Criterion
+25.5 holds as written. In 25.6, "hiding semantics with `new`" is superseded as Requirement 26's note
+states.
+
 ### Requirement 26: Concrete Type Hiding Semantics (All Phases)
 
 **User Story:** As a Mist developer, I want concrete type inheritance to continue using hiding semantics (not override), so that base type behavior is preserved when viewed through the base type lens.
@@ -459,6 +468,13 @@ This feature unifies Mist's `interface` and `trait` keywords into a single `abst
 3. IF a derived concrete type declares a member matching a base concrete type member without the `new` keyword in Mist-to-Mist inheritance, THEN THE Compiler SHALL emit a warning diagnostic: "'{TypeName}.{MemberName}' hides inherited member '{BaseTypeName}.{MemberName}'. Use 'new' if intentional."
 4. WHEN the `new` keyword is present on a member that does NOT hide a base member, THE Compiler SHALL emit a warning diagnostic indicating `new` is unnecessary.
 5. Hiding semantics apply ONLY to Mist-to-Mist concrete class inheritance. They do NOT apply to filling abstract type slots (which is slot-filling, not hiding) or to filling CLR virtual/abstract slots (which emits `override`).
+
+**Delivery note (2026-10-30):** criterion 26.5 is delivered by `specs/clr-slot-filling/`: only a fill of a
+CLR slot is emitted `override`, and a Mist type with no CLR ancestor never is. The `new` keyword of
+criteria 26.2 to 26.4 was never implemented and is superseded: Mist has no `new`, `virtual` or
+`override` keyword, and a member repeating the signature of a member it inherits, from a Mist ancestor
+or from a CLR one that is no slot, is refused as `MIST0177` (Member redeclared). The proof code below
+records the original design and is not compiled.
 
 #### Proof Code
 

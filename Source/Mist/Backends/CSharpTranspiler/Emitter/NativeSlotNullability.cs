@@ -74,6 +74,22 @@ internal sealed class NativeSlotNullability
                 }
             }
         }
+
+        foreach(var fill in NativeSlotFills.Of(type, interner))
+        {
+            if(fill is not { Slot.Overload: { } slot, Filler.Overload: { } filler } || filler.ParametersList.Count != slot.ParametersList.Count)
+            {
+                continue;
+            }
+
+            for(var i = 0; i < slot.ParametersList.Count; i++)
+            {
+                if(slot.ParametersList[i].ClrDeclaresNullable)
+                {
+                    yield return filler.ParametersList[i];
+                }
+            }
+        }
     }
 
     private sealed class Scope : IDisposable

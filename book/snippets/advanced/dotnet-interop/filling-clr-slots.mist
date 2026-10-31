@@ -1,0 +1,25 @@
+using Standard;
+using System.Collections.ObjectModel;
+
+public class Loud : Collection<int>
+{
+    public int inserts;
+
+    protected void InsertItem(int index, int item)
+    {
+        inserts = inserts + 1;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var loud = new Loud();
+        loud.Add(1);
+
+        Collection<int> collection = loud;
+        collection.Add(2);
+        Console.WriteLine($"inserts={loud.inserts} count={loud.Count}");
+    }
+}

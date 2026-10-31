@@ -77,6 +77,7 @@ internal static class PropertyProjector
             DeclaringType = memberType,
             Getter = getter,
             Setter = setter,
+            SlotKind = MethodProjector.SlotKindOf(prop.GetMethod ?? prop.SetMethod),
         };
 
         AttributeProjector.Project(prop, projected.AttributesList, memberType.Scope, resolver);

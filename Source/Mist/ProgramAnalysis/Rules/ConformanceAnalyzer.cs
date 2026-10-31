@@ -207,7 +207,7 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
         return found;
     }
 
-    private static string Spelled(TypeParameterConstraint constraint)
+    internal static string Spelled(TypeParameterConstraint constraint)
     {
         return constraint switch
         {

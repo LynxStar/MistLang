@@ -22,11 +22,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class ConstraintEmitter
 {
-    public static void Emit(IReadOnlyList<TypeParameter> typeParameters, CSharpWriter writer, bool liftSlots = false)
+    public static void Emit(IReadOnlyList<TypeParameter> typeParameters, CSharpWriter writer, bool liftSlots = false, bool overriding = false)
     {
         writer.Indent();
 
-        foreach(var line in Lines(typeParameters, liftSlots))
+        foreach(var line in Lines(typeParameters, liftSlots, overriding))
         {
             writer.WriteLine(line);
         }
@@ -34,7 +34,7 @@ internal static class ConstraintEmitter
         writer.Dedent();
     }
 
-    public static List<string> Lines(IReadOnlyList<TypeParameter> typeParameters, bool liftSlots)
+    public static List<string> Lines(IReadOnlyList<TypeParameter> typeParameters, bool liftSlots, bool overriding = false)
     {
         var lines = new List<string>();
         var constrained = liftSlots
@@ -43,11 +43,16 @@ internal static class ConstraintEmitter
 
         foreach(var parameter in constrained)
         {
-            var parts = Parts(parameter, liftSlots);
+            // An override inherits its constraints and C# refuses any restated but class or struct (CS0460);
+            // that a fill promises no more than its slot is NativeSlotFills' to decide.
+            var parts = overriding
+                ? [.. Parts(parameter, liftSlots).Where(part => part is "class" or "struct")]
+                : Parts(parameter, liftSlots);
 
             // The witness is what makes a dependent parameter carry a value at all, so it is added
             // here rather than declared in Mist -- there is no Mist constraint that spells it.
-            if(parameter.Domain is { } domain
+            if(!overriding
+                && parameter.Domain is { } domain
                 && parameter.IsDependent
                 && !parameter.IsPack
                 && DependentCarrierNames.Witness(domain) is { } witness)

@@ -282,7 +282,7 @@ owned class Vault
 // Invalid: Widget is not owned and not IClonable
 // owned class Broken
 // {
-//     public Widget data;  // ERROR: MIST_OWN_FIELD_TYPE_VIOLATION
+//     public Widget data;  // ERROR: MIST0237
 // }
 ```
 

@@ -74,8 +74,8 @@ Each rejection in the matrix has a clear justification rooted in what would go w
 When you attempt an invalid combination, the compiler produces a targeted error message explaining exactly which invariant would be violated:
 
 ```
-error MIST_DROP_FIELD_NOT_OWNED: Affine type 'MyContainer' cannot contain linear field 'Handle'.
-    The container may never be dropped, violating the field's requirement of at least one drop.
+error MIST0240: Affine type 'MyContainer' cannot contain linear field 'Handle':
+    the container may never be dropped, which the field's discipline does not allow.
 ```
 
 ## Generic Substructural Constraints
@@ -87,9 +87,8 @@ The solution is **substructural constraints**: `where T : linear`, `where T : af
 Without a constraint, the compiler rejects the field:
 
 ```
-error MIST_DROP_FIELD_NOT_OWNED: Linear type 'Box' contains field 'Value' of unconstrained
-    type parameter 'T'. Add a substructural constraint (e.g., 'where T : linear') to ensure
-    the field's discipline is compatible.
+error MIST0241: Linear type 'Box<>' contains field 'Value' of unconstrained
+    type parameter 'T'. Add a substructural constraint, such as 'where T : linear'.
 ```
 
 With the constraint, the compiler treats `T` as having that discipline for the matrix check:

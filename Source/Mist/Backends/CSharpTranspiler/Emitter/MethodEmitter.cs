@@ -29,8 +29,9 @@ internal static class MethodEmitter
             return;
         }
 
-        var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly)
-            + (HidesObjectToString(method) ? "new " : "")
+        var fills = NativeSlotFills.Fills(method);
+        var modifiers = MemberModifierEmitter.Emit(method.Modifiers, emitReadonly, fills)
+            + (!fills && HidesObjectToString(method) ? "new " : "")
             + (AsyncPromotion.EmitsAsync(method) ? "async " : "");
 
         AttributeEmitter.EmitLines(method.DeclaredAttributesList, writer, diagnostics);

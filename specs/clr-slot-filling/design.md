@@ -44,9 +44,15 @@ language fact Stage 5 judges, so it belongs in the model.
 | CLR flags | SlotKind |
 |---|---|
 | `IsAbstract` | `Required` |
-| `IsVirtual && IsFinal` | `Sealed` |
+| `IsVirtual && IsFinal`, not `NewSlot` (a `sealed override`) | `Sealed` |
+| `IsVirtual && IsFinal && NewSlot` (a non-virtual implementation of an interface member) | `None` |
 | `IsVirtual` otherwise (new slot or non-final override) | `Defaulted` |
 | not virtual, or declaring type is an interface | `None` |
+
+The `NewSlot` split was found when re-measuring at `af91eec2`: the CLR marks `Collection<T>.Add`, which
+implements `ICollection<T>.Add` without being virtual in C#, `virtual final newslot`, and the
+redeclaration probe of the requirements introduction expects it refused as `MIST0177`, not as a sealed
+slot. `MethodProjector.SlotKindOf` holds the table; the property and indexer projectors call it.
 
 `PropertyProjector` and `IndexerProjector` apply the same table to `GetMethod ?? SetMethod`
 (Requirement 1.2). `SentinelAttributes.ApplyMethodAttributes` is deleted with its four method
@@ -64,14 +70,24 @@ is established.
 ```csharp
 internal static class NativeSlotFills
 {
-    internal sealed record Fill(IOverloadOrProperty Filler, IOverloadOrProperty Slot, ConcreteType Ancestor, TypeSubstitution Inheritance);
-    internal sealed record Collision(IOverloadOrProperty Member, IOverloadOrProperty Against, ConcreteType Ancestor, NativeSlotKind Kind, string? Mismatch);
+    internal sealed record Fill(SlotMember Filler, SlotMember Slot, ConcreteType Ancestor, TypeSubstitution Inheritance);
+    internal sealed record Collision(
+        SlotMember Member, SlotMember Against, ConcreteType Ancestor, TypeSubstitution Inheritance, NativeSlotKind Kind,
+        string? Mismatch, string? Declared);
 
     public static IEnumerable<Fill> Of(ConcreteType type, TypeInterner interner);
     public static IEnumerable<Collision> Collisions(ConcreteType type, TypeInterner interner);
-    public static IEnumerable<(Method Slot, ConcreteType Ancestor, TypeSubstitution Inheritance)> Unfilled(ConcreteType type, TypeInterner interner);
+    public static IEnumerable<(SlotMember Slot, ConcreteType Ancestor, TypeSubstitution Inheritance)> Unfilled(ConcreteType type, TypeInterner interner);
+
+    public static IDisposable Enter(ProgramModel programModel);
+    public static bool Fills(object member);
 }
+
+internal readonly record struct SlotMember(object Member);   // a Method, Property or Indexer
 ```
+
+As delivered, `SlotMember` is the small union, and `Unfilled` reports required properties and indexers as
+well as methods: `RequiredBase.Size` is as much a required slot as `RequiredBase.Key`.
 
 The exact shape of the member abstraction is the implementer's; `Method`, `Property` and `Indexer` do
 not share an interface today beyond `IOverload` for the two with parameters, so a small internal union
@@ -88,11 +104,15 @@ or three overloads is acceptable. What is fixed is the algorithm:
    declaration-node guard of `Repeats` lifted for the earlier member. A new overload
    `OverloadSignature.RepeatsProjected(IOverload later, IOverload earlier, TypeSubstitution inherited, TypeInterner)`
    expresses that; `Repeats` itself is unchanged for its Mist-to-Mist callers. Properties repeat by name
-   alone, indexers by parameter signature.
+   alone, indexers by parameter signature. Only an instance ancestor member is a match; a static source
+   member is matched against a `Required` or `Defaulted` slot only, to be refused as `"static"`.
 3. Classify by the nearest match's `SlotKind`:
    - `Required` or `Defaulted`: check return-type agreement with `SlotSignatures.Agree`, accessibility
      equality, and for properties the accessor subset. All pass: a `Fill`. Any fails: a `Collision` with
-     `Mismatch` naming what differs (`"return type"`, `"accessibility"`, `"static"`, `"set accessor"`).
+     `Mismatch` naming what differs (`"static"`, `"return type"`, `"accessibility"`, `"get accessor"`,
+     `"set accessor"`) and `Declared` saying what the slot declares. A CLR result the metadata leaves
+     nullable projects as `T | void`; a fill returning `T` agrees with it, as C# lets an `override` of
+     `string? ToString()` return `string`.
    - `Sealed`: a `Collision` with `Kind = Sealed`.
    - `None`: a `Collision` with `Kind = None`, the redeclaration case.
 4. `Unfilled`: every `Required` slot of every projected ancestor, read through the inheritance
@@ -110,10 +130,10 @@ redeclaration; see below.
 
 For each `ConcreteType { DeclarationNode: not null }` in `context.Types`:
 
-- each `Unfilled` slot reports `MIST_PA_NATIVE_SLOT_NOT_FILLED` at the type's declaration;
-- each `Collision` with `Kind = Sealed` reports `MIST_PA_NATIVE_SLOT_SEALED` at the member;
+- each `Unfilled` slot reports `MIST0459` at the type's declaration;
+- each `Collision` with `Kind = Sealed` reports `MIST0460` at the member;
 - each `Collision` against a `Required` or `Defaulted` slot with a `Mismatch` reports
-  `MIST_PA_NATIVE_SLOT_SHAPE` at the member.
+  `MIST0461` at the member.
 
 Collisions with `Kind = None` are not this analyzer's: they are redeclarations and stay with the rule
 that owns that diagnostic.
@@ -122,21 +142,27 @@ that owns that diagnostic.
 
 Two changes. It compares against projected ancestors' members too, by switching its `Hides` to the
 projected-tolerant repetition for an ancestor that is a projected type, so a `Collision` of kind `None`
-draws `MIST_PA_MEMBER_REDECLARATION` exactly as a Mist ancestor's member does. And it skips any member
+draws `MIST0177` exactly as a Mist ancestor's member does. And it skips any member
 that `NativeSlotFills.Of` reports as a `Fill`, which is what lets a derived type restate a Mist
-ancestor's fill (Requirement 2.5) without being refused for repeating that ancestor.
+ancestor's fill (Requirement 2.5) without being refused for repeating that ancestor. As delivered it
+also skips a member that collides with a `Sealed` slot or differs from a `Required` or `Defaulted` one,
+which `NativeSlotAnalyzer` reports, so one mistake draws one diagnostic; and it reports a member once
+however many projected ancestors declare the signature it repeats, since a CLR hierarchy restates
+members as a Mist one cannot.
 
 ### Diagnostics
 
-Three descriptors in `ProgramAnalysisDiagnostics`, severity Error, stage Analysis:
+Three descriptors in `ProgramAnalysisDiagnostics.NativeSlots.cs`, severity Error, category `DEC`, policy
+Fixed, their Numbers minted under diagnostics Requirement 1.4 as the lowest unused values above every
+Number issued (`MIST0458` was the highest at `af91eec2`):
 
-| Id | Message |
-|---|---|
-| `MIST_PA_NATIVE_SLOT_NOT_FILLED` | `'{0}' does not fill slot '{1}' of '{2}': the CLR declares it abstract and no member of '{0}' or a base answers it.` |
-| `MIST_PA_NATIVE_SLOT_SEALED` | `'{0}.{1}' cannot fill slot '{2}' of '{3}': the CLR declares it sealed.` |
-| `MIST_PA_NATIVE_SLOT_SHAPE` | `'{0}.{1}' fills slot '{2}' of '{3}' but differs in {4}: the slot declares {5}.` |
+| Number | Field and title | Template |
+|---|---|---|
+| `MIST0459` | `NativeSlotNotFilled`, CLR slot not filled | `'{type}' does not fill slot '{slot}' of '{base}': the CLR declares it abstract and no member of '{type}' or a base answers it.` |
+| `MIST0460` | `NativeSlotSealed`, CLR slot sealed | `'{type}.{member}' cannot fill slot '{slot}' of '{base}': the CLR declares it sealed.` |
+| `MIST0461` | `NativeSlotShape`, CLR slot fill shape mismatch | `'{type}.{member}' fills slot '{slot}' of '{base}' but differs in {difference}: the slot declares {declared}.` |
 
-`MIST_PA_SLOT_NOT_FILLED` is not reused: its text says "no public member", and a class slot is as often
+`MIST0183` is not reused: its text says "no public member", and a class slot is as often
 protected.
 
 ## Stage 6
@@ -172,7 +198,7 @@ reaches emission: Stage 5 refused the program.
 
 Two, both to be checked against `AllFeaturesV2` before delivery:
 
-1. A Mist member repeating a non-virtual CLR ancestor member becomes `MIST_PA_MEMBER_REDECLARATION`.
+1. A Mist member repeating a non-virtual CLR ancestor member becomes `MIST0177`.
    Today it is admitted and hides. No banked sample is known to do this; the baseline run is the proof.
 2. A `ToString`, `Equals` or `GetHashCode` on a Mist class that extends a CLR class flips from `new`
    to `override`, so reading the value through the base type now reaches the Mist member. Same check.
@@ -194,13 +220,20 @@ public class SealingDerived : DefaultedBase { public sealed override int Twice(i
 public class OverridingDerived : RequiredBase { protected override string Key(int n) => n.ToString(); public override int Size => 1; }
 ```
 
+As delivered the fixture is written in the repository's block-bodied style and adds a virtual indexer to
+`DefaultedBase` (Requirement 1.2) and `ImplicitImplementer : IDisposable`, whose `Dispose` is the
+`virtual final newslot` shape the projection table maps to `None`.
+
 ### Tier 2: projection (`AmbientTypeProviderV2SlotKindTests`)
 
 Over the fixture types through `AmbientTypeProviderV2InteropFixture`: `Key` and `Size` on
 `RequiredBase` are `Required`; `Twice`, `Hook` and `Label` on `DefaultedBase` are `Defaulted`; `Fixed`
 is `None`; `Twice` on `SealingDerived` is `Sealed`; `Key` on `OverridingDerived` is `Defaulted`
 (Requirement 2.3's nearest-declaration rule rests on this); every member of `IGreeter` is `None`;
-`System.Object.ToString` is `Defaulted`.
+`System.Object.ToString` is `Defaulted`. The fixture's provider projects only the fixture assembly, so
+the `System.Object` rows (`ToString`, `Equals`, `GetHashCode`) read the runtime's metadata through
+`AmbientProviderTestHelper.RuntimeResolvingContext` and ask `MethodProjector.SlotKindOf` directly rather
+than project CoreLib.
 
 ### Tier 1: resolution (`NativeSlotFillsTests`)
 
@@ -214,18 +247,22 @@ type restating a Mist ancestor's fill is a fill; a method whose own type paramet
 matched (`SlotSignatures` already answers this for abstract slots); a chain with an unresolved base
 yields nothing.
 
-### Tier 1: decisions (`NativeSlotAnalyzerTests`, `DeclarationShapeRedeclarationTests` additions)
+### Tier 1: decisions (`NativeSlotAnalyzerTests`, `DeclarationShapeNativeRedeclarationTests`)
 
 Hand-built models driven through the analyzer alone, after `ConformanceDecisionTests`: each of the three
-new diagnostics reported once at the right node; `MIST_PA_MEMBER_REDECLARATION` for a `None` collision
+new diagnostics reported once at the right node; `MIST0177` for a `None` collision
 against a projected ancestor; no redeclaration for a restated fill; silence for an unfilled `Defaulted`
 slot; silence under an unresolved base.
 
-### Tier 1: emission (`MethodEmitterOverrideTests`, property and indexer rows)
+### Tiers 1 and 2: emission (`MethodEmitterOverrideTests`, property and indexer rows)
 
 Hand-built `Method` in and out of a `NativeSlotFills` scope: `protected override void Hook()`,
 `public sealed override int Twice(int x)`, a `ToString` not in scope keeps `new`, a `ToString` in scope
-has `override` and no `new`, a fill's `object?` parameter under `NativeSlotNullability`.
+has `override` and no `new`, a fill's `object?` parameter under `NativeSlotNullability`. The spelling of
+the modifiers is one function, `MemberModifierEmitter.Emit`, and its rows are Tier 1. The declaration
+rows run `MethodEmitter`, `PropertyEmitter` and `IndexerEmitter` with their collaborators and the
+real fill scope, which is the emitter's internal chain, so they are Tier 2, as the existing
+`ToStringDeclarationEmissionTests` and `NativeSlotNullabilityEmissionTests` over the same emitters are.
 
 ### Tier 6
 

@@ -25,7 +25,7 @@ touching anything, and keep the outputs for the completion report.
   - _Requirements: 2.1 to 2.7_
 
 - [ ] 4. Stage 5: refusals and the unfilled-slot finding
-  - [ ] 4.1 Three descriptors in `ProgramAnalysisDiagnostics` with the design's texts.
+  - [ ] 4.1 Three descriptors in `ProgramAnalysisDiagnostics` with the design's texts, minted `MIST0459` to `MIST0461`.
   - [ ] 4.2 `NativeSlotAnalyzer` (`native-slot-filling`) registered in `ProgramAnalysisRunner` after `ConformanceAnalyzer`.
   - [ ] 4.3 `DeclarationShapeAnalyzer.CheckRedeclarations`: compare against projected ancestors through `RepeatsProjected`; skip members `NativeSlotFills.Of` reports as fills.
   - [ ] 4.4 Tier 1 `NativeSlotAnalyzerTests` and redeclaration rows: each diagnostic once at the right node, the two silences, the unresolved-base silence.
@@ -46,11 +46,11 @@ touching anything, and keep the outputs for the completion report.
   - _Requirements: 7.1, 7.2_
 
 - [ ] 7. Specs and records
-  - [ ] 7.1 abstract-type-unification `requirements.md`: a note under Requirement 25 and 26 that this specification delivers 25.2 to 25.4 and 26.5 and that 26.2 to 26.4's `new` keyword is superseded by `MIST_PA_MEMBER_REDECLARATION`.
+  - [ ] 7.1 abstract-type-unification `requirements.md`: a note under Requirement 25 and 26 that this specification delivers 25.2 to 25.4 and 26.5 and that 26.2 to 26.4's `new` keyword is superseded by `MIST0177`.
   - [ ] 7.2 Book: the Abstract Types or Interop chapter gains a short section on filling a CLR base's slot, with a compiled snippet, under `book/AGENTS.md`'s snippet policy.
   - _Requirements: 1 to 6_
 
 - [ ] 8. Verification for the completion report
-  - [ ] 8.1 The five "before" probes rerun on the delivered compiler: `inserts=2 count=0`; `MIST_PA_NATIVE_SLOT_NOT_FILLED` naming `GetKeyForItem`; `protected override void BuildRenderTree` in the emitted component; `True` through the `Attribute` variable; `MIST_PA_MEMBER_REDECLARATION` for `Add`.
+  - [ ] 8.1 The five "before" probes rerun on the delivered compiler: `inserts=2 count=0`; `MIST0459` naming `GetKeyForItem`; `protected override void BuildRenderTree` in the emitted component; `True` through the `Attribute` variable; `MIST0177` for `Add`.
   - [ ] 8.2 `dotnet build Mist.slnx` zero warnings; `dotnet format Mist.slnx --verify-no-changes`; `git diff --check`.
   - [ ] 8.3 Focused ledgers through `tools/test-ledger/run.sh Test/Mist.Tests --filter` for each new test class, then the full ledger at the delivery checkpoint; ledger paths in the report.

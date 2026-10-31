@@ -17,15 +17,18 @@ conforming, native default bodies are honoured (14.8, 16.7) and the emitter writ
 `class Money : IComparable<Money>` driving `List<Money>.Sort()` is the standing proof. The class half is
 not: the ambient provider stamps virtual, abstract, override and sealed on every projected class method
 as sentinel attributes that nothing reads, and `HasNativeBody` is set for interface members only.
-Measured at `8c0de050` on 2026-10-24 with the CLI built from that revision:
+First measured at `8c0de050` on 2026-10-24, and re-measured before implementation at `af91eec2` on
+2026-10-30 with the CLI built from that revision (`dotnet build Source/Mist.CLI/Mist.CLI.csproj`, then
+`mist run <probe>`), which agreed with the first measurement but for the spelling of the Roslyn error,
+renamed by the diagnostics reissue of 2026-10-25. Outputs at `af91eec2`:
 
-| Program | Observed | Expected under Requirement 25 |
+| Program | Observed at `af91eec2` | Expected under Requirement 25 |
 |---|---|---|
-| `class Loud : Collection<int>` declaring `protected void InsertItem(int index, int item)` that counts calls, then two `Add` calls | compiles with zero warnings, prints `inserts=0 count=2`: the member hides and is never called | `inserts=2 count=0` |
-| `class Catalog : KeyedCollection<string, Item>` with no `GetKeyForItem` | reaches Roslyn: `MIST_CS_ERROR: 'Catalog' does not implement inherited abstract member` | a Mist diagnostic naming the unfilled slot; nothing emitted |
-| `class Hello : ComponentBase` declaring `protected void BuildRenderTree(RenderTreeBuilder builder)` | compiles with zero warnings; emitted without `override`, so Blazor renders the empty base method | emitted `protected override void BuildRenderTree(...)` |
+| `class Loud : Collection<int>` declaring `protected void InsertItem(int index, int item)` that counts calls, then two `Add` calls | compiles, prints `inserts=0 count=2`: the member hides and is never called | `inserts=2 count=0` |
+| `class Catalog : KeyedCollection<string, Item>` with no `GetKeyForItem` | reaches Roslyn: `error MIST0003: 'Catalog' does not implement inherited abstract member 'KeyedCollection<string, Item>.GetKeyForItem(Item)'` | a Mist diagnostic naming the unfilled slot, `MIST0459`; nothing emitted |
+| `class Hello : ComponentBase` declaring `protected void BuildRenderTree(RenderTreeBuilder builder)` that adds `hello from mist`, rendered through `HtmlRenderer` | compiles; emitted `protected void BuildRenderTree(...)` without `override`, so Blazor renders the empty base method: `rendered=[]` | emitted `protected override void BuildRenderTree(...)`; `rendered=[hello from mist]` |
 | `class Marker : Attribute` declaring `public bool IsDefaultAttribute()` returning true, read through an `Attribute` variable | prints `False` | prints `True` |
-| `class Loud : Collection<int>` declaring `public void Add(int item)`, a non-virtual CLR member | compiles, hides, `count=0` after `Add(5)` | refused as a redeclaration, as a Mist ancestor's member would be |
+| `class Loud : Collection<int>` declaring `public void Add(int item)`, a non-virtual CLR member | compiles, hides, `count=0` after `Add(5)` | refused as a redeclaration, `MIST0177`, as a Mist ancestor's member would be |
 
 The last row has a precise cause: `OverloadSignature.Repeats` requires both members to carry a
 declaration node, and a projected member has none, so the redeclaration rule in
@@ -60,7 +63,7 @@ first among them, and it delivers items 1 and 2 of the archived Carbonek workstr
 - **Native_Slot_Fills**: the one function from a Source_Type to its fills, consumed by Stage 5 and by
   the emitter.
 - **Redeclaration**: a Candidate against a member of Slot_Kind `None`, refused today for Mist
-  ancestors as `MIST_PA_MEMBER_REDECLARATION`.
+  ancestors as `MIST0177`.
 
 ## Requirements
 
@@ -74,8 +77,10 @@ reaction to the emitted code.
 
 1. WHEN the Ambient_Type_Provider projects a method declared on a CLR class or struct, THE
    Ambient_Type_Provider SHALL record its Slot_Kind: `Required` where the CLR method is abstract;
-   `Sealed` where it is virtual and final; `Defaulted` where it is virtual, not final and not abstract,
-   whether a new virtual slot or a non-final override; `None` otherwise.
+   `Sealed` where it is virtual and final and overrides an inherited slot; `Defaulted` where it is
+   virtual, not final and not abstract, whether a new virtual slot or a non-final override; `None`
+   otherwise. A virtual, final new slot is how the CLR spells a member that implements an interface
+   member without being virtual in C#, such as `Collection<T>.Add`, so it is `None`, not `Sealed`.
 2. WHEN the Ambient_Type_Provider projects a property or indexer declared on a CLR class or struct, THE
    Ambient_Type_Provider SHALL record its Slot_Kind from its accessors by the same rule, reading the
    getter where one is projected and the setter otherwise.
@@ -126,12 +131,12 @@ member unfilled, instead of learning it from a C# error over code I did not writ
 #### Acceptance Criteria
 
 1. WHEN a Source_Type has a Projected_Ancestor with a Required_Slot, and neither the Source_Type nor
-   any Mist ancestor fills it, THE Analyzer SHALL report `MIST_PA_NATIVE_SLOT_NOT_FILLED` at the
+   any Mist ancestor fills it, THE Analyzer SHALL report `MIST0459` at the
    Source_Type's declaration, naming the type, the slot's signature and the projected type that declares
    it.
 2. A Defaulted_Slot left unfilled SHALL be admitted silently: the native default runs.
-3. WHEN `MIST_PA_NATIVE_SLOT_NOT_FILLED` is reported, THE Compiler SHALL emit no C# for the program:
-   the `MIST_CS_ERROR` seen today never occurs.
+3. WHEN `MIST0459` is reported, THE Compiler SHALL emit no C# for the program:
+   the `MIST0003` (C# compilation error) seen before this specification never occurs.
 4. THE rule SHALL stay silent where a base in the chain did not resolve, as `ConformanceAnalyzer`
    does through `InheritsUnseen`: the unresolved base was reported where it was written.
 
@@ -144,16 +149,16 @@ method.
 #### Acceptance Criteria
 
 1. WHEN a Candidate's nearest projected declaration has Slot_Kind `None`, THE Analyzer SHALL report
-   `MIST_PA_MEMBER_REDECLARATION`, the diagnostic a Mist ancestor's member draws today, naming the
+   `MIST0177`, the diagnostic a Mist ancestor's member draws today, naming the
    Source_Type, the member and the projected ancestor.
 2. WHEN a Candidate's nearest projected declaration has Slot_Kind `Sealed`, THE Analyzer SHALL report
-   `MIST_PA_NATIVE_SLOT_SEALED` at the member, naming the member, the slot and the projected type that
+   `MIST0460` at the member, naming the member, the slot and the projected type that
    sealed it.
 3. WHEN a Candidate against a Native_Slot differs from the slot in return type, in accessibility, or is
-   static, THE Analyzer SHALL report `MIST_PA_NATIVE_SLOT_SHAPE` at the member, naming what differs
+   static, THE Analyzer SHALL report `MIST0461` at the member, naming what differs
    and what the slot declares.
 4. WHEN a property or indexer Fill declares an accessor its slot does not, THE Analyzer SHALL report
-   `MIST_PA_NATIVE_SLOT_SHAPE` naming the accessor. A Fill may omit an accessor the slot has.
+   `MIST0461` naming the accessor. A Fill may omit an accessor the slot has.
 5. A Source_Type member whose name matches an ancestor member but whose parameter signature does not
    is an overload, admitted as today.
 6. THE purity, readonly and ownership modifiers of a Fill are the Filler's own and SHALL NOT be judged
@@ -220,11 +225,12 @@ where the repository records progress.
    - a virtual property fill, `Exception.Message` or an equivalent, read through the base type.
 2. THE sample SHALL contain no member that is merely a Redeclaration: the refusals of Requirement 4
    are proven at Stage 5's own tier, since `AllFeaturesV2` cannot see a refusal.
+3. A sample project SHALL exist at `samples/ClrSlotFilling/Program.mist`.
 
 ## Out of scope
 
 - **No new keywords.** `virtual`, `override` and `new` do not enter the grammar. Mist-to-Mist concrete
-  inheritance keeps refusing a repeated signature as `MIST_PA_MEMBER_REDECLARATION`; the `new`-keyword
+  inheritance keeps refusing a repeated signature as `MIST0177`; the `new`-keyword
   hiding of abstract-type-unification 26.2 to 26.4 was never implemented and this specification does not
   revive it.
 - **No base call.** The grammar spells `base` only in a constructor chain. A Fill replaces the default

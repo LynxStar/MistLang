@@ -25,6 +25,8 @@ internal sealed class Property(
 
     public TypeParameter? ProjectedParameter { get; init; }
 
+    public NativeSlotKind SlotKind { get; init; }
+
     /// <summary>
     /// The attributes applied to this property.
     /// </summary>

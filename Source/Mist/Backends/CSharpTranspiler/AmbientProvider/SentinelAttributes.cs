@@ -1,4 +1,3 @@
-using System.Reflection;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
@@ -24,12 +23,6 @@ internal static class SentinelAttributes
     /// <summary>Marks a class as abstract (cannot be instantiated directly).</summary>
     public static readonly IMistType Abstract = new SentinelType("Abstract");
 
-    /// <summary>Marks a method as virtual (can be overridden).</summary>
-    public static readonly IMistType Virtual = new SentinelType("Virtual");
-
-    /// <summary>Marks a method as an override of a base method.</summary>
-    public static readonly IMistType Override = new SentinelType("Override");
-
     /// <summary>
     /// Applies sentinel attributes to a type's attribute list based on CLR flags.
     /// Called during shell creation for classes (not interfaces or value types).
@@ -52,40 +45,6 @@ internal static class SentinelAttributes
         if(clrType.IsAbstract)
         {
             target.Add(new AttributeData(Abstract, [], []));
-        }
-    }
-
-    /// <summary>
-    /// Applies sentinel attributes to a method's attribute list based on CLR flags.
-    /// Detects virtual, abstract, override, and sealed override.
-    /// </summary>
-    public static void ApplyMethodAttributes(MethodInfo method, List<AttributeData> target)
-    {
-        if(!method.IsVirtual)
-        {
-            return;
-        }
-
-        var isOverride = (method.Attributes & MethodAttributes.NewSlot) == 0;
-
-        if(method.IsAbstract)
-        {
-            target.Add(new AttributeData(Abstract, [], []));
-        }
-        else if(isOverride)
-        {
-            target.Add(new AttributeData(Override, [], []));
-
-            // A sealed override (final + virtual + not newslot) prevents further overriding.
-            if(method.IsFinal)
-            {
-                target.Add(new AttributeData(Sealed, [], []));
-            }
-        }
-        else
-        {
-            // New virtual slot (not override, not abstract).
-            target.Add(new AttributeData(Virtual, [], []));
         }
     }
 

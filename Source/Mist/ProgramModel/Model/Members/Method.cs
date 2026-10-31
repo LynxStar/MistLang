@@ -72,6 +72,8 @@ internal class Method(
     /// </summary>
     public bool HasNativeBody { get; init; }
 
+    public NativeSlotKind SlotKind { get; init; }
+
     /// <summary>
     /// The ownership specifier on the return type, if any.
     /// </summary>

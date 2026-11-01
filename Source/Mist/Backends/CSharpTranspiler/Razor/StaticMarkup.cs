@@ -68,7 +68,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
 
     public bool IsStatic(RazorNode node)
     {
-        if(node is MarkupText or HtmlComment)
+        if(node is MarkupText or HtmlComment or RazorComment)
         {
             return true;
         }
@@ -130,7 +130,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
 
     private static bool HasStaticContent(RazorNode node)
     {
-        return node is MarkupElement element && MarkupWhitespace.Content(element.Children).Any(child => child is not HtmlComment);
+        return node is MarkupElement element && MarkupWhitespace.Content(element.Children).Any(child => child is not (HtmlComment or RazorComment));
     }
 
     private void Render(RazorNode node, StringBuilder html)

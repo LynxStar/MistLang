@@ -135,7 +135,7 @@ internal sealed class RenderProtocolWriter
 
     private void WriteStatic(ImmutableArray<RazorNode> nodes)
     {
-        var written = nodes.Where(node => node is not HtmlComment).ToImmutableArray();
+        var written = nodes.Where(node => node is not (HtmlComment or RazorComment)).ToImmutableArray();
         if(written.IsEmpty)
         {
             return;

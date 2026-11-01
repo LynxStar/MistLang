@@ -427,6 +427,15 @@ Razor compiler numbers them and what the differ relies on.
   which fold into one `AddMarkupContent` where a lone text would be `AddContent` (`<p>@n <!-- c --> after</p>`
   gives `AddMarkupContent(seq, "  after")`); an element holding only comments is static and empty; and the line
   break after a code block is markup when a comment comes between them.
+- A Razor comment between two texts splits them the same way: the texts stay separate siblings, trimming
+  drops a whitespace-only one at an edge, and when two or more survive they fold into one `AddMarkupContent`
+  with the text as written, entities undecoded, where one text left alone is `AddContent` under whitespace
+  rule 7. Next to an element, code or another comment, a Razor comment changes nothing, so an element after it
+  folds by rule 6. Measured on 2026-11-01 against the C# that SDK 10.0.301 generated: `<p>a@* gone *@b @n</p>`
+  gives `AddMarkupContent(seq, "ab ")`, `<p> @* c *@b @n</p>` gives `AddContent(seq, "b ")`,
+  `<p>a@* c *@&amp;b @n</p>` gives `AddMarkupContent(seq, "a&amp;b ")`, `<p>a@* x *@<b>c</b> @n</p>` gives
+  `AddContent(seq, "a")` then `AddMarkupContent(seq, "<b>c</b> ")`, and a static `<div>a@* x *@<b>c</b></div>`
+  gives `AddMarkupContent(seq, "<div>a<b>c</b></div>")`.
 
 **Whitespace (Requirement 5.8), measured at task 5.** Read from the C# that the Razor compiler of SDK
 10.0.113 generated for the fixture, rewritten in C#, and for probe components beside it in a throwaway Blazor

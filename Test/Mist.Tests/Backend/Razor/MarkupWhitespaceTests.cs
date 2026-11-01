@@ -57,11 +57,13 @@ public sealed class MarkupWhitespaceTests
     }
 
     [Fact]
-    public void ARazorCommentVanishesAndTheTextAroundItJoins()
+    public void ARazorCommentKeepsTheTextsAroundItApartAndVanishesElsewhere()
     {
-        var kept = MarkupWhitespace.Content(Root(H.Text("a "), H.RazorComment("gone"), H.Text(" b")));
+        var kept = MarkupWhitespace.Content(Root(
+            H.RazorComment("lead"), H.Text("a "), H.RazorComment("gone"), H.RazorComment("again"), H.Text(" b"),
+            H.RazorComment("before"), H.El("p", H.Expr("x")), H.RazorComment("tail")));
 
-        Assert.Equal(["a  b"], kept.Select(Describe));
+        Assert.Equal(["a ", "RazorComment", " b", "p"], kept.Select(Describe));
     }
 
     [Fact]

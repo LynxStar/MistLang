@@ -14,7 +14,31 @@ internal static class MarkupWhitespace
 {
     public static ImmutableArray<RazorNode> Content(ImmutableArray<RazorNode> nodes)
     {
-        return [.. Trim(Merge(nodes.Where(node => node is not RazorComment))).Where(node => node is not TextBoundary)];
+        return [.. Trim(Merge(SplittingComments(nodes))).Where(node => node is not TextBoundary)];
+    }
+
+    // A Razor comment between two texts keeps them separate siblings, which Razor trims apart and folds as markup; anywhere else it is nothing.
+    private static IEnumerable<RazorNode> SplittingComments(ImmutableArray<RazorNode> nodes)
+    {
+        RazorComment? split = null;
+        RazorNode? previous = null;
+        foreach(var node in nodes)
+        {
+            if(node is RazorComment comment)
+            {
+                split ??= previous is MarkupText ? comment : null;
+                continue;
+            }
+
+            if(split is not null && node is MarkupText)
+            {
+                yield return split;
+            }
+
+            split = null;
+            previous = node;
+            yield return node;
+        }
     }
 
     public static ImmutableArray<RazorNode> CodeBody(ImmutableArray<RazorNode> nodes, string source)
@@ -131,7 +155,7 @@ internal static class MarkupWhitespace
     private static int Sweep(ImmutableArray<RazorNode> nodes, bool[] removed, int start, int step)
     {
         var index = start;
-        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary or HtmlComment); index += step)
+        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary or HtmlComment or RazorComment); index += step)
         {
             removed[index] |= nodes[index] is MarkupText;
         }

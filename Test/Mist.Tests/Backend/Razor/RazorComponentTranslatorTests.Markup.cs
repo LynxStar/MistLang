@@ -341,7 +341,61 @@ public sealed partial class RazorComponentTranslatorTests
         var translation = Content(H.El("p", H.Text("a"), H.RazorComment(" gone "), H.Text("b "), H.Expr("n")), H.Comment(" dropped "));
 
         Assert.Equal(
-            ["__builder.OpenElement(0, \"p\");", "__builder.AddContent(1, \"ab \");", "__builder.AddContent(2, n);", "__builder.CloseElement();"],
+            ["__builder.OpenElement(0, \"p\");", "__builder.AddMarkupContent(1, \"ab \");", "__builder.AddContent(2, n);", "__builder.CloseElement();"],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void AnElementAfterARazorCommentFoldsAsRazorFoldsItsSiblings()
+    {
+        var translation = Content(
+            H.El("p", H.Text("a"), H.RazorComment(" x "), H.El("b", H.Text("c")), H.Text(" "), H.Expr("n")), H.Text("\n"),
+            H.El("div", H.Text("a"), H.RazorComment(" x "), H.El("b", H.Text("c"))));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"p\");",
+                "__builder.AddContent(1, \"a\");",
+                "__builder.AddMarkupContent(2, \"<b>c</b> \");",
+                "__builder.AddContent(3, n);",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(4, \"\\n\");",
+                "__builder.AddMarkupContent(5, \"<div>a<b>c</b></div>\");",
+            ],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void TextsARazorCommentSplitAreTrimmedApartThenFoldAsMarkup()
+    {
+        var translation = Content(
+            H.El("p", H.Text(" "), H.RazorComment(" c "), H.Text("b "), H.Expr("n")), H.Text("\n"),
+            H.El("p", H.Expr("n"), H.Text(" "), H.RazorComment(" c "), H.Text("b")), H.Text("\n"),
+            H.El("p", H.Text("a"), H.RazorComment(" c "), H.Text("b"), H.RazorComment(" d "), H.Text("c "), H.Expr("n")), H.Text("\n"),
+            H.El("p", H.Text("a"), H.RazorComment(" c "), H.Text("&amp;b "), H.Expr("n")));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"p\");",
+                "__builder.AddContent(1, \"b \");",
+                "__builder.AddContent(2, n);",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(3, \"\\n\");",
+                "__builder.OpenElement(4, \"p\");",
+                "__builder.AddContent(5, n);",
+                "__builder.AddMarkupContent(6, \" b\");",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(7, \"\\n\");",
+                "__builder.OpenElement(8, \"p\");",
+                "__builder.AddMarkupContent(9, \"abc \");",
+                "__builder.AddContent(10, n);",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(11, \"\\n\");",
+                "__builder.OpenElement(12, \"p\");",
+                "__builder.AddMarkupContent(13, \"a&amp;b \");",
+                "__builder.AddContent(14, n);",
+                "__builder.CloseElement();",
+            ],
             translation.Calls());
     }
 

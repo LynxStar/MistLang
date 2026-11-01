@@ -96,6 +96,40 @@ public sealed class MarkupWhitespaceTests
         Assert.Equal([" one\n     two\n", "t1", "t2"], kept.Select(Describe));
     }
 
+    [Theory]
+    [InlineData("text", "\n")]
+    [InlineData("blank", "\n")]
+    [InlineData("element", "\n")]
+    [InlineData("expression", "\n")]
+    [InlineData("comment", "\n")]
+    [InlineData("text", "\r\n")]
+    [InlineData("blank", "\r\n")]
+    [InlineData("element", "\r\n")]
+    [InlineData("expression", "\r\n")]
+    [InlineData("comment", "\r\n")]
+    public void ATrailingMemberBlockKeepsOnlyTheMarkupSideOfItsGap(string shape, string newline)
+    {
+        Hand[] markup = shape switch
+        {
+            "element" => [H.El("p", H.Text("a")), H.Text(newline)],
+            "expression" => [H.Expr("x"), H.Text(newline)],
+            "comment" => [H.El("span", H.Text("x")), H.Text(" y"), H.RazorComment("gone"), H.Text("z" + newline)],
+            _ => [H.El("span", H.Text("x")), H.Text(" y" + newline + (shape == "blank" ? newline : ""))],
+        };
+        var tree = new HandTree().Content(markup).Code("", leading: "", trailing: "").Content(H.Text(newline)).Tree();
+
+        var kept = MarkupWhitespace.Content(tree.Content, tree.CodeBlocks);
+
+        string[] expected = shape switch
+        {
+            "element" => ["p"],
+            "expression" => ["x"],
+            "comment" => ["span", " y", "RazorComment", "z" + newline],
+            _ => ["span", " y" + newline + (shape == "blank" ? newline : "")],
+        };
+        Assert.Equal(expected, kept.Select(Describe));
+    }
+
     private static ImmutableArray<RazorNode> Root(params Hand[] nodes)
     {
         return new HandTree().Content(nodes).Tree().Content;

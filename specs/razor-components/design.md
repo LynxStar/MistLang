@@ -448,7 +448,12 @@ project outside the repository; `MarkupWhitespaceTests` and `StaticMarkupTests` 
 3. Other whitespace-only text is kept: between root siblings (Counter's `"\n\n"` after `</PageTitle>` and
    `"\n"` between its two `<p>` elements) and between the children of an element.
 4. Text that holds anything besides whitespace is kept whole, its leading and trailing whitespace included,
-   except that the line break ending a code block's line belongs to the block.
+   except that the line break ending a code block's line belongs to the block. At a trailing `@code` block,
+   the markup before it and the whitespace after it stay separate until trimming. A text-bearing tail
+   keeps every line break before the directive; an element-final or expression-final whitespace-only tail,
+   and the whitespace after the block, are dropped. SDK 10.0.113, measured on macOS arm64 on 2026-11-01:
+   `<span>x</span> y\n@code {...}\n` keeps one newline (two with a blank line before `@code`),
+   `<p>a</p>\n@code {...}\n` ends at `</p>`, and `@x\n@code {...}\n` ends at `AddContent(0, x)`.
 5. Inside a block, the line break and indentation between two markup lines, elements, HTML comments or `@:`
    lines, are markup; a `@:` line keeps its own line break; the indentation around a `<text>` tag is code,
    and the tag's content stays apart from the text beside it.

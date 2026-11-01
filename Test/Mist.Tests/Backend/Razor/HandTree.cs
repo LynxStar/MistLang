@@ -70,14 +70,15 @@ internal sealed class HandTree
         return this;
     }
 
-    public HandTree Code(string body)
+    public HandTree Code(string body, string leading = "\n", string trailing = "\n")
     {
+        Append(leading);
         var start = text.Length;
-        Append("\n@code {\n");
+        Append("@code {\n");
         var region = Region(body);
         Append("\n}");
-        codeBlocks.Add(new CodeBlock(region, new SourceSpan(start + 1, text.Length - start - 1)));
-        Append("\n");
+        codeBlocks.Add(new CodeBlock(region, new SourceSpan(start, text.Length - start)));
+        Append(trailing);
         return this;
     }
 

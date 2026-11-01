@@ -45,7 +45,7 @@ internal sealed class RenderProtocolWriter
     {
         var body = tree.Content.IsEmpty ? default : SpanOf(tree.Content);
         writer.Synthesized($"{(separate ? "\n" : "")}    protected void BuildRenderTree(RenderTreeBuilder {RootBuilder})\n    {{\n", File, body);
-        WriteContent(MarkupWhitespace.Content(tree.Content));
+        WriteContent(MarkupWhitespace.Content(tree.Content, tree.CodeBlocks));
         writer.Synthesized("    }\n", File, body);
     }
 

@@ -12,9 +12,9 @@ namespace Mist.Backends.CSharpTranspiler.Razor;
 /// </summary>
 internal static class MarkupWhitespace
 {
-    public static ImmutableArray<RazorNode> Content(ImmutableArray<RazorNode> nodes)
+    public static ImmutableArray<RazorNode> Content(ImmutableArray<RazorNode> nodes, ImmutableArray<CodeBlock> codeBlocks = default)
     {
-        return [.. Trim(Merge(SplittingComments(nodes))).Where(node => node is not TextBoundary)];
+        return [.. Trim(Merge(SplittingComments(nodes), codeBlocks)).Where(node => node is not TextBoundary)];
     }
 
     // A Razor comment between two texts keeps them separate siblings, which Razor trims apart and folds as markup; anywhere else it is nothing.
@@ -109,12 +109,14 @@ internal static class MarkupWhitespace
         return index + 1 < source.Length && source[index] == '\r' && source[index + 1] == '\n' ? 2 : 0;
     }
 
-    private static ImmutableArray<RazorNode> Merge(IEnumerable<RazorNode> nodes)
+    private static ImmutableArray<RazorNode> Merge(IEnumerable<RazorNode> nodes, ImmutableArray<CodeBlock> codeBlocks)
     {
         var merged = ImmutableArray.CreateBuilder<RazorNode>();
         foreach(var node in nodes)
         {
-            if(node is MarkupText text && merged.Count > 0 && merged[^1] is MarkupText last)
+            // Member blocks live outside content; their gaps keep EOF whitespace separate until trimming.
+            if(node is MarkupText text && merged.Count > 0 && merged[^1] is MarkupText last
+                && (codeBlocks.IsDefaultOrEmpty || !codeBlocks.Any(block => last.Span.End <= block.Span.Start && block.Span.End <= text.Span.Start)))
             {
                 merged[^1] = new MarkupText(last.Text + text.Text, new SourceSpan(last.Span.Start, text.Span.End - last.Span.Start));
                 continue;

@@ -217,6 +217,21 @@ public sealed partial class RazorComponentTranslatorTests
         AssertReservedAtDeclaration(translation, name);
     }
 
+    [Theory]
+    [InlineData("private void Go()\n{\n    var __k = 1;\n    i++\n}", false)]
+    [InlineData("var __k = 1;\n    i++", true)]
+    [InlineData("private void Go()\n{\n    var __k = ;\n}", false)]
+    [InlineData("private void Go()\n{\n    var k = 1;\n    i++\n}", false)]
+    public void AUnitWithASyntaxErrorHasNoDeclarationToWalkAndIsLeftToTheFrontend(string code, bool markup)
+    {
+        var tree = markup ? new HandTree().Content(H.Block(H.Code(code))).Tree() : new HandTree().Code(code).Tree();
+
+        var translation = Run(tree);
+
+        Assert.Empty(translation.Diagnostics);
+        Assert.NotNull(translation.Unit);
+    }
+
     [Fact]
     public void AReservedMethodNameIsRefusedOnceBesideItsReservedParameter()
     {

@@ -481,7 +481,7 @@ compiler drops it" and the acceptance criterion of task 5 ask.
 | `@namespace N` | `namespace N;` | |
 | `@attribute [A]` | `[A]` on the class | |
 | `@rendermode M` | nested `RenderModeAttribute` subclass filling `Mode` with `M`, applied to the class | needs `clr-slot-filling` for the property slot |
-| `@code { … }` | members verbatim | |
+| `@code { … }` | members verbatim | a `__` declaration is refused only in a unit that parses; see Error Handling |
 | `@typeparam`, `@preservewhitespace` | *later work* diagnostic | |
 | `@functions`, MVC directives | *not supported* diagnostic | |
 
@@ -575,7 +575,7 @@ pack's from there. A file under the project's `wwwroot/` wins over a pack file a
 | `<Widget>` resolving to nothing | translator | *Unknown component* at the tag |
 | `<Widget>` resolving to two types | translator | *Ambiguous component name* listing both |
 | `class` inside `@code` | translator | *Nested type in code block* |
-| `__count` declared inside `@code` | translator | *Reserved identifier* at the declaration |
+| `__count` declared inside `@code` or in markup code | translator | *Reserved identifier* at the declaration, when the translated unit lexes and parses. The Mist parser backtracks without recovering, so a syntax error anywhere in the class leaves no declaration to walk: the check reports nothing, the frontend reports the syntax error alone, and the reserved name is refused once that is fixed |
 | `@bind-Value` on a component declaring `ValueExpression` | translator | *Expression parameter not supported* |
 | `<Grid TItem="…">` | translator | *Generic component not supported* |
 | `@functions` | parser | *Functions directive not supported* |

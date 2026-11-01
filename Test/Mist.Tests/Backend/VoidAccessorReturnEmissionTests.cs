@@ -56,6 +56,28 @@ public sealed class VoidAccessorReturnEmissionTests
     }
 
     [Fact]
+    public void AVoidGetterReturningAVoidPropertyRead_FlowsTheReadThroughRatherThanDroppingIt()
+    {
+        var property = VoidProperty(isStatic: true, GetterBody(new ReturnStatement(ReadAmbient(), unit)));
+
+        var emitted = EmitProperty(property);
+
+        Assert.Contains("return Probe.Holder.Ambient;", emitted);
+        Assert.DoesNotContain("Standard.Void.Instance", emitted);
+    }
+
+    [Fact]
+    public void AVoidGetterReturningAVoidIndexerRead_FlowsTheReadThroughRatherThanDroppingIt()
+    {
+        var property = VoidProperty(isStatic: false, GetterBody(new ReturnStatement(ReadIndexer(), unit)));
+
+        var emitted = EmitProperty(property);
+
+        Assert.Contains("return this[0];", emitted);
+        Assert.DoesNotContain("Standard.Void.Instance", emitted);
+    }
+
+    [Fact]
     public void AVoidSetter_KeepsABareReturn()
     {
         var setter = new PropertyAccessor { Body = Block(new ReturnStatement(null, null)) };
@@ -114,6 +136,16 @@ public sealed class VoidAccessorReturnEmissionTests
     private VoidLiteralExpression Unit()
     {
         return new VoidLiteralExpression(Node(), VoidReading.Singleton, unit);
+    }
+
+    private MemberAccessExpression ReadAmbient()
+    {
+        return new MemberAccessExpression(Node(), new TypeReferenceExpression(Node(), holder), "Ambient", unit);
+    }
+
+    private IndexExpression ReadIndexer()
+    {
+        return new IndexExpression(Node(), new ThisExpression(Node(), holder), Literal(integer, 0L), unit);
     }
 
     private InvocationExpression CallSideEffect()

@@ -637,6 +637,16 @@ internal static partial class BodyEmitter
     {
         if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
         {
+            if(returnsUnit)
+            {
+                // The enclosing member returns the unit value, so the operand flows through as the
+                // Standard.Void it already is: a plain value return keeps its evaluation and side
+                // effects (a unit call still hoists), where a native void return could only run a
+                // call for effect and then bare-return -- silently dropping a non-call read.
+                EmitSequenced(value, "return ", writer, diagnostics, slot: returnStmt.TargetType);
+                return;
+            }
+
             using(var hoisted = EmitHoisted(value, writer, diagnostics, discarded: true))
             {
                 if(value is InvocationExpression && !hoisted.Consumes(value))

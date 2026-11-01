@@ -23,6 +23,11 @@ generation parity; the Mist-authored generations remain MIST-1071/MIST-1073.
   generator or C# companion) is reported `exercised-via-consumer` only when a
   consumer that references it actually ran and passed; otherwise it is
   `not-exercised`, naming the consumer that was skipped, unselected or failed.
+- **An incomplete run is not a pass.** A selected project left `not-exercised` or
+  `skipped-prerequisite` denies a successful verdict just as a `fail` does, so a
+  default run that skips the network EfCore demonstration, or an `--only` subset
+  that selects a supporting project without its consumer, exits nonzero. An `--only`
+  name that no manifest entry defines is rejected before anything runs.
 
 ## The manifest and the roles
 
@@ -73,7 +78,11 @@ revision, the Storm submodule pin, the compiler command and its `version` output
 .NET SDK, the installed .NET runtimes, the NuGet global-packages location, the runtime
 identifier and the OS.
 
-Exit code is 0 only when reconciliation holds and every executed project passed.
+Exit code is 0 only when reconciliation and the aggregate cross-check hold and every
+selected project reached a covered pass: an executed project that passed, or a
+supporting project exercised through a passing consumer. A `fail`, a `not-exercised`
+or a `skipped-prerequisite` leaves verification incomplete and exits nonzero, and the
+report's `verification` block names the projects responsible.
 
 ## Seeding or refreshing expectations
 
@@ -106,9 +115,11 @@ python3 tools/sample-acceptance/run.py selftest
 
 `selftest.py` drives the pure verdict functions with hand-built inputs to prove the
 detections — manifest omission, a duplicate name, a diagnostic, a nonzero exit, an
-output mismatch, an empty or missing expectation, and the consumer-derived coverage
-map — without spawning a compiler. Each case carries runnable `Tier` metadata (the
-same key Test/AGENTS.md defines); they touch no compiler or pipeline, so each is
-Tier 1 (Unit), and the run tallies the tier it executed. It is deliberately not an
-xUnit test and must not grow into one process per sample; the single Tier 6 aggregate
-check stays in the suite.
+output mismatch, an empty or missing expectation, the consumer-derived coverage map,
+the aggregate block-order cross-check, an unknown `--only` name, and the incomplete-run
+verdict (a `not-exercised` or `skipped-prerequisite` outcome is not a pass). Each case
+carries runnable `Tier` metadata (the same key Test/AGENTS.md defines); every case
+drives pure functions with in-memory values and performs no compiler, pipeline or
+filesystem I/O, so each is Tier 1 (Unit), and the run tallies the tier it executed. It
+is deliberately not an xUnit test and must not grow into one process per sample; the
+single Tier 6 aggregate check stays in the suite.

@@ -29,7 +29,9 @@
 #   --list               Reconcile and print the classification, then stop.
 #   --timeout <seconds>  Per-invocation wall-clock bound (default 600).
 #
-# Exit code is 0 only when reconciliation holds and every executed project passed.
+# Exit code is 0 only when reconciliation and the aggregate cross-check hold and every
+# selected project reached a covered pass: a not-exercised or skipped-prerequisite
+# outcome leaves verification incomplete and exits nonzero, as does an unknown --only name.
 
 import argparse
 import datetime
@@ -192,17 +194,32 @@ def orchestrator_order(program_mist):
 
 
 def check_aggregate(entries, expectations_dir, baseline, program_mist):
+    """I/O wrapper: read the orchestrator order, the aggregate baseline and each
+    composed sample's committed standalone expectation from disk, then hand the
+    decision to the pure check_aggregate_core."""
+    order = orchestrator_order(program_mist)
+    with open(baseline, encoding="utf-8") as handle:
+        baseline_text = handle.read()
+    expectation_texts = {}
+    for entry in entries:
+        path = expectation_path(entry, expectations_dir)
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                expectation_texts[entry["name"]] = handle.read()
+    return check_aggregate_core(entries, order, baseline_text, expectation_texts)
+
+
+def check_aggregate_core(entries, order, baseline_text, expectation_texts):
     """Review the standalone expectations against the aggregate: each composed
     sample's committed standalone output must appear as a contiguous block in the
     baseline, and the blocks must appear in orchestrator order. This ties the two
     together so an aggregate pass and a standalone pass cannot disagree. Samples
     composed only through the orchestrator (no standalone entry point) have no
     standalone output to compare, so they are noted and skipped rather than faked.
+    Pure: the bounded self-test drives this with hand-built text, no files.
     Returns (ok, list-of-notes)."""
     by_name = {e["name"]: e for e in entries}
-    order = orchestrator_order(program_mist)
-    with open(baseline, encoding="utf-8") as handle:
-        want = normalize(handle.read())
+    want = normalize(baseline_text)
 
     cursor = 0
     checked = 0
@@ -219,12 +236,11 @@ def check_aggregate(entries, expectations_dir, baseline, program_mist):
         if entry.get("aggregate_check") is False:
             skipped.append(f"{name} (standalone output differs from the orchestrator call by design; reviewed against its own program)")
             continue
-        path = expectation_path(entry, expectations_dir)
-        if not path or not os.path.exists(path):
+        text = expectation_texts.get(name)
+        if text is None:
             problems.append(f"no committed standalone expectation for composed sample {name}")
             continue
-        with open(path, encoding="utf-8") as handle:
-            block = normalize(handle.read())
+        block = normalize(text)
         if not block.strip():
             problems.append(f"empty standalone expectation for composed sample {name}")
             continue
@@ -285,6 +301,31 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
     return ("pass" if not reasons else "fail", reasons)
 
 
+# A selected project that neither passed nor was covered through a passing consumer
+# leaves the verification incomplete, so these statuses deny a successful verdict.
+BLOCKING_STATUSES = ("fail", "not-exercised", "skipped-prerequisite")
+
+
+def unknown_selection(only, entries):
+    """Pure: the --only names no manifest entry defines, so a typo cannot silently
+    select nothing and be reported as a clean pass."""
+    if not only:
+        return []
+    known = {e["name"] for e in entries}
+    return sorted(n for n in only if n not in known)
+
+
+def verdict(results, problems, agg_ok, capture):
+    """Pure: the run's exit verdict. Success only when reconciliation and the
+    aggregate cross-check hold and every selected project reached a covered pass. A
+    failure, omitted coverage (not-exercised) or an unmet prerequisite
+    (skipped-prerequisite) is not a successful complete verification, so an incomplete
+    default or subset run cannot exit 0."""
+    blocking = [r for r in results if r["status"] in BLOCKING_STATUSES]
+    agg_fail = (not agg_ok) and not capture
+    return 0 if (not blocking and not problems and not agg_fail) else 1
+
+
 def expectation_path(entry, expectations_dir):
     exp = entry.get("expectation")
     if not exp:
@@ -304,10 +345,20 @@ def read_expectation(entry, expectations_dir):
     return None
 
 
+def _resolve_token(token):
+    # run_project changes cwd for consumer samples, so a path that was relative to the
+    # invocation directory would otherwise resolve under the sample container and vanish.
+    return os.path.abspath(token) if os.path.exists(token) else token
+
+
 def compiler_argv(compiler):
     """A bare path to an existing executable is used verbatim (it may contain
-    spaces); anything else is a command line split the shell's way."""
-    return [compiler] if os.path.exists(compiler) else shlex.split(compiler)
+    spaces); anything else is a command line split the shell's way. Either way any
+    token that names an existing path is made absolute so the command keeps its
+    meaning after run_project changes the working directory for a consumer sample."""
+    if os.path.exists(compiler):
+        return [os.path.abspath(compiler)]
+    return [_resolve_token(t) for t in shlex.split(compiler)]
 
 
 def run_project(entry, compiler, out_dir, timeout):
@@ -346,6 +397,10 @@ def run_project(entry, compiler, out_dir, timeout):
     except subprocess.TimeoutExpired as ex:
         return (124, as_text(ex.stdout), as_text(ex.stderr) + f"\n[harness] timed out after {timeout}s",
                 invocation)
+    except OSError as ex:
+        # A launch failure (missing/unexecutable compiler) is this project's failing
+        # result, not an exception that aborts the run and loses every other result.
+        return 127, "", f"[harness] failed to launch: {ex}", invocation
 
 
 def compiler_identity(compiler):
@@ -472,6 +527,11 @@ def main(argv):
     os.makedirs(os.path.join(out_dir, "logs"), exist_ok=True)
 
     only = set(args.only.split(",")) if args.only else None
+    unknown = unknown_selection(only, entries)
+    if unknown:
+        print("SELECTION FAILED: --only names not in the manifest: " + ", ".join(unknown),
+              file=sys.stderr)
+        return 2
     prov = provenance(compiler, args.generation)
     selected = [e for e in entries if not (only and e["name"] not in only)]
 
@@ -537,7 +597,9 @@ def main(argv):
     selected_names = {e["name"] for e in selected}
     for entry in supporting:
         who = consumers.get(entry["path"], [])
-        passed = [c for c in who if results.get(c, {}).get("status") == "pass"]
+        # A captured consumer also ran cleanly (capture refuses a diagnostic/nonzero run),
+        # so it exercises its support just as a passing compare does.
+        passed = [c for c in who if results.get(c, {}).get("status") in ("pass", "captured")]
         if passed:
             status, reasons = "exercised-via-consumer", [f"exercised through {', '.join(passed)}"]
         else:
@@ -557,8 +619,12 @@ def main(argv):
         entries, args.expectations,
         os.path.join(SAMPLES_ROOT, "__baselines__", "AllFeaturesV2.out"),
         os.path.join(SAMPLES_ROOT, "AllFeaturesV2", "Program.mist"))
+    blocking_names = [r["name"] for r in results if r["status"] in BLOCKING_STATUSES]
     report = {"provenance": prov, "reconciliation": problems or "ok",
-              "aggregateCrossCheck": {"ok": agg_ok, "notes": agg_notes}, "results": results}
+              "aggregateCrossCheck": {"ok": agg_ok, "notes": agg_notes},
+              "verification": {"complete": not blocking_names and not problems and (agg_ok or args.capture),
+                               "incomplete": blocking_names},
+              "results": results}
     with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2)
 
@@ -575,12 +641,14 @@ def main(argv):
         if r["status"] in ("fail", "captured", "skipped-prerequisite", "not-exercised"):
             for reason in r["reasons"]:
                 print(f"  [{r['status']}] {r['name']}: {reason}")
+    blocking = [r for r in results if r["status"] in BLOCKING_STATUSES]
+    if blocking:
+        print(f"verification INCOMPLETE: {len(blocking)} selected project(s) did not reach a "
+              f"covered pass ({', '.join(r['name'] for r in blocking)})")
     print(f"\nreport: {os.path.join(out_dir, 'report.json')}")
     print(f"logs:   {os.path.join(out_dir, 'logs')}")
 
-    failed = sum(1 for r in results if r["status"] == "fail")
-    agg_fail = (not agg_ok) and not args.capture
-    return 0 if (failed == 0 and not problems and not agg_fail) else 1
+    return verdict(results, problems, agg_ok, args.capture)
 
 
 if __name__ == "__main__":

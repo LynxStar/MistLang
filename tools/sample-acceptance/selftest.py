@@ -13,9 +13,6 @@
 # no pipeline, so each is Tier 1 (Unit). The registry prints and tallies the tier
 # so the classification is discoverable, not just asserted in a comment.
 
-import os
-import tempfile
-
 import run
 
 
@@ -23,24 +20,12 @@ import run
 CASES = []
 
 
-def _aggregate_fixture(tmp, order, expectations, baseline, roles=None):
-    """A synthetic orchestrator program, expectations dir and baseline for driving
-    check_aggregate without any compiler or real sample."""
+def _aggregate_entries(order, roles=None):
+    """Hand-built manifest entries for the composed samples in orchestrator order,
+    used to drive check_aggregate_core with in-memory text and no files."""
     roles = roles or {}
-    exp_dir = os.path.join(tmp, "expectations")
-    os.makedirs(exp_dir, exist_ok=True)
-    for name, text in expectations.items():
-        with open(os.path.join(exp_dir, f"{name}.out"), "w") as fh:
-            fh.write(text)
-    program = os.path.join(tmp, "Program.mist")
-    with open(program, "w") as fh:
-        fh.write("".join(f"{n}.Program.RunDemo();\n" for n in order))
-    base = os.path.join(tmp, "baseline.out")
-    with open(base, "w") as fh:
-        fh.write(baseline)
-    entries = [{"name": n, "role": roles.get(n, "executable"),
-                "expectation": f"{n}.out", "path": f"samples/{n}"} for n in order]
-    return entries, exp_dir, base, program
+    return [{"name": n, "role": roles.get(n, "executable"),
+             "expectation": f"{n}.out", "path": f"samples/{n}"} for n in order]
 
 
 def case(name, tier="1"):
@@ -201,38 +186,70 @@ def _():
 
 @case("aggregate check accepts ordered blocks and skips composed-only")
 def _():
-    with tempfile.TemporaryDirectory() as tmp:
-        entries, exp, base, prog = _aggregate_fixture(
-            tmp,
-            order=["A", "Hidden", "B"],
-            expectations={"A": "a1\na2\n", "B": "b1\n"},
-            baseline="HEADER\na1\na2\nx-composed-x\nb1\n",
-            roles={"Hidden": "composed-library"})
-        ok, notes = run.check_aggregate(entries, exp, base, prog)
-        assert ok, notes
-        assert any("Hidden" in n for n in notes), notes
+    entries = _aggregate_entries(["A", "Hidden", "B"], roles={"Hidden": "composed-library"})
+    ok, notes = run.check_aggregate_core(
+        entries, ["A", "Hidden", "B"],
+        "HEADER\na1\na2\nx-composed-x\nb1\n",
+        {"A": "a1\na2\n", "B": "b1\n"})
+    assert ok, notes
+    assert any("Hidden" in n for n in notes), notes
 
 
 @case("aggregate check fails when a block is out of order")
 def _():
-    with tempfile.TemporaryDirectory() as tmp:
-        entries, exp, base, prog = _aggregate_fixture(
-            tmp, order=["A", "B"],
-            expectations={"A": "a1\n", "B": "b1\n"},
-            baseline="HEADER\nb1\na1\n")  # B appears before A
-        ok, notes = run.check_aggregate(entries, exp, base, prog)
-        assert not ok and any("B:" in n for n in notes), notes
+    entries = _aggregate_entries(["A", "B"])
+    ok, notes = run.check_aggregate_core(
+        entries, ["A", "B"], "HEADER\nb1\na1\n",  # B appears before A
+        {"A": "a1\n", "B": "b1\n"})
+    assert not ok and any("B:" in n for n in notes), notes
 
 
 @case("aggregate check fails on a missing composed expectation")
 def _():
-    with tempfile.TemporaryDirectory() as tmp:
-        entries, exp, base, prog = _aggregate_fixture(
-            tmp, order=["A", "B"],
-            expectations={"A": "a1\n"},  # B has no expectation file
-            baseline="HEADER\na1\nb1\n")
-        ok, notes = run.check_aggregate(entries, exp, base, prog)
-        assert not ok and any("no committed standalone expectation for" in n for n in notes), notes
+    entries = _aggregate_entries(["A", "B"])
+    ok, notes = run.check_aggregate_core(
+        entries, ["A", "B"], "HEADER\na1\nb1\n",
+        {"A": "a1\n"})  # B has no expectation
+    assert not ok and any("no committed standalone expectation for" in n for n in notes), notes
+
+
+@case("unknown selection rejects an --only typo")
+def _():
+    entries = [{"name": "HelloMist"}, {"name": "Classes"}]
+    assert run.unknown_selection({"HelloMist", "NoSuchSample"}, entries) == ["NoSuchSample"]
+    assert run.unknown_selection({"HelloMist"}, entries) == []
+    assert run.unknown_selection(None, entries) == []
+
+
+@case("verdict passes only a fully covered run")
+def _():
+    good = [{"name": "A", "status": "pass"}, {"name": "L", "status": "exercised-via-consumer"}]
+    assert run.verdict(good, [], True, False) == 0
+
+
+@case("verdict fails omitted coverage and unmet prerequisites")
+def _():
+    # not-exercised and skipped-prerequisite leave verification incomplete, so neither
+    # a default network-skipped run nor an --only supporting subset can report success.
+    assert run.verdict([{"name": "L", "status": "not-exercised"}], [], True, False) == 1
+    assert run.verdict([{"name": "E", "status": "skipped-prerequisite"}], [], True, False) == 1
+    assert run.verdict([{"name": "A", "status": "fail"}], [], True, False) == 1
+
+
+@case("verdict fails on a reconciliation problem")
+def _():
+    good = [{"name": "A", "status": "pass"}]
+    assert run.verdict(good, ["duplicate manifest name 'A'"], True, False) == 1
+
+
+@case("verdict respects capture for the aggregate cross-check only")
+def _():
+    good = [{"name": "A", "status": "pass"}]
+    # A mismatched aggregate blocks a normal run but not a capture that is rewriting it;
+    # coverage gaps still block even under capture.
+    assert run.verdict(good, [], False, False) == 1
+    assert run.verdict(good, [], False, True) == 0
+    assert run.verdict([{"name": "L", "status": "not-exercised"}], [], True, True) == 1
 
 
 def main():

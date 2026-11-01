@@ -448,12 +448,17 @@ project outside the repository; `MarkupWhitespaceTests` and `StaticMarkupTests` 
 3. Other whitespace-only text is kept: between root siblings (Counter's `"\n\n"` after `</PageTitle>` and
    `"\n"` between its two `<p>` elements) and between the children of an element.
 4. Text that holds anything besides whitespace is kept whole, its leading and trailing whitespace included,
-   except that the line break ending a code block's line belongs to the block. At a trailing `@code` block,
-   the markup before it and the whitespace after it stay separate until trimming. A text-bearing tail
-   keeps every line break before the directive; an element-final or expression-final whitespace-only tail,
-   and the whitespace after the block, are dropped. SDK 10.0.113, measured on macOS arm64 on 2026-11-01:
-   `<span>x</span> y\n@code {...}\n` keeps one newline (two with a blank line before `@code`),
-   `<p>a</p>\n@code {...}\n` ends at `</p>`, and `@x\n@code {...}\n` ends at `AddContent(0, x)`.
+   except that the line break ending a code block's line belongs to the block. A `@code` block owns its line
+   as well: the indentation before it, and the spaces and one line break after its `}`. Trimming sees through
+   the block, and only then do the texts on either side of it merge into one. So at the end of the file a
+   text-bearing tail keeps every line break before the directive, while an element-final or expression-final
+   whitespace-only tail, and the whitespace after the block, are dropped. SDK 10.0.113, measured on macOS
+   arm64 on 2026-11-01: `<span>x</span> y\n@code {...}\n` keeps one newline (two with a blank line before
+   `@code`), `<p>a</p>\n@code {...}\n` ends at `</p>`, and `@x\n@code {...}\n` ends at `AddContent(0, x)`.
+   SDK 10.0.301, measured on Windows x64 on 2026-11-01 with LF and CRLF: `a\n@code {...}\nb\n` is one
+   `AddMarkupContent(0, "a\nb\n")`, `<p>a</p>\n@code {...}\n<p>b</p>\n` gives `"<p>a</p>\n"` then
+   `"<p>b</p>"`, `a\n\n@code {...}\n\nb\n` gives `"a\n\n\nb\n"`, `a\n  @code {...}  \nb\n` gives `"a\nb\n"`,
+   and `<span>x</span> y\n@code {...}\n\n` still ends at `" y\n"`.
 5. Inside a block, the line break and indentation between two markup lines, elements, HTML comments or `@:`
    lines, are markup; a `@:` line keeps its own line break; the indentation around a `<text>` tag is code,
    and the tag's content stays apart from the text beside it.

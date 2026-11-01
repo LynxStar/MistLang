@@ -130,6 +130,29 @@ public sealed class MarkupWhitespaceTests
         Assert.Equal(expected, kept.Select(Describe));
     }
 
+    [Theory]
+    [MemberData(nameof(MemberBlockShapes.Rows), MemberType = typeof(MemberBlockShapes))]
+    public void AMemberBlockOwnsItsLineAndTheTextsBesideItMergeOnceTrimmed(string shape, string n)
+    {
+        var tree = MemberBlockShapes.Tree(shape, n);
+
+        var kept = MarkupWhitespace.Content(tree.Content, tree.CodeBlocks);
+
+        string[] expected = shape switch
+        {
+            "element" => ["p", n, "p"],
+            "textExpression" => ["p", " t" + n, "x"],
+            "text" or "indented" => ["a" + n + "b" + n],
+            "blank" => ["a" + n + n + n + "b" + n],
+            "expressionElement" => ["x", n, "p"],
+            "start" => ["b" + n],
+            "comment" => ["span", " y", "RazorComment", "z" + n + "b" + n],
+            "trailingBlank" => ["span", " y" + n],
+            _ => ["a" + n + n + "b" + n],
+        };
+        Assert.Equal(expected, kept.Select(Describe));
+    }
+
     private static ImmutableArray<RazorNode> Root(params Hand[] nodes)
     {
         return new HandTree().Content(nodes).Tree().Content;

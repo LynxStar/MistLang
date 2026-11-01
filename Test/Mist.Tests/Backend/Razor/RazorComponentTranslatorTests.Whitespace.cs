@@ -36,4 +36,25 @@ public sealed partial class RazorComponentTranslatorTests
         };
         Assert.Equal(expected, Run(tree).Calls());
     }
+
+    [Theory]
+    [MemberData(nameof(MemberBlockShapes.Rows), MemberType = typeof(MemberBlockShapes))]
+    public void AMemberBlockLeavesTheMarkupCallsRazorWrites(string shape, string newline)
+    {
+        var e = newline.Replace("\r", "\\r").Replace("\n", "\\n");
+
+        string[] expected = shape switch
+        {
+            "element" => [$"__builder.AddMarkupContent(0, \"<p>a</p>{e}\");", "__builder.AddMarkupContent(1, \"<p>b</p>\");"],
+            "textExpression" => [$"__builder.AddMarkupContent(0, \"<p>a</p> t{e}\");", "__builder.AddContent(1, x);"],
+            "text" or "indented" => [$"__builder.AddMarkupContent(0, \"a{e}b{e}\");"],
+            "blank" => [$"__builder.AddMarkupContent(0, \"a{e}{e}{e}b{e}\");"],
+            "expressionElement" => ["__builder.AddContent(0, x);", $"__builder.AddMarkupContent(1, \"{e}\");", "__builder.AddMarkupContent(2, \"<p>b</p>\");"],
+            "start" => [$"__builder.AddMarkupContent(0, \"b{e}\");"],
+            "comment" => [$"__builder.AddMarkupContent(0, \"<span>x</span> yz{e}b{e}\");"],
+            "trailingBlank" => [$"__builder.AddMarkupContent(0, \"<span>x</span> y{e}\");"],
+            _ => [$"__builder.AddMarkupContent(0, \"a{e}{e}b{e}\");"],
+        };
+        Assert.Equal(expected, Run(MemberBlockShapes.Tree(shape, newline)).Calls());
+    }
 }

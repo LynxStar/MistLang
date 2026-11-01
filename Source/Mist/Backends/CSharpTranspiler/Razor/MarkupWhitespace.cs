@@ -14,7 +14,43 @@ internal static class MarkupWhitespace
 {
     public static ImmutableArray<RazorNode> Content(ImmutableArray<RazorNode> nodes, ImmutableArray<CodeBlock> codeBlocks = default)
     {
-        return [.. Trim(Merge(SplittingComments(nodes), codeBlocks)).Where(node => node is not TextBoundary)];
+        var trimmed = Trim(Merge(SplittingComments(WithMemberBlocks(nodes, codeBlocks))));
+        return [.. Merge(trimmed.Where(node => node is not MemberBlock)).Where(node => node is not TextBoundary)];
+    }
+
+    // A member block owns its line: the indentation before it and the line break after it. Trimming sees through it, and the texts beside it merge only once trimmed.
+    private static ImmutableArray<RazorNode> WithMemberBlocks(ImmutableArray<RazorNode> nodes, ImmutableArray<CodeBlock> codeBlocks)
+    {
+        if(codeBlocks.IsDefaultOrEmpty)
+        {
+            return nodes;
+        }
+
+        var placed = ImmutableArray.CreateBuilder<RazorNode>();
+        var next = 0;
+        foreach(var node in nodes)
+        {
+            for(; next < codeBlocks.Length && codeBlocks[next].Span.End <= node.Span.Start; next++)
+            {
+                placed.Add(MemberBlock.Instance);
+            }
+
+            placed.Add(node is MarkupText text ? OutsideMemberBlocks(text, codeBlocks) : node);
+        }
+
+        for(; next < codeBlocks.Length; next++)
+        {
+            placed.Add(MemberBlock.Instance);
+        }
+
+        return placed.ToImmutable();
+    }
+
+    private static MarkupText OutsideMemberBlocks(MarkupText text, ImmutableArray<CodeBlock> codeBlocks)
+    {
+        var start = codeBlocks.Any(block => block.Span.End == text.Span.Start) ? LineBreakEnd(text.Text) : 0;
+        var end = codeBlocks.Any(block => block.Span.Start == text.Span.End) ? Math.Max(start, text.Text.TrimEnd(' ', '\t').Length) : text.Text.Length;
+        return new MarkupText(text.Text[start..end], new SourceSpan(text.Span.Start + start, end - start));
     }
 
     // A Razor comment between two texts keeps them separate siblings, which Razor trims apart and folds as markup; anywhere else it is nothing.
@@ -109,14 +145,12 @@ internal static class MarkupWhitespace
         return index + 1 < source.Length && source[index] == '\r' && source[index + 1] == '\n' ? 2 : 0;
     }
 
-    private static ImmutableArray<RazorNode> Merge(IEnumerable<RazorNode> nodes, ImmutableArray<CodeBlock> codeBlocks)
+    private static ImmutableArray<RazorNode> Merge(IEnumerable<RazorNode> nodes)
     {
         var merged = ImmutableArray.CreateBuilder<RazorNode>();
         foreach(var node in nodes)
         {
-            // Member blocks live outside content; their gaps keep EOF whitespace separate until trimming.
-            if(node is MarkupText text && merged.Count > 0 && merged[^1] is MarkupText last
-                && (codeBlocks.IsDefaultOrEmpty || !codeBlocks.Any(block => last.Span.End <= block.Span.Start && block.Span.End <= text.Span.Start)))
+            if(node is MarkupText text && merged.Count > 0 && merged[^1] is MarkupText last)
             {
                 merged[^1] = new MarkupText(last.Text + text.Text, new SourceSpan(last.Span.Start, text.Span.End - last.Span.Start));
                 continue;
@@ -157,7 +191,7 @@ internal static class MarkupWhitespace
     private static int Sweep(ImmutableArray<RazorNode> nodes, bool[] removed, int start, int step)
     {
         var index = start;
-        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary or HtmlComment or RazorComment); index += step)
+        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary or MemberBlock or HtmlComment or RazorComment); index += step)
         {
             removed[index] |= nodes[index] is MarkupText;
         }
@@ -180,5 +214,10 @@ internal static class MarkupWhitespace
     private sealed record TextBoundary() : RazorNode(default(SourceSpan))
     {
         public static readonly TextBoundary Instance = new();
+    }
+
+    private sealed record MemberBlock() : RazorNode(default(SourceSpan))
+    {
+        public static readonly MemberBlock Instance = new();
     }
 }

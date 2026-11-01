@@ -110,8 +110,15 @@ internal static class DropInsertion
         return !Declares(type)
             && DropsAtScopeExit(type)
             && Definition(type) is ConcreteType concrete
-            && DroppableFields(concrete).Count > 0
+            && SyntheticDropFields(concrete).Count > 0
             ;
+    }
+
+    public static List<Field> SyntheticDropFields(ConcreteType type)
+    {
+        return DroppableFields(type)
+            .Where(field => Definition(field.Type) is not ConcreteType { IsDisposableDrop: true })
+            .ToList();
     }
 
     /// <summary>

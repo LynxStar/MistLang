@@ -71,6 +71,7 @@
 - [Nested Scoping](advanced/nested-scoping.md)
 - [Structured Concurrency](advanced/structured-concurrency.md)
 - [.NET Interop](advanced/dotnet-interop.md)
+- [Razor Components](advanced/razor-components.md)
 - [Attributes](advanced/attributes.md)
 - [Stack-Only Spans](advanced/stack-only-spans.md)
 

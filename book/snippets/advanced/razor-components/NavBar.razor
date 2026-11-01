@@ -1,0 +1,13 @@
+@inject NavigationManager Nav
+
+<nav>
+    <span>At @Nav.ToBaseRelativePath(Nav.Uri)</span>
+    <button @onclick="GoAbout">About</button>
+</nav>
+
+@code {
+    private void GoAbout()
+    {
+        Nav.NavigateTo("about");
+    }
+}

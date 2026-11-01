@@ -221,8 +221,10 @@ component, so that Blazor's diffing, event wiring and prerendering behave identi
 7. A Razor comment `@* ... *@` SHALL produce nothing. An HTML comment `<!-- ... -->` SHALL be dropped as the
    Razor compiler drops it: it SHALL produce no Render_Protocol call, no output and no sequence number, and
    nothing inside it SHALL be evaluated (decided by the owner on 2026-11-01).
-8. Whitespace-only text at the start and end of a block body and between the children of the file's root
-   SHALL be dropped as the Razor compiler drops it by default; `@preservewhitespace` is later work.
+8. Whitespace-only text SHALL be kept or dropped as the Razor compiler keeps or drops it by default, by the
+   rules measured from that compiler's output and recorded in the design's Detailed Design section 6, under
+   Whitespace; whitespace between the children of the file's root is kept, as Razor keeps it.
+   `@preservewhitespace` is later work.
 9. A DOM event attribute `@on<event>="<handler>"` SHALL lower to
    `AddAttribute(seq, "on<event>", EventCallback.Factory.Create<TArgs>(this, <handler>))` where `TArgs` is
    the event-argument type the Component_Catalog records for `<event>` and `<handler>` is the Code_Region
@@ -444,7 +446,9 @@ is one sample and the rules are proven beside the code that decides them.
 6. THE fixture under `specs/razor-components/fixture/` SHALL be banked as a sample under `samples/` when
    the feature lands, rendering its components to HTML through `HtmlRenderer` in a console program so that
    `AllFeaturesV2` holds its output, and the sample's designation SHALL be added to this document then,
-   under `samples/AGENTS.md`.
+   under `samples/AGENTS.md`. The sample project SHALL exist at `samples/RazorComponents/Program.mist`, with
+   the fixture's components under `samples/RazorComponents/Components/`, referenced from
+   `samples/AllFeaturesV2/mist.toml` and recorded as V2-ONLY in `samples/AGENTS.md`.
 7. INTERACTIVE SERVER acceptance, a browser establishing the circuit and a click changing state through a
    Mist handler without a reload, SHALL be proven once by hand with the spike's verifier,
    `probes/runtime/verify_browser.py` on Virtue, against the fixture's host, and recorded as a finding;

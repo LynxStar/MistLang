@@ -1,0 +1,4 @@
+name = "RazorComponents"
+
+[framework_references]
+"Microsoft.AspNetCore.App" = true

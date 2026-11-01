@@ -25,7 +25,8 @@ if (!Directory.Exists(snippetsDir))
     return 1;
 }
 
-// Find all .mist files that have a corresponding .cs file.
+// Find all .mist files that have a corresponding .cs file, and every file of an extension the backend
+// claims that has one named as the backend emits it: Counter.razor beside Counter.razor.cs.
 var mistFiles = Directory.GetFiles(snippetsDir, "*.mist", SearchOption.AllDirectories);
 var pairs = new List<(string MistPath, string CsPath)>();
 
@@ -38,6 +39,17 @@ foreach (var mistPath in mistFiles)
     }
 }
 
+foreach (var extension in new BackendRegistry().Resolve(BackendId.CSharp)!.ClaimedExtensions)
+{
+    foreach (var claimedPath in Directory.GetFiles(snippetsDir, "*" + extension, SearchOption.AllDirectories))
+    {
+        if (File.Exists(claimedPath + ".cs"))
+        {
+            pairs.Add((claimedPath, claimedPath + ".cs"));
+        }
+    }
+}
+
 Console.WriteLine($"Found {pairs.Count} .mist/.cs snippet pairs in {snippetsDir}");
 
 var updated = 0;
@@ -47,7 +59,7 @@ var failed = 0;
 foreach (var (mistPath, csPath) in pairs.OrderBy(p => p.MistPath))
 {
     var relativeMist = Path.GetRelativePath(snippetsDir, mistPath);
-    var emitted = EmitSnippet(mistPath);
+    var emitted = EmitSnippet(mistPath, csPath);
 
     if (emitted is null)
     {
@@ -96,9 +108,9 @@ IReadOnlyList<string> Companions(string mistPath)
         var current = pending.Pop();
         var directory = Path.GetDirectoryName(current)!;
 
-        foreach (var line in File.ReadLines(current).TakeWhile(l => l.Length == 0 || l.StartsWith("//", StringComparison.Ordinal) || l.StartsWith("using ", StringComparison.Ordinal)))
+        foreach (var line in File.ReadLines(current).TakeWhile(l => l.Length == 0 || l.StartsWith("//", StringComparison.Ordinal) || l.StartsWith("@*", StringComparison.Ordinal) || l.StartsWith("using ", StringComparison.Ordinal)))
         {
-            var match = Regex.Match(line, @"^//\s*with:\s*(.+)$");
+            var match = Regex.Match(line, @"^(?://|@\*)\s*with:\s*(.+?)(?:\s*\*@)?$");
             if (!match.Success)
                 continue;
 
@@ -117,7 +129,7 @@ IReadOnlyList<string> Companions(string mistPath)
     return found;
 }
 
-string? EmitSnippet(string mistPath)
+string? EmitSnippet(string mistPath, string csPath)
 {
     var relativeMist = Path.GetRelativePath(snippetsDir, mistPath);
     var scratchDir = Path.Combine(Path.GetTempPath(), "mist-snippet-emit-" + Guid.NewGuid().ToString("N"));
@@ -145,15 +157,16 @@ string? EmitSnippet(string mistPath)
             {
                 Console.Error.WriteLine($"  FAILED (project file): {relativeMist}");
                 foreach (var d in tomlDiagnostics.ToImmutableArray().Take(3))
-                    Console.Error.WriteLine($"    {d.Id.Value}: {d.Message}");
+                    Console.Error.WriteLine($"    {d.Number.Value}: {d.Message}");
                 return null;
             }
         }
 
         // A chapter's snippets build on one another, so a snippet names the siblings it uses with a
-        // `// with: a.mist, b.mist` line and they are compiled alongside it, each bringing its own
-        // companions; the book shows only the snippet. A demonstration that needs a folder layout --
-        // a namespace inferred from a folder -- keeps its other files in a folder beside it instead.
+        // `// with: a.mist, b.mist` line, or `@* with: A.razor *@` in a component, and they are compiled
+        // alongside it, each bringing its own companions; the book shows only the snippet. A
+        // demonstration that needs a folder layout -- a namespace inferred from a folder -- keeps its
+        // other files, of any extension the driver accepts, in a folder beside it instead.
         var sources = new List<string> { tempMistPath };
         foreach (var companion in Companions(mistPath))
         {
@@ -165,7 +178,7 @@ string? EmitSnippet(string mistPath)
         var supportDir = Path.Combine(Path.GetDirectoryName(mistPath)!, Path.GetFileNameWithoutExtension(mistPath) + ".support");
         if (Directory.Exists(supportDir))
         {
-            foreach (var supportFile in Directory.GetFiles(supportDir, "*.mist", SearchOption.AllDirectories))
+            foreach (var supportFile in Directory.GetFiles(supportDir, "*", SearchOption.AllDirectories))
             {
                 var relative = Path.GetRelativePath(supportDir, supportFile);
                 var copied = Path.Combine(scratchDir, relative);
@@ -198,7 +211,7 @@ string? EmitSnippet(string mistPath)
         // A snippet with neither a Main nor top-level statements is a library, which a project file
         // would say and a snippet cannot; the emitter refuses an executable without an entry point,
         // so it is compiled again as the library it is and the emitted C# is the same either way.
-        if (result.Diagnostics.Any(d => d.Id.Value == "MIST_MISSING_ENTRY_POINT"))
+        if (result.Diagnostics.Any(d => d.Descriptor == EntryPointDiagnostics.MissingEntryPoint))
         {
             result = driver.Compile(options with { OutputType = ProjectOutputType.Library });
         }
@@ -207,13 +220,13 @@ string? EmitSnippet(string mistPath)
         {
             Console.Error.WriteLine($"  FAILED: {relativeMist}");
             foreach (var d in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).Take(3))
-                Console.Error.WriteLine($"    {d.Id.Value}: {d.Message}");
+                Console.Error.WriteLine($"    {d.Number.Value}: {d.Message}");
             return null;
         }
 
-        // The emitted file is named after the .mist file and sits under the assembly's folder; the
+        // The emitted file is named as the snippet's .cs twin and sits under the assembly's folder; the
         // rest of the output is runtime support the book does not show.
-        var expectedCsName = Path.ChangeExtension(fileName, ".cs");
+        var expectedCsName = Path.GetFileName(csPath);
         var emitted = Directory.GetFiles(outputDir, "*.cs", SearchOption.AllDirectories)
             .Where(path => !Path.GetFileName(path).StartsWith("__", StringComparison.Ordinal))
             .OrderBy(path => path)

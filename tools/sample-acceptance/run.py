@@ -57,7 +57,9 @@ DIAGNOSTIC = re.compile(r"(?:^|: )(?:warning|info|error) [A-Z0-9_]+:")
 # through MSBuild/dotnet with inherited streams, so a build diagnostic (e.g. "warning
 # CS...") lands on stdout rather than the compiler's stderr and must be refused there.
 # A composed-executable defaults to executable per its mist.toml but has no standalone
-# entry point; it is still run standalone so its failure is recorded, never hidden.
+# entry point; it is still run standalone so its failure is recorded, never hidden. Its
+# compare=none demands a committed expectation before a clean exit counts as a pass, so
+# a zero-output compiler cannot silently bless it (a runs=False role never reaches that).
 ROLES = {
     "orchestrator":        {"invocation": "run",  "compare": "exact",      "runs": True},
     "executable":          {"invocation": "run",  "compare": "exact",      "runs": True},
@@ -307,8 +309,12 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
             if not wants:
                 # An empty marker file verifies nothing, so every output would pass.
                 reasons.append("empty expectation (no required lines to verify)")
+            # Match a complete application-result line while tolerating the build
+            # output around it: a substring test let bridge:widget-1000 satisfy an
+            # expectation of bridge:widget-1 and quantity=70 satisfy quantity=7 (R2).
+            out_lines = [l.strip() for l in out.split("\n")]
             for want in wants:
-                if want not in out:
+                if want.strip() not in out_lines:
                     reasons.append(f"stdout missing expected line: {want!r}")
     elif mode == "test-tally":
         if expectation is None:
@@ -320,6 +326,18 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
             for want in wants:
                 if not re.search(want, out):
                     reasons.append(f"stdout missing expected tally: {want!r}")
+    elif mode == "none":
+        # A runnable role with no output-shape contract (a composed sample that
+        # defaults to executable but declares no standalone entry point) must not be
+        # blessed on a bare clean exit: a zero-output compiler stub would otherwise
+        # pass all of them and report the verification complete. Require a committed
+        # expectation, matched exactly, before a successful run counts as a pass (R1).
+        if expectation is None:
+            reasons.append("no committed expectation (a clean run proves no standalone output and cannot pass)")
+        elif not normalize(expectation).strip():
+            reasons.append("empty expectation (no required output to verify)")
+        elif out != normalize(expectation):
+            reasons.append("stdout does not match expectation")
 
     return ("pass" if not reasons else "fail", reasons)
 
@@ -429,8 +447,12 @@ def run_project(entry, compiler, out_dir, timeout):
     # per project so the report captures how each sample was actually invoked.
     invocation = {"argv": argv, "cwd": os.path.relpath(cwd, REPO_ROOT), "env": env_overrides}
     try:
+        # Capture bytes, not text=True: universal-newline decoding would fold a bare
+        # carriage return to \n, silently normalizing beyond the one approved CRLF->LF
+        # rule (so a \r-laden output could wrongly match and its log lose the \r). We
+        # decode ourselves and let normalize() collapse only \r\n (R3).
         proc = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
-                              text=True, timeout=timeout)
+                              timeout=timeout)
         return proc.returncode, as_text(proc.stdout), as_text(proc.stderr), invocation
     except subprocess.TimeoutExpired as ex:
         return (124, as_text(ex.stdout), as_text(ex.stderr) + f"\n[harness] timed out after {timeout}s",
@@ -580,9 +602,12 @@ def main(argv):
     def run_one(entry):
         name, role = entry["name"], entry["role"]
         exit_code, stdout, stderr, invocation = run_project(entry, compiler, out_dir, args.timeout)
-        with open(os.path.join(out_dir, "logs", f"{name}.stdout"), "w", encoding="utf-8") as fh:
+        # newline="" writes the captured text verbatim: without it text-mode newline
+        # translation would drop or rewrite the bare carriage returns R3 preserves, so
+        # the saved log would no longer reflect what the program actually emitted.
+        with open(os.path.join(out_dir, "logs", f"{name}.stdout"), "w", encoding="utf-8", newline="") as fh:
             fh.write(stdout)
-        with open(os.path.join(out_dir, "logs", f"{name}.stderr"), "w", encoding="utf-8") as fh:
+        with open(os.path.join(out_dir, "logs", f"{name}.stderr"), "w", encoding="utf-8", newline="") as fh:
             fh.write(stderr)
 
         capturable = (args.capture and ROLES[role]["compare"] == "exact"

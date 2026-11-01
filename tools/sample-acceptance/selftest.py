@@ -126,6 +126,16 @@ def _():
     assert status == "pass"
 
 
+@case("evaluate preserves a bare carriage return and never folds it to a newline")
+def _():
+    # Only \r\n is normalized; a lone \r is real program output and must keep
+    # distinguishing a mismatch. Capturing bytes (not text=True universal newlines)
+    # is what keeps the bare \r intact so this comparison can still reject it (R3).
+    assert run.normalize("a\rb\r") == "a\rb\r"
+    assert run.evaluate("executable", 0, "a\rb\n", "", "a\nb\n")[0] == "fail"
+    assert run.evaluate("executable", 0, "a\r\nb\r\n", "", "a\nb\n")[0] == "pass"
+
+
 @case("contains mode tolerates surrounding noise")
 def _():
     out = "restoring...\nbridge:widget-1\nbuild succeeded\n"
@@ -137,6 +147,18 @@ def _():
 def _():
     status, _ = run.evaluate("msbuild-consumer", 0, "nothing here\n", "", "bridge:widget-1")
     assert status == "fail"
+
+
+@case("contains mode matches a complete line, not a substring")
+def _():
+    # A superstring of the expected line must not satisfy it: bridge:widget-1000 does
+    # not meet bridge:widget-1, nor quantity=70 meet quantity=7 (R2). The exact line
+    # still passes amid surrounding build output.
+    assert run.evaluate("msbuild-consumer", 0, "restoring...\nbridge:widget-1000\n", "", "bridge:widget-1")[0] == "fail"
+    assert run.evaluate("ef-consumer", 0, "items=1, name=from Mist, quantity=70\n", "",
+                        "items=1, name=from Mist, quantity=7")[0] == "fail"
+    assert run.evaluate("ef-consumer", 0, "build ok\nitems=1, name=from Mist, quantity=7\ndone\n", "",
+                        "items=1, name=from Mist, quantity=7")[0] == "pass"
 
 
 @case("test-tally matches the runner's reported counts")
@@ -207,16 +229,27 @@ def _():
     assert run.role_diagnostics("executable", warn, "") == []
 
 
-@case("composed-executable records a standalone run and needs no expectation")
+@case("composed-executable records its standalone failure")
 def _():
     # A composed-executable is run standalone; with no entry point the compiler exits
-    # nonzero with MIST0108, which is recorded as a failure, never substituted by
-    # aggregate coverage, and compare=none asks for no committed expectation (F1).
+    # nonzero with MIST0108, which is recorded as a failure and never substituted by
+    # aggregate coverage (F1).
     stderr = "samples/Tuples/Program.mist: error MIST0108: produces an executable but declares no entry point"
     status, reasons = run.evaluate("composed-executable", 1, "", stderr, None)
     assert status == "fail", reasons
     assert any("MIST0108" in r for r in reasons) and any("nonzero exit" in r for r in reasons), reasons
-    assert not any("no committed expectation" in r for r in reasons), reasons
+
+
+@case("composed-executable clean exit is not a pass without an expectation")
+def _():
+    # compare=none must not bless a bare clean exit: a zero-output compiler stub would
+    # otherwise pass every composed sample and report the verification complete, so a
+    # committed expectation is required before success counts as a pass (R1).
+    status, reasons = run.evaluate("composed-executable", 0, "", "", None)
+    assert status == "fail" and any("no committed expectation" in r for r in reasons), reasons
+    # With a committed expectation it behaves exactly: matching output passes, drift fails.
+    assert run.evaluate("composed-executable", 0, "out\n", "", "out\n")[0] == "pass"
+    assert run.evaluate("composed-executable", 0, "other\n", "", "out\n")[0] == "fail"
 
 
 @case("capture refuses an empty run before writing")

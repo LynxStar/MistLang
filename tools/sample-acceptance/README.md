@@ -46,7 +46,7 @@ companion, each with a role. It is executable acceptance input, not a work ledge
 | `orchestrator` | `mist run` of AllFeaturesV2 | reuses `samples/__baselines__/AllFeaturesV2.out` (never duplicated) |
 | `executable` | standalone `mist run` | `expectations/<name>.out`, compared exactly |
 | `generator-consumer` | `mist run`, driving a source generator through the generator protocol | `expectations/<name>.out` |
-| `msbuild-consumer` | `mist run` of a sub-project that references a C# project (builds MSBuild) | `expectations/<name>.out`, substring match |
+| `msbuild-consumer` | `mist run` of a sub-project that references a C# project (builds MSBuild) | `expectations/<name>.out`, complete application-result line match |
 | `ef-consumer` | the manual EF demonstration; needs network + `dotnet-ef` | run only with `--include-network` |
 | `test-library` | `mist test` | `expectations/<name>.tally` (regex lines) |
 | `library` | built/exercised through its consumer; not run directly | — |
@@ -63,8 +63,8 @@ dotnet build Mist.slnx
 # Reconcile and list the roster without running anything:
 python3 tools/sample-acceptance/run.py --list
 
-# A full seed capture-and-compare against the current C# host:
-python3 tools/sample-acceptance/run.py --generation csharp-host-g0
+# Compare every sample against seed expectations, including the network demonstration:
+python3 tools/sample-acceptance/run.py --generation csharp-host-g0 --include-network
 
 # Point it at any other compiler (a built binary, or a command line):
 python3 tools/sample-acceptance/run.py --compiler /path/to/mist --generation mist-host-g1

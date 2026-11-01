@@ -42,26 +42,32 @@ internal static class AttributeProjector
     {
         foreach(var attribute in attributes)
         {
-            var attributeClrType = attribute.AttributeType;
-            if(ShouldSkip(attributeClrType))
+            try
             {
-                continue;
-            }
+                var attributeClrType = attribute.AttributeType;
+                if(ShouldSkip(attributeClrType))
+                {
+                    continue;
+                }
 
-            var resolved = resolver.Resolve(attributeClrType, scope);
-            if(resolved is ErrorType or NotProjectedType)
+                var resolved = resolver.Resolve(attributeClrType, scope);
+                if(resolved is ErrorType or NotProjectedType)
+                {
+                    continue;
+                }
+
+                var positionalArguments = attribute.ConstructorArguments
+                    .Select(ConvertArgument)
+                    .ToArray();
+                var namedArguments = attribute.NamedArguments
+                    .Select(argument => (argument.MemberName, ConvertArgument(argument.TypedValue)))
+                    .ToArray();
+
+                target.Add(new AttributeData(resolved, positionalArguments, namedArguments));
+            }
+            catch(Exception exception) when(GenericConstraintProjector.IsMetadataFailure(exception))
             {
-                continue;
             }
-
-            var positionalArguments = attribute.ConstructorArguments
-                .Select(ConvertArgument)
-                .ToArray();
-            var namedArguments = attribute.NamedArguments
-                .Select(argument => (argument.MemberName, ConvertArgument(argument.TypedValue)))
-                .ToArray();
-
-            target.Add(new AttributeData(resolved, positionalArguments, namedArguments));
         }
     }
 

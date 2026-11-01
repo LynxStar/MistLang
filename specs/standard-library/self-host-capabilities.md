@@ -63,8 +63,10 @@ static fields do not become part of a struct ancestor's transported instance sta
 
 Nullable parsing and array operations share their runtime source with lower-tier tests: the
 compiler compiles those files and embeds the same files in programs that call the adapters.
-Find boxes its result before the call site casts to the closed optional element type, preserving
-value-type absence. Backing storage keeps its CLR identity; the adapters close optional results at each call.
+Find boxes its result before the call site converts it to the closed result type, preserving
+value-type absence. A union element widens into the result carrier on a match; absence enters
+that carrier through its `void` arm. Optional elements keep a single optional layer. Backing
+storage keeps its CLR identity; the adapters close optional results at each call.
 Existing optional specialization supplies generic callers. Native async,
 empty literals and the existing Task combinators keep their existing lowering.
 

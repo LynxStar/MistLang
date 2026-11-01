@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -118,10 +119,22 @@ internal static class CapabilityAdapters
             call = $"{RuntimeNamespace}.ArrayOperations.{helper}({receiver}, {argument} => {call})";
         }
 
-        if(method.Name == "Find" || (conditional && !OptionalUnion.IsVoid(method.ReturnType)))
+        if(method.Name == "Find")
         {
-            var result = method.Name == "Find" ? array.TypeArguments[0]
-                : OptionalUnion.InnerType(method.ReturnType) ?? method.ReturnType;
+            var result = TypeSubstitution.ForReceiver(array).Apply(method.ReturnType, interner: null);
+            var spelling = TypeNameEmitter.Emit(result);
+            if(UnknownUnions.Carrier(array.TypeArguments[0]) is { } union)
+            {
+                var bound = BodyEmitter.TemporaryName();
+                return $"({call} is {TypeNameEmitter.Emit(union)} {bound} ? ({spelling}){bound} : ({spelling})Standard.Void.Instance)";
+            }
+
+            return $"(({spelling}){call})";
+        }
+
+        if(conditional && !OptionalUnion.IsVoid(method.ReturnType))
+        {
+            var result = OptionalUnion.InnerType(method.ReturnType) ?? method.ReturnType;
             return $"(({TypeNameEmitter.EmitOptional(result)}){call})";
         }
 

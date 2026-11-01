@@ -83,6 +83,14 @@ public class Program
         var visits = 0;
         var found = values.Find(value => { visits = visits + 1; return value == 0; });
         Console.WriteLine($"find: {found ?? -1} visits: {visits} absent: {values.Find(value => value == 9) is void} generic: {FirstZero(values, value => value == 0) ?? -1}");
+        (int | string)[] mixed = [0, "hello"];
+        var mixedZero = FirstZero(mixed, value => value is int);
+        Console.WriteLine($"union find: {mixed.Find(value => false) is void} zero: {mixedZero is int zero && zero == 0} text: {mixed.Find(value => value is string) is string}");
+        (int | string)[]? absentMixed = void;
+        (int | string)[]? presentMixed = mixed;
+        Console.WriteLine($"conditional union find: {absentMixed?.Find(value => true) is void} {presentMixed?.Find(value => false) is void} {presentMixed?.Find(value => true) is int}");
+        (int?)[] optionalValues = [0, void];
+        Console.WriteLine($"optional element find: {optionalValues.Find(value => value is int) ?? -1} {optionalValues.Find(value => false) is void}");
         visits = 0;
         var any = values.Any(value => { visits = visits + 1; return value == 0; });
         Console.WriteLine($"any: {any} visits: {visits} empty: {empty.Any(value => true)}");

@@ -2551,6 +2551,9 @@ ambient routes: 2 1.25 5
 array search: 1 True True False empty: 0 True
 conditional array: True True
 find: 0 visits: 2 absent: True generic: 0
+union find: True zero: True text: True
+conditional union find: True True True
+optional element find: 0 True
 any: True visits: 2 empty: False
 ordinal sort: A a b find: a
 in-place sort: 0 0 2 3

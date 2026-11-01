@@ -23,7 +23,7 @@ internal static class DropEmitter
 
         using(writer.Block())
         {
-            foreach(var field in DropInsertion.DroppableFields(type))
+            foreach(var field in DropInsertion.SyntheticDropFields(type))
             {
                 writer.WriteLine(DropInsertion.FieldDrop(field));
             }

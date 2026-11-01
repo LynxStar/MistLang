@@ -344,7 +344,6 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
                     {
                         FieldProjector.Project(concreteType, clrType, resolver);
                         ConstructorProjector.Project(concreteType, clrType, resolver);
-                        DisposableDetector.Apply(concreteType);
                     }
 
                     break;
@@ -353,6 +352,11 @@ internal sealed class AmbientTypeProviderV2 : IAmbientTypeSource
 
         foreach(var (fqn, clrType) in clrTypes)
         {
+            if(shells[fqn] is ConcreteType concreteType)
+            {
+                DisposableDetector.Apply(concreteType);
+            }
+
             if(shells[fqn] is AbstractType derived)
             {
                 NativeSlotOverrides.Project(derived, clrType, resolver);

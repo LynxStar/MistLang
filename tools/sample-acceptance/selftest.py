@@ -167,6 +167,75 @@ def _():
     assert status == "fail" and any("empty expectation" in r for r in reasons), reasons
 
 
+@case("exact mode rejects an empty required expectation")
+def _():
+    # An empty exact expectation matches empty output; without this it would pass
+    # forever, silently erasing the program's output contract (F3).
+    status, reasons = run.evaluate("executable", 0, "", "", "")
+    assert status == "fail" and any("empty expectation" in r for r in reasons), reasons
+
+
+@case("test-tally refuses a generated-C# warning on stdout")
+def _():
+    # mist test runs dotnet test with inherited streams, so a generated-C# build
+    # warning lands on stdout, not the compiler's stderr; it must still be refused (F2).
+    out = "X.cs(1,1): warning CS0168: unused variable\nPassed: 5\nFailed: 0\n"
+    status, reasons = run.evaluate("test-library", 0, out, "", r"Passed:\s+5\b")
+    assert status == "fail" and any("diagnostic" in r and "CS0168" in r for r in reasons), reasons
+
+
+@case("msbuild-consumer refuses a build warning on stdout")
+def _():
+    out = "Y.cs(2,3): warning CS0219: assigned but never used\nbridge:widget-1\n"
+    status, reasons = run.evaluate("msbuild-consumer", 0, out, "", "bridge:widget-1")
+    assert status == "fail" and any("diagnostic" in r for r in reasons), reasons
+
+
+@case("executable stdout is not scanned for diagnostics")
+def _():
+    # A plain executable's stdout is its application output and is only ever compared,
+    # never scanned, so legitimate text that looks like a diagnostic is not misread (F2).
+    app = "error CS0001: this is the program's own printed line\n"
+    status, _ = run.evaluate("executable", 0, app, "", app)
+    assert status == "pass"
+
+
+@case("role_diagnostics reads stdout only for build-C# roles")
+def _():
+    warn = "Z.cs(1,1): warning CS0168: x"
+    assert run.role_diagnostics("test-library", warn, "") != []
+    assert run.role_diagnostics("executable", warn, "") == []
+
+
+@case("composed-executable records a standalone run and needs no expectation")
+def _():
+    # A composed-executable is run standalone; with no entry point the compiler exits
+    # nonzero with MIST0108, which is recorded as a failure, never substituted by
+    # aggregate coverage, and compare=none asks for no committed expectation (F1).
+    stderr = "samples/Tuples/Program.mist: error MIST0108: produces an executable but declares no entry point"
+    status, reasons = run.evaluate("composed-executable", 1, "", stderr, None)
+    assert status == "fail", reasons
+    assert any("MIST0108" in r for r in reasons) and any("nonzero exit" in r for r in reasons), reasons
+    assert not any("no committed expectation" in r for r in reasons), reasons
+
+
+@case("capture refuses an empty run before writing")
+def _():
+    # Refusing in the pure verdict keeps run_one from ever reaching the open(), so an
+    # empty capture cannot overwrite a committed expectation (F3).
+    ok, text, reasons = run.capture_verdict("executable", 0, "", "")
+    assert ok is False and text == "" and any("empty capture" in r for r in reasons), reasons
+
+
+@case("capture refuses a diagnostic run and permits a clean one")
+def _():
+    bad_ok, _, bad_reasons = run.capture_verdict(
+        "test-library", 0, "A.cs(1,1): warning CS0168: x\nPassed: 5\n", "")
+    assert bad_ok is False and any("diagnostic" in r for r in bad_reasons), bad_reasons
+    good_ok, good_text, _ = run.capture_verdict("executable", 0, "hello\n", "")
+    assert good_ok is True and good_text == "hello\n"
+
+
 @case("consumer map derives coverage from the referencing consumer")
 def _():
     # The reverse reference map is what lets a supporting project's status be derived
@@ -186,7 +255,9 @@ def _():
 
 @case("aggregate check accepts ordered blocks and skips composed-only")
 def _():
-    entries = _aggregate_entries(["A", "Hidden", "B"], roles={"Hidden": "composed-library"})
+    # A composed-executable has no standalone output, so it is noted and skipped by the
+    # cross-check rather than demanded as a block; the surrounding blocks still match.
+    entries = _aggregate_entries(["A", "Hidden", "B"], roles={"Hidden": "composed-executable"})
     ok, notes = run.check_aggregate_core(
         entries, ["A", "Hidden", "B"],
         "HEADER\na1\na2\nx-composed-x\nb1\n",

@@ -53,17 +53,22 @@ SAMPLES_ROOT = os.path.join(REPO_ROOT, "samples")
 DIAGNOSTIC = re.compile(r"(?:^|: )(?:warning|info|error) [A-Z0-9_]+:")
 
 # Roles and how each is exercised. compare modes: exact | contains | test-tally | none.
+# scan_stdout marks the roles whose documented invocation builds or runs generated C#
+# through MSBuild/dotnet with inherited streams, so a build diagnostic (e.g. "warning
+# CS...") lands on stdout rather than the compiler's stderr and must be refused there.
+# A composed-executable defaults to executable per its mist.toml but has no standalone
+# entry point; it is still run standalone so its failure is recorded, never hidden.
 ROLES = {
-    "orchestrator":       {"invocation": "run",  "compare": "exact",      "runs": True},
-    "executable":         {"invocation": "run",  "compare": "exact",      "runs": True},
-    "generator-consumer": {"invocation": "run",  "compare": "exact",      "runs": True},
-    "msbuild-consumer":   {"invocation": "run",  "compare": "contains",   "runs": True},
-    "ef-consumer":        {"invocation": "run",  "compare": "contains",   "runs": True, "network": True},
-    "test-library":       {"invocation": "test", "compare": "test-tally", "runs": True},
-    "library":            {"invocation": None,   "compare": "none",       "runs": False},
-    "composed-library":   {"invocation": None,   "compare": "none",       "runs": False},
-    "source-generator":   {"invocation": None,   "compare": "none",       "runs": False},
-    "csharp-companion":   {"invocation": None,   "compare": "none",       "runs": False, "csproj": True},
+    "orchestrator":        {"invocation": "run",  "compare": "exact",      "runs": True},
+    "executable":          {"invocation": "run",  "compare": "exact",      "runs": True},
+    "generator-consumer":  {"invocation": "run",  "compare": "exact",      "runs": True, "scan_stdout": True},
+    "msbuild-consumer":    {"invocation": "run",  "compare": "contains",   "runs": True, "scan_stdout": True},
+    "ef-consumer":         {"invocation": "run",  "compare": "contains",   "runs": True, "network": True, "scan_stdout": True},
+    "test-library":        {"invocation": "test", "compare": "test-tally", "runs": True, "scan_stdout": True},
+    "composed-executable": {"invocation": "run",  "compare": "none",       "runs": True},
+    "library":             {"invocation": None,   "compare": "none",       "runs": False},
+    "source-generator":    {"invocation": None,   "compare": "none",       "runs": False},
+    "csharp-companion":    {"invocation": None,   "compare": "none",       "runs": False, "csproj": True},
 }
 
 
@@ -83,6 +88,19 @@ def as_text(data):
 
 def diagnostics_in(stderr):
     return [line for line in stderr.split("\n") if DIAGNOSTIC.search(line)]
+
+
+def role_diagnostics(role, stdout, stderr):
+    """Compiler/build diagnostics for a project, read from the channels its role
+    actually uses. The compiler streams its own diagnostics to stderr for every
+    role; a role that drives generated C# through MSBuild/dotnet (scan_stdout) also
+    surfaces build diagnostics on stdout, so both are refused there. A plain
+    executable's stdout is its application output and is never scanned, so legitimate
+    program text that happens to look like a diagnostic is not misread as one."""
+    diags = diagnostics_in(stderr)
+    if ROLES[role].get("scan_stdout"):
+        diags = diags + diagnostics_in(stdout)
+    return diags
 
 
 def discover_manifests(samples_root):
@@ -230,8 +248,8 @@ def check_aggregate_core(entries, order, baseline_text, expectation_texts):
         if entry is None:
             problems.append(f"orchestrator calls {name}.RunDemo but it is not in the manifest")
             continue
-        if entry["role"] == "composed-library":
-            skipped.append(f"{name} (composed-only, no standalone output)")
+        if entry["role"] == "composed-executable":
+            skipped.append(f"{name} (composed-only; no standalone entry point, so no standalone output to cross-check)")
             continue
         if entry.get("aggregate_check") is False:
             skipped.append(f"{name} (standalone output differs from the orchestrator call by design; reviewed against its own program)")
@@ -264,7 +282,7 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
     Pure: the bounded self-test drives this with synthetic inputs."""
     mode = ROLES[role]["compare"]
     reasons = []
-    diags = diagnostics_in(stderr)
+    diags = role_diagnostics(role, stdout, stderr)
     if diags:
         reasons.append(f"{len(diags)} compiler diagnostic(s): {diags[0].strip()}")
     if exit_code != 0:
@@ -274,6 +292,11 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
     if mode == "exact":
         if expectation is None:
             reasons.append("no committed expectation")
+        elif not normalize(expectation).strip():
+            # An empty exact expectation matches empty output and would then pass
+            # forever, erasing the program's whole contract; a real executable has
+            # output, so an empty required expectation is a defect, not a pass.
+            reasons.append("empty expectation (no required output to verify)")
         elif out != normalize(expectation):
             reasons.append("stdout does not match expectation")
     elif mode == "contains":
@@ -299,6 +322,21 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
                     reasons.append(f"stdout missing expected tally: {want!r}")
 
     return ("pass" if not reasons else "fail", reasons)
+
+
+def capture_verdict(role, exit_code, stdout, stderr):
+    """Pure: whether a --capture run may be recorded as the new expectation. Only a
+    clean, nonempty run is recordable; a diagnostic (on any channel the role uses), a
+    nonzero exit, or empty output is refused, so a degraded run never becomes a
+    baseline and an empty capture never erases a program's contract. Returns
+    (ok, captured_text, reasons); on refusal captured_text is not meant to be written.
+    The bounded self-test drives this with synthetic inputs."""
+    text = normalize(stdout)
+    if role_diagnostics(role, stdout, stderr) or exit_code != 0:
+        return False, text, evaluate(role, exit_code, stdout, stderr, text)[1]
+    if not text.strip():
+        return False, text, ["refused empty capture (no output to record)"]
+    return True, text, []
 
 
 # A selected project that neither passed nor was covered through a passing consumer
@@ -410,7 +448,11 @@ def compiler_identity(compiler):
                                   capture_output=True, text=True, timeout=120)
             if proc.returncode == 0 and proc.stdout.strip():
                 return proc.stdout.strip()
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        # A bad compiler path/command fails here first (an existing but non-executable
+        # file raises PermissionError, not FileNotFoundError); identity probing must
+        # tolerate any launch error so the per-project launch-failure path still runs
+        # and preserves a failing result and report.json instead of aborting the run.
+        except (subprocess.TimeoutExpired, OSError):
             pass
     return "unknown"
 
@@ -547,15 +589,17 @@ def main(argv):
                       and os.path.abspath(expectation_path(entry, args.expectations))
                       .startswith(os.path.abspath(args.expectations) + os.sep))
         if capturable:
-            # Never bless a degraded run: a diagnostic or nonzero exit is a failure
-            # and its output is not written, so it cannot overwrite a valid baseline.
-            if diagnostics_in(stderr) or exit_code != 0:
-                status, reasons = "fail", evaluate(role, exit_code, stdout, stderr, normalize(stdout))[1]
+            # The recordable/refuse decision is the pure capture_verdict; only a clean,
+            # nonempty run reaches the open(), so a degraded or empty run never
+            # overwrites a committed expectation and the destination stays byte-identical.
+            ok, captured_text, reasons = capture_verdict(role, exit_code, stdout, stderr)
+            if not ok:
+                status = "fail"
             else:
                 dest = expectation_path(entry, args.expectations)
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 with open(dest, "w", encoding="utf-8") as fh:
-                    fh.write(normalize(stdout))
+                    fh.write(captured_text)
                 status, reasons = ("captured", [f"wrote {os.path.relpath(dest, REPO_ROOT)}"])
         else:
             status, reasons = evaluate(role, exit_code, stdout, stderr,

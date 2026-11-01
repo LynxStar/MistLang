@@ -10,6 +10,8 @@
 # Roles (see run.py ROLES):
 #   orchestrator       AllFeaturesV2 -- run; compared to its committed baseline.
 #   executable         standalone `mist run`; stdout compared exactly to expectations/<name>.out.
+#   composed-executable defaults to executable but has no standalone entry point; run standalone
+#                      to record its MIST0108 failure, and cross-covered through the aggregate.
 #   generator-consumer `mist run`; drives a source generator through the generator protocol.
 #   msbuild-consumer   `mist run` of a sub-project that references a C# project (builds MSBuild).
 #   ef-consumer        manual EF demonstration; needs network + dotnet-ef (run only with --include-network).
@@ -155,8 +157,8 @@ expectation = "ClrRefInterop.out"
 [[project]]
 path = "samples/ClrRefReadonly"
 name = "ClrRefReadonly"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/ConstructorConstraintSignatures"
@@ -240,8 +242,8 @@ expectation = "ExtensionMethodBinding.out"
 [[project]]
 path = "samples/ExtensionMethods"
 name = "ExtensionMethods"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/FirstClassFunctions"
@@ -426,8 +428,8 @@ expectation = "Ownership.out"
 [[project]]
 path = "samples/PatternMatching"
 name = "PatternMatching"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/Primitives"
@@ -522,8 +524,8 @@ expectation = "Simpliest.out"
 [[project]]
 path = "samples/SizedSequencePatterns"
 name = "SizedSequencePatterns"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/SliceableTypes"
@@ -634,14 +636,14 @@ expectation = "TuplePatternMatching.out"
 [[project]]
 path = "samples/Tuples"
 name = "Tuples"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/TypeAliases"
 name = "TypeAliases"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/TypeArgumentInference"
@@ -658,8 +660,8 @@ expectation = "TypeReflection.out"
 [[project]]
 path = "samples/TypeUnions"
 name = "TypeUnions"
-role = "composed-library"
-note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+role = "composed-executable"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; defaults to executable but has no standalone entry point, so its standalone run is attempted and its MIST0108 failure recorded, never substituted by aggregate coverage"
 
 [[project]]
 path = "samples/TypeValues"

@@ -49,6 +49,21 @@ public sealed class RazorTranslationDecisionTests
     }
 
     [Theory]
+    [InlineData(@"C:\app", @"C:\app\_Imports.razor", @"C:\app\Components\_Imports.razor", @"C:\app\Shared\_Imports.razor", @"C:\app\Components\Counter.razor")]
+    [InlineData("/app", "/app/_Imports.razor", "/app/Components/_Imports.razor", "/app/Shared/_Imports.razor", "/app/Components/Counter.razor")]
+    public void ImportsKeyedByTheirFileFolderApplyToAComponentOnEitherPathStyle(string project, string root, string components, string shared, string component)
+    {
+        var imports = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [ImportsResolution.Folder(components)] = "components",
+            [ImportsResolution.Folder(shared)] = "shared",
+            [ImportsResolution.Folder(root)] = "root",
+        };
+
+        Assert.Equal(["root", "components"], ImportsResolution.For(component, project, imports).ToArray());
+    }
+
+    [Theory]
     [InlineData("/app/_Imports.razor", true)]
     [InlineData("/app/Components/_imports.RAZOR", true)]
     [InlineData("/app/Imports.razor", false)]

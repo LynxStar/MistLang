@@ -31,7 +31,7 @@ public sealed partial class RazorComponentTranslatorTests
                 }
             }
 
-            """,
+            """.ReplaceLineEndings("\n"),
             translation.Text.Contents);
     }
 
@@ -71,7 +71,7 @@ public sealed partial class RazorComponentTranslatorTests
 
                 private int count = 0;
 
-            """,
+            """.ReplaceLineEndings("\n"),
             translation.Text.Contents);
         Assert.DoesNotContain("[Inject]", translation.Text.Contents);
         Assert.Equal("@inject IJSRuntime JS", translation.Original(translation.Map("this.JS = ")));
@@ -109,7 +109,7 @@ public sealed partial class RazorComponentTranslatorTests
 
             [Layout(InnerLayout)]
 
-            """,
+            """.ReplaceLineEndings("\n"),
             translation.Text.Contents);
     }
 
@@ -148,7 +148,7 @@ public sealed partial class RazorComponentTranslatorTests
                     public IComponentRenderMode Mode => RenderMode.InteractiveServer;
                 }
 
-            """,
+            """.ReplaceLineEndings("\n"),
             translation.Text.Contents);
     }
 

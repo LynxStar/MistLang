@@ -107,7 +107,7 @@ public sealed partial class RazorComponentTranslatorTests
                 }
             }
 
-            """,
+            """.ReplaceLineEndings("\n"),
             counter.Text.Contents);
     }
 
@@ -158,7 +158,7 @@ public sealed partial class RazorComponentTranslatorTests
                 }
             }
 
-            """,
+            """.ReplaceLineEndings("\n"),
             greeting.Text.Contents);
     }
 

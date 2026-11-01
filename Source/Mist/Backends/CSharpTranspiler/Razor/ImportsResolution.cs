@@ -13,12 +13,13 @@ internal static class ImportsResolution
 
     public static string Folder(string path)
     {
-        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetDirectoryName(Path.GetFullPath(path))!));
+        return Normalize(Path.GetDirectoryName(Normalize(path))!);
     }
 
     public static ImmutableArray<T> For<T>(string componentPath, string projectFolder, IReadOnlyDictionary<string, T> importsByFolder)
     {
-        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectFolder));
+        var byFolder = importsByFolder.ToLookup(pair => Normalize(pair.Key), pair => pair.Value, StringComparer.Ordinal);
+        var root = Normalize(projectFolder);
         var chain = new List<string>();
         for(var folder = Folder(componentPath); folder is not null; folder = Path.GetDirectoryName(folder))
         {
@@ -35,6 +36,12 @@ internal static class ImportsResolution
         }
 
         chain.Reverse();
-        return [.. chain.Where(importsByFolder.ContainsKey).Select(folder => importsByFolder[folder])];
+        return [.. chain.SelectMany(folder => byFolder[folder])];
+    }
+
+    // A backslash separates folders on every platform, as MSBuild reads one, so a path compares the same wherever it is resolved.
+    private static string Normalize(string path)
+    {
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path.Replace('\\', '/')));
     }
 }

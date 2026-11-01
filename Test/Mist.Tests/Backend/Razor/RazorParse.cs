@@ -62,7 +62,7 @@ internal static class RazorParse
         using var stream = typeof(RazorParse).Assembly.GetManifestResourceStream($"RazorFixture.{fileName}")
             ?? throw new InvalidOperationException($"the fixture '{fileName}' is not embedded");
         using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
+        return reader.ReadToEnd().ReplaceLineEndings("\n");
     }
 
     public static IEnumerable<CodeRegion> CodeRegions(RazorSyntaxTree tree)

@@ -76,14 +76,14 @@ internal static class StructAncestorFactory
     {
         var members = ImmutableArray.CreateBuilder<FactoryMember>();
 
-        foreach(var field in flattened.Fields)
+        foreach(var field in flattened.Fields.Where(field => !field.Field.Modifiers.IsStatic))
         {
             members.Add(new FactoryMember(field.Name, TypeNameEmitter.Emit(field.Type)));
         }
 
         foreach(var property in flattened.Properties)
         {
-            if(HoldsState(property))
+            if(!property.Modifiers.IsStatic && HoldsState(property))
             {
                 using var inherited = TypeEmitter.Substituting(flattened.PropertyPaths.GetValueOrDefault(property));
                 members.Add(new FactoryMember(property.Name, TypeNameEmitter.Emit(property.Type)));

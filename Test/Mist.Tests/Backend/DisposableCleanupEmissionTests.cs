@@ -45,6 +45,39 @@ public sealed class DisposableCleanupEmissionTests
             """.ReplaceLineEndings("\n"), emitted);
     }
 
+    [Fact]
+    [Trait("Tier", "2")]
+    public void ALinearHolderOfOnlyADisposableFieldReleasesNothingAtScopeExit()
+    {
+        var f = new LifetimeFragments();
+        var resource = HandBuiltModel.Class("Resource");
+        resource.HasDrop = true;
+        resource.IsDisposableDrop = true;
+        var holder = HandBuiltModel.Class("Holder");
+        holder.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
+        holder.FieldsList.Add(new Field("Resource", resource, OwnershipKind.Unrestricted, default) { DeclaringType = holder });
+        var make = new Method("Make", holder, [], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };
+        var local = new LocalVariable("holder", holder);
+        var scope = new WithBlockStatement(f.Call(make), HandBuiltModel.Block(), local, f.Plain);
+
+        var emitted = LifetimeFragments.Emitted(HandBuiltModel.Block(scope));
+
+        Assert.Equal(
+            """
+            {
+                var holder = Sink.Make();
+                MistContext.Push<Plain>(holder);
+                try
+                {
+                }
+                finally
+                {
+                    MistContext.Pop<Plain>();
+                }
+            }
+            """.ReplaceLineEndings("\n"), emitted);
+    }
+
     [Theory]
     [Trait("Tier", "1")]
     [InlineData(SubstructuralDiscipline.None)]

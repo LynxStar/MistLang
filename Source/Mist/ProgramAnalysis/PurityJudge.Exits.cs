@@ -287,7 +287,10 @@ internal static partial class PurityJudge
             yield break;
         }
 
-        foreach(var field in concrete.FieldsList.Where(field => !field.Modifiers.IsStatic))
+        // A disposable CLR field does not join a SYNTHESIZED cascade: the backend declines to drop one
+        // (DropInsertion.SyntheticDropFields), so judging its Dispose here would weigh a call that never runs.
+        foreach(var field in concrete.FieldsList.Where(field => !field.Modifiers.IsStatic
+            && DefinitionOf(field.Type) is not ConcreteType { IsDisposableDrop: true }))
         {
             foreach(var drop in FieldDrops(field, concrete, type as ConstructedType, visited))
             {

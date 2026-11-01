@@ -3,6 +3,7 @@
 // written is LocalLifetimeEmissionTests'; these are the decisions both stand on.
 
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -192,6 +193,25 @@ public sealed class DropInsertionTests
         Assert.Equal(
             [(f.Second, LifetimeRelease.AtExit), (shared, LifetimeRelease.AtExit)],
             DropInsertion.ReleasedFields(drop, f.Holder, plan));
+    }
+
+    /// <summary>
+    /// A disposable CLR field joins no synthetic cascade, so the three readers of one body agree the
+    /// holder owes nothing: none is synthesized to lower, none planned to track, and none judged to run.
+    /// </summary>
+    [Fact]
+    public void ALinearHolderOfOnlyADisposableFieldDropsNothing()
+    {
+        var resource = HandBuiltModel.Class("Resource");
+        resource.HasDrop = true;
+        resource.IsDisposableDrop = true;
+        var holder = HandBuiltModel.Class("Holder");
+        holder.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
+        holder.FieldsList.Add(new Field("Resource", resource, OwnershipKind.Unrestricted, default) { DeclaringType = holder });
+
+        Assert.False(DropInsertion.SynthesizesDrop(holder));
+        Assert.Empty(PurityJudge.Drops(holder, awaitable: false));
+        Assert.False(LocalLifetimes.IsTracked(holder));
     }
 
     private static LifetimeRelease Unplanned(LocalVariable local)

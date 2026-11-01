@@ -39,6 +39,70 @@ public sealed class StaticMarkupTests
         Assert.All(nodes, node => Assert.False(statics.IsStatic(node)));
     }
 
+    [Theory]
+    [InlineData("select", false, true)]
+    [InlineData("select", true, false)]
+    [InlineData("option", false, true)]
+    [InlineData("option", true, true)]
+    [InlineData("textarea", false, true)]
+    [InlineData("textarea", true, true)]
+    [InlineData("script", false, true)]
+    [InlineData("script", true, true)]
+    [InlineData("style", false, true)]
+    [InlineData("style", true, true)]
+    [InlineData("pre", false, true)]
+    [InlineData("pre", true, true)]
+    [InlineData("template", false, true)]
+    [InlineData("template", true, true)]
+    [InlineData("div", false, true)]
+    [InlineData("div", true, true)]
+    public void StaticElementsFoldExceptForOptionsUnderASelect(string name, bool hasChild, bool expected)
+    {
+        Hand[] children = hasChild ? [H.El("option", [H.Attr("value", "x")], H.Text("x"))] : [];
+        var (statics, nodes) = Statics(H.El(name, children));
+
+        Assert.Equal(expected, statics.IsStatic(Assert.Single(nodes)));
+    }
+
+    [Theory]
+    [InlineData("option", false)]
+    [InlineData("option", true)]
+    [InlineData("OPTION", false)]
+    [InlineData("OPTION", true)]
+    public void AnOptionDecisionDependsOnItsSelectAncestryInEitherCacheOrder(string name, bool hasChild)
+    {
+        var tree = new HandTree().Content(H.El(name, hasChild ? [H.Text("x")] : [])).Tree();
+        var statics = new StaticMarkup(tree.Text.Contents, _ => false);
+        var option = Assert.Single(tree.Content);
+
+        Assert.True(statics.IsStatic(option));
+        Assert.False(statics.IsStatic(option, insideSelect: true));
+        Assert.True(statics.IsStatic(option));
+
+        var reversed = new StaticMarkup(tree.Text.Contents, _ => false);
+        Assert.False(reversed.IsStatic(option, insideSelect: true));
+        Assert.True(reversed.IsStatic(option));
+    }
+
+    [Theory]
+    [InlineData("select")]
+    [InlineData("SELECT")]
+    public void AnOptionBelowAnOptgroupStillPreventsItsSelectFromFolding(string name)
+    {
+        var tree = new HandTree().Content(H.El(name, H.El("optgroup", H.El("option", H.Text("x"))))).Tree();
+        var statics = new StaticMarkup(tree.Text.Contents, _ => false);
+
+        Assert.False(statics.IsStatic(Assert.Single(tree.Content)));
+    }
+
+    [Fact]
+    public void ATextOnlySelectStillFolds()
+    {
+        var (statics, nodes) = Statics(H.El("select", H.Text("x")));
+
+        Assert.True(statics.IsStatic(Assert.Single(nodes)));
+    }
+
     [Fact]
     public void StaticHtmlIsRenderedAsTheRazorCompilerRendersIt()
     {

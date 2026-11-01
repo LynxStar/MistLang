@@ -15,6 +15,81 @@ public sealed partial class RazorComponentTranslatorTests
     }
 
     [Fact]
+    public void AStaticSelectWritesItsOptionsAsFrames()
+    {
+        var calls = Content(H.El("select", [H.Attr("class", "s")], H.El("option", [H.Attr("value", "x")], H.Text("x")))).Calls();
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"select\");",
+                "__builder.AddAttribute(1, \"class\", \"s\");",
+                "__builder.OpenElement(2, \"option\");",
+                "__builder.AddAttribute(3, \"value\", \"x\");",
+                "__builder.AddContent(4, \"x\");",
+                "__builder.CloseElement();",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
+    public void ABoundSelectWritesItsOptionsAsFramesAfterTheBinder()
+    {
+        var tree = new HandTree()
+            .Content(H.El("select", [H.Dir("bind", "x"), H.Attr("class", "s")],
+                H.El("option", [H.Attr("value", "x")], H.Text("x")), H.El("option", H.Text("y"))))
+            .Code("private string x = \"x\";")
+            .Tree();
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"select\");",
+                "__builder.AddAttribute(1, \"class\", \"s\");",
+                "__builder.AddAttribute(2, \"value\", BindConverter.FormatValue(x));",
+                "__builder.AddAttribute(3, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { x = __v; }, x));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.OpenElement(4, \"option\");",
+                "__builder.AddAttribute(5, \"value\", \"x\");",
+                "__builder.AddContent(6, \"x\");",
+                "__builder.CloseElement();",
+                "__builder.OpenElement(7, \"option\");",
+                "__builder.AddContent(8, \"y\");",
+                "__builder.CloseElement();",
+                "__builder.CloseElement();",
+            ],
+            Run(tree).Calls());
+    }
+
+    [Fact]
+    public void ADivStillFoldsItsOptionIntoMarkup()
+    {
+        var calls = Content(H.El("div", H.El("option", [H.Attr("value", "x")], H.Text("x")))).Calls();
+
+        Assert.Equal(["__builder.AddMarkupContent(0, \"<div><option value=\\\"x\\\">x</option></div>\");"], calls);
+    }
+
+    [Fact]
+    public void ASelectContextReachesNestedOptionsAndEndsBeforeTheFollowingDiv()
+    {
+        var calls = Content(
+            H.El("select", H.El("optgroup", H.El("option", H.Text("x")))),
+            H.El("div", H.El("option", H.Text("y")))).Calls();
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"select\");",
+                "__builder.OpenElement(1, \"optgroup\");",
+                "__builder.OpenElement(2, \"option\");",
+                "__builder.AddContent(3, \"x\");",
+                "__builder.CloseElement();",
+                "__builder.CloseElement();",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(4, \"<div><option>y</option></div>\");",
+            ],
+            calls);
+    }
+
+    [Fact]
     public void AnElementHoldingATransitionOpensAndClosesAroundItsChildren()
     {
         var translation = Content(H.El("p", [H.Attr("role", "status")], H.Text("Current count: "), H.Expr("count")));

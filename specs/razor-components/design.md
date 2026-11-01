@@ -452,7 +452,13 @@ project outside the repository; `MarkupWhitespaceTests` and `StaticMarkupTests` 
 5. Inside a block, the line break and indentation between two markup lines, elements, HTML comments or `@:`
    lines, are markup; a `@:` line keeps its own line break; the indentation around a `<text>` tag is code,
    and the tag's content stays apart from the text beside it.
-6. An element with no Code_Region, component or directive attribute anywhere inside is static, and static
+6. An element with no Code_Region, component or directive attribute anywhere inside is static, except an
+   `<option>` with a `<select>` ancestor (case-insensitive); that option and its ancestors stay as frames.
+   SDK 10.0.113, measured on macOS arm64 on 2026-11-01: empty, text-only and static-child forms of `<option>`,
+   `<textarea>`, `<script>`, `<style>`, `<pre>`, `<template>` and `<div>` fold, as do empty and text-only
+   `<select>` elements. A static select containing an option writes element/attribute/content frames
+   (sequences 0-4 for `<select class="s"><option value="x">x</option></select>`); a bound select writes its
+   options as frames after the binder. `<div><option value="x">x</option></div>` still folds. Static
    siblings fold into one `AddMarkupContent`. A static node joins its static left sibling only when it has no
    static content of its own, because Razor folds siblings in a postorder walk that meets an element's
    children first: `"\n\n"` before `<h1>` stays its own call while `"<h1>Counter</h1>\n\n"` folds.

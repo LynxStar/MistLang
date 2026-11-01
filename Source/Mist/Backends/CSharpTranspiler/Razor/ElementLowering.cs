@@ -60,7 +60,7 @@ internal sealed class ElementLowering(RenderProtocolWriter render)
                 $"{render.NextSequence()}, (ElementReference __r) => {{ ", render.Code(field), " = __r; }");
         }
 
-        render.WriteContent(MarkupWhitespace.Content(element.Children));
+        render.WriteElementContent(element);
         render.Call(element.EndTag ?? element.StartTag, "CloseElement");
     }
 

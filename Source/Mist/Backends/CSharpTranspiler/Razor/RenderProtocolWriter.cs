@@ -23,6 +23,7 @@ internal sealed class RenderProtocolWriter
     private int sequence;
     private int fragments;
     private int depth = 2;
+    private bool insideSelect;
 
     public RenderProtocolWriter(MistWriter writer, SourceText file, RenderScope scope)
     {
@@ -95,7 +96,7 @@ internal sealed class RenderProtocolWriter
 
     public void WriteContent(ImmutableArray<RazorNode> nodes)
     {
-        foreach(var run in statics.Runs(nodes))
+        foreach(var run in statics.Runs(nodes, insideSelect))
         {
             if(run.IsStatic)
             {
@@ -105,6 +106,14 @@ internal sealed class RenderProtocolWriter
 
             WriteNode(run.Nodes[0]);
         }
+    }
+
+    public void WriteElementContent(MarkupElement element)
+    {
+        var outer = insideSelect;
+        insideSelect |= element.Name.Equals("select", StringComparison.OrdinalIgnoreCase);
+        WriteContent(MarkupWhitespace.Content(element.Children));
+        insideSelect = outer;
     }
 
     public void WriteFragment(SourceSpan construct, string parameter, string? valueType, MistPiece context, ImmutableArray<RazorNode> content)

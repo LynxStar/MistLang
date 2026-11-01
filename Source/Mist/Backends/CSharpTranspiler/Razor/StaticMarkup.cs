@@ -21,6 +21,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
     };
 
     private readonly Dictionary<RazorNode, bool> decided = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<RazorNode, bool> decidedInSelect = new(ReferenceEqualityComparer.Instance);
 
     public static bool TryPlainText(string text, out string decoded)
     {
@@ -66,7 +67,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
         return true;
     }
 
-    public bool IsStatic(RazorNode node)
+    public bool IsStatic(RazorNode node, bool insideSelect = false)
     {
         if(node is MarkupText or HtmlComment or RazorComment)
         {
@@ -78,25 +79,27 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
             return false;
         }
 
-        if(!decided.TryGetValue(element, out var result))
+        var decisions = insideSelect ? decidedInSelect : decided;
+        if(!decisions.TryGetValue(element, out var result))
         {
-            result = !isComponent(element)
+            result = !(insideSelect && element.Name.Equals("option", StringComparison.OrdinalIgnoreCase))
+                && !isComponent(element)
                 && element.Attributes.All(attribute => attribute is HtmlAttribute html
                     && (html.Value is null || html.Value.Parts.All(part => part is MarkupText)))
-                && MarkupWhitespace.Content(element.Children).All(IsStatic);
-            decided[element] = result;
+                && MarkupWhitespace.Content(element.Children).All(child => IsStatic(child, insideSelect || element.Name.Equals("select", StringComparison.OrdinalIgnoreCase)));
+            decisions[element] = result;
         }
 
         return result;
     }
 
-    public ImmutableArray<ContentRun> Runs(ImmutableArray<RazorNode> nodes)
+    public ImmutableArray<ContentRun> Runs(ImmutableArray<RazorNode> nodes, bool insideSelect = false)
     {
         var runs = new List<ContentRun>();
         var index = nodes.Length - 1;
         while(index >= 0)
         {
-            if(!IsStatic(nodes[index]))
+            if(!IsStatic(nodes[index], insideSelect))
             {
                 runs.Add(new ContentRun([nodes[index]], IsStatic: false));
                 index--;
@@ -104,7 +107,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
             }
 
             var start = index;
-            while(start > 0 && IsStatic(nodes[start - 1]) && !HasStaticContent(nodes[start]))
+            while(start > 0 && IsStatic(nodes[start - 1], insideSelect) && !HasStaticContent(nodes[start]))
             {
                 start--;
             }

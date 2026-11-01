@@ -22,7 +22,7 @@ internal static partial class BodyEmitter
         return ReferenceEquals(unitResult, lambda);
     }
 
-    private static void EmitReturningUnit(bool unit, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitReturningUnit(bool unit, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var enclosing = returnsUnit;
         returnsUnit = unit;

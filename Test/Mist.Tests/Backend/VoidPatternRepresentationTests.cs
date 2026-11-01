@@ -5,7 +5,6 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -78,7 +77,7 @@ public sealed class VoidPatternRepresentationTests
     {
         var function = new FunctionType([], unit);
         var call = new InvocationExpression(null!, Local(function, "Next"), [], unit, null, []);
-        Pattern pattern = form switch
+        var pattern = form switch
         {
             "not" => Pattern(unit, negated: true),
             "and" => new ConjunctionPattern(null!, unit, [Pattern(unit), new CatchAllPattern(null!, unit, null)]),

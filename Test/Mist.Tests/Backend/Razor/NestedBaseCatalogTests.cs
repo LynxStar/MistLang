@@ -223,6 +223,50 @@ public sealed class NestedBaseCatalogTests
         Assert.NotEqual(ResolutionKind.Component, catalog.Resolve("Shell", new ComponentScope(["App"])).Kind);
     }
 
+    [Theory]
+    [InlineData(false, 2, false)]
+    [InlineData(false, 2, true)]
+    [InlineData(false, 3, false)]
+    [InlineData(false, 3, true)]
+    [InlineData(true, 2, false)]
+    [InlineData(true, 2, true)]
+    [InlineData(true, 3, false)]
+    [InlineData(true, 3, true)]
+    public void AQualifierFoundThroughABaseSearchesItsOwnNestedTypes(bool clr, int depth, bool componentFile)
+    {
+        var ast = new CatalogAst();
+        var inner = CatalogAst.Class("Inner", members: [Nested(ChainBase(ast))]);
+        var mid = CatalogAst.Class("Mid", members: [Nested(ChainBase(ast)), Nested(inner)]);
+        var box = CatalogAst.Class("Box", members: [Nested(mid)], typeParameters: ["T"]);
+        var sub = CatalogAst.Class("Sub", ast.BaseText(clr ? "Vendor.ChainBox<S>" : "Box<S>"), typeParameters: ["S"]);
+        var baseText = depth == 2 ? "Sub<string>.Mid.Base" : "Sub<string>.Mid.Inner.Base";
+        var shell = CatalogAst.Class("Shell", ast.BaseText(baseText));
+        var declarations = new List<TypeBodyDeclarationNode> { sub };
+        if(!clr)
+        {
+            declarations.Add(box);
+        }
+
+        if(!componentFile)
+        {
+            declarations.Add(shell);
+        }
+
+        var catalog = Build([ast.Unit("Chain.mist", [.. declarations])], componentFile ? baseText : "Shell");
+
+        Assert.Equal([new ParameterFacts("Local", "int", ParameterShape.Plain), ParameterFacts.Declared("Value", "string")],
+            [.. Resolved(catalog, "Page").Parameters.OrderBy(parameter => parameter.Name, StringComparer.Ordinal)]);
+        if(!componentFile)
+        {
+            Assert.Equal<ParameterFacts>([ParameterFacts.Declared("Value", "string")], Resolved(catalog, "Shell").Parameters);
+        }
+    }
+
+    private static TypeBodyDeclarationNode ChainBase(CatalogAst ast)
+    {
+        return CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), [ast.Property("Value", "T")]);
+    }
+
     private static ImmutableArray<MemberDeclarationNode> ParameterMembers(CatalogAst ast, string argument)
     {
         return

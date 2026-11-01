@@ -142,6 +142,73 @@ public sealed class NestedBaseDecisionTests
         Assert.Equal(expected, found);
     }
 
+    [Theory]
+    [InlineData(false, "Sub<string>.Mid.Base", "App.Box.Mid.Base", "string")]
+    [InlineData(false, "Sub<string>.Mid.Inner.Base", "App.Box.Mid.Inner.Base", "string")]
+    [InlineData(false, "Sub2<int>.Mid.Inner.Base", "App.Box.Mid.Inner.Base", "int")]
+    [InlineData(false, "Sub<string>.Mid.Generic<bool>", "App.Box.Mid.Generic", "string|bool")]
+    [InlineData(false, "Sub<string>.Gen<int>.Base", "App.Box.Gen.Base", "string|int")]
+    [InlineData(false, "Sub<string>.Mid.Far", "App.MidBase.Far", "string")]
+    [InlineData(true, "Sub<string>.Mid.Base", "Vendor.ChainBox.Mid.Base", "string")]
+    [InlineData(true, "Sub<string>.Mid.Inner.Base", "Vendor.ChainBox.Mid.Inner.Base", "string")]
+    [InlineData(true, "Sub2<int>.Mid.Inner.Base", "Vendor.ChainBox.Mid.Inner.Base", "int")]
+    [InlineData(true, "Matrix<string>.Middle<int>.Inner", "Vendor.MatrixBox.Middle.Inner", "string|int")]
+    public void AQualifierFoundThroughABaseSearchesItsOwnNestedTypes(bool clr, string text, string fullName, string arguments)
+    {
+        var resolved = ChainLookup(clr, []).Resolve(text, ["App"]);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(fullName, resolved.FullName);
+        Assert.Equal(arguments, string.Join('|', resolved.Arguments));
+        Assert.Equal(clr, resolved.Clr is not null);
+    }
+
+    [Fact]
+    public void AQualifierPrefersItsOwnNestedTypeOverOneThroughItsBase()
+    {
+        var resolved = ChainLookup(clr: false, [Declaration("App.MidBase.Base", [], [["X"], []])]).Resolve("Sub<string>.Mid.Base", ["App"]);
+
+        Assert.NotNull(resolved);
+        Assert.Equal("App.Box.Mid.Base", resolved.FullName);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AQualifiedNameWhoseMiddleSegmentIsNowhereOnTheChainStaysUnresolved(bool clr)
+    {
+        Assert.Null(ChainLookup(clr, []).Resolve("Sub<string>.Missing.Base", ["App"]));
+    }
+
+    private static CatalogBaseLookup ChainLookup(bool clr, MistClass[] extra)
+    {
+        MistClass[] declarations =
+        [
+            Declaration("App.Box", [], [["T"]]),
+            Declaration("App.Box.Mid", ["MidBase<T>"], [["T"], []]),
+            Declaration("App.Box.Mid.Base", [], [["T"], [], []]),
+            Declaration("App.Box.Mid.Inner", [], [["T"], [], []]),
+            Declaration("App.Box.Mid.Inner.Base", [], [["T"], [], [], []]),
+            Declaration("App.Box.Mid.Generic", [], [["T"], [], ["W"]]),
+            Declaration("App.Box.Gen", [], [["T"], ["U"]]),
+            Declaration("App.Box.Gen.Base", [], [["T"], ["U"], []]),
+            Declaration("App.MidBase", [], [["X"]]),
+            Declaration("App.MidBase.Far", [], [["X"], []]),
+            Declaration("App.Sub", [clr ? "Vendor.ChainBox<S>" : "Box<S>"], [["S"]]),
+            Declaration("App.Sub2", ["Sub<U>"], [["U"]]),
+            Declaration("App.Matrix", ["Vendor.MatrixBox<M>"], [["M"]]),
+            .. extra,
+        ];
+        var ambient = new ComponentTypeSource();
+        return new CatalogBaseLookup(declarations.ToDictionary(declaration => declaration.FullName),
+            name => CatalogClrTypeLookup.Find(name, ambient.FindClrType));
+    }
+
+    private static MistClass Declaration(string name, ImmutableArray<string> bases, ImmutableArray<ImmutableArray<string>> typeParameters)
+    {
+        return new MistClass(name, bases, ["App"], [], typeParameters, IsComponentClass: false);
+    }
+
     internal sealed class MatrixOuter
     {
         public sealed class Inner;

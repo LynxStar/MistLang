@@ -42,7 +42,7 @@ internal sealed class CatalogBaseLookup(IReadOnlyDictionary<string, MistClass> c
             }
 
             return type.Segments.Length > 1 && Resolve(type.Qualifier(), scope, visiting) is { } qualifier
-                ? NestedInBases(qualifier, type.Member(), visiting)
+                ? NestedIn(qualifier, type.Member()) ?? NestedInBases(qualifier, type.Member(), visiting)
                 : null;
         }
         finally
@@ -85,9 +85,9 @@ internal sealed class CatalogBaseLookup(IReadOnlyDictionary<string, MistClass> c
         {
             foreach(var baseType in Bases(enclosing, visiting))
             {
-                if(Direct(baseType.FullName + "." + nested.Name, nested) is { } found)
+                if(NestedIn(baseType, nested) is { } found)
                 {
-                    return found with { Arguments = [.. baseType.Arguments, .. found.Arguments.Skip(baseType.TypeParameters.Length)] };
+                    return found;
                 }
 
                 if(NestedInBases(baseType, nested, visiting) is { } inherited)
@@ -102,6 +102,13 @@ internal sealed class CatalogBaseLookup(IReadOnlyDictionary<string, MistClass> c
         {
             _ = visiting.Remove(key);
         }
+    }
+
+    private CatalogBase? NestedIn(CatalogBase enclosing, CatalogTypeText nested)
+    {
+        return Direct(enclosing.FullName + "." + nested.Name, nested) is { } found
+            ? found with { Arguments = [.. enclosing.Arguments, .. found.Arguments.Skip(enclosing.TypeParameters.Length)] }
+            : null;
     }
 
     private IEnumerable<CatalogBase> Bases(CatalogBase enclosing, HashSet<string> visiting)

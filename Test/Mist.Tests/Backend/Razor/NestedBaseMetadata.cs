@@ -31,6 +31,25 @@ internal static class NestedBaseMetadata
         DefineInner(genericMiddle, componentBase, parameter, fragment, ["T", "U", "V"], enclosingGeneric: true, genericInner: true);
         _ = genericMiddle.CreateType();
         _ = box.CreateType();
+
+        var chain = module.DefineType("Vendor.ChainBox`1", TypeAttributes.Public);
+        _ = chain.DefineGenericParameters("T");
+        var mid = chain.DefineNestedType("Mid", TypeAttributes.NestedPublic);
+        _ = mid.DefineGenericParameters("T");
+        DefineChainBase(mid, componentBase, parameter);
+        var chainInner = mid.DefineNestedType("Inner", TypeAttributes.NestedPublic);
+        _ = chainInner.DefineGenericParameters("T");
+        DefineChainBase(chainInner, componentBase, parameter);
+        _ = chainInner.CreateType();
+        _ = mid.CreateType();
+        _ = chain.CreateType();
+    }
+
+    private static void DefineChainBase(TypeBuilder owner, Type componentBase, Type parameter)
+    {
+        var chainBase = owner.DefineNestedType("Base", TypeAttributes.NestedPublic, componentBase);
+        Property(chainBase, "Value", chainBase.DefineGenericParameters("T")[0], parameter);
+        _ = chainBase.CreateType();
     }
 
     private static void DefineInner(TypeBuilder owner, Type componentBase, Type parameter, Type fragment, string[] names, bool enclosingGeneric, bool genericInner)

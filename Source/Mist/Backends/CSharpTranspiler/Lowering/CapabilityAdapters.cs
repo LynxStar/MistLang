@@ -122,6 +122,11 @@ internal static class CapabilityAdapters
         if(method.Name == "Find")
         {
             var result = TypeSubstitution.ForReceiver(array).Apply(method.ReturnType, interner: null);
+            if(OptionalUnion.IsVoid(result))
+            {
+                return $"((Standard.Void)({call} ?? Standard.Void.Instance))";
+            }
+
             var spelling = TypeNameEmitter.Emit(result);
             if(UnknownUnions.Carrier(array.TypeArguments[0]) is { } union)
             {

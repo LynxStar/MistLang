@@ -91,6 +91,16 @@ public class Program
         Console.WriteLine($"conditional union find: {absentMixed?.Find(value => true) is void} {presentMixed?.Find(value => false) is void} {presentMixed?.Find(value => true) is int}");
         (int?)[] optionalValues = [0, void];
         Console.WriteLine($"optional element find: {optionalValues.Find(value => value is int) ?? -1} {optionalValues.Find(value => false) is void}");
+        Void[] emptyVoids = [];
+        Void[] voidValues = [void];
+        Void[]? absentVoids = void;
+        Void[]? presentVoids = voidValues;
+        var voidVisits = 0;
+        var voidMatch = voidValues.Find(value => { voidVisits = voidVisits + 1; return true; });
+        var absentVoidMatch = absentVoids?.Find(value => { voidVisits = voidVisits + 1; return true; });
+        var conditionalVoidMatch = presentVoids?.Find(value => false);
+        Console.WriteLine($"void element find: {emptyVoids.Find(value => false)} {voidValues.Find(value => false)} {voidMatch} {FirstZero(emptyVoids, value => false)} {FirstZero(voidValues, value => true)}");
+        Console.WriteLine($"conditional void find: {absentVoidMatch} {conditionalVoidMatch} visits: {voidVisits}");
         visits = 0;
         var any = values.Any(value => { visits = visits + 1; return value == 0; });
         Console.WriteLine($"any: {any} visits: {visits} empty: {empty.Any(value => true)}");

@@ -63,6 +63,26 @@ public sealed class ArrayFindResultEmissionTests
             CapabilityAdapters.Rewrite(method, "values", receiver, ["predicate"]));
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void VoidResultsConvertAbsenceToTheVoidValue(bool generic, bool conditional)
+    {
+        var parameter = new TypeParameter("T", 0, new Scope(null), null);
+        var element = built.Type("Void");
+        var (method, receiver) = Find(generic ? parameter : element);
+        using var substitution = TypeNameEmitter.Substituting(TypeSubstitution.ForParameters([parameter], [element]));
+        BodyEmitter.ResetTemporaries();
+        var call = conditional
+            ? "Mist.Backends.CSharpTranspiler.Runtime.ArrayOperations.IfPresent(values, __e1 => Mist.Backends.CSharpTranspiler.Runtime.ArrayOperations.Find(__e1, predicate))"
+            : "Mist.Backends.CSharpTranspiler.Runtime.ArrayOperations.Find(values, predicate)";
+
+        Assert.Equal($"((Standard.Void)({call} ?? Standard.Void.Instance))",
+            CapabilityAdapters.Rewrite(method, "values", conditional ? Optional(receiver) : receiver, ["predicate"], conditional));
+    }
+
     private (Method Method, ConstructedType Receiver) Find(IMistType element)
     {
         var array = new ClassType("Array<,>", "Standard", null, null, null);

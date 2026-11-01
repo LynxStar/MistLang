@@ -182,6 +182,81 @@ public sealed partial class RazorComponentTranslatorTests
         Assert.Equal(["__count", "Helper", "Mode"], translation.Diagnostics.Select(diagnostic => translation.Original((SourceRange)diagnostic.Location)));
     }
 
+    [Theory]
+    [InlineData("private int Twice(int __n)\n{\n    return __n * 2;\n}", "__n")]
+    [InlineData("private void Go()\n{\n    var __total = 1;\n}", "__total")]
+    [InlineData("private void Go()\n{\n    int __twice(int x)\n    {\n        return x * 2;\n    }\n}", "__twice")]
+    [InlineData("private Func<int, int> twice = (__x) => __x * 2;", "__x")]
+    [InlineData("private bool Check(object value)\n{\n    return value is string __s;\n}", "__s")]
+    public void AReservedNameDeclaredInsideACodeBlockMemberIsRefusedWhereItIsDeclared(string code, string name)
+    {
+        var translation = Run(new HandTree().Code(code).Tree());
+
+        AssertReservedAtDeclaration(translation, name);
+    }
+
+    [Theory]
+    [InlineData("local in a block", "__total")]
+    [InlineData("local function in a block", "__twice")]
+    [InlineData("lambda parameter in a block", "__y")]
+    [InlineData("foreach variable", "__item")]
+    [InlineData("pattern variable in an if", "__s")]
+    public void AReservedNameDeclaredInMarkupCodeIsRefusedWhereItIsDeclared(string kind, string name)
+    {
+        var markup = kind switch
+        {
+            "local in a block" => H.Block(H.Code("var __total = 2;")),
+            "local function in a block" => H.Block(H.Code("int __twice(int x)\n    {\n        return x * 2;\n    }")),
+            "lambda parameter in a block" => H.Block(H.Code("Func<int, int> twice = (__y) => __y * 2;")),
+            "foreach variable" => H.Control(H.Arm("foreach", "(var __item in items)", H.El("li", H.Expr("__item")))),
+            _ => H.If("(value is string __s)", H.El("b", H.Expr("__s"))),
+        };
+
+        var translation = Run(new HandTree().Content(markup).Code("private int[] items = [1];\nprivate object value = 1;").Tree());
+
+        AssertReservedAtDeclaration(translation, name);
+    }
+
+    [Fact]
+    public void AReservedMethodNameIsRefusedOnceBesideItsReservedParameter()
+    {
+        var translation = Run(new HandTree().Code("private int __Twice(int __n)\n{\n    return __n * 2;\n}").Tree());
+
+        Assert.Equal([RazorDiagnostics.ReservedIdentifier, RazorDiagnostics.ReservedIdentifier], translation.Diagnostics.Select(diagnostic => diagnostic.Descriptor));
+        Assert.Equal(["__Twice", "__n"], translation.Diagnostics.Select(diagnostic => translation.Original((SourceRange)diagnostic.Location)));
+    }
+
+    [Fact]
+    public void UnreservedNamesAndTheNamesTheTranslatorSynthesizesAreNotRefused()
+    {
+        var catalog = Catalog(Component("App.Components.Panel", ("ChildContent", "RenderFragment?")));
+        var tree = new HandTree()
+            .Content(
+                H.Block(H.Code("var _total = 2;")),
+                H.Void("input", H.Dir("bind", "name"), H.Dir("ref", "box")),
+                H.El("Panel", H.Control(H.Arm("foreach", "(var item_ in items)", H.El("li", H.Expr("item_"))))))
+            .Code("private string name = \"\";\nprivate ElementReference box;\nprivate int[] items = [1];\nprivate int Twice(int n_)\n{\n    var total__ = n_ * 2;\n    return total__;\n}")
+            .Tree();
+
+        var translation = Run(tree, catalog);
+
+        Assert.Empty(translation.Diagnostics);
+        Assert.Contains("RenderTreeBuilder __builder", translation.Text.Contents);
+        Assert.Contains("(string __v) =>", translation.Text.Contents);
+        Assert.Contains("(ElementReference __r) =>", translation.Text.Contents);
+        Assert.Contains("(RenderTreeBuilder __b1) =>", translation.Text.Contents);
+    }
+
+    private static void AssertReservedAtDeclaration(Translation translation, string name)
+    {
+        var diagnostic = Assert.Single(translation.Diagnostics);
+        Assert.Same(RazorDiagnostics.ReservedIdentifier, diagnostic.Descriptor);
+        var location = (SourceRange)diagnostic.Location;
+        Assert.Equal(translation.Tree.Text.Contents.IndexOf(name, StringComparison.Ordinal), location.Offset);
+        Assert.Equal(name, translation.Original(location));
+        Assert.Null(translation.Unit);
+    }
+
     [Fact]
     public void ANamespaceInACodeBlockIsRefusedAsANestedDeclaration()
     {

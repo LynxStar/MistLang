@@ -14,6 +14,16 @@ public sealed class RazorTranslationDecisionTests
         Assert.Equal(literal, MistLiteral.String(value));
     }
 
+    [Theory]
+    [InlineData("__builder", true)]
+    [InlineData("__", true)]
+    [InlineData("_total", false)]
+    [InlineData("total__", false)]
+    public void AnIdentifierBeginningWithTwoUnderscoresIsReserved(string name, bool reserved)
+    {
+        Assert.Equal(reserved, ReservedIdentifiers.IsReserved(name));
+    }
+
     [Fact]
     public void ImportsFilesApplyFromTheProjectFolderDownToTheComponentsFolder()
     {

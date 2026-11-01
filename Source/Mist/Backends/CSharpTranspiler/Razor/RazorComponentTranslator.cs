@@ -26,7 +26,8 @@ internal sealed record PreparedComponent(
     ComponentSource Source,
     ImmutableArray<string> Usings,
     ImmutableArray<CodeMember> Members,
-    RazorReporter Reporter);
+    RazorReporter Reporter,
+    TranslationContext Context);
 
 internal sealed class RazorComponentTranslator : ISourceTranslator
 {
@@ -71,7 +72,7 @@ internal sealed class RazorComponentTranslator : ISourceTranslator
         Refuse(tree.Text, members, directives, reporter);
         var fullName = string.IsNullOrEmpty(namespaceName) ? className : $"{namespaceName}.{className}";
         var source = new ComponentSource(fullName, directives.Inherits?.Value.Text, scope, tree.CodeBlocks);
-        return new PreparedComponent(input, tree, directives, className, source, usings, members, reporter);
+        return new PreparedComponent(input, tree, directives, className, source, usings, members, reporter, context);
     }
 
     internal static TranslatedUnit? Translate(PreparedComponent component, ComponentCatalog catalog)
@@ -89,6 +90,7 @@ internal sealed class RazorComponentTranslator : ISourceTranslator
 
         var scope = new RenderScope(catalog, component.Source.Scope, component.Usings, memberTypes, component.Reporter);
         var text = ComponentClassWriter.Write(component.Tree, component.Directives, component.ClassName, scope);
+        ReservedIdentifiers.Refuse(text, component.Tree, component.Context, component.Reporter);
         return component.Reporter.Reported ? null : new TranslatedUnit(text, component.Input.Project);
     }
 
@@ -100,7 +102,7 @@ internal sealed class RazorComponentTranslator : ISourceTranslator
             {
                 reporter.Report(file, RazorDiagnostics.NestedTypeInCodeBlock, member.NameSpan, new NameValue(member.Name));
             }
-            else if(member.Name.StartsWith("__", StringComparison.Ordinal))
+            else if(ReservedIdentifiers.IsReserved(member.Name))
             {
                 reporter.Report(file, RazorDiagnostics.ReservedIdentifier, member.NameSpan, new NameValue(member.Name));
             }

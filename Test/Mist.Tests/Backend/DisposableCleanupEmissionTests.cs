@@ -53,6 +53,7 @@ public sealed class DisposableCleanupEmissionTests
         var resource = HandBuiltModel.Class("Resource");
         resource.HasDrop = true;
         resource.IsDisposableDrop = true;
+        resource.MethodsList.Add(new Method("Dispose", f.Void, [], default) { DeclaringType = resource });
         var holder = HandBuiltModel.Class("Holder");
         holder.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
         holder.FieldsList.Add(new Field("Resource", resource, OwnershipKind.Unrestricted, default) { DeclaringType = holder });

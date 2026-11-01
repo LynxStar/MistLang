@@ -2,6 +2,19 @@ namespace Standard;
 
 intrinsic public readonly owned struct Single : IClonable<Single>
 {
+    intrinsic public static readonly Single MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public pure int CompareTo(Single other);
+    intrinsic public string ToString(string? format, System.IFormatProvider? provider);
+    intrinsic public pure static bool IsFinite(Single value);
+    intrinsic public pure static bool IsNaN(Single value);
+    intrinsic public pure static bool IsInfinity(Single value);
+    intrinsic public pure static bool IsPositiveInfinity(Single value);
+    intrinsic public pure static bool IsNegativeInfinity(Single value);
+    intrinsic public pure static Single BitIncrement(Single value);
+    intrinsic public pure static Single BitDecrement(Single value);
+    intrinsic public static Single? Parse(string? text, System.Globalization.NumberStyles style, System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Single Clone();
 

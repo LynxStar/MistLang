@@ -287,7 +287,11 @@ internal sealed class UnionSpecialization
             {
                 if(typeOwners.TryGetValue(Declared(parameter), out var owner))
                 {
-                    _ = requiredTypes.Add(owner);
+                    // Backing storage keeps its CLR identity; intrinsic adapters close their result at the call site.
+                    if(owner is not ConcreteType { IsIntrinsic: true })
+                    {
+                        _ = requiredTypes.Add(owner);
+                    }
                 }
                 else if(methodOwners.TryGetValue(Declared(parameter), out var method))
                 {

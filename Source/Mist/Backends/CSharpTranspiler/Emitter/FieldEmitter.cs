@@ -36,6 +36,12 @@ internal static class FieldEmitter
         CSharpWriter writer,
         DiagnosticBag diagnostics)
     {
+        if(IntrinsicCloneEmitter.Forwards(modifiers, field.DeclaringType))
+        {
+            IntrinsicCloneEmitter.EmitField(field, writer);
+            return;
+        }
+
         if(modifiers.IsRef)
         {
             throw new InvalidOperationException(

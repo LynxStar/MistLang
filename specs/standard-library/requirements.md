@@ -129,6 +129,9 @@ This document specifies requirements only. Distribution/loading strategy is an o
 14. THE reserved keyword `intrinsic` SHALL be added to the Mist lexer's keyword list. Because `intrinsic` is a reserved keyword (not a contextual one), it SHALL NOT be usable as an identifier anywhere in Mist source. The keyword SHALL be defined in exactly one place in the grammar source (`Source/Mist/Grammar/keywords.storm`).
 15. IF a member-level Intrinsic_Marker appears on a method, constructor, or operator declaration whose containing class or struct does NOT itself carry a type-level Intrinsic_Marker, THEN THE Semantic_Model_Builder SHALL emit a diagnostic stating that member-level `intrinsic` is only permitted inside a type that is itself declared `intrinsic`. This pairing rule SHALL apply even within the Standard_Library: intrinsic members are always hosted on Backend_Backed_Types.
 
+The approved numeric parsing, bound fields, formatting and array instance capabilities extend
+this contract as specified in [Numeric and array capabilities](self-host-capabilities.md).
+
 ### Requirement 6: Operator Overload Resolution
 
 **User Story:** As a compiler developer, I want the type checker to stop using its hardcoded `NumericTypes` set and instead resolve operator expressions via overload resolution, so that user-defined operators and stdlib-defined operators are treated uniformly.

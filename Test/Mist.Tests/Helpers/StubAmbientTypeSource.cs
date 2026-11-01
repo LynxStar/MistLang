@@ -6,8 +6,8 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Helpers;
 
 /// <summary>
-/// An <see cref="IAmbientTypeSource"/> for seam tests: projects nothing into the model, and answers
-/// the CLR type behind a Standard intrinsic from the test host's own runtime assemblies, which carry
+/// An <see cref="IAmbientTypeSource"/> for seam tests: supplies Standard's signature dependencies and
+/// answers the CLR type behind an intrinsic from the test host's own runtime assemblies, which carry
 /// the public surface the emitter's intrinsic audit reads off the reference pack. A seam program that
 /// prints therefore compiles without an assembly being loaded.
 /// </summary>
@@ -20,6 +20,7 @@ internal sealed class StubAmbientTypeSource : IAmbientTypeSource
 
     public void BuildAndRegister(ProgramModelClass programModel)
     {
+        new StandardContractAmbient().BuildAndRegister(programModel);
     }
 
     public Type? FindClrType(string fullName)

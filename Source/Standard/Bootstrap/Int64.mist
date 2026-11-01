@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int64 : IClonable<Int64>
 {
+    intrinsic public static readonly Int64 MinValue;
+    intrinsic public static readonly Int64 MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int64 Clone();
 

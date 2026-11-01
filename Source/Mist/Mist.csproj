@@ -17,6 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Backends\CSharpTranspiler\Runtime\NumericParsing.cs" LogicalName="Mist.Runtime.NumericParsing.cs" />
+    <EmbeddedResource Include="Backends\CSharpTranspiler\Runtime\ArrayOperations.cs" LogicalName="Mist.Runtime.ArrayOperations.cs" />
     <EmbeddedResource Include="Backends\CSharpTranspiler\Runtime\PosixLocale.cs" LogicalName="Mist.Runtime.PosixLocale.cs" />
   </ItemGroup>
 

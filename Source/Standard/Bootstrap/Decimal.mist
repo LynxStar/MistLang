@@ -2,6 +2,12 @@ namespace Standard;
 
 intrinsic public readonly owned struct Decimal : IClonable<Decimal>
 {
+    intrinsic public static readonly Decimal MinValue;
+    intrinsic public static readonly Decimal MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public pure int CompareTo(Decimal other);
+    intrinsic public static Decimal? Parse(string? text, System.Globalization.NumberStyles style, System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Decimal Clone();
 

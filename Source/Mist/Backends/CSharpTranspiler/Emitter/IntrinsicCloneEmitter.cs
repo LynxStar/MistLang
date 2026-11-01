@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -52,6 +53,14 @@ internal static class IntrinsicCloneEmitter
 
         writer.WriteLine($"{MemberModifierEmitter.Emit(method.Modifiers, emitReadonly: false)}{MethodEmitter.EmitSignature(method, diagnostics)}");
         writer.WriteLine($"    => {Wrap(method.ReturnType, clone, call)};");
+    }
+
+    public static void EmitField(Field field, CSharpWriter writer)
+    {
+        var clone = (ConcreteType)field.DeclaringType!;
+        var read = $"{Receiver(field.Modifiers, clone)}.{IdentifierSpelling.Of(field.Name)}";
+        var modifiers = MemberModifierEmitter.Emit(field.Modifiers, emitReadonly: field.Modifiers.IsReadonly);
+        writer.WriteLine($"{modifiers}{TypeNameEmitter.Emit(field.Type)} {IdentifierSpelling.Of(field.Name)} = {Wrap(field.Type, clone, read)};");
     }
 
     public static void EmitOperator(Operator op, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -161,6 +170,12 @@ internal static class IntrinsicCloneEmitter
 
     private static string Wrap(IMistType type, ConcreteType clone, string expression)
     {
+        if(OptionalUnion.InnerType(type) is { } inner && IsItself(inner, clone))
+        {
+            var value = BodyEmitter.TemporaryName();
+            return $"({expression} is {{ }} {value} ? new {TypeNameEmitter.Emit(inner)}({value}) : ({TypeNameEmitter.Emit(type)})null)";
+        }
+
         return IsItself(type, clone)
             ? $"new {TypeNameEmitter.Emit(type)}({expression})"
             : expression;

@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Byte : IClonable<Byte>
 {
+    intrinsic public static readonly Byte MinValue;
+    intrinsic public static readonly Byte MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Byte Clone();
 

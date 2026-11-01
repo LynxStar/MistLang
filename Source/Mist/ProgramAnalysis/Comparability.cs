@@ -35,7 +35,7 @@ internal static class Comparability
         {
             RefinedType refined => Supports(refined.BaseType),
             EnumType { UnderlyingType: { } underlying } => Supports(underlying),
-            _ => Array.IndexOf(ComparableNames, type.FullyQualifiedName) >= 0,
+            _ => ComparableNames.Contains(type.FullyQualifiedName),
         };
     }
 

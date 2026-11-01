@@ -903,3 +903,10 @@ The shim in Stage 4 is removed in Stage 6, a single PR. It exists for ≤2 featu
 - **Generic-over-T intrinsic emission.** `Standard.Array<T>.Length` has an intrinsic template `{0}.Length`. What about future members that depend on `T`'s backing type (none in v1 scope, but e.g., `Array<T>.Clear()` would want `Array.Clear({0})` without a T dependency)? Deferred — v1 intrinsics on `Array<T>` only need `Length`.
 - **Diagnostic locality for `MIST0001`.** When an intrinsic is missing an emission template, the diagnostic is raised in the backend. Ideally it should include the source span of the call site, not just the declaration. The emitter has the call site's AST node; the existing `MakeDiagnostic` helper accepts a node. Deferred to implementation.
 - **Pure-tier test surface.** `Optional<T>` in isolation doesn't exercise pure-tier-calls-bootstrap-intrinsics (the tricky direction). A small regression test that instantiates `Optional<Int32>`, stores a value, and reads it back would exercise the bootstrap-to-pure-to-bootstrap round trip. Deferred to the tasks phase.
+
+## Numeric and array adapters
+
+See [Numeric and array capabilities](self-host-capabilities.md) for the public signatures,
+production mappings, runtime adapter strategy and field supply checks. The C# backend embeds
+its tested runtime source for nullable parsing and array search instead of projecting throwing
+parse or sentinel-based search signatures into Mist.

@@ -2,6 +2,20 @@ namespace Standard;
 
 intrinsic public readonly owned struct Double : IClonable<Double>
 {
+    intrinsic public static readonly Double MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public pure int CompareTo(Double other);
+    intrinsic public string ToString(string? format, System.IFormatProvider? provider);
+    intrinsic public string ToString(string? format);
+    intrinsic public pure static bool IsFinite(Double value);
+    intrinsic public pure static bool IsNaN(Double value);
+    intrinsic public pure static bool IsInfinity(Double value);
+    intrinsic public pure static bool IsPositiveInfinity(Double value);
+    intrinsic public pure static bool IsNegativeInfinity(Double value);
+    intrinsic public pure static Double BitIncrement(Double value);
+    intrinsic public pure static Double BitDecrement(Double value);
+    intrinsic public static Double? Parse(string? text, System.Globalization.NumberStyles style, System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Double Clone();
 

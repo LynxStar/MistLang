@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int16 : IClonable<Int16>
 {
+    intrinsic public static readonly Int16 MinValue;
+    intrinsic public static readonly Int16 MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int16 Clone();
 

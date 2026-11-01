@@ -161,7 +161,7 @@ internal static class ConversionRelation
     /// </summary>
     private static bool WidensToBaseDelegate(IMistType from, IMistType to)
     {
-        return from is IFunctionType && Array.IndexOf(BaseDelegateNames, to.FullyQualifiedName) >= 0;
+        return from is IFunctionType && BaseDelegateNames.Contains(to.FullyQualifiedName);
     }
 
     public static IEnumerable<ConversionFunction> DeclaredOn(IMistType type)
@@ -373,7 +373,7 @@ internal static class ConversionRelation
     public static bool WidensNumerically(string from, string to)
     {
         return NumericWidening.TryGetValue(from, out var targets)
-            && Array.IndexOf(targets, to) >= 0
+            && targets.Contains(to)
             ;
     }
 

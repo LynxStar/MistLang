@@ -1,0 +1,112 @@
+using Standard;
+using System.Globalization;
+
+namespace NumericArrays;
+
+type Count = new int;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    private static T? FirstZero<T>(T[] values, Func<T, bool> predicate)
+    {
+        return values.Find(predicate);
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Numeric and Array Capabilities ===");
+        var invariant = CultureInfo.InvariantCulture;
+        Console.WriteLine($"int: {int.Parse("42") ?? -1} {int.Parse("-2147483648") ?? 0} {int.Parse("2147483648") is void} {int.Parse("bad") is void}");
+        string? absent = void;
+        Console.WriteLine($"null: {int.Parse(absent) is void} provider: {int.Parse("42", invariant) ?? -1}");
+        char[] digits = ['4', '2'];
+        var span = new ReadOnlySpan<char>(digits);
+        Console.WriteLine($"span: {int.Parse(span) ?? -1}");
+        Console.WriteLine($"ulong: {ulong.Parse("18446744073709551615", NumberStyles.Integer, invariant) ?? 0UL} {ulong.Parse("FFFFFFFFFFFFFFFF", NumberStyles.HexNumber, invariant) ?? 0UL} {ulong.Parse("101010", NumberStyles.BinaryNumber, invariant) ?? 0UL}");
+        Console.WriteLine($"ulong overflow: {ulong.Parse("18446744073709551616", NumberStyles.Integer, invariant) is void}");
+        if(Count.Parse("42") is Count count)
+        {
+            Console.WriteLine($"clone parse: {count} invalid: {Count.Parse("bad") is void} bounds: {(int)Count.MinValue == int.MinValue} {(int)Count.MaxValue == int.MaxValue}");
+        }
+
+        var single = float.Parse("1.25e2", NumberStyles.Float, invariant) ?? 0.0f;
+        var real = double.Parse("1.25e2", NumberStyles.Float, invariant) ?? 0.0;
+        var money = decimal.Parse("1.25e2", NumberStyles.Float, invariant) ?? 0.0m;
+        Console.WriteLine($"real parsing: {single} {real} {money}");
+        Console.WriteLine($"real invalid: {float.Parse("bad", NumberStyles.Float, invariant) is void} {double.Parse(absent, NumberStyles.Float, invariant) is void} {decimal.Parse("1e99", NumberStyles.Float, invariant) is void}");
+        Console.WriteLine($"sbyte: {sbyte.MinValue} {sbyte.MaxValue}; byte: {byte.MinValue} {byte.MaxValue}");
+        Console.WriteLine($"short: {short.MinValue} {short.MaxValue}; ushort: {ushort.MinValue} {ushort.MaxValue}");
+        Console.WriteLine($"int: {int.MinValue} {int.MaxValue}; uint: {uint.MinValue} {uint.MaxValue}");
+        Console.WriteLine($"long: {long.MinValue} {long.MaxValue}; ulong: {ulong.MinValue} {ulong.MaxValue}");
+        Console.WriteLine($"char: {(int)char.MinValue} {(int)char.MaxValue}; decimal: {decimal.MinValue} {decimal.MaxValue}");
+        Console.WriteLine($"float max: {float.MaxValue}; double max: {double.MaxValue}");
+        Console.WriteLine($"minimum negation: {-int.MinValue} {-long.MinValue}");
+        var nanF = float.Parse("NaN", NumberStyles.Float, invariant) ?? 0.0f;
+        var infinityF = float.Parse("Infinity", NumberStyles.Float, invariant) ?? 0.0f;
+        var negativeF = float.Parse("-Infinity", NumberStyles.Float, invariant) ?? 0.0f;
+        var nan = double.Parse("NaN", NumberStyles.Float, invariant) ?? 0.0;
+        var infinity = double.Parse("Infinity", NumberStyles.Float, invariant) ?? 0.0;
+        var negative = double.Parse("-Infinity", NumberStyles.Float, invariant) ?? 0.0;
+        Console.WriteLine($"float predicates: {float.IsFinite(single)} {float.IsNaN(nanF)} {float.IsInfinity(infinityF)} {float.IsPositiveInfinity(infinityF)} {float.IsNegativeInfinity(negativeF)}");
+        Console.WriteLine($"double predicates: {double.IsFinite(real)} {double.IsNaN(nan)} {double.IsInfinity(infinity)} {double.IsPositiveInfinity(infinity)} {double.IsNegativeInfinity(negative)}");
+        Console.WriteLine($"float steps: {float.BitDecrement(float.BitIncrement(single)) == single} {float.BitIncrement(0.0f) > 0.0f} {float.BitDecrement(0.0f) < 0.0f}");
+        Console.WriteLine($"double steps: {double.BitDecrement(double.BitIncrement(real)) == real} {double.BitIncrement(0.0) > 0.0} {double.BitDecrement(0.0) < 0.0}");
+        var small = int.MinValue;
+        char character = 'a';
+        Console.WriteLine($"comparison: {small.CompareTo(int.MaxValue)} {single.CompareTo(126.0f)} {real.CompareTo(125.0)} {money.CompareTo(124.0m)} {character.CompareTo('b')}");
+        double precise = 1.2345678901234567;
+        float preciseF = 1.2345678f;
+        var roundTrip = double.Parse(precise.ToString("R", invariant), NumberStyles.Float, invariant) ?? 0.0;
+        var roundTripF = float.Parse(preciseF.ToString("R", invariant), NumberStyles.Float, invariant) ?? 0.0f;
+        Console.WriteLine($"round trips: {roundTrip == precise} {roundTripF == preciseF} format: {precise.ToString("R")}");
+        sbyte sb = -1;
+        byte b = 2;
+        short sh = -3;
+        ushort us = 4;
+        int i = -5;
+        uint ui = 6;
+        long l = -7;
+        ulong ul = 8;
+        Console.WriteLine($"providers: {sb.ToString(invariant)} {b.ToString(invariant)} {sh.ToString(invariant)} {us.ToString(invariant)} {i.ToString(invariant)} {ui.ToString(invariant)} {l.ToString(invariant)} {ul.ToString(invariant)} {single.ToString(invariant)} {real.ToString(invariant)} {money.ToString(invariant)} {character.ToString(invariant)}");
+        Console.WriteLine($"ambient routes: {System.Math.Max(1L, 2L)} {System.Convert.ToDouble("1.25")} {System.Int128.Parse("2") + System.Int128.Parse("3")}");
+
+        int[] values = [2, 0, 0, 3];
+        int[] empty = [];
+        Console.WriteLine($"array search: {values.IndexOf(0) ?? -1} {values.IndexOf(9) is void} {values.Contains(0)} {values.Contains(9)} empty: {empty.Length} {empty.IndexOf(0) is void}");
+        int[]? absentArray = void;
+        Console.WriteLine($"conditional array: {absentArray?.Contains(0) is void} {absentArray?.Find(value => true) is void}");
+        var visits = 0;
+        var found = values.Find(value => { visits = visits + 1; return value == 0; });
+        Console.WriteLine($"find: {found ?? -1} visits: {visits} absent: {values.Find(value => value == 9) is void} generic: {FirstZero(values, value => value == 0) ?? -1}");
+        visits = 0;
+        var any = values.Any(value => { visits = visits + 1; return value == 0; });
+        Console.WriteLine($"any: {any} visits: {visits} empty: {empty.Any(value => true)}");
+        string[] names = ["b", "A", "a"];
+        names.Sort(System.StringComparer.Ordinal);
+        Console.WriteLine($"ordinal sort: {names[0]} {names[1]} {names[2]} find: {names.Find(value => value == "a") ?? "absent"}");
+        values.Sort(System.Collections.Generic.Comparer<int>.Default);
+        Console.WriteLine($"in-place sort: {values[0]} {values[1]} {values[2]} {values[3]}");
+        var left = async 21;
+        var right = async { return 42; };
+        Task<int>[] pending = [left, right];
+        var joined = await Task<int>.WhenAll(pending);
+        if(joined.Length == 2)
+        {
+            Console.WriteLine($"joined started tasks: {joined[0]} {joined[1]}");
+        }
+
+        var firstFinished = false;
+        var secondFinished = false;
+        var firstAction = async { firstFinished = true; };
+        var secondAction = async { secondFinished = true; };
+        Task[] actions = [firstAction, secondAction];
+        await Task.WhenAll(actions);
+        Console.WriteLine($"joined actions: {firstFinished} {secondFinished}");
+        Console.WriteLine("=== Numeric and Array Capabilities Done ===");
+    }
+}

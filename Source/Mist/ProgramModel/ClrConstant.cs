@@ -5,9 +5,8 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel;
 
 /// <summary>
-/// The value metadata records for a CLR literal field, read where an expression names one. Only a
-/// projected field qualifies: a Mist field's initializer is evaluated at run time and says nothing
-/// about what the field holds when it is read.
+/// Constant values known from projected CLR literal fields or Standard's intrinsic bounds. A Mist
+/// storage initializer runs at runtime and does not establish the value of a later field read.
 /// </summary>
 internal static class ClrConstant
 {
@@ -15,8 +14,8 @@ internal static class ClrConstant
     {
         return expression switch
         {
-            MemberAccessExpression { IsConditional: false, IsFailed: false, Member: FieldResult { Field: var field } } => Stored(field),
-            FieldReferenceExpression { Field: var field } => Stored(field),
+            MemberAccessExpression { IsConditional: false, IsFailed: false, Member: FieldResult { Field: var field } } => Stored(field) ?? IntrinsicBounds.Of(field, expression.Node),
+            FieldReferenceExpression { Field: var field } => Stored(field) ?? IntrinsicBounds.Of(field, expression.Node),
             _ => null,
         };
     }

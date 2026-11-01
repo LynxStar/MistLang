@@ -2,7 +2,9 @@ using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
@@ -67,6 +69,22 @@ public sealed class ConstantArithmeticEmissionTests
         Assert.Equal("big + 1", Emit(Binary(big, BinaryOperatorKind.Add, Literal(1))));
         Assert.Equal("big / 0", Emit(Binary(big, BinaryOperatorKind.Divide, Literal(0))));
         Assert.Equal("6 / 3", Emit(Binary(Literal(6), BinaryOperatorKind.Divide, Literal(3))));
+    }
+
+    [Theory]
+    [InlineData("Int32", "int")]
+    [InlineData("Int64", "long")]
+    public void NegatingAnIntrinsicMinimumUsesUncheckedArithmetic(string name, string spelling)
+    {
+        var number = model.Type(name);
+        number.Modifiers = new MemberModifiers { IsIntrinsic = true };
+        var field = new Field("MinValue", number, OwnershipKind.Unrestricted,
+            new MemberModifiers { IsIntrinsic = true, IsStatic = true, IsReadonly = true })
+        { DeclaringType = number };
+        var read = new FieldReferenceExpression(HandBuiltModel.Node(), field);
+        var negated = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, read, number);
+
+        Assert.Equal($"unchecked(-{spelling}.MinValue)", Emit(negated));
     }
 
     private LiteralExpression Literal(int value)

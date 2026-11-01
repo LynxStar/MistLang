@@ -2,6 +2,11 @@ namespace Standard;
 
 intrinsic public readonly owned struct UInt64 : IClonable<UInt64>
 {
+    intrinsic public static readonly UInt64 MinValue;
+    intrinsic public static readonly UInt64 MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public static UInt64? Parse(string? text, System.Globalization.NumberStyles style, System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned UInt64 Clone();
 

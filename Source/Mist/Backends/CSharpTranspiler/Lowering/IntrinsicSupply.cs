@@ -72,6 +72,11 @@ internal sealed class IntrinsicSupply
         return inScope is not { } scope || !scope.unsupplied.Contains(member);
     }
 
+    public static bool Supplies(Field member)
+    {
+        return inScope is not { } scope || !scope.unsupplied.Contains(member);
+    }
+
     public static IReadOnlyList<Entry> Audit(ProgramModelClass programModel, Func<string, Type?> clrType)
     {
         var entries = new List<Entry>();
@@ -86,6 +91,11 @@ internal sealed class IntrinsicSupply
             foreach(var property in type.PropertiesList.Where(property => property.Modifiers.IsIntrinsic))
             {
                 entries.Add(new Entry(property, Describe(property), Classify(property, clrType)));
+            }
+
+            foreach(var field in type.FieldsList.Where(field => field.Modifiers.IsIntrinsic))
+            {
+                entries.Add(new Entry(field, Describe(field), Classify(field, clrType)));
             }
 
             foreach(var indexer in type.IndexersList.Where(indexer => indexer.Modifiers.IsIntrinsic))
@@ -114,6 +124,11 @@ internal sealed class IntrinsicSupply
     public static string Describe(Property property)
     {
         return $"{Declaring(property.DeclaringType)}.{property.Name}";
+    }
+
+    public static string Describe(Field field)
+    {
+        return $"{Declaring(field.DeclaringType)}.{field.Name}";
     }
 
     private static string Declaring(MemberType? type)
@@ -199,7 +214,6 @@ internal sealed class IntrinsicSupply
         return found ? Kind.Metadata : Kind.Missing;
     }
 
-    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static Kind Classify(Property property, Func<string, Type?> clrType)
     {
         if(IntrinsicCalls.RespellsProperty(property.Name, property.DeclaringType))
@@ -212,14 +226,27 @@ internal sealed class IntrinsicSupply
             return ArrayEnumeration.Supplies(property.Name) ? Kind.Respelled : Kind.Missing;
         }
 
-        if(Backing(property.DeclaringType, clrType) is not { } clr)
-        {
-            return Kind.Missing;
-        }
-
-        return clr.GetProperties(Visible).Any(candidate => candidate.Name == property.Name)
+        return Storage<PropertyInfo>(property.DeclaringType, clrType).Any(candidate => candidate.Name == property.Name)
             ? Kind.Metadata
             : Kind.Missing;
+    }
+
+    internal static Kind Classify(Field field, Func<string, Type?> clrType)
+    {
+        var expected = ClrSpelling.MetadataName(field.Type) ?? field.Type.FullyQualifiedName;
+        return Storage<FieldInfo>(field.DeclaringType, clrType).Any(candidate =>
+            candidate.Name == field.Name
+            && candidate.IsStatic == field.Modifiers.IsStatic
+            && candidate.FieldType.FullName == expected
+            && (!field.Modifiers.IsReadonly || candidate.IsLiteral || candidate.IsInitOnly))
+            ? Kind.Metadata
+            : Kind.Missing;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
+    private static IEnumerable<TMember> Storage<TMember>(MemberType? type, Func<string, Type?> clrType) where TMember : MemberInfo
+    {
+        return Backing(type, clrType) is { } clr ? clr.GetMembers(Visible).OfType<TMember>() : [];
     }
 
     [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]

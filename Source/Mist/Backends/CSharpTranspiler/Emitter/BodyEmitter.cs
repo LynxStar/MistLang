@@ -1661,6 +1661,11 @@ internal static partial class BodyEmitter
                 writer.Append(ReceiverSpelling.This);
                 break;
 
+            case FieldReferenceExpression { Field: { Modifiers.IsIntrinsic: true } field } fieldRead
+                when !IntrinsicSupply.Supplies(field):
+                ReportMissingIntrinsic(BackendFacts.Symbol(field.DeclaringType, field.Name, IntrinsicSupply.Describe(field)), fieldRead.Node, writer, diagnostics);
+                break;
+
             case FieldReferenceExpression fieldRef:
                 writer.Append(
                     UnsafeReach.Implicit(fieldRef.Field)
@@ -2874,6 +2879,13 @@ internal static partial class BodyEmitter
             && !IntrinsicSupply.Supplies(property))
         {
             ReportMissingIntrinsic(BackendFacts.Symbol(property.DeclaringType, property.Name, IntrinsicSupply.Describe(property)), memberAccess.Node, writer, diagnostics);
+            return;
+        }
+
+        if(memberAccess.Member is FieldResult { Field: { Modifiers.IsIntrinsic: true } field }
+            && !IntrinsicSupply.Supplies(field))
+        {
+            ReportMissingIntrinsic(BackendFacts.Symbol(field.DeclaringType, field.Name, IntrinsicSupply.Describe(field)), memberAccess.Node, writer, diagnostics);
             return;
         }
 

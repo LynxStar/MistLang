@@ -47,6 +47,8 @@ internal static class IntrinsicCalls
         InvariantConversion,
 
         InvariantOrder,
+
+        CapabilityAdapter,
     }
 
     public static bool Respells(Method? callee)
@@ -71,6 +73,7 @@ internal static class IntrinsicCalls
 
         return Classify(callee) switch
         {
+            Respelling.CapabilityAdapter => CapabilityAdapters.Rewrite(callee, receiver, receiverType, arguments, conditional),
             Respelling.TypeOf => $"{arguments[0]}.GetType()",
             Respelling.CloneAsSelf => Receiver(callee, receiver),
             Respelling.ArrayEnumerator => ArrayEnumeration.Rewrite(
@@ -109,6 +112,7 @@ internal static class IntrinsicCalls
 
         return callee switch
         {
+            _ when CapabilityAdapters.Supplies(callee) => Respelling.CapabilityAdapter,
             Constructor constructor when ArrayLowering.Generates(constructor) => Respelling.ArrayGeneration,
             _ when ArrayEnumeration.Enumerates(callee) => Respelling.ArrayEnumerator,
             { Name: "Of", ParametersList.Count: 1 }

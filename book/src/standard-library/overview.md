@@ -100,3 +100,23 @@ The standard library declares extension methods on the `unknown` type, making th
 | `GetType()` | `Type` | Returns the runtime `Type` descriptor for the value (equivalent to calling `Type.Of(self)`). |
 
 These methods mirror the universal operations available on all .NET objects, bridged into Mist's type system through the `unknown` top type. A type that declares formatting overloads such as `ToString(string)` or implements `IFormattable.ToString(string, IFormatProvider)` still has the universal zero-argument `ToString()` surface. Its formatting overloads remain callable with their declared arguments, and a user-declared zero-argument implementation keeps its own selection. Universal formatting uses Mist's existing invariant-culture behavior.
+
+### Numeric parsing and array search
+
+Numeric parsing returns an optional value: use pattern matching or coalescing to handle invalid
+text and overflow. The styled overloads on `ulong`, `float`, `double` and `decimal` accept
+`System.Globalization.NumberStyles` and an optional `System.IFormatProvider`. `int` accepts
+optional text, a read-only character span, or text with an optional provider. Floating parsing
+preserves NaN and infinity; use `IsFinite` when only finite values are meaningful. Numeric bounds
+are readonly fields. Numeric formatting accepts providers; `float` and `double` support a format
+with a provider for invariant round trips.
+
+Arrays expose `IndexOf`, which returns an optional first index, and `Contains` for membership.
+`Find` returns the first matching value or absence, preserving a matched numeric zero. `Any`
+answers predicate existence. Both predicate methods stop at the first match. `Sort` mutates the
+array using a supplied `System.Collections.Generic.IComparer<T>`; use `System.StringComparer.Ordinal`
+when ordering filenames. Typed empty literals, native async expressions/blocks, await and the
+existing `WhenAll` combinators supply empty arrays and asynchronous execution/joining.
+
+The [NumericArrays sample](https://github.com/LynxStar/MistLang/tree/self-host/samples/NumericArrays)
+exercises these forms, including explicit absence handling and joining already-started operations.

@@ -2,6 +2,14 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int32 : IClonable<Int32>
 {
+    intrinsic public static readonly Int32 MinValue;
+    intrinsic public static readonly Int32 MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public pure int CompareTo(Int32 other);
+    intrinsic public static Int32? Parse(string? text);
+    intrinsic public static Int32? Parse(ReadOnlySpan<char> text);
+    intrinsic public static Int32? Parse(string? text, System.IFormatProvider? provider);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int32 Clone();
 

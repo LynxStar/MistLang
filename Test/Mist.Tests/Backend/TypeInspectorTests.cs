@@ -81,7 +81,10 @@ public sealed class TypeInspectorProjectionFixture : IDisposable
         var diagnostics = new DiagnosticBag();
         Provider = AmbientProviderTestHelper.ProviderOver(diagnostics, typeof(Inspected).Assembly.Location);
 
-        if(!TypeInspector.ProjectBesideStandard(Provider, diagnostics))
+        var model = new ProgramModel.Model.ProgramModel();
+        AmbientProviderTestHelper.RegisterStandardTypes(model);
+        Provider.BuildAndRegister(model);
+        if(diagnostics.HasErrors)
         {
             Provider.Dispose();
             throw new InvalidOperationException(string.Join(Environment.NewLine, diagnostics.ToImmutableArray().Select(DiagnosticFormatter.Format)));

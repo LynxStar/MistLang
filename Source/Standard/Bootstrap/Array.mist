@@ -19,5 +19,12 @@ intrinsic public class Array<TValue, Length:ZeroOrPositiveInt> : IEnumerable<TVa
         intrinsic public TValue Current { get; }
     }
 
+    intrinsic public int? IndexOf(TValue value);
+    intrinsic public bool Contains(TValue value);
+    intrinsic public void Sort(System.Collections.Generic.IComparer<TValue> comparer);
+    intrinsic public TValue? Find(Func<TValue, bool> predicate);
+    intrinsic public bool Any(Func<TValue, bool> predicate);
+    intrinsic public bool Any();
+
     intrinsic public Enumerator GetEnumerator();
 }

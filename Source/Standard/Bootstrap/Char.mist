@@ -2,6 +2,11 @@ namespace Standard;
 
 intrinsic public readonly owned struct Char : IClonable<Char>
 {
+    intrinsic public static readonly Char MinValue;
+    intrinsic public static readonly Char MaxValue;
+    intrinsic public string ToString(System.IFormatProvider? provider);
+    intrinsic public pure int CompareTo(Char other);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Char Clone();
 

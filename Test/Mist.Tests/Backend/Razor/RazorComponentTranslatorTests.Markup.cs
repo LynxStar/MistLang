@@ -221,6 +221,80 @@ public sealed partial class RazorComponentTranslatorTests
     }
 
     [Fact]
+    public void ElementBindFollowsTheAttributesAndEventsWrittenBeforeAndAfterIt()
+    {
+        var calls = BindCalls(H.Void("input", H.Attr("class", "a"), H.Dir("bind", "name"), H.Dir("onclick", "F"), H.Attr("id", "b")));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"input\");",
+                "__builder.AddAttribute(1, \"class\", \"a\");",
+                $"__builder.AddAttribute(2, \"onclick\", EventCallback.Factory.Create<{MouseEventArgs}>(this, F));",
+                "__builder.AddAttribute(3, \"id\", \"b\");",
+                "__builder.AddAttribute(4, \"value\", BindConverter.FormatValue(name));",
+                "__builder.AddAttribute(5, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
+    public void ElementBindFollowsAnAttributeWrittenAfterItAndPrecedesTheKeyAndTheReferenceCapture()
+    {
+        var calls = BindCalls(H.Void("input", H.Dir("bind", "name"), H.Dir("key", "name"), H.Dir("ref", "panel"), H.Attr("class", "a"), H.Dir("onclick", "F")));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"input\");",
+                "__builder.AddAttribute(1, \"class\", \"a\");",
+                $"__builder.AddAttribute(2, \"onclick\", EventCallback.Factory.Create<{MouseEventArgs}>(this, F));",
+                "__builder.AddAttribute(3, \"value\", BindConverter.FormatValue(name));",
+                "__builder.AddAttribute(4, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.SetKey(name);",
+                "__builder.AddElementReferenceCapture(5, (ElementReference __r) => { panel = __r; });",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
+    public void ElementBindFollowsSplattedAttributesAndTheAttributeAfterThem()
+    {
+        var calls = BindCalls(H.Void("input", H.Dir("bind", "name"), H.Dir("attributes", "extra"), H.Attr("title", "t")));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"input\");",
+                "__builder.AddMultipleAttributes(1, extra);",
+                "__builder.AddAttribute(2, \"title\", \"t\");",
+                "__builder.AddAttribute(3, \"value\", BindConverter.FormatValue(name));",
+                "__builder.AddAttribute(4, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
+    public void SelectBindFollowsTheSelectsOtherAttributes()
+    {
+        var calls = BindCalls(H.El("select", [H.Dir("bind", "name"), H.Attr("class", "s")]));
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"select\");",
+                "__builder.AddAttribute(1, \"class\", \"s\");",
+                "__builder.AddAttribute(2, \"value\", BindConverter.FormatValue(name));",
+                "__builder.AddAttribute(3, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
     public void ControlBlocksBecomeMistStatementsAroundTheirMarkup()
     {
         var translation = Content(
@@ -402,5 +476,10 @@ public sealed partial class RazorComponentTranslatorTests
         Assert.Same(RazorDiagnostics.UnknownDirectiveAttribute, diagnostic.Descriptor);
         Assert.Equal("@bogus", translation.Original((SourceRange)diagnostic.Location));
         Assert.Null(translation.Unit);
+    }
+
+    private static string[] BindCalls(Hand element)
+    {
+        return Run(new HandTree().Content(element).Code("private string name = \"\";\nprivate ElementReference panel;").Tree()).Calls();
     }
 }

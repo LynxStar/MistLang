@@ -14,6 +14,7 @@ internal sealed class ElementLowering(RenderProtocolWriter render)
         var bind = element.Attributes.OfType<DirectiveAttribute>().FirstOrDefault(attribute => attribute is { Name: "bind", Parameter: null });
         DirectiveAttribute? key = null;
         DirectiveAttribute? capture = null;
+        var binds = new List<(DirectiveAttribute Directive, CodeRegion Field)>();
         foreach(var attribute in element.Attributes)
         {
             switch(attribute)
@@ -31,7 +32,7 @@ internal sealed class ElementLowering(RenderProtocolWriter render)
                     render.Call(directive.Span, "AddMultipleAttributes", $"{render.NextSequence()}, ", render.Code(value));
                     break;
                 case DirectiveAttribute { Name: "bind", Parameter: null, Value: { } value } directive:
-                    WriteBind(directive, value, element.Attributes);
+                    binds.Add((directive, value));
                     break;
                 case DirectiveAttribute { Name: "bind", Parameter: { } modifier } when bind is not null && BindModifiers.Contains(modifier):
                     break;
@@ -41,6 +42,11 @@ internal sealed class ElementLowering(RenderProtocolWriter render)
                     Unknown(directive, "element");
                     break;
             }
+        }
+
+        foreach(var (directive, bound) in binds)
+        {
+            WriteBind(directive, bound, element.Attributes);
         }
 
         if(key is { Value: { } keyValue })

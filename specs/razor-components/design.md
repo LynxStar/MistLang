@@ -385,8 +385,12 @@ Razor compiler numbers them and what the differ relies on.
 
 **Decided at task 5, measured against the Razor compiler's output:**
 
-- An element's attributes lower in source order, events and `@attributes` in place; `SetKey` follows them,
-  then the reference capture. A component's parameters lower in source order, then its child content and
+- An element's attributes lower in source order, events and `@attributes` in place, except `@bind`: its value
+  attribute, binder and `SetUpdatesAttributeName` follow every other attribute, event and `@attributes` of the
+  element, wherever `@bind` was written. `SetKey` follows them, then the reference capture. Measured on
+  2026-11-01 against the C# that SDK 10.0.301 generated for `class` before and after `@bind`, `@attributes`
+  with an attribute after it, and `<select>`: `<input @bind="name" class="a" />` writes `class` at 1, `value`
+  at 2 and the binder at 3. A component's parameters lower in source order, then its child content and
   templates in child order, then `SetKey`, the reference capture and `AddComponentRenderMode`.
 - Mist has no downcast from `System.Object`, so a component reference narrows with `is` instead of the cast
   Razor writes; `object` in a Mist lambda is the unknown type, so the parameter is `System.Object`.

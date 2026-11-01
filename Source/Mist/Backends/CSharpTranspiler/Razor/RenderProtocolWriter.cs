@@ -135,9 +135,16 @@ internal sealed class RenderProtocolWriter
 
     private void WriteStatic(ImmutableArray<RazorNode> nodes)
     {
-        if(nodes.All(node => node is MarkupText))
+        var written = nodes.Where(node => node is not HtmlComment).ToImmutableArray();
+        if(written.IsEmpty)
         {
-            foreach(var text in nodes.Cast<MarkupText>())
+            return;
+        }
+
+        // A dropped comment leaves the texts on either side as separate siblings, and Razor folds sibling texts into one markup string.
+        if(written.All(node => node is MarkupText) && (written.Length == 1 || written.Length == nodes.Length))
+        {
+            foreach(var text in written.Cast<MarkupText>())
             {
                 var plain = StaticMarkup.TryPlainText(text.Text, out var decoded);
                 Call(text.Span, plain ? "AddContent" : "AddMarkupContent", $"{NextSequence()}, {MistLiteral.String(plain ? decoded : text.Text)}");
@@ -146,7 +153,7 @@ internal sealed class RenderProtocolWriter
             return;
         }
 
-        Call(SpanOf(nodes), "AddMarkupContent", $"{NextSequence()}, {MistLiteral.String(statics.Render(nodes))}");
+        Call(SpanOf(nodes), "AddMarkupContent", $"{NextSequence()}, {MistLiteral.String(statics.Render(written))}");
     }
 
     private void WriteNode(RazorNode node)

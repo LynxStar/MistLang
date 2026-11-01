@@ -365,6 +365,7 @@ fallback if a cast ever fails to target-type.
 | attribute, mixed | `AddAttribute(seq, name, "a " + expr + " b")` |
 | text | `AddContent(seq, "text")` |
 | `@expr`, `@(expr)` | `AddContent(seq, expr)` |
+| `<!-- c -->`, `@* c *@` | nothing, and no sequence number |
 | `@on<e>="h"` | `AddAttribute(seq, "on<e>", EventCallback.Factory.Create<TArgs>(this, h))` |
 | `@on<e>:preventDefault` | `AddEventPreventDefaultAttribute(seq, "on<e>", true)` |
 | `@on<e>:stopPropagation` | `AddEventStopPropagationAttribute(seq, "on<e>", true)` |
@@ -399,8 +400,14 @@ Razor compiler numbers them and what the differ relies on.
   expression, `"a " + (expr) + " b"`.
 - A `@{ ... }` block's code is written inline, without braces, so its locals reach the markup after it, as in
   Razor. A control block is its Mist statement with the keyword and header copied.
-- An HTML comment is markup (Requirement 5.7) and folds with static siblings; Razor's component compiler drops
-  HTML comments instead, a divergence the requirement decides.
+- An HTML comment is dropped (Requirement 5.7, decided by the owner on 2026-11-01), as Razor's component
+  compiler drops it: no call, no sequence number, and its text is never scanned for transitions. Measured on
+  2026-11-01 against the C# that SDK 10.0.301 generated for a throwaway component with comments at the root,
+  inside elements, inside `<text>` and inside `@if` bodies: whitespace trimming sees through a comment, so the
+  whitespace it leaves at an edge or beside code is dropped; the texts on either side stay separate siblings,
+  which fold into one `AddMarkupContent` where a lone text would be `AddContent` (`<p>@n <!-- c --> after</p>`
+  gives `AddMarkupContent(seq, "  after")`); an element holding only comments is static and empty; and the line
+  break after a code block is markup when a comment comes between them.
 
 **Whitespace (Requirement 5.8), measured at task 5.** Read from the C# that the Razor compiler of SDK
 10.0.113 generated for the fixture, rewritten in C#, and for probe components beside it in a throwaway Blazor

@@ -218,7 +218,9 @@ component, so that Blazor's diffing, event wiring and prerendering behave identi
    `switch`, `do`, `try`, `using` or `lock` statement and the translator SHALL recognize none.
 6. Inside a block, a line beginning `@:` SHALL be text, and a `<text>...</text>` element SHALL be markup
    with the `text` tags dropped, as in Razor.
-7. A Razor comment `@* ... *@` SHALL produce nothing; an HTML comment SHALL be markup.
+7. A Razor comment `@* ... *@` SHALL produce nothing. An HTML comment `<!-- ... -->` SHALL be dropped as the
+   Razor compiler drops it: it SHALL produce no Render_Protocol call, no output and no sequence number, and
+   nothing inside it SHALL be evaluated (decided by the owner on 2026-11-01).
 8. Whitespace-only text at the start and end of a block body and between the children of the file's root
    SHALL be dropped as the Razor compiler drops it by default; `@preservewhitespace` is later work.
 9. A DOM event attribute `@on<event>="<handler>"` SHALL lower to

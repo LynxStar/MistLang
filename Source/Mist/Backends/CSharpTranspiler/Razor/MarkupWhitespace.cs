@@ -117,7 +117,8 @@ internal static class MarkupWhitespace
             {
                 _ = Sweep(nodes, removed, index - 1, -1);
                 var next = Sweep(nodes, removed, index + 1, 1);
-                if(next < nodes.Length && nodes[next] is MarkupText text && LineBreakEnd(text.Text) is var end and > 0)
+                if(next < nodes.Length && nodes[next] is MarkupText text && !nodes[(index + 1)..next].Any(node => node is HtmlComment)
+                    && LineBreakEnd(text.Text) is var end and > 0)
                 {
                     kept[next] = new MarkupText(text.Text[end..], new SourceSpan(text.Span.Start + end, text.Span.Length - end));
                 }
@@ -130,7 +131,7 @@ internal static class MarkupWhitespace
     private static int Sweep(ImmutableArray<RazorNode> nodes, bool[] removed, int start, int step)
     {
         var index = start;
-        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary); index += step)
+        for(; index >= 0 && index < nodes.Length && (IsWhitespace(nodes[index]) || nodes[index] is TextBoundary or HtmlComment); index += step)
         {
             removed[index] |= nodes[index] is MarkupText;
         }

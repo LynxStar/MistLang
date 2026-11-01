@@ -65,6 +65,16 @@ public sealed class MarkupWhitespaceTests
     }
 
     [Fact]
+    public void AnHtmlCommentIsTransparentToTrimmingButKeepsTheTextBesideItApart()
+    {
+        var kept = MarkupWhitespace.Content(Root(
+            H.Comment(" a "), H.Text("\n"), H.El("p", H.Expr("x")), H.Text(" "), H.Comment(" b "), H.Text(" c"),
+            H.If("(x)", H.Code("x = 1;")), H.Text("\n"), H.Comment(" d "), H.Text("\ntail"), H.Text(" "), H.Comment(" e ")));
+
+        Assert.Equal(["HtmlComment", "p", " ", "HtmlComment", " c", "if", "HtmlComment", "\ntail ", "HtmlComment"], kept.Select(Describe));
+    }
+
+    [Fact]
     public void BetweenMarkupLinesOfABlockTheLineBreakAndIndentationAreMarkup()
     {
         var block = Block(H.Code("var y = 1;"), H.El("p", H.Text("a")), H.El("p", H.Text("b")), H.Code("y = 2;"));

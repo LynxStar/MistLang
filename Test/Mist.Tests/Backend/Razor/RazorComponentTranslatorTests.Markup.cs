@@ -202,14 +202,120 @@ public sealed partial class RazorComponentTranslatorTests
     }
 
     [Fact]
-    public void ARazorCommentProducesNothingAndAnHtmlCommentIsMarkup()
+    public void ARazorCommentAndAnHtmlCommentProduceNothing()
     {
-        var translation = Content(H.El("p", H.Text("a"), H.RazorComment(" gone "), H.Text("b "), H.Expr("n")), H.Comment(" kept "));
+        var translation = Content(H.El("p", H.Text("a"), H.RazorComment(" gone "), H.Text("b "), H.Expr("n")), H.Comment(" dropped "));
 
         Assert.Equal(
-            ["__builder.OpenElement(0, \"p\");", "__builder.AddContent(1, \"ab \");", "__builder.AddContent(2, n);", "__builder.CloseElement();",
-                "__builder.AddMarkupContent(3, \"<!-- kept -->\");"],
+            ["__builder.OpenElement(0, \"p\");", "__builder.AddContent(1, \"ab \");", "__builder.AddContent(2, n);", "__builder.CloseElement();"],
             translation.Calls());
+    }
+
+    [Fact]
+    public void AnHtmlCommentAtTheRootIsDroppedWithTheWhitespaceItLeavesAtTheEdge()
+    {
+        var translation = Content(
+            H.Comment(" root "), H.Text("\n"), H.El("h1", H.Text("Title")), H.Text("\n"), H.Comment(" between "), H.Text("\n"), H.El("h2", H.Text("Sub")),
+            H.Text("\n"), H.El("p", H.Expr("count")), H.Text("\n"), H.Comment(" end "));
+
+        Assert.Equal(
+            [
+                "__builder.AddMarkupContent(0, \"<h1>Title</h1>\\n\\n\");",
+                "__builder.AddMarkupContent(1, \"<h2>Sub</h2>\\n\");",
+                "__builder.OpenElement(2, \"p\");",
+                "__builder.AddContent(3, count);",
+                "__builder.CloseElement();",
+            ],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void AnHtmlCommentInsideAnElementIsDroppedAndTheTextsBesideItFoldIntoMarkup()
+    {
+        var translation = Content(
+            H.El("p", H.Text("static "), H.Comment(" in static "), H.Text(" text")), H.Text("\n"),
+            H.El("p", H.Expr("count"), H.Text(" "), H.Comment(" c "), H.Text(" after")), H.Text("\n"),
+            H.El("p", H.Text("a"), H.Comment(" c "), H.Expr("count")), H.Text("\n"),
+            H.El("p", H.Comment(" only ")), H.Text("\n"),
+            H.El("ul", H.Comment(" lead "), H.El("li", H.Expr("count")), H.Text(" "), H.Comment(" tail ")));
+
+        Assert.Equal(
+            [
+                "__builder.AddMarkupContent(0, \"<p>static  text</p>\\n\");",
+                "__builder.OpenElement(1, \"p\");",
+                "__builder.AddContent(2, count);",
+                "__builder.AddMarkupContent(3, \"  after\");",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(4, \"\\n\");",
+                "__builder.OpenElement(5, \"p\");",
+                "__builder.AddContent(6, \"a\");",
+                "__builder.AddContent(7, count);",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(8, \"\\n<p></p>\\n\");",
+                "__builder.OpenElement(9, \"ul\");",
+                "__builder.OpenElement(10, \"li\");",
+                "__builder.AddContent(11, count);",
+                "__builder.CloseElement();",
+                "__builder.CloseElement();",
+            ],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void AnHtmlCommentInsideATextTagIsDropped()
+    {
+        var translation = Content(H.Block(H.TextTag(H.Text("a "), H.Comment(" in text "), H.Text(" "), H.Expr("count"), H.Text(" b"))), H.El("div", H.Expr("count")));
+
+        Assert.Equal(
+            [
+                "__builder.AddMarkupContent(0, \"a  \");",
+                "__builder.AddContent(1, count);",
+                "__builder.AddContent(2, \" b\");",
+                "__builder.OpenElement(3, \"div\");",
+                "__builder.AddContent(4, count);",
+                "__builder.CloseElement();",
+            ],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void AnHtmlCommentInsideAnIfBodyIsDropped()
+    {
+        var translation = Content(
+            H.If("(show)", H.Comment(" only ")), H.If("(show)", H.Comment(" first "), H.El("b", H.Text("x")), H.Comment(" after b "), H.El("i", H.Expr("count"))));
+
+        Assert.Equal(
+            [
+                "if (show)", "{", "}",
+                "if (show)", "{",
+                "    __builder.AddMarkupContent(0, \"<b>x</b>\\n    \\n    \");",
+                "    __builder.OpenElement(1, \"i\");",
+                "    __builder.AddContent(2, count);",
+                "    __builder.CloseElement();",
+                "}",
+            ],
+            translation.Calls());
+    }
+
+    [Fact]
+    public void AnHtmlCommentHoldingATransitionEvaluatesNothingAndKeepsTheLineBreakAfterIt()
+    {
+        var translation = Content(
+            H.Block(H.Code("var z = 1;")), H.Text("\n"), H.Comment(" @DateTime.Now "), H.Text("\ntext after "), H.Expr("z"), H.Text("\n"),
+            H.Comment(" @z "), H.Text("\n"), H.El("div", H.Expr("z")));
+
+        Assert.Equal(
+            [
+                "var z = 1;",
+                "__builder.AddMarkupContent(0, \"\\ntext after \");",
+                "__builder.AddContent(1, z);",
+                "__builder.AddMarkupContent(2, \"\\n\\n\");",
+                "__builder.OpenElement(3, \"div\");",
+                "__builder.AddContent(4, z);",
+                "__builder.CloseElement();",
+            ],
+            translation.Calls());
+        Assert.DoesNotContain("DateTime", translation.Text.Contents);
     }
 
     [Fact]

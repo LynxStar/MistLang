@@ -130,7 +130,7 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
 
     private static bool HasStaticContent(RazorNode node)
     {
-        return node is MarkupElement element && !MarkupWhitespace.Content(element.Children).IsEmpty;
+        return node is MarkupElement element && MarkupWhitespace.Content(element.Children).Any(child => child is not HtmlComment);
     }
 
     private void Render(RazorNode node, StringBuilder html)
@@ -139,9 +139,6 @@ internal sealed class StaticMarkup(string source, Func<MarkupElement, bool> isCo
         {
             case MarkupText text:
                 _ = html.Append(text.Text);
-                return;
-            case HtmlComment comment:
-                _ = html.Append(comment.Text);
                 return;
             case MarkupElement element:
                 _ = html.Append('<').Append(element.Name);

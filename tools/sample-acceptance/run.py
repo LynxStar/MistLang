@@ -69,6 +69,16 @@ def normalize(text):
     return text.replace("\r\n", "\n")
 
 
+def as_text(data):
+    """subprocess.TimeoutExpired carries whatever was captured as bytes even under
+    text mode, so decode defensively before any string use."""
+    if data is None:
+        return ""
+    if isinstance(data, (bytes, bytearray)):
+        return data.decode("utf-8", "replace")
+    return data
+
+
 def diagnostics_in(stderr):
     return [line for line in stderr.split("\n") if DIAGNOSTIC.search(line)]
 
@@ -104,6 +114,35 @@ def discover_referenced_csproj(mist_dirs):
     return sorted(companions)
 
 
+def referenced_paths(entry):
+    """Repo-relative paths an entry reaches through [references] and [source_generators]:
+    the libraries, C# companions and generators it pulls in and thereby exercises."""
+    manifest = os.path.join(REPO_ROOT, entry["path"], "mist.toml")
+    if not os.path.exists(manifest):
+        return []
+    with open(manifest, "rb") as handle:
+        data = tomllib.load(handle)
+    out = []
+    for section in ("references", "source_generators"):
+        for ref in (data.get(section) or {}).values():
+            path = ref.get("path") if isinstance(ref, dict) else None
+            if not path:
+                continue
+            target = os.path.normpath(os.path.join(REPO_ROOT, entry["path"], path))
+            out.append(os.path.relpath(target, REPO_ROOT))
+    return out
+
+
+def consumer_map(entries):
+    """path -> sorted names of entries that reference it, so a supporting project's
+    coverage can be derived from whether a real consumer actually exercised it."""
+    consumers = {}
+    for entry in entries:
+        for ref in referenced_paths(entry):
+            consumers.setdefault(ref, set()).add(entry["name"])
+    return {path: sorted(names) for path, names in consumers.items()}
+
+
 def load_manifest(path):
     with open(path, "rb") as handle:
         data = tomllib.load(handle)
@@ -115,11 +154,18 @@ def reconcile(mist_dirs, companion_dirs, entries):
     removed, duplicated or unclassified project cannot slip through unnoticed."""
     problems = []
     by_path = {}
+    seen_names = set()
     for entry in entries:
         p = entry.get("path")
         if p in by_path:
             problems.append(f"duplicate manifest entry for {p}")
         by_path[p] = entry
+        # A duplicate name collides in the results map and the per-project logs, so a
+        # passing project could silently overwrite a failing one: reject it outright.
+        name = entry.get("name")
+        if name in seen_names:
+            problems.append(f"duplicate manifest name {name!r}")
+        seen_names.add(name)
         if entry.get("role") not in ROLES:
             problems.append(f"unclassified role {entry.get('role')!r} for {p}")
 
@@ -218,14 +264,21 @@ def evaluate(role, exit_code, stdout, stderr, expectation):
         if expectation is None:
             reasons.append("no committed expectation")
         else:
-            for want in [l for l in normalize(expectation).split("\n") if l.strip()]:
+            wants = [l for l in normalize(expectation).split("\n") if l.strip()]
+            if not wants:
+                # An empty marker file verifies nothing, so every output would pass.
+                reasons.append("empty expectation (no required lines to verify)")
+            for want in wants:
                 if want not in out:
                     reasons.append(f"stdout missing expected line: {want!r}")
     elif mode == "test-tally":
         if expectation is None:
             reasons.append("no committed expectation")
         else:
-            for want in [l for l in normalize(expectation).split("\n") if l.strip()]:
+            wants = [l for l in normalize(expectation).split("\n") if l.strip()]
+            if not wants:
+                reasons.append("empty expectation (no required tally to verify)")
+            for want in wants:
                 if not re.search(want, out):
                     reasons.append(f"stdout missing expected tally: {want!r}")
 
@@ -267,13 +320,15 @@ def run_project(entry, compiler, out_dir, timeout):
 
     env = dict(os.environ)
     base = compiler_argv(compiler)
+    env_overrides = {}
     if entry["role"] in ("msbuild-consumer", "ef-consumer"):
         # Documented consumer invocation: run the executable sub-project from the
         # container, letting the compiler build the C# companion. The nested
         # `mist build` the bridge runs is the compiler under test, not PATH's mist.
         cwd = os.path.dirname(project_dir)
         sub = os.path.basename(project_dir)
-        env["MistCommand"] = shlex.join(base)
+        env_overrides["MistCommand"] = shlex.join(base)
+        env.update(env_overrides)
         argv = base + [verb, sub, "--quiet"]
     else:
         cwd = REPO_ROOT
@@ -281,12 +336,16 @@ def run_project(entry, compiler, out_dir, timeout):
                        "--output", os.path.join(work, "out"),
                        "--bin", os.path.join(work, "bin")]
 
+    # The exact command, working directory and any environment override, recorded
+    # per project so the report captures how each sample was actually invoked.
+    invocation = {"argv": argv, "cwd": os.path.relpath(cwd, REPO_ROOT), "env": env_overrides}
     try:
         proc = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
                               text=True, timeout=timeout)
-        return proc.returncode, proc.stdout, proc.stderr
+        return proc.returncode, as_text(proc.stdout), as_text(proc.stderr), invocation
     except subprocess.TimeoutExpired as ex:
-        return 124, ex.stdout or "", (ex.stderr or "") + f"\n[harness] timed out after {timeout}s"
+        return (124, as_text(ex.stdout), as_text(ex.stderr) + f"\n[harness] timed out after {timeout}s",
+                invocation)
 
 
 def compiler_identity(compiler):
@@ -309,6 +368,15 @@ def git(*args):
         return "unknown"
 
 
+def _dotnet(*args):
+    try:
+        proc = subprocess.run(["dotnet", *args], cwd=REPO_ROOT,
+                              capture_output=True, text=True, timeout=120)
+        return proc.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return "unknown"
+
+
 def provenance(compiler, generation):
     return {
         "generation": generation,
@@ -317,8 +385,11 @@ def provenance(compiler, generation):
         "stormPin": git("-C", "Source/Storm.SourceGenerator", "rev-parse", "HEAD"),
         "compilerCommand": compiler,
         "compilerIdentity": compiler_identity(compiler),
-        "dotnetSdk": subprocess.run(["dotnet", "--version"], cwd=REPO_ROOT,
-                                    capture_output=True, text=True).stdout.strip(),
+        "dotnetSdk": _dotnet("--version"),
+        # The installed .NET runtimes and the NuGet environment the samples resolve
+        # against, so a later generation's package/reference world is comparable.
+        "dotnetRuntimes": _dotnet("--list-runtimes").split("\n"),
+        "nugetGlobalPackages": _dotnet("nuget", "locals", "global-packages", "--list"),
         "runtimeIdentifier": _rid(),
         "os": platform.platform(),
     }
@@ -406,7 +477,7 @@ def main(argv):
 
     def run_one(entry):
         name, role = entry["name"], entry["role"]
-        exit_code, stdout, stderr = run_project(entry, compiler, out_dir, args.timeout)
+        exit_code, stdout, stderr, invocation = run_project(entry, compiler, out_dir, args.timeout)
         with open(os.path.join(out_dir, "logs", f"{name}.stdout"), "w", encoding="utf-8") as fh:
             fh.write(stdout)
         with open(os.path.join(out_dir, "logs", f"{name}.stderr"), "w", encoding="utf-8") as fh:
@@ -416,28 +487,34 @@ def main(argv):
                       and os.path.abspath(expectation_path(entry, args.expectations))
                       .startswith(os.path.abspath(args.expectations) + os.sep))
         if capturable:
-            dest = expectation_path(entry, args.expectations)
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            with open(dest, "w", encoding="utf-8") as fh:
-                fh.write(normalize(stdout))
-            status, reasons = ("captured", [f"wrote {os.path.relpath(dest, REPO_ROOT)}"])
+            # Never bless a degraded run: a diagnostic or nonzero exit is a failure
+            # and its output is not written, so it cannot overwrite a valid baseline.
             if diagnostics_in(stderr) or exit_code != 0:
                 status, reasons = "fail", evaluate(role, exit_code, stdout, stderr, normalize(stdout))[1]
+            else:
+                dest = expectation_path(entry, args.expectations)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                with open(dest, "w", encoding="utf-8") as fh:
+                    fh.write(normalize(stdout))
+                status, reasons = ("captured", [f"wrote {os.path.relpath(dest, REPO_ROOT)}"])
         else:
             status, reasons = evaluate(role, exit_code, stdout, stderr,
                                        read_expectation(entry, args.expectations))
         print(f"  [{status}] {name}", flush=True)
         return {"name": name, "role": role, "path": entry["path"],
-                "exit": exit_code, "status": status, "reasons": reasons}
+                "exit": exit_code, "status": status, "reasons": reasons,
+                "invocation": invocation}
 
     results = {}
     runnable = []
+    supporting = []
     for entry in selected:
         spec = ROLES[entry["role"]]
         if not spec["runs"]:
-            results[entry["name"]] = {"name": entry["name"], "role": entry["role"], "path": entry["path"],
-                                      "status": "exercised-via-consumer",
-                                      "reasons": [entry.get("note", "built/exercised through its consumer")]}
+            # Coverage is derived after the run from the consumer that references it,
+            # never asserted up front, so a skipped or unselected consumer cannot
+            # masquerade as having exercised the supporting project.
+            supporting.append(entry)
         elif spec.get("network") and not args.include_network:
             results[entry["name"]] = {"name": entry["name"], "role": entry["role"], "path": entry["path"],
                                       "status": "skipped-prerequisite",
@@ -455,6 +532,25 @@ def main(argv):
         for entry in runnable:
             res = run_one(entry)
             results[res["name"]] = res
+
+    consumers = consumer_map(entries)
+    selected_names = {e["name"] for e in selected}
+    for entry in supporting:
+        who = consumers.get(entry["path"], [])
+        passed = [c for c in who if results.get(c, {}).get("status") == "pass"]
+        if passed:
+            status, reasons = "exercised-via-consumer", [f"exercised through {', '.join(passed)}"]
+        else:
+            # Name why coverage was not achieved rather than claiming it: no consumer,
+            # the consumer was not selected, skipped a prerequisite, or itself failed.
+            if not who:
+                detail = "no consumer in the manifest references it"
+            else:
+                states = [f"{c}={results.get(c, {}).get('status', 'unselected')}" for c in who]
+                detail = "consumer not exercised ({})".format(", ".join(states))
+            status, reasons = "not-exercised", [detail]
+        results[entry["name"]] = {"name": entry["name"], "role": entry["role"], "path": entry["path"],
+                                  "status": status, "reasons": reasons}
 
     results = [results[e["name"]] for e in selected if e["name"] in results]
     agg_ok, agg_notes = check_aggregate(
@@ -476,7 +572,7 @@ def main(argv):
     for note in agg_notes:
         print(f"  - {note}")
     for r in results:
-        if r["status"] in ("fail", "captured") or r["status"] == "skipped-prerequisite":
+        if r["status"] in ("fail", "captured", "skipped-prerequisite", "not-exercised"):
             for reason in r["reasons"]:
                 print(f"  [{r['status']}] {r['name']}: {reason}")
     print(f"\nreport: {os.path.join(out_dir, 'report.json')}")

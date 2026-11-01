@@ -16,7 +16,13 @@ generation parity; the Mist-authored generations remain MIST-1071/MIST-1073.
 - **An aggregate pass cannot hide a standalone failure.** Every runnable sample is
   run on its own and keeps its own result and logs.
 - **No failure is ever blessed.** A compiler warning/info/error, a nonzero exit, a
-  stdout mismatch or a missing expectation is a failure, never a new baseline.
+  stdout mismatch, an empty or missing expectation is a failure, never a new
+  baseline; even `--capture` refuses to write a run that emitted a diagnostic or
+  exited nonzero.
+- **Coverage is derived, not asserted.** A supporting project (library, source
+  generator or C# companion) is reported `exercised-via-consumer` only when a
+  consumer that references it actually ran and passed; otherwise it is
+  `not-exercised`, naming the consumer that was skipped, unselected or failed.
 
 ## The manifest and the roles
 
@@ -60,9 +66,12 @@ With no `--compiler`, the runner uses the `mist` binary under
 `Source/Mist.CLI/bin/{Release,Debug}/net10.0/<rid>/` if present.
 
 Each run writes to `--out` (default `_runs/<stamp>/`, gitignored): `report.json` with
-the provenance block and every per-project result, and `logs/<name>.stdout|stderr`.
-The provenance block records the Mist revision, the Storm submodule pin, the compiler
-command and its `version` output, the .NET SDK, the runtime identifier and the OS.
+the provenance block and every per-project result (including the exact `invocation`
+— argv, working directory and any environment override — used for each runnable
+sample), and `logs/<name>.stdout|stderr`. The provenance block records the Mist
+revision, the Storm submodule pin, the compiler command and its `version` output, the
+.NET SDK, the installed .NET runtimes, the NuGet global-packages location, the runtime
+identifier and the OS.
 
 Exit code is 0 only when reconciliation holds and every executed project passed.
 
@@ -96,7 +105,10 @@ python3 tools/sample-acceptance/run.py selftest
 ```
 
 `selftest.py` drives the pure verdict functions with hand-built inputs to prove the
-four detections — manifest omission, a diagnostic, a nonzero exit and an output
-mismatch — without spawning a compiler. It is deliberately not an xUnit test and must
-not grow into one process per sample; the single Tier 6 aggregate check stays in the
-suite.
+detections — manifest omission, a duplicate name, a diagnostic, a nonzero exit, an
+output mismatch, an empty or missing expectation, and the consumer-derived coverage
+map — without spawning a compiler. Each case carries runnable `Tier` metadata (the
+same key Test/AGENTS.md defines); they touch no compiler or pipeline, so each is
+Tier 1 (Unit), and the run tallies the tier it executed. It is deliberately not an
+xUnit test and must not grow into one process per sample; the single Tier 6 aggregate
+check stays in the suite.

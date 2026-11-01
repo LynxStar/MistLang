@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-# Bounded controlled checks that the harness detects the four ways a sample run
-# can be wrong. They drive run.py's pure verdict functions with hand-built inputs
-# and spawn no compiler, so this proves the detection logic itself, not the suite.
+# Bounded controlled checks that the harness detects the ways a sample run can be
+# wrong. They drive run.py's pure verdict functions with hand-built inputs and
+# spawn no compiler, so this proves the detection logic itself, not the suite.
 #
 #   tools/sample-acceptance/run.py selftest
 #
 # This is deliberately not an xUnit test: it owns no compiler process and must
 # not grow into one test per sample. The one aggregate check stays in the suite.
+#
+# Every case carries runnable tier metadata, mirroring Test/AGENTS.md: the key is
+# the exact string "Tier". These drive pure verdict functions with no compiler and
+# no pipeline, so each is Tier 1 (Unit). The registry prints and tallies the tier
+# so the classification is discoverable, not just asserted in a comment.
 
 import os
 import tempfile
@@ -14,6 +19,7 @@ import tempfile
 import run
 
 
+# (name, tier, fn). Tier is the exact Test/AGENTS.md key value, "1".."6".
 CASES = []
 
 
@@ -37,9 +43,9 @@ def _aggregate_fixture(tmp, order, expectations, baseline, roles=None):
     return entries, exp_dir, base, program
 
 
-def case(name):
+def case(name, tier="1"):
     def register(fn):
-        CASES.append((name, fn))
+        CASES.append((name, tier, fn))
         return fn
     return register
 
@@ -79,6 +85,16 @@ def _():
     entries = [{"path": "samples/A", "name": "A", "role": "executable"}]
     problems = run.reconcile(["samples/A"], ["samples/A/Bridge"], entries)
     assert any("companion" in p and "not in manifest" in p for p in problems), problems
+
+
+@case("reconcile detects a duplicate name on distinct paths")
+def _():
+    # Two entries sharing a name collide in the results map and logs; reconciliation
+    # must reject them even though their paths differ and both exist on disk.
+    entries = [{"path": "samples/A", "name": "Dup", "role": "executable"},
+               {"path": "samples/B", "name": "Dup", "role": "executable"}]
+    problems = run.reconcile(["samples/A", "samples/B"], [], entries)
+    assert any("duplicate manifest name" in p and "Dup" in p for p in problems), problems
 
 
 @case("evaluate passes a clean matching run")
@@ -152,6 +168,37 @@ def _():
     assert status == "fail"
 
 
+@case("contains mode rejects an empty marker expectation")
+def _():
+    # An empty consumer-marker file verifies nothing, so any output would pass; it
+    # must be reported as a defect rather than silently accepted.
+    status, reasons = run.evaluate("msbuild-consumer", 0, "anything\n", "", "   \n")
+    assert status == "fail" and any("empty expectation" in r for r in reasons), reasons
+
+
+@case("test-tally rejects an empty tally expectation")
+def _():
+    status, reasons = run.evaluate("test-library", 0, "Passed: 5\n", "", "\n")
+    assert status == "fail" and any("empty expectation" in r for r in reasons), reasons
+
+
+@case("consumer map derives coverage from the referencing consumer")
+def _():
+    # The reverse reference map is what lets a supporting project's status be derived
+    # from a real consumer instead of being asserted up front.
+    entries = [{"name": "App", "path": "samples/App"},
+               {"name": "Lib", "path": "samples/Lib"},
+               {"name": "Orphan", "path": "samples/Orphan"}]
+    saved = run.referenced_paths
+    run.referenced_paths = lambda e: ["samples/Lib"] if e["name"] == "App" else []
+    try:
+        cmap = run.consumer_map(entries)
+    finally:
+        run.referenced_paths = saved
+    assert cmap.get("samples/Lib") == ["App"], cmap
+    assert "samples/Orphan" not in cmap, cmap
+
+
 @case("aggregate check accepts ordered blocks and skips composed-only")
 def _():
     with tempfile.TemporaryDirectory() as tmp:
@@ -190,14 +237,17 @@ def _():
 
 def main():
     failed = 0
-    for name, fn in CASES:
+    tiers = {}
+    for name, tier, fn in CASES:
+        tiers[tier] = tiers.get(tier, 0) + 1
         try:
             fn()
-            print(f"  ok   {name}")
+            print(f"  ok   [T{tier}] {name}")
         except AssertionError as ex:
             failed += 1
-            print(f"  FAIL {name}: {ex}")
-    print(f"\n{len(CASES) - failed}/{len(CASES)} checks passed")
+            print(f"  FAIL [T{tier}] {name}: {ex}")
+    tier_summary = ", ".join(f"Tier {t}: {n}" for t, n in sorted(tiers.items()))
+    print(f"\n{len(CASES) - failed}/{len(CASES)} checks passed ({tier_summary})")
     return 1 if failed else 0
 
 

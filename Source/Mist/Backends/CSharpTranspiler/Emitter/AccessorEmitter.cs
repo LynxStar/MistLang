@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -26,12 +27,23 @@ internal static class AccessorEmitter
     {
         var header = Header(accessor, isSetter, isReadonly);
 
+        // A getter typed Void emits a Standard.Void property, so its return carries the unit value;
+        // a setter stays native C# void, where a bare return is what C# requires.
+        var returnsUnit = !isSetter && result is not null && OptionalUnion.IsVoid(result);
+
         if(accessor.Body is { } body)
         {
             writer.WriteLine(header);
             using(writer.Block())
             {
-                BodyEmitter.EmitBlock(body, isSetter ? ["value"] : [], writer, diagnostics);
+                if(returnsUnit)
+                {
+                    BodyEmitter.EmitReturningUnit(unit: true, body, writer, diagnostics);
+                }
+                else
+                {
+                    BodyEmitter.EmitBlock(body, isSetter ? ["value"] : [], writer, diagnostics);
+                }
             }
 
             return;

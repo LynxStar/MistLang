@@ -20,6 +20,7 @@ using Accessibility = Mist.ProgramModel.Model.Enums.Accessibility;
 namespace Mist.Tests.Backend;
 
 [Trait("Tier", "4")]
+[Collection(WallClockCollection.Name)]
 public sealed class AsyncPromotionRuntimeBoundaryTests
 {
     [Fact]
@@ -28,7 +29,8 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
         var fixture = new Fixture();
         var source = fixture.Emit();
         var compilation = CSharpCompilation.Create("AsyncPromotionBoundary" + Guid.NewGuid().ToString("N"),
-            [CSharpSyntaxTree.ParseText(source)], CSharpCompilationDriver.CoreReferences,
+            [CSharpSyntaxTree.ParseText(source)], CSharpCompilationDriver.CoreReferences.Add(
+                MetadataReference.CreateFromFile(typeof(RuntimeBoundaryTasks).Assembly.Location)),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         using var stream = new MemoryStream();
         var result = compilation.Emit(stream);
@@ -37,16 +39,36 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
         stream.Position = 0;
         var context = new AssemblyLoadContext("AsyncPromotionBoundary", isCollectible: true);
 
+        using var lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        Task? pendingWork = null;
+        Exception? failure = null;
         try
         {
             var assembly = context.LoadFromStream(stream);
             var execute = assembly.GetType("Probe.Harness")!.GetMethod("Execute", BindingFlags.Public | BindingFlags.Static)!;
-            var pending = Assert.IsAssignableFrom<Task<string>>(execute.Invoke(null, null));
-            Assert.Equal("direct,lift,group,group,abstract,extension,optional,drop;captures=1;absent=0", await pending.WaitAsync(TimeSpan.FromSeconds(20)));
+            var pending = Assert.IsAssignableFrom<Task<string>>(execute.Invoke(null, [lifetime.Token]));
+            pendingWork = pending;
+            Assert.Equal("direct,lift,group,group,abstract,extension,optional,drop;captures=1;absent=0", await pending.WaitAsync(lifetime.Token));
+        }
+        catch(Exception error)
+        {
+            failure = error;
+            throw;
         }
         finally
         {
-            context.Unload();
+            try
+            {
+                await lifetime.CancelAsync();
+                if(pendingWork is not null)
+                {
+                    await RuntimeBoundaryTasks.DrainAsync(pendingWork, TimeSpan.FromSeconds(5), failure);
+                }
+            }
+            finally
+            {
+                context.Unload();
+            }
         }
     }
 
@@ -150,6 +172,7 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                 {
                     public static System.Threading.Tasks.TaskCompletionSource<int> Gate;
                     public static System.Threading.Tasks.TaskCompletionSource<bool> Started;
+                    public static System.Threading.CancellationToken Lifetime;
                     public static int Calls;
                     public static int Completed;
                     public static void Reset()
@@ -163,7 +186,7 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                     {
                         System.Threading.Interlocked.Increment(ref Calls);
                         Started.SetResult(true);
-                        var value = await Gate.Task.ConfigureAwait(false);
+                        var value = await Gate.Task.WaitAsync(Lifetime).ConfigureAwait(false);
                         System.Threading.Interlocked.Increment(ref Completed);
                         return value;
                     }
@@ -174,16 +197,35 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                     {
                         Helpers.Reset();
                         var pending = action();
-                        await Helpers.Started.Task.WaitAsync(System.TimeSpan.FromSeconds(5));
-                        if(pending.IsCompleted) throw new System.InvalidOperationException("returned before completion");
-                        Helpers.Gate.SetResult(7);
+                        var gate = Helpers.Gate;
+                        System.Exception failure = null;
+                        try
+                        {
+                            await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                                Helpers.Started.Task, pending, Helpers.Lifetime);
+                            if(pending.IsCompleted) throw new System.InvalidOperationException("returned before completion");
+                        }
+                        catch(System.Exception error)
+                        {
+                            failure = error;
+                            throw;
+                        }
+                        finally
+                        {
+                            gate.TrySetResult(7);
+                            if(failure is not null)
+                            {
+                                await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(pending, System.TimeSpan.FromSeconds(5), failure);
+                            }
+                        }
                         if(await pending != 7 || Helpers.Calls != 1 || Helpers.Completed != 1)
                             throw new System.InvalidOperationException("lost or duplicated work");
                     }
                     private static async System.Threading.Tasks.Task<int> Direct(Reader reader) { return {{directText}}; }
                     private static async System.Threading.Tasks.Task<int?> Optional(Reader maybe) { Reader.OptionalTarget = maybe; return {{conditionalText}}; }
-                    public static async System.Threading.Tasks.Task<string> Execute()
+                    public static async System.Threading.Tasks.Task<string> Execute(System.Threading.CancellationToken lifetime)
                     {
+                        Helpers.Lifetime = lifetime;
                         var reader = new Reader();
                         await Check(() => Direct(reader));
                         await Check(() => {{liftText}});
@@ -200,9 +242,27 @@ public sealed class AsyncPromotionRuntimeBoundaryTests
                         await Check(async () => (await Optional(reader)).Value);
                         Helpers.Reset();
                         var dropped = reader.DropWork();
-                        await Helpers.Started.Task.WaitAsync(System.TimeSpan.FromSeconds(5));
-                        if(dropped.IsCompleted) throw new System.InvalidOperationException("orphaned drop");
-                        Helpers.Gate.SetResult(7);
+                        var gate = Helpers.Gate;
+                        System.Exception failure = null;
+                        try
+                        {
+                            await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
+                                Helpers.Started.Task, dropped, Helpers.Lifetime);
+                            if(dropped.IsCompleted) throw new System.InvalidOperationException("orphaned drop");
+                        }
+                        catch(System.Exception error)
+                        {
+                            failure = error;
+                            throw;
+                        }
+                        finally
+                        {
+                            gate.TrySetResult(7);
+                            if(failure is not null)
+                            {
+                                await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(dropped, System.TimeSpan.FromSeconds(5), failure);
+                            }
+                        }
                         await dropped;
                         if(Helpers.Completed != 1 || Helpers.Calls != 1 || Reader.Captures != 1 || Reader.MaybeCalls != 2)
                             throw new System.InvalidOperationException("completion accounting");

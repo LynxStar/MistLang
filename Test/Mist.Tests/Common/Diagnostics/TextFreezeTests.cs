@@ -74,23 +74,7 @@ public sealed class TextFreezeTests
             yield break;
         }
 
-        if(entry.Field == "ProgramAnalysisDiagnostics.InconsistentAccessibility")
-        {
-            yield return (entry.Field,
-            [new EnumValue("arg0"), new OptionalValue(SlotKind.Type, new TypeValue("arg1", "arg1")),
-             new OptionalValue(SlotKind.Symbol, null), new EnumValue("arg2"), new NameValue("arg3")]);
-            yield return (entry.Field,
-            [new EnumValue("arg0"), new OptionalValue(SlotKind.Type, null),
-             new OptionalValue(SlotKind.Symbol, new SymbolValue("arg1", "arg1")), new EnumValue("arg2"), new NameValue("arg3")]);
-            yield break;
-        }
-
-        if(entry.Field is "ProgramAnalysisDiagnostics.ConstraintStrengthened"
-            or "ProgramAnalysisDiagnostics.ConstraintNotSatisfied"
-            or "ProgramAnalysisDiagnostics.SlotConstraintStrengthened"
-            or "ProgramAnalysisDiagnostics.TypeSlotConstraintNotSatisfied"
-            or "ProgramAnalysisDiagnostics.DependentArgumentNotAssignable"
-            or "ProgramAnalysisDiagnostics.DependentForwardNotConvertible")
+        if(Enumerable.Range(0, descriptor.Slots.Length).Any(i => StartsAlternativePair(descriptor, i)))
         {
             yield return (entry.Field, Alternatives(descriptor, types: true));
             yield return (entry.Field, Alternatives(descriptor, types: false));
@@ -120,7 +104,7 @@ public sealed class TextFreezeTests
         for(var i = 0; i < descriptor.Slots.Length; i++, originalIndex++)
         {
             var slot = descriptor.Slots[i];
-            if(slot is { Kind: SlotKind.Optional, ElementKind: SlotKind.Type })
+            if(StartsAlternativePair(descriptor, i))
             {
                 arguments.Add(Frozen(SlotKind.Optional, SlotKind.Type, originalIndex, present: types));
                 arguments.Add(Frozen(SlotKind.Optional, descriptor.Slots[++i].ElementKind, originalIndex, present: !types));
@@ -132,6 +116,17 @@ public sealed class TextFreezeTests
         }
 
         return arguments.ToImmutable();
+    }
+
+    /// <summary>
+    /// Every reporting site fills exactly one slot of such a pair, so the two share one argN index and
+    /// both choices render the descriptor's single row; tools/diagnostics/freeze_table.py applies the same rule.
+    /// </summary>
+    private static bool StartsAlternativePair(MistDiagnostic descriptor, int index)
+    {
+        return descriptor.Slots[index] is { Kind: SlotKind.Optional, ElementKind: SlotKind.Type }
+            && index + 1 < descriptor.Slots.Length
+            && descriptor.Slots[index + 1].Kind == SlotKind.Optional;
     }
 
     private static SlotValue Frozen(SlotKind kind, SlotKind? elementKind, int index, bool present)

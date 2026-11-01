@@ -314,6 +314,7 @@ internal static partial class PatternBinder
         {
             return new TypeTestPattern(node, tested, binding, constituent: null, refinement)
             {
+                ScrutineeType = scrutineeType,
                 TestsAbsence = OptionalUnion.IsOptional(scrutineeType) && OptionalUnion.IsVoid(tested),
                 IsFailed = isFailed,
             };
@@ -321,12 +322,12 @@ internal static partial class PatternBinder
 
         if(MatchConstituent(union, tested) is { } constituent)
         {
-            return new TypeTestPattern(node, tested, binding, constituent, refinement) { IsFailed = isFailed };
+            return new TypeTestPattern(node, tested, binding, constituent, refinement) { ScrutineeType = scrutineeType, IsFailed = isFailed };
         }
 
         context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, DiagnosticSnapshot.Type(tested, tested.Name), DiagnosticSnapshot.Type(union, union.Name));
 
-        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { IsFailed = true };
+        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { ScrutineeType = scrutineeType, IsFailed = true };
     }
 
     private static Pattern? BindTuplePattern(

@@ -2428,7 +2428,7 @@ internal static partial class BodyEmitter
 
         if(typeTest is { Constituent: null, Binding: null } && OptionalUnion.IsVoid(typeTest.NarrowedType))
         {
-            writer.Append("(null or Standard.Void)");
+            writer.Append(VoidPatterns.IsUnitTest(typeTest) ? "{ }" : "(null or Standard.Void)");
             return;
         }
 
@@ -2609,7 +2609,7 @@ internal static partial class BodyEmitter
             writer.Append($"{TypeNameEmitter.EmitAsPatternType(merged.NarrowedType)} ");
             shape = members;
         }
-        else if(property.TypeTest is { } typeTest)
+        else if(property.TypeTest is { } typeTest && !VoidPatterns.IsUnitTest(typeTest))
         {
             EmitTypeTest(typeTest, hoisted, writer, diagnostics);
             writer.Append(typeTest.Refinement is null && !typeTest.TestsAbsence ? " " : " and ");

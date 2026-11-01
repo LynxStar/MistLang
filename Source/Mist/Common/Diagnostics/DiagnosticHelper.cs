@@ -45,6 +45,20 @@ public static class DiagnosticHelper
             : new OriginResolution(new Absent(AbsenceReason.OutOfBounds), frames, fault);
     }
 
+    /// <summary>
+    /// The position the text formatter shows for a place, so that a message quoting a line agrees
+    /// with the location printed before it: in a translated text that is the original's, never the
+    /// translated file's, which the user did not write.
+    /// </summary>
+    public static LinePosition? ShownStart(Location location)
+    {
+        return Place(location).Location switch
+        {
+            GeneratedLocation generated => generated.Mapped?.Lines?.Start,
+            var placed => placed.Lines?.Start,
+        };
+    }
+
     private static Location Translated(Location location)
     {
         return location switch

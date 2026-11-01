@@ -160,6 +160,36 @@ public sealed class LocationResolutionTests
         Assert.Equal(new Absent(AbsenceReason.OutOfBounds), admitted[1].Location);
     }
 
+    [Theory]
+    [InlineData(31, true, "Counter.razor(4,9)", 4)]
+    [InlineData(0, true, "Counter.razor(3,1)", 3)]
+    [InlineData(31, false, "out/translated/Counter.razor.mist(3,9)", 3)]
+    public void AMessageQuotesTheLineItsLocationShows(int offset, bool mapped, string shown, int line)
+    {
+        var razor = new Text("Counter.razor", "<h1>Counter</h1>\n\n@code {\n    int count;\n}\n");
+        const string header = "public class Counter\n{\n    ";
+        var code = razor.Contents.IndexOf("@code", StringComparison.Ordinal);
+        var member = razor.Contents.IndexOf("int count;", StringComparison.Ordinal);
+        var contents = header + "int count;\n}\n";
+        var translated = mapped
+            ? new Text("out/translated/Counter.razor.mist", contents)
+            {
+                Origin = new([
+                    new OriginSegment(0, header.Length, razor, code, razor.Contents.Length - code, Verbatim: false),
+                    new OriginSegment(header.Length, 10, razor, member, 10, Verbatim: true),
+                    new OriginSegment(header.Length + 10, 3, razor, 0, 0, Verbatim: false),
+                ]),
+            }
+            : new Text("out/translated/Counter.razor.mist", contents);
+        var point = new SourcePoint(new SourceIdentity(translated), offset);
+        var bag = new DiagnosticBag(PipelineStage.Parsing);
+
+        bag.ReportTyped(ParserDiagnostics.ParseIncomplete, point, new QuantityValue(DiagnosticHelper.ShownStart(point)!.Value.Line));
+
+        Assert.Equal($"{shown}: error MIST0123: Parser did not consume all input. Unparseable content begins at line {line}.",
+            DiagnosticFormatter.Format(Assert.Single(bag.ToImmutableArray())));
+    }
+
     [Fact]
     public void TestAndUnattachedOriginsAreAbsentWithTheirReason()
     {

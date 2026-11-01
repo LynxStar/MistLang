@@ -96,9 +96,9 @@ public sealed class MistParser : IParser
 
             if(lastPos < contentTokenCount)
             {
-                var unconsumedToken = defaultTokens[lastPos];
+                var unconsumed = TokenLocation(tokens.Source, defaultTokens[lastPos], point: true);
 
-                diagnostics.ReportTyped(ParserDiagnostics.ParseIncomplete, TokenLocation(tokens.Source, unconsumedToken, point: true), new QuantityValue(unconsumedToken.Start.Line));
+                diagnostics.ReportTyped(ParserDiagnostics.ParseIncomplete, unconsumed, new QuantityValue(DiagnosticHelper.ShownStart(unconsumed)?.Line ?? defaultTokens[lastPos].Start.Line));
             }
         }
 

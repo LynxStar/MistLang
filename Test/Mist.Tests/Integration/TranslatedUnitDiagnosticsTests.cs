@@ -50,6 +50,34 @@ public sealed class TranslatedUnitDiagnosticsTests
         Assert.EndsWith(" (translated: out/translated/Components/Counter.razor.mist(5,9))", DiagnosticFormatter.Format(reported, verbose: true));
     }
 
+    [Fact]
+    public void AKeywordNamedFieldInACodeBlockQuotesTheRazorLineItsLocationShows()
+    {
+        const string field = "private int when;";
+        var razor = new SourceText("Components/Counter.razor", "<h1>Counter</h1>\n\n<p>@when</p>\n\n@code {\n    " + field + "\n}\n");
+        const string header = "using Microsoft.AspNetCore.Components;\n\npublic class Counter : ComponentBase\n{\n";
+        var code = razor.Contents.IndexOf("@code", StringComparison.Ordinal);
+        var block = razor.Contents.LastIndexOf('}') + 1 - code;
+        var member = razor.Contents.IndexOf(field, StringComparison.Ordinal);
+        var translated = new SourceText("out/translated/Components/Counter.razor.mist", header + "    " + field + "\n}\n")
+        {
+            Origin = new([
+                new OriginSegment(0, header.Length, razor, 0, 0, Verbatim: false),
+                new OriginSegment(header.Length, 4, razor, code, block, Verbatim: false),
+                new OriginSegment(header.Length + 4, field.Length, razor, member, field.Length, Verbatim: true),
+                new OriginSegment(header.Length + 4 + field.Length, 1, razor, code, block, Verbatim: false),
+                new OriginSegment(header.Length + 5 + field.Length, 2, razor, 0, 0, Verbatim: false),
+            ]),
+        };
+        var diagnostics = new DiagnosticBag();
+
+        _ = new MistParser().Parse(new MistLexer().Lex(translated, diagnostics), diagnostics);
+
+        var reported = Assert.Single(diagnostics.ToImmutableArray(), diagnostic => diagnostic.Number.Value == "MIST0123");
+        Assert.Equal("Components/Counter.razor(1,1): error MIST0123: Parser did not consume all input. Unparseable content begins at line 1."
+            + " (translated: out/translated/Components/Counter.razor.mist(3,1))", DiagnosticFormatter.Format(reported, verbose: true));
+    }
+
     private static ImmutableArray<Diagnostic> Build(SourceText source)
     {
         var parseDiagnostics = new DiagnosticBag();

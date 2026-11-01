@@ -55,14 +55,12 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
             exitCode == 0,
             $"AllFeaturesV2 failed to compile/run (exit code {exitCode}).\nStderr:\n{stderr}");
 
-        // THE FALSE-POSITIVE HALF OF THE ANALYSIS LEDGER. A Stage 5 rule that fires on a working program
-        // may only WARN, which leaves the exit code clean and stdout untouched -- so without this, a rule
-        // warning on every banked sample would pass. samples/AGENTS.md already holds every sample to zero
-        // warnings; this is where that is enforced.
-        var warnings = stderr.Split('\n').Where(line => Regex.IsMatch(line, @": warning [A-Z0-9_]+:")).ToList();
+        // Warnings and informational diagnostics leave exit code and stdout unchanged, so the
+        // baseline alone cannot enforce the samples' zero-diagnostic contract.
+        var diagnostics = stderr.Split('\n').Where(line => Regex.IsMatch(line, @"(?:^|: )(?:warning|info) [A-Z0-9_]+:")).ToList();
         Assert.True(
-            warnings.Count == 0,
-            $"AllFeaturesV2 compiled with warnings:\n{string.Join("\n", warnings)}");
+            diagnostics.Count == 0,
+            $"AllFeaturesV2 compiled with diagnostics:\n{string.Join("\n", diagnostics)}");
 
         var expected = NormalizeLineEndings(await File.ReadAllTextAsync(baselineFile));
         var actual = NormalizeLineEndings(stdout);
@@ -96,6 +94,10 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         Assert.Matches(@"Passed:\s+5\b", stdout);
         Assert.Matches(@"Failed:\s+0\b", stdout);
         Assert.DoesNotContain("warning CS", stdout, StringComparison.Ordinal);
+        var diagnostics = stderr.Split('\n').Where(line => Regex.IsMatch(line, @"(?:^|: )(?:warning|info) [A-Z0-9_]+:")).ToList();
+        Assert.True(
+            diagnostics.Count == 0,
+            $"Testing compiled with diagnostics:\n{string.Join("\n", diagnostics)}");
     }
 
     /// <summary>

@@ -55,8 +55,23 @@ internal sealed record CatalogTypeText(string Name, ImmutableArray<string> Argum
         }
 
         segments.Add(new CatalogTypeSegment(name.ToString(), arguments.ToImmutable()));
+        return From(segments.ToImmutable());
+    }
+
+    public CatalogTypeText Qualifier()
+    {
+        return From([.. Segments.Take(Segments.Length - 1)]);
+    }
+
+    public CatalogTypeText Member()
+    {
+        return From([Segments[^1]]);
+    }
+
+    private static CatalogTypeText From(ImmutableArray<CatalogTypeSegment> segments)
+    {
         return new CatalogTypeText(string.Join('.', segments.Select(segment => segment.Name)),
-            [.. segments.SelectMany(segment => segment.Arguments)], segments.ToImmutable());
+            [.. segments.SelectMany(segment => segment.Arguments)], segments);
     }
 
     public ImmutableArray<string> ArgumentsFor(ImmutableArray<ImmutableArray<string>> typeParameterScopes)

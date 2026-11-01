@@ -57,6 +57,72 @@ public sealed class CatalogBaseLookupTests
         Assert.Null(lookup.Resolve("Missing", ["App.Sub", "App"]));
     }
 
+    [Theory]
+    [InlineData(false, "Sub<string>.Base", "App.Box.Base", "string")]
+    [InlineData(false, "Sub2<int>.Base", "App.Box.Base", "int")]
+    [InlineData(false, "App.Sub2<int>.Base", "App.Box.Base", "int")]
+    [InlineData(false, "Box<string>.Base", "App.Box.Base", "string")]
+    [InlineData(false, "Own<string>.Base", "App.Own.Base", "string")]
+    [InlineData(true, "Sub<string>.Inner", "Vendor.MatrixBox.Inner", "string")]
+    [InlineData(true, "Sub2<int>.Inner", "Vendor.MatrixBox.Inner", "int")]
+    public void AQualifiedNameFindsItsNestedTypeThroughTheQualifiersBases(bool clr, string text, string fullName, string argument)
+    {
+        var declarations = QualifiedChain(clr);
+        using var ambient = new ComponentTypeSource();
+        var lookup = new CatalogBaseLookup(declarations, name => CatalogClrTypeLookup.Find(name, ambient.FindClrType));
+
+        var resolved = lookup.Resolve(text, ["App"]);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(fullName, resolved.FullName);
+        Assert.Equal<string>([argument], resolved.Arguments);
+        Assert.Equal(clr, resolved.Clr is not null);
+    }
+
+    [Fact]
+    public void AQualifiedClrNameFindsItsNestedTypeThroughTheClrBaseChain()
+    {
+        Type[] types = [typeof(ClrDerived<>), typeof(ClrBox<>)];
+        var lookup = new CatalogBaseLookup(new Dictionary<string, MistClass>(),
+            name => CatalogClrTypeLookup.Find(name, (candidate, _) => types.FirstOrDefault(type =>
+                ClrTypeText.Name(type) == candidate || type.Name.Split('`')[0] == candidate)));
+
+        var resolved = lookup.Resolve("ClrDerived<string>.Inner", ["App"]);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(typeof(ClrBox<>.Inner), resolved.Clr);
+        Assert.Equal<string>(["string"], resolved.Arguments);
+    }
+
+    [Theory]
+    [InlineData(false, "Sub<string>.Missing")]
+    [InlineData(false, "Cycle<string>.Base")]
+    [InlineData(false, "Missing<string>.Base")]
+    [InlineData(true, "Sub<string>.Base")]
+    public void AQualifiedNameMissingFromTheQualifiersBaseChainStaysUnresolved(bool clr, string text)
+    {
+        var declarations = QualifiedChain(clr);
+        using var ambient = new ComponentTypeSource();
+        var lookup = new CatalogBaseLookup(declarations, name => CatalogClrTypeLookup.Find(name, ambient.FindClrType));
+
+        Assert.Null(lookup.Resolve(text, ["App"]));
+    }
+
+    private static Dictionary<string, MistClass> QualifiedChain(bool clr)
+    {
+        MistClass[] declarations =
+        [
+            Declaration("App.Box", [], [["T"]]),
+            Declaration("App.Box.Base", [], [["T"], []]),
+            Declaration("App.Sub", [clr ? "Vendor.MatrixBox<S>" : "Box<S>"], [["S"]]),
+            Declaration("App.Sub2", ["Sub<U>"], [["U"]]),
+            Declaration("App.Own", ["Box<O>"], [["O"]]),
+            Declaration("App.Own.Base", [], [["O"], []]),
+            Declaration("App.Cycle", ["Cycle<C>"], [["C"]]),
+        ];
+        return declarations.ToDictionary(declaration => declaration.FullName);
+    }
+
     internal sealed class ClrDerived<T> : ClrBox<T>;
 
     internal class ClrBox<T>

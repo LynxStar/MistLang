@@ -41,7 +41,9 @@ internal sealed class CatalogBaseLookup(IReadOnlyDictionary<string, MistClass> c
                 }
             }
 
-            return null;
+            return type.Segments.Length > 1 && Resolve(type.Qualifier(), scope, visiting) is { } qualifier
+                ? NestedInBases(qualifier, type.Member(), visiting)
+                : null;
         }
         finally
         {

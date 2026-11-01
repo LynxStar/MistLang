@@ -168,6 +168,61 @@ public sealed class NestedBaseCatalogTests
         Assert.Equal(1, Resolved(catalog, "Sub.D").TypeParameterCount);
     }
 
+    [Theory]
+    [InlineData(false, 1, false)]
+    [InlineData(false, 1, true)]
+    [InlineData(false, 2, false)]
+    [InlineData(false, 2, true)]
+    [InlineData(true, 1, false)]
+    [InlineData(true, 1, true)]
+    [InlineData(true, 2, false)]
+    [InlineData(true, 2, true)]
+    public void AQualifiedNestedBaseIsFoundThroughTheQualifiersBaseChain(bool clr, int depth, bool componentFile)
+    {
+        var ast = new CatalogAst();
+        var nested = CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), ParameterMembers(ast, "T"));
+        var box = CatalogAst.Class("Box", members: [Nested(nested)], typeParameters: ["T"]);
+        var sub = CatalogAst.Class("Sub", ast.BaseText(clr ? "Vendor.MatrixBox<S>" : "Box<S>"), typeParameters: ["S"]);
+        var sub2 = CatalogAst.Class("Sub2", ast.BaseText("Sub<U>"), typeParameters: ["U"]);
+        var argument = depth == 1 ? "string" : "int";
+        var baseText = (depth == 1 ? "Sub<string>." : "Sub2<int>.") + (clr ? "Inner" : "Base");
+        var shell = CatalogAst.Class("Shell", ast.BaseText(baseText));
+        var declarations = new List<TypeBodyDeclarationNode> { sub, sub2 };
+        if(!clr)
+        {
+            declarations.Add(box);
+        }
+
+        if(!componentFile)
+        {
+            declarations.Add(shell);
+        }
+
+        var catalog = Build([ast.Unit("Qualified.mist", [.. declarations])], componentFile ? baseText : "Shell");
+
+        AssertParameters(Resolved(catalog, "Page").Parameters, argument, clr, generic: true);
+        if(!componentFile)
+        {
+            Assert.Contains(ParameterFacts.Declared("Value", argument), Resolved(catalog, "Shell").Parameters);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AQualifiedNameMissingFromTheQualifiersBaseChainStaysUnresolved(bool componentFile)
+    {
+        var ast = new CatalogAst();
+        var nested = CatalogAst.Class("Base", ast.Base($"{Components}.ComponentBase"), ParameterMembers(ast, "T"));
+        var box = CatalogAst.Class("Box", members: [Nested(nested)], typeParameters: ["T"]);
+        var sub = CatalogAst.Class("Sub", ast.BaseText("Box<S>"), typeParameters: ["S"]);
+        var shell = CatalogAst.Class("Shell", ast.BaseText("Sub<string>.Missing"));
+        var catalog = Build([ast.Unit("Missing.mist", box, sub, shell)], componentFile ? "Sub<string>.Missing" : "Shell");
+
+        Assert.Equal<ParameterFacts>([new ParameterFacts("Local", "int", ParameterShape.Plain)], Resolved(catalog, "Page").Parameters);
+        Assert.NotEqual(ResolutionKind.Component, catalog.Resolve("Shell", new ComponentScope(["App"])).Kind);
+    }
+
     private static ImmutableArray<MemberDeclarationNode> ParameterMembers(CatalogAst ast, string argument)
     {
         return

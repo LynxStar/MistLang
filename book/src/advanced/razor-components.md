@@ -31,8 +31,8 @@ follows: the project's namespace root, then the file's folders. So `Components/C
 every component in its folder and below.
 
 The translated Mist is written to `out/<project>/translated/<path>.razor.mist`, beside the emitted C#.
-You never need to read it, but `--verbose` names the translated line next to each diagnostic, so a
-translator defect can be traced.
+For a diagnostic with a mapped generated location, `--verbose` appends the translated path, line and
+column after the original location, so a translator defect can be traced.
 
 ## Parameters
 
@@ -78,18 +78,26 @@ it. A Razor comment, `@* ... *@`, produces nothing.
 {{#endtab }}
 {{#endtabs }}
 
-A component tag's attributes are typed by the component's parameters, as Razor types them.
+A component tag's attributes are typed by the component's parameters.
 `Title="Counter says"` is a string literal because `Title` is a `string`. `Count="count"` is the field
-`count` because `Count` is not a string. The tag's content becomes the `ChildContent` fragment.
+`count` because `Count` is not a string. The catalog decides the parameter's shape from its type's text:
+a Mist alias of `string` has shape `Plain`, so its attribute value is read as an expression. This departs
+from Razor, which uses the resolved type. The tag's content becomes the `ChildContent` fragment.
 
 ### What the Markup Lowers To
 
 The render method follows what the Razor compiler does for the same markup, and it was checked against
 that compiler's output:
 
-- Markup with no code and no component in it becomes one `AddMarkupContent` call holding the HTML.
-- An element that contains code or a component opens and closes as a frame, with one `AddAttribute` per
-  attribute.
+- Static markup folds into runs, each written as an `AddMarkupContent` call holding the HTML. An element
+  is static when it contains no code, component or directive attribute, except that an `<option>` with a
+  `<select>` ancestor and its ancestors stay as frames (tag names are case-insensitive). A static node
+  joins its static left sibling only when it has no static content of its own, so static siblings can
+  still produce separate calls.
+- An element that stays as a frame opens and closes explicitly, with one `AddAttribute` per HTML attribute.
+- Text outside an element run and expressions stay in separate calls. Plain text uses `AddContent` with
+  HTML entities decoded; text with a line break, tab, non-ASCII character or undecodable `&` uses
+  `AddMarkupContent`. Each expression uses its own `AddContent` call.
 - Sequence numbers rise in source order, including inside fragments, as Razor assigns them.
 - An HTML comment, `<!-- ... -->`, is dropped as Razor drops it. It makes no call and takes no sequence
   number, and nothing inside it is evaluated.
@@ -165,8 +173,9 @@ The host is an ordinary Mist `Main` using the ASP.NET Core builder:
 
 `Routes.razor` gives the router the application's assembly. In Mist, a type's name followed by a member is
 a static member access on that type, so `App.Assembly` would look for a static `Assembly` on `App`. Naming
-the type alone is its `Type` value. A field holds that value, and the attribute reads `Assembly` from the
-field:
+the type alone is its `Type` value. Only keyword types such as `int` fall back to instance members of
+`Type` when the represented type has no matching static member, which is why `int.Name` works. For `App`,
+a field holds the `Type` value, and the attribute reads `Assembly` from the field:
 
 ```razor
 {{#include ../../snippets/advanced/razor-components/Routes.razor}}
@@ -175,8 +184,10 @@ field:
 When an executable has components and the `Microsoft.AspNetCore.App` reference, `mist build` restores the
 `Microsoft.AspNetCore.App.Internal.Assets` pack. It uses the version of the ASP.NET Core targeting pack the
 reference resolved to, and a `[packages]` entry pins another. The build copies the pack's `_framework/`
-folder, which holds `blazor.web.js`, to `bin/wwwroot/_framework/`, and copies the project's own `wwwroot/`
-to `bin/wwwroot/`. `mist run` starts a program that references `Microsoft.AspNetCore.App` with
+folder, which holds `blazor.web.js`, to `bin/wwwroot/_framework/`, and copies files recursively from the
+root project's own `wwwroot/` to `bin/wwwroot/`. Project files take precedence at matching paths; files
+are copied when missing or older than their source, and stale destination files are not deleted.
+`mist run` starts a program that references `Microsoft.AspNetCore.App` with
 `--contentRoot <bin>`, so `UseStaticFiles` serves the deployed folder. The working directory stays yours,
 and the two extra arguments reach `args`.
 

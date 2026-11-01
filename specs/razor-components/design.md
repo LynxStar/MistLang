@@ -34,7 +34,7 @@ CompilerDriver.Compile                  ClaimedInput[]  CompilationUnit[]
                  │   for each ISourceTranslator of BackendRegistry.Resolve(options.Backend)
                  │       RazorComponentTranslator: RazorParser ─► ComponentCatalog ─► MistWriter + OriginMap
                  ▼
-          TranslatedUnit[] ─► written to out/translated/… ─► lex + parse ─► CompilationUnit[] (joined)
+          TranslatedUnit[] ─► written to out/<project name>/translated/<relative>.mist ─► lex + parse ─► CompilationUnit[] (joined)
                  │
    Stage 4/5/6 unchanged ─► emitted C# ─► Roslyn ─► bin/
                  │
@@ -42,7 +42,7 @@ CompilerDriver.Compile                  ClaimedInput[]  CompilationUnit[]
 ```
 
 A diagnostic anywhere in Stages 2 to 6 whose node came from a translated unit resolves to
-`GeneratedLocation(out/translated/…, native lines, Mapped: SourceRange in the .razor)`, and the formatter
+`GeneratedLocation(out/<project name>/translated/<relative>.mist, native lines, Mapped: SourceRange in the .razor)`, and the formatter
 prints the mapped position.
 
 ## Components and Interfaces
@@ -479,10 +479,6 @@ project outside the repository; `MarkupWhitespaceTests` and `StaticMarkupTests` 
 8. Static HTML is written as Razor writes it: a void element without an end tag, a self-closed non-void one
    with its end tag, an empty attribute value minimized, a single-quoted value in single quotes and every
    other value in double quotes.
-
-Requirement 5.8 says whitespace between the children of the file's root is dropped; the measured output keeps
-it (rule 3), and the translator follows the measurement, which is what the requirement's "as the Razor
-compiler drops it" and the acceptance criterion of task 5 ask.
 
 ### 7. Directives
 

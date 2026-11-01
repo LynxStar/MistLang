@@ -124,8 +124,9 @@ pipeline knowing what it does with them.
    the Claimed_Input, before Stage 4 runs.
 5. IF a Source_Translator reports an error, THEN THE pipeline SHALL stop at the same gate a parse error
    stops at, with every translator diagnostic reported.
-6. THE Compiler_Driver SHALL write each Translated_Unit's text under the output directory, at
-   `translated/<path of the Claimed_Input relative to its project>.mist`, and the Translated_Unit's
+6. THE Compiler_Driver SHALL write each Translated_Unit's text at
+   `out/<project name>/translated/<relative>.mist`, where `out` is the configured output directory and
+   `<relative>` is the path of the Claimed_Input relative to its project, and the Translated_Unit's
    `SourceText.Path` SHALL be that file, so that a generated location names a file a developer can open.
 7. THE progress reporter SHALL report the Translation_Stage as a stage of its own, with the count of
    Claimed_Inputs and of Translated_Units.

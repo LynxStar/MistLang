@@ -1,0 +1,37 @@
+=== Variable Declarations ===
+  explicit int: 42
+  explicit string: hello from TLS
+  explicit bool: True
+  var int: 100
+  var string: inferred
+  var double: 3.14
+=== Expression Statements ===
+  direct call: Console.WriteLine works at top level
+  interpolation: 42 + 100 = 142
+=== Control Flow: if ===
+  if: 42 > 10 is true
+  if: inferredInt equals 100
+=== Control Flow: for ===
+  for iteration: i=0
+  for iteration: i=1
+  for iteration: i=2
+  for iteration: i=3
+  for iteration: i=4
+  for sum 0..4: 10
+=== Control Flow: while ===
+  while iteration: count=0
+  while iteration: count=1
+  while iteration: count=2
+  while final count: 3
+=== Control Flow: foreach ===
+  foreach item: alpha
+  foreach item: beta
+  foreach item: gamma
+=== Implicit args Variable ===
+  args.Length: 0
+  no arguments provided
+=== Type Declarations After Statements ===
+  class instance: TlsHelper(label=top-level)
+  struct instance: (10, 20)
+=== Return with Exit Code ===
+  returning exit code 0

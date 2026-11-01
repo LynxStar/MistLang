@@ -1,0 +1,495 @@
+#!/usr/bin/env python3
+# A standalone acceptance run over the sample suite that cannot silently drop a
+# project or bless a failure: discovery is reconciled against the committed
+# manifest before anything runs, and every runnable sample keeps its own result.
+#
+#   tools/sample-acceptance/run.py [options]
+#   tools/sample-acceptance/run.py selftest
+#
+# The harness runs an arbitrary compiler (--compiler) so the same manifest and
+# expectations can later judge a Mist-hosted compiler without editing this file.
+# It does not build the compiler; point --compiler at one that is already built.
+#
+# Options:
+#   --compiler "<cmd>"   Command that invokes the compiler under test. The verb
+#                        (run/test), sample path and flags are appended. Default:
+#                        the osx/linux mist binary under Source/Mist.CLI/bin if present.
+#   --generation <id>    Generation/host label recorded in the provenance block.
+#   --manifest <path>    Acceptance manifest (default: alongside this script).
+#   --expectations <dir> Directory of committed per-sample expectations.
+#   --out <dir>          Where logs, the report and provenance are written
+#                        (artifacts; default: _runs/<stamp>, gitignored).
+#   --only a,b,c         Run only these project names (by manifest `name`).
+#   --include-network    Also run projects whose role needs network/extra tools
+#                        (the EfCore demonstration); off by default and reported
+#                        as a prerequisite skip, never as a pass.
+#   --capture            Write expectations from this run instead of comparing.
+#                        Seeds or refreshes expectations/<name>.out. Never use to
+#                        paper over a real failure.
+#   --list               Reconcile and print the classification, then stop.
+#   --timeout <seconds>  Per-invocation wall-clock bound (default 600).
+#
+# Exit code is 0 only when reconciliation holds and every executed project passed.
+
+import argparse
+import datetime
+import json
+import os
+import platform
+import re
+import shlex
+import subprocess
+import sys
+import tomllib
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
+SAMPLES_ROOT = os.path.join(REPO_ROOT, "samples")
+
+# A Mist diagnostic on stderr, in the shape the CLI streams it. Shared with the
+# one Tier 6 aggregate test so the standalone runner refuses the same output it does.
+DIAGNOSTIC = re.compile(r"(?:^|: )(?:warning|info|error) [A-Z0-9_]+:")
+
+# Roles and how each is exercised. compare modes: exact | contains | test-tally | none.
+ROLES = {
+    "orchestrator":       {"invocation": "run",  "compare": "exact",      "runs": True},
+    "executable":         {"invocation": "run",  "compare": "exact",      "runs": True},
+    "generator-consumer": {"invocation": "run",  "compare": "exact",      "runs": True},
+    "msbuild-consumer":   {"invocation": "run",  "compare": "contains",   "runs": True},
+    "ef-consumer":        {"invocation": "run",  "compare": "contains",   "runs": True, "network": True},
+    "test-library":       {"invocation": "test", "compare": "test-tally", "runs": True},
+    "library":            {"invocation": None,   "compare": "none",       "runs": False},
+    "composed-library":   {"invocation": None,   "compare": "none",       "runs": False},
+    "source-generator":   {"invocation": None,   "compare": "none",       "runs": False},
+    "csharp-companion":   {"invocation": None,   "compare": "none",       "runs": False, "csproj": True},
+}
+
+
+def normalize(text):
+    return text.replace("\r\n", "\n")
+
+
+def diagnostics_in(stderr):
+    return [line for line in stderr.split("\n") if DIAGNOSTIC.search(line)]
+
+
+def discover_manifests(samples_root):
+    """Every samples/**/mist.toml, as repo-relative directory paths."""
+    found = []
+    for base, _dirs, files in os.walk(samples_root):
+        if "mist.toml" in files:
+            found.append(os.path.relpath(base, REPO_ROOT))
+    return sorted(found)
+
+
+def discover_referenced_csproj(mist_dirs):
+    """C# companion projects reached through a sample's [references]: a reference
+    whose path is a directory holding exactly one .csproj, or a .csproj directly."""
+    companions = set()
+    for rel in mist_dirs:
+        manifest = os.path.join(REPO_ROOT, rel, "mist.toml")
+        with open(manifest, "rb") as handle:
+            data = tomllib.load(handle)
+        for ref in (data.get("references") or {}).values():
+            path = ref.get("path") if isinstance(ref, dict) else None
+            if not path:
+                continue
+            target = os.path.normpath(os.path.join(REPO_ROOT, rel, path))
+            if os.path.isfile(target) and target.endswith(".csproj"):
+                companions.add(os.path.relpath(os.path.dirname(target), REPO_ROOT))
+            elif os.path.isdir(target):
+                csprojs = [f for f in os.listdir(target) if f.endswith(".csproj")]
+                if csprojs and not os.path.exists(os.path.join(target, "mist.toml")):
+                    companions.add(os.path.relpath(target, REPO_ROOT))
+    return sorted(companions)
+
+
+def load_manifest(path):
+    with open(path, "rb") as handle:
+        data = tomllib.load(handle)
+    return data.get("project", [])
+
+
+def reconcile(mist_dirs, companion_dirs, entries):
+    """Pure check that the committed manifest and live discovery agree, so a new,
+    removed, duplicated or unclassified project cannot slip through unnoticed."""
+    problems = []
+    by_path = {}
+    for entry in entries:
+        p = entry.get("path")
+        if p in by_path:
+            problems.append(f"duplicate manifest entry for {p}")
+        by_path[p] = entry
+        if entry.get("role") not in ROLES:
+            problems.append(f"unclassified role {entry.get('role')!r} for {p}")
+
+    mist_entries = {p for p, e in by_path.items() if ROLES.get(e.get("role"), {}).get("csproj") is not True}
+    companion_entries = {p for p, e in by_path.items() if ROLES.get(e.get("role"), {}).get("csproj") is True}
+
+    for p in sorted(set(mist_dirs) - mist_entries):
+        problems.append(f"discovered mist project not in manifest: {p}")
+    for p in sorted(mist_entries - set(mist_dirs)):
+        problems.append(f"manifest mist project not found on disk: {p}")
+    for p in sorted(set(companion_dirs) - companion_entries):
+        problems.append(f"discovered C# companion project not in manifest: {p}")
+    for p in sorted(companion_entries - set(companion_dirs)):
+        problems.append(f"manifest C# companion not found/referenced on disk: {p}")
+
+    return problems
+
+
+def orchestrator_order(program_mist):
+    """The RunDemo call order from AllFeaturesV2's Program.mist -- the order its
+    baseline concatenates the composed samples in."""
+    with open(program_mist, encoding="utf-8") as handle:
+        return re.findall(r"(\w+)\.Program\.RunDemo\(\)", handle.read())
+
+
+def check_aggregate(entries, expectations_dir, baseline, program_mist):
+    """Review the standalone expectations against the aggregate: each composed
+    sample's committed standalone output must appear as a contiguous block in the
+    baseline, and the blocks must appear in orchestrator order. This ties the two
+    together so an aggregate pass and a standalone pass cannot disagree. Samples
+    composed only through the orchestrator (no standalone entry point) have no
+    standalone output to compare, so they are noted and skipped rather than faked.
+    Returns (ok, list-of-notes)."""
+    by_name = {e["name"]: e for e in entries}
+    order = orchestrator_order(program_mist)
+    with open(baseline, encoding="utf-8") as handle:
+        want = normalize(handle.read())
+
+    cursor = 0
+    checked = 0
+    skipped = []
+    problems = []
+    for name in order:
+        entry = by_name.get(name)
+        if entry is None:
+            problems.append(f"orchestrator calls {name}.RunDemo but it is not in the manifest")
+            continue
+        if entry["role"] == "composed-library":
+            skipped.append(f"{name} (composed-only, no standalone output)")
+            continue
+        if entry.get("aggregate_check") is False:
+            skipped.append(f"{name} (standalone output differs from the orchestrator call by design; reviewed against its own program)")
+            continue
+        path = expectation_path(entry, expectations_dir)
+        if not path or not os.path.exists(path):
+            problems.append(f"no committed standalone expectation for composed sample {name}")
+            continue
+        with open(path, encoding="utf-8") as handle:
+            block = normalize(handle.read())
+        if not block.strip():
+            problems.append(f"empty standalone expectation for composed sample {name}")
+            continue
+        at = want.find(block, cursor)
+        if at < 0:
+            problems.append(f"{name}: standalone output is not a block of the baseline at/after offset {cursor}")
+        else:
+            cursor = at + len(block)
+            checked += 1
+
+    notes = [f"{checked} composed standalone expectations matched the baseline in orchestrator order"]
+    if skipped:
+        notes.append(f"{len(skipped)} composed samples not block-cross-checked against the aggregate:")
+        notes.extend(f"    {s}" for s in skipped)
+    notes.extend(problems)
+    return not problems, notes
+
+
+def evaluate(role, exit_code, stdout, stderr, expectation):
+    """Decide a single runnable project's verdict from its captured result.
+    Pure: the bounded self-test drives this with synthetic inputs."""
+    mode = ROLES[role]["compare"]
+    reasons = []
+    diags = diagnostics_in(stderr)
+    if diags:
+        reasons.append(f"{len(diags)} compiler diagnostic(s): {diags[0].strip()}")
+    if exit_code != 0:
+        reasons.append(f"nonzero exit {exit_code}")
+
+    out = normalize(stdout)
+    if mode == "exact":
+        if expectation is None:
+            reasons.append("no committed expectation")
+        elif out != normalize(expectation):
+            reasons.append("stdout does not match expectation")
+    elif mode == "contains":
+        if expectation is None:
+            reasons.append("no committed expectation")
+        else:
+            for want in [l for l in normalize(expectation).split("\n") if l.strip()]:
+                if want not in out:
+                    reasons.append(f"stdout missing expected line: {want!r}")
+    elif mode == "test-tally":
+        if expectation is None:
+            reasons.append("no committed expectation")
+        else:
+            for want in [l for l in normalize(expectation).split("\n") if l.strip()]:
+                if not re.search(want, out):
+                    reasons.append(f"stdout missing expected tally: {want!r}")
+
+    return ("pass" if not reasons else "fail", reasons)
+
+
+def expectation_path(entry, expectations_dir):
+    exp = entry.get("expectation")
+    if not exp:
+        return None
+    if os.path.isabs(exp):
+        return exp
+    if exp.startswith("samples/") or exp.startswith("tools/"):
+        return os.path.join(REPO_ROOT, exp)
+    return os.path.join(expectations_dir, exp)
+
+
+def read_expectation(entry, expectations_dir):
+    path = expectation_path(entry, expectations_dir)
+    if path and os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    return None
+
+
+def compiler_argv(compiler):
+    """A bare path to an existing executable is used verbatim (it may contain
+    spaces); anything else is a command line split the shell's way."""
+    return [compiler] if os.path.exists(compiler) else shlex.split(compiler)
+
+
+def run_project(entry, compiler, out_dir, timeout):
+    role = ROLES[entry["role"]]
+    verb = role["invocation"]
+    name = entry["name"]
+    project_dir = os.path.join(REPO_ROOT, entry["path"])
+    work = os.path.join(out_dir, "scratch", name)
+    os.makedirs(work, exist_ok=True)
+
+    env = dict(os.environ)
+    base = compiler_argv(compiler)
+    if entry["role"] in ("msbuild-consumer", "ef-consumer"):
+        # Documented consumer invocation: run the executable sub-project from the
+        # container, letting the compiler build the C# companion. The nested
+        # `mist build` the bridge runs is the compiler under test, not PATH's mist.
+        cwd = os.path.dirname(project_dir)
+        sub = os.path.basename(project_dir)
+        env["MistCommand"] = shlex.join(base)
+        argv = base + [verb, sub, "--quiet"]
+    else:
+        cwd = REPO_ROOT
+        argv = base + [verb, entry["path"], "--quiet",
+                       "--output", os.path.join(work, "out"),
+                       "--bin", os.path.join(work, "bin")]
+
+    try:
+        proc = subprocess.run(argv, cwd=cwd, env=env, capture_output=True,
+                              text=True, timeout=timeout)
+        return proc.returncode, proc.stdout, proc.stderr
+    except subprocess.TimeoutExpired as ex:
+        return 124, ex.stdout or "", (ex.stderr or "") + f"\n[harness] timed out after {timeout}s"
+
+
+def compiler_identity(compiler):
+    for verb in ("version", "--version"):
+        try:
+            proc = subprocess.run(compiler_argv(compiler) + [verb], cwd=REPO_ROOT,
+                                  capture_output=True, text=True, timeout=120)
+            if proc.returncode == 0 and proc.stdout.strip():
+                return proc.stdout.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    return "unknown"
+
+
+def git(*args):
+    try:
+        return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True,
+                              text=True, timeout=60).stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return "unknown"
+
+
+def provenance(compiler, generation):
+    return {
+        "generation": generation,
+        "capturedAtUtc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "mistRevision": git("rev-parse", "HEAD"),
+        "stormPin": git("-C", "Source/Storm.SourceGenerator", "rev-parse", "HEAD"),
+        "compilerCommand": compiler,
+        "compilerIdentity": compiler_identity(compiler),
+        "dotnetSdk": subprocess.run(["dotnet", "--version"], cwd=REPO_ROOT,
+                                    capture_output=True, text=True).stdout.strip(),
+        "runtimeIdentifier": _rid(),
+        "os": platform.platform(),
+    }
+
+
+def _rid():
+    system = {"Darwin": "osx", "Linux": "linux", "Windows": "win"}.get(platform.system(), platform.system())
+    arch = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64", "AMD64": "x64"}.get(platform.machine(), platform.machine())
+    return f"{system}-{arch}"
+
+
+def default_compiler():
+    for rid in (_rid(),):
+        for cfg in ("Release", "Debug"):
+            cand = os.path.join(REPO_ROOT, "Source", "Mist.CLI", "bin", cfg, "net10.0", rid, "mist")
+            if os.path.exists(cand):
+                return cand
+            if os.path.exists(cand + ".exe"):
+                return cand + ".exe"
+    return None
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description="Sample acceptance harness")
+    parser.add_argument("--compiler", default=None)
+    parser.add_argument("--generation", default="csharp-host")
+    parser.add_argument("--manifest", default=os.path.join(SCRIPT_DIR, "manifest.toml"))
+    parser.add_argument("--expectations", default=os.path.join(SCRIPT_DIR, "expectations"))
+    parser.add_argument("--out", default=None)
+    parser.add_argument("--only", default=None)
+    parser.add_argument("--include-network", action="store_true")
+    parser.add_argument("--capture", action="store_true")
+    parser.add_argument("--list", action="store_true")
+    parser.add_argument("--check-aggregate", action="store_true",
+                        help="only verify the baseline equals the composed standalone expectations, then stop")
+    parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument("--jobs", type=int, default=4,
+                        help="parallel sample runs (safe with a prebuilt binary: Standard is read-only, scratch is per-sample)")
+    args = parser.parse_args(argv)
+
+    entries = load_manifest(args.manifest)
+    mist_dirs = discover_manifests(SAMPLES_ROOT)
+    companion_dirs = discover_referenced_csproj(mist_dirs)
+    problems = reconcile(mist_dirs, companion_dirs, entries)
+
+    print(f"discovered: {len(mist_dirs)} mist projects, {len(companion_dirs)} C# companions")
+    print(f"manifest:   {len(entries)} entries")
+    if problems:
+        print("RECONCILIATION FAILED:")
+        for p in problems:
+            print(f"  - {p}")
+        if not args.list:
+            return 2
+    else:
+        print("reconciliation: OK (manifest and discovery agree)")
+
+    if args.list:
+        for entry in entries:
+            print(f"  {entry['role']:<18} {entry['name']:<28} {entry['path']}")
+        return 0 if not problems else 2
+
+    if args.check_aggregate:
+        ok, notes = check_aggregate(
+            entries, args.expectations,
+            os.path.join(SAMPLES_ROOT, "__baselines__", "AllFeaturesV2.out"),
+            os.path.join(SAMPLES_ROOT, "AllFeaturesV2", "Program.mist"))
+        print("aggregate cross-check: " + ("OK" if ok else "MISMATCH"))
+        for note in notes:
+            print(f"  - {note}")
+        return 0 if (ok and not problems) else 1
+
+    compiler = args.compiler or default_compiler()
+    if not compiler:
+        print("ERROR: no --compiler given and no built mist binary found. "
+              "Build the CLI (dotnet build Mist.slnx) or pass --compiler.", file=sys.stderr)
+        return 2
+
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    out_dir = args.out or os.path.join(SCRIPT_DIR, "_runs", stamp)
+    os.makedirs(os.path.join(out_dir, "logs"), exist_ok=True)
+
+    only = set(args.only.split(",")) if args.only else None
+    prov = provenance(compiler, args.generation)
+    selected = [e for e in entries if not (only and e["name"] not in only)]
+
+    def run_one(entry):
+        name, role = entry["name"], entry["role"]
+        exit_code, stdout, stderr = run_project(entry, compiler, out_dir, args.timeout)
+        with open(os.path.join(out_dir, "logs", f"{name}.stdout"), "w", encoding="utf-8") as fh:
+            fh.write(stdout)
+        with open(os.path.join(out_dir, "logs", f"{name}.stderr"), "w", encoding="utf-8") as fh:
+            fh.write(stderr)
+
+        capturable = (args.capture and ROLES[role]["compare"] == "exact"
+                      and os.path.abspath(expectation_path(entry, args.expectations))
+                      .startswith(os.path.abspath(args.expectations) + os.sep))
+        if capturable:
+            dest = expectation_path(entry, args.expectations)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with open(dest, "w", encoding="utf-8") as fh:
+                fh.write(normalize(stdout))
+            status, reasons = ("captured", [f"wrote {os.path.relpath(dest, REPO_ROOT)}"])
+            if diagnostics_in(stderr) or exit_code != 0:
+                status, reasons = "fail", evaluate(role, exit_code, stdout, stderr, normalize(stdout))[1]
+        else:
+            status, reasons = evaluate(role, exit_code, stdout, stderr,
+                                       read_expectation(entry, args.expectations))
+        print(f"  [{status}] {name}", flush=True)
+        return {"name": name, "role": role, "path": entry["path"],
+                "exit": exit_code, "status": status, "reasons": reasons}
+
+    results = {}
+    runnable = []
+    for entry in selected:
+        spec = ROLES[entry["role"]]
+        if not spec["runs"]:
+            results[entry["name"]] = {"name": entry["name"], "role": entry["role"], "path": entry["path"],
+                                      "status": "exercised-via-consumer",
+                                      "reasons": [entry.get("note", "built/exercised through its consumer")]}
+        elif spec.get("network") and not args.include_network:
+            results[entry["name"]] = {"name": entry["name"], "role": entry["role"], "path": entry["path"],
+                                      "status": "skipped-prerequisite",
+                                      "reasons": ["needs network and dotnet-ef; rerun with --include-network"]}
+        else:
+            runnable.append(entry)
+
+    print(f"running {len(runnable)} projects with {args.jobs} job(s)...", flush=True)
+    if args.jobs > 1:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            for res in pool.map(run_one, runnable):
+                results[res["name"]] = res
+    else:
+        for entry in runnable:
+            res = run_one(entry)
+            results[res["name"]] = res
+
+    results = [results[e["name"]] for e in selected if e["name"] in results]
+    agg_ok, agg_notes = check_aggregate(
+        entries, args.expectations,
+        os.path.join(SAMPLES_ROOT, "__baselines__", "AllFeaturesV2.out"),
+        os.path.join(SAMPLES_ROOT, "AllFeaturesV2", "Program.mist"))
+    report = {"provenance": prov, "reconciliation": problems or "ok",
+              "aggregateCrossCheck": {"ok": agg_ok, "notes": agg_notes}, "results": results}
+    with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2)
+
+    counts = {}
+    for r in results:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    print(f"\ngeneration: {prov['generation']}  mist {prov['mistRevision'][:12]}  "
+          f"{prov['runtimeIdentifier']}  sdk {prov['dotnetSdk']}")
+    print("results: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+    print("aggregate cross-check: " + ("OK" if agg_ok else "MISMATCH"))
+    for note in agg_notes:
+        print(f"  - {note}")
+    for r in results:
+        if r["status"] in ("fail", "captured") or r["status"] == "skipped-prerequisite":
+            for reason in r["reasons"]:
+                print(f"  [{r['status']}] {r['name']}: {reason}")
+    print(f"\nreport: {os.path.join(out_dir, 'report.json')}")
+    print(f"logs:   {os.path.join(out_dir, 'logs')}")
+
+    failed = sum(1 for r in results if r["status"] == "fail")
+    agg_fail = (not agg_ok) and not args.capture
+    return 0 if (failed == 0 and not problems and not agg_fail) else 1
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "selftest":
+        sys.path.insert(0, SCRIPT_DIR)
+        import selftest
+        sys.exit(selftest.main())
+    sys.exit(main(sys.argv[1:]))

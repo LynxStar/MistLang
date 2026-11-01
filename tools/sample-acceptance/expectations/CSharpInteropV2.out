@@ -1,0 +1,12 @@
+--- C# Interop V2 ---
+json=[1,2,3]
+query=?id=42
+hasValue=True
+streamLength=2
+canRead=True
+encodedLength=2
+decoded=Hi
+fileName=mist.exe
+fileExt=.exe
+efConfigured=True
+--- C# Interop V2 Done ---

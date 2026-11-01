@@ -1,0 +1,716 @@
+# Sample acceptance manifest -- the authoritative roster of every sample project
+# and C# companion the standalone harness (run.py) must account for. It is executable
+# acceptance input, not a second ledger of outstanding work or asserted greenness.
+#
+# run.py reconciles this list against live discovery (samples/**/mist.toml and the
+# C# projects reached through their [references]) before any sample runs, so a
+# newly added, removed, duplicated or unclassified project fails the run instead of
+# silently disappearing. Use `run.py --list` to see the reconciliation and roster.
+#
+# Roles (see run.py ROLES):
+#   orchestrator       AllFeaturesV2 -- run; compared to its committed baseline.
+#   executable         standalone `mist run`; stdout compared exactly to expectations/<name>.out.
+#   generator-consumer `mist run`; drives a source generator through the generator protocol.
+#   msbuild-consumer   `mist run` of a sub-project that references a C# project (builds MSBuild).
+#   ef-consumer        manual EF demonstration; needs network + dotnet-ef (run only with --include-network).
+#   test-library       no entry point; verdict from `mist test` against a committed tally.
+#   library            Mist library with no entry point; built/exercised through its consumer.
+#   source-generator   a generator executable; exercised through its consumer, not as a demo.
+#   csharp-companion   a .csproj the compiler builds while compiling its consumer.
+#
+# Expectations are repo-relative when they start with samples/ or tools/, otherwise
+# resolved under expectations/. The orchestrator reuses samples/__baselines__/AllFeaturesV2.out;
+# it is never duplicated here.
+
+schema = 1
+
+[[project]]
+path = "samples/AbstractTypes"
+name = "AbstractTypes"
+role = "executable"
+expectation = "AbstractTypes.out"
+
+[[project]]
+path = "samples/AdhocRefinementConstraints"
+name = "AdhocRefinementConstraints"
+role = "executable"
+expectation = "AdhocRefinementConstraints.out"
+
+[[project]]
+path = "samples/AllFeaturesV2"
+name = "AllFeaturesV2"
+role = "orchestrator"
+expectation = "samples/__baselines__/AllFeaturesV2.out"
+note = "the one Tier 6 orchestrator; its baseline is the established contract"
+
+[[project]]
+path = "samples/AnonymousTypes"
+name = "AnonymousTypes"
+role = "executable"
+expectation = "AnonymousTypes.out"
+
+[[project]]
+path = "samples/ArityOverloads"
+name = "ArityOverloads"
+role = "executable"
+expectation = "ArityOverloads.out"
+
+[[project]]
+path = "samples/ArrayBoundsFlowAnalysis"
+name = "ArrayBoundsFlowAnalysis"
+role = "executable"
+expectation = "ArrayBoundsFlowAnalysis.out"
+
+[[project]]
+path = "samples/ArrayLiterals"
+name = "ArrayLiterals"
+role = "executable"
+expectation = "ArrayLiterals.out"
+
+[[project]]
+path = "samples/AsOperator"
+name = "AsOperator"
+role = "executable"
+expectation = "AsOperator.out"
+
+[[project]]
+path = "samples/AssemblyTypeProvider"
+name = "AssemblyTypeProvider"
+role = "executable"
+expectation = "AssemblyTypeProvider.out"
+
+[[project]]
+path = "samples/AssociatedTypes"
+name = "AssociatedTypes"
+role = "executable"
+expectation = "AssociatedTypes.out"
+
+[[project]]
+path = "samples/AsyncDropChaining"
+name = "AsyncDropChaining"
+role = "executable"
+expectation = "AsyncDropChaining.out"
+
+[[project]]
+path = "samples/Attributes"
+name = "Attributes"
+role = "executable"
+expectation = "Attributes.out"
+
+[[project]]
+path = "samples/CSharpInteropV2"
+name = "CSharpInteropV2"
+role = "executable"
+expectation = "CSharpInteropV2.out"
+
+[[project]]
+path = "samples/CSharpReferences/App"
+name = "CSharpReferences.App"
+role = "msbuild-consumer"
+expectation = "CSharpReferences.App.out"
+note = "Mist executable that references the Bridge C# project; builds MSBuild"
+
+[[project]]
+path = "samples/CSharpReferences/Lib"
+name = "Lib"
+role = "library"
+note = "Mist library composed into App; exercised through App"
+
+[[project]]
+path = "samples/CallableInference"
+name = "CallableInference"
+role = "executable"
+expectation = "CallableInference.out"
+
+[[project]]
+path = "samples/CastOperators"
+name = "CastOperators"
+role = "executable"
+expectation = "CastOperators.out"
+
+[[project]]
+path = "samples/Classes"
+name = "Classes"
+role = "executable"
+expectation = "Classes.out"
+
+[[project]]
+path = "samples/ClosedOperators"
+name = "ClosedOperators"
+role = "executable"
+expectation = "ClosedOperators.out"
+
+[[project]]
+path = "samples/ClrCallContracts"
+name = "ClrCallContracts"
+role = "executable"
+expectation = "ClrCallContracts.out"
+
+[[project]]
+path = "samples/ClrRefInterop"
+name = "ClrRefInterop"
+role = "executable"
+expectation = "ClrRefInterop.out"
+
+[[project]]
+path = "samples/ClrRefReadonly"
+name = "ClrRefReadonly"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/ConstructorConstraintSignatures"
+name = "ConstructorConstraintSignatures"
+role = "executable"
+expectation = "ConstructorConstraintSignatures.out"
+
+[[project]]
+path = "samples/DefaultKeyword"
+name = "DefaultKeyword"
+role = "executable"
+expectation = "DefaultKeyword.out"
+
+[[project]]
+path = "samples/DefiniteAssignment"
+name = "DefiniteAssignment"
+role = "executable"
+expectation = "DefiniteAssignment.out"
+
+[[project]]
+path = "samples/DelegateFuncConversion"
+name = "DelegateFuncConversion"
+role = "executable"
+expectation = "DelegateFuncConversion.out"
+
+[[project]]
+path = "samples/DependentTypeRefinementConstraints"
+name = "DependentTypeRefinementConstraints"
+role = "executable"
+expectation = "DependentTypeRefinementConstraints.out"
+
+[[project]]
+path = "samples/DependentTypes"
+name = "DependentTypes"
+role = "executable"
+expectation = "DependentTypes.out"
+
+[[project]]
+path = "samples/DisposableDropInterop"
+name = "DisposableDropInterop"
+role = "executable"
+expectation = "DisposableDropInterop.out"
+
+[[project]]
+path = "samples/DropSemantics"
+name = "DropSemantics"
+role = "executable"
+expectation = "DropSemantics.out"
+
+[[project]]
+path = "samples/EfCoreMigrations/App"
+name = "EfCoreMigrations.App"
+role = "ef-consumer"
+expectation = "EfCoreMigrations.App.out"
+note = "manual EF demonstration; needs network and dotnet-ef"
+
+[[project]]
+path = "samples/EfCoreMigrations/App.Data"
+name = "App.Data"
+role = "library"
+note = "Mist library composed into App; exercised through App"
+
+[[project]]
+path = "samples/EnumReadonlyRestriction"
+name = "EnumReadonlyRestriction"
+role = "executable"
+expectation = "EnumReadonlyRestriction.out"
+
+[[project]]
+path = "samples/Enums"
+name = "Enums"
+role = "executable"
+expectation = "Enums.out"
+
+[[project]]
+path = "samples/ExtensionMethodBinding"
+name = "ExtensionMethodBinding"
+role = "executable"
+expectation = "ExtensionMethodBinding.out"
+
+[[project]]
+path = "samples/ExtensionMethods"
+name = "ExtensionMethods"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/FirstClassFunctions"
+name = "FirstClassFunctions"
+role = "executable"
+expectation = "FirstClassFunctions.out"
+
+[[project]]
+path = "samples/FullAccessibilityModel"
+name = "FullAccessibilityModel"
+role = "executable"
+expectation = "FullAccessibilityModel.out"
+
+[[project]]
+path = "samples/GenericAbstractMembers"
+name = "GenericAbstractMembers"
+role = "executable"
+expectation = "GenericAbstractMembers.out"
+
+[[project]]
+path = "samples/GenericConstraints"
+name = "GenericConstraints"
+role = "executable"
+expectation = "GenericConstraints.out"
+
+[[project]]
+path = "samples/GenericExtensionMethods"
+name = "GenericExtensionMethods"
+role = "executable"
+expectation = "GenericExtensionMethods.out"
+
+[[project]]
+path = "samples/GenericOptionals"
+name = "GenericOptionals"
+role = "executable"
+expectation = "GenericOptionals.out"
+
+[[project]]
+path = "samples/GenericSelfReceivers"
+name = "GenericSelfReceivers"
+role = "executable"
+expectation = "GenericSelfReceivers.out"
+
+[[project]]
+path = "samples/GenericTypes"
+name = "GenericTypes"
+role = "executable"
+expectation = "GenericTypes.out"
+
+[[project]]
+path = "samples/GlobalUsings"
+name = "GlobalUsings"
+role = "executable"
+expectation = "GlobalUsings.out"
+
+[[project]]
+path = "samples/HelloMist"
+name = "HelloMist"
+role = "executable"
+expectation = "HelloMist.out"
+
+[[project]]
+path = "samples/Inheritance"
+name = "Inheritance"
+role = "executable"
+expectation = "Inheritance.out"
+
+[[project]]
+path = "samples/InheritedGenericMembers"
+name = "InheritedGenericMembers"
+role = "executable"
+expectation = "InheritedGenericMembers.out"
+
+[[project]]
+path = "samples/Iterators"
+name = "Iterators"
+role = "executable"
+expectation = "Iterators.out"
+
+[[project]]
+path = "samples/LocalFunctions"
+name = "LocalFunctions"
+role = "executable"
+expectation = "LocalFunctions.out"
+
+[[project]]
+path = "samples/NamedAllocationElements"
+name = "NamedAllocationElements"
+role = "executable"
+expectation = "NamedAllocationElements.out"
+
+[[project]]
+path = "samples/Namespaces"
+name = "Namespaces"
+role = "executable"
+expectation = "Namespaces.out"
+
+[[project]]
+path = "samples/NestedBlockNamespaces"
+name = "NestedBlockNamespaces"
+role = "executable"
+expectation = "NestedBlockNamespaces.out"
+
+[[project]]
+path = "samples/NestedGenericTypes"
+name = "NestedGenericTypes"
+role = "executable"
+expectation = "NestedGenericTypes.out"
+
+[[project]]
+path = "samples/NestedScoping"
+name = "NestedScoping"
+role = "executable"
+expectation = "NestedScoping.out"
+
+[[project]]
+path = "samples/NewtypeClones"
+name = "NewtypeClones"
+role = "executable"
+expectation = "NewtypeClones.out"
+
+[[project]]
+path = "samples/Newtypes"
+name = "Newtypes"
+role = "executable"
+expectation = "Newtypes.out"
+
+[[project]]
+path = "samples/NumericArrays"
+name = "NumericArrays"
+role = "executable"
+expectation = "NumericArrays.out"
+
+[[project]]
+path = "samples/OpenUnions"
+name = "OpenUnions"
+role = "executable"
+expectation = "OpenUnions.out"
+
+[[project]]
+path = "samples/OperatorOverloads"
+name = "OperatorOverloads"
+role = "executable"
+expectation = "OperatorOverloads.out"
+
+[[project]]
+path = "samples/OptionalDefaultability"
+name = "OptionalDefaultability"
+role = "executable"
+expectation = "OptionalDefaultability.out"
+
+[[project]]
+path = "samples/OptionalTypeParameters"
+name = "OptionalTypeParameters"
+role = "executable"
+expectation = "OptionalTypeParameters.out"
+
+[[project]]
+path = "samples/OptionalTypes"
+name = "OptionalTypes"
+role = "executable"
+expectation = "OptionalTypes.out"
+
+[[project]]
+path = "samples/OverloadedIndexers"
+name = "OverloadedIndexers"
+role = "executable"
+expectation = "OverloadedIndexers.out"
+
+[[project]]
+path = "samples/Overloading"
+name = "Overloading"
+role = "executable"
+expectation = "Overloading.out"
+
+[[project]]
+path = "samples/Ownership"
+name = "Ownership"
+role = "executable"
+expectation = "Ownership.out"
+
+[[project]]
+path = "samples/PatternMatching"
+name = "PatternMatching"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/Primitives"
+name = "Primitives"
+role = "executable"
+expectation = "Primitives.out"
+
+[[project]]
+path = "samples/Properties"
+name = "Properties"
+role = "executable"
+expectation = "Properties.out"
+
+[[project]]
+path = "samples/PropertyInitializers"
+name = "PropertyInitializers"
+role = "executable"
+expectation = "PropertyInitializers.out"
+
+[[project]]
+path = "samples/Purity"
+name = "Purity"
+role = "executable"
+expectation = "Purity.out"
+
+[[project]]
+path = "samples/RangesAndIndices"
+name = "RangesAndIndices"
+role = "executable"
+expectation = "RangesAndIndices.out"
+
+[[project]]
+path = "samples/ReadonlyContexts"
+name = "ReadonlyContexts"
+role = "executable"
+expectation = "ReadonlyContexts.out"
+
+[[project]]
+path = "samples/ReadonlyLocals"
+name = "ReadonlyLocals"
+role = "executable"
+expectation = "ReadonlyLocals.out"
+
+[[project]]
+path = "samples/RefParameters"
+name = "RefParameters"
+role = "executable"
+expectation = "RefParameters.out"
+
+[[project]]
+path = "samples/RefStructs"
+name = "RefStructs"
+role = "executable"
+expectation = "RefStructs.out"
+
+[[project]]
+path = "samples/RefinementComparison"
+name = "RefinementComparison"
+role = "executable"
+expectation = "RefinementComparison.out"
+
+[[project]]
+path = "samples/RefinementTypes"
+name = "RefinementTypes"
+role = "executable"
+expectation = "RefinementTypes.out"
+
+[[project]]
+path = "samples/RegexLiterals"
+name = "RegexLiterals"
+role = "executable"
+expectation = "RegexLiterals.out"
+
+[[project]]
+path = "samples/ResourceTransfer"
+name = "ResourceTransfer"
+role = "executable"
+expectation = "ResourceTransfer.out"
+
+[[project]]
+path = "samples/ShapeAbstracts"
+name = "ShapeAbstracts"
+role = "executable"
+expectation = "ShapeAbstracts.out"
+
+[[project]]
+path = "samples/Simpliest"
+name = "Simpliest"
+role = "executable"
+expectation = "Simpliest.out"
+
+[[project]]
+path = "samples/SizedSequencePatterns"
+name = "SizedSequencePatterns"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/SliceableTypes"
+name = "SliceableTypes"
+role = "executable"
+expectation = "SliceableTypes.out"
+
+[[project]]
+path = "samples/SourceGeneration"
+name = "SourceGeneration"
+role = "generator-consumer"
+expectation = "SourceGeneration.out"
+note = "runs the source generator through the documented generator protocol"
+
+[[project]]
+path = "samples/SourceGenerationGenerator"
+name = "SourceGenerationGenerator"
+role = "source-generator"
+note = "a source generator, exercised through SourceGeneration; not a zero-arg demo"
+
+[[project]]
+path = "samples/StackOnlyTypes"
+name = "StackOnlyTypes"
+role = "executable"
+expectation = "StackOnlyTypes.out"
+
+[[project]]
+path = "samples/StampableTypes"
+name = "StampableTypes"
+role = "executable"
+expectation = "StampableTypes.out"
+
+[[project]]
+path = "samples/StandardSurface"
+name = "StandardSurface"
+role = "executable"
+expectation = "StandardSurface.out"
+
+[[project]]
+path = "samples/StormAnonymousGroups"
+name = "StormAnonymousGroups"
+role = "executable"
+expectation = "StormAnonymousGroups.out"
+
+[[project]]
+path = "samples/StructInheritance"
+name = "StructInheritance"
+role = "executable"
+expectation = "StructInheritance.out"
+
+[[project]]
+path = "samples/StructuredConcurrency"
+name = "StructuredConcurrency"
+role = "executable"
+expectation = "StructuredConcurrency.out"
+
+[[project]]
+path = "samples/StructuredContext"
+name = "StructuredContext"
+role = "executable"
+expectation = "StructuredContext.out"
+
+[[project]]
+path = "samples/SubstructuralFieldDiscipline"
+name = "SubstructuralFieldDiscipline"
+role = "executable"
+expectation = "SubstructuralFieldDiscipline.out"
+
+[[project]]
+path = "samples/SwitchExpressions"
+name = "SwitchExpressions"
+role = "executable"
+expectation = "SwitchExpressions.out"
+
+[[project]]
+path = "samples/TargetTypedNew"
+name = "TargetTypedNew"
+role = "executable"
+expectation = "TargetTypedNew.out"
+
+[[project]]
+path = "samples/Testing"
+name = "Testing"
+role = "test-library"
+expectation = "Testing.tally"
+note = "a library with no entry point; its verdict comes from mist test"
+
+[[project]]
+path = "samples/TextCapabilities"
+name = "TextCapabilities"
+role = "executable"
+expectation = "TextCapabilities.out"
+
+[[project]]
+path = "samples/TopLevelStatements"
+name = "TopLevelStatements"
+role = "executable"
+expectation = "TopLevelStatements.out"
+aggregate_check = false
+note = "standalone runs the top-level-statement entry point; the orchestrator calls its separate RunDemo disambiguation demo, so the standalone output is reviewed against its own program, not the aggregate slice"
+
+[[project]]
+path = "samples/TuplePatternMatching"
+name = "TuplePatternMatching"
+role = "executable"
+expectation = "TuplePatternMatching.out"
+
+[[project]]
+path = "samples/Tuples"
+name = "Tuples"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/TypeAliases"
+name = "TypeAliases"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/TypeArgumentInference"
+name = "TypeArgumentInference"
+role = "executable"
+expectation = "TypeArgumentInference.out"
+
+[[project]]
+path = "samples/TypeReflection"
+name = "TypeReflection"
+role = "executable"
+expectation = "TypeReflection.out"
+
+[[project]]
+path = "samples/TypeUnions"
+name = "TypeUnions"
+role = "composed-library"
+note = "composed into AllFeaturesV2 and exercised through its RunDemo; no standalone entry point (MIST0108), so it is not run on its own"
+
+[[project]]
+path = "samples/TypeValues"
+name = "TypeValues"
+role = "executable"
+expectation = "TypeValues.out"
+
+[[project]]
+path = "samples/UnknownReadonlySemantics"
+name = "UnknownReadonlySemantics"
+role = "executable"
+expectation = "UnknownReadonlySemantics.out"
+
+[[project]]
+path = "samples/UnknownType"
+name = "UnknownType"
+role = "executable"
+expectation = "UnknownType.out"
+
+[[project]]
+path = "samples/VariadicSpecialization"
+name = "VariadicSpecialization"
+role = "executable"
+expectation = "VariadicSpecialization.out"
+
+[[project]]
+path = "samples/Variadics"
+name = "Variadics"
+role = "executable"
+expectation = "Variadics.out"
+
+[[project]]
+path = "samples/VoidType"
+name = "VoidType"
+role = "executable"
+expectation = "VoidType.out"
+
+[[project]]
+path = "samples/VoidValueLiteral"
+name = "VoidValueLiteral"
+role = "executable"
+expectation = "VoidValueLiteral.out"
+
+[[project]]
+path = "samples/CSharpReferences/Bridge"
+name = "Bridge"
+role = "csharp-companion"
+note = "C# class library built by the compiler when it compiles App"
+
+[[project]]
+path = "samples/EfCoreMigrations/App.Migrations"
+name = "App.Migrations"
+role = "csharp-companion"
+note = "C# dotnet-ef host built by the compiler when it compiles App"

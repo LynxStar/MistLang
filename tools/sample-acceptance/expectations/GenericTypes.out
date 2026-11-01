@@ -1,0 +1,5 @@
+--- Generics ---
+gbox=GenericBox(42)
+gbox.item=42
+gboxStr=GenericBox(hello)
+gc.item=99

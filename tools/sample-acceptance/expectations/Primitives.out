@@ -1,0 +1,33 @@
+int=42 uint=100 long=100 ulong=999
+short=16 ushort=32 byte=255 sbyte=-128
+float=2.5 double=3.14 decimal=99.99
+bool=True char=Z hex=255
+Hello, Mist!
+The answer is 42
+Hex doubled: 510
+var: 123 inferred False
+17+5=22 17-5=12 17*5=85
+17/5=3 17%5=2 neg=-17
+==False !=True <False >True
+<=False >=True
+&&=False ||=True !=False
+(17+5)*(17-5)=264
+Grade B
+5 4 3 2 1 Liftoff!
+Sum 1..10 = 55
+Squares: 1 4 9 16 25 36 
+Break at j=5
+Fib: 0 1 1 2 3 5 8 13 21 34 
+FindFirst(30)=2
+FindFirst(99)=-1
+DigitSum(12345)=15
+concat=Mist Lang
+1 2 3 
+2 4 6 
+3 6 9 
+isGreeting=True
+bracket=[Mist]
+doubled=42
+length=5
+constant wrap: -2147483648 44 -9223372036854775808 0
+closing brace: 42} and }}

@@ -1,0 +1,27 @@
+=== Open Unions ===
+sides: T 1 | R | T 3 | merged 3
+nested merged: 3
+switch: T 1 | other | T 3
+flipped: R
+slot fresh: absent
+slot put 7: present 7 or 7
+slot put void: absent or 99
+slot get: 5 item 5
+slot cleared: absent item Void
+slot<string> fresh: absent
+slot<string> put: present hi
+box<int>: cell Void func Void tuple Void
+box<string>: cell w
+methods: T 5 | R | T 9
+generic caller: T 7
+use slot: absent | present hi
+lifted<int>: int? | int? | inside K?
+lifted<string>: K? | int?
+derived<int>: int? | int? | K? | narrow int?
+via abstract: K? | K?
+values: int? | K? | K?
+inferred values: T 6 | T z | absent
+stated values: T 5 | R | R | T w | T 4
+clones: present 7 | present 7 | absent copies 1 | absent copies 2
+generic clones: present w | present w | absent copies 1 | present w copies 1 | present w copies 2
+absent: True True | True False | True void

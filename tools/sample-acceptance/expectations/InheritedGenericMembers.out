@@ -1,0 +1,4 @@
+=== Inherited Generic Members ===
+IntBox.Get()=42 Extra=7 With(9).Value=9
+Renamed<string>.Get()=r Twice()=r Tag=1 With(s).Value=s
+=== Inherited Generic Members Done ===

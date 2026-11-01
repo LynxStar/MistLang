@@ -1,0 +1,9 @@
+p1=Point(3, 4) p2=Point(0, 0)
+dist=7
+translated=Point(13, 24)
+red=Color(255, 0, 0) [reddish] green=Color(0, 255, 0) [greenish]
+brightness=85
+mixed=Color(127, 127, 0) [neutral]
+total=2
+Counter 'Alpha' = 2
+Counter 'Beta' = 1

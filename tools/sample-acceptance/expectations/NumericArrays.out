@@ -1,0 +1,38 @@
+=== Numeric and Array Capabilities ===
+int: 42 -2147483648 True True
+null: True provider: 42
+span: 42
+ulong: 18446744073709551615 18446744073709551615 42
+ulong overflow: True
+clone parse: 42 invalid: True bounds: True True
+real parsing: 125 125 125
+real invalid: True True True
+sbyte: -128 127; byte: 0 255
+short: -32768 32767; ushort: 0 65535
+int: -2147483648 2147483647; uint: 0 4294967295
+long: -9223372036854775808 9223372036854775807; ulong: 0 18446744073709551615
+char: 0 65535; decimal: -79228162514264337593543950335 79228162514264337593543950335
+float max: 3.4028235E+38; double max: 1.7976931348623157E+308
+minimum negation: -2147483648 -9223372036854775808
+float predicates: True True True True True
+double predicates: True True True True True
+float steps: True True True
+double steps: True True True
+comparison: -1 -1 0 1 -1
+round trips: True True format: 1.2345678901234567
+providers: -1 2 -3 4 -5 6 -7 8 125 125 125 a
+ambient routes: 2 1.25 5
+array search: 1 True True False empty: 0 True
+conditional array: True True
+find: 0 visits: 2 absent: True generic: 0
+union find: True zero: True text: True
+conditional union find: True True True
+optional element find: 0 True
+void element find: Void Void Void Void Void
+conditional void find: Void Void visits: 1
+any: True visits: 2 empty: False
+ordinal sort: A a b find: a
+in-place sort: 0 0 2 3
+joined started tasks: 21 42
+joined actions: True True
+=== Numeric and Array Capabilities Done ===

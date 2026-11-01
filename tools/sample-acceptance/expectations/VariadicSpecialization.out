@@ -1,0 +1,22 @@
+=== Variadic Specialization ===
+[constraint] top=rook top=knight9
+[constraint] roster=2 width=3
+[union] a/1 none
+[union] a/1 kept 1
+[union] 2/b kept b
+[union] 2/b none width=2
+[union] first then text named
+[nested] box empty then box 6 | True/8 none
+[closed] label/7 none
+[abstract] fixed e
+[bridge] 101
+[method] maybe 5 | maybe absent | maybe 9
+[nested packs] 23 20
+[extension packs] 3 1
+[generic extension packs] 3 1
+[pack types] two:Int32 other:1
+[method groups] 2 2 1
+[tuple patterns] pair 3 | other | other | other
+[tuple arms] int-string 7s | pair | width 3 | width 0
+[pack fields] flag True t | some pair | three 1aTrue | width 1
+[narrowed types] two Int32 String 4x | two Boolean Char Truec | width 1 | width 0

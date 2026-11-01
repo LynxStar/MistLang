@@ -1,0 +1,20 @@
+=== CallableInference Sample ===
+lambda: 2 | stated: 2
+block body: big
+stated parameter: 4
+chained: <21>
+fold: 10 1234
+group: 5 | stated: 5
+overloaded group: Show(int) 4 | Show(string) w
+generic group: 3
+receiver: 4
+Transform(int) 6
+Transform(string) ab!
+Measure(int) 4
+Measure(string) 4
+Widen(int) 2
+Widen(long) 2
+Labeled(string) 4
+recorded 7
+void group: Void
+=== CallableInference Done ===

@@ -1,0 +1,6 @@
+=== GlobalUsings Demo ===
+[Global using only] LOG: hello from services
+[Redundant explicit using] Product(Widget, $42)
+[Multiple global usings] LOG: Product(Widget, $42)
+[Second instances] INFO: Product(Gadget, $99)
+=== GlobalUsings Done ===

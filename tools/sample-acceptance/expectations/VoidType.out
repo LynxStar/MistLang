@@ -1,0 +1,29 @@
+--- Void Unit Type ---
+void value obtained: Void
+typed void variable: Void
+void == void: True
+void != void: False
+DoNothing() returned: Void
+fire-and-forget call
+DescribeVoid: received void
+Result of void: Result(Ok: Void)
+IsSuccess: True
+GenericBox of void: GenericBox(Void)
+--- Unit Hoisting ---
+operands g3(2,Void,1) kfh | read(x,Void) xf | take(Void,1) Void2 mfhfk
+and False True ntfc
+or True True tnfc
+coalesce s x fs
+coalesce-assign s mfsm
+conditional-access Void took yygT
+switch s none fs
+switch-statement - f
+for - fu0Bgxfu1Bgxfu2
+while 2 yfHPyfHPy
+if-else - fHP|E
+lambda False True |fc
+getter s s fsfs
+initializer s s fsfs
+chain p3 gp
+location s 6 mfsif
+receiver d kfD

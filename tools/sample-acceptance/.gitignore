@@ -1,0 +1,5 @@
+# Run artifacts (logs, report.json, provenance, scratch). Transient, not deliverables.
+_runs/
+
+# Python bytecode cache.
+__pycache__/

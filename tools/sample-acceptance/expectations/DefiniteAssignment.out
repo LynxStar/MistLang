@@ -1,0 +1,8 @@
+[da] local=definite
+[da] category=1
+[da] ints[0]=0 ints[2]=0
+[da] points[0].X=0 points[1].Y=0
+[da] labels[0]=Label(item-0)
+[da] labels[2]=Label(item-2)
+[da] pair[0]=Label(first)
+[da] pair[1]=Label(second)

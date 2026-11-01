@@ -1,0 +1,51 @@
+=== Enum Readonly Restriction Sample ===
+--- Enum with int base type ---
+  StatusCode.Ok = Ok
+  StatusCode.NotFound = NotFound
+  StatusCode.ServerError = ServerError
+--- Enum with string base type ---
+  Planet.Mercury = Mercury
+  Planet.Venus = Venus
+  Planet.Earth = Earth
+  Planet.Mars = Mars
+--- Enum with byte base type ---
+  Rank.Private = Private
+  Rank.Corporal = Corporal
+  Rank.Sergeant = Sergeant
+--- Enum with readonly struct base type ---
+  Corner.TopLeft = TopLeft
+  Corner.TopRight = TopRight
+  Corner.BottomLeft = BottomLeft
+  Corner.BottomRight = BottomRight
+--- Enum with readonly class base type ---
+  Palette.Red = Red
+  Palette.Green = Green
+  Palette.Blue = Blue
+--- Name-only enum (inferred byte) ---
+  Suit.Hearts = Hearts
+  Suit.Diamonds = Diamonds
+  Suit.Clubs = Clubs
+  Suit.Spades = Spades
+--- Enum with union of readonly types ---
+  Token.NumericId = NumericId
+  Token.TextId = TextId
+--- Member access on readonly-base enums ---
+  Corner.TopRight.Describe() = Coordinate
+  Palette.Red.Describe() = Color(255, 0, 0)
+  Palette.Red.r = 255
+--- Implicit conversion to underlying type ---
+  StatusCode.Ok as int = 200
+  Planet.Earth as string = Earth
+  Suit.Spades as byte = 3
+  Corner.BottomLeft as Coordinate = Coordinate
+  Palette.Green as Color = Color(0, 255, 0)
+--- Pattern matching with readonly-base enums ---
+  code is StatusCode.NotFound = True
+  code is StatusCode.Ok = False
+  p is Planet.Mars = True
+  p is Planet.Earth = False
+  s is Suit.Spades = True
+  s is Suit.Hearts = False
+  pal is Palette.Blue = True
+  pal is Palette.Red = False
+Done!

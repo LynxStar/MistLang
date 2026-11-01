@@ -1,0 +1,30 @@
+=== Optional Defaultability Sample ===
+--- Non-Defaultable Type ---
+  conn=Server=localhost timeout=30
+--- Constructor + Default Block ---
+  prod: env=production retries=3
+  dev: env=development retries=1
+--- Implicitly Defaultable ---
+  default: x=0 y=0
+  new: x=0 y=0
+--- Enum Default Variant ---
+  direction=North
+--- Generic Default Constraint ---
+  factory point: x=0 y=0
+--- Optional Defaultability ---
+  maybeValue=Void
+--- Array Stampability ---
+  ints[0]=0 ints[1]=0 ints[2]=0
+  points[0].X=0 points[0].Y=0
+--- Default Block Type Binding ---
+  layers=3
+  primary=Circle(Radius=7, Label=primary)
+  secondary=Square(Side=0)
+--- Defaults Through Generics ---
+  new Box<Widget>(): 9 default(Box<Widget>): 7
+  new T() at Box<Widget>: 7
+  new T(11) at Chosen<Widget>: 11 child=7
+  new T() with initializer: 13
+  default(T) twice: 12 then 7
+  constructed: 8 defaulted: 4 default(string): []
+Done!

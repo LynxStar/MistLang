@@ -1,0 +1,33 @@
+=== Standard Surface ===
+--- Clone on every primitive ---
+bool=True byte=255 sbyte=-128
+short=16 ushort=32 int=42
+uint=100 long=1000 ulong=9999
+float=2.5 double=3.25 decimal=99.99
+char=Z string=hello
+--- String members ---
+Length=5 Substring=ello Contains=True Index=e
+--- Console members ---
+Write(String) 7
+42
+--- Convert and Math ---
+ToInt32=7 Abs=5 Max=3 Min=2
+--- Type members ---
+Of(int).Name=Int32 Of(string).Name=String
+--- Mist-bodied members of an intrinsic type ---
+IsEven(42)=True IsEven(7)=False
+--- Array members ---
+indexer=9 foreach-total=14 built=2
+explicit-enumerator-first=9 walker=2 copy=3
+--- Span members ---
+span[0]=5 span-total=11 slice[0]=6
+span-enumerator-first=5
+readonly[0]=0 readonly-slice[0]=0 fromArray[0]=9
+--- Regex members ---
+IsMatch=True IsFullMatch=True Pattern=^h.*o$
+--- Task members ---
+Delay=3 Yield=4
+WhenAll=2 WhenAny=1
+Drop=joined
+WhenAll<int>=10 WhenAny<int>=5
+=== Standard Surface Done ===

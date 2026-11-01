@@ -1,0 +1,58 @@
+=== Drop Semantics Sample ===
+--- 1. Linear: auto-drop at scope exit ---
+  Created FileHandle(1)
+  FileHandle(1).Drop() called
+--- 2. Linear: drop elision on move ---
+  Created FileHandle(2)
+  Sink consumed FileHandle(2)
+  FileHandle(2).Drop() called
+--- 3. Linear: drop elision on return ---
+  PassThrough FileHandle(3)
+  Got back FileHandle(3)
+  FileHandle(3).Drop() called
+--- 4. Linear: Drop with return value ---
+  LinearBox.Drop() called, yielding value
+  Got value: 42
+  FileHandle(42).Drop() called
+--- 5. Linear: reverse drop ordering ---
+  Created: 10, 11, 12
+  FileHandle(12).Drop() called
+  FileHandle(11).Drop() called
+  FileHandle(10).Drop() called
+--- 6. Relevant: drop fires for every reference ---
+  res=conn-1, alias=conn-1
+  SharedResource(conn-1).Drop() called
+  SharedResource(conn-1).Drop() no-op
+--- 7. Affine: only drops in with block ---
+  Inside with-block
+  AuthToken(abc-123).Drop() called - consumed
+--- 8. Affine: no auto-drop outside with ---
+  AuthToken(xyz-789) falls out of scope
+--- 9. Synthetic drop on containing type ---
+  Session created with handles 50 and 51
+  FileHandle(50).Drop() called
+  FileHandle(51).Drop() called
+--- 10. Lending retains drop responsibility ---
+  ReadFd sees FileHandle(30)
+  Owner still has FileHandle(30)
+  FileHandle(30).Drop() called
+--- 11. Linear: cleanup follows the path taken ---
+  Moved FileHandle(60) to a new local
+  FileHandle(60).Drop() called
+  DropWhen(False) leaving
+  FileHandle(61).Drop() called
+  FileHandle(62).Drop() called
+  DropWhen(True) leaving
+  FileHandle(63).Drop() called
+  KeepOrReplace(false) returned FileHandle(67)
+  KeepOrReplace(true) returned FileHandle(66)
+  FileHandle(66).Drop() called
+  FileHandle(67).Drop() called
+  FileHandle(64).Drop() called
+  Reassigned to FileHandle(65)
+  FileHandle(65).Drop() called
+--- 12. Affine: with block drops on early return ---
+  Inside with-block, returning early
+  AuthToken(early).Drop() called - consumed
+  LeaveEarly returned
+=== Drop Semantics Done ===

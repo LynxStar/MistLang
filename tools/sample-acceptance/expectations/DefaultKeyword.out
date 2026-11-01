@@ -1,0 +1,26 @@
+=== Default Keyword Sample ===
+--- Primitive Defaults ---
+int=0 bool=False string=
+--- Class Default (zero-init) ---
+Config(MaxRetries=0, Verbose=False, Label=)
+--- Class Default (field initializers) ---
+Settings(Timeout=30, Enabled=True, Mode=auto)
+--- Bare Default (inferred) ---
+Config(MaxRetries=0, Verbose=False, Label=)
+--- Explicit Default Block ---
+AppState(ErrorCount=5, Ready=True, Status=initialized)
+--- Readonly Struct: new vs default ---
+new Container() = Container(Code=99, Label=constructed)
+default(Container) = Container(Code=42, Label=defaulted)
+--- Initializers Per Construction ---
+new Bare(0) = a 7 trail=ab
+new Quiet() = q 7 trail=
+new Declared(0) = a trail=aC
+new Derived(0) = a x trail=xab
+new Mark(0) = 3 trail=pS
+--- Custom Setter: default writes storage ---
+default(Gauge) = 0 mm trail=
+new Gauge() = 0 mm trail=
+assigned = 5 cm trail=LU
+Reading = 0 0 trail=
+Done!

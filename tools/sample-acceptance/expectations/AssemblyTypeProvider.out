@@ -1,0 +1,8 @@
+=== AssemblyTypeProvider Sample ===
+Count=3
+Item0=10
+Found=42
+Length=12
+Upper=HELLO, WORLD
+Abs=5
+ArrLen=3

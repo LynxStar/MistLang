@@ -1,0 +1,13 @@
+=== Named Allocation Elements Sample ===
+pairs[1].second=12
+qualifiedPoints[1].y=24
+qualifiedPairs[1].second=36
+readOnlyPairs.Length=2
+aliasPairs[1].second=48
+aliasPoints[1].y=60
+aliasStackPairs[1].second=72
+closedAliasPairs[1].second=84
+sizedPairs.Length=2
+sizedStackPairs.Length=3
+allocationSizeCalls=2
+=== Named Allocation Elements Done ===

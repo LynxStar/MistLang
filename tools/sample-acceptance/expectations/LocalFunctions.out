@@ -1,0 +1,20 @@
+=== Local Functions Sample ===
+--- Call before declaration ---
+Twice(4)=8
+--- Recursion ---
+Factorial(5)=120 IsEven(10)=True IsOdd(7)=True
+--- Capture ---
+counter=2
+--- Modifiers ---
+Square(6)=36 Shout(hi)=hi!
+--- Async ---
+fetched=42
+Sum()=83
+--- Promoted ---
+Doubled()=86
+--- Nesting ---
+Outer(9)=10 tripler(3)=9
+--- Function value ---
+f(21)=42
+--- Parameter where ---
+Half(8)=4

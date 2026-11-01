@@ -1,0 +1,52 @@
+=== Newtype Clones ===
+--- Intrinsic clone ---
+older=31 raw=30 wide=31 twice=62 even=False
+shout=MIST length=4
+--- Never its source ---
+age-is-Age=True age-is-int=False
+position-is-Point=False jaguar-is-Tiger=False jaguar-is-Cat=True
+--- Struct clone ---
+position=(1, 2) left.X=99 entered=(5, 6) shifted=(11, 2)
+--- Readonly class clone ---
+money=7 back=8
+--- Cast through the source ---
+fromReading=1.5 fromFeet=3 total=4.5
+--- Literals in sight ---
+assigned=31 below=-5 ages=40,41
+years=18 title=host height=2 retires=67 adult=21
+--- Renamed class clone ---
+twin=Bagheera-twin stripes=4 keeper=zoo made=0 kind=cat with 9 lives
+--- Clonable class conversions ---
+first=Shere#1 stripes=3 keeper=zoo made=2
+converted=Shere#2 stripes=103 keeper=zoo made=2
+returned=Shere#2#1 stripes=103 keeper=zoo made=1
+tiger=Shere stripes=3 keeper=zoo made=1
+puma-mane=4 lion-mane=5
+--- Constructed and aliased sources ---
+again=5 named=<5> renamed=<True> box-is-Box=False
+leftPair=1,one enteredPair=2,two slot=3,three
+--- Clonable constructed source ---
+firstCell=3 fresh#1 made=2 secondCell=3 fresh#2 made=2
+cellBack=3 fresh#2#1 made=1 cell=3 fresh made=1
+--- Generic newtype conversions ---
+twinPair=4,5 leftTwin=4,5 swap=six,6 leftSwap=six,6
+firstWord=w fresh#1 made=2 secondWord=w fresh#2 made=2
+wordBack=w fresh#2#1 made=1 word=w fresh made=1
+--- Members a Clone reaches ---
+lynx=spots=4 spare=7 ocelot=spots=139 spare=5 lynxBack=spots=409 spare=5
+--- A field that names its source ---
+chain= 1/1 2/1 3/0 back= 1/2 2/1 3/0
+closed=1,False apart= 1/1 2/1 3/0 source= 1/0 99/0 3/0
+rope= 4 5 tail=6,True
+--- Private state through a generic base ---
+spent=EUR,7 earned=USD,8
+--- Newtype of a newtype ---
+again=2,two down=2,two root=2,two
+nested=3 fresh#1#1 made=1 unnested=3 fresh#1#1#3 made=3
+--- Conformance declared on the source ---
+tag=copied is-Caption=True is-Subtitle=False
+--- Newtypes declared inside types ---
+shelf=own=u own=u 1,u 1,u | own=7 own=7 1,7 1,7 rack=r,2 r,2
+--- Optional newtype to optional source ---
+absent=absent held=GBP,9
+=== Newtype Clones Done ===

@@ -1,0 +1,83 @@
+=== Enums Sample ===
+--- Explicit type annotation ---
+  Direction.North = North
+  Direction.South = South
+  Direction.East = East
+  Direction.West = West
+--- Inferred type (int) ---
+  Priority.High = High
+  Priority.Medium = Medium
+  Priority.Low = Low
+--- Name-only enum (byte) ---
+  Color.Red = Red
+  Color.Green = Green
+  Color.Blue = Blue
+--- Mixed explicit/implicit ---
+  HttpStatus.Ok = Ok
+  HttpStatus.Created = Created
+  HttpStatus.BadRequest = BadRequest
+  HttpStatus.NotFound = NotFound
+  HttpStatus.InternalError = InternalError
+--- Union underlying type ---
+  MixedResult.Success = Success
+  MixedResult.ErrorMsg = ErrorMsg
+--- Member access (dot notation) ---
+  north = North
+--- Enum as variable type ---
+  favorite = Blue
+--- Enum as parameter type ---
+  Direction value: East
+--- Enum as return type ---
+  default priority = Medium
+--- Enum as field type ---
+  config level = Warn
+--- Implicit conversion ---
+  Priority.High as int = 1
+  Direction.North as string = N
+  Color.Red as byte = 0
+--- Pattern matching ---
+  d is Direction.North = True
+  d is Direction.South = False
+  c is Color.Green = True
+  c is Color.Red = False
+--- Public visibility ---
+  Public enum Direction.North = North
+--- Default visibility ---
+  Default enum LogLevel.Info = Info
+  Default enum LogLevel.Error = Error
+--- Trailing comma ---
+  Season.Spring = Spring
+  Season.Winter = Winter
+--- Struct underlying type ---
+  CardinalDir.Up = Up
+  CardinalDir.Down = Down
+  CardinalDir.Left = Left
+  CardinalDir.Right = Right
+  CardinalDir.Up as Vec2 = (0, 1)
+--- Class underlying type ---
+  Severity.Critical = Critical
+  Severity.Warning = Warning
+  Severity.Info = Info
+  Severity.Critical as Label = Label(CRITICAL, 1)
+--- Abstract Type underlying types ---
+  Pet.Dog = Dog
+  Pet.Cat = Cat
+  Pet.Fish = Fish
+  Pet.Dog as Animal = Animal(Dog)
+--- String auto-inferred variant names ---
+  Permission.Read = Read
+  Permission.Write = Write
+  Permission.Execute = Execute
+  Permission.Read as string = Read
+  Permission.Write as string = Write
+--- String mixed explicit/inferred ---
+  Environment.Development as string = dev
+  Environment.Staging as string = Staging
+  Environment.Production as string = prod
+--- Explicit cast from underlying ---
+  (Priority)1 = High
+  (Priority)99 = no match
+  (Color)0 = Red
+  (Direction)"N" = North
+  (Direction)"X" = no match
+Done!

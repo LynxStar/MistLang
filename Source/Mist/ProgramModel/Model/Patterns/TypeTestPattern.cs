@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Patterns;
@@ -36,6 +37,8 @@ internal sealed class TypeTestPattern(
     /// its own, and an optional having no value of type Void for a type test to find.
     /// </summary>
     public bool TestsAbsence { get; init; }
+
+    public IMistType ScrutineeType { get; init; } = UnknownType.Instance;
 
     public override IMistType NarrowedType { get; } = testedType;
 

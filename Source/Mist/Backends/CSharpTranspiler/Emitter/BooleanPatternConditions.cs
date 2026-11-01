@@ -13,9 +13,11 @@ internal static class BooleanPatternConditions
     {
         return pattern switch
         {
+            TypeTestPattern tested when VoidPatterns.IsUnitTest(tested) => true,
             TypeTestPattern tested when UnknownUnions.Carrier(tested.NarrowedType) is not null => true,
             ComparisonPattern comparison => PromotesSingle(comparison),
             NegatedPattern negated => ContainsCondition(negated.Operand),
+            ConjunctionPattern conjunction => VoidPatterns.IsUnitPattern(conjunction),
             DisjunctionPattern disjunction => disjunction.Operands.Any(ContainsCondition),
             _ => false,
         };
@@ -26,6 +28,7 @@ internal static class BooleanPatternConditions
         return pattern switch
         {
             RegexPattern => true,
+            TypeTestPattern tested when VoidPatterns.IsUnitTest(tested) => true,
             TypeTestPattern tested when UnknownUnions.Carrier(tested.NarrowedType) is not null => true,
             ComparisonPattern comparison => PromotesSingle(comparison),
             NegatedPattern negated => ContainsCondition(negated.Operand),
@@ -33,6 +36,7 @@ internal static class BooleanPatternConditions
             DisjunctionPattern disjunction => disjunction.Operands.Any(ContainsCondition),
             TypeTestPattern { Refinement: { } refinement } => ContainsCondition(refinement),
             PropertyPattern property => property.Subpatterns.Any(subpattern => ContainsCondition(subpattern.Pattern))
+                || (property.TypeTest is { } typeTest && VoidPatterns.IsUnitTest(typeTest))
                 || (property.TypeTest?.Refinement is { } refinement && ContainsCondition(refinement)),
             TuplePattern tuple => tuple.Elements.Any(ContainsCondition),
             ListPattern list => list.Elements.Any(element => element.Subpattern is { } nested && ContainsCondition(nested)),
@@ -61,6 +65,7 @@ internal static class BooleanPatternConditions
     {
         return pattern switch
         {
+            TypeTestPattern unitTest when VoidPatterns.IsUnitTest(unitTest) => "true",
             TypeTestPattern carrierTest when UnknownUnions.Carrier(carrierTest.NarrowedType) is not null => UnknownUnions.Test(carrierTest, value, structural),
             RegexPattern regex => RegexLowering.IsFullMatch(value, RegexLowering.Quote(regex.Pattern)),
             ComparisonPattern comparison when PromotesSingle(comparison) => $"({value} {Symbol(comparison.Kind)} {expression(comparison.Bound)})",

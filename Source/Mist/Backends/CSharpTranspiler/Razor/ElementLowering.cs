@@ -152,6 +152,7 @@ internal sealed class ElementLowering(RenderProtocolWriter render)
         render.Call(directive.Span, "AddAttribute",
             [$"{render.NextSequence()}, {MistLiteral.String(eventName)}, EventCallback.Factory.CreateBinder(this, ",
                 .. Setter(field, render.Scope.MemberTypes.GetValueOrDefault(field.Text)), ", ", render.Code(field), .. extra, ")"]);
+        render.Call(directive.Span, "SetUpdatesAttributeName", MistLiteral.String("value"));
     }
 
     public ImmutableArray<MistPiece> Setter(CodeRegion field, string? type)

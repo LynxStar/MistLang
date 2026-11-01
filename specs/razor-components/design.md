@@ -373,7 +373,7 @@ fallback if a cast ever fails to target-type.
 | `@ref="f"` on element | `AddElementReferenceCapture(seq, (ElementReference __r) => { f = __r; })` |
 | `@ref="f"` on component `T` | `AddComponentReferenceCapture(seq, (System.Object __r) => { if (__r is T __c) { f = __c; } })` |
 | `@attributes="d"` | `AddMultipleAttributes(seq, d)` |
-| `@bind="f"` | `AddAttribute(seq, "value", BindConverter.FormatValue(f))`; `AddAttribute(seq, "onchange", EventCallback.Factory.CreateBinder(this, (T __v) => { f = __v; }, f))` |
+| `@bind="f"` | `AddAttribute(seq, "value", BindConverter.FormatValue(f))`; `AddAttribute(seq, "onchange", EventCallback.Factory.CreateBinder(this, (T __v) => { f = __v; }, f))`; `SetUpdatesAttributeName("value")`, which takes no sequence number |
 | `<Comp A="x">` | `OpenComponent<Comp>(seq)`; `AddComponentParameter(seq, "A", x or "x")`; `CloseComponent()` |
 | child content | `AddComponentParameter(seq, "ChildContent", (RenderFragment)((RenderTreeBuilder __b) => { … }))` |
 | `<Tmpl Context="c">` under `Comp` | `AddComponentParameter(seq, "Tmpl", (RenderFragment<TValue>)((TValue c) => (RenderTreeBuilder __b) => { … }))` |
@@ -393,6 +393,21 @@ Razor compiler numbers them and what the differ relies on.
 - An event's argument type is the catalog's full name, written without its namespace when the unit imports
   it. A literal attribute value for an `EventCallback` parameter is wrapped in
   `EventCallback.Factory.Create<T>(this, ...)`, as Razor does; a minimized one passes `true`.
+- An element `@bind` ends with `SetUpdatesAttributeName("value")` right after its binder, before `SetKey` and the
+  reference capture, telling the renderer which attribute the handler updates so that a re-render does not
+  overwrite what the user typed. It is not a frame and takes no sequence number. Measured on 2026-11-01 against
+  the C# that SDK 10.0.301 generated for the plain binding and for `:event`, `:format`, `:culture` and both of
+  the last two; `@bind-P` on a component has no such call. `<input @bind="name" @bind:event="oninput" />`
+  lowers to:
+
+  ```mist
+  __builder.OpenElement(0, "input");
+  __builder.AddAttribute(1, "value", BindConverter.FormatValue(name));
+  __builder.AddAttribute(2, "oninput", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));
+  __builder.SetUpdatesAttributeName("value");
+  __builder.CloseElement();
+  ```
+
 - `@bind`'s `T` is the declared type of the field or property of that name in the Code_Blocks; a value that
   names no such member gets an untyped lambda. `:format` is a string literal and `:culture` an expression,
   both passed by position, since Mist has no named arguments.

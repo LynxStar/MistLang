@@ -147,14 +147,74 @@ public sealed partial class RazorComponentTranslatorTests
                 "__builder.OpenElement(0, \"input\");",
                 "__builder.AddAttribute(1, \"value\", BindConverter.FormatValue(name));",
                 "__builder.AddAttribute(2, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
                 "__builder.CloseElement();",
                 "__builder.OpenElement(3, \"input\");",
                 "__builder.AddAttribute(4, \"value\", BindConverter.FormatValue(name));",
                 "__builder.AddAttribute(5, \"oninput\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
                 "__builder.CloseElement();",
                 "__builder.OpenElement(6, \"input\");",
                 "__builder.AddAttribute(7, \"value\", BindConverter.FormatValue(date, \"yyyy-MM-dd\", culture));",
                 "__builder.AddAttribute(8, \"onchange\", EventCallback.Factory.CreateBinder(this, (DateTime __v) => { date = __v; }, date, \"yyyy-MM-dd\", culture));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Theory]
+    [InlineData("name", "string", null, null, null, "")]
+    [InlineData("name", "string", "oninput", null, null, "")]
+    [InlineData("date", "DateTime", null, "yyyy-MM-dd", null, ", \"yyyy-MM-dd\"")]
+    [InlineData("date", "DateTime", null, null, "culture", ", culture")]
+    [InlineData("date", "DateTime", null, "yyyy-MM-dd", "culture", ", \"yyyy-MM-dd\", culture")]
+    public void ElementBindNamesTheValueAttributeItUpdatesAfterItsBinderWithNoSequence(
+        string field, string type, string? changeEvent, string? format, string? culture, string passed)
+    {
+        HandAttribute?[] modifiers =
+            [changeEvent is null ? null : H.Dir("bind", changeEvent, "event"), format is null ? null : H.Dir("bind", format, "format"),
+                culture is null ? null : H.Dir("bind", culture, "culture")];
+        var tree = new HandTree()
+            .Content(H.Void("input", [H.Dir("bind", field), .. modifiers.OfType<HandAttribute>()]), H.Text("\n"), H.El("p", H.Expr(field)))
+            .Code("private string name = \"\";\nprivate DateTime date = DateTime.Now;\nprivate CultureInfo culture = CultureInfo.InvariantCulture;")
+            .Tree();
+
+        var calls = Run(tree).Calls();
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"input\");",
+                $"__builder.AddAttribute(1, \"value\", BindConverter.FormatValue({field}{passed}));",
+                $"__builder.AddAttribute(2, \"{changeEvent ?? "onchange"}\", EventCallback.Factory.CreateBinder(this, ({type} __v) => {{ {field} = __v; }}, {field}{passed}));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.CloseElement();",
+                "__builder.AddMarkupContent(3, \"\\n\");",
+                "__builder.OpenElement(4, \"p\");",
+                $"__builder.AddContent(5, {field});",
+                "__builder.CloseElement();",
+            ],
+            calls);
+    }
+
+    [Fact]
+    public void ElementBindNamesItsAttributeBeforeTheKeyAndTheReferenceCapture()
+    {
+        var tree = new HandTree()
+            .Content(H.Void("input", H.Dir("bind", "name"), H.Dir("key", "name"), H.Dir("ref", "panel")))
+            .Code("private string name = \"\";\nprivate ElementReference panel;")
+            .Tree();
+
+        var calls = Run(tree).Calls();
+
+        Assert.Equal(
+            [
+                "__builder.OpenElement(0, \"input\");",
+                "__builder.AddAttribute(1, \"value\", BindConverter.FormatValue(name));",
+                "__builder.AddAttribute(2, \"onchange\", EventCallback.Factory.CreateBinder(this, (string __v) => { name = __v; }, name));",
+                "__builder.SetUpdatesAttributeName(\"value\");",
+                "__builder.SetKey(name);",
+                "__builder.AddElementReferenceCapture(3, (ElementReference __r) => { panel = __r; });",
                 "__builder.CloseElement();",
             ],
             calls);

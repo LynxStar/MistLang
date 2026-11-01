@@ -99,6 +99,7 @@ public sealed class StructuredContextRuntimeBoundaryTests
             public static class Probe
             {
                 private static readonly System.Collections.Generic.List<string> observations = new();
+                private static CancellationToken lifetime;
                 {{methods}}
                 private static void Normal(System.Func<int, int> plainStep, System.Func<int, int> pureStep)
                 {
@@ -155,7 +156,7 @@ public sealed class StructuredContextRuntimeBoundaryTests
                     async Task HoldAndObserve()
                     {
                         ready.SetResult();
-                        await release.WaitAsync(TimeSpan.FromSeconds(5));
+                        await release.WaitAsync(lifetime);
                         values.Add(await ReadAfterAwait());
                         if (fail) { Raise(); }
                     }
@@ -179,16 +180,16 @@ public sealed class StructuredContextRuntimeBoundaryTests
                     try
                     {
                         await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
-                            firstReady.Task, first, TimeSpan.FromSeconds(5));
+                            firstReady.Task, first, lifetime);
                         second = Task.Run(() => Worker("second", secondReady, releaseSecond.Task, true));
                         await Mist.Tests.Helpers.RuntimeBoundaryTasks.WaitUntilReadyAsync(
-                            secondReady.Task, second, TimeSpan.FromSeconds(5));
+                            secondReady.Task, second, lifetime);
                         observations.Add("parent-overlap:" + Snapshot());
                         releaseFirst.SetResult();
-                        observations.AddRange(await first.WaitAsync(TimeSpan.FromSeconds(5)));
+                        observations.AddRange(await first.WaitAsync(lifetime));
                         observations.Add("parent-after-first:" + Snapshot());
                         releaseSecond.SetResult();
-                        observations.AddRange(await second.WaitAsync(TimeSpan.FromSeconds(5)));
+                        observations.AddRange(await second.WaitAsync(lifetime));
                         observations.Add("parent-after-second:" + Snapshot());
                     }
                     catch(Exception error)
@@ -224,15 +225,28 @@ public sealed class StructuredContextRuntimeBoundaryTests
                             return "suppressed:" + empty + "|" + value + "|" + AllEmpty();
                         });
                     }
-                    observations.Add(await suppressed.WaitAsync(TimeSpan.FromSeconds(5)));
+                    try
+                    {
+                        observations.Add(await suppressed.WaitAsync(lifetime));
+                    }
+                    catch(Exception error)
+                    {
+                        failure = error;
+                        throw;
+                    }
+                    finally
+                    {
+                        await Mist.Tests.Helpers.RuntimeBoundaryTasks.DrainAsync(suppressed, TimeSpan.FromSeconds(5), failure);
+                    }
                     observations.Add("parent-after-suppressed:" + Snapshot());
                 }
                 private static async Task Concurrent(System.Func<int, int> plainStep, System.Func<int, int> pureStep)
                 {
                     {{Emit(concurrent, "plainStep", "pureStep")}}
                 }
-                public static async Task<string[]> Run()
+                public static async Task<string[]> Run(CancellationToken cancellationToken)
                 {
+                    lifetime = cancellationToken;
                     Normal(value => value + 10, value => value + 100);
                     observations.Add(AllEmpty());
                     try { ThrowingOuter(value => value + 10, value => value + 100); }
@@ -256,10 +270,15 @@ public sealed class StructuredContextRuntimeBoundaryTests
         Assert.DoesNotContain(emitted.Diagnostics, diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Warning);
         stream.Position = 0;
         var context = new AssemblyLoadContext("StructuredContextRuntime", isCollectible: true);
+        using var lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        Task? pendingWork = null;
+        Exception? failure = null;
         try
         {
             var assembly = context.LoadFromStream(stream);
-            var actual = await Assert.IsAssignableFrom<Task<string[]>>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, null));
+            var pending = Assert.IsAssignableFrom<Task<string[]>>(assembly.GetType("Probe")!.GetMethod("Run")!.Invoke(null, [lifetime.Token]));
+            pendingWork = pending;
+            var actual = await pending.WaitAsync(lifetime.Token);
             Assert.Equal(["outer|optional|16|106", "inner|<null>|16|106", "outer|optional|16|106",
                 "boom|boom-opt|16|106", "outer|optional|16|106", "empty", "empty",
                 "parent-overlap:outer|optional|16|106",
@@ -269,9 +288,25 @@ public sealed class StructuredContextRuntimeBoundaryTests
                 "parent-after-second:outer|optional|16|106", "child-pop:True|replacement", "parent-after-pop:outer|optional|16|106",
                 "suppressed:empty|isolated|empty", "parent-after-suppressed:outer|optional|16|106", "empty"], actual);
         }
+        catch(Exception error)
+        {
+            failure = error;
+            throw;
+        }
         finally
         {
-            context.Unload();
+            try
+            {
+                await lifetime.CancelAsync();
+                if(pendingWork is not null)
+                {
+                    await RuntimeBoundaryTasks.DrainAsync(pendingWork, TimeSpan.FromSeconds(5), failure);
+                }
+            }
+            finally
+            {
+                context.Unload();
+            }
         }
     }
 

@@ -8,7 +8,7 @@ public sealed class RuntimeBoundaryTasksTests
     {
         var work = new TaskCompletionSource();
 
-        await RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.CompletedTask, work.Task, TimeSpan.FromSeconds(5));
+        await RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.CompletedTask, work.Task, CancellationToken.None);
 
         Assert.False(work.Task.IsCompleted);
     }
@@ -17,10 +17,13 @@ public sealed class RuntimeBoundaryTasksTests
     public async Task AWorkFaultBeforeReadinessKeepsItsOriginalException()
     {
         var ready = new TaskCompletionSource();
+        var work = new TaskCompletionSource();
         var failure = new InvalidOperationException("child failure");
+        var pending = RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, work.Task, CancellationToken.None);
 
-        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, Task.FromException(failure), TimeSpan.FromSeconds(5)));
+        work.SetException(failure);
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() => pending);
 
         Assert.Same(failure, actual);
     }
@@ -31,7 +34,7 @@ public sealed class RuntimeBoundaryTasksTests
         var failure = new InvalidOperationException("child failure");
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.CompletedTask, Task.FromException(failure), TimeSpan.FromSeconds(5)));
+            RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.CompletedTask, Task.FromException(failure), CancellationToken.None));
 
         Assert.Same(failure, actual);
     }
@@ -42,7 +45,7 @@ public sealed class RuntimeBoundaryTasksTests
         var ready = new TaskCompletionSource();
 
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, Task.CompletedTask, TimeSpan.FromSeconds(5)));
+            RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, Task.CompletedTask, CancellationToken.None));
 
         Assert.Equal("Work completed without signalling readiness.", failure.Message);
     }
@@ -54,7 +57,7 @@ public sealed class RuntimeBoundaryTasksTests
         var failure = new InvalidOperationException("signal failure");
 
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.FromException(failure), work.Task, TimeSpan.FromSeconds(5)));
+            RuntimeBoundaryTasks.WaitUntilReadyAsync(Task.FromException(failure), work.Task, CancellationToken.None));
 
         Assert.Same(failure, actual);
     }
@@ -72,5 +75,33 @@ public sealed class RuntimeBoundaryTasksTests
         var timeout = Assert.IsType<TimeoutException>(actual.InnerExceptions[1]);
         Assert.Equal("Runtime-boundary cleanup timed out with unfinished work.", timeout.Message);
         Assert.False(work.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task ACompletedChildFaultTakesPrecedenceOverParentCancellation()
+    {
+        using var lifetime = new CancellationTokenSource();
+        await lifetime.CancelAsync();
+        var ready = new TaskCompletionSource();
+        var failure = new InvalidOperationException("child failure");
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, Task.FromException(failure), lifetime.Token));
+
+        Assert.Same(failure, actual);
+    }
+
+    [Fact]
+    public async Task TheParentCanCancelAnUnsignalledWait()
+    {
+        using var lifetime = new CancellationTokenSource();
+        var ready = new TaskCompletionSource();
+        var work = new TaskCompletionSource();
+        var pending = RuntimeBoundaryTasks.WaitUntilReadyAsync(ready.Task, work.Task, lifetime.Token);
+
+        await lifetime.CancelAsync();
+
+        var failure = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        Assert.Equal(lifetime.Token, failure.CancellationToken);
     }
 }

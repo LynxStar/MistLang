@@ -2,9 +2,13 @@ namespace Mist.Tests.Helpers;
 
 public static class RuntimeBoundaryTasks
 {
-    public static async Task WaitUntilReadyAsync(Task ready, Task work, TimeSpan timeout)
+    public static async Task WaitUntilReadyAsync(Task ready, Task work, CancellationToken lifetime)
     {
-        _ = await Task.WhenAny(ready, work).WaitAsync(timeout).ConfigureAwait(false);
+        if(!ready.IsCompleted && !work.IsCompleted)
+        {
+            _ = await Task.WhenAny(ready, work).WaitAsync(lifetime).ConfigureAwait(false);
+        }
+
         if(work.IsCompleted)
         {
             await work.ConfigureAwait(false);

@@ -5,7 +5,6 @@ intrinsic public readonly owned struct Char : IClonable<Char>
     intrinsic public static readonly Char MinValue;
     intrinsic public static readonly Char MaxValue;
     intrinsic public string ToString(System.IFormatProvider? provider);
-    intrinsic public pure int CompareTo(Char other);
 
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Char Clone();
@@ -27,4 +26,14 @@ intrinsic public readonly owned struct Char : IClonable<Char>
     intrinsic public pure static implicit operator Single(Char value);
     intrinsic public pure static implicit operator Double(Char value);
     intrinsic public pure static implicit operator Decimal(Char value);
+    intrinsic public pure Int32 CompareTo(Char other);
+    intrinsic public pure static Boolean IsLetterOrDigit(Char value);
+    intrinsic public pure static Boolean IsWhiteSpace(Char value);
+    intrinsic public pure static Boolean IsDigit(Char value);
+    intrinsic public pure static Boolean IsAsciiDigit(Char value);
+    intrinsic public pure static Boolean IsAsciiLetter(Char value);
+    intrinsic public pure static Boolean IsAsciiLetterOrDigit(Char value);
+    intrinsic public pure static Boolean IsUpper(Char value);
+    intrinsic public pure static Char ToUpperInvariant(Char value);
+    intrinsic public pure static Char ToLowerInvariant(Char value);
 }

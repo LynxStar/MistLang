@@ -21,6 +21,7 @@ internal sealed class StubAmbientTypeSource : IAmbientTypeSource
     public void BuildAndRegister(ProgramModelClass programModel)
     {
         new StandardContractAmbient().BuildAndRegister(programModel);
+        StandardReflectionAmbient.RegisterDependencies(programModel);
     }
 
     public Type? FindClrType(string fullName)

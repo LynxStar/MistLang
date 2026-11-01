@@ -84,6 +84,7 @@ public sealed class TypeInspectorProjectionFixture : IDisposable
         var model = new ProgramModel.Model.ProgramModel();
         AmbientProviderTestHelper.RegisterStandardTypes(model);
         Provider.BuildAndRegister(model);
+
         if(diagnostics.HasErrors)
         {
             Provider.Dispose();

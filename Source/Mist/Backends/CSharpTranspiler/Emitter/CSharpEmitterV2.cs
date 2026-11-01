@@ -131,6 +131,7 @@ internal sealed class CSharpEmitterV2
         TaskCombinators.Reset();
         CapabilityAdapters.Reset();
         InvariantCulture.Reset();
+        TextCalls.Reset();
         BodyEmitter.ResetTemporaries();
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
@@ -187,6 +188,7 @@ internal sealed class CSharpEmitterV2
         EmitArrayRuntime(outputDir, emittedFiles);
         EmitTaskRuntime(outputDir, emittedFiles);
         CapabilityAdapters.EmitFiles(outputDir, emittedFiles);
+        TextCalls.EmitFile(outputDir, emittedFiles);
         EmitInvariantRuntime(outputDir, emittedFiles);
         LocaleStartup.EmitFile(options, outputDir, emittedFiles);
 

@@ -74,7 +74,7 @@ internal static class StandardModelProbe
             },
             options,
             buildDiagnostics,
-            ambient ?? new StandardContractAmbient());
+            new StandardReflectionAmbient(ambient ?? new StandardContractAmbient()));
 
         diagnostics = buildDiagnostics.ToImmutableArray();
         return Assert.IsType<ProgramModelClass>(model);

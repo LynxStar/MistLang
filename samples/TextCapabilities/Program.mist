@@ -1,0 +1,98 @@
+using Standard;
+using System;
+using System.Globalization;
+
+namespace TextCapabilities;
+
+public type TextLabel = new string;
+
+public class Program
+{
+    private static string Show(int? index)
+    {
+        return $"{index}";
+    }
+
+    private static string Fresh()
+    {
+        Console.WriteLine("receiver once");
+        return "abca";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Text Capabilities ===");
+        Console.WriteLine("x".Replace("x", "y"));
+        Console.WriteLine(char.ToUpperInvariant('a'));
+        Console.WriteLine(char.IsLetterOrDigit('a'));
+        Console.WriteLine(string.IsNullOrEmpty(""));
+        Console.WriteLine(string.Join(",", ["a", "b"]));
+        Console.WriteLine(System.String.IsNullOrEmpty(""));
+
+        var saved = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+        var text = "abca";
+        Console.WriteLine($"indexes={Show(text.IndexOf('a'))},{Show(text.IndexOf('a', 1))},{Show(text.LastIndexOf('a'))},{Show(text.IndexOf('z'))}");
+        Console.WriteLine($"any={Show(text.IndexOfAny(['a', 'c']))},{Show(text.IndexOfAny(['a', 'c'], 1))},{Show(text.IndexOfAny(['z'], 4))}");
+        Console.WriteLine($"compare={Show(text.IndexOf('A', StringComparison.OrdinalIgnoreCase))},{Show(text.IndexOf("BC", StringComparison.OrdinalIgnoreCase))},{Show(text.LastIndexOf("A", StringComparison.OrdinalIgnoreCase))}");
+        Console.WriteLine($"empty={Show(text.IndexOf("", StringComparison.Ordinal))},{Show(text.LastIndexOf("", StringComparison.Ordinal))}");
+        Console.WriteLine($"edge={Show("".IndexOf('a'))},{Show("".IndexOfAny(['a']))},{Show(text.IndexOf('a', 4))}");
+        Console.WriteLine(Show(Fresh().IndexOf('a')));
+        string? missing = void;
+        Console.WriteLine($"conditional={Show(missing?.IndexOf('a'))}");
+        Console.WriteLine($"contains={text.Contains('b')},{text.Contains("bc")},{text.Contains('B', StringComparison.OrdinalIgnoreCase)},{text.Contains("BC", StringComparison.OrdinalIgnoreCase)}");
+        Console.WriteLine($"replace={text.Replace('a', 'x')},{text.Replace("a", "")},{text.Replace("A", "x", StringComparison.OrdinalIgnoreCase)},{text.Replace("a", missing)}");
+        Console.WriteLine($"prefix={text.StartsWith('a')},{text.StartsWith("ab")},{text.StartsWith("AB", StringComparison.OrdinalIgnoreCase)}");
+        Console.WriteLine($"suffix={text.EndsWith("ca")},{text.EndsWith("CA", StringComparison.OrdinalIgnoreCase)}");
+        var ignorable = $"{System.Convert.ToChar(173)}";
+        Console.WriteLine($"ordinal={"ab".StartsWith("a" + ignorable, StringComparison.Ordinal)},{"ab".EndsWith(ignorable + "b", StringComparison.Ordinal)}");
+        Console.WriteLine($"invariant={"ab".StartsWith("a" + ignorable)},{"ab".EndsWith(ignorable + "b")}");
+        Console.WriteLine($"case={"i".ToUpperInvariant()},{"I".ToLowerInvariant()},{"i".ToUpper()},{char.ToUpperInvariant('i')},{char.ToLowerInvariant('I')}");
+        Console.WriteLine($"trim=[{" \tword\r\n".Trim()}],[{"word \t".TrimEnd()}],[{"word???".TrimEnd('?')}],[{"wordMmF".TrimEnd('m', 'M', 'F')}],[{" \tword".TrimStart()}],[{"/_word".TrimStart('/', '_')}]");
+        Console.WriteLine($"lines={"a\r\nb\nc".ReplaceLineEndings("|")}");
+        Console.WriteLine($"split={string.Join("|", "a,,b".Split(','))};{string.Join("|", "a,,b".Split(',', StringSplitOptions.RemoveEmptyEntries))}");
+        Console.WriteLine($"separator={string.Join("|", "a--b----c".Split("--"))};{string.Join("|", "a--b----c".Split("--", StringSplitOptions.RemoveEmptyEntries))}");
+        char[] separators = [',', ';'];
+        char[]? whitespace = void;
+        Console.WriteLine($"chars={string.Join("|", "a,b;c".Split(',', ';'))};{string.Join("|", "a,b;;c".Split(separators, StringSplitOptions.RemoveEmptyEntries))}");
+        Console.WriteLine($"whitespace={string.Join("|", " a \t b ".Split(whitespace, StringSplitOptions.RemoveEmptyEntries))}");
+        Console.WriteLine($"trim-fields={string.Join("|", " a , b ".Split(',', StringSplitOptions.TrimEntries))}");
+        Console.WriteLine($"nulls={string.IsNullOrEmpty(void)},{string.IsNullOrEmpty("x")},{string.IsNullOrWhiteSpace(void)},{string.IsNullOrWhiteSpace(" \t")},{string.IsNullOrWhiteSpace("x")}");
+        (string?)[] parts = ["left", void, "right"];
+        IEnumerable<string?> sequence = parts;
+        double[] numbers = [1.25, 2.5];
+        char[] letters = ['a', 'b'];
+        Console.WriteLine($"join={string.Join("/", parts)};{string.Join('/', parts)};{string.Join("/", sequence)}");
+        Console.WriteLine($"generic={string.Join<double>(";", numbers)};{string.Join<double>(';', numbers)};{string.Concat<char>(letters)};{string.Concat<double>(numbers)}");
+        Console.WriteLine($"concat={string.Concat(parts)};{string.Concat(sequence)};{string.Concat("a", "b", "c")}");
+        double[] empty = [];
+        Console.WriteLine($"empty-sequence=[{string.Join<double>(";", empty)}],[{string.Concat<double>(empty)}] separator={string.Join(missing, parts)}");
+        TextLabel label = "a,b";
+        TextLabel[] labels = label.Split(',');
+        foreach(var part in labels)
+        {
+            Console.WriteLine($"newtype-part={part}");
+        }
+        var template = "[{0,6:F2}] {1} {2} {3}";
+        Console.WriteLine(string.Format(CultureInfo.InvariantCulture, template, 1.25, "text", true, 7));
+        (unknown)[] arguments = [1.25, "text", true, 7];
+        Console.WriteLine(string.Format(void, template, arguments));
+        Console.WriteLine(string.Format(new CultureInfo("fr-FR"), "{0:F2}", 1.25));
+        Console.WriteLine($"native={text[1..3]}|{text[4..]}|{text[..]}|{text.Substring(1)}|{1.25}");
+        var unicodeDigit = System.Convert.ToChar(1633);
+        var unicodeLetter = System.Convert.ToChar(233);
+        var unicodeSpace = System.Convert.ToChar(160);
+        Console.WriteLine($"unicode={char.IsDigit(unicodeDigit)},{char.IsLetterOrDigit(unicodeLetter)},{char.IsWhiteSpace(unicodeSpace)},{string.IsNullOrWhiteSpace($"{unicodeSpace}")}");
+        Console.WriteLine($"ascii={char.IsAsciiDigit(unicodeDigit)},{char.IsAsciiLetterOrDigit(unicodeLetter)},{char.IsAsciiDigit('1')},{char.IsAsciiLetter('a')},{char.IsAsciiLetterOrDigit('Z')},{char.IsUpper('A')}");
+        Console.WriteLine($"char-order={'a'.CompareTo('b')},{'b'.CompareTo('a')},{'a'.CompareTo('a')}");
+        var utf16 = $"{System.Convert.ToChar(55357)}{System.Convert.ToChar(56832)}x";
+        Console.WriteLine($"utf16={utf16.Length},{Show(utf16.IndexOf('x'))},{utf16[2..]}");
+        CultureInfo.CurrentCulture = saved;
+        Console.WriteLine("=== Text Capabilities Done ===");
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

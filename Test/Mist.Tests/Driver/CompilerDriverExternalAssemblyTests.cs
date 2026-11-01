@@ -121,6 +121,7 @@ public sealed class CompilerDriverExternalAssemblyTests : IDisposable
         public void BuildAndRegister(ProgramModelClass programModel)
         {
             new StandardContractAmbient(provider).BuildAndRegister(programModel);
+            StandardReflectionAmbient.RegisterDependencies(programModel);
         }
 
         public Type? FindClrType(string fullName)

@@ -71,7 +71,14 @@ An operator expression calls an operator declared on one of its operand types or
 | Type | Category | Description |
 |------|----------|-------------|
 | `Regex` | Class | Regular expression compiled from a backtick literal (`` `pattern` ``). Provides `IsMatch` (partial match) and `IsFullMatch` (full string match) methods, a `Pattern` property, and conversions to/from `String`. |
-| `Type` | Class | Runtime type descriptor with a `Name` property and a static `Of(unknown value)` method that returns the runtime type of any value. |
+| `Type` | Class | Runtime type descriptor, canonical with `System.Type` in the C# backend. `Of(unknown value)` returns a value's runtime type; type literals describe the named type. Both support `Name`, `Assembly`, and the declared reflection members, including `GetMethods`. |
+
+Reflection works directly on the result of `Type.Of`, through an inferred local, and through a
+type literal. An explicit `System.Type` annotation names the same model type. CLR signatures,
+including `System.Type.GetType`, assembly type lookup and metadata member results, use that
+identity too. Lookups that can fail return an optional `Type`; use optional access or narrow
+the result before reflecting on it. The Standard declaration defines the available member
+surface; unifying the identity does not automatically expose every CLR member.
 
 ## Core Types
 

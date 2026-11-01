@@ -11,7 +11,7 @@ internal sealed class StandardContractAmbient(IAmbientTypeProvider? ambient = nu
     {
         if(programModel.TypesByFQN.TryGetValue("Standard.Int32", out var integer))
         {
-            _ = programModel.RegisterType(new AbstractType("IFormatProvider", "System", null, null, null));
+            StandardSignatureAmbientProvider.Instance.BuildAndRegister(programModel);
             _ = programModel.RegisterType(new EnumType("NumberStyles", "System.Globalization", null, null, null)
             { UnderlyingType = integer });
             var comparer = new AbstractType("IComparer<>", "System.Collections.Generic", null, null, null);

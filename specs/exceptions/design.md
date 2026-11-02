@@ -696,3 +696,45 @@ is the concrete general-purpose message value. Requirement 1.12's CLR Exception
 adaptation is intentionally supplied by the CLR-boundary implementation rather
 than this foundation. The arithmetic, Catch and unresolved-outcome policies
 remain the contracts of their separate implementation packets.
+
+## Arithmetic implementation surface
+
+The three-way division rule is a binding decision, because it fixes an
+expression's static type and Stage 5 may not retype a finished model.
+`ArithmeticProof` judges a built-in integer `/` or `%` from the operands'
+`Admitted` interval facts: a positive or otherwise nonzero divisor that also
+excludes the signed minimum over negative one is safe and keeps the numeric
+type; a proven zero divisor or minimum-over-negative-one is refused with
+`MIST0484`; anything unproven takes the Result route. `OperandFacts` supplies
+those facts at binding time as a deliberately lexical narrowing beside the
+optional narrowing on `BodyScope`: a guard records what it proves into the
+branch it guards, a reassignment records a barrier, and a read intersects the
+enclosing scopes' facts up to that barrier. Facts attach to a local only, so a
+mutable property, an alias or a repeated call manufactures no proof, and an
+expected `int` destination supplies none. The facts reuse the refinement
+engine's `Admitted`, `Requirement` and interval algebra rather than a second
+proof engine. This first delivery judges `Int32` (the narrow integers promote
+into it); the wider, unsigned, decimal and floating-point families keep their
+existing unconditional behavior.
+
+The unproven route lowers to `Standard.ResultArithmetic.DivideChecked` or
+`RemainderChecked`, ordinary static methods returning
+`Result<Int32, DivisionError>` that test the hazard and return the error
+instead of running a trapping instruction; their own surviving divisions are
+proven safe by the guards they are written behind. `DivisionError` is the
+Standard error with a `Message` and an overflow discriminant, conforming to
+`Error`. The helpers live on a dedicated type rather than on `Int32` so a
+newtype over `int` does not clone them into a Result over the newtype.
+
+Result composition is the compiler routing an arithmetic operator with a
+Result operand to a concrete Standard method -- `ResultArithmetic`'s
+`AddResultValue`, `MulResultResult` and the rest -- which carries an existing
+error forward (the left one when both are errors) or applies the operation to
+the proven payloads, reusing the proof-sensitive operator for `/` and `%` so
+one Result layer is kept and operand evaluation stays eager. The operators
+cannot be ordinary overloads: a generic operator on `Result<T, E>` would emit
+payload arithmetic into every monomorphized instantiation, including the
+non-numeric ones, and an operator on the numeric type cannot be emitted onto
+the backing CLR primitive. This delivery composes `Int32` Results across all
+five operators and all three operand arrangements. The wider families and
+decimal follow the same shape and are not yet provided.

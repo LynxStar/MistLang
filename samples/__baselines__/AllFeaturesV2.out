@@ -2650,3 +2650,12 @@ success=6
 owned=7
 snapshot=4
 drop=4
+=== ProofArithmetic Sample ===
+proven int: 20 / 4 = 5
+guarded int: 20 / d = 4
+uncertain Result -> 4
+divide by zero -> Attempted to divide by zero.
+compose (a/d)*3 -> 12
+compose carries error -> Attempted to divide by zero.
+propagated (a/d*factor)! + 1 -> 13
+propagated through zero -> Attempted to divide by zero.

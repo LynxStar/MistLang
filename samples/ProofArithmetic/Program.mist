@@ -1,0 +1,79 @@
+using Standard;
+
+namespace ProofArithmetic;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static int Value(Result<int, DivisionError> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var payload) => payload,
+            (false, var error) => -1,
+            _ => -2
+        };
+    }
+
+    public static string Message(Result<int, DivisionError> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var payload) => "ok",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static Result<int, DivisionError> Scale(int x, int y, int factor)
+    {
+        var scaled = (x / y * factor)!;
+        return (scaled + 1).AsSuccess();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== ProofArithmetic Sample ===");
+
+        int a = 20;
+        int four = 4;
+        int provenQuotient = a / four;
+        Console.WriteLine($"proven int: {a} / {four} = {provenQuotient}");
+
+        int d = Divisor();
+        if (d > 0)
+        {
+            int guarded = a / d;
+            Console.WriteLine($"guarded int: {a} / d = {guarded}");
+        }
+
+        var uncertain = a / d;
+        Console.WriteLine($"uncertain Result -> {Value(uncertain)}");
+
+        var byZero = a / Zero();
+        Console.WriteLine($"divide by zero -> {Message(byZero)}");
+
+        var composed = a / d * 3;
+        Console.WriteLine($"compose (a/d)*3 -> {Value(composed)}");
+
+        var composedError = a / Zero() * 3;
+        Console.WriteLine($"compose carries error -> {Message(composedError)}");
+
+        Console.WriteLine($"propagated (a/d*factor)! + 1 -> {Value(Scale(a, d, 3))}");
+        Console.WriteLine($"propagated through zero -> {Message(Scale(a, Zero(), 3))}");
+    }
+
+    public static int Divisor()
+    {
+        return 5;
+    }
+
+    public static int Zero()
+    {
+        return 0;
+    }
+}

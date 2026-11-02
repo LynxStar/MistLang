@@ -396,6 +396,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.ResultPropagationError"] = "The propagated error is not assignable to this callable's error return destination. Map it explicitly.",
         ["ProgramAnalysisDiagnostics.ResultErrorIsNotIdentity"] = "A proven error alternative is not a successful plain value. Return it explicitly as a failure or map it.",
         ["ProgramAnalysisDiagnostics.TupleCorrelationUnproven"] = "This pattern does not establish one correlated tuple alternative before binding its payload.",
+        ["ProgramModelDiagnostics.InvalidArithmetic"] = "This operation is statically proven to violate its panic-prevention conditions, so it is refused rather than emitted.",
         ["ProgramModelDiagnostics.ThisOutsideType"] = "'this' is not valid here because there is no enclosing type. It is only valid inside an instance member of a type.",
         ["ProgramModelDiagnostics.ThisInStaticMember"] = "'this' is not valid in a static member because a static member has no instance to refer to.",
         ["ProgramModelDiagnostics.ForEachElementNotInferable"] = "Cannot infer the element type of 'arg0' because it is not an array and conforms to no IEnumerable. Iterate a sequence, or state the element type in place of 'var'.",

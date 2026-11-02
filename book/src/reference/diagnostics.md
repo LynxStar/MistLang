@@ -165,6 +165,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0481 | Tuple alternative unproven | Match the tuple's discriminant to establish the payload type of the same evaluated value. | Error | Fixed | None | None |
 | MIST0482 | An error is not propagation identity | Identity propagation preserves a plain success value; it cannot reinterpret an inspected failure as success. | Error | Fixed | None | None |
 | MIST0483 | Propagation needs an error return destination | Use a Result-returning factory instead of a constructor, or declare a return type that accepts the propagated error. | Error | Fixed | None | None |
+| MIST0484 | Operation proven invalid | An integer division or remainder is proven at compile time to divide by zero or to overflow (the signed minimum divided by negative one). Return a Result failure explicitly, or establish operands that satisfy the operation's preconditions. | Error | Fixed | None | None |
 
 ## DEC
 

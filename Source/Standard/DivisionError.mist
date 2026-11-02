@@ -1,0 +1,24 @@
+namespace Standard;
+
+public readonly struct DivisionError : Error
+{
+    public string Message { get; }
+
+    public bool IsOverflow { get; }
+
+    private DivisionError(string message, bool isOverflow)
+    {
+        Message = message!;
+        IsOverflow = isOverflow;
+    }
+
+    public static DivisionError DivideByZero()
+    {
+        return new DivisionError("Attempted to divide by zero.", false);
+    }
+
+    public static DivisionError Overflow()
+    {
+        return new DivisionError("Arithmetic operation resulted in an overflow.", true);
+    }
+}

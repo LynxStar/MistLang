@@ -1,5 +1,7 @@
 using Mist.Generated;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 
@@ -119,10 +121,18 @@ internal sealed class BindingContext
         }
     }
 
+    /// <summary>
+    /// The binding-time operand facts (<see cref="OperandFacts"/>) for this whole body, keyed by the
+    /// scope that recorded them. One store is shared down the nested-block contexts so a fact a guard
+    /// proves reaches the block it guards, which binds under a context of its own.
+    /// </summary>
+    public Dictionary<BodyScope, Dictionary<LocalVariable, Admitted>> ArithmeticFacts { get; }
+
     public BindingContext(BodyScope scope, IMistType? returnType)
     {
         Scope = scope;
         ReturnType = returnType;
+        ArithmeticFacts = new Dictionary<BodyScope, Dictionary<LocalVariable, Admitted>>(ReferenceEqualityComparer.Instance);
     }
 
     /// <summary>
@@ -134,6 +144,7 @@ internal sealed class BindingContext
     public BindingContext(BodyScope scope, IMistType? returnType, BindingContext enclosing)
         : this(scope, returnType ?? enclosing.ReturnType)
     {
+        ArithmeticFacts = enclosing.ArithmeticFacts;
         ReturnTypeIsFailed = ReferenceEquals(ReturnType, enclosing.ReturnType) && enclosing.ReturnTypeIsFailed;
         ExitCodeType = enclosing.ExitCodeType;
         EnclosingProperty = enclosing.EnclosingProperty;

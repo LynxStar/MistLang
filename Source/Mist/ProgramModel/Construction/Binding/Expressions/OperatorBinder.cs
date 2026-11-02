@@ -4,6 +4,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -62,7 +63,7 @@ internal static class OperatorBinder
         foreach(var operand in node.LogicalAnds)
         {
             var right = BindLogicalAnd(operand, ctx, context);
-            left = MakeBinary(node, left, BinaryOperatorKind.LogicalOr, right, context);
+            left = MakeBinary(node, left, BinaryOperatorKind.LogicalOr, right, ctx, context);
         }
 
         return left;
@@ -80,7 +81,7 @@ internal static class OperatorBinder
         foreach(var operand in node.Equalitys)
         {
             var right = BindEquality(operand, ctx, context);
-            left = MakeBinary(node, left, BinaryOperatorKind.LogicalAnd, right, context);
+            left = MakeBinary(node, left, BinaryOperatorKind.LogicalAnd, right, ctx, context);
         }
 
         return left;
@@ -95,7 +96,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindRelational(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right, context);
+            left = MakeBinary(node, left, op, right, ctx, context);
         }
 
         return left;
@@ -119,7 +120,7 @@ internal static class OperatorBinder
                     {
                         var op = MapOperator(group.Operator.Lexeme);
                         var right = BindAdditive(group.Right, ctx, context);
-                        left = MakeBinary(node, left, op, right, context);
+                        left = MakeBinary(node, left, op, right, ctx, context);
                     }
 
                     return left;
@@ -255,7 +256,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindMultiplicative(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right, context);
+            left = MakeBinary(node, left, op, right, ctx, context);
         }
 
         return left;
@@ -269,7 +270,7 @@ internal static class OperatorBinder
         {
             var op = MapOperator(group.Operator.Lexeme);
             var right = BindRange(group.Right, ctx, context);
-            left = MakeBinary(node, left, op, right, context);
+            left = MakeBinary(node, left, op, right, ctx, context);
         }
 
         return left;
@@ -522,14 +523,34 @@ internal static class OperatorBinder
     /// type where no operator admits them: the operator rule reports that against the operands, and an
     /// error-typed result keeps everything downstream from complaining about it a second time.
     /// </summary>
-    private static BinaryExpression MakeBinary(
-        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BuilderContext context)
+    private static Expression MakeBinary(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BindingContext ctx, BuilderContext context)
     {
         var interner = context.ProgramModel.TypeInterner;
         var choice = OperatorAdmissibility.Binary(
             op, left.Type, right.Type, context.Resolver.LookupWellKnown,
             [ConstantConversion.IntegerConstant(left), ConstantConversion.IntegerConstant(right)], interner);
         var selected = choice.Selected;
+
+        if(selected is null or { Declaration.Modifiers.IsIntrinsic: true } && choice.Type is { } numeric
+            && ArithmeticProof.Judge(op, numeric, OperandFacts.For(ctx, ctx.Scope, left), OperandFacts.For(ctx, ctx.Scope, right)) is { } verdict)
+        {
+            if(verdict == ArithmeticProof.Verdict.Invalid)
+            {
+                context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InvalidArithmetic, node, null);
+            }
+            else if(verdict == ArithmeticProof.Verdict.Fallible
+                && Fallible(node, left, op, right, ctx, context) is { } fallible)
+            {
+                return fallible;
+            }
+        }
+
+        if(selected is null && Composition(node, left, op, right, ctx, context) is { } composed)
+        {
+            return composed;
+        }
+
         var operands = ImplicitConversions.AtParameters([left, right], selected?.Declaration, selected?.ParameterTypes, interner);
 
         return new BinaryExpression(node, operands[0], op, operands[1], choice.Type ?? ErrorType.Instance)
@@ -539,6 +560,81 @@ internal static class OperatorBinder
             ParameterTypes = selected?.ParameterTypes,
             AmbiguousOperators = choice.Tied,
         };
+    }
+
+    /// <summary>
+    /// Composition of a Result into arithmetic: an operator with a Result operand carries an existing
+    /// error forward or applies the operation to the proven payloads, which Standard spells out as
+    /// ordinary methods on each numeric family. The language cannot declare these as operator overloads
+    /// -- a generic Result operator would emit payload arithmetic into every instantiation, a numeric
+    /// type's operator cannot be emitted onto the backing CLR primitive -- so the compiler routes the
+    /// operator to the family's method, the same way it routes an unproven division to its checked
+    /// helper. Only Int32 Results are composed today.
+    /// </summary>
+    private static Expression? Composition(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BindingContext ctx, BuilderContext context)
+    {
+        var name = op switch
+        {
+            BinaryOperatorKind.Add => "Add",
+            BinaryOperatorKind.Subtract => "Sub",
+            BinaryOperatorKind.Multiply => "Mul",
+            BinaryOperatorKind.Divide => "Div",
+            BinaryOperatorKind.Modulo => "Rem",
+            _ => null,
+        };
+
+        var variant = (IsIntResult(left.Type), IsIntResult(right.Type)) switch
+        {
+            (true, true) => "ResultResult",
+            (true, false) => "ResultValue",
+            (false, true) => "ValueResult",
+            _ => null,
+        };
+
+        return name is null || variant is null ? null : StandardCall(node, "ResultArithmetic", name + variant, [left, right], ctx, context);
+    }
+
+    private static bool IsIntResult(IMistType type)
+    {
+        return ResultTypes.Of(type) is { Success: { } success, Error: { } error }
+            && success.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName
+            && error.FullyQualifiedName == "Standard.DivisionError";
+    }
+
+    private static Expression? Fallible(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right,
+        BindingContext ctx, BuilderContext context)
+    {
+        var helperName = op == BinaryOperatorKind.Divide ? "DivideChecked" : "RemainderChecked";
+
+        return StandardCall(node, "ResultArithmetic", helperName, [left, right], ctx, context);
+    }
+
+    private static Expression? StandardCall(
+        Storm.Runtime.SyntaxNode node, string typeName, string methodName, IReadOnlyList<Expression> operands,
+        BindingContext ctx, BuilderContext context)
+    {
+        if(context.ProgramModel.FindType("Standard", typeName) is not { } owner)
+        {
+            return null;
+        }
+
+        var (found, _, _) = MemberResolution.Resolve(
+            owner, methodName, MemberVisibility.InstanceAndStatic, node, context, ctx.Scope, reportMissing: false);
+
+        if(found is not MethodGroupResult { Methods: [var method, ..] } || method.ParametersList.Count != operands.Count)
+        {
+            return null;
+        }
+
+        var interner = context.ProgramModel.TypeInterner;
+        var parameters = method.ParametersList.ConvertAll(parameter => parameter.Type);
+        var arguments = operands.Select((operand, i) => ImplicitConversions.At(operand, parameters[i], interner)).ToList();
+        var callee = new MemberAccessExpression(
+            node, new TypeReferenceExpression(node, owner), methodName, method.ReturnType, [], isConditional: false, new MethodGroupResult([method]));
+
+        return new InvocationExpression(node, callee, arguments, method.ReturnType, method, parameters);
     }
 
     private static UnaryExpression MakeUnary(

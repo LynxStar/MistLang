@@ -1,0 +1,300 @@
+namespace Standard;
+
+// Concrete composition of Int32 Results: the compiler routes an arithmetic operator with a
+// Result operand to the matching method here, carrying an existing error forward or applying the
+// operation to the proven payloads (exceptions Requirement 4). Division and remainder reuse the
+// proof-sensitive operator on the payloads, keeping one Result layer.
+public class ResultArithmetic
+{
+    // The Result route the compiler selects for an unproven Int32 division: the hazards are tested and
+    // the error is returned instead of running a trapping instruction. The guards leave each surviving
+    // division proven safe, so its own type is the plain numeric value (Requirement 4). Declared here
+    // rather than on Int32 so a newtype over int does not clone it into a Result over the newtype.
+    public static Result<Int32, DivisionError> DivideChecked(Int32 a, Int32 b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            if (b == -1)
+            {
+                if (a == -2147483648)
+                {
+                    return DivisionError.Overflow();
+                }
+                else
+                {
+                    return a / b;
+                }
+            }
+            else
+            {
+                return a / b;
+            }
+        }
+    }
+
+    public static Result<Int32, DivisionError> RemainderChecked(Int32 a, Int32 b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            return a % b;
+        }
+    }
+
+    public static Result<Int32, DivisionError> AddResultValue(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var error))
+        {
+            return error;
+        }
+        if (ai is (true, var value))
+        {
+            return value + b;
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> AddValueResult(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var bi = b.Inspect();
+        if (bi is (false, var error))
+        {
+            return error;
+        }
+        if (bi is (true, var value))
+        {
+            return a + value;
+        }
+        return b;
+    }
+
+    public static Result<Int32, DivisionError> AddResultResult(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var ae))
+        {
+            return ae;
+        }
+        var bi = b.Inspect();
+        if (bi is (false, var be))
+        {
+            return be;
+        }
+        if (ai is (true, var av))
+        {
+            if (bi is (true, var bv))
+            {
+                return av + bv;
+            }
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> SubResultValue(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var error))
+        {
+            return error;
+        }
+        if (ai is (true, var value))
+        {
+            return value - b;
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> SubValueResult(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var bi = b.Inspect();
+        if (bi is (false, var error))
+        {
+            return error;
+        }
+        if (bi is (true, var value))
+        {
+            return a - value;
+        }
+        return b;
+    }
+
+    public static Result<Int32, DivisionError> SubResultResult(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var ae))
+        {
+            return ae;
+        }
+        var bi = b.Inspect();
+        if (bi is (false, var be))
+        {
+            return be;
+        }
+        if (ai is (true, var av))
+        {
+            if (bi is (true, var bv))
+            {
+                return av - bv;
+            }
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> MulResultValue(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var error))
+        {
+            return error;
+        }
+        if (ai is (true, var value))
+        {
+            return value * b;
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> MulValueResult(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var bi = b.Inspect();
+        if (bi is (false, var error))
+        {
+            return error;
+        }
+        if (bi is (true, var value))
+        {
+            return a * value;
+        }
+        return b;
+    }
+
+    public static Result<Int32, DivisionError> MulResultResult(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var ae))
+        {
+            return ae;
+        }
+        var bi = b.Inspect();
+        if (bi is (false, var be))
+        {
+            return be;
+        }
+        if (ai is (true, var av))
+        {
+            if (bi is (true, var bv))
+            {
+                return av * bv;
+            }
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> DivResultValue(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var error))
+        {
+            return error;
+        }
+        if (ai is (true, var value))
+        {
+            return value / b;
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> DivValueResult(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var bi = b.Inspect();
+        if (bi is (false, var error))
+        {
+            return error;
+        }
+        if (bi is (true, var value))
+        {
+            return a / value;
+        }
+        return b;
+    }
+
+    public static Result<Int32, DivisionError> DivResultResult(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var ae))
+        {
+            return ae;
+        }
+        var bi = b.Inspect();
+        if (bi is (false, var be))
+        {
+            return be;
+        }
+        if (ai is (true, var av))
+        {
+            if (bi is (true, var bv))
+            {
+                return av / bv;
+            }
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> RemResultValue(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var error))
+        {
+            return error;
+        }
+        if (ai is (true, var value))
+        {
+            return value % b;
+        }
+        return a;
+    }
+
+    public static Result<Int32, DivisionError> RemValueResult(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var bi = b.Inspect();
+        if (bi is (false, var error))
+        {
+            return error;
+        }
+        if (bi is (true, var value))
+        {
+            return a % value;
+        }
+        return b;
+    }
+
+    public static Result<Int32, DivisionError> RemResultResult(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var ai = a.Inspect();
+        if (ai is (false, var ae))
+        {
+            return ae;
+        }
+        var bi = b.Inspect();
+        if (bi is (false, var be))
+        {
+            return be;
+        }
+        if (ai is (true, var av))
+        {
+            if (bi is (true, var bv))
+            {
+                return av % bv;
+            }
+        }
+        return a;
+    }
+}

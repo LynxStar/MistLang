@@ -216,12 +216,29 @@ internal static class StatementBinder
         return block;
     }
 
+    /// <summary>
+    /// An <c>else</c> block carries the negation of the <c>if</c>'s condition into its own scope, so a
+    /// guard that excludes a divisor in its then-branch proves the complement here, which is what a
+    /// checked helper's final fall-through relies on.
+    /// </summary>
+    private static Block BindElseBlock(
+        BlockNode node, Expression condition, BindingContext ctx, BuilderContext context)
+    {
+        var scope = new BodyScope(ctx.Scope);
+        OperandFacts.Learn(ctx, scope, condition, holds: false);
+        var block = new Block(node);
+        BodyBinder.BindNestedBlock(block, scope, ctx, context);
+        return block;
+    }
+
     private static ExpressionStatement BindExpressionStatement(ExpressionStatementStatementNode statement, BindingContext ctx, BuilderContext context)
     {
         var expression = ExpressionBinder.BindExpression(statement.ExpressionStatement.Expression, ctx, context);
 
         if(expression is AssignmentExpression { Target: LocalReferenceExpression { Local: var local } } assignment && ctx.Scope is BodyScope body)
         {
+            OperandFacts.Reassigned(ctx, body, local, assignment.Value);
+
             if(assignment.IsCoalescing && OptionalUnion.InnerType(local.Type) is { } inner && !OptionalUnion.ContainsVoid(assignment.Value.Type))
             {
                 body.Narrow(local, inner);
@@ -292,6 +309,12 @@ internal static class StatementBinder
             FailureSource = initializer,
         };
         ctx.Scope.DeclareLocal(local, node, context.Diagnostics, name.Span);
+
+        if(ctx.Scope is BodyScope body)
+        {
+            OperandFacts.Declared(ctx, body, local, initializer);
+        }
+
         return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer, local.IsRef));
     }
 
@@ -430,6 +453,8 @@ internal static class StatementBinder
         var condition = BindConditionInto(node.Condition, thenScope, ctx, context);
         var conditionBinds = thenScope.Locals.Count > 0;
 
+        OperandFacts.Learn(ctx, thenScope, condition, holds: true);
+
         var thenBlock = new Block(node.ThenBranch);
         BodyBinder.BindNestedBlock(thenBlock, thenScope, ctx, context);
 
@@ -439,7 +464,7 @@ internal static class StatementBinder
             elseBranch = node.ElseBranch switch
             {
                 ElseIfElseClauseNode elseIf => BindIf(elseIf.ElseIf, ctx, context),
-                ElseBlockElseClauseNode elseBlock => BindNestedBlock(elseBlock.ElseBlock, ctx, context),
+                ElseBlockElseClauseNode elseBlock => BindElseBlock(elseBlock.ElseBlock, condition, ctx, context),
                 _ => null,
             };
         }
@@ -452,6 +477,8 @@ internal static class StatementBinder
         var bodyScope = new BodyScope(ctx.Scope);
         var condition = BindConditionInto(node.Condition, bodyScope, ctx, context);
         var conditionBinds = bodyScope.Locals.Count > 0;
+
+        OperandFacts.Learn(ctx, bodyScope, condition, holds: true);
 
         var body = new Block(node.Body);
         BodyBinder.BindNestedBlock(body, bodyScope, ctx, context);

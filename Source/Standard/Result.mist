@@ -25,10 +25,11 @@ public sealed class Result<T, E>
         return new Result<T, E>((tag, error));
     }
 
-    public (True, T) | (False, E) Inspect()
+    public pure (True, T) | (False, E) Inspect()
     {
         return state;
     }
+
 }
 
 public sealed class ResultSuccess<T>

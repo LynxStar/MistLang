@@ -1,6 +1,8 @@
+using Mist.Generated;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Binding.Expressions;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -49,5 +51,52 @@ public sealed class ClrCatchAutoAwaitTests
             Assert.Same(drop, Assert.IsType<InvocationExpression>(bound).Method);
             Assert.Same(result.Type, bound.Type);
         }
+    }
+
+    [Fact]
+    public void AnInnerTaskCallStillAwaitsInsideALargerBoundaryLambdaResult()
+    {
+        var f = TaskReadingModel(out _, out var box);
+        var lambda = Lambda(
+            new InvocationSuffixPostfixSuffixNode(),
+            new MemberAccessSuffixPostfixSuffixNode { Name = BindingFragments.Token("Value") });
+        var result = new LambdaTrials(f.Binding, f.Builder, retainTaskResult: true).ResultType(lambda, []);
+
+        Assert.Same(box.FieldsList[0].Type, result);
+    }
+
+    [Fact]
+    public void OnlyTheBoundaryLambdasOwnResultIsKeptAsItsTask()
+    {
+        var f = TaskReadingModel(out var taskOfBox, out var box);
+        var lambda = Lambda(new InvocationSuffixPostfixSuffixNode());
+
+        Assert.Same(taskOfBox, new LambdaTrials(f.Binding, f.Builder, retainTaskResult: true).ResultType(lambda, []));
+        Assert.Same(box, new LambdaTrials(f.Binding, f.Builder, retainTaskResult: false).ResultType(lambda, []));
+    }
+
+    private static BindingFragments TaskReadingModel(out ConstructedType taskOfBox, out ClassType box)
+    {
+        var f = new BindingFragments();
+        var task = f.Built.Type("Task<>");
+        var parameter = new TypeParameter("T", 0, task.Scope, task);
+        task.TypeParametersList.Add(parameter);
+        task.MethodsList.Add(new Method("Drop", parameter, [], new MemberModifiers { IsIntrinsic = true }) { DeclaringType = task });
+        f.Register(task);
+
+        box = Class("Box");
+        box.FieldsList.Add(new Field("Value", f.Built.Type("Int32"), OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = box });
+        taskOfBox = f.Built.Interner.GetOrCreateConstructedType(task, [box]);
+        _ = f.Local("read", new FunctionType([], taskOfBox));
+        return f;
+    }
+
+    private static UnboundLambdaExpression Lambda(params PostfixSuffixNode[] suffixes)
+    {
+        var node = BindingFragments.At<ExpressionLambdaLambdaExpressionNode>();
+        node.Modifiers = [];
+        node.Params = new ParenthesizedLambdaParamsLambdaParameterListNode();
+        node.Body = BindingFragments.Expression(BindingFragments.Identifier("read"), suffixes);
+        return new UnboundLambdaExpression(node);
     }
 }

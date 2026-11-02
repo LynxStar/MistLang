@@ -35,7 +35,6 @@ internal static class ClrCatchEmitter
         var preparedType = inputTypes.Count == 1 ? TypeNameEmitter.Emit(function) : $"({string.Join(", ", inputTypes.Select(TypeNameEmitter.Emit))})";
         var signature = $"{preparedType}, {TypeNameEmitter.Emit(call.Type)}";
         var operation = inputTypes.Count == 1 ? prepared : $"{prepared}.Item1";
-        var error = BodyEmitter.TemporaryName();
         var invocation = $"{operation}({string.Join(", ", arguments)})";
         var returnsVoid = OptionalUnion.IsVoid(completion ?? function.ReturnType);
         var resultName = TypeNameEmitter.Emit(result.Type);
@@ -43,29 +42,7 @@ internal static class ClrCatchEmitter
         // Passing prepared values into the adapter leaves their evaluation outside its try, including for async adapters.
         writer.Append($"((System.Func<{signature}>)({(completion is null ? "" : "async ")}({prepared}) =>");
         writer.AppendLine();
-        using(writer.Block())
-        {
-            writer.WriteLine("try");
-            using(writer.Block())
-            {
-                var value = completion is null ? invocation : $"await {invocation}";
-                if(returnsVoid)
-                {
-                    writer.WriteLine($"{value};");
-                    writer.WriteLine($"return {resultName}.Success(Standard.Void.Instance);");
-                }
-                else
-                {
-                    writer.WriteLine($"return {resultName}.Success({value});");
-                }
-            }
-
-            writer.WriteLine($"catch (System.Exception {error})");
-            using(writer.Block())
-            {
-                writer.WriteLine($"return {resultName}.Failure({error});");
-            }
-        }
+        Adapter(writer, invocation, resultName, returnsVoid, completion is not null);
 
         writer.Append(inputs.Count == 1 ? "))(" : "))((");
         for(var i = 0; i < inputs.Count; i++)
@@ -79,5 +56,59 @@ internal static class ClrCatchEmitter
         }
 
         writer.Append(inputs.Count == 1 ? ")" : "))");
+    }
+
+    // Taking the intrinsic as a value closes its pack to the delegate's parameters, so the same boundary
+    // is written over named parameters rather than a prepared tuple, and the delegate itself defers
+    // evaluation of every input until it is invoked.
+    public static string Reference(FunctionReferenceExpression reference)
+    {
+        var delegateType = (IFunctionType)TypeNameEmitter.Closed(reference.Type);
+        var operationType = (IFunctionType)TypeNameEmitter.Closed(delegateType.ParameterTypes[0]);
+        var completion = TaskResult.Of(delegateType.ReturnType) is null ? null : TaskResult.Of(operationType.ReturnType);
+        var result = ResultTypes.Of(completion is null ? delegateType.ReturnType : TaskResult.Of(delegateType.ReturnType)!)!;
+        var resultName = TypeNameEmitter.Emit(result.Type);
+        var returnsVoid = OptionalUnion.IsVoid(completion ?? operationType.ReturnType);
+
+        var operation = BodyEmitter.TemporaryName();
+        var arguments = Enumerable.Range(0, delegateType.ParameterTypes.Count - 1).Select(_ => BodyEmitter.TemporaryName()).ToList();
+        var invocation = $"{operation}({string.Join(", ", arguments)})";
+        var parameters = string.Join(", ", new[] { operation }.Concat(arguments));
+
+        var writer = new CSharpWriter();
+        writer.Append($"(({TypeNameEmitter.Emit(reference.Type)})({(completion is null ? "" : "async ")}({parameters}) =>");
+        writer.AppendLine();
+        Adapter(writer, invocation, resultName, returnsVoid, completion is not null);
+        writer.Append("))");
+
+        return writer.ToString();
+    }
+
+    private static void Adapter(CSharpWriter writer, string invocation, string resultName, bool returnsVoid, bool awaits)
+    {
+        using(writer.Block())
+        {
+            writer.WriteLine("try");
+            using(writer.Block())
+            {
+                var value = awaits ? $"await {invocation}" : invocation;
+                if(returnsVoid)
+                {
+                    writer.WriteLine($"{value};");
+                    writer.WriteLine($"return {resultName}.Success(Standard.Void.Instance);");
+                }
+                else
+                {
+                    writer.WriteLine($"return {resultName}.Success({value});");
+                }
+            }
+
+            var error = BodyEmitter.TemporaryName();
+            writer.WriteLine($"catch (System.Exception {error})");
+            using(writer.Block())
+            {
+                writer.WriteLine($"return {resultName}.Failure({error});");
+            }
+        }
     }
 }

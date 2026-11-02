@@ -34,6 +34,11 @@ internal static class RespelledGroups
 
     public static string Lambda(FunctionReferenceExpression reference, string? receiver, string? unitFunction = null)
     {
+        if(ClrCatch.Is(reference.Method))
+        {
+            return ClrCatchEmitter.Reference(reference);
+        }
+
         var method = reference.Method;
         var function = unitFunction ?? TypeNameEmitter.Emit(reference.Type);
         var arguments = Enumerable.Range(0, ((IFunctionType)reference.Type).ParameterTypes.Count).Select(i => $"__arg{i}").ToList();

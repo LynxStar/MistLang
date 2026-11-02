@@ -79,6 +79,33 @@ public sealed class ClrCatchEmissionTests
         Assert.Equal("RawTask()", writer.ToString());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TakenAsAValueTheBoundaryStillWrapsItsCallInOneCatch(bool task)
+    {
+        var shapes = new ResultModel();
+        IMistType taskOf(IMistType payload)
+        {
+            return shapes.Built.Interner.GetOrCreateConstructedType(shapes.Built.Type("Task<>"), [payload]);
+        }
+
+        var operation = new FunctionType([], task ? taskOf(shapes.Integer) : shapes.Integer);
+        var result = shapes.Result(shapes.Integer, shapes.Text);
+        var delegateType = new FunctionType([operation], task ? taskOf(result) : result);
+        var reference = new FunctionReferenceExpression(Node(), null, ClrCatchBindingTests.Catch(shapes), delegateType);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        BodyEmitter.EmitExpression(reference, writer, diagnostics);
+        var text = writer.ToString();
+
+        Assert.Empty(diagnostics.ToImmutableArray());
+        Assert.DoesNotContain("not an invocation the backend respells", text);
+        Assert.Equal(1, text.Split("catch (System.Exception ").Length - 1);
+        Assert.Contains(".Failure(__", text);
+        Assert.Equal(task, text.Contains("await ", StringComparison.Ordinal));
+    }
+
     private static InvocationExpression Call(string name, IMistType type)
     {
         return new InvocationExpression(Node(), new MethodReferenceExpression(Node(), new Method(name, type, [], new MemberModifiers { IsStatic = true })), [], type, null, null);

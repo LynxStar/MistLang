@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
+    <InternalsVisibleTo Include="Mist.Tests" />
   </ItemGroup>
 
   <!-- Include the Standard Library so the compiler can resolve stdlib types. -->

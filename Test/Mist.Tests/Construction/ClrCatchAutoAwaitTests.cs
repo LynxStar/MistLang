@@ -54,6 +54,38 @@ public sealed class ClrCatchAutoAwaitTests
     }
 
     [Fact]
+    public void TakingTheBoundaryAsAValueCarriesTheAdaptedTaskSignature()
+    {
+        var f = new BindingFragments();
+        var shapes = new ResultModel();
+        var task = f.Built.Type("Task<>");
+        var parameter = new TypeParameter("T", 0, task.Scope, task);
+        task.TypeParametersList.Add(parameter);
+        task.MethodsList.Add(new Method("Drop", parameter, [], new MemberModifiers { IsIntrinsic = true }) { DeclaringType = task });
+        f.Register(task);
+
+        var foreignReturn = f.Built.Interner.GetOrCreateConstructedType(task, [f.Built.Type("Int32")]);
+        var operation = new FunctionType([], foreignReturn);
+        var adapted = f.Built.Interner.GetOrCreateConstructedType(task, [shapes.Result(f.Built.Type("Int32"), shapes.Text)]);
+        var method = ClrCatchBindingTests.Catch(shapes);
+        var group = new MethodGroupExpression(Node(), null, "Catch", [method], null);
+
+        // The reference the direct call adapts to: Task<Result<T, E>>, not the declared Result<Task<T>, E>.
+        var converted = MethodGroupConversion.Convert(group, new FunctionType([operation], adapted), f.Builder, out _);
+        var reference = Assert.IsType<FunctionReferenceExpression>(converted);
+        Assert.Same(method, reference.Method);
+        var delegateReturn = Assert.IsType<FunctionType>(reference.Type).ReturnType;
+        var intercepted = ResultTypes.Of(TaskResult.Of(delegateReturn));
+        Assert.NotNull(intercepted);
+        Assert.Same(f.Built.Type("Int32"), intercepted.Success);
+
+        // The unadapted shape covers only task creation, so it is refused rather than silently accepted.
+        var declared = new FunctionType([operation], shapes.Result(foreignReturn, shapes.Text));
+        Assert.Null(MethodGroupConversion.Convert(group, declared, f.Builder, out _));
+        Assert.Empty(f.Diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
     public void AnInnerTaskCallStillAwaitsInsideALargerBoundaryLambdaResult()
     {
         var f = TaskReadingModel(out _, out var box);

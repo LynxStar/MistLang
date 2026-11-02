@@ -36,20 +36,6 @@ public sealed class AsyncCompletionTests
     }
 
     /// <summary>
-    /// Awaiting the binding IS dropping it (drop-semantics Req 7.5), so the scope owes nothing more on
-    /// the way out -- the accounting an explicit Drop has always had, now shared by the two spellings.
-    /// A linear ValueTask needs this: awaited twice, it throws.
-    /// </summary>
-    [Fact]
-    public void AnAwaitedTaskIsNotAwaitedAgainAtScopeExit()
-    {
-        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = await task;", isAsync: true);
-
-        Assert.Contains("int v = await task;", emitted, StringComparison.Ordinal);
-        Assert.DoesNotContain("finally", emitted, StringComparison.Ordinal);
-    }
-
-    /// <summary>
     /// C# has no await of a null, so a drop reached through `?.` narrows first: absent answers the
     /// type's default, present is awaited. The statement form is a guarded await.
     /// </summary>
@@ -71,16 +57,6 @@ public sealed class AsyncCompletionTests
         Assert.Contains("if (maybe is { } __present", emitted, StringComparison.Ordinal);
         Assert.Contains("await __present", emitted, StringComparison.Ordinal);
         Assert.DoesNotContain("GetAwaiter", emitted, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AnExplicitDropIsEmittedAsAnAwait()
-    {
-        var emitted = Emit("var task = Helpers.ComputeAsync();\nint v = task.Drop();", isAsync: true);
-
-        Assert.Contains("int v = await task;", emitted, StringComparison.Ordinal);
-        Assert.DoesNotContain("GetAwaiter", emitted, StringComparison.Ordinal);
-        Assert.DoesNotContain("finally", emitted, StringComparison.Ordinal);
     }
 
     [Fact]

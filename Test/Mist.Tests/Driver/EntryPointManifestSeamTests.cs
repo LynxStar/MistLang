@@ -77,7 +77,7 @@ public sealed class EntryPointManifestSeamTests : IDisposable
             Assert.Equal(project.Name, unit.NamespaceRoot);
             Assert.Equal(project.ProjectFolder, unit.ProjectFolder);
             Assert.Equal(Path.Combine(project.ProjectFolder, "Program.mist"), unit.Source.Path);
-            Assert.Null(unit.Ast);
+            Assert.NotNull(unit.Ast);
         });
     }
 

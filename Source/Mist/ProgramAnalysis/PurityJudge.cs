@@ -91,6 +91,8 @@ internal static partial class PurityJudge
 
     private sealed partial class Walk(ScopeKind kind, ScopeDescription scope, Origins origins, Func<object, Promise> promiseOf)
     {
+        private LocalOwnership? localOwnership;
+
         private readonly HashSet<object> written = new(ReferenceEqualityComparer.Instance);
         private readonly HashSet<object> readBack = new(ReferenceEqualityComparer.Instance);
         private readonly HashSet<object> silenced = new(ReferenceEqualityComparer.Instance);
@@ -113,6 +115,7 @@ internal static partial class PurityJudge
                 return;
             }
 
+            localOwnership = LocalOwnership.For(start);
             var nodes = ScopeNodes(start).ToList();
 
             foreach(var assignment in nodes.OfType<AssignmentExpression>())

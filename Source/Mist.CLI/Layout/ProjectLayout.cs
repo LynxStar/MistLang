@@ -49,9 +49,9 @@ public sealed class ProjectLayout
         return null;
     }
 
-    public IReadOnlyList<string> DiscoverSources(IEnumerable<string>? claimedExtensions = null)
+    public IReadOnlyList<string> DiscoverSources()
     {
-        return SelectSources(SourcePathSelection.EnumerateCandidates(ProjectFolder, claimedExtensions));
+        return SelectSources(SourcePathSelection.EnumerateCandidates(ProjectFolder));
     }
 
     public IReadOnlyList<string> SelectSources(IEnumerable<string> candidates)

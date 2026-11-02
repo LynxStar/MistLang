@@ -1,6 +1,6 @@
 // How the C# releases a linear value its plan gives to something other than a block declaration: a
 // parameter's or a Drop field's finally around the whole body, a for initializer's around the loop, a with
-// releasing its holder after the pop, a lent value's around its statement, and a hand-off that waits for
+// releasing its own saved instance after the pop, a lent value's around its statement, and a hand-off that waits for
 // its callee to be entered. Asserted on the whole emitted text, as the local emission is.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
@@ -36,52 +36,16 @@ public sealed class ResourceTransferEmissionTests
         Assert.Equal(1, scoped.Split(".Drop()", StringSplitOptions.None).Length - 1);
     }
 
-    [Theory]
-    [InlineData("struct", "drop", 1)]
-    [InlineData("ref-struct", "drop", 1)]
-    [InlineData("constructed-struct", "drop", 1)]
-    [InlineData("class", "drop", 1)]
-    [InlineData("struct", "initialize", 0)]
-    [InlineData("struct", "owned-argument", 0)]
-    [InlineData("struct", "owned-field", 0)]
-    public void AnAffineWithDoesNotReleaseWhatItsBodyConsumes(string shape, string operation, int drops)
-    {
-        var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);
-        var source = f.Local("source", type);
-        var destination = f.Local("destination", type);
-        var scoped = With(Ref(source), HandBuiltModel.Block(f.MoveValue(operation, source, destination)));
-        var emitted = Emitted(HandBuiltModel.Block(Declare(source, Fresh(type)), scoped));
-
-        Assert.Equal(drops, emitted.Split(".Drop()", StringSplitOptions.None).Length - 1);
-    }
-
     [Fact]
-    public void AnAffineScopeFlagEndsBeforeTheBindingIsReassignedAndScopedAgain()
+    public void AReassignedHolderReleasesItsFreshValueAndTheWithReleasesTheInstalledInstance()
     {
-        var source = f.Local("source", f.DisciplinedValue("struct", SubstructuralDiscipline.Affine));
-        var first = With(Ref(source), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(source))))));
-        var second = With(Ref(source), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(source))))));
-        var emitted = Emitted(HandBuiltModel.Block(Declare(source, Fresh(source.Type)), first, Run(Assign(source, Fresh(source.Type))), second));
+        var source = f.Local("source", f.DisciplinedValue("class", SubstructuralDiscipline.Linear));
+        var scope = With(Ref(source), HandBuiltModel.Block(Run(Assign(source, Fresh(source.Type)))));
+        var emitted = Emitted(HandBuiltModel.Block(Declare(source, Fresh(source.Type)), scope));
 
-        Assert.DoesNotContain("MistOwnership.Taken", emitted, StringComparison.Ordinal);
-        Assert.Equal(2, emitted.Split("MistOwnership.Handed", StringSplitOptions.None).Length - 1);
-        Assert.Equal(2, emitted.Split("= true;", StringSplitOptions.None).Length - 1);
-    }
-
-    [Fact]
-    public void AnAffineWithBindingAndAnAffineParameterUseTheSameScopedGuard()
-    {
-        var type = f.DisciplinedValue("struct", SubstructuralDiscipline.Affine);
-        var binding = f.Local("binding", type);
-        var parameter = Owned("parameter", type);
-        var boundScope = With(Fresh(type), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(Drop(binding))))), binding);
-        var passedScope = With(Ref(parameter), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(DropOf(Ref(parameter)))))));
-        var bound = Emitted(HandBuiltModel.Block(boundScope));
-        var passed = EmittedMethod(f.Function("Use", HandBuiltModel.Block(passedScope), parameter));
-
-        Assert.Contains("MistOwnership.Handed(binding, ref", bound, StringComparison.Ordinal);
-        Assert.Contains("MistOwnership.Handed(parameter, ref", passed, StringComparison.Ordinal);
-        Assert.Equal(2, passed.Split(".Drop()", StringSplitOptions.None).Length - 1);
+        Assert.Contains("MistOwnership.Handed(source, ref", emitted, StringComparison.Ordinal);
+        Assert.Contains("MistOwnership.Taken(source =", emitted, StringComparison.Ordinal);
+        Assert.Equal(2, emitted.Split(".Drop()", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]
@@ -118,10 +82,6 @@ public sealed class ResourceTransferEmissionTests
         Assert.Equal("Sink.Risky();", EmittedMethod(f.Function("Look", HandBuiltModel.Block(Run(f.Call(f.Risky))), t)));
     }
 
-    /// <summary>
-    /// The first field is released first, as a synthesized Drop releases them, and only the one the
-    /// body may have dropped is guarded.
-    /// </summary>
     [Fact]
     public void ADropReleasesWhatItsBodyLeftHeldInDeclarationOrder()
     {
@@ -181,7 +141,7 @@ public sealed class ResourceTransferEmissionTests
     }
 
     [Fact]
-    public void AWithReleasesItsHolderAfterThePopInsteadOfTheHoldersScope()
+    public void AWithReleasesTheInstalledInstanceNotTheHoldersCurrentValue()
     {
         var t = f.Local("t");
 
@@ -197,18 +157,15 @@ public sealed class ResourceTransferEmissionTests
                 finally
                 {
                     MistContext.Pop<Token>();
-                    t.Drop();
+                    __e1.Drop();
                 }
             }
             """.ReplaceLineEndings("\n"),
             Emitted(HandBuiltModel.Block(Declare(t, f.New(1)), With(Ref(t), HandBuiltModel.Block()))));
     }
 
-    /// <summary>
-    /// The with clears the flag it releases under, so the holder's own scope finds nothing left to drop.
-    /// </summary>
     [Fact]
-    public void AWithOnOneBranchClearsTheFlagItReleasesUnder()
+    public void AWithOnOneBranchReleasesTheSavedInstanceAndTheHolderOwesOnTheOther()
     {
         var t = f.Local("t");
 
@@ -221,7 +178,7 @@ public sealed class ResourceTransferEmissionTests
                 if (flag)
                 {
                     {
-                        var __e2 = t;
+                        var __e2 = MistOwnership.Handed(t, ref __e1);
                         MistContext.Push<Token>(__e2);
                         try
                         {
@@ -229,11 +186,7 @@ public sealed class ResourceTransferEmissionTests
                         finally
                         {
                             MistContext.Pop<Token>();
-                            if (__e1)
-                            {
-                                __e1 = false;
-                                t.Drop();
-                            }
+                            __e2.Drop();
                         }
                     }
                 }
@@ -247,37 +200,6 @@ public sealed class ResourceTransferEmissionTests
             }
             """.ReplaceLineEndings("\n"),
             Emitted(HandBuiltModel.Block(Declare(t, f.New(1)), f.If(HandBuiltModel.Block(With(Ref(t), HandBuiltModel.Block()))))));
-    }
-
-    [Fact]
-    public void AWithBindingHandedOnIsReleasedOnlyWhereItWasNot()
-    {
-        var x = f.Local("x");
-
-        Assert.Equal(
-            """
-            {
-                var x = new Token(1);
-                var __e1 = true;
-                MistContext.Push<Token>(x);
-                try
-                {
-                    if (flag)
-                    {
-                        Sink.Take(MistOwnership.Handed(x, ref __e1));
-                    }
-                }
-                finally
-                {
-                    MistContext.Pop<Token>();
-                    if (__e1)
-                    {
-                        x.Drop();
-                    }
-                }
-            }
-            """.ReplaceLineEndings("\n"),
-            Emitted(HandBuiltModel.Block(With(f.New(1), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(f.Call(f.Take, Ref(x)))))), x))));
     }
 
     [Fact]
@@ -309,10 +231,6 @@ public sealed class ResourceTransferEmissionTests
             Emitted(HandBuiltModel.Block(Run(f.Call(f.Peek, f.New(1))), Run(f.Call(f.Risky)))));
     }
 
-    /// <summary>
-    /// A loop condition lends afresh every time it runs, so the last loan is released as the body
-    /// begins and the final one by the statement's finally.
-    /// </summary>
     [Fact]
     public void AValueLentByALoopConditionIsReleasedEachIteration()
     {

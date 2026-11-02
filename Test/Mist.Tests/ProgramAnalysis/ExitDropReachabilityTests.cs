@@ -16,6 +16,18 @@ public sealed class ExitDropReachabilityTests
     private readonly LifetimeFragments f = new();
 
     [Fact]
+    public void ARelevantExplicitDropInsideWithStillHasALexicalExitEffect()
+    {
+        var r = f.Local("r", f.Shared);
+        var declaration = Declare(r, f.New(1, f.Shared));
+        var body = HandBuiltModel.Block(declaration, With(Ref(r), HandBuiltModel.Block(Run(Drop(r)), Run(f.Call(f.Risky)))));
+        var exit = Assert.Single(PurityJudge.ExitDrops(body, member: null));
+
+        Assert.Equal("r", exit.Name);
+        Assert.Same(declaration, exit.Declaration);
+    }
+
+    [Fact]
     public void AValueHandedOnBeforeAnythingCanThrowDropsNothingAtExit()
     {
         var t = f.Local("t");

@@ -64,12 +64,6 @@ Use the tabbed include pattern for every snippet:
   the snippet. A companion must declare only: a file with a `Main` or top-level statements is a
   program of its own and cannot be one. A snippet that needs a folder layout, such as a namespace
   inferred from a folder, keeps its other files in `<snippet>.support/` instead.
-- A component snippet is a `.razor` file, named as its class is (`Counter.razor`), whose twin is the
-  file the backend emits for it, `Counter.razor.cs`; it keeps a project file beside it (`Counter.toml`)
-  for the `Microsoft.AspNetCore.App` reference and names the components it uses on a first line
-  `@* with: Greeting.razor *@`. A `.mist` snippet's `// with:` line may name `.razor` files too, and
-  a `.razor` companion with no `.cs` twin is compiled but generates no tab. The book shows a `.razor`
-  file in a `razor` code block through `{{#include}}` and its emitted C# in a tab.
 - Each snippet should be small and focused — one concept per file.
 - The snippet MUST compile and run without errors through the Mist CLI.
 - If a feature is not yet implemented, use an inline code block with a blockquote explaining the limitation. Do NOT create a snippet file for code that doesn't compile.

@@ -393,3 +393,12 @@ Each correctness property maps to a property-based test with minimum 100 iterati
 - In-process compilation via shared `CompilerDriver` instance (no process spawn per iteration)
 - Runtime execution tests use batched approach: 1 compile + 1 `dotnet exec` per test class
 - Library: FsCheck (already used in the project)
+
+
+## Installed value access and cleanup
+
+An owning context scope retains the installed linear or affine instance through its body and releases it on exit. Restrictions follow value identity through branches, loops, pattern aliases and explicit loans; a holder that may retain the instance cannot consume it and becomes inaccessible after release. Fresh values on every reaching path remain independent. Scope exit clears only that scope's installation.
+
+Method context bindings are non-owning access. Linear and affine bindings and their aliases permit non-consuming reads and legitimate borrowing, and refuse Drop, ownership transfer and escaping returns. Installing an explicit loan, ref or field view, including a method context binding, acquires no cleanup. Relevant and unrestricted access retains its ordinary rules; a relevant local still owes lexical cleanup after explicit in-body and context-exit drops.
+
+An installed linear or affine value cannot be passed to a plain by-value parameter: the parameter must explicitly take a borrowed, frozen or ref loan. A second owning installation of the same installed value is refused; an explicit lease supplies a non-owning nested context. Explicit linear and affine loans remain non-consuming in the callee as well: their bindings and aliases cannot drop, move, return by value or pass the loan to an owning/plain parameter. Explicit non-owning access does not acquire cleanup. This does not change the broader plain-parameter policy for an ordinary owner outside an active installation (MIST-122).

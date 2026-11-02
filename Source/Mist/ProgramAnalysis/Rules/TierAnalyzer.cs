@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -35,6 +36,17 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
                 case LocalDeclarationStatement { Initializer: { } initializer } declaration:
                     JudgeExtraction(context, initializer, declaration.Local.Ownership, declaration.Local.IsRef);
+                    if(OwnedProvenance.SharedExtraction(initializer) is null)
+                    {
+                        var required = declaration.Local.Ownership switch
+                        {
+                            OwnershipKind.Borrowed => ThisTier.Borrowed,
+                            OwnershipKind.Frozen => ThisTier.Frozen,
+                            _ => ThisTier.None,
+                        };
+                        JudgeAccess(context, tiers, initializer, initializer, required, declaration.Local.Name);
+                    }
+
                     break;
 
                 case AssignmentExpression { IsCoalescing: false } assignment:
@@ -72,7 +84,8 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         }
 
         var required = tiers.Required(method);
-        var provided = tiers.Provided(receiver, context.MemberOf(invocation));
+        var provided = receiver is ThisExpression ? tiers.Provided(receiver, context.MemberOf(invocation))
+            : LocalOwnership.For(context.RootOf(invocation) ?? invocation).Provided(receiver);
 
         if(required > provided)
         {
@@ -94,31 +107,35 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
     private static void JudgeLend(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, Parameter parameter)
     {
-        var required = ThisTiers.LendTier(parameter);
+        JudgeAccess(context, tiers, call, argument, ThisTiers.LendTier(parameter), parameter.Name);
+    }
 
+    private static void JudgeAccess(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, ThisTier required, string target)
+    {
         if(required == ThisTier.None || ThisTiers.IsValue(argument.Type))
         {
             return;
         }
 
-        var (given, lent) = argument switch
-        {
-            LocalReferenceExpression { Local: var local } => (Given(local), $"variable '{local.Name}'"),
-            ThisExpression => (tiers.Provided(argument, context.MemberOf(call)), "'this'"),
-            _ => (ThisTier.Owned, null),
-        };
+        var given = argument is ThisExpression ? tiers.Provided(argument, context.MemberOf(call))
+            : LocalOwnership.For(context.RootOf(call) ?? call).Provided(argument);
 
-        if(lent is not null && given < required)
+        if(given < required)
         {
             context.Report(
                 ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
-                new EnumValue(ThisTiers.Display(given)), new NameValue(lent), new EnumValue(ThisTiers.Display(required)), new NameValue(parameter.Name));
+                new EnumValue(ThisTiers.Display(given)), new NameValue(Display(argument)), new EnumValue(ThisTiers.Display(required)), new NameValue(target));
         }
     }
 
     private static void JudgeExtraction(AnalysisContext context, Expression value, OwnershipKind destination, bool byReference)
     {
         if(OwnedProvenance.SharedExtraction(value) is not var (field, holder))
+        {
+            return;
+        }
+
+        if(LocalOwnership.For(context.RootOf(value) ?? value).Of(holder) > ThisTier.None)
         {
             return;
         }
@@ -133,16 +150,22 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static bool RefusesLend(Expression argument, ThisTier required)
+    internal static bool RefusesLend(Expression argument, ThisTier required, LocalOwnership? locals = null)
     {
-        return argument is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
+        return !ThisTiers.IsValue(argument.Type) && (locals is not null ? locals.Provided(argument) < required
+            : OwnershipAnalyzer.Selected(argument).OfType<LocalReferenceExpression>().Any(reference => Given(reference.Local) < required));
     }
 
-    internal static bool RefusesReceiver(Expression? receiver, ThisTier required)
+    internal static bool RefusesReceiver(Expression? receiver, ThisTier required, LocalOwnership? locals = null)
     {
+        if(receiver is not null && locals is not null)
+        {
+            return locals.Provided(receiver) < required;
+        }
+
         return receiver switch
         {
-            LocalReferenceExpression { Local: var local } => ThisTiers.Declared(local) < required,
+            LocalReferenceExpression { Local: var local } => Given(local) < required,
             FieldReferenceExpression { Field: var field } => !ThisTiers.IsOwned(field) && required > ThisTier.None,
             _ => false,
         };
@@ -151,8 +174,17 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     private static ThisTier Given(LocalVariable local)
     {
         return local.Parameter is null && local.Ownership == OwnershipKind.Unrestricted && !local.IsRef
-            ? ThisTier.None
+            ? Exclusive(local.Type) ? ThisTier.Owned : ThisTier.None
             : ThisTiers.Declared(local);
+    }
+
+    /// <summary>
+    /// A linear or affine binding is the one holder its discipline allows, so it lends with the access an
+    /// owned binding does; an unrestricted binding of any other type may be aliased and lends nothing.
+    /// </summary>
+    private static bool Exclusive(IMistType type)
+    {
+        return OwnershipAnalyzer.Substructural(type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 
     private static string Display(Expression receiver)

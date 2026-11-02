@@ -16,7 +16,7 @@ internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At
 
 /// <summary>
 /// What a scope calls on its way out without writing the call: the emitter releases every linear or
-/// relevant binding the body did not hand on -- as an argument, a return value or an explicit drop --
+/// relevant binding the body did not hand on -- as an argument, a return value or a non-relevant explicit drop --
 /// through its declared Drop and then whatever that Drop hands back, its droppable fields' Drops when it
 /// declares none, or an await when it is a task; and a declared Drop's own body releases every
 /// droppable field it did not hand on after what it was written to do, and a lender releases what it
@@ -73,13 +73,20 @@ internal static partial class PurityJudge
         foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
         {
             var local = declaration.Local;
+            foreach(var value in LentValues.LoanedBy(declaration, LocalOwnership.For(start)))
+            {
+                foreach(var (drop, isAwait) in Drops(value.Type, awaitable: false, []))
+                {
+                    yield return new ExitDrop($"lent {local.Name}", drop, value.Node, isAwait);
+                }
+            }
 
             if(!DropsAtScopeExit(local.Type))
             {
                 continue;
             }
 
-            if(LocalLifetimes.IsTracked(local.Type) && planned().Covers(declaration))
+            if(planned().Covers(declaration))
             {
                 if(planned().ReleaseOf(declaration) != LifetimeRelease.None && planned().AcquiredAt(declaration) is { } acquired)
                 {
@@ -228,7 +235,8 @@ internal static partial class PurityJudge
     {
         return invocation.Method is { Name: "Drop" }
             && invocation.Receiver is MemberAccessExpression { Receiver: var receiver }
-            && isTarget(receiver);
+            && isTarget(receiver)
+            && DefinitionOf(receiver.Type) is not ConcreteType { Discipline: SubstructuralDiscipline.Relevant };
     }
 
     private static bool DropsAtScopeExit(IMistType type)

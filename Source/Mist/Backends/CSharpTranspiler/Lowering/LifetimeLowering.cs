@@ -75,7 +75,7 @@ internal static class LifetimeLowering
             return [];
         }
 
-        var held = LentValues.Once(statement).Select(value => Hold(value, writer)).ToList();
+        var held = LentValues.Once(statement, Active.Ownership).Select(value => Hold(value, writer)).ToList();
         var repeated = LentValues.Repeated(statement).Select(value => Hold(value, writer)).ToList();
 
         if(repeated.Count > 0)

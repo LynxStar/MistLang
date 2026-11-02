@@ -213,7 +213,7 @@ internal static partial class PurityJudge
                 || silenced.Contains(invocation)
                 || receiver is Origin.Own || (receiver is Origin.Frozen && kind is ScopeKind.Pure)
                 || ThisTiers.IsValue(through?.Type ?? declaring) || Origins.IsUnchangeable(through?.Type ?? declaring)
-                || TierAnalyzer.RefusesReceiver(through, ThisTier.Frozen))
+                || TierAnalyzer.RefusesReceiver(through, ThisTier.Frozen, localOwnership))
             {
                 return;
             }
@@ -236,7 +236,7 @@ internal static partial class PurityJudge
             for(var i = 0; i < arguments.Count && i < parameters.Count; i++)
             {
                 var argument = arguments[i];
-                var lent = parameters[i].Modifier.Ownership == OwnershipKind.Frozen && !TierAnalyzer.RefusesLend(argument, ThisTier.Frozen);
+                var lent = parameters[i].Modifier.Ownership == OwnershipKind.Frozen && !TierAnalyzer.RefusesLend(argument, ThisTier.Frozen, localOwnership);
                 var whole = i == flattened && arguments.Count == parameters.Count && parameters[i].Type is not ITupleType
                     && ParamsCollection.IsHandedWhole(Unwrapped(argument).Type);
 

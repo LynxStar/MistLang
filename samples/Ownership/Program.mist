@@ -847,28 +847,30 @@ public class ThisTierDemo
 
 // ─── Ownership inference on local bindings ────────────────────────────────────
 
-// PROOF: var infers 'owned' when initialized with new and used for ownership operations
-// PROOF: var infers 'shared' when no ownership operations are needed
-// PROOF: var downgrades from owned to borrowed when the original is still used after
 public class OwnershipInferenceDemo
 {
+    public static void Inspect(borrowed Account value)
+    {
+        value.Deposit(1);
+        Console.WriteLine($"[inference] copy={value.Summary()}");
+    }
+
     public static void Run()
     {
-        // 'var x = new Account(...)' — inferred as owned (new yields ownership, Deposit needs borrowed)
         var inferred = new Account("Inferred", 50);
-        inferred.Deposit(25);  // requires borrowed → var infers at least owned (satisfies borrowed)
+        inferred.Deposit(25);
         Console.WriteLine($"[inference] inferred owned={inferred.Summary()}");
 
-        // 'var copy = existingOwned' — would be move if owned, but existingOwned is used later
-        // → inference downgrades copy to clone (shared), existingOwned stays live
+        // The inferred loan aliases the account; its mutation survives the inner scope.
         owned var original = new Account("Original", 100);
-        var copy = original.Summary();  // Summary() returns string (readonly ref on this, no move)
+        {
+            var copy = original;
+            Inspect(copy);
+        }
         Console.WriteLine($"[inference] original still live={original.Summary()}");
-        Console.WriteLine($"[inference] copy={copy}");
 
-        // 'var simple' — no ownership operations → inferred as shared
         var simple = "just a string";
-        var alias = simple;  // no move, both can coexist → shared
+        var alias = simple;
         Console.WriteLine($"[inference] simple={simple}");
         Console.WriteLine($"[inference] alias={alias}");
     }

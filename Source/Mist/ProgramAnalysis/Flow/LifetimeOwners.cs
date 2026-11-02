@@ -1,3 +1,5 @@
+using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -22,11 +24,16 @@ internal sealed class LifetimeOwners
 {
     private readonly Dictionary<object, object> homes = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, object> aliases = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<LocalVariable, Expression> references = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, Expression> elements = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<object, (WithBlockStatement Scope, object Owner)> scopes = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<Expression, object> installs = new(ReferenceEqualityComparer.Instance);
 
-    private LifetimeOwners()
+    private readonly LocalOwnership locals;
+
+    private LifetimeOwners(object root)
     {
+        locals = LocalOwnership.For(root);
     }
 
     public Dictionary<LocalVariable, LocalDeclarationStatement> Declarations { get; } = new(ReferenceEqualityComparer.Instance);
@@ -41,7 +48,7 @@ internal sealed class LifetimeOwners
 
     public static LifetimeOwners Of(object root, Method? method, ConcreteType? holder)
     {
-        var owners = new LifetimeOwners();
+        var owners = new LifetimeOwners(root);
 
         if(method is not null && ReferenceEquals(method.Body, root))
         {
@@ -124,6 +131,16 @@ internal sealed class LifetimeOwners
         return scopes.TryGetValue(node, out var scope) ? scope : null;
     }
 
+    /// <summary>
+    /// The owner a <c>with(r)</c> moves into the scope's custody as its value is evaluated: from there the
+    /// scope keeps the installed instance and releases it once, so the holder's own name releases only a
+    /// value assigned to it afresh, never the installed one again.
+    /// </summary>
+    public object? InstalledFrom(Expression value)
+    {
+        return installs.GetValueOrDefault(value);
+    }
+
     public object? OwnerOf(Expression expression)
     {
         if(homes.ContainsKey(expression))
@@ -136,6 +153,7 @@ internal sealed class LifetimeOwners
             return OwnerOf(source);
         }
 
+        expression = OwnershipAnalyzer.Resolved(expression);
         return expression switch
         {
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
@@ -156,6 +174,7 @@ internal sealed class LifetimeOwners
     {
         return target switch
         {
+            LocalReferenceExpression { Local: var local } when references.TryGetValue(local, out var storage) => TargetOf(storage),
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
             LocalReferenceExpression { Local.Parameter: { } parameter } when homes.ContainsKey(parameter) => parameter,
             _ => FieldOf(target),
@@ -182,9 +201,17 @@ internal sealed class LifetimeOwners
 
     public static bool IsView(Expression expression)
     {
-        return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
+        if(expression is SwitchExpression or CoalesceExpression)
         {
-            LocalReferenceExpression { Local: var local } => local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
+            var leaves = OwnershipAnalyzer.Selected(expression).ToList();
+            return leaves.Count != 0 && leaves.All(IsView);
+        }
+
+        expression = OwnershipAnalyzer.Resolved(expression);
+        var valueType = OptionalUnion.InnerType(expression.Type) ?? expression.Type;
+        return (LocalLifetimes.IsTracked(valueType) || LocalLifetimes.IsScoped(valueType)) && expression switch
+        {
+            LocalReferenceExpression { Local: var local } => local.IsContextBound || local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
                 || local.Parameter is { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } },
             FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => true,
             _ => false,
@@ -244,12 +271,17 @@ internal sealed class LifetimeOwners
 
     private void Declare(LocalDeclarationStatement declaration, object home)
     {
-        if(!LocalLifetimes.IsTracked(declaration.Local.Type) && !LocalLifetimes.IsScoped(declaration.Local.Type))
+        if(!LocalLifetimes.IsTracked(declaration.Local.Type) && !LocalLifetimes.IsScoped(declaration.Local.Type) && !locals.IsLoan(declaration.Local))
         {
             return;
         }
 
         Declarations[declaration.Local] = declaration;
+
+        if(declaration.Local.IsRef && declaration.Initializer is { } storage)
+        {
+            references[declaration.Local] = storage;
+        }
 
         if(Owns(declaration.Local))
         {
@@ -259,22 +291,36 @@ internal sealed class LifetimeOwners
 
     private void Scope(WithBlockStatement scope)
     {
+        if(locals.IsView(scope.Value))
+        {
+            return;
+        }
+
         if(OwnerOf(scope.Value) is { } held)
         {
-            scopes[scope.Body] = (scope, held);
-
+            installs[scope.Value] = held;
             if(scope.Binding is { } named)
             {
                 aliases[named] = held;
             }
         }
-        else if(scope.Binding is { } binding && !IsView(scope.Value) && Owns(binding))
+        else
         {
-            homes[binding] = scope.Body;
-
-            if(LocalLifetimes.IsScoped(binding.Type))
+            foreach(var leaf in OwnershipAnalyzer.Selected(scope.Value))
             {
-                scopes[scope.Body] = (scope, binding);
+                if(OwnerOf(leaf) is { } owner)
+                {
+                    installs[leaf] = owner;
+                }
+            }
+
+            if(scope.Binding is { } binding && Owns(binding))
+            {
+                homes[binding] = scope.Body;
+                if(LocalLifetimes.IsScoped(binding.Type))
+                {
+                    scopes[scope.Body] = (scope, binding);
+                }
             }
         }
     }
@@ -322,8 +368,8 @@ internal sealed class LifetimeOwners
         }
     }
 
-    private static bool Owns(LocalVariable local)
+    private bool Owns(LocalVariable local)
     {
-        return Owns(local.Type, local.IsRef, local.Ownership);
+        return !locals.IsLoan(local) && Owns(local.Type, local.IsRef, local.Ownership);
     }
 }

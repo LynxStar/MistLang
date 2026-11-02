@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -67,18 +68,42 @@ internal sealed partial class OwnershipFlow
         {
             case { Kind: FlowStepKind.Evaluate, Node: Expression read } when Place.Of(read) is { } place:
                 JudgeRead(state, read, place);
+
+                if(scopes.EnteredAt(read) is { } entered && InstalledHit(state, place) is { } alreadyInstalled)
+                {
+                    var contextView = place.Root.IsContextBound && ValuesOf(state.Values, place).OfType<LocalVariable>()
+                        .Any(value => value.IsContextBound || NonOwningKind(value) is not null);
+
+                    if(!locals.IsView(entered.Value) || (place.Root.IsContextBound && !contextView))
+                    {
+                        RefuseInstalledConsumption(alreadyInstalled, read, "install");
+                    }
+                }
+
+                if(scopes.EnteredAt(read) is { } entering && !locals.IsView(entering.Value)
+                    && LoanAccess(state, place) is { } loan)
+                {
+                    RefuseLoanConsumption(place, read, "install", loan);
+                }
+
                 break;
 
-            case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }
-                when Place.Of(initializer) is { } source:
-                if(LeaseOf(declaration.Local) is { } lease)
+            case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }:
+                foreach(var source in LocalOwnership.Sources(initializer))
                 {
-                    JudgeAction(state, source, initializer, lease switch { Lease.Borrowed => Action.Borrow, Lease.Frozen => Action.Freeze, _ => Action.View });
-                }
-                else if(Place.Tracked(source))
-                {
-                    JudgeAction(state, source, initializer, Action.Move);
-                    JudgeShared(state, initializer, $"owned binding '{declaration.Local.Name}'", declaration.Local.Ownership == OwnershipKind.Owned);
+                    if(LeaseOf(declaration.Local) is { } lease)
+                    {
+                        JudgeAction(state, source, initializer, lease switch { Lease.Borrowed => Action.Borrow, Lease.Frozen => Action.Freeze, _ => Action.View });
+                    }
+                    else if(declaration.Local.IsRef)
+                    {
+                        JudgeAction(state, source, initializer, Action.View);
+                    }
+                    else if(Tracked(source) && MovesInto(declaration.Local, source))
+                    {
+                        JudgeAction(state, source, initializer, Action.Move);
+                        JudgeShared(state, initializer, $"owned binding '{declaration.Local.Name}'", declaration.Local.Ownership == OwnershipKind.Owned);
+                    }
                 }
 
                 break;
@@ -87,17 +112,35 @@ internal sealed partial class OwnershipFlow
                 JudgeAssignment(state, assignment);
                 break;
 
-            case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }
-                when owning is not null && SharedThrough(state, returned) is { } kept:
-                context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, returned.Node, [returned], new NameValue(owning.Name), new NameValue(kept.Reason));
+            case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, IsRef: false } }:
+                foreach(var returned in LocalOwnership.Sources(value))
+                {
+                    if(InstalledHit(state, returned) is { } installed)
+                    {
+                        RefuseInstalledConsumption(installed, value, "return");
+                    }
+                    else if(LoanAccess(state, returned) is { } loanKind)
+                    {
+                        RefuseLoanConsumption(returned, value, "return", loanKind);
+                    }
+                }
+
+                if(owning is not null && SharedThrough(state, value) is { } kept)
+                {
+                    context.Report(ProgramAnalysisDiagnostics.OwnedReturnNotOwned, value.Node, [value], new NameValue(owning.Name), new NameValue(kept.Reason));
+                }
+
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
                 JudgeArguments(state, invocation.Arguments, invocation.Parameters);
 
-                if(ThisTiers.ReceiverOf(invocation) is { } receiver && Place.Of(receiver) is { } held)
+                if(ThisTiers.ReceiverOf(invocation) is { } receiver)
                 {
-                    JudgeReceiver(state, invocation, receiver, held);
+                    foreach(var held in LocalOwnership.Sources(receiver))
+                    {
+                        JudgeReceiver(state, invocation, receiver, held);
+                    }
                 }
 
                 break;
@@ -106,8 +149,34 @@ internal sealed partial class OwnershipFlow
                 JudgeArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
                 break;
 
+            case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false } entry }:
+                if(entry.Add is { } add)
+                {
+                    JudgeArguments(state, [entry.Value], add.ParametersList);
+                }
+                else if(OwnedProvenance.OwnershipOf(entry.Member) == OwnershipKind.Owned)
+                {
+                    foreach(var source in LocalOwnership.Sources(entry.Value).Where(Tracked))
+                    {
+                        JudgeAction(state, source, entry.Value, Action.Move);
+                    }
+                }
+
+                break;
+
+            case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
+                foreach(var element in literal.Elements)
+                {
+                    foreach(var source in LocalOwnership.Sources(element).Where(Tracked))
+                    {
+                        JudgeAction(state, source, element, Action.Move);
+                    }
+                }
+
+                break;
+
             case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                new OwnershipFlow(context, tiers, declaringBlocks, scoped, parents, owning: null).Judge(nested, state);
+                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals).Judge(nested, state);
                 break;
         }
     }
@@ -140,7 +209,7 @@ internal sealed partial class OwnershipFlow
         {
             if(target is LocalReferenceExpression written)
             {
-                if(Place.Of(value) is { } moved && Place.Tracked(moved))
+                foreach(var moved in LocalOwnership.Sources(value).Where(Tracked))
                 {
                     JudgeAction(state, moved, value, Action.Move);
                     JudgeShared(state, value, $"owned binding '{written.Local.Name}'", written.Local.Ownership == OwnershipKind.Owned);
@@ -164,10 +233,13 @@ internal sealed partial class OwnershipFlow
                 context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
             }
 
-            if(ThisTiers.OwnedSlot(target) is { } destination && Place.Of(value) is { } stored && Place.Tracked(stored))
+            if(ThisTiers.OwnedSlot(target) is { } destination)
             {
-                JudgeAction(state, stored, value, Action.Move);
-                JudgeShared(state, value, destination, owned: true);
+                foreach(var stored in LocalOwnership.Sources(value).Where(Tracked))
+                {
+                    JudgeAction(state, stored, value, Action.Move);
+                    JudgeShared(state, value, destination, owned: true);
+                }
             }
         }
     }
@@ -176,10 +248,30 @@ internal sealed partial class OwnershipFlow
     {
         for(var i = 0; i < arguments.Count && parameters is not null && i < parameters.Count; i++)
         {
-            if(ConsumesResultArgument(arguments[i], parameters[i]) && Place.Of(arguments[i]) is { } place && Place.Tracked(place))
+            foreach(var place in LocalOwnership.Sources(arguments[i]))
             {
-                JudgeAction(state, place, arguments[i], Action.Move);
-                JudgeShared(state, arguments[i], $"owned parameter '{parameters[i].Name}'", owned: true);
+                if(!Tracked(place))
+                {
+                    continue;
+                }
+
+                var modifier = parameters[i].Modifier;
+
+                if(!modifier.IsRef && modifier.Ownership is not (OwnershipKind.Frozen or OwnershipKind.Borrowed)
+                    && InstalledHit(state, place) is { } installed)
+                {
+                    RefuseInstalledConsumption(installed, arguments[i], "pass");
+                }
+                else if(!modifier.IsRef && modifier.Ownership is not (OwnershipKind.Frozen or OwnershipKind.Borrowed)
+                    && LoanAccess(state, place) is { } loanKind)
+                {
+                    RefuseLoanConsumption(place, arguments[i], "pass", loanKind);
+                }
+                else if(!modifier.IsRef && ConsumesResultArgument(arguments[i], parameters[i]))
+                {
+                    JudgeAction(state, place, arguments[i], Action.Move);
+                    JudgeShared(state, arguments[i], $"owned parameter '{parameters[i].Name}'", owned: true);
+                }
             }
         }
     }
@@ -191,11 +283,23 @@ internal sealed partial class OwnershipFlow
             return;
         }
 
+        if(IsDrop(invocation) && InstalledHit(state, held) is { } installed)
+        {
+            RefuseInstalledConsumption(installed, receiver, "drop");
+            return;
+        }
+
+        if(IsDrop(invocation) && LoanAccess(state, held) is { } loanKind)
+        {
+            RefuseLoanConsumption(held, receiver, "drop", loanKind);
+            return;
+        }
+
         if(tiers.Required(method) >= ThisTier.Borrowed && Lent(state, held, Action.Write, evaluated: true) is var (lent, kind))
         {
             context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
         }
-        else if(method.DeclaredThisTier == ThisTier.Owned && Place.Tracked(held))
+        else if(method.DeclaredThisTier == ThisTier.Owned && Tracked(held))
         {
             JudgeAction(state, held, receiver, Action.Move);
             JudgeShared(state, receiver, $"the receiver of '{method.Name}', which it takes owned", owned: true);
@@ -236,6 +340,18 @@ internal sealed partial class OwnershipFlow
 
     private void JudgeAction(State state, Place place, Expression at, Action action, bool evaluated = true)
     {
+        if(action == Action.Move && InstalledHit(state, place) is { } installed)
+        {
+            RefuseInstalledConsumption(installed, at, "move");
+            return;
+        }
+
+        if(action == Action.Move && LoanAccess(state, place) is { } loanKind)
+        {
+            RefuseLoanConsumption(place, at, "move", loanKind);
+            return;
+        }
+
         if(Lent(state, place, action, evaluated) is var (lent, kind))
         {
             context.Report(ProgramAnalysisDiagnostics.LeaseViolation, at.Node, [at], new NameValue(lent.Display), new EnumValue(Verb(action)), new EnumValue(Display(kind)));
@@ -243,6 +359,20 @@ internal sealed partial class OwnershipFlow
         }
 
         JudgeComposite(state, place, at, action);
+    }
+
+    private void RefuseInstalledConsumption(Place installed, Expression at, string action)
+    {
+        context.Report(ProgramAnalysisDiagnostics.InstalledValueConsumed, at.Node, [at], new EnumValue(action), new NameValue(installed.Display));
+    }
+
+    private Place? InstalledHit(State state, Place place)
+    {
+        return place.AncestorsAndSelf().FirstOrDefault(candidate =>
+            ValuesOf(state.Values, candidate).Any(value =>
+                (value is LocalVariable { IsContextBound: true } contextLocal
+                    && OwnershipAnalyzer.Substructural(contextLocal.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine)
+                || state.Installed.Values.Any(installed => installed.Contains(value))));
     }
 
     private void JudgeComposite(State state, Place place, Expression at, Action action)
@@ -271,11 +401,11 @@ internal sealed partial class OwnershipFlow
         return place.IsRoot || kept.Field is null || kept.Field == place.Path[0].Name ? kept : null;
     }
 
-    private static (Place Lent, Lease Kind)? Lent(State state, Place place, Action action, bool evaluated)
+    private (Place Lent, Lease Kind)? Lent(State state, Place place, Action action, bool evaluated)
     {
         foreach(var candidate in place.AncestorsAndSelf())
         {
-            foreach(var (lender, kind) in state.Leases.Values)
+            foreach(var (lender, kind, _) in Loans(state, candidate))
             {
                 if(lender.Equals(candidate) && Forbids(kind, action, self: candidate.Equals(place) && !evaluated))
                 {
@@ -292,12 +422,12 @@ internal sealed partial class OwnershipFlow
         return kind switch
         {
             Lease.Frozen => action is Action.Write or Action.Borrow or Action.Move,
-            Lease.ReadonlyRef => action is Action.Borrow or Action.Move,
+            Lease.ReadonlyRef or Lease.Ref => action is Action.Borrow or Action.Move,
             _ => self && action == Action.Write,
         };
     }
 
-    private static (Place Child, Held Held)? Blocking(State state, Place place, Action action)
+    private (Place Child, Held Held)? Blocking(State state, Place place, Action action)
     {
         (Place Child, Held Held)? worst = null;
 
@@ -306,8 +436,13 @@ internal sealed partial class OwnershipFlow
             worst = Prefer(worst, place, child, Held.Moved, action);
         }
 
-        foreach(var (lender, kind) in state.Leases.Values)
+        foreach(var (lender, kind, value) in state.Leases.Values.SelectMany(loans => loans))
         {
+            if(kind is not (Lease.ReadonlyRef or Lease.Ref) && !ValuesOf(state.Values, lender).Contains(value))
+            {
+                continue;
+            }
+
             worst = Prefer(worst, place, lender, kind switch { Lease.Borrowed => Held.Borrowed, Lease.Frozen => Held.Frozen, _ => Held.ReadonlyRef }, action);
         }
 
@@ -336,7 +471,7 @@ internal sealed partial class OwnershipFlow
         };
     }
 
-    private static Held StateOf(State state, Place place)
+    private Held StateOf(State state, Place place)
     {
         var held = Held.Live;
 
@@ -348,9 +483,9 @@ internal sealed partial class OwnershipFlow
             }
         }
 
-        foreach(var (lender, kind) in state.Leases.Values)
+        foreach(var (lender, kind, value) in state.Leases.Values.SelectMany(loans => loans))
         {
-            if(lender.Equals(place) || place.IsAncestorOf(lender))
+            if((lender.Equals(place) || place.IsAncestorOf(lender)) && (kind is Lease.ReadonlyRef or Lease.Ref || ValuesOf(state.Values, lender).Contains(value)))
             {
                 var lent = kind switch { Lease.Borrowed => Held.Borrowed, Lease.Frozen => Held.Frozen, _ => Held.ReadonlyRef };
                 held = lent > held ? lent : held;
@@ -423,6 +558,7 @@ internal sealed partial class OwnershipFlow
         {
             Lease.Frozen => "frozen",
             Lease.ReadonlyRef => "readonly ref",
+            Lease.Ref => "ref",
             _ => "borrowed",
         };
     }

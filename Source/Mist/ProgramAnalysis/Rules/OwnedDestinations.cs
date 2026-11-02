@@ -175,7 +175,10 @@ internal static class OwnedDestinations
 
     private static void Require(AnalysisContext context, Expression value, string destination, Method? method, Origins origins, bool extracts = false)
     {
-        if(!OwnershipAnalyzer.YieldsOwned(value, method, origins))
+        var locals = LocalOwnership.For(context.RootOf(value) ?? value);
+        var localSource = Unwrapped(value) as LocalReferenceExpression;
+        if((localSource is { Local.InfersOwnership: true } inferred && locals.Of(inferred.Local) < ThisTier.Owned && !Origins.IsUnchangeable(value.Type) && !ThisTiers.IsValue(value.Type))
+            || (!OwnershipAnalyzer.YieldsOwned(value, method, origins) && !(localSource is { Local.InfersOwnership: true } inferredOwner && locals.Of(inferredOwner.Local) == ThisTier.Owned)))
         {
             context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination), new NameValue(OwnershipAnalyzer.Unowned(value)));
         }
@@ -185,7 +188,7 @@ internal static class OwnedDestinations
                 ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),
                 new NameValue($"owned field '{field}' still holds it, and only an owned binding may take a value out of one"));
         }
-        else if(Unwrapped(value) is LocalReferenceExpression { Local: var local } && !OwnershipAnalyzer.Tracked(local) && !Origins.IsUnchangeable(local.Type))
+        else if(Unwrapped(value) is LocalReferenceExpression { Local: var local } && !OwnershipAnalyzer.Tracked(local) && !(local.InfersOwnership && locals.Of(local) == ThisTier.Owned) && !Origins.IsUnchangeable(local.Type))
         {
             context.Report(
                 ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),

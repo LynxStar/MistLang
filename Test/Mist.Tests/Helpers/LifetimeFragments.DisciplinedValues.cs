@@ -7,6 +7,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -15,6 +16,32 @@ namespace Mist.Tests.Helpers;
 
 internal sealed partial class LifetimeFragments
 {
+    public static Expression Converted(Expression value, string conversion)
+    {
+        return conversion switch
+        {
+            "as" => new AsExpression(HandBuiltModel.Node(), value, value.Type, AsConversionKind.Identity, null, value.Type),
+            "cast" => new CastExpression(HandBuiltModel.Node(), value, value.Type, [], value.Type),
+            "implicit" => new ImplicitConversionExpression(HandBuiltModel.Node(), value, value.Type, []),
+            _ => throw new ArgumentOutOfRangeException(nameof(conversion)),
+        };
+    }
+
+    public Expression Selected(string selection, Expression first, Expression second)
+    {
+        return selection switch
+        {
+            "switch" => new SwitchExpression(HandBuiltModel.Node(), Condition(), [arm(first, Condition()), arm(second, null)], first.Type),
+            "coalesce" => new CoalesceExpression(HandBuiltModel.Node(), first, second, first.Type),
+            _ => throw new ArgumentOutOfRangeException(nameof(selection)),
+        };
+
+        static SwitchArm arm(Expression result, Expression? guard)
+        {
+            return new SwitchArm(HandBuiltModel.Node(), new CatchAllPattern(HandBuiltModel.Node(), result.Type, null), guard, result);
+        }
+    }
+
     public IMistType DisciplinedValue(string shape, SubstructuralDiscipline discipline)
     {
         ConcreteType definition = shape == "class" ? HandBuiltModel.Class("Value") : HandBuiltModel.Struct("Value");
@@ -46,7 +73,7 @@ internal sealed partial class LifetimeFragments
             }
         }
 
-        new OwnershipFlow(context, new ThisTiers(), declarations, new Dictionary<Block, LocalReferenceExpression>(), parents, owning: null)
+        new OwnershipFlow(context, new ThisTiers(), declarations, WithScopes.Of(body), parents, owning: null)
             .Judge(FlowGraphBuilder.Build(body), OwnershipFlow.Nothing);
         return diagnostics.ToImmutableArray();
     }

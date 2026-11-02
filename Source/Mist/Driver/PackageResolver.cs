@@ -277,7 +277,6 @@ public static class PackageResolver
             }
 
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var packageDirectories = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.OrdinalIgnoreCase);
             var packageFolders = PackageAssets.PackageFolders(doc.RootElement, DefaultPackagesFolder);
 
             // Parse the "targets" section to get resolved libraries and their assemblies.
@@ -305,7 +304,6 @@ public static class PackageResolver
                     }
 
                     var packageDirectory = PackageAssets.PackageDirectory(doc.RootElement, packageFolders, library.Name);
-                    packageDirectories[packageName] = packageDirectory;
 
                     // Extract compile-time assemblies from "compile" property
                     string? selectedTfm = null;
@@ -417,10 +415,7 @@ public static class PackageResolver
             var result = new PackageResolutionResult(
                 assemblyPaths.ToImmutable(),
                 resolvedInfos.ToImmutable(),
-                failureCount)
-            {
-                PackageDirectories = packageDirectories.ToImmutable(),
-            };
+                failureCount);
             if(runtimeIdentifier is null)
             {
                 return result;

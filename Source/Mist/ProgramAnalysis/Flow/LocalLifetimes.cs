@@ -79,7 +79,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
             return LifetimePlan.Empty;
         }
 
-        var plan = new LifetimePlan(owners.Declarations);
+        var plan = new LifetimePlan(owners.Declarations) { Ownership = LocalOwnership.For(root) };
 
         if(owners.Count > 0)
         {
@@ -271,6 +271,11 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
         switch(step)
         {
+            case { Kind: FlowStepKind.Evaluate, Node: Expression installed }
+                when owners.InstalledFrom(installed) is { } holder && state.ContainsKey(holder):
+                yield return (holder, false, installed);
+                break;
+
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }
                 when owners.Owns(declaration.Local) && Source(initializer, state) is { } source:
                 yield return (source, false, initializer);

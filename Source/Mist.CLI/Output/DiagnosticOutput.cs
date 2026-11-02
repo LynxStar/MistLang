@@ -12,8 +12,7 @@ public sealed class DiagnosticOutput(
     DiagnosticSeverity minimum = DiagnosticSeverity.Info,
     string command = "build",
     string project = "",
-    Action<byte[]>? documentFile = null,
-    bool verbose = false)
+    Action<byte[]>? documentFile = null)
 {
     private readonly HashSet<int> collected = [];
     private readonly HashSet<int> written = [];
@@ -59,7 +58,7 @@ public sealed class DiagnosticOutput(
         // A completed document cannot be amended after child launch; late host failures use stderr text.
         if(completed && written.Add(diagnostic.Ordinal))
         {
-            error.WriteLine(DiagnosticFormatter.Format(diagnostic, verbose));
+            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
         }
     }
 
@@ -100,7 +99,7 @@ public sealed class DiagnosticOutput(
         if((format == DiagnosticFormat.Text || documentFile is not null)
             && DiagnosticCounts.IsVisible(diagnostic, minimum) && written.Add(diagnostic.Ordinal))
         {
-            error.WriteLine(DiagnosticFormatter.Format(diagnostic, verbose));
+            error.WriteLine(DiagnosticFormatter.Format(diagnostic));
         }
     }
 }

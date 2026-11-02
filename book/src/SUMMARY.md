@@ -71,7 +71,6 @@
 - [Nested Scoping](advanced/nested-scoping.md)
 - [Structured Concurrency](advanced/structured-concurrency.md)
 - [.NET Interop](advanced/dotnet-interop.md)
-- [Razor Components](advanced/razor-components.md)
 - [Attributes](advanced/attributes.md)
 - [Stack-Only Spans](advanced/stack-only-spans.md)
 
@@ -92,4 +91,5 @@
 
 ---
 
+[November 2, 2026 — Diagnostics, Ownership, and the Next Language Foundations](updates/2026-11-02.md)
 [October 28, 2026 — Mist Goes Public](updates/2026-10-28.md)

@@ -10,10 +10,10 @@ public sealed record DiagnosticControls(
     DiagnosticSeverity Minimum = DiagnosticSeverity.Info,
     DiagnosticPolicyOverrides? Policy = null)
 {
-    public DiagnosticOutput CreateOutput(TextWriter error, string command, string project, bool verbose = false)
+    public DiagnosticOutput CreateOutput(TextWriter error, string command, string project)
     {
         var output = new DiagnosticOutput(error, Format, Minimum, command, project,
-            File is { } path ? bytes => System.IO.File.WriteAllBytes(path, bytes) : null, verbose);
+            File is { } path ? bytes => System.IO.File.WriteAllBytes(path, bytes) : null);
         output.Operation.Overrides = Policy ?? new DiagnosticPolicyOverrides();
         output.Operation.Policy = output.Operation.Overrides.Apply(DiagnosticPolicy.Default);
         return output;

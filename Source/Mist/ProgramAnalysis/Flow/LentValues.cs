@@ -34,9 +34,23 @@ internal static class LentValues
         }
     }
 
-    public static List<Expression> Once(Statement statement)
+    public static List<Expression> Once(Statement statement, LocalOwnership? ownership = null)
     {
-        return In(Roots(statement));
+        return statement is LocalDeclarationStatement declaration
+            ? [.. In(Roots(statement)), .. LoanedBy(declaration, ownership)]
+            : In(Roots(statement));
+    }
+
+    public static IEnumerable<Expression> LoanedBy(LocalDeclarationStatement declaration, LocalOwnership? ownership)
+    {
+        if(declaration.Initializer is not { } value || !(ownership?.IsLoan(declaration.Local) == true
+            || declaration.Local.Ownership is OwnershipKind.Borrowed or OwnershipKind.Frozen))
+        {
+            return [];
+        }
+
+        return Rules.OwnershipAnalyzer.Selected(value).Where(leaf => LocalLifetimes.IsTracked(leaf.Type)
+            && leaf is NewExpression or CloneExpression or InvocationExpression);
     }
 
     public static List<Expression> Within(Expression root)

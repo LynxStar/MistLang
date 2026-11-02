@@ -35,7 +35,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             var owning = OwningMethod(root);
-            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), Scoped(root.Root), Parents(root.Root), owning).Judge(graph, OwnershipFlow.Nothing);
+            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root)).Judge(graph, OwnershipFlow.Nothing);
 
             if(owning is { Body: { } body })
             {
@@ -138,6 +138,35 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         };
     }
 
+    // A selection (switch, coalescing) forwards one of several values without owning any, so provenance
+    // reads through it to the value each arm selects, just as <see cref="Unwrapped"/> reads through a
+    // transparent conversion. A selection whose arms all name one place IS that place; one whose arms
+    // disagree, or that selects a fresh value, has no single place and stays opaque here.
+    internal static Expression Resolved(Expression expression)
+    {
+        var unwrapped = Unwrapped(expression);
+
+        if(unwrapped is not (SwitchExpression or CoalesceExpression))
+        {
+            return unwrapped;
+        }
+
+        var leaves = Selected(unwrapped).ToList();
+        var places = leaves.Select(Place.Of).ToList();
+
+        return places.Count != 0 && places.All(place => place is { } named && named.Equals(places[0])) ? leaves[0] : unwrapped;
+    }
+
+    internal static IEnumerable<Expression> Selected(Expression expression)
+    {
+        return Unwrapped(expression) switch
+        {
+            SwitchExpression choice => choice.Arms.SelectMany(arm => Selected(arm.Result)),
+            CoalesceExpression coalesce => Selected(coalesce.Left).Concat(Selected(coalesce.Right)),
+            var leaf => [leaf],
+        };
+    }
+
     private static Dictionary<LocalVariable, Block> DeclaringBlocks(object root)
     {
         var blocks = new Dictionary<LocalVariable, Block>(ReferenceEqualityComparer.Instance);
@@ -166,31 +195,6 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         }
 
         return parents;
-    }
-
-    /// <summary>
-    /// The with blocks that release the linear or affine local they were given, keyed by the body whose end
-    /// releases it (drop-semantics Requirements 3.2 and 5.5): from there on the local is dropped. A lease
-    /// is given only for the block's duration and stays its owner's.
-    /// </summary>
-    private static Dictionary<Block, LocalReferenceExpression> Scoped(object root)
-    {
-        var scoped = new Dictionary<Block, LocalReferenceExpression>(ReferenceEqualityComparer.Instance);
-
-        foreach(var scope in BodyWalker.DescendantsAndSelf(root).OfType<WithBlockStatement>())
-        {
-            if(scope.Value is LocalReferenceExpression { Local: var held } given
-                && Tracked(held)
-                && Substructural(held.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine
-                && held is { IsRef: false, Ownership: not (OwnershipKind.Frozen or OwnershipKind.Borrowed) }
-                && held.Parameter is not { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } }
-                && PurityJudge.Drops(held.Type, awaitable: false).Any())
-            {
-                scoped[scope.Body] = given;
-            }
-        }
-
-        return scoped;
     }
 
     internal static bool Tracked(LocalVariable local)

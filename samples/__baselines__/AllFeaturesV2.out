@@ -1981,8 +1981,8 @@ voidCall=Void voidBlock=Void
 [this-tier] shared summary=Account(Bob, balance=200)
 [this-tier] closed=Closed account: Charlie with balance 300
 [inference] inferred owned=Account(Inferred, balance=75)
-[inference] original still live=Account(Original, balance=100)
-[inference] copy=Account(Original, balance=100)
+[inference] copy=Account(Original, balance=101)
+[inference] original still live=Account(Original, balance=101)
 [inference] simple=just a string
 [inference] alias=just a string
 --- Ownership Done ---
@@ -2383,9 +2383,9 @@ eight levels: 8
   inner and outer held
   Token(14) released
   Token(13) released
-  Consume took Token(15)
+  SeeScoped sees Token(15)
+  scoped value read through its context
   Token(15) released
-  scoped value handed on inside its with
 --- 6. A for initializer is released when the loop is left ---
   loop body sees Token(16)
   Token(16) released
@@ -2418,6 +2418,59 @@ eight levels: 8
   Box used Token(26)
   Token(26) released
   Maybe leaving
+--- 13. A borrowed installed value is read again through its context ---
+  BorrowId sees Token(27)
+  FreezeId sees Token(27)
+  SeeInstalled sees Token(27)
+  installed value still held
+  Token(27) released
+--- 14. A nested with over an explicit lease adds no cleanup ---
+  SeeInstalled sees Token(28)
+  inside the leased context
+  SeeInstalled sees Token(28)
+  leased context left, owner still installed
+  Token(28) released
+--- 15. Reassigning the holder leaves the installed instance in context ---
+  SeeInstalled sees Token(29)
+  holder now sees Token(30)
+  Token(29) released
+  owning with left
+  Token(30) released
+--- 16. A relevant value drops in the body, at with-exit and at lexical exit ---
+  Note(31).Drop() released
+  relevant value dropped in body
+  Note(31).Drop() no-op
+  owning with left
+  Note(31).Drop() no-op
+--- 17. A selected owner releases once, a selected loan adds no cleanup ---
+  SeeInstalled sees Token(32)
+  Token(32) released
+  install selected pickFirst=True done
+  Token(33) released
+  SeeInstalled sees Token(35)
+  Token(35) released
+  install selected pickFirst=False done
+  Token(34) released
+  Look sees Token(36)
+  bind selected loan pickFirst=True done
+  Token(36) released
+  Look sees Token(37)
+  bind selected loan pickFirst=False done
+  Token(37) released
+  SeeInstalled sees Token(38)
+  converted lease context pickFirst=True left
+  SeeInstalled sees Token(38)
+  coalesced lease context pickFirst=True left
+  SeeInstalled sees Token(39)
+  Token(39) released
+  Token(38) released
+  SeeInstalled sees Token(41)
+  converted lease context pickFirst=False left
+  SeeInstalled sees Token(41)
+  coalesced lease context pickFirst=False left
+  SeeInstalled sees Token(41)
+  Token(41) released
+  Token(40) released
 === Resource Transfer Done ===
 === CLR Call Contracts ===
 3
@@ -2530,17 +2583,6 @@ True
 tally of 1
 oops from mist
 === CLR Slot Filling Done ===
-=== Razor Components ===
-
-
-<h1>Counter</h1>
-
-<p role="status">Current count: 0</p>
-<p>The count is a Int32.</p><p>Never reset.</p><button class="btn btn-primary">Click me</button>
-<button class="btn btn-secondary">Reset</button>
-
-<section class="greeting"><h2>Counter says</h2><div class="body"><em>Nested from the counter.</em></div><p>Shown 0 times.</p></section>
-=== Razor Components Done ===
 === Result Foundation ===
 success=43
 error=failed

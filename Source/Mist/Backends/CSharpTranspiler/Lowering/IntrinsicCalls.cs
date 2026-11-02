@@ -1,4 +1,5 @@
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -51,7 +52,7 @@ internal static class IntrinsicCalls
 
     public static bool Respells(Method? callee)
     {
-        return Classify(callee) != Respelling.None;
+        return ClrCatch.Is(callee) || Classify(callee) != Respelling.None;
     }
 
     public static bool RespellsProperty(string name, IMistType? type)

@@ -3,6 +3,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -1162,6 +1163,10 @@ internal static partial class BodyEmitter
 
             case InvocationExpression drop when TaskResult.Dropped(drop) is { } task:
                 EmitTaskDrop(drop, task, writer, diagnostics);
+                break;
+
+            case InvocationExpression caught when ClrCatch.Is(caught.Method):
+                ClrCatchEmitter.Emit(caught, writer, diagnostics);
                 break;
 
             case InvocationExpression respelled when IntrinsicCalls.Respells(respelled.Method):

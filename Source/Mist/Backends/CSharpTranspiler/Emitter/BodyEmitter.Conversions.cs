@@ -98,7 +98,7 @@ internal static partial class BodyEmitter
         writer.Append($" is {tested} {bound} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
     }
 
-    private static void EmitCoerced(
+    internal static void EmitCoerced(
         Expression expression, IMistType? target, CSharpWriter writer, DiagnosticBag diagnostics, IMistType? entered = null)
     {
         if(DelegateLowering.NeedsConstruction(expression.Type, target))

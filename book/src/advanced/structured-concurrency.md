@@ -200,3 +200,29 @@ A `Task<T>` can be awaited multiple times. Each `await` on a completed task retu
 {{#endtabs }}
 
 The computation runs once. Both `first` and `second` receive the same value. This makes `Task<T>` a safe, shareable promise — you can pass it to multiple consumers without worrying about duplicate execution.
+
+
+## Foreign task failures
+
+For a task-returning callable, `System.Exception.Catch` produces
+`Task<Result<T, System.Exception>>`. The generated boundary covers both invoking
+the callable and awaiting its task. In a synchronous context, normal auto-await
+unwraps this adapted task; an async context can await it explicitly.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/structured-concurrency/catch-task.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/structured-concurrency/catch-task.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A caught `OperationCanceledException`, including a derived cancellation exception,
+is a failure Result carrying the original object. The adapter task completes
+normally with that Result. Postfix `!` propagates its error under the ordinary
+Result contract. Raw CLR tasks keep their cancellation and failure behavior.

@@ -74,6 +74,8 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public List<CastOperator> CastOperatorsList { get; } = [];
 
+    internal CastOperator? ErrorAdaptation { get; set; }
+
     /// <summary>
     /// The explicit default block declared on this type, or null if none was declared.
     /// </summary>

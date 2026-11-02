@@ -1,0 +1,13 @@
+using Standard;
+using System;
+using ClrCatchFixture;
+
+namespace ClrCatch;
+
+public class Forwarding
+{
+    public static string Combine(string left, string right)
+    {
+        return left + right;
+    }
+}

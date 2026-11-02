@@ -28,7 +28,12 @@ internal static class TypeArgumentInference
         if(ValuePack.FlattenedSlot(method.ParametersList) is { } flattened)
         {
             InferAcrossPack(method, arguments, receiver, interner, bounds, flattened);
-            return Fix(method.TypeParametersList, bounds, interner, out conflict);
+            var pending = Enumerable.Range(0, Math.Min(flattened, arguments.Count))
+                .Where(i => arguments[i] is UnboundLambdaExpression or MethodGroupExpression).ToList();
+            var blockedPack = InferFromCallables(method, arguments, pending, receiver, interner, lambdas, bounds);
+            var packTypes = Fix(method.TypeParametersList, bounds, interner, out conflict);
+            conflict = blockedPack ?? conflict;
+            return packTypes;
         }
 
         // OverloadResolution.Select has already matched the counts exactly, so a mismatch here is
@@ -116,6 +121,7 @@ internal static class TypeArgumentInference
                 }
 
                 var substitution = TypeSubstitution.ForParameters(parameters, frozen);
+                shape = (IFunctionType)substitution.Apply(shape, interner);
                 var given = shape.ParameterTypes
                     .Select((type, k) => k < stated.Count && stated[k] is { } own ? own : substitution.Apply(type, interner))
                     .ToList();

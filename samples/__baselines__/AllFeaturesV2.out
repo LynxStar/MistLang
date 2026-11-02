@@ -2650,3 +2650,37 @@ success=6
 owned=7
 snapshot=4
 drop=4
+=== CLR Catch ===
+value=7
+error=InvalidOperationException
+value=5
+error=InvalidOperationException
+receiver;argument;invoke;
+error=InvalidOperationException
+callable;argument;invoke;
+error=InvalidOperationException
+argument;
+error=InvalidOperationException
+argument;invoke;
+value=7
+delegate=True
+adapted=True:foreign failure
+nested=inner failure
+spread=leftright:pack;
+value=7
+value=9
+file=mist
+write=success
+error=InvalidOperationException
+error=InvalidOperationException
+error=InvalidOperationException
+cancellation=True
+adapter=RanToCompletion
+error=BoundaryCancellation
+propagated=boundary cancellation
+error=BoundaryCancellation
+raw=Canceled
+task-void=success
+deferred=error=InvalidOperationException
+disposal=error=InvalidOperationException
+void=success

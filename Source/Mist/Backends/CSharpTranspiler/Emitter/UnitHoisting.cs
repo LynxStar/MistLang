@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -105,6 +106,7 @@ internal static class UnitHoisting
     {
         return expression switch
         {
+            InvocationExpression caught when ClrCatch.Is(caught.Method) => [.. ClrCatchArguments.Prepare(caught).Select(input => new Operand(input.Value))],
             InvocationExpression invocation => [.. Callee(invocation.Receiver), .. Arguments(invocation.Arguments, invocation.Parameters, invocation.Receiver is MemberAccessExpression { IsConditional: true })],
             NewExpression creation => [.. Arguments(creation.Arguments, creation.Constructor?.ParametersList, conditional: false), .. creation.Initializer.Select(entry => new Operand(entry.Value))],
             MemberAccessExpression access => [Receiver(access.Receiver)],

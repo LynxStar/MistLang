@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// here and the candidate stays applicable.
 /// </para>
 /// </summary>
-internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) : ILambdaTrials
+internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context, bool retainTaskResult = false) : ILambdaTrials
 {
     private readonly Dictionary<UnboundLambdaExpression, IReadOnlyList<IMistType?>> stated = [];
 
@@ -49,7 +49,17 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
 
         if(trial is null)
         {
-            trial = Bind(() => LambdaBinder.BindWithParameters(lambda.Lambda, parameterTypes, ctx, context));
+            var enclosingAsync = ctx.IsAsyncContext;
+            try
+            {
+                ctx.IsAsyncContext |= retainTaskResult;
+                trial = Bind(() => LambdaBinder.BindWithParameters(lambda.Lambda, parameterTypes, ctx, context));
+            }
+            finally
+            {
+                ctx.IsAsyncContext = enclosingAsync;
+            }
+
             byParameters.Add((lambda, parameterTypes, trial));
         }
 

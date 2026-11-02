@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -165,7 +166,7 @@ internal sealed class DelegateResolver
             context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, locationNode, null, new NameValue(memberName));
         }
 
-        if(!host.IsIntrinsic)
+        if(!host.IsIntrinsic && !ClrCatch.Declares(host, memberName))
         {
             context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicRequiresIntrinsicType, locationNode, null, new NameValue(host.Name));
         }

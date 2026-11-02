@@ -1,0 +1,23 @@
+using Standard;
+using System;
+using System.IO;
+
+namespace CatchBoundaryExample;
+
+public class Program
+{
+    public static Result<string> Read(string path)
+    {
+        return Exception.Catch(File.ReadAllText, path)!;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Read("").Inspect() switch
+        {
+            (true, var text) => text,
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        });
+    }
+}

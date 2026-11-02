@@ -1,0 +1,23 @@
+using Standard;
+using System;
+
+namespace CatchTaskExample;
+
+public class Program
+{
+    public static Result<int> DelaySafely(int milliseconds)
+    {
+        Exception.Catch(Task.Delay, milliseconds)!;
+        return 1;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(DelaySafely(0).Inspect() switch
+        {
+            (true, var value) => $"completed={value}",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        });
+    }
+}

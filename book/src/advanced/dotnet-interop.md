@@ -732,6 +732,43 @@ A fill may leave out an accessor the slot has only if the accessor it keeps has 
 auto-property override must override every accessor. A generic method fill may repeat its slot's
 type parameter constraints or leave them out, but may not add one the slot does not have.
 
+## Capturing foreign failures
+
+`System.Exception.Catch` takes a callable followed by its arguments. It invokes that
+callable once and returns `Result<T, System.Exception>`. A void callable produces
+`Result<void, System.Exception>`. Method groups, Mist methods, lambdas and stored
+delegates use the same variadic API; ordinary callable ownership and reference rules apply.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/dotnet-interop/catch-boundary.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/dotnet-interop/catch-boundary.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The receiver, callable and arguments are evaluated once, in ordinary order, before
+interception begins. Use a zero-argument lambda to defer a larger expression into
+the boundary. Catch preserves a returned Result as a success payload, including an
+inner failure; it does not flatten Results.
+
+Standard adapts a captured exception to `Error` when it enters that contract, so
+postfix `!` can propagate into `Result<T>` without a mapper. The adapter is
+`ExceptionError`; its `Original` property retains the exception object and all its
+structured details, and `Message` reads that object's message.
+
+Raw CLR calls retain their existing behavior. Catch covers exceptions escaping the
+selected invocation, including synchronous callbacks. Argument evaluation, later
+iterator advancement, disposal and callbacks invoked after the operation returns
+need their own boundary. Creating a foreign object successfully does not protect
+its later use. See [structured concurrency](structured-concurrency.md#foreign-task-failures)
+for task completion and cancellation.
+
 ## Iterating CLR Collections
 
 CLR types implementing `IEnumerable<T>` can be iterated with `foreach`. The compiler resolves the element type from the `IEnumerable<T>` implementation and emits a standard C# `foreach` loop:

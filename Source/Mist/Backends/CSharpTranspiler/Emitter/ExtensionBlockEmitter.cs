@@ -42,7 +42,7 @@ internal static class ExtensionBlockEmitter
         {
             var first = true;
 
-            foreach(var method in block.MethodsList)
+            foreach(var method in block.MethodsList.Where(method => !ClrCatch.Is(method)))
             {
                 foreach(var monomorph in MonomorphSet.MethodSpecializations(method, uses ?? new VariadicUseRegistry()))
                 {

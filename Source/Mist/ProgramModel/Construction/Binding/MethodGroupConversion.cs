@@ -216,7 +216,7 @@ internal static class MethodGroupConversion
         TypeInterner interner)
     {
         var parameters = ValuePack.Expand(candidate.ParametersList, substitution, interner);
-        if(parameters.Count != parameterTypes.Count)
+        if(candidate.Modifiers.IsRef || parameters.Count != parameterTypes.Count || parameters.Any(parameter => parameter.Modifier.IsRef))
         {
             return false;
         }

@@ -1,6 +1,9 @@
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.HandBuiltModel;
 
@@ -84,4 +87,24 @@ public sealed class ResultConstructionTests
         var payload = Literal(shapes.Text, "data");
         Assert.Same(payload, ImplicitConversions.At(payload, null, shapes.Built.Interner));
     }
+
+    [Fact]
+    public void AnUnrelatedMethodNamedAsFailureDoesNotTransferItsReceiver()
+    {
+        var receiver = Literal(shapes.Text);
+        var projection = shapes.Projection(shapes.Integer, false);
+        var method = new Method("AsFailure", projection, [], default) { DeclaringBlock = new ExtensionBlock("self", "Probe", new Scope(null), null) };
+        var call = new InvocationExpression(Node(), new MemberAccessExpression(Node(), receiver, "AsFailure", projection), [], projection, method, []);
+        Assert.Null(ResultTransfers.Source(call));
+    }
+
+    [Fact]
+    public void AProjectionConstructorRetainsItsPayloadAsTheTransferredSource()
+    {
+        var payload = Literal(shapes.Text);
+        var projection = shapes.Projection(shapes.Text, true);
+        var created = new NewExpression(Node(), projection, [payload], null, [], [shapes.Text]);
+        Assert.Same(payload, ResultTransfers.Source(created));
+    }
+
 }

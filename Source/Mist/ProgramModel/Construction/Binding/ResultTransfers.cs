@@ -2,6 +2,8 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
@@ -16,13 +18,27 @@ internal static class ResultTransfers
             ResultIdentityExpression identity => identity.Operand,
             ResultConstructionExpression construction => construction.Payload,
             ResultPropagationExpression propagation => propagation.Operand,
+            NewExpression { Arguments: [var payload] } created when ResultTypes.Projection(created.Type) is not null => payload,
             MemberAccessExpression { MemberName: "Payload", Receiver: var receiver } when ResultTypes.Projection(receiver.Type) is not null => receiver,
             InvocationExpression { Receiver: MemberAccessExpression access, Method.Name: "Inspect" } when ResultTypes.Of(access.Receiver.Type) is not null => access.Receiver,
             InvocationExpression { Arguments: [var payload], Method: { Name: "Success" or "Failure", DeclaringType.FullyQualifiedName: "Standard.Result<,>" } } => payload,
-            InvocationExpression { Receiver: MemberAccessExpression access, Method.Name: "AsSuccess" or "AsFailure" } call
-                when ResultTypes.Projection(call.Type) is not null => access.Receiver,
+            InvocationExpression { Receiver: MemberAccessExpression access, Method: { Name: "AsSuccess" or "AsFailure" } projectionMethod } call
+                when ResultTypes.Projection(call.Type) is not null && StandardProjection(projectionMethod) => access.Receiver,
             _ => null,
         };
+    }
+
+    private static bool StandardProjection(Method method)
+    {
+        for(var scope = method.DeclaringBlock?.Scope; scope is not null; scope = scope.Parent)
+        {
+            if(scope is AssemblyScope assembly)
+            {
+                return assembly.Assembly.Kind == MistAssemblyKind.Standard;
+            }
+        }
+
+        return false;
     }
 
     public static SubstructuralDiscipline Discipline(IMistType type)

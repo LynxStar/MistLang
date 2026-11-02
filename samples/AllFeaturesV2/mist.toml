@@ -103,4 +103,3 @@ SliceableTypes = { path = "../SliceableTypes" }
 GenericSelfReceivers = { path = "../GenericSelfReceivers" }
 TypeValues = { path = "../TypeValues" }
 ClrSlotFilling = { path = "../ClrSlotFilling" }
-RazorComponents = { path = "../RazorComponents" }

@@ -235,10 +235,5 @@ public sealed class RuntimeAssetDeploymentTests
         {
             return Runtimes.GetValueOrDefault(outputDirectory, []);
         }
-
-        public ImmutableArray<string> Listing(string directory)
-        {
-            return [];
-        }
     }
 }

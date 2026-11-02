@@ -8,8 +8,7 @@ namespace Mist.Common.Diagnostics;
 /// point a producer built by hand under the same rule. A span is valid only when it starts at or
 /// after zero, is not negative in length and ends at or before the end of its text, with the end
 /// computed in 64-bit arithmetic so no overflow can fake a fit; anything else resolves to an absent
-/// location and a bounds fault for the factory to report. A place in a text with an
-/// <see cref="SourceText.Origin"/> becomes a <see cref="GeneratedLocation"/> mapped into the original.
+/// location and a bounds fault for the factory to report.
 /// </summary>
 public static class DiagnosticHelper
 {
@@ -41,34 +40,8 @@ public static class DiagnosticHelper
         };
 
         return fault is null
-            ? new OriginResolution(Translated(location), frames)
+            ? new OriginResolution(location, frames)
             : new OriginResolution(new Absent(AbsenceReason.OutOfBounds), frames, fault);
-    }
-
-    /// <summary>
-    /// The position the text formatter shows for a place, so that a message quoting a line agrees
-    /// with the location printed before it: in a translated text that is the original's, never the
-    /// translated file's, which the user did not write.
-    /// </summary>
-    public static LinePosition? ShownStart(Location location)
-    {
-        return Place(location).Location switch
-        {
-            GeneratedLocation generated => generated.Mapped?.Lines?.Start,
-            var placed => placed.Lines?.Start,
-        };
-    }
-
-    private static Location Translated(Location location)
-    {
-        return location switch
-        {
-            SourceRange { File.Text.Origin: { } map } range =>
-                new GeneratedLocation(range.Path, range.Lines!.Value, map.Map(range.Offset, range.Length)),
-            SourcePoint { File.Text.Origin: { } map } point =>
-                new GeneratedLocation(point.Path, point.Lines!.Value, map.Map(point.Offset, 0)),
-            _ => location,
-        };
     }
 
     private static OriginResolution ResolveSyntheticChain(SyntheticOrigin synthetic, Storm.Runtime.SourceSpan span)
@@ -113,7 +86,7 @@ public static class DiagnosticHelper
     {
         return Fault(source, span.Start, span.Length) is { } fault
             ? new OriginResolution(new Absent(AbsenceReason.OutOfBounds), frames, fault)
-            : new OriginResolution(Translated(new SourceRange(new SourceIdentity(source), span.Start, span.Length)), frames);
+            : new OriginResolution(new SourceRange(new SourceIdentity(source), span.Start, span.Length), frames);
     }
 
     private static string? Fault(SourceText source, int start, int length)

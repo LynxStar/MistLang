@@ -48,7 +48,7 @@ internal partial class Program
         var totalStopwatch = Stopwatch.StartNew();
 
         var layout = LayoutOf(cliArgs);
-        var sourceFiles = DiscoverSourcesAndClean(layout, cliArgs.BackendId, reporter, output);
+        var sourceFiles = DiscoverSourcesAndClean(layout, reporter, output);
         if(sourceFiles is null)
         {
             return 1;
@@ -66,7 +66,7 @@ internal partial class Program
         return new ProjectLayout(cliArgs.ProjectFolder, cliArgs.OutputDirectory, cliArgs.BinDirectory, Directory.GetCurrentDirectory());
     }
 
-    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, string backendId, ICompilationProgressReporter reporter, DiagnosticOutput output)
+    private static IReadOnlyList<string>? DiscoverSourcesAndClean(ProjectLayout layout, ICompilationProgressReporter reporter, DiagnosticOutput output)
     {
         if(layout.DirectoryHoldingProject() is { } holdingDirectory)
         {
@@ -75,14 +75,7 @@ internal partial class Program
             return null;
         }
 
-        var backend = new BackendRegistry().Resolve(new BackendId(backendId));
-        if(backend is null)
-        {
-            CommandFeedback.Report(output, DriverDiagnostics.UnknownBackend, new Absent(AbsenceReason.Unavailable), new NameValue(backendId));
-            return null;
-        }
-
-        var sourceFiles = layout.DiscoverSources(backend.ClaimedExtensions);
+        var sourceFiles = layout.DiscoverSources();
 
         if(sourceFiles.Count == 0)
         {
@@ -295,18 +288,18 @@ internal partial class Program
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
 
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), cliArgs.BackendId, reporter, output);
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter, output);
         if(sourceFiles is null)
         {
             return 1;
         }
 
-        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, configuration, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
+        return CompileThen(sourceFiles, cliArgs, output, reporter, totalStopwatch, result => RunBuiltArtifact(result, output), configuration, result => CommandFeedback.RequireArtifact(result, output));
     }
 
-    private static int RunBuiltArtifact(CompilerResult result, ProjectConfiguration configuration, DiagnosticOutput output)
+    private static int RunBuiltArtifact(CompilerResult result, DiagnosticOutput output)
     {
-        return ChildProcessRunner.Run(ArtifactLaunch.StartInfo(result.PrimaryOutputArtifactPath!, configuration.FrameworkReferences), output);
+        return RunArtifact(result.PrimaryOutputArtifactPath!, output);
     }
 
     private static int RunSteeringCommand(CliArguments cliArgs, DiagnosticOutput output)
@@ -452,6 +445,11 @@ internal partial class Program
         var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
         return DependencyRestore.Run(projectFolder, config, parseDiagnostics.ToImmutableArray(), Console.Out, Console.Error, output.Operation, output.Stream);
+    }
+
+    private static int RunArtifact(string artifactPath, DiagnosticOutput output)
+    {
+        return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", [artifactPath]) { UseShellExecute = false }, output);
     }
 
     /// <summary>

@@ -10,10 +10,9 @@ public static class ProjectReferenceLoader
         string projectFolder,
         ImmutableArray<ProjectReference> references,
         string targetFramework,
-        DiagnosticBag diagnostics,
-        IEnumerable<string>? claimedExtensions = null)
+        DiagnosticBag diagnostics)
     {
-        var resolution = ProjectReferenceResolver.ResolveAll(projectFolder, references, diagnostics, claimedExtensions);
+        var resolution = ProjectReferenceResolver.ResolveAll(projectFolder, references, diagnostics);
         if(diagnostics.HasErrors || resolution.ExternalReferences.IsEmpty)
         {
             return new LoadedReferences(resolution.Projects, [], 0);

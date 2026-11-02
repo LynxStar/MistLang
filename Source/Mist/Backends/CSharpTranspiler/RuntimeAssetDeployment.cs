@@ -74,7 +74,7 @@ internal static class RuntimeAssetDeployment
         return packaged.Concat(closure);
     }
 
-    internal static bool Stale(string source, string destination, IDeploymentFileSource files)
+    private static bool Stale(string source, string destination, IDeploymentFileSource files)
     {
         return !files.Exists(destination) || files.LastWriteTimeUtc(source) > files.LastWriteTimeUtc(destination);
     }

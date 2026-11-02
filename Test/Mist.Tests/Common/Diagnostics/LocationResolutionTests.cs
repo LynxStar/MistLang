@@ -134,63 +134,6 @@ public sealed class LocationResolutionTests
     }
 
     [Fact]
-    public void ANodeOrHandBuiltPlaceInATranslatedTextResolvesToAGeneratedLocationMappedIntoTheOriginal()
-    {
-        var razor = new Text("Counter.razor", "<p>\n@count</p>");
-        var translated = new Text("out/translated/Counter.razor.mist", "x(\ncount);")
-        {
-            Origin = new([
-                new OriginSegment(0, 3, razor, 4, 6, Verbatim: false),
-                new OriginSegment(3, 5, razor, 5, 5, Verbatim: true),
-                new OriginSegment(8, 2, razor, 4, 6, Verbatim: false),
-            ]),
-        };
-        var node = new BlockNode { Origin = new ParsedOrigin(translated), Span = new Storm.Runtime.SourceSpan(4, 2) };
-        var bag = new DiagnosticBag(PipelineStage.Parsing);
-
-        bag.ReportAt(Probe, new SourcePoint(new SourceIdentity(translated), 9));
-        bag.ReportAt(Probe, new SourceRange(new SourceIdentity(translated), 9, 2));
-
-        var native = new LinePositionSpan(new LinePosition(2, 2), new LinePosition(2, 4));
-        Assert.Equal(new GeneratedLocation(translated.Path, native, new SourceRange(new SourceIdentity(razor), 6, 2)),
-            DiagnosticHelper.ResolveLocation(node).Location);
-        var admitted = bag.ToImmutableArray();
-        Assert.Equal(new SourceRange(new SourceIdentity(razor), 4, 6), Assert.IsType<GeneratedLocation>(admitted[0].Location).Mapped);
-        Assert.Equal("Counter.razor(2,1): error FIXTURE_PLACE: placed", DiagnosticFormatter.Format(admitted[0]));
-        Assert.Equal(new Absent(AbsenceReason.OutOfBounds), admitted[1].Location);
-    }
-
-    [Theory]
-    [InlineData(31, true, "Counter.razor(4,9)", 4)]
-    [InlineData(0, true, "Counter.razor(3,1)", 3)]
-    [InlineData(31, false, "out/translated/Counter.razor.mist(3,9)", 3)]
-    public void AMessageQuotesTheLineItsLocationShows(int offset, bool mapped, string shown, int line)
-    {
-        var razor = new Text("Counter.razor", "<h1>Counter</h1>\n\n@code {\n    int count;\n}\n");
-        const string header = "public class Counter\n{\n    ";
-        var code = razor.Contents.IndexOf("@code", StringComparison.Ordinal);
-        var member = razor.Contents.IndexOf("int count;", StringComparison.Ordinal);
-        var contents = header + "int count;\n}\n";
-        var translated = mapped
-            ? new Text("out/translated/Counter.razor.mist", contents)
-            {
-                Origin = new([
-                    new OriginSegment(0, header.Length, razor, code, razor.Contents.Length - code, Verbatim: false),
-                    new OriginSegment(header.Length, 10, razor, member, 10, Verbatim: true),
-                    new OriginSegment(header.Length + 10, 3, razor, 0, 0, Verbatim: false),
-                ]),
-            }
-            : new Text("out/translated/Counter.razor.mist", contents);
-        var point = new SourcePoint(new SourceIdentity(translated), offset);
-        var bag = new DiagnosticBag(PipelineStage.Parsing);
-
-        bag.ReportTyped(ParserDiagnostics.ParseIncomplete, point, new QuantityValue(DiagnosticHelper.ShownStart(point)!.Value.Line));
-
-        Assert.Equal($"{shown}: error MIST0123: Parser did not consume all input. Unparseable content begins at line {line}.",
-            DiagnosticFormatter.Format(Assert.Single(bag.ToImmutableArray())));
-    }
-
-    [Fact]
     public void TestAndUnattachedOriginsAreAbsentWithTheirReason()
     {
         var test = new BlockNode { Origin = TestOrigin.Instance, Span = new Storm.Runtime.SourceSpan(0, 1) };

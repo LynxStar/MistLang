@@ -52,6 +52,9 @@ public sealed class StandardPipeline : ICompilationPipeline
         // gathered together -- those two are peers reading one model, where more diagnostics
         // means more information about the same thing. Here it would only mean noise derived
         // from bad input.
+        //
+        // Returning before the ambient provider is created also skips SDK and package assembly
+        // resolution, which there is no point paying for on the way out.
         if(diagnostics.HasErrors)
         {
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
@@ -105,9 +108,14 @@ public sealed class StandardPipeline : ICompilationPipeline
         return emission.Result;
     }
 
-    internal static ModelBuild Build(PipelineInput input, Func<PipelineInput, IAmbientTypeSource> ambientTypes)
+    /// <summary>
+    /// Stage 4 – The ambient types are created inside the stage, from the caller's source or by SDK and
+    /// NuGet assembly resolution, and live as long as the returned build because emission resolves CLR
+    /// types through them.
+    /// </summary>
+    private static ModelBuild Build(PipelineInput input, Func<PipelineInput, IAmbientTypeSource> ambientTypes)
     {
-        var ambientProvider = input.AmbientTypes ?? ambientTypes(input);
+        var ambientProvider = ambientTypes(input);
 
         try
         {
@@ -117,20 +125,16 @@ public sealed class StandardPipeline : ICompilationPipeline
                 input.Diagnostics,
                 ambientProvider);
 
-            return new ModelBuild(programModel, ambientProvider.FindClrType, input.AmbientTypes is null ? ambientProvider : null);
+            return new ModelBuild(programModel, ambientProvider.FindClrType, ambientProvider);
         }
         catch
         {
-            if(input.AmbientTypes is null)
-            {
-                ambientProvider.Dispose();
-            }
-
+            ambientProvider.Dispose();
             throw;
         }
     }
 
-    internal static IAmbientTypeSource LoadAmbientTypes(PipelineInput input)
+    private static IAmbientTypeSource LoadAmbientTypes(PipelineInput input)
     {
         var externals = input.ExternalAssemblies.IsDefault ? [] : input.ExternalAssemblies;
         var composed = input.ComposedProjects.IsDefault ? [] : input.ComposedProjects;
@@ -163,8 +167,7 @@ public sealed class StandardPipeline : ICompilationPipeline
     {
         var emitter = new CSharpEmitterV2(
             programModel, input.Options, input.ResolvedAssemblyPaths, input.Diagnostics, clrType,
-            input.ExternalAssemblies, input.ComposedProjects, input.RuntimeIdentifiers, input.RuntimeAssets,
-            input.FrameworkAssetsDirectory);
+            input.ExternalAssemblies, input.ComposedProjects, input.RuntimeIdentifiers, input.RuntimeAssets);
         var result = emitter.Emit();
 
         return new Emission(result, emitter.EmittedFileCount, emitter.RuntimeAssetsDeployed);

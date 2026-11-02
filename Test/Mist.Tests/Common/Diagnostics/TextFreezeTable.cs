@@ -357,6 +357,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.StackSpanPassed"] = "This 'arg0' refers to arg1, so it cannot be passed to 'arg2' alongside arg3, which 'arg2' could store it in: arg4.",
         ["ProgramAnalysisDiagnostics.RefReturnEscapes"] = "Cannot return arg0 by reference: it refers to arg1, which does not outlive the call.",
         ["ProgramAnalysisDiagnostics.CapturedBinding"] = "Cannot capture arg0 variable 'arg1' in a arg2: arg3.",
+        ["ProgramAnalysisDiagnostics.InstalledValueConsumed"] = "Cannot arg0 'arg1' while a with scope holds it: the scope keeps the installed value live until it ends and releases it once.",
         ["ProgramAnalysisDiagnostics.PatternNeverMatches"] = "A value of type 'arg0' can never be 'arg1', so this pattern never matches.",
         ["ProgramAnalysisDiagnostics.PatternNarrowsToUnknown"] = "Narrowing to 'unknown' is not meaningful: the pattern is tautologically true and introduces no new type information. Remove the pattern or narrow to a concrete type.",
         ["ProgramAnalysisDiagnostics.PatternNarrowsToUnknownClosure"] = "Narrowing 'arg0' to 'arg1' is not meaningful: every 'arg0' already widens to 'arg1', so the pattern is tautologically true, and the binding it introduces only hides the members that write storage of the parameters closed with 'unknown'. Narrow to a concrete construction instead.",

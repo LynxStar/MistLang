@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -101,7 +102,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             return;
         }
 
-        var (given, lent) = argument switch
+        var (given, lent) = OwnershipAnalyzer.Unwrapped(argument) switch
         {
             LocalReferenceExpression { Local: var local } => (Given(local), $"variable '{local.Name}'"),
             ThisExpression => (tiers.Provided(argument, context.MemberOf(call)), "'this'"),
@@ -135,7 +136,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
     internal static bool RefusesLend(Expression argument, ThisTier required)
     {
-        return argument is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
+        return OwnershipAnalyzer.Unwrapped(argument) is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
     }
 
     internal static bool RefusesReceiver(Expression? receiver, ThisTier required)
@@ -150,9 +151,18 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
     private static ThisTier Given(LocalVariable local)
     {
-        return local.Parameter is null && local.Ownership == OwnershipKind.Unrestricted && !local.IsRef
+        return local.Parameter is null && local.Ownership == OwnershipKind.Unrestricted && !local.IsRef && !Exclusive(local.Type)
             ? ThisTier.None
             : ThisTiers.Declared(local);
+    }
+
+    /// <summary>
+    /// A linear or affine binding is the one holder its discipline allows, so it lends with the access an
+    /// owned binding does; an unrestricted binding of any other type may be aliased and lends nothing.
+    /// </summary>
+    private static bool Exclusive(IMistType type)
+    {
+        return OwnershipAnalyzer.Substructural(type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 
     private static string Display(Expression receiver)

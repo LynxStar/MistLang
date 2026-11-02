@@ -86,7 +86,9 @@ When ownership is the same on every path, the emitted C# releases the local unco
 
 ### Parameters, Fields and Scopes
 
-The same rule covers every other holder of a linear value. A parameter the caller handed over is released at the end of the function on the paths that did not drop, return or pass it on. A manual `Drop()` releases each droppable field its body did not drop or hand on, after the body and in declaration order, on exactly the paths where the field is still held. A `with` given a linear local releases it as the block ends, after the context is popped, and the local's own scope does not release it again; a `with` that declares its binding owns the value it binds. A `for` initializer is released once the loop is left, by its condition, a `break` or a `return`. A pattern binding is a view of the value it matched, so passing it on passes on the matched local, and a tuple literal that is deconstructed hands each element to its target as a declaration would.
+Linear and affine method context bindings provide non-owning access: neither the binding nor its aliases may consume or return the installed instance, and reinstalling such access acquires no cleanup. A second owning installation of the same installed value is refused; use an explicit lease for a nested context. A callee taking an installed value must explicitly accept a borrowed, frozen or ref loan.
+
+The same rule covers every other holder of a linear value. A parameter the caller handed over is released at the end of the function on the paths that did not drop, return or pass it on. A manual `Drop()` releases each droppable field its body did not drop or hand on, after the body and in declaration order, on exactly the paths where the field is still held. A `with` given a linear or affine local takes responsibility for the exact value it installed: it releases that value as the block ends, after the context is popped, and the local's own name does not release it again. Reinitializing the local inside the block gives it a fresh value with its own release, which the `with` leaves alone. While the value is installed it may be read and lent but not consumed — a `Drop()`, a move to an owned destination, an owned return of it, or the same through an alias of it, is refused where it is written. A `with` that declares its binding owns the value it binds the same way. A `for` initializer is released once the loop is left, by its condition, a `break` or a `return`. A pattern binding is a view of the value it matched, so passing it on passes on the matched local, and a tuple literal that is deconstructed hands each element to its target as a declaration would.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -136,6 +138,8 @@ Each of these releases sits in a `finally`, so it also runs when an exception le
 After calling `Drop()`, the variable is consumed — any subsequent access is a compile-time error. When the compiler auto-inserts `Drop()` at scope exit, non-void return values are discarded.
 
 ## Relevant Types
+
+A relevant local keeps its lexical exit drop even after an explicit drop inside a `with` and the context's own exit drop.
 
 A `relevant` type guarantees at-least-once cleanup. Unlike linear types, relevant values are aliasable — you can have multiple references to the same object. `Drop()` fires at scope exit for every reference, so the implementation must be idempotent.
 

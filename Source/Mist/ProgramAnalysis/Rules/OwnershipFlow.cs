@@ -39,19 +39,22 @@ internal sealed partial class OwnershipFlow(
     AnalysisContext context,
     ThisTiers tiers,
     IReadOnlyDictionary<LocalVariable, Block> declaringBlocks,
-    IReadOnlyDictionary<Block, LocalReferenceExpression> scoped,
+    WithScopes scopes,
     IReadOnlyDictionary<object, object> parents,
     Method? owning) : IFlowLattice<OwnershipFlow.State>
 {
     public static readonly State Nothing = new(
         ImmutableDictionary<Place, Moved>.Empty,
-        ImmutableDictionary.Create<LocalVariable, (Place, Lease)>(ReferenceEqualityComparer.Instance),
+        ImmutableDictionary.Create<LocalVariable, ImmutableHashSet<Loan>>(ReferenceEqualityComparer.Instance),
         ImmutableHashSet<Place>.Empty,
-        ImmutableDictionary.Create<LocalVariable, Kept>(ReferenceEqualityComparer.Instance));
+        ImmutableDictionary.Create<LocalVariable, Kept>(ReferenceEqualityComparer.Instance),
+        ImmutableDictionary<Block, ImmutableHashSet<object>>.Empty,
+        ImmutableDictionary<Place, ImmutableHashSet<object>>.Empty);
 
     internal enum Lease
     {
         ReadonlyRef,
+        Ref,
         Frozen,
         Borrowed,
     }
@@ -79,11 +82,15 @@ internal sealed partial class OwnershipFlow(
 
     internal sealed record Kept(string Reason, string? Field);
 
+    internal sealed record Loan(Place Lender, Lease Kind, object Value);
+
     internal sealed record State(
         ImmutableDictionary<Place, Moved> Moved,
-        ImmutableDictionary<LocalVariable, (Place Lender, Lease Kind)> Leases,
+        ImmutableDictionary<LocalVariable, ImmutableHashSet<Loan>> Leases,
         ImmutableHashSet<Place> Complained,
-        ImmutableDictionary<LocalVariable, Kept> Shared);
+        ImmutableDictionary<LocalVariable, Kept> Shared,
+        ImmutableDictionary<Block, ImmutableHashSet<object>> Installed,
+        ImmutableDictionary<Place, ImmutableHashSet<object>> Values);
 
     public State Join(State left, State right)
     {
@@ -101,10 +108,7 @@ internal sealed partial class OwnershipFlow(
 
         foreach(var (recipient, lease) in right.Leases)
         {
-            if(!leases.ContainsKey(recipient))
-            {
-                leases = leases.Add(recipient, lease);
-            }
+            leases = leases.SetItem(recipient, leases.TryGetValue(recipient, out var prior) ? prior.Union(lease) : lease);
         }
 
         var shared = left.Shared;
@@ -117,7 +121,7 @@ internal sealed partial class OwnershipFlow(
             }
         }
 
-        return new State(moved, leases, left.Complained.Union(right.Complained), shared);
+        return new State(moved, leases, left.Complained.Union(right.Complained), shared, MergeValues(left.Installed, right.Installed), JoinValues(left.Values, right.Values));
     }
 
     public bool Same(State left, State right)
@@ -125,10 +129,12 @@ internal sealed partial class OwnershipFlow(
         return left.Moved.Count == right.Moved.Count
             && left.Moved.Keys.All(right.Moved.ContainsKey)
             && left.Leases.Count == right.Leases.Count
-            && left.Leases.Keys.All(right.Leases.ContainsKey)
+            && left.Leases.All(pair => right.Leases.TryGetValue(pair.Key, out var loans) && pair.Value.SetEquals(loans))
             && left.Complained.SetEquals(right.Complained)
             && left.Shared.Count == right.Shared.Count
-            && left.Shared.Keys.All(right.Shared.ContainsKey);
+            && left.Shared.Keys.All(right.Shared.ContainsKey)
+            && SameValues(left.Installed, right.Installed)
+            && SameValues(left.Values, right.Values);
     }
 
     public State Transfer(State state, FlowStep step)
@@ -136,7 +142,7 @@ internal sealed partial class OwnershipFlow(
         switch(step)
         {
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
-                state = Forget(state, declaration.Local);
+                state = BindValue(state, declaration.Local, declaration.Initializer, declaration);
 
                 if(declaration.Initializer is not { } initializer)
                 {
@@ -150,24 +156,31 @@ internal sealed partial class OwnershipFlow(
 
                 if(LeaseOf(declaration.Local) is { } lease)
                 {
-                    return state with { Leases = state.Leases.SetItem(declaration.Local, (source, lease)) };
+                    return state with { Leases = state.Leases.SetItem(declaration.Local, ValuesOf(state.Values, source).Select(value => new Loan(source, lease, value)).ToImmutableHashSet()) };
                 }
 
-                return Move(state, source, initializer);
+                return declaration.Local.IsRef ? state : Move(state, source, initializer);
 
             case { Kind: FlowStepKind.Evaluate, Node: Expression read } when Place.Of(read) is { } place:
                 if(state.Moved.ContainsKey(place))
                 {
-                    return state with { Moved = state.Moved.Remove(place) };
+                    state = state with { Moved = state.Moved.Remove(place) };
+                }
+                else if(Has(state, place, Lease.Borrowed))
+                {
+                    state = state with { Complained = state.Complained.Add(place) };
                 }
 
-                return Has(state, place, Lease.Borrowed) ? state with { Complained = state.Complained.Add(place) } : state;
+                return Install(state, read);
+
+            case { Kind: FlowStepKind.Bind, Variable: { } bound }:
+                return BindValue(state, bound, PatternSource(step.Node), step.Node);
+
+            case { Kind: FlowStepKind.Introduce, Node: WithBlockStatement introduced, Variable: { } binding }:
+                return Install(BindValue(state, binding, introduced.Value, introduced), introduced);
 
             case { Kind: FlowStepKind.Leave, Node: Block block }:
-                if(scoped.TryGetValue(block, out var given))
-                {
-                    state = state with { Moved = state.Moved.SetItem(Place.Of(given.Local), new Moved(given, Dropped: true)) };
-                }
+                state = LeaveInstallation(state, block);
 
                 return state with
                 {
@@ -178,7 +191,7 @@ internal sealed partial class OwnershipFlow(
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
                 if(OwnershipAnalyzer.Tracked(target.Local))
                 {
-                    state = Forget(state, target.Local);
+                    state = BindValue(state, target.Local, assignment.Value, assignment, assignment: true);
                 }
 
                 return Place.Of(assignment.Value) is { } moved ? Move(state, moved, assignment.Value) : state;
@@ -382,6 +395,7 @@ internal sealed partial class OwnershipFlow(
         {
             Moved = state.Moved.RemoveRange(state.Moved.Keys.Where(place => ReferenceEquals(place.Root, local))),
             Shared = state.Shared.Remove(local),
+            Leases = state.Leases.Remove(local),
         };
     }
 
@@ -392,7 +406,13 @@ internal sealed partial class OwnershipFlow(
 
     private static bool Has(State state, Place place, Lease kind)
     {
-        return state.Leases.Values.Any(lease => lease.Lender.Equals(place) && lease.Kind == kind);
+        return Loans(state, place).Any(lease => lease.Kind == kind);
+    }
+
+    private static IEnumerable<Loan> Loans(State state, Place place)
+    {
+        var values = ValuesOf(state.Values, place);
+        return state.Leases.Values.SelectMany(loans => loans).Where(loan => loan.Lender.Equals(place) && (loan.Kind is Lease.ReadonlyRef or Lease.Ref || values.Contains(loan.Value)));
     }
 
     private static Lease? LeaseOf(LocalVariable recipient)
@@ -402,6 +422,7 @@ internal sealed partial class OwnershipFlow(
             { Ownership: OwnershipKind.Frozen } => Lease.Frozen,
             { Ownership: OwnershipKind.Borrowed } => Lease.Borrowed,
             { IsRef: true, IsReadonly: true } => Lease.ReadonlyRef,
+            { IsRef: true } => Lease.Ref,
             _ => null,
         };
     }

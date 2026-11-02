@@ -120,14 +120,14 @@ public sealed class ResourceTransferPlanTests
     }
 
     [Fact]
-    public void AWithGivenAHolderReleasesItInsteadOfTheHoldersScope()
+    public void AWithGivenAHolderReleasesTheInstalledInstanceNotTheHolder()
     {
         var t = f.Local("t");
         var scope = With(Ref(t), HandBuiltModel.Block(Run(f.Call(f.Risky))));
         var plan = Plan(Declare(t, f.New(1)), scope);
 
-        Assert.Equal((t, LifetimeRelease.AtExit), Scoped(plan, scope));
-        Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(t));
+        Assert.Null(plan.ReleaseAt(scope));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(t));
     }
 
     [Fact]
@@ -137,30 +137,30 @@ public sealed class ResourceTransferPlanTests
         var scope = With(Ref(t), HandBuiltModel.Block());
         var plan = Plan(Declare(t, f.New(1)), f.If(HandBuiltModel.Block(scope)));
 
-        Assert.Equal((t, LifetimeRelease.AtExit), Scoped(plan, scope));
+        Assert.Null(plan.ReleaseAt(scope));
         Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(t));
     }
 
     [Fact]
-    public void AHolderHandedOnInsideItsWithIsNotReleasedByIt()
+    public void ALoanInsideItsWithDoesNotDischargeTheScopesRelease()
     {
         var t = f.Local("t");
-        var scope = With(Ref(t), HandBuiltModel.Block(Run(f.Call(f.Take, Ref(t)))));
+        var scope = With(Ref(t), HandBuiltModel.Block(Run(f.Call(f.Peek, Ref(t)))));
         var plan = Plan(Declare(t, f.New(1)), scope);
 
-        Assert.Equal((t, LifetimeRelease.None), Scoped(plan, scope));
+        Assert.Null(plan.ReleaseAt(scope));
         Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(t));
     }
 
     [Fact]
-    public void AWithBindingOwnsItsFreshValueUntilItIsHandedOn()
+    public void AWithBindingReleasesItsFreshValueAtScopeExit()
     {
         var x = f.Local("x");
-        var scope = With(f.New(1), HandBuiltModel.Block(f.If(HandBuiltModel.Block(Run(f.Call(f.Take, Ref(x)))))), x);
+        var scope = With(f.New(1), HandBuiltModel.Block(Run(f.Call(f.Risky))), x);
         var plan = Plan(scope);
 
         Assert.Null(plan.ReleaseAt(scope));
-        Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(x));
+        Assert.Equal(LifetimeRelease.AtExit, plan.ReleaseOf(x));
     }
 
     [Fact]
@@ -168,11 +168,12 @@ public sealed class ResourceTransferPlanTests
     {
         var t = f.Local("t");
         var x = f.Local("x");
-        var scope = With(Ref(t), HandBuiltModel.Block(Run(f.Call(f.Take, Ref(x)))), x);
+        var scope = With(Ref(t), HandBuiltModel.Block(Run(f.Call(f.Peek, Ref(x)))), x);
         var plan = Plan(Declare(t, f.New(1)), scope);
 
         Assert.False(plan.Covers(x));
-        Assert.Equal((t, LifetimeRelease.None), Scoped(plan, scope));
+        Assert.Null(plan.ReleaseAt(scope));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(t));
     }
 
     [Fact]
@@ -271,11 +272,6 @@ public sealed class ResourceTransferPlanTests
         var call = f.CallOn(new ThisExpression(HandBuiltModel.Node(), f.Box), conditional: false, Ref(t));
 
         Assert.Equal(LifetimeRelease.None, Plan(Declare(t, f.New(1)), Run(call)).ReleaseOf(t));
-    }
-
-    private static (object Owner, LifetimeRelease Release) Scoped(LifetimePlan plan, WithBlockStatement scope)
-    {
-        return Assert.NotNull(plan.ReleaseAt(scope));
     }
 
     private LifetimeRelease Release(Parameter parameter, Block body)

@@ -2383,9 +2383,9 @@ eight levels: 8
   inner and outer held
   Token(14) released
   Token(13) released
-  Consume took Token(15)
+  SeeScoped sees Token(15)
+  scoped value read through its context
   Token(15) released
-  scoped value handed on inside its with
 --- 6. A for initializer is released when the loop is left ---
   loop body sees Token(16)
   Token(16) released

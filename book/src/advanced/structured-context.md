@@ -99,6 +99,10 @@ A context block pushes a value for a specific block scope only. When the block e
 
 The output of this program is `10`, `99`, `10` — the context block temporarily shadows the outer value, and the original is restored when the block exits. The compiler emits a `try`/`finally` to guarantee the pop happens even if an exception is thrown.
 
+For linear and affine values, an owning context scope keeps the installed instance until its pop and releases that instance once. Neither its original name nor a pattern or loan alias may drop it, move it into an owned destination, or return it while installed. A branch that might still hold that instance keeps the restriction; replacing the holder on every reaching path gives it an independent value. Once the owning scope exits, names that may still refer to its released instance are inaccessible. An explicit loan or field view does not acquire cleanup when installed. A second owning installation of the same linear or affine value is refused; use an explicit lease for a non-owning nested context. Passing an installed value to a plain by-value parameter is refused too: the callee must explicitly accept a borrowed, frozen or ref loan. The callee and aliases of its loan cannot drop it, move it, return it by value or pass it to a plain or owning parameter.
+
+Relevant values allow repeated drops: an explicit drop inside the context and the context's exit drop both leave the original relevant local's lexical exit drop owed. Unrestricted values retain their existing cleanup rules.
+
 ## Method `with` Clause
 
 A method declares its context requirements using one or more `with` clauses after the parameter list. Each clause specifies a type and an identifier that becomes a read-only local variable bound to the current context value for that type.
@@ -115,6 +119,8 @@ A method declares its context requirements using one or more `with` clauses afte
 ```
 {{#endtab }}
 {{#endtabs }}
+
+A method's context binding is non-owning access to the installed value. For linear or affine types it and its aliases support non-consuming reads and valid borrowing, but cannot drop the value, transfer ownership, or return it out of the context. Reinstalling this access does not acquire cleanup. Relevant and unrestricted context access keeps those disciplines' ordinary rules.
 
 Multiple `with` clauses are chained after the parameter list. Each one peeks the corresponding type from the context stack at method entry. The compiler verifies at the call site that all required context types are available — if a caller doesn't have `int` context in scope when calling `Describe()`, compilation fails.
 

@@ -184,7 +184,7 @@ public sealed class OwnershipRefusalTests
         var diagnostics = new DiagnosticBag();
         var context = f.Model.Context(new OwnershipAnalyzer(), diagnostics, body);
         var flow = new OwnershipFlow(context, new ThisTiers(), new Dictionary<LocalVariable, Block>(),
-            new Dictionary<Block, LocalReferenceExpression>(), new Dictionary<object, object>(), owning: null);
+            WithScopes.Of(body), new Dictionary<object, object>(), owning: null);
         var graph = FlowGraphBuilder.Build(body);
         var returned = FlowSolution<OwnershipFlow.State>.Solve(graph, flow, OwnershipFlow.Nothing).At(graph.Exit);
 
@@ -468,10 +468,6 @@ public sealed class OwnershipRefusalTests
         Assert.All(bodies, body => Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body)));
     }
 
-    /// <summary>
-    /// A with releases the linear or affine local it was given as it ends, so a use after it is a use of
-    /// a dropped value; inside the block the local is still there to use or hand on.
-    /// </summary>
     [Fact]
     public void ALocalGivenToAWithIsDroppedWhenTheBlockEnds()
     {
@@ -503,11 +499,12 @@ public sealed class OwnershipRefusalTests
         {
             HandBuiltModel.Block(
                 LifetimeFragments.Declare(t, f.New(1)),
-                LifetimeFragments.With(LifetimeFragments.Ref(t), HandBuiltModel.Block(LifetimeFragments.Run(f.Call(f.Take, LifetimeFragments.Ref(t)))))),
+                LifetimeFragments.With(LifetimeFragments.Ref(t), HandBuiltModel.Block(LifetimeFragments.Run(f.Call(f.Peek, LifetimeFragments.Ref(t)))))),
             HandBuiltModel.Block(
                 LifetimeFragments.Declare(u, f.New(2)),
-                LifetimeFragments.Declare(v, LifetimeFragments.Ref(u)),
-                LifetimeFragments.With(LifetimeFragments.Ref(v), HandBuiltModel.Block()),
+                HandBuiltModel.Block(
+                    LifetimeFragments.Declare(v, LifetimeFragments.Ref(u)),
+                    LifetimeFragments.With(LifetimeFragments.Ref(v), HandBuiltModel.Block())),
                 LifetimeFragments.Run(LifetimeFragments.Drop(u))),
         };
 

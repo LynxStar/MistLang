@@ -129,7 +129,7 @@ public class Program
                 Console.WriteLine("  inner and outer held");
             }
         }
-        HandOnWithBinding();
+        ReadScopedThroughContext();
 
         Console.WriteLine("--- 6. A for initializer is released when the loop is left ---");
         for (var t = new Token(16); t.Id < 100; )
@@ -227,11 +227,16 @@ public class Program
         Console.WriteLine($"  WithOnOneBranch(enter={enter}) leaving");
     }
 
-    public static void HandOnWithBinding()
+    public static void ReadScopedThroughContext()
     {
         with var scoped = new Token(15);
-        Consume(scoped);
-        Console.WriteLine("  scoped value handed on inside its with");
+        SeeScoped();
+        Console.WriteLine("  scoped value read through its context");
+    }
+
+    public static void SeeScoped() with Token t
+    {
+        Console.WriteLine($"  SeeScoped sees Token({t.Id})");
     }
 
     public static void LeaseWhen(int id, bool early)

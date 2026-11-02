@@ -354,6 +354,7 @@ Discipline interactions:
 
 - **Affine types:** the `with` family is the ONLY auto-trigger for `Drop()`. Outside `with`, an affine value may be forgotten and no drop is inserted.
 - **Linear types bound by `with`:** the `with` block exit satisfies the linear drop obligation. The compiler SHALL NOT also auto-drop the same value at the enclosing scope exit (no double drop).
+- **The installed instance, not the holder's current value:** `expr` above is the value saved once before the push (`WithBlockStatement` evaluates it once), so the `finally` releases that exact instance. For a `with(holder)` over an owned linear or affine local, the holder is given to the scope as its value is read; reinitializing the holder inside the scope gives the holder a fresh, independently-released value and does not change which instance the `finally` releases, and the holder's own name then owes no release for the installed value. Ownership flow refuses consuming the installed value -- a `Drop()`, a move to an owned destination, an owned return, or an alias standing in for it -- while admitting a non-consuming use or a lease of it, so the `finally` always has exactly the installed instance to release.
 - **Relevant / unrestricted types bound by `with`:** the `with` exit drop fires per the existing relevant idempotence / unrestricted with-only rules.
 - **Non-void `Drop()` in a `with` context:** the return value is discarded.
 - **Types that are both a context type and have a `Drop()`:** pop and drop are emitted in the same `finally`, pop before drop.

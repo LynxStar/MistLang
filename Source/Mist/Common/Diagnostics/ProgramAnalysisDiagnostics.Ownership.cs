@@ -441,4 +441,14 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("discipline", SlotKind.Enum), new Slot("variable", SlotKind.Name), new Slot("closure", SlotKind.Enum), new Slot("reason", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic InstalledValueConsumed = new(
+        DiagnosticNumber.Mint("MIST0479"),
+        Title: "Installed value consumed",
+        Template: "Cannot {action} '{variable}' while a with scope holds it: the scope keeps the installed value live until it ends and releases it once.",
+        Description: "A with scope takes responsibility for the linear or affine value it installs until the scope ends, so that value may not be dropped, moved to an owned destination, returned, or otherwise consumed inside the scope. Use it without consuming it, or lend it, and let the scope release it on the way out.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("action", SlotKind.Enum), new Slot("variable", SlotKind.Name)]);
 }

@@ -34,7 +34,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             var owning = OwningMethod(root);
-            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), Scoped(root.Root), Parents(root.Root), owning).Judge(graph, OwnershipFlow.Nothing);
+            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning).Judge(graph, OwnershipFlow.Nothing);
 
             if(owning is { Body: { } body })
             {
@@ -165,31 +165,6 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         }
 
         return parents;
-    }
-
-    /// <summary>
-    /// The with blocks that release the linear or affine local they were given, keyed by the body whose end
-    /// releases it (drop-semantics Requirements 3.2 and 5.5): from there on the local is dropped. A lease
-    /// is given only for the block's duration and stays its owner's.
-    /// </summary>
-    private static Dictionary<Block, LocalReferenceExpression> Scoped(object root)
-    {
-        var scoped = new Dictionary<Block, LocalReferenceExpression>(ReferenceEqualityComparer.Instance);
-
-        foreach(var scope in BodyWalker.DescendantsAndSelf(root).OfType<WithBlockStatement>())
-        {
-            if(scope.Value is LocalReferenceExpression { Local: var held } given
-                && Tracked(held)
-                && Substructural(held.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine
-                && held is { IsRef: false, Ownership: not (OwnershipKind.Frozen or OwnershipKind.Borrowed) }
-                && held.Parameter is not { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } }
-                && PurityJudge.Drops(held.Type, awaitable: false).Any())
-            {
-                scoped[scope.Body] = given;
-            }
-        }
-
-        return scoped;
     }
 
     internal static bool Tracked(LocalVariable local)

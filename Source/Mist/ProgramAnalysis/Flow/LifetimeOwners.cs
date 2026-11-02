@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -21,8 +22,10 @@ internal sealed class LifetimeOwners
 {
     private readonly Dictionary<object, object> homes = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, object> aliases = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<LocalVariable, Expression> references = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, Expression> elements = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<object, (WithBlockStatement Scope, object Owner)> scopes = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<Expression, object> installs = new(ReferenceEqualityComparer.Instance);
 
     private LifetimeOwners()
     {
@@ -115,8 +118,19 @@ internal sealed class LifetimeOwners
         return scopes.TryGetValue(node, out var scope) ? scope : null;
     }
 
+    /// <summary>
+    /// The owner a <c>with(r)</c> moves into the scope's custody as its value is evaluated: from there the
+    /// scope keeps the installed instance and releases it once, so the holder's own name releases only a
+    /// value assigned to it afresh, never the installed one again.
+    /// </summary>
+    public object? InstalledFrom(Expression value)
+    {
+        return installs.GetValueOrDefault(value);
+    }
+
     public object? OwnerOf(Expression expression)
     {
+        expression = OwnershipAnalyzer.Unwrapped(expression);
         return expression switch
         {
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
@@ -137,6 +151,7 @@ internal sealed class LifetimeOwners
     {
         return target switch
         {
+            LocalReferenceExpression { Local: var local } when references.TryGetValue(local, out var storage) => TargetOf(storage),
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
             LocalReferenceExpression { Local.Parameter: { } parameter } when homes.ContainsKey(parameter) => parameter,
             _ => FieldOf(target),
@@ -162,9 +177,10 @@ internal sealed class LifetimeOwners
 
     public static bool IsView(Expression expression)
     {
+        expression = OwnershipAnalyzer.Unwrapped(expression);
         return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
         {
-            LocalReferenceExpression { Local: var local } => local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
+            LocalReferenceExpression { Local: var local } => local.IsContextBound || local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
                 || local.Parameter is { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } },
             FieldReferenceExpression or MemberAccessExpression { Member: FieldResult } => true,
             _ => false,
@@ -231,6 +247,11 @@ internal sealed class LifetimeOwners
 
         Declarations[declaration.Local] = declaration;
 
+        if(declaration.Local.IsRef && declaration.Initializer is { } storage)
+        {
+            references[declaration.Local] = storage;
+        }
+
         if(Owns(declaration.Local))
         {
             homes[declaration.Local] = home;
@@ -241,7 +262,7 @@ internal sealed class LifetimeOwners
     {
         if(OwnerOf(scope.Value) is { } held)
         {
-            scopes[scope.Body] = (scope, held);
+            installs[scope.Value] = held;
 
             if(scope.Binding is { } named)
             {

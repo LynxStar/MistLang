@@ -19,7 +19,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// elsewhere is not, the new owner having taken the obligation with it.
 /// <para>
 /// A MOVE IS ANY USE THAT HANDS THE VALUE ON: passing it as an argument, returning it, or calling its
-/// own Drop. Reading a member off it is not one -- <c>f.GetFd()</c> borrows and gives back -- which is
+/// own Drop for a non-relevant value. Relevant explicit drops retain lexical cleanup. Reading a member off it is not one -- <c>f.GetFd()</c> borrows and gives back -- which is
 /// why this looks at the POSITION a reference occupies rather than counting references.
 /// </para>
 /// </summary>
@@ -464,6 +464,7 @@ internal static class DropInsertion
         return invocation.Method is { Name: "Drop" }
             && invocation.Receiver is MemberAccessExpression access
             && IsReference(access.Receiver, isTarget)
+            && Definition(access.Receiver.Type) is not ConcreteType { Discipline: SubstructuralDiscipline.Relevant }
             ;
     }
 

@@ -27,6 +27,18 @@ public sealed class DisciplinedLendDecisionTests
     }
 
     [Theory]
+    [InlineData("switch", OwnershipKind.Frozen, true)]
+    [InlineData("coalesce", OwnershipKind.Frozen, true)]
+    [InlineData("switch", OwnershipKind.Borrowed, false)]
+    [InlineData("coalesce", OwnershipKind.Borrowed, false)]
+    public void ASelectionPreservesLoanRights(string selection, OwnershipKind ownership, bool refused)
+    {
+        var lease = f.Local("lease", ownership: ownership);
+
+        Assert.Equal(refused, TierAnalyzer.RefusesLend(f.Selected(selection, Ref(lease), Ref(lease)), ThisTier.Borrowed));
+    }
+
+    [Theory]
     [InlineData(SubstructuralDiscipline.Linear, false)]
     [InlineData(SubstructuralDiscipline.Affine, false)]
     [InlineData(SubstructuralDiscipline.Relevant, true)]

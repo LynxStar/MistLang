@@ -7,6 +7,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -24,6 +25,21 @@ internal sealed partial class LifetimeFragments
             "implicit" => new ImplicitConversionExpression(HandBuiltModel.Node(), value, value.Type, []),
             _ => throw new ArgumentOutOfRangeException(nameof(conversion)),
         };
+    }
+
+    public Expression Selected(string selection, Expression first, Expression second)
+    {
+        return selection switch
+        {
+            "switch" => new SwitchExpression(HandBuiltModel.Node(), Condition(), [Arm(first), Arm(second)], first.Type),
+            "coalesce" => new CoalesceExpression(HandBuiltModel.Node(), first, second, first.Type),
+            _ => throw new ArgumentOutOfRangeException(nameof(selection)),
+        };
+
+        static SwitchArm Arm(Expression result)
+        {
+            return new SwitchArm(HandBuiltModel.Node(), new CatchAllPattern(HandBuiltModel.Node(), result.Type, null), null, result);
+        }
     }
 
     public IMistType DisciplinedValue(string shape, SubstructuralDiscipline discipline)

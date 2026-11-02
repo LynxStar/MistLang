@@ -102,7 +102,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             return;
         }
 
-        var (given, lent) = OwnershipAnalyzer.Unwrapped(argument) switch
+        var (given, lent) = OwnershipAnalyzer.Resolved(argument) switch
         {
             LocalReferenceExpression { Local: var local } => (Given(local), $"variable '{local.Name}'"),
             ThisExpression => (tiers.Provided(argument, context.MemberOf(call)), "'this'"),
@@ -136,7 +136,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
     internal static bool RefusesLend(Expression argument, ThisTier required)
     {
-        return OwnershipAnalyzer.Unwrapped(argument) is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
+        return OwnershipAnalyzer.Resolved(argument) is LocalReferenceExpression { Local: var local } && !ThisTiers.IsValue(argument.Type) && Given(local) < required;
     }
 
     internal static bool RefusesReceiver(Expression? receiver, ThisTier required)

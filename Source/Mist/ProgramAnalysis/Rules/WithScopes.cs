@@ -17,7 +17,7 @@ internal sealed class WithScopes
 
         foreach(var scope in BodyWalker.DescendantsAndSelf(root).OfType<WithBlockStatement>())
         {
-            if(OwnershipAnalyzer.Unwrapped(scope.Value) is LocalReferenceExpression { Local: var held } && Protects(held))
+            if(OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression { Local: var held } && Protects(held))
             {
                 scopes.enters[scope.Value] = scope;
                 scopes.leaves[scope.Body] = scope;

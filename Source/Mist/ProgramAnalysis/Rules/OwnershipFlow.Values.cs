@@ -68,9 +68,15 @@ internal sealed partial class OwnershipFlow
 
     private static State BindValue(State state, LocalVariable local, Expression? source, object fresh, bool assignment = false)
     {
-        var values = source is not null && Place.Of(OwnershipAnalyzer.Unwrapped(source)) is { } place
-            ? local.IsRef && !assignment ? ImmutableHashSet.Create<object>(new ReferenceValue(place)) : ValuesOf(state.Values, place)
-            : ImmutableHashSet.Create(fresh);
+        List<Place> places = source is null
+            ? []
+            : OwnershipAnalyzer.Selected(source).Select(leaf => Place.Of(leaf)).OfType<Place>().ToList();
+
+        var values = places.Count == 0
+            ? ImmutableHashSet.Create(fresh)
+            : local.IsRef && !assignment && places is [var single]
+                ? ImmutableHashSet.Create<object>(new ReferenceValue(single))
+                : places.Aggregate(ImmutableHashSet<object>.Empty, (set, place) => set.Union(ValuesOf(state.Values, place)));
 
         if(assignment && local.IsRef && state.Values.TryGetValue(Place.Of(local), out var targets))
         {
@@ -136,7 +142,7 @@ internal sealed partial class OwnershipFlow
             return state;
         }
 
-        var held = OwnershipAnalyzer.Unwrapped(scope.Value) is LocalReferenceExpression reference ? reference.Local : scope.Binding!;
+        var held = OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression reference ? reference.Local : scope.Binding!;
         var place = Place.Of(held);
         var values = ValuesOf(state.Values, place);
         var active = state.Installed.Values.SelectMany(installed => installed).ToImmutableHashSet();
@@ -179,7 +185,7 @@ internal sealed partial class OwnershipFlow
         }
 
         var liveElsewhere = remaining.Values.SelectMany(values => values).ToImmutableHashSet();
-        var places = state.Values.Keys.Concat(OwnershipAnalyzer.Unwrapped(scope.Value) is LocalReferenceExpression reference ? [Place.Of(reference.Local)] : Array.Empty<Place>());
+        var places = state.Values.Keys.Concat(OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression reference ? [Place.Of(reference.Local)] : Array.Empty<Place>());
 
         foreach(var place in places)
         {

@@ -37,7 +37,7 @@ internal sealed class Place : IEquatable<Place>
 
     public static Place? Of(Expression expression)
     {
-        return OwnershipAnalyzer.Unwrapped(expression) switch
+        return OwnershipAnalyzer.Resolved(expression) switch
         {
             LocalReferenceExpression { Local: var local } => Of(local),
             MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } }

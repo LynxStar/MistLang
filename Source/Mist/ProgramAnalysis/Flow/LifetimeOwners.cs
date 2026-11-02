@@ -130,7 +130,7 @@ internal sealed class LifetimeOwners
 
     public object? OwnerOf(Expression expression)
     {
-        expression = OwnershipAnalyzer.Unwrapped(expression);
+        expression = OwnershipAnalyzer.Resolved(expression);
         return expression switch
         {
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
@@ -177,7 +177,7 @@ internal sealed class LifetimeOwners
 
     public static bool IsView(Expression expression)
     {
-        expression = OwnershipAnalyzer.Unwrapped(expression);
+        expression = OwnershipAnalyzer.Resolved(expression);
         return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
         {
             LocalReferenceExpression { Local: var local } => local.IsContextBound || local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed

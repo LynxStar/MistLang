@@ -1,6 +1,10 @@
 # Diagnostics
 
-Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/catalog.sh`; do not edit this page by hand.
+{{#include diagnostics-guide.md}}
+
+## Diagnostic Catalog
+
+Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/catalog.sh`; edit the guide in `book/src/reference/diagnostics-guide.md`, not the generated catalog.
 
 ## SYN
 

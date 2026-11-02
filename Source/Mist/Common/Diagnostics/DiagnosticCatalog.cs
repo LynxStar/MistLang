@@ -6,7 +6,7 @@ public static class DiagnosticCatalog
 {
     public static string Render(RegistryIndex index)
     {
-        var output = new StringBuilder("# Diagnostics\n\nGenerated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/catalog.sh`; do not edit this page by hand.\n");
+        var output = new StringBuilder("# Diagnostics\n\n{{#include diagnostics-guide.md}}\n\n## Diagnostic Catalog\n\nGenerated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/catalog.sh`; edit the guide in `book/src/reference/diagnostics-guide.md`, not the generated catalog.\n");
         var categories = index.Descriptors
             .OrderBy(descriptor => descriptor.Category)
             .ThenBy(descriptor => descriptor.Number.Value, StringComparer.Ordinal)

@@ -78,6 +78,29 @@ public class Box
     }
 }
 
+public relevant class Note
+{
+    public int Id;
+    bool Released;
+
+    public Note(int id)
+    {
+        Id = id;
+        Released = false;
+    }
+
+    public void Drop()
+    {
+        if (Released)
+        {
+            Console.WriteLine($"  Note({Id}).Drop() no-op");
+            return;
+        }
+        Released = true;
+        Console.WriteLine($"  Note({Id}).Drop() released");
+    }
+}
+
 public class Program
 {
     public static void Main(string[] args)
@@ -182,6 +205,26 @@ public class Program
         Maybe(25, void);
         Maybe(26, new Box());
 
+        Console.WriteLine("--- 13. A borrowed installed value is read again through its context ---");
+        BorrowInstalled();
+
+        Console.WriteLine("--- 14. A nested with over an explicit lease adds no cleanup ---");
+        NestLeasedContext();
+
+        Console.WriteLine("--- 15. Reassigning the holder leaves the installed instance in context ---");
+        ReassignHolder();
+
+        Console.WriteLine("--- 16. A relevant value drops in the body, at with-exit and at lexical exit ---");
+        RelevantRepeatedDrops();
+
+        Console.WriteLine("--- 17. A selected owner releases once, a selected loan adds no cleanup ---");
+        InstallSelected(true, 32, 33);
+        InstallSelected(false, 34, 35);
+        BindSelectedLoan(true, 36);
+        BindSelectedLoan(false, 37);
+        SelectExplicitLoans(true, 38, 39);
+        SelectExplicitLoans(false, 40, 41);
+
         Console.WriteLine("=== Resource Transfer Done ===");
     }
 
@@ -264,5 +307,107 @@ public class Program
         var t = new Token(id);
         box?.Use(t);
         Console.WriteLine("  Maybe leaving");
+    }
+
+    public static void BorrowInstalled()
+    {
+        var held = new Token(27);
+        with(held)
+        {
+            BorrowId(held);
+            FreezeId(held);
+            SeeInstalled();
+            Console.WriteLine("  installed value still held");
+        }
+    }
+
+    public static void NestLeasedContext()
+    {
+        with var outer = new Token(28);
+        frozen var lease = outer;
+        with(lease)
+        {
+            SeeInstalled();
+            Console.WriteLine("  inside the leased context");
+        }
+        SeeInstalled();
+        Console.WriteLine("  leased context left, owner still installed");
+    }
+
+    public static void ReassignHolder()
+    {
+        var holder = new Token(29);
+        with(holder)
+        {
+            holder = new Token(30);
+            SeeInstalled();
+            Console.WriteLine($"  holder now sees Token({holder.Id})");
+        }
+        Console.WriteLine("  owning with left");
+    }
+
+    public static void RelevantRepeatedDrops()
+    {
+        var note = new Note(31);
+        with(note)
+        {
+            note.Drop();
+            Console.WriteLine("  relevant value dropped in body");
+        }
+        Console.WriteLine("  owning with left");
+    }
+
+    public static void InstallSelected(bool pickFirst, int firstId, int secondId)
+    {
+        var a = new Token(firstId);
+        var b = new Token(secondId);
+        with(pickFirst switch { true => a, false => b })
+        {
+            SeeInstalled();
+        }
+        Console.WriteLine($"  install selected pickFirst={pickFirst} done");
+    }
+
+    public static void BindSelectedLoan(bool pickFirst, int id)
+    {
+        with var installed = new Token(id);
+        var view = pickFirst switch { true => installed, false => installed };
+        Look(view);
+        Console.WriteLine($"  bind selected loan pickFirst={pickFirst} done");
+    }
+
+    public static void SelectExplicitLoans(bool pickFirst, int firstId, int secondId)
+    {
+        with var first = new Token(firstId);
+        with var second = new Token(secondId);
+        frozen var left = first;
+        frozen var right = second;
+        with(pickFirst switch { true => left as Token, false => right as Token })
+        {
+            SeeInstalled();
+        }
+        Console.WriteLine($"  converted lease context pickFirst={pickFirst} left");
+        frozen Token? optional = pickFirst switch { true => left, false => void };
+        with(optional ?? right)
+        {
+            SeeInstalled();
+        }
+        Console.WriteLine($"  coalesced lease context pickFirst={pickFirst} left");
+        SeeInstalled();
+    }
+
+    public static void BorrowId(borrowed Token t)
+    {
+        Console.WriteLine($"  BorrowId sees Token({t.Id})");
+    }
+
+    public static void FreezeId(frozen Token t)
+    {
+        Console.WriteLine($"  FreezeId sees Token({t.Id})");
+    }
+
+    public static void SeeInstalled() with Token t
+    {
+        Console.WriteLine($"  SeeInstalled sees Token({t.Id})");
     }
 }

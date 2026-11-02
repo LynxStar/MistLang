@@ -2418,6 +2418,59 @@ eight levels: 8
   Box used Token(26)
   Token(26) released
   Maybe leaving
+--- 13. A borrowed installed value is read again through its context ---
+  BorrowId sees Token(27)
+  FreezeId sees Token(27)
+  SeeInstalled sees Token(27)
+  installed value still held
+  Token(27) released
+--- 14. A nested with over an explicit lease adds no cleanup ---
+  SeeInstalled sees Token(28)
+  inside the leased context
+  SeeInstalled sees Token(28)
+  leased context left, owner still installed
+  Token(28) released
+--- 15. Reassigning the holder leaves the installed instance in context ---
+  SeeInstalled sees Token(29)
+  holder now sees Token(30)
+  Token(29) released
+  owning with left
+  Token(30) released
+--- 16. A relevant value drops in the body, at with-exit and at lexical exit ---
+  Note(31).Drop() released
+  relevant value dropped in body
+  Note(31).Drop() no-op
+  owning with left
+  Note(31).Drop() no-op
+--- 17. A selected owner releases once, a selected loan adds no cleanup ---
+  SeeInstalled sees Token(32)
+  Token(32) released
+  install selected pickFirst=True done
+  Token(33) released
+  SeeInstalled sees Token(35)
+  Token(35) released
+  install selected pickFirst=False done
+  Token(34) released
+  Look sees Token(36)
+  bind selected loan pickFirst=True done
+  Token(36) released
+  Look sees Token(37)
+  bind selected loan pickFirst=False done
+  Token(37) released
+  SeeInstalled sees Token(38)
+  converted lease context pickFirst=True left
+  SeeInstalled sees Token(38)
+  coalesced lease context pickFirst=True left
+  SeeInstalled sees Token(39)
+  Token(39) released
+  Token(38) released
+  SeeInstalled sees Token(41)
+  converted lease context pickFirst=False left
+  SeeInstalled sees Token(41)
+  coalesced lease context pickFirst=False left
+  SeeInstalled sees Token(41)
+  Token(41) released
+  Token(40) released
 === Resource Transfer Done ===
 === CLR Call Contracts ===
 3

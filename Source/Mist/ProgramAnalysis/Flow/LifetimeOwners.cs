@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -187,7 +188,8 @@ internal sealed class LifetimeOwners
         }
 
         expression = OwnershipAnalyzer.Resolved(expression);
-        return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
+        var valueType = OptionalUnion.InnerType(expression.Type) ?? expression.Type;
+        return (LocalLifetimes.IsTracked(valueType) || LocalLifetimes.IsScoped(valueType)) && expression switch
         {
             LocalReferenceExpression { Local: var local } => local.IsContextBound || local.IsRef || local.Ownership is OwnershipKind.Frozen or OwnershipKind.Borrowed
                 || local.Parameter is { Modifier: { IsRef: true } or { Ownership: OwnershipKind.Frozen or OwnershipKind.Borrowed } },

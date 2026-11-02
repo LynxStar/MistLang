@@ -7,6 +7,7 @@ using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LifetimeFragments;
 
@@ -99,6 +100,29 @@ public sealed class MixedSelectionTests
         container.FieldsList.Add(field);
         var entry = new ObjectInitializerAssignment(HandBuiltModel.Node(), field.Name, value, field.Type, member: new FieldResult(field, container, []));
         return new NewExpression(HandBuiltModel.Node(), container, [], null, [entry], []);
+    }
+
+    [Fact]
+    public void CoalescingAnOptionalLeaseKeepsBothSourcesNonOwning()
+    {
+        var r = f.Local("r");
+        var optional = f.Local("optional", new UnionType([f.Token, f.Void]), OwnershipKind.Frozen);
+        var fallback = f.Local("fallback", ownership: OwnershipKind.Frozen);
+        var left = Ref(optional);
+        var right = Ref(fallback);
+        var selected = new CoalesceExpression(HandBuiltModel.Node(), left, right, f.Token);
+        var body = HandBuiltModel.Block(Declare(r, f.New(1)), With(Ref(r), HandBuiltModel.Block(
+            Declare(optional, Ref(r)), Declare(fallback, Ref(r)), With(selected, HandBuiltModel.Block()),
+            Run(f.Call(f.Peek, Ref(r))))));
+
+        Assert.True(LifetimeOwners.IsView(selected));
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
+        Assert.Empty(f.Model.Analyze(new TierAnalyzer(), body));
+        var plan = LocalLifetimes.Plan(body);
+        Assert.Empty(plan.MarksAfter(left));
+        Assert.Empty(plan.MarksAfter(right));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(optional));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(fallback));
     }
 
     [Fact]

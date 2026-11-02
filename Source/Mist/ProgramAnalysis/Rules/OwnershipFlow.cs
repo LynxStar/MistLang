@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -41,8 +42,11 @@ internal sealed partial class OwnershipFlow(
     IReadOnlyDictionary<LocalVariable, Block> declaringBlocks,
     WithScopes scopes,
     IReadOnlyDictionary<object, object> parents,
-    Method? owning) : IFlowLattice<OwnershipFlow.State>
+    Method? owning,
+    LocalOwnership? inferred = null) : IFlowLattice<OwnershipFlow.State>
 {
+    private readonly LocalOwnership locals = inferred ?? LocalOwnership.Empty;
+
     public static readonly State Nothing = new(
         ImmutableDictionary<Place, Moved>.Empty,
         ImmutableDictionary.Create<LocalVariable, ImmutableHashSet<Loan>>(ReferenceEqualityComparer.Instance),
@@ -149,17 +153,14 @@ internal sealed partial class OwnershipFlow(
                     return state;
                 }
 
-                if(Place.Of(initializer) is not { } source)
-                {
-                    return state;
-                }
-
+                var sources = LocalOwnership.Sources(initializer).ToList();
                 if(LeaseOf(declaration.Local) is { } lease)
                 {
-                    return state with { Leases = state.Leases.SetItem(declaration.Local, ValuesOf(state.Values, source).Select(value => new Loan(source, lease, value)).ToImmutableHashSet()) };
+                    var loans = sources.SelectMany(source => ValuesOf(state.Values, source).Select(value => new Loan(source, lease, value))).ToImmutableHashSet();
+                    return state with { Leases = state.Leases.SetItem(declaration.Local, loans) };
                 }
 
-                return declaration.Local.IsRef ? state : Move(state, source, initializer);
+                return declaration.Local.IsRef ? state : sources.Where(source => MovesInto(declaration.Local, source)).Aggregate(state, (current, source) => Move(current, source, initializer));
 
             case { Kind: FlowStepKind.Evaluate, Node: Expression read } when Place.Of(read) is { } place:
                 if(state.Moved.ContainsKey(place))
@@ -189,12 +190,12 @@ internal sealed partial class OwnershipFlow(
                 };
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
-                if(OwnershipAnalyzer.Tracked(target.Local))
+                if(Tracked(Place.Of(target.Local)))
                 {
                     state = BindValue(state, target.Local, assignment.Value, assignment, assignment: true);
                 }
 
-                return Place.Of(assignment.Value) is { } moved ? Move(state, moved, assignment.Value) : state;
+                return LocalOwnership.Sources(assignment.Value).Aggregate(state, (current, source) => Move(current, source, assignment.Value));
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
                 foreach(var (target, value) in Deconstructions.Pairs(assignment))
@@ -210,7 +211,7 @@ internal sealed partial class OwnershipFlow(
                 return state;
 
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }:
-                return Place.Of(returned) is { } returnedPlace ? Move(state, returnedPlace, returned) : state;
+                return LocalOwnership.Sources(returned).Aggregate(state, (current, source) => Move(current, source, returned));
 
             case { Kind: FlowStepKind.Evaluate, Node: TupleLiteralExpression tuple }:
                 return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple"));
@@ -222,30 +223,42 @@ internal sealed partial class OwnershipFlow(
                 state = HandArguments(state, invocation.Arguments, invocation.Parameters, invocation.Method is { } called ? $"'{called.Name}'" : "a function value");
                 state = MoveArguments(state, invocation.Arguments, invocation.Parameters);
 
-                if(ThisTiers.ReceiverOf(invocation) is not { } receiver || Place.Of(receiver) is not { } held || !Place.Tracked(held))
+                if(ThisTiers.ReceiverOf(invocation) is { } receiver)
                 {
-                    return state;
+                    foreach(var held in LocalOwnership.Sources(receiver).Where(Tracked))
+                    {
+                        if(invocation.Method?.DeclaredThisTier == ThisTier.Owned || IsDrop(invocation))
+                        {
+                            state = state with { Moved = Without(state.Moved, held).SetItem(held, new Moved(invocation.Node, IsDrop(invocation))) };
+                        }
+                        else if(invocation.Method is { } method)
+                        {
+                            state = Settle(state, held, method);
+                        }
+                    }
                 }
 
-                if(invocation.Method?.DeclaredThisTier == ThisTier.Owned || IsDrop(invocation))
-                {
-                    return state with { Moved = Without(state.Moved, held).SetItem(held, new Moved(invocation.Node, IsDrop(invocation))) };
-                }
-
-                return invocation.Method is { } method ? Settle(state, held, method) : state;
+                return state;
 
             case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
-                state = creation.Initializer.Where(entry => !entry.IsTargetFailed).Aggregate(state, (kept, entry) => Keep(kept, entry.Value, $"'{entry.MemberName}'"));
                 state = HandArguments(state, creation.Arguments, creation.Constructor?.ParametersList, $"'{creation.Type.Name}'");
                 return MoveArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
+
+            case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false } entry }:
+                if(entry.Add is { } add)
+                {
+                    state = HandArguments(state, [entry.Value], add.ParametersList, $"'{add.Name}'");
+                    return MoveArguments(state, [entry.Value], add.ParametersList);
+                }
+
+                return OwnedProvenance.OwnershipOf(entry.Member) == OwnershipKind.Owned
+                    ? LocalOwnership.Sources(entry.Value).Aggregate(state, (current, source) => Move(current, source, entry.Value))
+                    : Keep(state, entry.Value, $"'{entry.MemberName}'");
 
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
                 foreach(var element in literal.Elements)
                 {
-                    if(Place.Of(element) is { } place)
-                    {
-                        state = Move(state, place, element);
-                    }
+                    state = LocalOwnership.Sources(element).Aggregate(state, (current, source) => Move(current, source, element));
                 }
 
                 return state;
@@ -255,7 +268,7 @@ internal sealed partial class OwnershipFlow(
         }
     }
 
-    private static State Stored(State state, Expression target, Expression value)
+    private State Stored(State state, Expression target, Expression value)
     {
         if(target is LocalReferenceExpression)
         {
@@ -273,15 +286,15 @@ internal sealed partial class OwnershipFlow(
             state = state with { Shared = state.Shared.Remove(holder) };
         }
 
-        if(ThisTiers.OwnedSlot(target) is not null && Place.Of(value) is { } moved)
+        if(ThisTiers.OwnedSlot(target) is not null)
         {
-            return Move(state, moved, value);
+            return LocalOwnership.Sources(value).Aggregate(state, (current, source) => Move(current, source, value));
         }
 
         return Keep(state, value, Path(target) is { } path ? $"'{path}'" : "a field");
     }
 
-    private static State Keep(State state, Expression value, string where)
+    private State Keep(State state, Expression value, string where)
     {
         return HolderOf(value) switch
         {
@@ -291,7 +304,7 @@ internal sealed partial class OwnershipFlow(
         };
     }
 
-    private static State HandArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, string callee)
+    private State HandArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, string callee)
     {
         for(var i = 0; i < arguments.Count; i++)
         {
@@ -321,8 +334,18 @@ internal sealed partial class OwnershipFlow(
         return modifier is { Ownership: OwnershipKind.Unrestricted, Direction: not ByRefDirection.Out } and not { IsRef: true, IsReadonly: true };
     }
 
-    private static State Hand(State state, Expression argument, string recipient)
+    private State Hand(State state, Expression argument, string recipient)
     {
+        foreach(var source in LocalOwnership.Sources(argument))
+        {
+            var values = ValuesOf(state.Values, source);
+            foreach(var holder in state.Values.Keys.Where(place => place.IsRoot && Tracked(place) && !Origins.IsUnchangeable(place.Root.Type)
+                && ValuesOf(state.Values, place).Overlaps(values)))
+            {
+                state = Share(state, holder.Root, $"'{holder.Display}' was handed to {recipient} without a move, so another holder may still reach it", null);
+            }
+        }
+
         return HolderOf(argument) switch
         {
             (var local, null) => Share(state, local, $"'{local.Name}' was handed to {recipient} without a move, so another holder may still reach it", null),
@@ -336,14 +359,14 @@ internal sealed partial class OwnershipFlow(
         return state with { Shared = state.Shared.SetItem(holder, new Kept(reason, field)) };
     }
 
-    private static (LocalVariable Holder, Field? Field)? HolderOf(Expression value)
+    private (LocalVariable Holder, Field? Field)? HolderOf(Expression value)
     {
         return OwnershipAnalyzer.Unwrapped(value) switch
         {
             LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } local }
-                when OwnershipAnalyzer.Tracked(local) && !Origins.IsUnchangeable(local.Type) => (local, null),
+                when Tracked(Place.Of(local)) && !Origins.IsUnchangeable(local.Type) => (local, null),
             MemberAccessExpression { Receiver: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } holder }, Member: FieldResult { Field: var field } }
-                when OwnershipAnalyzer.Tracked(holder) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) => (holder, field),
+                when Tracked(Place.Of(holder)) && ThisTiers.IsOwned(field) && !Origins.IsUnchangeable(field.Type) => (holder, field),
             _ => null,
         };
     }
@@ -362,22 +385,22 @@ internal sealed partial class OwnershipFlow(
         };
     }
 
-    private static State MoveArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    private State MoveArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
         for(var i = 0; i < arguments.Count && parameters is not null && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Ownership == OwnershipKind.Owned && Place.Of(arguments[i]) is { } place)
+            if(parameters[i].Modifier.Ownership == OwnershipKind.Owned)
             {
-                state = Move(state, place, arguments[i]);
+                state = LocalOwnership.Sources(arguments[i]).Aggregate(state, (current, source) => Move(current, source, arguments[i]));
             }
         }
 
         return state;
     }
 
-    private static State Move(State state, Place place, Expression at)
+    private State Move(State state, Place place, Expression at)
     {
-        return Place.Tracked(place)
+        return Tracked(place)
             ? state with { Moved = Without(state.Moved, place).SetItem(place, new Moved(at, Dropped: false)) }
             : state;
     }
@@ -404,19 +427,29 @@ internal sealed partial class OwnershipFlow(
         return moved.RemoveRange(moved.Keys.Where(place.IsAncestorOf));
     }
 
-    private static bool Has(State state, Place place, Lease kind)
+    private bool Has(State state, Place place, Lease kind)
     {
         return Loans(state, place).Any(lease => lease.Kind == kind);
     }
 
-    private static IEnumerable<Loan> Loans(State state, Place place)
+    private IEnumerable<Loan> Loans(State state, Place place)
     {
         var values = ValuesOf(state.Values, place);
         return state.Leases.Values.SelectMany(loans => loans).Where(loan => loan.Lender.Equals(place) && (loan.Kind is Lease.ReadonlyRef or Lease.Ref || values.Contains(loan.Value)));
     }
 
-    private static Lease? LeaseOf(LocalVariable recipient)
+    private Lease? LeaseOf(LocalVariable recipient)
     {
+        if(locals.IsLoan(recipient))
+        {
+            return locals.Of(recipient) switch
+            {
+                ThisTier.Borrowed => Lease.Borrowed,
+                ThisTier.Frozen => Lease.Frozen,
+                _ => Lease.ReadonlyRef,
+            };
+        }
+
         return recipient switch
         {
             { Ownership: OwnershipKind.Frozen } => Lease.Frozen,
@@ -425,6 +458,17 @@ internal sealed partial class OwnershipFlow(
             { IsRef: true } => Lease.Ref,
             _ => null,
         };
+    }
+
+    private bool MovesInto(LocalVariable recipient, Place source)
+    {
+        return Place.Tracked(source) || recipient.Ownership == OwnershipKind.Owned
+            || (recipient.InfersOwnership && locals.Of(recipient) == ThisTier.Owned);
+    }
+
+    private bool Tracked(Place place)
+    {
+        return Place.Tracked(place) || (place.Root.InfersOwnership && locals.Of(place.Root) == ThisTier.Owned && !ThisTiers.IsValue(place.Root.Type) && !Origins.IsUnchangeable(place.Root.Type));
     }
 
     private static bool IsDrop(InvocationExpression invocation)

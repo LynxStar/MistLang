@@ -10,16 +10,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The access to `this` a method needs and a receiver gives, on the one lattice: unrestricted,
-/// readonly ref, frozen, borrowed, owned. A method's need is what it declares with `with`, or else
-/// what its body does -- assigning an owned field needs borrowed, lending `this` to a parameter needs
-/// that parameter's tier, and a call through an explicit `this.` needs whatever the callee needs. An
-/// implicit call is NOT followed and a bare field's call is judged as unrestricted where `this.field`
-/// is not, because that is exactly the line classic draws, measured; receiver/lending inference
-/// precision remains MIST-153 in Carbonek. Which fields of `this` a method touches, for a
-/// call on a holder whose owned fields are partly moved or lent (owned-fields Requirement 16.23), does
-/// follow implicit calls too: a sibling the callee never reaches is the question, and a helper reached
-/// without `this.` reaches fields all the same.
+/// Method requirements compose over field operations and calls on this; local bindings supply access
+/// through <see cref="LocalOwnership"/>, so provenance and use constraints have one decision point.
 /// </summary>
 internal sealed class ThisTiers
 {
@@ -201,7 +193,7 @@ internal sealed class ThisTiers
             { Ownership: OwnershipKind.Frozen } => ThisTier.Frozen,
             { IsRef: true, Parameter.Modifier.IsReadonly: true } or { IsRef: true, IsReadonly: true } => ThisTier.ReadonlyRef,
             { Parameter: not null } => ThisTier.None,
-            _ => ThisTier.Owned,
+            _ => ThisTier.None,
         };
     }
 

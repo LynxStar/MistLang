@@ -7,8 +7,13 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed partial class OwnershipFlow
 {
-    private static string? NonOwningKind(LocalVariable local)
+    private string? NonOwningKind(LocalVariable local)
     {
+        if(locals.IsLoan(local))
+        {
+            return locals.Of(local) switch { ThisTier.Borrowed => "borrowed", ThisTier.Frozen => "frozen", _ => "readonly ref" };
+        }
+
         if(local.IsRef || local.Parameter is { Modifier.IsRef: true })
         {
             return local.IsReadonly || local.Parameter is { Modifier.IsReadonly: true } ? "readonly ref" : "ref";
@@ -22,9 +27,9 @@ internal sealed partial class OwnershipFlow
         };
     }
 
-    private static string? LoanAccess(State state, Place place)
+    private string? LoanAccess(State state, Place place)
     {
-        if(!Place.Tracked(place))
+        if(!Tracked(place))
         {
             return null;
         }

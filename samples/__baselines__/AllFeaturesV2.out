@@ -1981,8 +1981,8 @@ voidCall=Void voidBlock=Void
 [this-tier] shared summary=Account(Bob, balance=200)
 [this-tier] closed=Closed account: Charlie with balance 300
 [inference] inferred owned=Account(Inferred, balance=75)
-[inference] original still live=Account(Original, balance=100)
-[inference] copy=Account(Original, balance=100)
+[inference] copy=Account(Original, balance=101)
+[inference] original still live=Account(Original, balance=101)
 [inference] simple=just a string
 [inference] alias=just a string
 --- Ownership Done ---

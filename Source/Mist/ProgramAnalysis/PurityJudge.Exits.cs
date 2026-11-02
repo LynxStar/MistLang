@@ -73,13 +73,20 @@ internal static partial class PurityJudge
         foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
         {
             var local = declaration.Local;
+            foreach(var value in LentValues.LoanedBy(declaration, LocalOwnership.For(start)))
+            {
+                foreach(var (drop, isAwait) in Drops(value.Type, awaitable: false, []))
+                {
+                    yield return new ExitDrop($"lent {local.Name}", drop, value.Node, isAwait);
+                }
+            }
 
             if(!DropsAtScopeExit(local.Type))
             {
                 continue;
             }
 
-            if(LocalLifetimes.IsTracked(local.Type) && planned().Covers(declaration))
+            if(planned().Covers(declaration))
             {
                 if(planned().ReleaseOf(declaration) != LifetimeRelease.None && planned().AcquiredAt(declaration) is { } acquired)
                 {

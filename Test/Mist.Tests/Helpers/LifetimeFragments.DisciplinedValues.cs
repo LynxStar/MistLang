@@ -31,14 +31,14 @@ internal sealed partial class LifetimeFragments
     {
         return selection switch
         {
-            "switch" => new SwitchExpression(HandBuiltModel.Node(), Condition(), [Arm(first), Arm(second)], first.Type),
+            "switch" => new SwitchExpression(HandBuiltModel.Node(), Condition(), [arm(first, Condition()), arm(second, null)], first.Type),
             "coalesce" => new CoalesceExpression(HandBuiltModel.Node(), first, second, first.Type),
             _ => throw new ArgumentOutOfRangeException(nameof(selection)),
         };
 
-        static SwitchArm Arm(Expression result)
+        static SwitchArm arm(Expression result, Expression? guard)
         {
-            return new SwitchArm(HandBuiltModel.Node(), new CatchAllPattern(HandBuiltModel.Node(), result.Type, null), null, result);
+            return new SwitchArm(HandBuiltModel.Node(), new CatchAllPattern(HandBuiltModel.Node(), result.Type, null), guard, result);
         }
     }
 

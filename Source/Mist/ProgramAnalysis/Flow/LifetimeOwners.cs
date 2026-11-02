@@ -27,8 +27,11 @@ internal sealed class LifetimeOwners
     private readonly Dictionary<object, (WithBlockStatement Scope, object Owner)> scopes = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<Expression, object> installs = new(ReferenceEqualityComparer.Instance);
 
-    private LifetimeOwners()
+    private readonly LocalOwnership locals;
+
+    private LifetimeOwners(object root)
     {
+        locals = LocalOwnership.For(root);
     }
 
     public Dictionary<LocalVariable, LocalDeclarationStatement> Declarations { get; } = new(ReferenceEqualityComparer.Instance);
@@ -43,7 +46,7 @@ internal sealed class LifetimeOwners
 
     public static LifetimeOwners Of(object root, Method? method, ConcreteType? holder)
     {
-        var owners = new LifetimeOwners();
+        var owners = new LifetimeOwners(root);
 
         if(method is not null && ReferenceEquals(method.Body, root))
         {
@@ -177,6 +180,12 @@ internal sealed class LifetimeOwners
 
     public static bool IsView(Expression expression)
     {
+        if(expression is SwitchExpression or CoalesceExpression)
+        {
+            var leaves = OwnershipAnalyzer.Selected(expression).ToList();
+            return leaves.Count != 0 && leaves.All(IsView);
+        }
+
         expression = OwnershipAnalyzer.Resolved(expression);
         return (LocalLifetimes.IsTracked(expression.Type) || LocalLifetimes.IsScoped(expression.Type)) && expression switch
         {
@@ -240,7 +249,7 @@ internal sealed class LifetimeOwners
 
     private void Declare(LocalDeclarationStatement declaration, object home)
     {
-        if(!LocalLifetimes.IsTracked(declaration.Local.Type) && !LocalLifetimes.IsScoped(declaration.Local.Type))
+        if(!LocalLifetimes.IsTracked(declaration.Local.Type) && !LocalLifetimes.IsScoped(declaration.Local.Type) && !locals.IsLoan(declaration.Local))
         {
             return;
         }
@@ -260,22 +269,36 @@ internal sealed class LifetimeOwners
 
     private void Scope(WithBlockStatement scope)
     {
+        if(locals.IsView(scope.Value))
+        {
+            return;
+        }
+
         if(OwnerOf(scope.Value) is { } held)
         {
             installs[scope.Value] = held;
-
             if(scope.Binding is { } named)
             {
                 aliases[named] = held;
             }
         }
-        else if(scope.Binding is { } binding && !IsView(scope.Value) && Owns(binding))
+        else
         {
-            homes[binding] = scope.Body;
-
-            if(LocalLifetimes.IsScoped(binding.Type))
+            foreach(var leaf in OwnershipAnalyzer.Selected(scope.Value))
             {
-                scopes[scope.Body] = (scope, binding);
+                if(OwnerOf(leaf) is { } owner)
+                {
+                    installs[leaf] = owner;
+                }
+            }
+
+            if(scope.Binding is { } binding && Owns(binding))
+            {
+                homes[binding] = scope.Body;
+                if(LocalLifetimes.IsScoped(binding.Type))
+                {
+                    scopes[scope.Body] = (scope, binding);
+                }
             }
         }
     }
@@ -315,8 +338,8 @@ internal sealed class LifetimeOwners
         }
     }
 
-    private static bool Owns(LocalVariable local)
+    private bool Owns(LocalVariable local)
     {
-        return Owns(local.Type, local.IsRef, local.Ownership);
+        return !locals.IsLoan(local) && Owns(local.Type, local.IsRef, local.Ownership);
     }
 }

@@ -1,4 +1,3 @@
-using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -15,14 +14,26 @@ internal sealed class WithScopes
     {
         var scopes = new WithScopes();
 
+        var locals = LocalOwnership.For(root);
+
         foreach(var scope in BodyWalker.DescendantsAndSelf(root).OfType<WithBlockStatement>())
         {
-            if(OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression { Local: var held } && Protects(held))
+            var leaves = OwnershipAnalyzer.Selected(scope.Value).ToList();
+            if(OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression reference && Protects(reference.Local))
             {
                 scopes.enters[scope.Value] = scope;
                 scopes.leaves[scope.Body] = scope;
             }
-            else if(scope.Binding is { } binding && Installs(binding) && !LifetimeOwners.IsView(scope.Value))
+            else if(leaves.Any(leaf => Place.Of(leaf) is { } place && Protects(place.Root)))
+            {
+                foreach(var leaf in leaves)
+                {
+                    scopes.enters[leaf] = scope;
+                }
+
+                scopes.leaves[scope.Body] = scope;
+            }
+            else if(scope.Binding is { } binding && Installs(binding) && !locals.IsView(scope.Value))
             {
                 scopes.enters[scope] = scope;
                 scopes.leaves[scope.Body] = scope;

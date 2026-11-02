@@ -30,6 +30,8 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
     private readonly Dictionary<object, SyntaxNode> acquisitions = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<WithBlockStatement, (object Owner, Holding Holding)> scoped = new(ReferenceEqualityComparer.Instance);
 
+    public LocalOwnership? Ownership { get; init; }
+
     public bool Covers(LocalDeclarationStatement declaration)
     {
         return declarations.TryGetValue(declaration.Local, out var covering) && ReferenceEquals(covering, declaration);

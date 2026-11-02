@@ -858,7 +858,7 @@ internal static partial class BodyEmitter
                     EmitGuarded(flag, $"{DropInsertion.DropChain(bound, withBlock.Value.Type)};", writer);
                 }
             }
-            else if(!LifetimeOwners.IsView(withBlock.Value) && DropInsertion.ExitAction(withBlock.Value.Type) is not null)
+            else if(!(plan.Ownership?.IsView(withBlock.Value) ?? LifetimeOwners.IsView(withBlock.Value)) && DropInsertion.ExitAction(withBlock.Value.Type) is not null)
             {
                 writer.WriteLine($"{DropInsertion.DropChain(bound, withBlock.Value.Type)};");
             }

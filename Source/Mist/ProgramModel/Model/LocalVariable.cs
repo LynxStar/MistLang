@@ -24,6 +24,8 @@ internal sealed class LocalVariable(string name, IMistType type)
 
     public bool IsDiscard { get; init; }
 
+    public bool InfersOwnership { get; init; }
+
     public bool IsRef { get; init; }
 
     /// <summary>

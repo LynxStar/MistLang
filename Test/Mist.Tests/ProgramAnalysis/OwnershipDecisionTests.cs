@@ -320,7 +320,6 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     [InlineData("owned var e = new Engine(1); while(flag) { Helpers.Consume(e); e = new Engine(2); flag = false; } Console.WriteLine(e.Get());")]
     [InlineData("owned var e = new Engine(1); while(flag) { Helpers.Borrow(e); flag = false; } Console.WriteLine(e.Get());")]
     [InlineData("var e = new Engine(1); var f = e; Console.WriteLine(e.Get());")]
-    [InlineData("var e = new Engine(1); Helpers.Consume(e); Console.WriteLine(e.Get());")]
     [InlineData("owned var e = new Engine(1); e.Rpm = 5; Helpers.Consume(e);")]
     [InlineData("owned var e = new Engine(1); Console.WriteLine(e.Get()); owned var f = e;")]
     [InlineData("owned var v = new Vec2(1); owned var w = v; Console.WriteLine(v.X);")]

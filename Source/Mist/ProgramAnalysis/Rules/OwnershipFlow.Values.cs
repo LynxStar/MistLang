@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
@@ -12,12 +11,12 @@ internal sealed partial class OwnershipFlow
     private sealed record ReferenceValue(Place Storage);
 
     // Values retain their identity when a holder changes; installations belong to scopes, not names.
-    private static ImmutableHashSet<object> ValuesOf(ImmutableDictionary<Place, ImmutableHashSet<object>> values, Place place)
+    private ImmutableHashSet<object> ValuesOf(ImmutableDictionary<Place, ImmutableHashSet<object>> values, Place place)
     {
         return ValuesOf(values, place, []);
     }
 
-    private static ImmutableHashSet<object> ValuesOf(ImmutableDictionary<Place, ImmutableHashSet<object>> values, Place place, HashSet<Place> visiting)
+    private ImmutableHashSet<object> ValuesOf(ImmutableDictionary<Place, ImmutableHashSet<object>> values, Place place, HashSet<Place> visiting)
     {
         if(!visiting.Add(place))
         {
@@ -66,11 +65,11 @@ internal sealed partial class OwnershipFlow
         return left.Count == right.Count && left.All(pair => right.TryGetValue(pair.Key, out var found) && pair.Value.SetEquals(found));
     }
 
-    private static State BindValue(State state, LocalVariable local, Expression? source, object fresh, bool assignment = false)
+    private State BindValue(State state, LocalVariable local, Expression? source, object fresh, bool assignment = false)
     {
-        List<Place> places = source is null
+        var places = source is null
             ? []
-            : OwnershipAnalyzer.Selected(source).Select(leaf => Place.Of(leaf)).OfType<Place>().ToList();
+            : OwnershipAnalyzer.Selected(source).Select(Place.Of).OfType<Place>().ToList();
 
         var values = places.Count == 0
             ? ImmutableHashSet.Create(fresh)
@@ -142,8 +141,12 @@ internal sealed partial class OwnershipFlow
             return state;
         }
 
-        var held = OwnershipAnalyzer.Resolved(scope.Value) is LocalReferenceExpression reference ? reference.Local : scope.Binding!;
-        var place = Place.Of(held);
+        var place = enterNode is Expression expression ? Place.Of(expression) : scope.Binding is { } binding ? Place.Of(binding) : null;
+        if(place is null)
+        {
+            return state;
+        }
+
         var values = ValuesOf(state.Values, place);
         var active = state.Installed.Values.SelectMany(installed => installed).ToImmutableHashSet();
         var pinned = values.Where(value => !active.Contains(value) && value is not LocalVariable { IsContextBound: true } && !(value is LocalVariable local && NonOwningKind(local) is not null)).ToImmutableHashSet();
@@ -179,7 +182,7 @@ internal sealed partial class OwnershipFlow
 
         var remaining = state.Installed.Remove(body);
 
-        if(LifetimeOwners.IsView(scope.Value))
+        if(locals.IsView(scope.Value))
         {
             return state with { Installed = remaining };
         }

@@ -34,7 +34,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = FlowGraphBuilder.Build(root.Root);
             var owning = OwningMethod(root);
-            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning).Judge(graph, OwnershipFlow.Nothing);
+            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root)).Judge(graph, OwnershipFlow.Nothing);
 
             if(owning is { Body: { } body })
             {
@@ -151,9 +151,9 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         }
 
         var leaves = Selected(unwrapped).ToList();
-        var places = leaves.Select(leaf => Place.Of(leaf)).ToList();
+        var places = leaves.Select(Place.Of).ToList();
 
-        return places.All(place => place is { } named && named.Equals(places[0])) ? leaves[0] : unwrapped;
+        return places.Count != 0 && places.All(place => place is { } named && named.Equals(places[0])) ? leaves[0] : unwrapped;
     }
 
     internal static IEnumerable<Expression> Selected(Expression expression)

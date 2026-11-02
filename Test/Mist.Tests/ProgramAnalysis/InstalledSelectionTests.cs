@@ -70,7 +70,7 @@ public sealed class InstalledSelectionTests
         var r = f.Local("r");
         var alias = f.Local("alias");
         var body = HandBuiltModel.Block(Declare(r, f.New(1)), With(Ref(r), HandBuiltModel.Block(
-            Declare(alias, f.Selected(selection, Ref(r), f.New(2))), Run(Drop(alias)))));
+            Declare(alias, f.Selected(selection, Ref(r), f.New(2))))));
 
         Assert.Equal("MIST0479", Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body)).Number.Value);
     }
@@ -93,7 +93,7 @@ public sealed class InstalledSelectionTests
     {
         var type = f.DisciplinedValue("class", SubstructuralDiscipline.Linear);
         var r = f.Local("r", type);
-        var body = HandBuiltModel.Block(Declare(r, LifetimeFragments.Fresh(type)), With(Ref(r), HandBuiltModel.Block(
+        var body = HandBuiltModel.Block(Declare(r, Fresh(type)), With(Ref(r), HandBuiltModel.Block(
             Declare(f.Local("n", f.Int32), f.Selected(selection, f.Count(r), f.Count(r))))));
 
         Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));

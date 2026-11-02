@@ -40,9 +40,9 @@ public sealed class PurityRoundFourTests
     }
 
     [Fact]
-    public void WithFrozenReceiverThroughAPlainLocalOrField()
+    public void ASharedAliasWithInsufficientReceiverRightsIsLeftToOwnership()
     {
-        Refused("with-frozen-receiver-through-a-plain-local", CallsImpure, "only while its receiver is frozen");
+        Admitted("with-frozen-receiver-through-a-plain-local");
     }
 
     [Fact]

@@ -279,6 +279,7 @@ internal static class StatementBinder
             IsRef = MemberTypeBuilder.IsRefSpecifier(specifier),
             IsReadonly = IsReadonlyBinding(hasReadonlyModifier, specifier),
             Ownership = ownership,
+            InfersOwnership = declared is null && specifier is null,
             IsFailed = declared?.IsFailed == true || (initializer is not null && PriorFailure.Of(initializer)),
             FailureSource = initializer,
         };

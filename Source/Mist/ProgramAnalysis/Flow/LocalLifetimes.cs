@@ -68,7 +68,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
             return LifetimePlan.Empty;
         }
 
-        var plan = new LifetimePlan(owners.Declarations);
+        var plan = new LifetimePlan(owners.Declarations) { Ownership = LocalOwnership.For(root) };
 
         if(owners.Count > 0)
         {

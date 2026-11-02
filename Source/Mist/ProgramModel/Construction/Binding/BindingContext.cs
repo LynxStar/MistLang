@@ -128,6 +128,15 @@ internal sealed class BindingContext
     /// </summary>
     public Dictionary<BodyScope, Dictionary<LocalVariable, Admitted>> ArithmeticFacts { get; }
 
+    /// <summary>
+    /// Names the enclosing callable assigns to anywhere in its body (<see cref="OperandFacts"/>). A
+    /// local with such a name carries no arithmetic proof, since its value can move after a fact is
+    /// taken. Seeded once from the body syntax and inherited by every nested-block context.
+    /// </summary>
+    public IReadOnlySet<string> AssignedLocals { get; set; } = EmptyNames;
+
+    private static readonly IReadOnlySet<string> EmptyNames = new HashSet<string>(StringComparer.Ordinal);
+
     public BindingContext(BodyScope scope, IMistType? returnType)
     {
         Scope = scope;
@@ -145,6 +154,7 @@ internal sealed class BindingContext
         : this(scope, returnType ?? enclosing.ReturnType)
     {
         ArithmeticFacts = enclosing.ArithmeticFacts;
+        AssignedLocals = enclosing.AssignedLocals;
         ReturnTypeIsFailed = ReferenceEquals(ReturnType, enclosing.ReturnType) && enclosing.ReturnTypeIsFailed;
         ExitCodeType = enclosing.ExitCodeType;
         EnclosingProperty = enclosing.EnclosingProperty;

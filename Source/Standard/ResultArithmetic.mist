@@ -1,15 +1,11 @@
 namespace Standard;
 
-// Concrete composition of Int32 Results: the compiler routes an arithmetic operator with a
-// Result operand to the matching method here, carrying an existing error forward or applying the
-// operation to the proven payloads (exceptions Requirement 4). Division and remainder reuse the
-// proof-sensitive operator on the payloads, keeping one Result layer.
+// The unproven and guarded Int32 division/remainder routes and the Result arithmetic composition the
+// compiler selects for an operator with a Result operand (exceptions Requirement 4): each tests its
+// hazard and returns the error instead of running a trapping instruction, carries an existing error
+// forward, or applies the operation to proven payloads, keeping one Result layer.
 public class ResultArithmetic
 {
-    // The Result route the compiler selects for an unproven Int32 division: the hazards are tested and
-    // the error is returned instead of running a trapping instruction. The guards leave each surviving
-    // division proven safe, so its own type is the plain numeric value (Requirement 4). Declared here
-    // rather than on Int32 so a newtype over int does not clone it into a Result over the newtype.
     public static Result<Int32, DivisionError> DivideChecked(Int32 a, Int32 b)
     {
         if (b == 0)
@@ -44,7 +40,33 @@ public class ResultArithmetic
         }
         else
         {
-            return a % b;
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
+        }
+    }
+
+    public pure static Int32 Remainder(Int32 a, Int32 b)
+    {
+        if (b == 0)
+        {
+            return 0;
+        }
+        else
+        {
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
         }
     }
 

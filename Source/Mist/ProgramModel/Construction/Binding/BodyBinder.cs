@@ -65,6 +65,7 @@ internal static class BodyBinder
                 IsAsyncContext = isAsync,
                 EnclosingMethod = method,
                 ExitCodeType = method.IsTopLevelProgram ? context.Resolver.LookupWellKnown(WellKnownTypes.Int32) : null,
+                AssignedLocals = OperandFacts.AssignedNames(method.Body!.Node),
             },
             context);
     }
@@ -243,7 +244,11 @@ internal static class BodyBinder
     public static void BindBody(
         Block body, BodyScope scope, IMistType? returnType, BuilderContext context, Property? enclosingProperty = null)
     {
-        BindStatements(body, new BindingContext(scope, returnType) { EnclosingProperty = enclosingProperty }, context);
+        BindStatements(body, new BindingContext(scope, returnType)
+        {
+            EnclosingProperty = enclosingProperty,
+            AssignedLocals = OperandFacts.AssignedNames(body.Node),
+        }, context);
     }
 
     /// <summary>

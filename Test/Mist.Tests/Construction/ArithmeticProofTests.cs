@@ -65,10 +65,24 @@ public sealed class ArithmeticProofTests
     }
 
     [Fact]
-    public void RemainderNeedsOnlyNonzeroDivisor()
+    public void RemainderMinimumByNegativeOneIsGuardedNotBare()
+    {
+        Assert.Equal(ArithmeticProof.Verdict.SafeGuardedRemainder, ArithmeticProof.Judge(
+            BinaryOperatorKind.Modulo, Integer, Admitted.Exactly(int.MinValue), Admitted.Exactly(-1)));
+    }
+
+    [Fact]
+    public void RemainderIsBareWhenMinimumExcluded()
     {
         Assert.Equal(ArithmeticProof.Verdict.Safe, ArithmeticProof.Judge(
-            BinaryOperatorKind.Modulo, Integer, Admitted.Exactly(int.MinValue), Admitted.Exactly(-1)));
+            BinaryOperatorKind.Modulo, Integer, Admitted.AtLeast(int.MinValue + 1), Admitted.Exactly(-1)));
+    }
+
+    [Fact]
+    public void RemainderIsBareWhenDivisorExcludesNegativeOne()
+    {
+        Assert.Equal(ArithmeticProof.Verdict.Safe, ArithmeticProof.Judge(
+            BinaryOperatorKind.Modulo, Integer, Admitted.Exactly(int.MinValue), Admitted.AtLeast(1)));
     }
 
     [Fact]

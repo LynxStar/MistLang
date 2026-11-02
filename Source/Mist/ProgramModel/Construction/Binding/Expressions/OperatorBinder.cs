@@ -544,6 +544,13 @@ internal static class OperatorBinder
             {
                 return fallible;
             }
+            else if(verdict == ArithmeticProof.Verdict.SafeGuardedRemainder
+                && StandardCall(node, "ResultArithmetic", "Remainder", [left, right], ctx, context) is { } guarded)
+            {
+                // Still the numeric value, but minimum-value % -1 traps the CLR rem, so the proven-safe
+                // route is a guarded Standard helper rather than the bare operator (Requirement 4).
+                return guarded;
+            }
         }
 
         if(selected is null && Composition(node, left, op, right, ctx, context) is { } composed)

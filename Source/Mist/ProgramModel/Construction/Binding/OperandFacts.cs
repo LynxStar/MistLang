@@ -1,26 +1,32 @@
+using Mist.Generated;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
+using StormSyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// What the binder knows of a local's value where an operand sits, as the interval set
-/// (<see cref="Admitted"/>) the refinement engine already reasons in. This is the binding-time
-/// counterpart to the Stage 5 flow: proof-sensitive arithmetic needs the operand facts BEFORE the
-/// expression is typed, and Stage 5 cannot retype a finished model. It is deliberately lexical, like
-/// the optional narrowing on <see cref="BodyScope"/>: a guard records what it proves into the scope it
-/// guards, a reassignment records a barrier in the scope it writes, and a read And-combines the facts
-/// of the enclosing scopes until it meets a barrier, so a proof established after a write is kept while
-/// the stale fact behind the write is dropped. Facts attach to a <see cref="LocalVariable"/> only:
-/// a mutable property, an aliased location or a repeated call manufactures none.
+/// (<see cref="Admitted"/>) the refinement engine already reasons in, supplied BEFORE the expression is
+/// typed because proof-sensitive arithmetic fixes the type at binding and Stage 5 cannot retype a
+/// finished model. A fact is only sound for a local whose value cannot change after the fact is
+/// established, so facts are recorded and read only for a local that is never written in the callable:
+/// a once-evaluated operand whose declaration or a guard pins its value. A local that any assignment,
+/// loop step, nested write or <c>ref</c> alias could move carries no proof, which keeps a stale fact
+/// from surviving a branch join, a backedge or a nested store onto the operand the division sees.
 /// </summary>
 internal static class OperandFacts
 {
     public static Admitted FactFor(BindingContext ctx, Scope scope, LocalVariable local)
     {
+        if(IsMutable(ctx, local))
+        {
+            return Admitted.Everything;
+        }
+
         var store = ctx.ArithmeticFacts;
         var result = Admitted.Everything;
 
@@ -59,8 +65,6 @@ internal static class OperandFacts
             values = values.And(FactFor(ctx, scope, local.Local));
         }
 
-        // A subexpression of constant parts folds to a constant, so `x / (1024 * 4)` and the proven-safe
-        // divisions nested in another prove their own safety too.
         if(operand is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } arithmetic
             && Exact(For(ctx, scope, arithmetic.Left)) is { } leftValue
             && Exact(For(ctx, scope, arithmetic.Right)) is { } rightValue
@@ -89,24 +93,12 @@ internal static class OperandFacts
             _ => (long?)null,
         };
 
-        // Fold only where the Int32 result does not wrap, so the proven value is the one the program sees.
         return folded is { } value && value >= int.MinValue && value <= int.MaxValue ? value : null;
-    }
-
-    public static void Record(BindingContext ctx, BodyScope scope, LocalVariable local, Admitted values)
-    {
-        var facts = Facts(ctx, scope);
-        facts[local] = facts.TryGetValue(local, out var existing) && !existing.IsEverything ? existing.And(values) : values;
-    }
-
-    public static void Reassigned(BindingContext ctx, BodyScope scope, LocalVariable local, Expression value)
-    {
-        Facts(ctx, scope)[local] = Requirement.Constant(value) is { } constant ? Admitted.Exactly(constant) : Admitted.Everything;
     }
 
     public static void Declared(BindingContext ctx, BodyScope scope, LocalVariable local, Expression? initializer)
     {
-        if(initializer is not null && Requirement.Constant(initializer) is { } constant)
+        if(!IsMutable(ctx, local) && initializer is not null && Requirement.Constant(initializer) is { } constant)
         {
             Facts(ctx, scope)[local] = Admitted.Exactly(constant);
         }
@@ -141,10 +133,77 @@ internal static class OperandFacts
         }
     }
 
+    /// <summary>
+    /// The names a callable assigns to anywhere in its body -- the leading identifier of every <c>=</c>
+    /// or <c>??=</c> target, read off the syntax before binding so a write that textually follows a use
+    /// is seen. Over-approximating by name (a member or element target contributes its root, a shadowed
+    /// name marks both) only drops more proofs, which stays sound.
+    /// </summary>
+    public static IReadOnlySet<string> AssignedNames(StormSyntaxNode? root)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+
+        if(root is not null)
+        {
+            Collect(root, names);
+        }
+
+        return names;
+    }
+
+    private static void Collect(StormSyntaxNode node, HashSet<string> names)
+    {
+        if(node is ExpressionNode expression
+            && expression.AsAssignmentOrNull() is { Group0.Operator.Lexeme: "=" or "??=" } write
+            && LeadingIdentifier(write.Target) is { } name)
+        {
+            _ = names.Add(name);
+        }
+
+        foreach(var child in node.Children())
+        {
+            Collect(child, names);
+        }
+    }
+
+    private static string? LeadingIdentifier(StormSyntaxNode target)
+    {
+        if(target is IdentifierExpressionPrimaryNode identifier)
+        {
+            return identifier.Name.Lexeme;
+        }
+
+        foreach(var child in target.Children())
+        {
+            if(LeadingIdentifier(child) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsMutable(BindingContext ctx, LocalVariable local)
+    {
+        return local.IsRef || ctx.AssignedLocals.Contains(local.Name);
+    }
+
     private static void Narrow(BindingContext ctx, BodyScope scope, LocalVariable local, ComparisonKind kind, long constant, bool holds)
     {
+        if(IsMutable(ctx, local))
+        {
+            return;
+        }
+
         var interval = Requirement.Interval(kind, constant);
         Record(ctx, scope, local, holds ? interval : interval.Not());
+    }
+
+    private static void Record(BindingContext ctx, BodyScope scope, LocalVariable local, Admitted values)
+    {
+        var facts = Facts(ctx, scope);
+        facts[local] = facts.TryGetValue(local, out var existing) && !existing.IsEverything ? existing.And(values) : values;
     }
 
     private static Dictionary<LocalVariable, Admitted> Facts(BindingContext ctx, BodyScope scope)

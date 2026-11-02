@@ -9,17 +9,16 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// the numeric value, proven invalid is refused, and anything unproven takes the fallible Result route.
 /// The proof is read off the operands' binding-time facts -- a constant, a declared refinement, or a
 /// sound flow narrowing -- never off the destination type, so an expected <c>int</c> does not force
-/// safety. The decision is made at binding, where it fixes the expression's type, because Stage 5 only
-/// validates a finished model. Int32 is the family carrying a checked helper today; the narrow integers
-/// promote into it. The wider, unsigned, decimal and floating-point families are left unconditional:
-/// float and double hold IEEE non-finite values rather than errors, and decimal overflow needs the CLR
-/// exception boundary.
+/// safety. Signed remainder adds a fourth answer: the minimum-value remainder negative one is DEFINED to
+/// be zero, so the operation keeps its numeric type, but the CLR's own <c>rem</c> traps on it, so a
+/// nonzero divisor that cannot exclude that pair is proven safe yet guarded rather than emitted bare.
 /// </summary>
 internal static class ArithmeticProof
 {
     internal enum Verdict
     {
         Safe,
+        SafeGuardedRemainder,
         Invalid,
         Fallible,
     }
@@ -39,16 +38,22 @@ internal static class ArithmeticProof
 
         var zeroPossible = right.Contains(0);
         var zeroOnly = right.IsSubsetOf(Admitted.Exactly(0));
+        var minusOnePossible = right.Contains(-1);
+        var minimumPossible = left.Contains(int.MinValue);
 
-        // A remainder has no quotient to overflow: the signed minimum remainder negative one is defined
-        // to be zero, which the CLR's own rem already yields without trapping, so a nonzero divisor is
-        // the whole of its safety.
         if(op == BinaryOperatorKind.Modulo)
         {
-            return zeroOnly ? Verdict.Invalid : zeroPossible ? Verdict.Fallible : Verdict.Safe;
+            if(zeroOnly)
+            {
+                return Verdict.Invalid;
+            }
+
+            return zeroPossible ? Verdict.Fallible
+                : minimumPossible && minusOnePossible ? Verdict.SafeGuardedRemainder
+                : Verdict.Safe;
         }
 
-        var overflowPossible = left.Contains(int.MinValue) && right.Contains(-1);
+        var overflowPossible = minimumPossible && minusOnePossible;
         var overflowCertain = left.IsSubsetOf(Admitted.Exactly(int.MinValue)) && right.IsSubsetOf(Admitted.Exactly(-1));
 
         if(zeroOnly || overflowCertain)

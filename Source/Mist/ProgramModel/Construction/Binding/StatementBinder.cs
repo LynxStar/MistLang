@@ -237,8 +237,6 @@ internal static class StatementBinder
 
         if(expression is AssignmentExpression { Target: LocalReferenceExpression { Local: var local } } assignment && ctx.Scope is BodyScope body)
         {
-            OperandFacts.Reassigned(ctx, body, local, assignment.Value);
-
             if(assignment.IsCoalescing && OptionalUnion.InnerType(local.Type) is { } inner && !OptionalUnion.ContainsVoid(assignment.Value.Type))
             {
                 body.Narrow(local, inner);

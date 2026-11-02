@@ -65,6 +65,38 @@ public class Program
 
         Console.WriteLine($"propagated (a/d*factor)! + 1 -> {Value(Scale(a, d, 3))}");
         Console.WriteLine($"propagated through zero -> {Message(Scale(a, Zero(), 3))}");
+
+        int m = 1;
+        if (Divisor() > 0)
+        {
+            m = 0;
+        }
+        var mutated = a / m;
+        Console.WriteLine($"mutated divisor -> {Message(mutated)}");
+
+        int counter = 2;
+        while (counter >= 0)
+        {
+            var step = a / counter;
+            Console.WriteLine($"loop {counter} -> {Value(step)}");
+            counter = counter - 1;
+        }
+
+        int low = Minimum();
+        int negOne = Divisor() - 6;
+        var checkedRem = low % negOne;
+        Console.WriteLine($"checked min % -1 -> {Value(checkedRem)}");
+
+        if (negOne != 0)
+        {
+            int guardedRem = low % negOne;
+            Console.WriteLine($"guarded min % -1 -> {guardedRem}");
+        }
+    }
+
+    public static int Minimum()
+    {
+        return -2147483648;
     }
 
     public static int Divisor()

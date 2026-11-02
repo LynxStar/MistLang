@@ -2659,3 +2659,9 @@ compose (a/d)*3 -> 12
 compose carries error -> Attempted to divide by zero.
 propagated (a/d*factor)! + 1 -> 13
 propagated through zero -> Attempted to divide by zero.
+mutated divisor -> Attempted to divide by zero.
+loop 2 -> 10
+loop 1 -> 20
+loop 0 -> -1
+checked min % -1 -> 0
+guarded min % -1 -> 0

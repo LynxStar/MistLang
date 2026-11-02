@@ -44,6 +44,10 @@ internal sealed class TuplePattern(
     /// </summary>
     public TypeParameter? OpenPack { get; init; }
 
+    public UnionType? CorrelatedInput { get; init; }
+
+    public IMistType? Constituent { get; init; }
+
     public override IMistType NarrowedType { get; } = narrowedType;
 
     public override LocalVariable? Binding { get; } = binding;

@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -142,13 +143,27 @@ internal static class LambdaBinder
         BuilderContext context)
     {
         Expression result;
-        using(ctx.PushTargetType(bodyTarget))
+        var enclosingReturn = ctx.ReturnType;
+        ctx.ReturnType = bodyTarget;
+        try
         {
-            result = ImplicitConversions.At(ExpressionBinder.BindExpression(body, ctx, context), bodyTarget, context.ProgramModel.TypeInterner);
+            using(ctx.PushTargetType(bodyTarget))
+            {
+                result = ImplicitConversions.At(ExpressionBinder.BindExpression(body, ctx, context), bodyTarget, context.ProgramModel.TypeInterner);
+            }
+        }
+        finally
+        {
+            ctx.ReturnType = enclosingReturn;
         }
 
         var declared = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(result.Type) : result.Type);
+
+        if(returnType is null && HasUnboundPropagation(result))
+        {
+            return BindExpressionBodied(node, body, parameters, isStatic, isAsync, promises, declared, result.Type, unionArm, isGeneralUnion, ctx, context);
+        }
 
         var functionType = FunctionTypeOf(parameters, declared, promises, context);
         return new LambdaExpression(
@@ -159,6 +174,11 @@ internal static class LambdaBinder
             IsLocal = promises.IsLocal,
             UnionCarrierDelegateType = isGeneralUnion ? unionArm ?? functionType : null,
         };
+    }
+
+    private static bool HasUnboundPropagation(object root)
+    {
+        return BodyWalker.DescendantsAndSelf(root).OfType<ResultPropagationExpression>().Any(propagation => propagation.FailureReturn.TargetType is null);
     }
 
     /// <summary>
@@ -206,6 +226,11 @@ internal static class LambdaBinder
 
         var lambdaReturn = returnType
             ?? (isAsync ? context.Resolver.ConstructTask(produced) : produced);
+
+        if(returnType is null && produced is not ErrorType && HasUnboundPropagation(body))
+        {
+            return BindBlockBodied(node, bodyNode, parameters, isStatic, isAsync, promises, lambdaReturn, produced, unionArm, isGeneralUnion, ctx, context);
+        }
 
         var functionType = FunctionTypeOf(parameters, lambdaReturn, promises, context);
         return new LambdaExpression(

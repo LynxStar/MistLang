@@ -122,5 +122,6 @@ public class Program
         TypeValues.Program.RunDemo();
         ClrSlotFilling.Program.RunDemo();
         RazorComponents.Program.RunDemo();
+        ResultFoundation.Program.RunDemo();
     }
 }

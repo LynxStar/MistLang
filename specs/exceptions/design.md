@@ -663,3 +663,36 @@ declarations, conversion lookup, bounded local analysis, async overload
 resolution, and compiler verification remain implementation work constrained
 by this contract. This specification does not dispatch implementation work or
 change the status of the owner Decision MIST-1048.
+
+
+## Foundation implementation surface
+
+The foundation declares `Standard.Result<T, E>` in `Source/Standard/Result.mist`
+and aliases `Result<T>` to `Result<T, Error>`. It is a sealed class: a struct
+would admit CLR zero construction through a generic `struct` constraint. Its
+private readonly state is the ordinary
+tagged tuple union `(True, T) | (False, E)`. A private constructor accepts that
+state; the public `Success` and `Failure` factories establish the literal tag.
+Private construction prevents Mist default construction, and Result assignment
+is invariant even at `unknown` generic arguments. `Inspect` returns the same
+correlated representation, with no unconditional payload accessor.
+
+`ResultSuccess<T>` and `ResultFailure<E>` are typed construction projections,
+produced by generic extension methods `AsSuccess` and `AsFailure`. Target-directed
+binding selects and records a `ResultConstructionExpression`. Existing Result
+values use identity assignment; projections or closed factories express nesting.
+The binder preserves tuple correlation before binding each payload pattern.
+
+`ResultPropagationExpression` records its operand, success and failure tuple
+constituents, error slot, and the nearest callable's failure return. Stage 5
+validates that return's error destination. The flow graph gives failure its
+ordinary return and scope-leave path. Emission sequences propagation through the
+same statement-hoisting and lifetime machinery as other early returns. Linear
+payloads carry their cleanup obligation through Results, inspection snapshots,
+and fresh temporary carriers.
+
+`Error` is the shared abstract contract with a `Message` getter. `MessageError`
+is the concrete general-purpose message value. Requirement 1.12's CLR Exception
+adaptation is intentionally supplied by the CLR-boundary implementation rather
+than this foundation. The arithmetic, Catch and unresolved-outcome policies
+remain the contracts of their separate implementation packets.

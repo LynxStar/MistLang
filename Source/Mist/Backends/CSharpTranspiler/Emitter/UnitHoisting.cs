@@ -77,7 +77,7 @@ internal static class UnitHoisting
 
     private static bool TakesUnit(Expression expression)
     {
-        return UnitCalls(expression).Any();
+        return expression is ResultPropagationExpression || UnitCalls(expression).Any() || Operands(expression).Any(operand => TakesUnit(operand.Expression));
     }
 
     private static IEnumerable<InvocationExpression> UnitCalls(Expression expression)
@@ -118,6 +118,9 @@ internal static class UnitHoisting
             UnaryExpression unary => [new Operand(unary.Operand)],
             CastExpression cast => [new Operand(cast.Operand)],
             ImplicitConversionExpression conversion => [new Operand(conversion.Operand)],
+            ResultIdentityExpression identity => [new Operand(identity.Operand)],
+            ResultConstructionExpression construction => [new Operand(construction.Payload)],
+            ResultPropagationExpression propagation => [new Operand(propagation.Operand)],
             AsExpression asExpression => [new Operand(asExpression.Operand)],
             IsPatternExpression isPattern => [new Operand(isPattern.Scrutinee)],
             CloneExpression clone => [new Operand(clone.Source)],
@@ -183,6 +186,7 @@ internal static class UnitHoisting
         return expression is LiteralExpression
             or VoidLiteralExpression
             or LocalReferenceExpression
+            or ResultPropagationExpression
             or ThisExpression
             or TypeReferenceExpression
             or TypeLiteralExpression
@@ -229,6 +233,12 @@ internal static class UnitHoisting
                 return Lower(expression, operands, isValue) || hoisted;
             }
 
+            if(expression is ResultPropagationExpression)
+            {
+                Steps.Add(new Step(expression, StepKind.Propagate, isValue));
+                return true;
+            }
+
             if(!isValue || expression is not InvocationExpression call || !YieldsNothing(call))
             {
                 return hoisted;
@@ -259,7 +269,7 @@ internal static class UnitHoisting
 
             for(var i = last - 1; i >= 0; i--)
             {
-                Steps.InsertRange(starts[i + 1], Spills(operands[i]));
+                Steps.InsertRange(starts[i + 1], Spills(operands[i], operands.Skip(i + 1).Any(operand => ContainsPropagation(operand.Expression))));
             }
 
             return hoisted;
@@ -321,18 +331,24 @@ internal static class UnitHoisting
                 .Count(reference => locals.Contains(reference.Local));
         }
 
-        private IEnumerable<Step> Spills(Operand operand)
+        private static bool ContainsPropagation(Expression expression)
+        {
+            return expression is ResultPropagationExpression || Operands(expression).Any(operand => ContainsPropagation(operand.Expression));
+        }
+
+        private IEnumerable<Step> Spills(Operand operand, bool captureLocal = false)
         {
             var expression = operand.Expression;
+            var stable = IsStable(expression) && !(captureLocal && operand.Reading == Reading.Value && expression is LocalReferenceExpression);
 
-            if(operand.Conditional || IsStable(expression) || Substitution(expression) is not null || spilled.Contains(expression))
+            if(operand.Conditional || stable || Substitution(expression) is not null || spilled.Contains(expression))
             {
                 return [];
             }
 
             if(operand.Reading is Reading.Receiver or Reading.Reference && IsLocation(expression))
             {
-                return [.. Operands(expression).SelectMany(Spills)];
+                return [.. Operands(expression).SelectMany(operand => Spills(operand, captureLocal))];
             }
 
             if(operand.Reading is Reading.Value || (operand.Reading is Reading.Receiver && IsCopy(expression)))
@@ -348,6 +364,7 @@ internal static class UnitHoisting
     internal enum StepKind
     {
         Spill,
+        Propagate,
         Hoist,
         Lower,
     }
@@ -386,7 +403,7 @@ internal static class UnitHoisting
 
         public bool Consumes(Expression root)
         {
-            return Steps is [.., { Kind: StepKind.Lower, Valued: false } last] && ReferenceEquals(last.Expression, root);
+            return Steps is [.., { Kind: StepKind.Lower or StepKind.Propagate, Valued: false } last] && ReferenceEquals(last.Expression, root);
         }
 
         public void Bind(Step step, string text)

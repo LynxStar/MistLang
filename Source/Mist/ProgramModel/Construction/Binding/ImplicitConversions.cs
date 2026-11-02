@@ -21,6 +21,11 @@ internal static class ImplicitConversions
             return value;
         }
 
+        if(!ConversionRelation.IsIdentity(value.Type, target) && ResultTypes.Of(target)?.Construct(value, interner) is { } result)
+        {
+            return result;
+        }
+
         var called = CastOperatorSelection.Implicit(value.Type, target, interner, ConstantConversion.IntegerConstant(value));
 
         return called.Count == 0 ? value : new ImplicitConversionExpression(value.Node, value, target, called);

@@ -27,6 +27,8 @@ internal static class UnionCarrierEmitter
                 writer.WriteLine("_value = value;");
             }
 
+            ResultDropEmitter.Emit(union, writer);
+
             for(var i = 0; i < union.Constituents.Count; i++)
             {
                 EmitAccessors(union, union.Constituents[i], i + 1, writer);

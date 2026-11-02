@@ -372,7 +372,8 @@ internal sealed class PatternAnalyzer : IProgramAnalyzer
 
     private static IReadOnlyList<IMistType>? ElementInputs(TuplePattern tuple, IMistType input)
     {
-        return tuple.OpenPack is null ? PackTupleElements.Positions(Elements(input)) : Elements(tuple.NarrowedType);
+        return tuple.Constituent is { } constituent ? Elements(constituent)
+            : tuple.OpenPack is null ? PackTupleElements.Positions(Elements(input)) : Elements(tuple.NarrowedType);
     }
 
     private static IReadOnlyList<IMistType>? Elements(IMistType type)

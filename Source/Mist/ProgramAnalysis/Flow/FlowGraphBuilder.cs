@@ -426,6 +426,15 @@ internal sealed class FlowGraphBuilder
                     break;
                 }
 
+            case ResultPropagationExpression propagation:
+                {
+                    current = Expression(propagation.Operand, current);
+                    current.Steps.Add(Evaluate(propagation));
+                    var (success, failure) = Split(current);
+                    _ = Statement(propagation.FailureReturn, failure);
+                    return success;
+                }
+
             case LambdaExpression lambda:
                 if(((object?)lambda.Body ?? lambda.Result) is { } lambdaBody)
                 {

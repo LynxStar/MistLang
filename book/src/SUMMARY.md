@@ -78,6 +78,7 @@
 # Standard Library
 
 - [Overview](standard-library/overview.md)
+- [Results](standard-library/results.md)
 
 # Tooling
 

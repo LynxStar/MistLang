@@ -2097,6 +2097,12 @@ public sealed class MistPrettyPrinter
                     var args = EmitArgumentList(invocation.Arguments);
                     return $"{target}({args})";
                 }
+            case PropagationSuffixPostfixSuffixNode:
+                return $"{target}!";
+            case OptionalMemberAccessSuffixPostfixSuffixNode optional:
+                return $"{target}?.{optional.Name.Lexeme}";
+            case OptionalMethodCallSuffixPostfixSuffixNode optionalCall:
+                return $"{target}?.{optionalCall.Name.Lexeme}{EmitTypeArgumentList(optionalCall.TypeArgs)}({EmitArgumentList(optionalCall.Arguments)})";
             case SpreadSuffixPostfixSuffixNode:
                 // Variadics: value-side spread / zip operand, e.g. `args...`, `Item...`.
                 return $"{target}...";

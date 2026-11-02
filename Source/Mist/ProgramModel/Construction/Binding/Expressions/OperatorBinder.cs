@@ -141,7 +141,7 @@ internal static class OperatorBinder
             scrutinee = BindAdditive(node.Left, ctx, context);
         }
 
-        var pattern = PatternBinder.Bind(node.Pattern, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee));
+        var pattern = PatternBinder.Bind(node.Pattern, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee), ResultTransfers.IsOwned(scrutinee));
 
         if(pattern is null)
         {

@@ -5,6 +5,7 @@ using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
@@ -273,6 +274,13 @@ internal static class StatementBinder
         }
 
         var ownership = MemberTypeBuilder.ResolveOwnership(specifier);
+        if(ownership == OwnershipKind.Unrestricted && initializer is not null
+            && ResultTransfers.Payloads(initializer.Type).Count > 0 && ResultTransfers.IsOwned(initializer)
+            && ResultTransfers.Discipline(initializer.Type) == SubstructuralDiscipline.None)
+        {
+            ownership = OwnershipKind.Owned;
+        }
+
         var local = new LocalVariable(name.Lexeme, declared?.Type ?? initializer!.Type)
         {
             IsDiscard = name.Lexeme == "_",

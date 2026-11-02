@@ -54,6 +54,7 @@ internal static class ConstantConversion
             LiteralExpression literal => IntegralConstant.Of(literal.Value),
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate } negated => -IntegerConstant(negated.Operand),
             CloneExpression clone => IntegerConstant(clone.Source),
+            ResultIdentityExpression identity => IntegerConstant(identity.Operand),
             _ => null,
         };
     }

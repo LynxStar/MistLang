@@ -102,6 +102,11 @@ internal sealed partial class Origins
 
     public Origin Of(Expression expression)
     {
+        if(ResultTransfers.Source(expression) is { } transferred)
+        {
+            return Of(transferred);
+        }
+
         return expression switch
         {
             NewExpression allocation when IsView(allocation.Type) => Origin.External,
@@ -115,6 +120,8 @@ internal sealed partial class Origins
             TypeReferenceExpression or NamespaceReferenceExpression or MethodGroupExpression
                 or MethodReferenceExpression or FunctionReferenceExpression => Origin.External,
             InvocationExpression call when ReturnsOwned(call) => OfOwnedReturn(call),
+            InvocationExpression call when ResultTransfers.Payloads(call.Type).Count > 0
+                => IsUnchangeable(call.Type) || ResultTransfers.Discipline(call.Type) != SubstructuralDiscipline.None ? Origin.Own : Origin.External,
             InvocationExpression { Signature.Modifiers.IsRef: true } or IndexExpression { Indexer.Modifiers.IsRef: true }
                 or MemberAccessExpression { Member: PropertyResult { Property.Modifiers.IsRef: true } }
                 or PropertyReferenceExpression { Property.Modifiers.IsRef: true } => OfReferent(expression),
@@ -297,6 +304,11 @@ internal sealed partial class Origins
 
     private static bool IsUnchangeable(IMistType type, HashSet<MemberType> visiting)
     {
+        if(ResultTransfers.Payloads(type) is { Count: > 0 } payloads)
+        {
+            return payloads.All(payload => IsUnchangeable(payload, visiting));
+        }
+
         return type switch
         {
             LiftedType lifted => IsUnchangeable(lifted.Type, visiting),
@@ -472,6 +484,7 @@ internal sealed partial class Origins
         return local switch
         {
             { Ownership: OwnershipKind.Owned } => Origin.Own,
+            _ when ResultTransfers.Payloads(local.Type).Count > 0 && ResultTransfers.Discipline(local.Type) != SubstructuralDiscipline.None => Origin.Own,
             { Ownership: OwnershipKind.Frozen } when assigned.Contains(local) => Origin.External,
             { Ownership: OwnershipKind.Frozen } => leased.TryGetValue(local, out var lender) ? Worst(Origin.Frozen, Of(lender)) : Origin.Frozen,
             { IsRef: true, Parameter: null } => refTargets.TryGetValue(local, out var target) ? OfReferent(target) : Origin.External,
@@ -534,7 +547,7 @@ internal sealed partial class Origins
 
     private static bool IsOwnCopy(IMistType type)
     {
-        return ThisTiers.IsValue(type) && !IsView(type);
+        return ResultTransfers.Payloads(type).Count > 0 ? IsUnchangeable(type) : ThisTiers.IsValue(type) && !IsView(type);
     }
 
     private static Origin ThroughHops(Origin origin, IReadOnlyList<Hop> hops)

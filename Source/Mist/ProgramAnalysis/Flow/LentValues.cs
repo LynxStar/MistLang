@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -74,6 +75,19 @@ internal static class LentValues
         return branch.ElseBranch is IfStatement next ? [branch.Condition, .. Conditions(next)] : [branch.Condition];
     }
 
+    public static Expression? ResultCarrierOf(object node)
+    {
+        var carrier = node switch
+        {
+            ResultPropagationExpression propagation => propagation.Operand,
+            InvocationExpression call when call.Method?.Name == "Inspect" => ResultTransfers.Source(call),
+            _ => null,
+        };
+        return carrier is not null && ResultTypes.Of(carrier.Type) is not null && LocalLifetimes.IsTracked(carrier.Type)
+            && carrier is not (LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression)
+                ? carrier : null;
+    }
+
     private static List<Expression> In(IReadOnlyList<Expression> roots)
     {
         var lent = new List<Expression>();
@@ -94,6 +108,10 @@ internal static class LentValues
             }
 
             lent.AddRange(Of(node).Select(found => found.Value));
+            if(ResultCarrierOf(node) is { } carrier && !lent.Contains(carrier))
+            {
+                lent.Add(carrier);
+            }
         }
 
         return lent;

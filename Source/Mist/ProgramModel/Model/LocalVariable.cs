@@ -22,6 +22,8 @@ internal sealed class LocalVariable(string name, IMistType type)
 
     public IMistType Type { get; } = type;
 
+    public bool IsKnownResultError { get; init; }
+
     public bool IsDiscard { get; init; }
 
     public bool IsRef { get; init; }

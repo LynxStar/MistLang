@@ -627,6 +627,7 @@ rule PostfixSuffix
     | LEFT_BRACKET index:Expression RIGHT_BRACKET                                 as IndexSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
     | SWITCH LEFT_BRACE arms:SwitchArmList? RIGHT_BRACE                           as SwitchExpressionSuffix
+    | EXCLAMATION                                                                 as PropagationSuffix
     | ELLIPSIS                                                                    as SpreadSuffix
     ;
 

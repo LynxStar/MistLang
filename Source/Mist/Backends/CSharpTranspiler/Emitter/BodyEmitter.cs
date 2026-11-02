@@ -388,7 +388,7 @@ internal static partial class BodyEmitter
                         break;
                     }
 
-                    writer.Write("");
+                    writer.Write(exprStmt.Expression is ResultIdentityExpression ? "_ = " : "");
 
                     if(DiscardedCombinator(exprStmt.Expression, diagnostics) is { } direct)
                     {
@@ -631,118 +631,6 @@ internal static partial class BodyEmitter
         }
 
         EmitCoerced(argument, closedTarget ?? parameter?.Type, writer, diagnostics);
-    }
-
-    private static void EmitReturn(ReturnStatement returnStmt, CSharpWriter writer, DiagnosticBag diagnostics)
-    {
-        if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
-        {
-            using(var hoisted = EmitHoisted(value, writer, diagnostics, discarded: true))
-            {
-                if(value is InvocationExpression && !hoisted.Consumes(value))
-                {
-                    writer.Write("");
-                    EmitExpression(value, writer, diagnostics);
-                    writer.Append(";");
-                    writer.AppendLine();
-                }
-            }
-
-            writer.WriteLine(BareReturn());
-        }
-        else if(returnStmt is { IsExitCode: true, Value: { } exitCode })
-        {
-            EmitSequenced(exitCode, "System.Environment.ExitCode = ", writer, diagnostics, slot: returnStmt.TargetType);
-            writer.WriteLine("return;");
-        }
-        else if(returnStmt.Value is not null)
-        {
-            EmitSequenced(returnStmt.Value, returnStmt.IsRef ? "return ref " : "return ", writer, diagnostics, slot: returnStmt.TargetType);
-        }
-        else
-        {
-            writer.WriteLine(BareReturn());
-        }
-    }
-
-    internal static void EmitSequenced(
-        Expression value,
-        string? lead,
-        CSharpWriter writer,
-        DiagnosticBag diagnostics,
-        bool branchTaken = false,
-        IMistType? slot = null)
-    {
-        using var hoisted = EmitHoisted(value, writer, diagnostics, discarded: lead is null, branchTaken);
-
-        if(hoisted.Consumes(value))
-        {
-            return;
-        }
-
-        writer.Write(lead ?? "");
-        EmitEntering(value, slot, writer, diagnostics);
-        writer.Append(";");
-        writer.AppendLine();
-    }
-
-    internal static bool NeedsStatements(Expression value, bool discarded)
-    {
-        return !UnitHoisting.Plan(value, discarded).IsEmpty;
-    }
-
-    internal static UnitHoisting.Hoisting EmitHoisted(
-        Expression? root, CSharpWriter writer, DiagnosticBag diagnostics, bool discarded = false, bool branchTaken = false)
-    {
-        return EmitHoisted(UnitHoisting.Plan(root, discarded, branchTaken), writer, diagnostics);
-    }
-
-    internal static UnitHoisting.Hoisting EmitHoisted(
-        UnitHoisting.Hoisting hoisting, CSharpWriter writer, DiagnosticBag diagnostics)
-    {
-        foreach(var unplaced in hoisting.Unplaced)
-        {
-            diagnostics.ReportAtNodeTyped(
-                BackendDiagnostics.UnhoistedUnitCall, unplaced.Call.Node, null, unplaced.Call.Method is { } called
-                    ? DiagnosticSnapshot.Symbol(called, called.Name)
-                    : new SymbolValue("<value-call>", "The call"), new EnumValue(unplaced.Reason));
-        }
-
-        foreach(var step in hoisting.Steps)
-        {
-            if(step.Kind is UnitHoisting.StepKind.Lower)
-            {
-                if(ConditionalLowering.Emit(step.Expression, step.Valued, writer, diagnostics) is { } result)
-                {
-                    hoisting.Bind(step, result);
-                }
-
-                continue;
-            }
-
-            if(step.Kind is UnitHoisting.StepKind.Hoist)
-            {
-                if(step.Expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional
-                    && CompletesPromoted(conditional))
-                {
-                    ConditionalAsyncCalls.Emit(conditional, blockingAwaits, statement: true, writer, diagnostics, EmitDirect);
-                }
-                else
-                {
-                    writer.WriteLine($"{Render(step.Expression, diagnostics)};");
-                }
-
-                hoisting.Bind(step, "Standard.Void.Instance");
-                continue;
-            }
-
-            var temporary = TemporaryName();
-            var text = Render(step.Expression, diagnostics);
-            writer.WriteLine($"{TypeNameEmitter.EmitInferable(step.Expression.Type)} {temporary} = {text};");
-            hoisting.Bind(step, temporary);
-        }
-
-        return hoisting;
     }
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -1138,11 +1026,16 @@ internal static partial class BodyEmitter
         if(LifetimeLowering.LentAt(expression) is var (temp, flag))
         {
             writer.Append($"MistOwnership.Taken({temp} = ");
-            EmitUnmarked(expression, writer, diagnostics);
+            EmitMarked(expression, writer, diagnostics);
             writer.Append($", ref {flag})");
             return;
         }
 
+        EmitMarked(expression, writer, diagnostics);
+    }
+
+    private static void EmitMarked(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
         if(LifetimeLowering.MarksAfter(expression) is { Count: > 0 } marks)
         {
             LifetimeLowering.Open(marks, writer);
@@ -1203,6 +1096,14 @@ internal static partial class BodyEmitter
     {
         switch(expression)
         {
+            case ResultIdentityExpression identity:
+                EmitExpression(identity.Operand, writer, diagnostics);
+                break;
+
+            case ResultConstructionExpression construction:
+                ResultLowering.EmitConstruction(construction, writer, diagnostics);
+                break;
+
             // A lift needs a task built around a value C# has no other way to wrap; a suppression needs
             // nothing at all, the operand already being the task and this having only kept the sync
             // context from awaiting it.
@@ -2170,6 +2071,7 @@ internal static partial class BodyEmitter
         {
             TypeTestPattern typeTest => typeTest.Constituent,
             PropertyPattern property => property.TypeTest?.Constituent,
+            TuplePattern tuple => tuple.Constituent,
             _ => null,
         };
     }
@@ -3239,6 +3141,7 @@ internal static partial class BodyEmitter
             BinaryExpression or UnaryExpression when NarrowArithmetic.Promotes(expression.Type) => int.MaxValue,
             BinaryExpression binary => GetPrecedence(binary.OperatorKind),
             UnaryExpression => PrefixPrecedence,
+            ResultIdentityExpression identity => GetPrecedence(identity.Operand),
             LiteralExpression negative when EmitLiteral(negative).StartsWith('-') => PrefixPrecedence,
             InvocationExpression drop when TaskResult.Dropped(drop) is not null => PrefixPrecedence,
             InvocationExpression or IndexExpression when CompletesPromoted(expression) && !blockingAwaits => PrefixPrecedence,

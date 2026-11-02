@@ -1,0 +1,130 @@
+using Standard;
+
+namespace ResultFoundation;
+
+public linear class Token
+{
+    public int Id;
+
+    public Token(int id)
+    {
+        Id = id;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"drop={Id}");
+    }
+}
+
+public class Box
+{
+    public int Id;
+
+    public Box(int id)
+    {
+        Id = id;
+    }
+}
+
+public class Resources
+{
+    public static Result<Token, string> Make(int id)
+    {
+        return new Token(id);
+    }
+
+    public static Result<int, string> Cleanup(bool fail)
+    {
+        var held = new Token(1);
+        var value = Program.Read(fail)!;
+        Console.WriteLine("after propagation");
+        return value;
+    }
+
+    public static Result<int, string> Consume(Result<Token, string> result)
+    {
+        var token = result!;
+        Console.WriteLine($"payload={token.Id}");
+        return token.Id;
+    }
+
+    public static Result<Result<Token, string>, string> Nested(int id)
+    {
+        return Result<Result<Token, string>, string>.Success(Make(id));
+    }
+
+    public static Result<int, string> ConsumeNested()
+    {
+        var token = Nested(8)!!;
+        Console.WriteLine($"nested payload={token.Id}");
+        return token.Id;
+    }
+
+    public static owned Result<int, Token> OwnedError()
+    {
+        return new Token(9);
+    }
+
+    public static owned Result<int, Token> PropagateOwnedError()
+    {
+        return OwnedError()!;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine(Program.Describe(Cleanup(false)));
+        Console.WriteLine(Program.Describe(Cleanup(true)));
+        Console.WriteLine(Program.Describe(ConsumeNested()));
+        {
+            var result = PropagateOwnedError();
+            if (result.Inspect() is (false, var error))
+            {
+                Console.WriteLine($"owned error={error.Id}");
+                error.Drop();
+            }
+        }
+        {
+            var result = Make(2);
+            Console.WriteLine(Program.Describe(Consume(result)));
+        }
+        {
+            var result = Make(3);
+            if (result.Inspect() is (true, var token))
+            {
+                Console.WriteLine($"inspected={token.Id}");
+            }
+        }
+        {
+            if (Make(5).Inspect() is (true, var token))
+            {
+                Console.WriteLine($"fresh={token.Id}");
+                token.Drop();
+            }
+        }
+        {
+            var token = new Token(6);
+            var projection = token.AsSuccess();
+            Result<Token, string> result = projection;
+            Console.WriteLine(Program.Describe(Consume(result)));
+        }
+        {
+            owned var box = new Box(7);
+            Result<Box, string> result = box.AsSuccess();
+            var snapshot = result.Inspect();
+            if (snapshot is (true, var payload))
+            {
+                owned var moved = payload;
+                Console.WriteLine($"owned={moved.Id}");
+            }
+        }
+        {
+            var result = Make(4);
+            var snapshot = result.Inspect();
+            if (snapshot is (true, var token))
+            {
+                Console.WriteLine($"snapshot={token.Id}");
+            }
+        }
+    }
+}

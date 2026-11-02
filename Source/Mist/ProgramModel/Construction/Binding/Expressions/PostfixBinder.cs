@@ -17,7 +17,8 @@ internal static class PostfixBinder
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
     {
         Expression result;
-        using(ctx.PushTargetType(node.Suffix.Length == 0 ? ctx.TargetType : null, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
+        var primaryTarget = node.Suffix.Length == 0 ? ctx.TargetType : ResultPropagationBinder.ProjectionTarget(node, ctx);
+        using(ctx.PushTargetType(primaryTarget, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
         {
             result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
         }
@@ -168,6 +169,9 @@ internal static class PostfixBinder
             case IndexSuffixPostfixSuffixNode indexSuffix:
                 return IndexBinder.Bind(indexSuffix, receiver, ctx, context);
 
+            case PropagationSuffixPostfixSuffixNode:
+                return ResultPropagationBinder.Bind(suffix, receiver, ctx, context);
+
             case SpreadSuffixPostfixSuffixNode:
                 return new SpreadExpression(suffix, receiver, receiver.Type);
 
@@ -194,7 +198,7 @@ internal static class PostfixBinder
         var arms = new List<SwitchArm>(armNodes.Count);
         foreach(var armNode in armNodes)
         {
-            if(BindArm(armNode, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee)) is not { } arm)
+            if(BindArm(armNode, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee), ResultTransfers.IsOwned(scrutinee)) is not { } arm)
             {
                 return new UnresolvedExpression(node);
             }
@@ -222,20 +226,20 @@ internal static class PostfixBinder
     /// pattern binds into it.
     /// </summary>
     private static SwitchArm? BindArm(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed, bool ownsPayload)
     {
         var enclosing = ctx.Scope;
         ctx.Scope = new BodyScope(enclosing);
-        var arm = BindArmParts(node, scrutineeType, ctx, context, scrutineeFailed);
+        var arm = BindArmParts(node, scrutineeType, ctx, context, scrutineeFailed, ownsPayload);
         ctx.Scope = enclosing;
 
         return arm;
     }
 
     private static SwitchArm? BindArmParts(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed)
+        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed, bool ownsPayload)
     {
-        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context, scrutineeFailed) is not { } pattern)
+        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context, scrutineeFailed, ownsPayload) is not { } pattern)
         {
             return null;
         }

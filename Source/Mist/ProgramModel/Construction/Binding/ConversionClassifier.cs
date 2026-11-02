@@ -85,7 +85,12 @@ internal static class ConversionClassifier
             return ConversionKind.Identity;
         }
 
-        return Within(from, to, []) || CastOperatorSelection.Implicit(from, to, interner).Count > 0
+        if(ResultTypes.Of(from) is not null && ResultTypes.Of(to) is not null)
+        {
+            return ConversionKind.None;
+        }
+
+        return ResultTypes.Of(to)?.Select(from, interner) is not null || Within(from, to, []) || CastOperatorSelection.Implicit(from, to, interner).Count > 0
             ? ConversionKind.Implicit
             : ConversionKind.None
             ;

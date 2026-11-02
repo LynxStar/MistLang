@@ -30,9 +30,18 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 internal static partial class PatternBinder
 {
     internal static Pattern? Bind(
-        PatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed = false)
+        PatternNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed = false, bool ownsPayload = false)
     {
-        return Bind(node, scrutineeType, bindingsPermitted: true, ctx, context, scrutineeFailed);
+        var previous = ctx.PatternOwnsPayload;
+        ctx.PatternOwnsPayload = ownsPayload && ResultTransfers.Inspection(scrutineeType) is not null;
+        try
+        {
+            return Bind(node, scrutineeType, bindingsPermitted: true, ctx, context, scrutineeFailed);
+        }
+        finally
+        {
+            ctx.PatternOwnsPayload = previous;
+        }
     }
 
     private static Pattern? Bind(
@@ -342,6 +351,11 @@ internal static partial class PatternBinder
         if(PackTupleElements.OpenPack(matched) is { } pack)
         {
             return BindOverOpenPack(node, elementNodes, pack, bindingsPermitted, ctx, context, scrutineeFailed);
+        }
+
+        if(matched is UnionType correlated && correlated.Constituents.All(part => part is ITupleType))
+        {
+            return BindCorrelatedTuple(node, elementNodes, correlated, bindingsPermitted, ctx, context, scrutineeFailed);
         }
 
         var scrutineeElements = PackTupleElements.Positions((matched as ITupleType)?.ElementTypes);

@@ -1,0 +1,16 @@
+namespace Standard;
+
+public abstract Error
+{
+    string Message { get; }
+}
+
+public readonly struct MessageError : Error
+{
+    public string Message { get; }
+
+    public MessageError(string message)
+    {
+        Message = message;
+    }
+}

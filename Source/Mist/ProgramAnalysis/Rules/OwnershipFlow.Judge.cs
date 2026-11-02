@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -37,6 +38,13 @@ internal sealed partial class OwnershipFlow
 
     private void Judge(FlowGraph graph, State state, FlowStep step)
     {
+        if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression }
+            && expression is not (ResultIdentityExpression or ElementReadExpression) && ResultTransfers.Source(expression) is { } transfer && Place.Of(transfer) is { } transferred && Place.Tracked(transferred))
+        {
+            JudgeAction(state, transferred, transfer, Action.Move);
+            return;
+        }
+
         switch(step)
         {
             case { Kind: FlowStepKind.Evaluate, Node: Expression read } when Place.Of(read) is { } place:
@@ -150,7 +158,7 @@ internal sealed partial class OwnershipFlow
     {
         for(var i = 0; i < arguments.Count && parameters is not null && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Ownership == OwnershipKind.Owned && Place.Of(arguments[i]) is { } place && Place.Tracked(place))
+            if(ConsumesResultArgument(arguments[i], parameters[i]) && Place.Of(arguments[i]) is { } place && Place.Tracked(place))
             {
                 JudgeAction(state, place, arguments[i], Action.Move);
                 JudgeShared(state, arguments[i], $"owned parameter '{parameters[i].Name}'", owned: true);

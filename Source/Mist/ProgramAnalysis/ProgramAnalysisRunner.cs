@@ -23,6 +23,7 @@ internal static class ProgramAnalysisRunner
         new FailedExpressionAnalyzer(),
         new ExhaustivenessAnalyzer(),
         new CastAnalyzer(),
+        new ResultAnalyzer(),
         new AssignabilityAnalyzer(),
         new AccessibilityAnalyzer(),
         new DeclarationShapeAnalyzer(),

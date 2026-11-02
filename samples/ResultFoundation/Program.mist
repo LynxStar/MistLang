@@ -1,0 +1,46 @@
+using Standard;
+
+namespace ResultFoundation;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static Result<int, string> Read(bool fail)
+    {
+        if (fail)
+        {
+            return "failed";
+        }
+
+        return 42;
+    }
+
+    public static Result<int, string> Next(bool fail)
+    {
+        var value = Read(fail)!;
+        return value + 1;
+    }
+
+    public static string Describe(Result<int, string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => $"success={value}",
+            (false, var error) => $"error={error}",
+            _ => "unreachable"
+        };
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Result Foundation ===");
+        Console.WriteLine(Describe(Next(false)));
+        Console.WriteLine(Describe(Next(true)));
+        Cases.RunDemo();
+        Resources.RunDemo();
+    }
+}

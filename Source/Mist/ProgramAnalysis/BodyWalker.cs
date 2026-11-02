@@ -102,6 +102,9 @@ internal static class BodyWalker
         add<PropertyReferenceExpression>(_ => []);
         add<RangeExpression>(e => [e.Start, e.End]);
         add<RegexLiteralExpression>(_ => []);
+        add<ResultIdentityExpression>(e => [e.Operand]);
+        add<ResultConstructionExpression>(e => [e.Payload]);
+        add<ResultPropagationExpression>(e => [e.Operand, e.FailureReturn]);
         add<SpreadExpression>(e => [e.Operand]);
         add<StackallocExpression>(e => [e.Size]);
         add<SwitchExpression>(e => [e.Scrutinee, .. e.Arms]);

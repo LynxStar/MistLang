@@ -41,6 +41,10 @@ internal sealed class BindingContext
 
     public bool TargetTypeIsFailed { get; private set; }
 
+    public bool IsErrorPattern { get; set; }
+
+    public bool PatternOwnsPayload { get; set; }
+
     public bool InLambda { get; set; }
 
     /// <summary>

@@ -1,0 +1,65 @@
+namespace Standard;
+
+public type True = bool true;
+public type False = bool false;
+public type Result<T> = Result<T, Error>;
+
+public sealed class Result<T, E>
+{
+    private readonly (True, T) | (False, E) state;
+
+    private Result((True, T) | (False, E) state)
+    {
+        this.state = state;
+    }
+
+    public static Result<T, E> Success(T value)
+    {
+        True tag = true;
+        return new Result<T, E>((tag, value));
+    }
+
+    public static Result<T, E> Failure(E error)
+    {
+        False tag = false;
+        return new Result<T, E>((tag, error));
+    }
+
+    public (True, T) | (False, E) Inspect()
+    {
+        return state;
+    }
+}
+
+public sealed class ResultSuccess<T>
+{
+    public readonly T Payload;
+
+    public ResultSuccess(T payload)
+    {
+        Payload = payload;
+    }
+}
+
+public sealed class ResultFailure<E>
+{
+    public readonly E Payload;
+
+    public ResultFailure(E payload)
+    {
+        Payload = payload;
+    }
+}
+
+<T> extension(T payload)
+{
+    public ResultSuccess<T> AsSuccess()
+    {
+        return new ResultSuccess<T>(payload);
+    }
+
+    public ResultFailure<T> AsFailure()
+    {
+        return new ResultFailure<T>(payload);
+    }
+}

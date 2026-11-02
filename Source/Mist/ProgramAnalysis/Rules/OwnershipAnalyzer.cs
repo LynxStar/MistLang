@@ -1,5 +1,6 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -194,14 +195,12 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
     internal static bool Tracked(LocalVariable local)
     {
-        return (local.Ownership == OwnershipKind.Owned && !ThisTiers.IsValue(local.Type))
+        return (local.Ownership == OwnershipKind.Owned && (!ThisTiers.IsValue(local.Type) || ResultTransfers.Payloads(local.Type).Count > 0))
             || Substructural(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 
     internal static SubstructuralDiscipline Substructural(IMistType type)
     {
-        return (type is ConstructedType constructed ? constructed.Definition : type) is ConcreteType concrete
-            ? concrete.Discipline
-            : SubstructuralDiscipline.None;
+        return ResultTransfers.Discipline(type);
     }
 }

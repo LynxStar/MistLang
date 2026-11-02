@@ -1,0 +1,313 @@
+using Standard;
+
+namespace ResultFoundation;
+
+public class Person
+{
+    public string Name;
+
+    public Person(string name)
+    {
+        Name = name!;
+    }
+}
+
+public class Cases
+{
+    public static Result<string, string> Overlap(bool fail)
+    {
+        if (fail)
+        {
+            return "same".AsFailure();
+        }
+
+        return "same".AsSuccess();
+    }
+
+    public static string DescribeOverlap(Result<string, string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => $"success length={value.Length}",
+            (false, var error) => $"error length={error.Length}",
+            _ => "unreachable"
+        };
+    }
+
+    public static string DescribeOptional(Result<int?, string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => $"optional={value ?? -1}",
+            (false, var error) => $"error={error}",
+            _ => "unreachable"
+        };
+    }
+
+    public static string DescribeVoid(Result<void, string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => $"void={value}",
+            (false, var error) => $"error={error}",
+            _ => "unreachable"
+        };
+    }
+
+    public static Result<Result<int, string>, string> Nested(bool failOuter, bool failInner)
+    {
+        if (failOuter)
+        {
+            return Result<Result<int, string>, string>.Failure("outer");
+        }
+
+        return Result<Result<int, string>, string>.Success(Program.Read(failInner));
+    }
+
+    public static Result<int, string> TwoLayers(bool failOuter, bool failInner)
+    {
+        var inner = Nested(failOuter, failInner)!;
+        return inner!;
+    }
+
+    public static Result<int> Shared(bool fail)
+    {
+        if (fail)
+        {
+            return new MessageError("shared error");
+        }
+
+        return 9;
+    }
+
+    public static Result<string> SharedNext(bool fail)
+    {
+        var value = Shared(fail)!;
+        return $"shared={value}";
+    }
+
+    public static string DescribeShared(Result<string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => value,
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static Result<int, string | MessageError> ErrorUnion(bool fail)
+    {
+        return Program.Read(fail)!;
+    }
+
+    public static Result<Person?, string> ReadPerson(bool absent, bool fail)
+    {
+        if (fail)
+        {
+            return "person error";
+        }
+
+        if (absent)
+        {
+            return void;
+        }
+
+        return new Person("Ada");
+    }
+
+    public static Result<string?, string> Name(bool absent, bool fail)
+    {
+        return ReadPerson(absent, fail)!?.Name;
+    }
+
+    public static string DescribeName(Result<string?, string> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => value ?? "absent",
+            (false, var error) => error,
+            _ => "unreachable"
+        };
+    }
+
+    public static int? Identity(int? value)
+    {
+        return value!;
+    }
+
+    public static Result<int, string> Callable(bool fail)
+    {
+        Result<int, string> Local()
+        {
+            return Program.Read(fail)! + 2;
+        }
+
+        func<Result<int, string>> lambda = () => Program.Read(fail)! + 3;
+        Console.WriteLine(Program.Describe(Local()));
+        return lambda();
+    }
+
+    public static async Result<int, string> AsyncRead(bool fail)
+    {
+        return Program.Read(fail)! + 4;
+    }
+
+    public static Result<void, string> Complete(bool fail)
+    {
+        if (fail)
+        {
+            return "completion error";
+        }
+
+        return void.AsSuccess();
+    }
+
+    public static Result<int, string> Do(bool fail)
+    {
+        Complete(fail)!;
+        Console.WriteLine("completed");
+        return 11;
+    }
+
+    public static Result<T, E> Pass<T, E>(Result<T, E> value)
+    {
+        return value;
+    }
+
+    public static Result<int, MessageError> Mapped(bool fail)
+    {
+        return Program.Read(fail).Inspect() switch
+        {
+            (true, var value) => value.AsSuccess(),
+            (false, var error) => new MessageError(error).AsFailure(),
+            _ => new MessageError("unreachable").AsFailure()
+        };
+    }
+
+    public static string Current() with string text
+    {
+        return text;
+    }
+
+    public static Result<int, string> Context(bool fail)
+    {
+        with string inner = "inner";
+        Console.WriteLine(Current());
+        return Program.Read(fail)!;
+    }
+
+    public static Result<void, void> VoidOverlap(bool fail)
+    {
+        if (fail)
+        {
+            return void.AsFailure();
+        }
+
+        return void.AsSuccess();
+    }
+
+    public static string DescribeVoidOverlap(Result<void, void> value)
+    {
+        return value.Inspect() switch
+        {
+            (true, var payload) => "void overlap success",
+            (false, var payload) => "void overlap failure",
+            _ => "unreachable"
+        };
+    }
+
+    public static string DirectError(bool fail)
+    {
+        var value = Program.Read(fail)!;
+        return $"direct={value}";
+    }
+
+    public static int Evaluated;
+    public static int After;
+
+    public static Result<int, string> Counted(bool fail)
+    {
+        Evaluated = Evaluated + 1;
+        return Program.Read(fail);
+    }
+
+    public static Result<int, string> Observe(bool fail)
+    {
+        var value = Counted(fail)!;
+        After = After + 1;
+        return value;
+    }
+
+    public static void PlainVoid()
+    {
+        Console.WriteLine("plain void");
+    }
+
+    public static void VoidIdentity()
+    {
+        PlainVoid()!;
+        return void!;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine(Program.Describe(Observe(false)));
+        Console.WriteLine($"evaluated={Evaluated},after={After}");
+        Console.WriteLine(Program.Describe(Observe(true)));
+        Console.WriteLine($"evaluated={Evaluated},after={After}");
+        VoidIdentity();
+        Console.WriteLine(DescribeOverlap(Overlap(false)));
+        Console.WriteLine(DescribeOverlap(Pass(Overlap(true))));
+        Console.WriteLine(DescribeOverlap(Result<string, string>.Success("factory")));
+        Console.WriteLine(DescribeOverlap(Result<string, string>.Failure("factory")));
+        Result<int?, string> absent = void;
+        Result<int?, string> present = 7;
+        Console.WriteLine(DescribeOptional(absent));
+        Console.WriteLine(DescribeOptional(present));
+        Console.WriteLine(DescribeVoid(Result<void, string>.Success(void)));
+        Console.WriteLine(DescribeVoid(Result<void, string>.Failure("void error")));
+        Console.WriteLine(Program.Describe(Do(false)));
+        Console.WriteLine(Program.Describe(Do(true)));
+        Console.WriteLine(DescribeVoidOverlap(VoidOverlap(false)));
+        Console.WriteLine(DescribeVoidOverlap(VoidOverlap(true)));
+        Console.WriteLine(Program.Describe(TwoLayers(false, false)));
+        Console.WriteLine(Program.Describe(TwoLayers(false, true)));
+        Console.WriteLine(Program.Describe(TwoLayers(true, false)));
+        Console.WriteLine(DescribeShared(SharedNext(false)));
+        Console.WriteLine(DescribeShared(SharedNext(true)));
+        Console.WriteLine(DescribeName(Name(false, false)));
+        Console.WriteLine(DescribeName(Name(true, false)));
+        Console.WriteLine(DescribeName(Name(false, true)));
+        Console.WriteLine($"identity={Identity(void) ?? -1},{Identity(3) ?? -1}");
+        var inferred = () => Result<int, string>.Success(Program.Read(false)!);
+        Console.WriteLine(Program.Describe(inferred()));
+        Console.WriteLine(DirectError(false));
+        Console.WriteLine(DirectError(true));
+        Console.WriteLine(Program.Describe(Callable(false)));
+        Console.WriteLine(Program.Describe(Callable(true)));
+        Console.WriteLine(Program.Describe(AsyncRead(false)));
+        Console.WriteLine(Program.Describe(AsyncRead(true)));
+        with string outer = "outer";
+        Console.WriteLine(Program.Describe(Context(true)));
+        Console.WriteLine(Current());
+        Console.WriteLine(Mapped(true).Inspect() switch
+        {
+            (true, var value) => $"mapped success={value}",
+            (false, var error) => $"mapped error={error.Message}",
+            _ => "unreachable"
+        });
+        var union = ErrorUnion(true);
+        Console.WriteLine(union.Inspect() switch
+        {
+            (true, var value) => $"union success={value}",
+            (false, var error) => error switch
+            {
+                string message => $"union error={message}",
+                MessageError problem => problem.Message,
+                _ => "unreachable"
+            },
+            _ => "unreachable"
+        });
+    }
+}

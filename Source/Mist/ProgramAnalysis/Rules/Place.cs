@@ -39,6 +39,7 @@ internal sealed class Place : IEquatable<Place>
     {
         return expression switch
         {
+            ResultIdentityExpression identity => Of(identity.Operand),
             LocalReferenceExpression { Local: var local } => Of(local),
             MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } }
                 when Holds(field) && Of(receiver) is { } holder && Tracked(holder) => holder.Child(field),

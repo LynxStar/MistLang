@@ -162,6 +162,13 @@ internal static class ExpressionBinder
 
         if(OptionalUnion.IsVoid(referenced) && ctx.TargetType is { } target)
         {
+            if(ResultTypes.Of(target) is { } result
+                && (OptionalUnion.IsVoid(result.Success) || OptionalUnion.ContainsVoid(result.Success)
+                    || OptionalUnion.IsVoid(result.Error) || OptionalUnion.ContainsVoid(result.Error)))
+            {
+                return new VoidLiteralExpression(node, VoidReading.Singleton, referenced);
+            }
+
             if(OptionalUnion.IsVoid(target))
             {
                 return new VoidLiteralExpression(node, VoidReading.Singleton, target);

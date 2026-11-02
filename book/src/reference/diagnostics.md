@@ -166,6 +166,10 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0417 | Abstract type constructed | A 'new' expression names an abstract type, which has no constructor to run because it describes a contract rather than a value. Construct a class or struct that conforms to it. | Error | Fixed | type: Type | None |
 | MIST0420 | Spread suffix on value parameter | A value parameter is written with the '...' suffix, which belongs to type-argument positions; a parameter that accepts a variable number of values is declared with 'params' over a type pack. Rewrite the parameter in the 'params' form. | Error | Fixed | name: Name | None |
 | MIST0421 | Spread into non-pack slot | A symbolic spread was supplied where the generic declares a single type-argument slot, but a spread stands for any permitted number of arguments and only a pack slot can take every width. Pass one type argument, or change the declaration to take a pack in that position. | Error | Fixed | operand: Name, type: Name | None |
+| MIST0479 | Propagation needs an error return destination | Use a Result-returning factory instead of a constructor, or declare a return type that accepts the propagated error. | Error | Fixed | None | None |
+| MIST0480 | Incompatible propagated error | Propagation selects the failure alternative and requires ordinary error assignability, including admitted error unions. | Error | Fixed | None | None |
+| MIST0481 | Tuple alternative unproven | Match the tuple's discriminant to establish the payload type of the same evaluated value. | Error | Fixed | None | None |
+| MIST0482 | An error is not propagation identity | Identity propagation preserves a plain success value; it cannot reinterpret an inspected failure as success. | Error | Fixed | None | None |
 
 ## DEC
 

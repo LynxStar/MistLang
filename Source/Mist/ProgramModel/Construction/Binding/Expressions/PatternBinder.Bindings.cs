@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
@@ -44,7 +45,7 @@ internal static partial class PatternBinder
             return null;
         }
 
-        var local = new LocalVariable(name, type) { IsFailed = scrutineeFailed, NarrowedPack = narrowedPack };
+        var local = new LocalVariable(name, type) { Ownership = ctx.PatternOwnsPayload ? OwnershipKind.Owned : OwnershipKind.Unrestricted, IsKnownResultError = ctx.IsErrorPattern, IsFailed = scrutineeFailed, NarrowedPack = narrowedPack };
         ctx.Scope.DeclareLocal(local, node, context.Diagnostics, nameSpan);
 
         return local;

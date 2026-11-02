@@ -32,6 +32,11 @@ internal static class DropInsertion
     /// </summary>
     public static string? ExitAction(IMistType type)
     {
+        if(ResultDropEmitter.Needed(type))
+        {
+            return "Drop";
+        }
+
         if(Definition(type) is ConcreteType { IsDisposableDrop: true })
         {
             return "Dispose";
@@ -52,6 +57,11 @@ internal static class DropInsertion
     /// </summary>
     public static string DropChain(string receiver, IMistType type, int depth = 0)
     {
+        if(ResultDropEmitter.Release(receiver, type) is { } structural)
+        {
+            return structural;
+        }
+
         if(ExitAction(type) is not { } action)
         {
             return receiver;
@@ -378,9 +388,7 @@ internal static class DropInsertion
     /// </summary>
     private static bool DropsAtScopeExit(IMistType type)
     {
-        return Definition(type) is ConcreteType concrete
-            && concrete.Discipline is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Relevant
-            ;
+        return ProgramAnalysis.Rules.OwnershipAnalyzer.Substructural(type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Relevant;
     }
 
     /// <summary>

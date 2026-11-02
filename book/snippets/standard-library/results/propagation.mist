@@ -1,0 +1,31 @@
+using Standard;
+
+namespace ResultExample;
+
+public class Program
+{
+    public static Result<int> Read(bool fail)
+    {
+        if (fail)
+        {
+            return new MessageError("read failed");
+        }
+
+        return 41;
+    }
+
+    public static Result<int> Next(bool fail)
+    {
+        return Read(fail)! + 1;
+    }
+
+    public static void Main()
+    {
+        Console.WriteLine(Next(false).Inspect() switch
+        {
+            (true, var value) => $"value={value}",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        });
+    }
+}

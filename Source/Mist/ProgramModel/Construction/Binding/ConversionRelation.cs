@@ -32,7 +32,8 @@ internal static class ConversionRelation
 
     public static bool IsImplicit(IMistType from, IMistType to)
     {
-        return IsWithin(Unrefined(from), Unrefined(to)) || CastOperatorSelection.Implicit(from, to, interner: null).Count > 0;
+        return ResultTypes.Of(to)?.Select(from, interner: null) is not null
+            || IsWithin(Unrefined(from), Unrefined(to)) || CastOperatorSelection.Implicit(from, to, interner: null).Count > 0;
     }
 
     /// <summary>
@@ -80,6 +81,11 @@ internal static class ConversionRelation
     {
         from = Structural(from);
         to = Structural(to);
+
+        if(ResultTypes.Of(from) is not null && ResultTypes.Of(to) is not null)
+        {
+            return IsIdentity(from, to);
+        }
 
         if(WidensToUnknown(from, to))
         {
@@ -281,6 +287,7 @@ internal static class ConversionRelation
         if(from is not ConstructedType source
             || to is not ConstructedType target
             || source.Definition is not ClassType
+            || ResultTypes.Projection(source) is not null
             || !IsIdentity(source.Definition, target.Definition)
             || source.TypeArguments.Count != target.TypeArguments.Count)
         {

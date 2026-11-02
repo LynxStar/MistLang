@@ -99,6 +99,7 @@ internal static class LifetimeLowering
         writer.WriteLine($"{TypeNameEmitter.EmitInferable(value.Type)} {temp} = default!;");
         writer.WriteLine($"var {flag} = false;");
         lent![value] = (temp, flag);
+        flags![value] = flag;
         return (temp, flag, value.Type);
     }
 

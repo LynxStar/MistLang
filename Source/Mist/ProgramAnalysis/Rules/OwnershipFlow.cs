@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -133,6 +134,12 @@ internal sealed partial class OwnershipFlow(
 
     public State Transfer(State state, FlowStep step)
     {
+        if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression }
+            && expression is not (ResultIdentityExpression or ElementReadExpression) && ResultTransfers.Source(expression) is { } transfer && Place.Of(transfer) is { } transferred)
+        {
+            return Move(state, transferred, expression);
+        }
+
         switch(step)
         {
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
@@ -349,11 +356,18 @@ internal sealed partial class OwnershipFlow(
         };
     }
 
+    private static bool ConsumesResultArgument(Expression argument, Parameter parameter)
+    {
+        return parameter.Modifier.Ownership == OwnershipKind.Owned
+            || (ResultTransfers.Payloads(argument.Type).Count > 0 && !parameter.Modifier.IsRef
+                && parameter.Modifier.Ownership is not (OwnershipKind.Borrowed or OwnershipKind.Frozen));
+    }
+
     private static State MoveArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
         for(var i = 0; i < arguments.Count && parameters is not null && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Ownership == OwnershipKind.Owned && Place.Of(arguments[i]) is { } place)
+            if(ConsumesResultArgument(arguments[i], parameters[i]) && Place.Of(arguments[i]) is { } place)
             {
                 state = Move(state, place, arguments[i]);
             }

@@ -2541,3 +2541,70 @@ oops from mist
 
 <section class="greeting"><h2>Counter says</h2><div class="body"><em>Nested from the counter.</em></div><p>Shown 0 times.</p></section>
 === Razor Components Done ===
+=== Result Foundation ===
+success=43
+error=failed
+success=42
+evaluated=1,after=1
+error=failed
+evaluated=2,after=1
+plain void
+success length=4
+error length=4
+success length=7
+error length=7
+optional=-1
+optional=7
+void=Void
+error=void error
+completed
+success=11
+error=completion error
+void overlap success
+void overlap failure
+success=42
+error=failed
+error=outer
+shared=9
+shared error
+Ada
+absent
+person error
+identity=-1,3
+success=42
+direct=42
+failed
+success=44
+success=45
+error=failed
+error=failed
+success=46
+error=failed
+inner
+error=failed
+outer
+mapped error=failed
+union error=failed
+after propagation
+drop=1
+success=42
+drop=1
+error=failed
+nested payload=8
+drop=8
+success=8
+owned error=9
+drop=9
+payload=2
+drop=2
+success=2
+inspected=3
+drop=3
+fresh=5
+drop=5
+payload=6
+drop=6
+success=6
+owned=7
+snapshot=4
+drop=4

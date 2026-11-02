@@ -95,7 +95,7 @@ internal static class ClosedContainment
                         ? DisciplineAnalyzer.Constrained(forwarded) ?? SubstructuralDiscipline.None
                         : OwnershipAnalyzer.Substructural(argument);
 
-                    if(DisciplineAnalyzer.Reason(container.Discipline, held) is { } reason && reported.Add($"{closed.FullyQualifiedName}.{field.Name}"))
+                    if(DisciplineAnalyzer.Reason(OwnershipAnalyzer.Substructural(closed), held) is { } reason && reported.Add($"{closed.FullyQualifiedName}.{field.Name}"))
                     {
                         context.Report(
                             ProgramAnalysisDiagnostics.FieldDisciplineContainment, node, [],

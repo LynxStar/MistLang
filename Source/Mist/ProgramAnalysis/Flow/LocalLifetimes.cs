@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -48,6 +49,11 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
     public static bool IsTracked(IMistType type)
     {
+        if(ResultTransfers.Payloads(type) is { Count: > 0 } payloads)
+        {
+            return payloads.Any(IsTracked);
+        }
+
         return PurityJudge.DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Linear }
             && !TaskResult.IsTask(type)
             && PurityJudge.Drops(type, awaitable: false).Any();
@@ -55,6 +61,11 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
     public static bool IsScoped(IMistType type)
     {
+        if(ResultTransfers.Payloads(type) is { Count: > 0 } payloads)
+        {
+            return !payloads.Any(IsTracked) && payloads.Any(IsScoped);
+        }
+
         return PurityJudge.DefinitionOf(type) is ConcreteType { Discipline: SubstructuralDiscipline.Affine }
             && PurityJudge.Drops(type, awaitable: false).Any();
     }
@@ -104,6 +115,11 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
         foreach(var (owner, owned, _) in Changes(state, step))
         {
             state = state.SetItem(owner, owned ? Holding.Owned : Holding.Unowned);
+        }
+
+        if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression } && owners.Owns(expression))
+        {
+            state = state.SetItem(expression, Holding.Owned);
         }
 
         switch(step)
@@ -247,6 +263,12 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
     private IEnumerable<(object Owner, bool Owned, Expression At)> Changes(Holdings state, FlowStep step)
     {
+        if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression } && owners.Owns(expression)
+            && ResultTransfers.Source(expression) is { } input && Source(input, state) is { } previous)
+        {
+            yield return (previous, false, expression);
+        }
+
         switch(step)
         {
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }

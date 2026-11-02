@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
@@ -60,6 +61,14 @@ internal sealed class LifetimeOwners
 
         foreach(var node in BodyWalker.DescendantsAndSelf(root))
         {
+            if(LentValues.ResultCarrierOf(node) is { } carrier)
+            {
+                owners.homes[carrier] = root;
+            }
+        }
+
+        foreach(var node in BodyWalker.DescendantsAndSelf(root))
+        {
             switch(node)
             {
                 case WithBlockStatement scope:
@@ -117,6 +126,16 @@ internal sealed class LifetimeOwners
 
     public object? OwnerOf(Expression expression)
     {
+        if(homes.ContainsKey(expression))
+        {
+            return expression;
+        }
+
+        if(ResultTransfers.Source(expression) is { } source)
+        {
+            return OwnerOf(source);
+        }
+
         return expression switch
         {
             LocalReferenceExpression { Local: var local } when homes.ContainsKey(local) => local,
@@ -156,6 +175,7 @@ internal sealed class LifetimeOwners
             LocalVariable local => LocalLifetimes.IsTracked(local.Type),
             Parameter parameter => LocalLifetimes.IsTracked(parameter.Type),
             Field field => LocalLifetimes.IsTracked(field.Type),
+            Expression expression => LocalLifetimes.IsTracked(expression.Type),
             _ => false,
         };
     }
@@ -270,6 +290,14 @@ internal sealed class LifetimeOwners
         {
             case TypeTestPattern { Refinement: { } refinement }:
                 Alias(refinement, owner);
+                break;
+
+            case TuplePattern tuple:
+                foreach(var element in tuple.Elements)
+                {
+                    Alias(element, owner);
+                }
+
                 break;
 
             case NegatedPattern negated:

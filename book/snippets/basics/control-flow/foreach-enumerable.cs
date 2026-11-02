@@ -14,7 +14,7 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
 
     public Snippet.Countdown.Enumerator GetEnumerator()
     {
-        return new Snippet.Countdown.Enumerator(start);
+        return new Snippet.Countdown.Enumerator(this.start);
     }
 
     System.Collections.Generic.IEnumerator<int> System.Collections.Generic.IEnumerable<int>.GetEnumerator() => GetEnumerator();
@@ -29,7 +29,7 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
         public Enumerator(int start)
         {
             this.current = default(int);
-            current = start + 1;
+            this.current = start + 1;
         }
 
         private Enumerator(int p0, Mist.Emission.CSharp.__StructInit marker)
@@ -44,13 +44,13 @@ internal class Countdown : System.Collections.Generic.IEnumerable<int>
 
         public readonly int Current
         {
-            get => current;
+            get => this.current;
         }
 
         public bool MoveNext()
         {
-            current = current - 1;
-            return current >= 0;
+            this.current = this.current - 1;
+            return this.current >= 0;
         }
 
         object System.Collections.IEnumerator.Current => Current;

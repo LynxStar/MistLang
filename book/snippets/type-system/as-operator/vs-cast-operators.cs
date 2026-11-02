@@ -10,7 +10,7 @@ public struct Celsius
     public Celsius(double degrees)
     {
         this.Degrees = default(double);
-        Degrees = degrees;
+        this.Degrees = degrees;
     }
 
     private Celsius(double p0, Mist.Emission.CSharp.__StructInit marker)
@@ -37,7 +37,7 @@ public struct Fahrenheit
     public Fahrenheit(double degrees)
     {
         this.Degrees = default(double);
-        Degrees = degrees;
+        this.Degrees = degrees;
     }
 
     private Fahrenheit(double p0, Mist.Emission.CSharp.__StructInit marker)

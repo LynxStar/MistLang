@@ -14,12 +14,12 @@ public class PrivilegeRemovalDemo
         this.X = x;
         this.Y = y;
         {
-            int sum = X + Y;
+            int sum = this.X + this.Y;
         }
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"PrivilegeRemovalDemo(X={X}, Y={Y})");
+        return System.FormattableString.Invariant($"PrivilegeRemovalDemo(X={this.X}, Y={this.Y})");
     }
 }

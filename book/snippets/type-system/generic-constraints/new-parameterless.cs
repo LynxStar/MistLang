@@ -19,6 +19,7 @@ public class Widget
 
 public class Box<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Value;
 
     public Box() : this(default(Mist.Emission.CSharp.__DefaultInit), () => default(T) ?? throw new System.InvalidOperationException("A semantic default witness is required when the CLR default is null."))

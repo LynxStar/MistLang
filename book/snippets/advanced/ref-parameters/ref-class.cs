@@ -14,7 +14,7 @@ public class Container
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Container({Value})");
+        return System.FormattableString.Invariant($"Container({this.Value})");
     }
 }
 

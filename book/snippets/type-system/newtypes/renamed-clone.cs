@@ -21,7 +21,7 @@ public class Tiger : Snippet.Cat
 
     public Snippet.Tiger Twin()
     {
-        return new Snippet.Tiger($"{Name} II");
+        return new Snippet.Tiger($"{this.Name} II");
     }
 }
 
@@ -33,7 +33,7 @@ internal class Jaguar : Snippet.Cat
 
     public Snippet.Jaguar Twin()
     {
-        return new Snippet.Jaguar($"{Name} II");
+        return new Snippet.Jaguar($"{this.Name} II");
     }
 }
 

@@ -15,7 +15,7 @@ public class SecretBox
     public string Drop()
     {
         System.Console.WriteLine("SecretBox consumed");
-        return Secret;
+        return this.Secret;
     }
 }
 

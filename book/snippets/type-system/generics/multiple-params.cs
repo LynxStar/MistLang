@@ -4,7 +4,9 @@ namespace Snippet;
 
 public class KeyValueStore<K, V>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private K key;
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private V value;
 
     public KeyValueStore(K key, V value)
@@ -15,16 +17,16 @@ public class KeyValueStore<K, V>
 
     public K GetKey()
     {
-        return key;
+        return this.key;
     }
 
     public V GetValue()
     {
-        return value;
+        return this.value;
     }
 
     public string Describe()
     {
-        return $"{MistInvariant.Text(key)} => {MistInvariant.Text(value)}";
+        return $"{MistInvariant.Text(this.key)} => {MistInvariant.Text(this.value)}";
     }
 }

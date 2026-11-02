@@ -23,6 +23,6 @@ public class Account
 
     public int GetBalance()
     {
-        return balance;
+        return this.balance;
     }
 }

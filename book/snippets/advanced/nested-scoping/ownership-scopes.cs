@@ -14,7 +14,7 @@ public class Resource
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Resource({Id})");
+        return System.FormattableString.Invariant($"Resource({this.Id})");
     }
 
     public void Update(int id)

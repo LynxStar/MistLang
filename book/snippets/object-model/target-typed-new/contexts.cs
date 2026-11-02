@@ -11,13 +11,13 @@ internal class Point
     {
         this.X = default(int);
         this.Y = default(int);
-        X = x;
-        Y = y;
+        this.X = x;
+        this.Y = y;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Point({X}, {Y})");
+        return System.FormattableString.Invariant($"Point({this.X}, {this.Y})");
     }
 }
 

@@ -25,7 +25,7 @@ public class Weight : Snippet.Measurement
 
     public double GetValue()
     {
-        return value;
+        return this.value;
     }
 
     public static explicit operator Snippet.Kelvin(Snippet.Weight w)

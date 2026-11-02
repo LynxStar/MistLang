@@ -15,7 +15,7 @@ public class Celsius : System.IFormattable
 
     public string ToString(string? format, System.IFormatProvider? provider)
     {
-        return System.FormattableString.Invariant($"{Degrees} C");
+        return System.FormattableString.Invariant($"{this.Degrees} C");
     }
 }
 

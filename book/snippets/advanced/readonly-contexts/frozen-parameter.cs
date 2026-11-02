@@ -17,12 +17,12 @@ public class Pair
 
     public int Sum()
     {
-        return X + Y;
+        return this.X + this.Y;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Pair({X}, {Y})");
+        return System.FormattableString.Invariant($"Pair({this.X}, {this.Y})");
     }
 
     public void SetX(int x)

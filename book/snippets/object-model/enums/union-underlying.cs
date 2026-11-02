@@ -20,6 +20,6 @@ public sealed record class MixedResult(Union_Int32_String Value)
     {
         if(ReferenceEquals(this, MixedResult.Success)) return "Success";
         if(ReferenceEquals(this, MixedResult.ErrorMsg)) return "ErrorMsg";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 }

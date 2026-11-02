@@ -14,12 +14,12 @@ public class Gauge
 
     public int Doubled()
     {
-        return Level * 2;
+        return this.Level * 2;
     }
 
     public void Raise()
     {
-        this.Level = Level + 1;
+        this.Level = this.Level + 1;
     }
 }
 

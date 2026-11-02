@@ -29,7 +29,7 @@ public struct Vec2
 
     public readonly string Describe()
     {
-        return System.FormattableString.Invariant($"Vec2({X}, {Y})");
+        return System.FormattableString.Invariant($"Vec2({this.X}, {this.Y})");
     }
 }
 

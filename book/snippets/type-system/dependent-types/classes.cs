@@ -5,6 +5,7 @@ namespace Snippet;
 public class TypedBuffer<T, TSize>
     where TSize : IConstIntegral
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Value;
     public static int Size => ((int)TSize.Value);
 

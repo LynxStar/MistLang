@@ -14,17 +14,18 @@ public class FileHandle
 
     public int GetFd()
     {
-        return Fd;
+        return this.Fd;
     }
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({Fd}).Drop()"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({this.Fd}).Drop()"));
     }
 }
 
 public class LinearBox<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T Value;
 
     public LinearBox(T value)
@@ -35,7 +36,7 @@ public class LinearBox<T>
     public T Drop()
     {
         System.Console.WriteLine("LinearBox<T>.Drop()");
-        return Value;
+        return this.Value;
     }
 }
 

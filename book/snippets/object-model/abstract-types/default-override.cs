@@ -14,7 +14,7 @@ public class FormalCat : Snippet.IGreetable
 
     public string Name()
     {
-        return catName;
+        return this.catName;
     }
 
     public string Greet()

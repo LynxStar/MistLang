@@ -14,7 +14,7 @@ public class Counter
         this.value = default(int);
         this.name = name;
         this.value = 0;
-        totalCreated = totalCreated + 1;
+        Counter.totalCreated = Counter.totalCreated + 1;
     }
 
     public void Increment()
@@ -24,7 +24,7 @@ public class Counter
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Counter '{name}' = {value}");
+        return System.FormattableString.Invariant($"Counter '{this.name}' = {this.value}");
     }
 
     public static void Main(string[] args)

@@ -10,17 +10,19 @@ internal interface IOrderable
 internal class Sorter<T>
     where T : Snippet.IOrderable
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T First;
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Second;
 
     public Sorter(T first, T second)
     {
-        First = first;
-        Second = second;
+        this.First = first;
+        this.Second = second;
     }
 
     public int GetFirstOrder()
     {
-        return First.GetOrder();
+        return this.First.GetOrder();
     }
 }

@@ -36,12 +36,12 @@ internal class MessageProducer : Snippet.IProducer<Snippet.MessageProducer.Outpu
         public Output(string value)
         {
             this.Value = "";
-            Value = value;
+            this.Value = value;
         }
 
         public string Stringify()
         {
-            return $"Output({Value})";
+            return $"Output({this.Value})";
         }
     }
 }

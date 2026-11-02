@@ -9,11 +9,11 @@ internal class ValOnly<T>
 
     public ValOnly(T item)
     {
-        Item = item;
+        this.Item = item;
     }
 
     public string Show()
     {
-        return $"ValOnly: {MistInvariant.Text(Item)}";
+        return $"ValOnly: {MistInvariant.Text(this.Item)}";
     }
 }

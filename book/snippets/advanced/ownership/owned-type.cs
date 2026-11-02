@@ -17,17 +17,17 @@ public class UniqueHandle
 
     public int GetId()
     {
-        return Id;
+        return this.Id;
     }
 
     public void Touch()
     {
-        this.RefCount = RefCount + 1;
+        this.RefCount = this.RefCount + 1;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"UniqueHandle(Id={Id}, RefCount={RefCount})");
+        return System.FormattableString.Invariant($"UniqueHandle(Id={this.Id}, RefCount={this.RefCount})");
     }
 }
 

@@ -18,7 +18,7 @@ public class Shelf
     {
         get
         {
-            return books[index];
+            return this.books[index];
         }
     }
 
@@ -26,7 +26,7 @@ public class Shelf
     {
         get
         {
-            return books[range];
+            return this.books[range];
         }
     }
 

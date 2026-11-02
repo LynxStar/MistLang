@@ -16,7 +16,7 @@ public class ReadonlyBlockDemo
     {
         string result = "";
         {
-            int v = Value;
+            int v = this.Value;
             result = System.FormattableString.Invariant($"SafeRead={v}");
         }
         return result;
@@ -24,11 +24,11 @@ public class ReadonlyBlockDemo
 
     public string MixedMethod()
     {
-        int before = Value;
-        this.Value = Value + 1;
+        int before = this.Value;
+        this.Value = this.Value + 1;
         int after = 0;
         {
-            after = Value;
+            after = this.Value;
         }
         return System.FormattableString.Invariant($"before={before}, after={after}");
     }

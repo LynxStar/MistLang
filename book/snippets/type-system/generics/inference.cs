@@ -4,6 +4,7 @@ namespace Snippet;
 
 public class Container<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T value;
 
     public Container(T value)
@@ -13,7 +14,7 @@ public class Container<T>
 
     public T GetValue()
     {
-        return value;
+        return this.value;
     }
 }
 

@@ -32,7 +32,7 @@ internal class RangeIterator : Snippet.IIterator<Snippet.RangeIterator.Cursor>
         public Cursor(int pos)
         {
             this.Position = default(int);
-            Position = pos;
+            this.Position = pos;
         }
 
         private Cursor(int p0, Mist.Emission.CSharp.__StructInit marker)

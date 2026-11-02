@@ -18,8 +18,8 @@ internal struct Holder<T>
 
     public Holder(T value)
     {
-        this.Value = default(Holder<T>).Value;
-        Value = value;
+        this.Value = default(Holder<T>).Value!;
+        this.Value = value;
     }
 
     private Holder(T p0, Mist.Emission.CSharp.__StructInit marker)

@@ -54,7 +54,7 @@ public class Outer
         {
             if(ReferenceEquals(this, Status.Active)) return "Active";
             if(ReferenceEquals(this, Status.Inactive)) return "Inactive";
-            return Value.ToString();
+            return Value.ToString()!;
         }
     }
 }

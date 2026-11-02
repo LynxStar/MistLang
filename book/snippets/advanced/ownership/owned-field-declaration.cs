@@ -17,7 +17,7 @@ public class Document
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Document(v{Version}: {Content})");
+        return System.FormattableString.Invariant($"Document(v{this.Version}: {this.Content})");
     }
 }
 

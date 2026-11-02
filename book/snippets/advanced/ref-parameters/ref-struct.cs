@@ -29,7 +29,7 @@ public struct Point
 
     public readonly string Describe()
     {
-        return System.FormattableString.Invariant($"Point({X}, {Y})");
+        return System.FormattableString.Invariant($"Point({this.X}, {this.Y})");
     }
 }
 

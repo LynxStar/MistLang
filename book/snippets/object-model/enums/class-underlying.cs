@@ -42,6 +42,6 @@ public sealed record class Severity(Snippet.Label Value)
         if(ReferenceEquals(this, Severity.Critical)) return "Critical";
         if(ReferenceEquals(this, Severity.Warning)) return "Warning";
         if(ReferenceEquals(this, Severity.Info)) return "Info";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 }

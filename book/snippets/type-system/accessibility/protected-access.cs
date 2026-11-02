@@ -25,6 +25,6 @@ public class Car : Snippet.Vehicle
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{model} going {speed} mph");
+        return System.FormattableString.Invariant($"{this.model} going {this.speed} mph");
     }
 }

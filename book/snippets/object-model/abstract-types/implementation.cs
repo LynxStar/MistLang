@@ -22,6 +22,6 @@ public class Person : Snippet.IDescribable
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Person: {name}, age {age}");
+        return System.FormattableString.Invariant($"Person: {this.name}, age {this.age}");
     }
 }

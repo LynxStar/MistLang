@@ -14,7 +14,7 @@ public class Handle
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Handle({Id})");
+        return System.FormattableString.Invariant($"Handle({this.Id})");
     }
 }
 

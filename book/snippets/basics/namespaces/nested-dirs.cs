@@ -17,6 +17,6 @@ public class Player
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Player: {name}, HP: {health}");
+        return System.FormattableString.Invariant($"Player: {this.name}, HP: {this.health}");
     }
 }

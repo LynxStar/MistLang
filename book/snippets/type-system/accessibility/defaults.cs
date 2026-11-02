@@ -14,6 +14,6 @@ internal class TopLevelService
 
     public int GetCounter()
     {
-        return counter;
+        return this.counter;
     }
 }

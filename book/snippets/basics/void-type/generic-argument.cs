@@ -13,6 +13,7 @@ namespace Snippet
 {
     public class Result<T>
     {
+        [System.Diagnostics.CodeAnalysis.AllowNull]
         private T value;
         private bool success;
 
@@ -25,7 +26,7 @@ namespace Snippet
 
         public bool IsSuccess()
         {
-            return success;
+            return this.success;
         }
     }
 }

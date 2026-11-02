@@ -14,12 +14,12 @@ public class Connection
 
     public void Drop()
     {
-        System.Console.WriteLine($"Connection({Host}) closed");
+        System.Console.WriteLine($"Connection({this.Host}) closed");
     }
 
     public string GetHost()
     {
-        return Host;
+        return this.Host;
     }
 }
 

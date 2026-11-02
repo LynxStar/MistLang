@@ -9,7 +9,7 @@ public class Vec
     public Vec(int x)
     {
         this.X = default(int);
-        X = x;
+        this.X = x;
     }
 }
 
@@ -36,15 +36,15 @@ public class Interval
     {
         this.Start = default(int);
         this.End = default(int);
-        Start = start;
-        End = end;
+        this.Start = start;
+        this.End = end;
     }
 
     public int Length
     {
         get
         {
-            return End - Start;
+            return this.End - this.Start;
         }
     }
 }

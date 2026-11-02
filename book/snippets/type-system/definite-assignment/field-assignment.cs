@@ -17,7 +17,7 @@ public class Connection
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{Host}:{Port}");
+        return System.FormattableString.Invariant($"{this.Host}:{this.Port}");
     }
 }
 

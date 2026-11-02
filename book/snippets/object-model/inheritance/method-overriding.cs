@@ -17,17 +17,17 @@ public class Animal
 
     public string GetName()
     {
-        return name;
+        return this.name;
     }
 
     public int GetAge()
     {
-        return age;
+        return this.age;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{name} (age {age})");
+        return System.FormattableString.Invariant($"{this.name} (age {this.age})");
     }
 }
 
@@ -43,12 +43,12 @@ public class Dog : Snippet.Animal
 
     public string GetBreed()
     {
-        return breed;
+        return this.breed;
     }
 
     public string DescribeDog()
     {
-        return System.FormattableString.Invariant($"{GetName()} is a {breed}, age {GetAge()}");
+        return System.FormattableString.Invariant($"{GetName()} is a {this.breed}, age {GetAge()}");
     }
 }
 
@@ -64,6 +64,6 @@ public class GuideDog : Snippet.Dog
 
     public string DescribeGuideDog()
     {
-        return System.FormattableString.Invariant($"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {handler}");
+        return System.FormattableString.Invariant($"{GetName()} is a {GetBreed()} guide dog, age {GetAge()}, handler: {this.handler}");
     }
 }

@@ -20,7 +20,7 @@ public sealed record class Direction(string Value)
     {
         if(ReferenceEquals(this, Direction.North)) return "North";
         if(ReferenceEquals(this, Direction.South)) return "South";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 
     public static Direction __CreateDefault() => Direction.North;

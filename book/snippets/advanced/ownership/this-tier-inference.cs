@@ -22,7 +22,7 @@ public class Account
 
     public string Summary()
     {
-        return System.FormattableString.Invariant($"Account({Name}, balance={Balance})");
+        return System.FormattableString.Invariant($"Account({this.Name}, balance={this.Balance})");
     }
 }
 

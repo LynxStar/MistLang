@@ -14,6 +14,6 @@ public class GuideDog : Snippet.Dog
 
     public string GetHandler()
     {
-        return handler;
+        return this.handler;
     }
 }

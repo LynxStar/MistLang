@@ -14,17 +14,18 @@ public class Connection
 
     public int GetId()
     {
-        return Id;
+        return this.Id;
     }
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"Connection({Id}).Drop()"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"Connection({this.Id}).Drop()"));
     }
 }
 
 public class AffineHolder<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T Value;
 
     public AffineHolder(T value)
@@ -40,13 +41,14 @@ public class AffineHolder<T>
         }
         finally
         {
-            ((dynamic)this.Value).Drop();
+            ((dynamic)this.Value!).Drop();
         }
     }
 }
 
 public class RelevantHolder<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T Value;
     private bool Dropped;
 
@@ -61,7 +63,7 @@ public class RelevantHolder<T>
     {
         try
         {
-            if (Dropped)
+            if (this.Dropped)
             {
                 return;
             }
@@ -70,7 +72,7 @@ public class RelevantHolder<T>
         }
         finally
         {
-            ((dynamic)this.Value).Drop();
+            ((dynamic)this.Value!).Drop();
         }
     }
 }

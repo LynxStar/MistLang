@@ -17,8 +17,8 @@ namespace Snippet
         {
             this.X = default(int);
             this.Y = default(int);
-            X = x;
-            Y = y;
+            this.X = x;
+            this.Y = y;
         }
     }
 }

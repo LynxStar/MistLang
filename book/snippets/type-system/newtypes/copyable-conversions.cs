@@ -23,11 +23,12 @@ internal class Cash
 
     public int Amount { get; }
 
-    public static implicit operator Snippet.Money(Snippet.Cash value)
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static implicit operator Snippet.Money?(Snippet.Cash? value)
     {
         if(value is null)
         {
-            return null!;
+            return null;
         }
 
         var copy = (Snippet.Money)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Money));
@@ -40,11 +41,12 @@ internal class Cash
     [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "<Amount>k__BackingField")]
     private static extern ref int __Snippet_Money_Amount_BackingField(Snippet.Money target);
 
-    public static explicit operator Snippet.Cash(Snippet.Money value)
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Cash?(Snippet.Money? value)
     {
         if(value is null)
         {
-            return null!;
+            return null;
         }
 
         var copy = (Snippet.Cash)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Cash));

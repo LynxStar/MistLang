@@ -29,7 +29,7 @@ public class Outer
 
         public int ReadSecret()
         {
-            return owner.secret;
+            return this.owner.secret;
         }
     }
 }

@@ -14,7 +14,7 @@ public class Celsius
 
     public double GetDegrees()
     {
-        return degrees;
+        return this.degrees;
     }
 
     public static explicit operator Snippet.Kelvin(Snippet.Celsius c)
@@ -35,6 +35,6 @@ public class Kelvin
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{degrees} K");
+        return System.FormattableString.Invariant($"{this.degrees} K");
     }
 }

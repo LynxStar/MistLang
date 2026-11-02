@@ -23,7 +23,7 @@ public sealed record class Permission(string Value)
         if(ReferenceEquals(this, Permission.Read)) return "Read";
         if(ReferenceEquals(this, Permission.Write)) return "Write";
         if(ReferenceEquals(this, Permission.Execute)) return "Execute";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 }
 
@@ -48,7 +48,7 @@ public sealed record class Environment(string Value)
         if(ReferenceEquals(this, Environment.Development)) return "Development";
         if(ReferenceEquals(this, Environment.Staging)) return "Staging";
         if(ReferenceEquals(this, Environment.Production)) return "Production";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 }
 

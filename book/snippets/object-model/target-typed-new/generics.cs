@@ -4,18 +4,20 @@ namespace Snippet;
 
 internal class Pair<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T First;
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Second;
 
     public Pair(T first, T second)
     {
-        First = first;
-        Second = second;
+        this.First = first;
+        this.Second = second;
     }
 
     public string Describe()
     {
-        return $"Pair({MistInvariant.Text(First)}, {MistInvariant.Text(Second)})";
+        return $"Pair({MistInvariant.Text(this.First)}, {MistInvariant.Text(this.Second)})";
     }
 }
 

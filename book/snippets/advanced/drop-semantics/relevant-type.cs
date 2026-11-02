@@ -17,17 +17,17 @@ public class Logger
 
     public void Drop()
     {
-        if (Flushed)
+        if (this.Flushed)
         {
             return;
         }
         this.Flushed = true;
-        System.Console.WriteLine($"Logger({Name}) flushed");
+        System.Console.WriteLine($"Logger({this.Name}) flushed");
     }
 
     public void Log(string msg)
     {
-        System.Console.WriteLine($"[{Name}] {msg}");
+        System.Console.WriteLine($"[{this.Name}] {msg}");
     }
 }
 

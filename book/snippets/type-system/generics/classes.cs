@@ -4,6 +4,7 @@ namespace Snippet;
 
 public class GenericBox<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T item;
 
     public GenericBox(T item)
@@ -13,11 +14,11 @@ public class GenericBox<T>
 
     public T GetItem()
     {
-        return item;
+        return this.item;
     }
 
     public string Describe()
     {
-        return $"GenericBox({MistInvariant.Text(item)})";
+        return $"GenericBox({MistInvariant.Text(this.item)})";
     }
 }

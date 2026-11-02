@@ -15,13 +15,13 @@ public class Tiger : Standard.IClonable<Snippet.Tiger>
 
     public Snippet.Tiger Clone()
     {
-        made = made + 1;
-        return new Snippet.Tiger(stripes + made);
+        Tiger.made = Tiger.made + 1;
+        return new Snippet.Tiger(this.stripes + Tiger.made);
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"stripes={stripes} made={made}");
+        return System.FormattableString.Invariant($"stripes={this.stripes} made={Tiger.made}");
     }
 }
 
@@ -38,13 +38,13 @@ internal class Jaguar : Standard.IClonable<Snippet.Jaguar>
 
     public Snippet.Jaguar Clone()
     {
-        made = made + 1;
-        return new Snippet.Jaguar(stripes + made);
+        Jaguar.made = Jaguar.made + 1;
+        return new Snippet.Jaguar(this.stripes + Jaguar.made);
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"stripes={stripes} made={made}");
+        return System.FormattableString.Invariant($"stripes={this.stripes} made={Jaguar.made}");
     }
 
     public static explicit operator Snippet.Jaguar(Snippet.Tiger @this)

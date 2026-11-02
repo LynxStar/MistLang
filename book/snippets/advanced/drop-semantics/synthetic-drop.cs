@@ -14,7 +14,7 @@ public class Handle
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"Handle({Id}) released"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"Handle({this.Id}) released"));
     }
 }
 

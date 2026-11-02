@@ -9,7 +9,7 @@ public class Dog
     public Dog(string name)
     {
         this.Name = "";
-        Name = name;
+        this.Name = name;
     }
 }
 

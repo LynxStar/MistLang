@@ -14,7 +14,7 @@ public class Payload
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Payload({Size})");
+        return System.FormattableString.Invariant($"Payload({this.Size})");
     }
 }
 
@@ -33,12 +33,12 @@ public class Envelope
     public void Reseal()
     {
         this.Body = new Snippet.Payload(0);
-        this.Stamp = Stamp + 1;
+        this.Stamp = this.Stamp + 1;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Envelope(Body={Body.Describe()}, Stamp={Stamp})");
+        return System.FormattableString.Invariant($"Envelope(Body={this.Body.Describe()}, Stamp={this.Stamp})");
     }
 }
 

@@ -14,21 +14,21 @@ public class Printer
 
     public string Format(int value)
     {
-        return System.FormattableString.Invariant($"{_prefix} int={value}");
+        return System.FormattableString.Invariant($"{this._prefix} int={value}");
     }
 
     public string Format(bool value)
     {
-        return $"{_prefix} bool={value}";
+        return $"{this._prefix} bool={value}";
     }
 
     public string Format(double value)
     {
-        return System.FormattableString.Invariant($"{_prefix} double={value}");
+        return System.FormattableString.Invariant($"{this._prefix} double={value}");
     }
 
     public string Format(string value)
     {
-        return $"{_prefix} string={value}";
+        return $"{this._prefix} string={value}";
     }
 }

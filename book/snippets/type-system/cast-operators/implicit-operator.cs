@@ -14,7 +14,7 @@ public class Celsius
 
     public double GetDegrees()
     {
-        return degrees;
+        return this.degrees;
     }
 
     public static implicit operator Snippet.Fahrenheit(Snippet.Celsius c)
@@ -35,6 +35,6 @@ public class Fahrenheit
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{degrees} F");
+        return System.FormattableString.Invariant($"{this.degrees} F");
     }
 }

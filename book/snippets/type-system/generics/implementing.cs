@@ -4,6 +4,7 @@ namespace Snippet;
 
 public class GenericBox<T> : Snippet.IGenericContainer<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T item;
 
     public GenericBox(T item)
@@ -13,6 +14,6 @@ public class GenericBox<T> : Snippet.IGenericContainer<T>
 
     public T GetItem()
     {
-        return item;
+        return this.item;
     }
 }

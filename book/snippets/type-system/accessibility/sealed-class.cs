@@ -17,11 +17,11 @@ public sealed class Config
 
     public string GetKey()
     {
-        return key;
+        return this.key;
     }
 
     public string GetValue()
     {
-        return value;
+        return this.value;
     }
 }

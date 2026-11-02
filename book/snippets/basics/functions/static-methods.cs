@@ -8,12 +8,12 @@ public class Counter
 
     public Counter()
     {
-        totalCreated = totalCreated + 1;
+        Counter.totalCreated = Counter.totalCreated + 1;
     }
 
     public static int GetTotalCreated()
     {
-        return totalCreated;
+        return Counter.totalCreated;
     }
 
     public static void Main(string[] args)

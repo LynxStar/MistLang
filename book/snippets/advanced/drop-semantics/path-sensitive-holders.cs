@@ -14,7 +14,7 @@ public class Lease
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"Lease({Id}) released"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"Lease({this.Id}) released"));
     }
 }
 
@@ -27,9 +27,9 @@ public class Pair
     public Pair(bool early)
     {
         this.Early = default(bool);
-        First = new Snippets.Lease(1);
-        Second = new Snippets.Lease(2);
-        Early = early;
+        this.First = new Snippets.Lease(1);
+        this.Second = new Snippets.Lease(2);
+        this.Early = early;
     }
 
     public void Drop()
@@ -39,9 +39,9 @@ public class Pair
         {
             try
             {
-                if (Early)
+                if (this.Early)
                 {
-                    MistOwnership.Handed(First, ref __e1).Drop();
+                    MistOwnership.Handed(this.First, ref __e1).Drop();
                 }
             }
             finally

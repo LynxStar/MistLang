@@ -29,11 +29,11 @@ public readonly struct Vector2
 
     public int MagnitudeSquared()
     {
-        return X * X + Y * Y;
+        return this.X * this.X + this.Y * this.Y;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Vector2(X={X}, Y={Y})");
+        return System.FormattableString.Invariant($"Vector2(X={this.X}, Y={this.Y})");
     }
 }

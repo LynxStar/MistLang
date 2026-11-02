@@ -4,6 +4,7 @@ namespace Snippet;
 
 internal class Box<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Value;
 
     public Box(T value)

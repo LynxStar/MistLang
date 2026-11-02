@@ -17,7 +17,7 @@ public class Reading
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{Value} {Unit}");
+        return System.FormattableString.Invariant($"{this.Value} {this.Unit}");
     }
 }
 
@@ -36,7 +36,7 @@ public class Recorded
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{Value} {Unit}");
+        return System.FormattableString.Invariant($"{this.Value} {this.Unit}");
     }
 }
 

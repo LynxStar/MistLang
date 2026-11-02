@@ -4,6 +4,7 @@ namespace Snippet;
 
 public class Box<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T item;
 
     public Box(T item)
@@ -13,17 +14,17 @@ public class Box<T>
 
     public T Get()
     {
-        return item;
+        return this.item;
     }
 
     public Snippet.Box<T> Again()
     {
-        return new Snippet.Box<T>(item);
+        return new Snippet.Box<T>(this.item);
     }
 
     public Snippet.Box<string> Label()
     {
-        return new Snippet.Box<string>($"<{MistInvariant.Text(item)}>");
+        return new Snippet.Box<string>($"<{MistInvariant.Text(this.item)}>");
     }
 }
 
@@ -39,22 +40,23 @@ internal class IntBox
 
     public int Get()
     {
-        return item;
+        return this.item;
     }
 
     public Snippet.IntBox Again()
     {
-        return new Snippet.IntBox(item);
+        return new Snippet.IntBox(this.item);
     }
 
     public Snippet.Box<string> Label()
     {
-        return new Snippet.Box<string>(System.FormattableString.Invariant($"<{item}>"));
+        return new Snippet.Box<string>(System.FormattableString.Invariant($"<{this.item}>"));
     }
 }
 
 internal class Boxed<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     private T item;
 
     public Boxed(T item)
@@ -64,17 +66,17 @@ internal class Boxed<T>
 
     public T Get()
     {
-        return item;
+        return this.item;
     }
 
     public Snippet.Boxed<T> Again()
     {
-        return new Snippet.Boxed<T>(item);
+        return new Snippet.Boxed<T>(this.item);
     }
 
     public Snippet.Boxed<string> Label()
     {
-        return new Snippet.Boxed<string>($"<{MistInvariant.Text(item)}>");
+        return new Snippet.Boxed<string>($"<{MistInvariant.Text(this.item)}>");
     }
 }
 

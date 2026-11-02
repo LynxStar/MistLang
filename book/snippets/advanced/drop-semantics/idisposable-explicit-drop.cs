@@ -14,7 +14,7 @@ public class Resource
 
     public void Drop()
     {
-        System.Console.WriteLine($"Resource({Name}).Drop()");
+        System.Console.WriteLine($"Resource({this.Name}).Drop()");
     }
 }
 

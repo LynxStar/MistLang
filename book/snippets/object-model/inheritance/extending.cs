@@ -17,17 +17,17 @@ public class Animal
 
     public string GetName()
     {
-        return name;
+        return this.name;
     }
 
     public int GetAge()
     {
-        return age;
+        return this.age;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"{name} (age {age})");
+        return System.FormattableString.Invariant($"{this.name} (age {this.age})");
     }
 }
 
@@ -43,6 +43,6 @@ public class Dog : Snippet.Animal
 
     public string GetBreed()
     {
-        return breed;
+        return this.breed;
     }
 }

@@ -14,12 +14,12 @@ public class Lease
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"Lease({Id}) released"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"Lease({this.Id}) released"));
     }
 
     public int GetId()
     {
-        return Id;
+        return this.Id;
     }
 }
 

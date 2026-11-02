@@ -9,7 +9,7 @@ public class Animal
     public Animal(string name)
     {
         this.Name = "";
-        Name = name;
+        this.Name = name;
     }
 }
 
@@ -20,7 +20,7 @@ public class Dog : Snippet.Animal
     public Dog(string name, string breed) : base(name)
     {
         this.Breed = "";
-        Breed = breed;
+        this.Breed = breed;
     }
 }
 
@@ -31,7 +31,7 @@ public class Cat : Snippet.Animal
     public Cat(string name, int lives) : base(name)
     {
         this.Lives = default(int);
-        Lives = lives;
+        this.Lives = lives;
     }
 }
 

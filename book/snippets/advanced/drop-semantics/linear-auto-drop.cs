@@ -14,12 +14,12 @@ public class FileHandle
 
     public void Drop()
     {
-        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({Fd}) closed"));
+        System.Console.WriteLine(System.FormattableString.Invariant($"FileHandle({this.Fd}) closed"));
     }
 
     public int GetFd()
     {
-        return Fd;
+        return this.Fd;
     }
 }
 

@@ -23,7 +23,7 @@ public class Vault
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Vault(accesses={AccessCount}, secret={Secret})");
+        return System.FormattableString.Invariant($"Vault(accesses={this.AccessCount}, secret={this.Secret})");
     }
 }
 

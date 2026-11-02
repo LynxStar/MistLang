@@ -5,6 +5,7 @@ namespace Snippet;
 public class MyList<T>
 {
     public int count;
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T item0;
 
     public MyList()

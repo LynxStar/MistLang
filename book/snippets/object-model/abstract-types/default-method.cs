@@ -24,7 +24,7 @@ public class FriendlyDog : Snippet.IGreetable
 
     public string Name()
     {
-        return dogName;
+        return this.dogName;
     }
 
     public string Greet()

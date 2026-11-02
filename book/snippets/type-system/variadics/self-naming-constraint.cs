@@ -45,7 +45,7 @@ public class Program
 {
     public static void Main(string[] cmdArgs)
     {
-        Ladder_2<Snippet.Knight, Snippet.Rook> ladder = new Ladder_2<Snippet.Knight, Snippet.Rook>();
+        Snippet.Ladder_2<Snippet.Knight, Snippet.Rook> ladder = new Snippet.Ladder_2<Snippet.Knight, Snippet.Rook>();
         System.Console.WriteLine(System.FormattableString.Invariant($"width={ladder.Width()}"));
     }
 

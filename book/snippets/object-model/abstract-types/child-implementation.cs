@@ -17,11 +17,11 @@ public class Robot : Snippet.IFullyDescribable
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Robot: {model} v{version}");
+        return System.FormattableString.Invariant($"Robot: {this.model} v{this.version}");
     }
 
     public string DetailedDescribe()
     {
-        return System.FormattableString.Invariant($"Robot model {model}, version {version}, fully operational");
+        return System.FormattableString.Invariant($"Robot model {this.model}, version {this.version}, fully operational");
     }
 }

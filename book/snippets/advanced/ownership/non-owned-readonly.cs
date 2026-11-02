@@ -14,12 +14,12 @@ public class Counter
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Counter({Value})");
+        return System.FormattableString.Invariant($"Counter({this.Value})");
     }
 
     public void Increment()
     {
-        this.Value = Value + 1;
+        this.Value = this.Value + 1;
     }
 }
 

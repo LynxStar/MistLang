@@ -29,7 +29,7 @@ public struct Point
 
     public readonly Snippet.Point Moved(int dx)
     {
-        return new Snippet.Point(X + dx, Y);
+        return new Snippet.Point(this.X + dx, this.Y);
     }
 }
 
@@ -147,7 +147,7 @@ public struct Position
 
     public readonly Snippet.Position Moved(int dx)
     {
-        return new Snippet.Position(X + dx, Y);
+        return new Snippet.Position(this.X + dx, this.Y);
     }
 
     public static implicit operator Snippet.Point(Snippet.Position value)

@@ -14,12 +14,12 @@ public class Accumulator
 
     public void Add(int amount)
     {
-        this.Total = Total + amount;
+        this.Total = this.Total + amount;
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Accumulator(Total={Total})");
+        return System.FormattableString.Invariant($"Accumulator(Total={this.Total})");
     }
 }
 

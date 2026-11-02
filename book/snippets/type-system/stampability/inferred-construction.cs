@@ -9,8 +9,8 @@ public struct Box<T>
 
     public Box(T item)
     {
-        this.Item = default(Box<T>).Item;
-        Item = item;
+        this.Item = default(Box<T>).Item!;
+        this.Item = item;
     }
 
     private Box(T p0, Mist.Emission.CSharp.__StructInit marker)

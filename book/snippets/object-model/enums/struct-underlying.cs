@@ -57,6 +57,6 @@ public sealed record class CardinalDir(Snippet.Vec2 Value)
         if(ReferenceEquals(this, CardinalDir.Down)) return "Down";
         if(ReferenceEquals(this, CardinalDir.Left)) return "Left";
         if(ReferenceEquals(this, CardinalDir.Right)) return "Right";
-        return Value.ToString();
+        return Value.ToString()!;
     }
 }

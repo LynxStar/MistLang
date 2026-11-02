@@ -14,12 +14,12 @@ public class Transaction
 
     public void Drop()
     {
-        System.Console.WriteLine($"Transaction({Id}) committed");
+        System.Console.WriteLine($"Transaction({this.Id}) committed");
     }
 
     public string GetId()
     {
-        return Id;
+        return this.Id;
     }
 }
 

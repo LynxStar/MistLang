@@ -4,6 +4,7 @@ namespace Snippet;
 
 public class GenericBox<T>
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T value;
 
     public GenericBox(T v)

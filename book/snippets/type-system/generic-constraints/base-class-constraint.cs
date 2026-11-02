@@ -9,27 +9,28 @@ internal class Animal
     public Animal(string species)
     {
         this.Species = "";
-        Species = species;
+        this.Species = species;
     }
 
     public string GetSpecies()
     {
-        return Species;
+        return this.Species;
     }
 }
 
 internal class AnimalHandler<T>
     where T : Snippet.Animal
 {
+    [System.Diagnostics.CodeAnalysis.AllowNull]
     public T Animal;
 
     public AnimalHandler(T animal)
     {
-        Animal = animal;
+        this.Animal = animal;
     }
 
     public string GetSpeciesName()
     {
-        return Animal.GetSpecies();
+        return this.Animal.GetSpecies();
     }
 }

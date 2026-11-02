@@ -17,6 +17,6 @@ public class AppConfig
 
     public string Display()
     {
-        return $"App: {appName} v{version}";
+        return $"App: {this.appName} v{this.version}";
     }
 }

@@ -14,7 +14,7 @@ public class Node
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Node({Id})");
+        return System.FormattableString.Invariant($"Node({this.Id})");
     }
 }
 
@@ -32,7 +32,7 @@ public class Slot
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Slot(Current={Current.Describe()}, Count={Count})");
+        return System.FormattableString.Invariant($"Slot(Current={this.Current.Describe()}, Count={this.Count})");
     }
 }
 

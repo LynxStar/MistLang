@@ -14,7 +14,7 @@ public class Logger
 
     public string Format(string message)
     {
-        return $"[{prefix}] {message}";
+        return $"[{this.prefix}] {message}";
     }
 }
 

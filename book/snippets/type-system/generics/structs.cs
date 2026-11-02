@@ -10,8 +10,8 @@ public struct Pair<A, B>
 
     public Pair(A first, B second)
     {
-        this.First = default(Pair<A, B>).First;
-        this.Second = default(Pair<A, B>).Second;
+        this.First = default(Pair<A, B>).First!;
+        this.Second = default(Pair<A, B>).Second!;
         this.First = first;
         this.Second = second;
     }
@@ -29,6 +29,6 @@ public struct Pair<A, B>
 
     public readonly string Describe()
     {
-        return $"({MistInvariant.Text(First)}, {MistInvariant.Text(Second)})";
+        return $"({MistInvariant.Text(this.First)}, {MistInvariant.Text(this.Second)})";
     }
 }

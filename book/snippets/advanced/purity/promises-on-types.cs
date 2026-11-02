@@ -9,20 +9,20 @@ public class Tally
     public Tally(int start)
     {
         this.total = default(int);
-        total = start;
+        this.total = start;
     }
 
     public int Total
     {
         get
         {
-            return total;
+            return this.total;
         }
     }
 
     public void Add(int n)
     {
-        total = total + n;
+        this.total = this.total + n;
     }
 }
 
@@ -33,12 +33,12 @@ public class Money
     public Money(int cents)
     {
         this.Cents = default(int);
-        Cents = cents;
+        this.Cents = cents;
     }
 
     public PurityTypes.Money Plus(PurityTypes.Money other)
     {
-        return new PurityTypes.Money(Cents + other.Cents);
+        return new PurityTypes.Money(this.Cents + other.Cents);
     }
 }
 

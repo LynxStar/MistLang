@@ -14,12 +14,12 @@ public class Tag : Standard.IClonable<Snippet.Tag>
 
     public Snippet.Tag Clone()
     {
-        return new Snippet.Tag(Code);
+        return new Snippet.Tag(this.Code);
     }
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Tag({Code})");
+        return System.FormattableString.Invariant($"Tag({this.Code})");
     }
 }
 

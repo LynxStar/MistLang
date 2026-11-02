@@ -17,7 +17,7 @@ public class Sensor
 
     public int GetReading()
     {
-        return Reading;
+        return this.Reading;
     }
 
     public void SetReading(int r)
@@ -27,7 +27,7 @@ public class Sensor
 
     public string Describe()
     {
-        return System.FormattableString.Invariant($"Sensor({Id}, {Reading})");
+        return System.FormattableString.Invariant($"Sensor({this.Id}, {this.Reading})");
     }
 }
 

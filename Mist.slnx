@@ -11,6 +11,7 @@
     <Project Path="Test/Mist.CLI.Tests/Mist.CLI.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/SnippetEmitter/SnippetEmitter.csproj" />
     <Project Path="tools/diagnostics/DiagnosticCatalog/DiagnosticCatalog.csproj" />
   </Folder>
 </Solution>

@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\tools\SnippetEmitter\SnippetEmitter.csproj" />
     <ProjectReference Include="..\..\Source\Mist\Mist.csproj" />
     <ProjectReference Include="..\..\Source\Storm.SourceGenerator\Storm.SourceGenerator.csproj" />
     <ProjectReference Include="..\Mist.Tests.InteropFixtures\Mist.Tests.InteropFixtures.csproj" />

@@ -121,5 +121,6 @@ public class Program
         GenericSelfReceivers.Program.RunDemo();
         TypeValues.Program.RunDemo();
         ClrSlotFilling.Program.RunDemo();
+        RazorComponents.Program.RunDemo();
     }
 }

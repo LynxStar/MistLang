@@ -1,0 +1,45 @@
+@page "/counter"
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @count</p>
+<p>The count is a @(int.Name).</p>
+
+@if (lastReset is void)
+{
+    <p>Never reset.</p>
+}
+else
+{
+    <p>Last reset at count @lastReset.</p>
+}
+
+<button class="btn btn-primary" @onclick="Increment">Click me</button>
+<button class="btn btn-secondary" @onclick="Reset">Reset</button>
+
+<Greeting Title="Counter says" Count="count">
+    <em>Nested from the counter.</em>
+</Greeting>
+
+@code {
+    private int count = 0;
+    private int? lastReset = void;
+
+    private pure int Next(int value)
+    {
+        return value + 1;
+    }
+
+    private void Increment()
+    {
+        count = Next(count);
+    }
+
+    private void Reset()
+    {
+        lastReset = count;
+        count = 0;
+    }
+}

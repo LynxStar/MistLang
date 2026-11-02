@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Mist.CLI.Args;
 using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
+using Mist.Common.Source;
 using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Tests.Output;
@@ -58,5 +60,21 @@ public sealed class DiagnosticOutputTests
         output.Complete(true);
         using var json = JsonDocument.Parse(error.ToString());
         Assert.Equal([1, 2], json.RootElement.GetProperty("diagnostics").EnumerateArray().Select(d => d.GetProperty("ordinal").GetInt32()));
+    }
+
+    [Theory]
+    [InlineData(false, "Counter.razor(1,4): error MIST9001: mapped")]
+    [InlineData(true, "Counter.razor(1,4): error MIST9001: mapped (translated: out/Counter.razor.mist(7,9))")]
+    public void TheTranslatedPositionIsWrittenOnlyForVerboseOutput(bool verbose, string expected)
+    {
+        using var error = new StringWriter();
+        var output = new DiagnosticControls().CreateOutput(error, "build", ".", verbose);
+        var bag = new DiagnosticBag(output.Operation);
+        var mapped = new SourceRange(new SourceIdentity(new SourceText("Counter.razor", "<p>@count</p>")), 3, 6);
+        bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9001", "mapped"),
+            new GeneratedLocation("out/Counter.razor.mist", new(new(7, 9), new(7, 14)), mapped));
+        output.Collect(bag.Admitted);
+        output.Complete(false);
+        Assert.Equal(expected + Environment.NewLine, error.ToString());
     }
 }

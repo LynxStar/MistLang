@@ -97,6 +97,18 @@ public sealed class PackageFolderResolutionTests : IDisposable
         Assert.Equal<string>([dll], result.AssemblyPaths);
     }
 
+    [Fact]
+    public void APackageThatContributesNoAssemblies_StillNamesItsFolder()
+    {
+        var root = Path.Combine(scratch, "nuget");
+        _ = Touch(root, "content.only", "10.0.9", "_framework", "blazor.web.js");
+
+        var result = Resolve(new DiagnosticBag(), [root], """{ "Content.Only/10.0.9": { "type": "package" } }""");
+
+        Assert.Equal(0, Assert.Single(result.Resolved).AssemblyCount);
+        Assert.Equal(Path.Combine(root, "content.only", "10.0.9"), result.PackageDirectories["content.only"]);
+    }
+
     private static string Touch(string root, params string[] path)
     {
         var file = Path.Combine([root, .. path]);

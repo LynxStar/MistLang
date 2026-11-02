@@ -24,6 +24,20 @@ public sealed class SourceText
     /// </summary>
     public string Contents { get; }
 
+    public OriginMap? Origin
+    {
+        get;
+        init
+        {
+            if(value is not null && !value.Covers(Contents))
+            {
+                throw new ArgumentException($"The origin map does not cover '{Path}' or misquotes a verbatim segment.", nameof(Origin));
+            }
+
+            field = value;
+        }
+    }
+
     public string ContentHash => field ??= Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Contents)));
 
     /// <summary>

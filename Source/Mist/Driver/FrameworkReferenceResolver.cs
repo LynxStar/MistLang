@@ -114,6 +114,13 @@ public static class FrameworkReferenceResolver
             failureCount);
     }
 
+    internal static string? ResolvedVersion(string frameworkName, string targetFramework)
+    {
+        return SdkDiscovery.FindDotnetRoot() is { } dotnetRoot
+            ? ResolvePack(dotnetRoot, frameworkName, targetFramework)?.Version
+            : null;
+    }
+
     /// <summary>
     /// Locates the highest-version reference pack for the given framework that
     /// supports the target framework. Path pattern:

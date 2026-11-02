@@ -1,0 +1,25 @@
+using System;
+using Standard;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using RazorComponents.Components;
+
+namespace RazorComponents;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var provider = services.BuildServiceProvider();
+        var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var html = await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var output = await renderer.RenderComponentAsync<Counter>();
+            return output.ToHtmlString();
+        });
+        Console.WriteLine(html);
+    }
+}

@@ -86,7 +86,7 @@ public sealed class DiagnosticJsonWriterTests
     [InlineData(2, "fileOnly", "file.mist:")]
     [InlineData(3, "project", "mist.toml:")]
     [InlineData(4, "external", "error")]
-    [InlineData(5, "generated", "out/file.cs:")]
+    [InlineData(5, "generated", "file.mist(1,2):")]
     [InlineData(6, "absent", "error")]
     public void LocationsShareExactPathsWithTextWithoutInventedPositions(int shape, string kind, string prefix)
     {
@@ -114,6 +114,31 @@ public sealed class DiagnosticJsonWriterTests
         {
             Assert.Equal(path, encoded.GetProperty("path").GetString());
         }
+    }
+
+    [Fact]
+    public void ARangeInATranslatedTextCarriesBothTheTranslatedAndTheMappedPosition()
+    {
+        var razor = new MistSourceText("Counter.razor", "<p>\n@count</p>");
+        var translated = new MistSourceText("out/translated/Counter.razor.mist", "x(\ncount);")
+        {
+            Origin = new([
+                new OriginSegment(0, 3, razor, 4, 6, Verbatim: false),
+                new OriginSegment(3, 5, razor, 5, 5, Verbatim: true),
+                new OriginSegment(8, 2, razor, 4, 6, Verbatim: false),
+            ]),
+        };
+        var bag = new DiagnosticBag();
+        bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9001", "message"), new SourceRange(new SourceIdentity(translated), 4, 2));
+
+        using var json = JsonDocument.Parse(DiagnosticJsonWriter.Serialize(new("mist", "build", ".", "failed", bag.ToImmutableArray(), [])));
+
+        var location = json.RootElement.GetProperty("diagnostics")[0].GetProperty("location");
+        var mapped = location.GetProperty("mapped");
+        Assert.Equal(("generated", "out/translated/Counter.razor.mist", 2, 2), (location.GetProperty("kind").GetString(),
+            location.GetProperty("path").GetString(), location.GetProperty("line").GetInt32(), location.GetProperty("column").GetInt32()));
+        Assert.Equal(("sourceRange", "Counter.razor", 2, 3, 6, 2), (mapped.GetProperty("kind").GetString(), mapped.GetProperty("path").GetString(),
+            mapped.GetProperty("line").GetInt32(), mapped.GetProperty("column").GetInt32(), mapped.GetProperty("offset").GetInt32(), mapped.GetProperty("length").GetInt32()));
     }
 
     private static IEnumerable<string> Keys(JsonElement element)

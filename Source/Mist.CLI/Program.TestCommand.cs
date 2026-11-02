@@ -23,7 +23,7 @@ internal partial class Program
             ? new ConsoleProgressReporter(Console.Out)
             : NullProgressReporter.Instance;
         var totalStopwatch = Stopwatch.StartNew();
-        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), reporter, output);
+        var sourceFiles = DiscoverSourcesAndClean(LayoutOf(cliArgs), cliArgs.BackendId, reporter, output);
         if(sourceFiles is null)
         {
             return 1;

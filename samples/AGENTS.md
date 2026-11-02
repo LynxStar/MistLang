@@ -42,6 +42,7 @@ the record of which samples run.
 | `GenericSelfReceivers` | Written 2026-10-15, after classic was retired. |
 | `TypeValues` | Written 2026-10-22, after classic was retired; banks a declared type and a type parameter named as a `Type` value. |
 | `ClrSlotFilling` | Written 2026-10-30, after classic was retired; banks Mist members filling CLR class slots (`Collection<int>.InsertItem`, `KeyedCollection.GetKeyForItem`, `Attribute.IsDefaultAttribute`, `ToString`, `Exception.Message`) read through the base type. |
+| `RazorComponents` | Written 2026-11-01, after classic was retired; banks the razor-components fixture, `Counter.razor` with `Greeting.razor` nested under it, rendered to HTML through `HtmlRenderer`. Captured from v2; the HTML was compared byte for byte with a C# Blazor component of the same markup built by SDK 10.0.301, and read against the components by hand. |
 | `StructuredContext`, section 20 | V2-ONLY: added 2026-10-21 for MIST-168; gated overlapping task contexts and parent restoration, captured from v2 and checked against the program by hand. |
 | `StructuredContext`, section 19 | Added 2026-10-11, after classic was retired; classic erased a generic clause's key to its CLR type. |
 | `Variadics`, `RefinementTypes`, `DropSemantics`, `DelegateFuncConversion`, `OptionalDefaultability`, `DefaultKeyword` and `VoidType` (`HoistingDemo`), the sections added 2026-10-12 | Bank the claims of the retired compile-and-run tests; captured from v2 and read against the programs by hand. |

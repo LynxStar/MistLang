@@ -78,7 +78,6 @@ public sealed class FactoryLocationBoundsTests
         var expected = shape switch
         {
             "project" => "mist.toml: error FIXTURE_BOUNDS: placed",
-            "generated" => "out.cs: error FIXTURE_BOUNDS: placed",
             _ when start == 0 => "probe.mist(1,1): error FIXTURE_BOUNDS: placed",
             _ => "probe.mist(3,3): error FIXTURE_BOUNDS: placed",
         };

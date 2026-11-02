@@ -2583,3 +2583,14 @@ True
 tally of 1
 oops from mist
 === CLR Slot Filling Done ===
+=== Razor Components ===
+
+
+<h1>Counter</h1>
+
+<p role="status">Current count: 0</p>
+<p>The count is a Int32.</p><p>Never reset.</p><button class="btn btn-primary">Click me</button>
+<button class="btn btn-secondary">Reset</button>
+
+<section class="greeting"><h2>Counter says</h2><div class="body"><em>Nested from the counter.</em></div><p>Shown 0 times.</p></section>
+=== Razor Components Done ===

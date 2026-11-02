@@ -1,0 +1,12 @@
+@using System
+@using Microsoft.AspNetCore.Components.Routing
+
+<Router AppAssembly="appType.Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" />
+    </Found>
+</Router>
+
+@code {
+    private Type appType = App;
+}

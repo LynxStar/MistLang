@@ -18,12 +18,21 @@ internal sealed class DeploymentFiles : IDeploymentFileSource
 
     public ImmutableArray<string> RuntimesListing(string outputDirectory)
     {
-        var runtimes = Path.Combine(outputDirectory, "runtimes");
+        return Files(Path.Combine(outputDirectory, "runtimes"), outputDirectory);
+    }
+
+    public ImmutableArray<string> Listing(string directory)
+    {
+        return Files(directory, directory);
+    }
+
+    private static ImmutableArray<string> Files(string directory, string relativeTo)
+    {
         try
         {
-            return Directory.Exists(runtimes)
-                ? [.. Directory.EnumerateFiles(runtimes, "*", SearchOption.AllDirectories)
-                    .Select(file => Path.GetRelativePath(outputDirectory, file))]
+            return Directory.Exists(directory)
+                ? [.. Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                    .Select(file => Path.GetRelativePath(relativeTo, file))]
                 : [];
         }
         catch(Exception exception) when(exception is IOException or UnauthorizedAccessException)

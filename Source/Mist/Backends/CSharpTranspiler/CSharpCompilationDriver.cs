@@ -244,7 +244,9 @@ public sealed class CSharpCompilationDriver
         IReadOnlyDictionary<string, DeclarationOrigin>? declarationOrigins = null,
         ImmutableArray<FrameworkReference> frameworkReferences = default,
         ImmutableArray<string> runtimeIdentifiers = default,
-        ImmutableArray<RuntimeAsset> runtimeAssets = default)
+        ImmutableArray<RuntimeAsset> runtimeAssets = default,
+        string projectFolder = "",
+        string? frameworkAssetsDirectory = null)
     {
         if(!Directory.Exists(binDirectory))
         {
@@ -342,7 +344,8 @@ public sealed class CSharpCompilationDriver
 
         var deployment = RuntimeAssetDeployment.Plan(
             binDirectory, referencePaths, runtimeAssets, externalAssemblies, runtimeIdentifiers, DeploymentFiles.Instance);
-        Deploy(deployment.Copies);
+        Deploy(deployment.Copies.AddRange(
+            StaticAssetDeployment.Plan(binDirectory, projectFolder, frameworkAssetsDirectory, DeploymentFiles.Instance)));
 
         foreach(var facade in facades)
         {
@@ -364,6 +367,7 @@ public sealed class CSharpCompilationDriver
         {
             try
             {
+                _ = Directory.CreateDirectory(Path.GetDirectoryName(copy.Destination)!);
                 File.Copy(copy.Source, copy.Destination, overwrite: true);
             }
             catch(Exception exception) when(exception is IOException or UnauthorizedAccessException)

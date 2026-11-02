@@ -11,4 +11,9 @@ namespace Mist.Driver.Contracts;
 public interface IAmbientTypeSource : IAmbientTypeProvider, IDisposable
 {
     Type? FindClrType(string fullName);
+
+    Type? FindClrType(string fullName, bool ignoreArity)
+    {
+        return FindClrType(fullName);
+    }
 }

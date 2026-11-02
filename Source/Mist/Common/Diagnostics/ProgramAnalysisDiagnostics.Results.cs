@@ -3,7 +3,7 @@ namespace Mist.Common.Diagnostics;
 public static partial class ProgramAnalysisDiagnostics
 {
     public static readonly MistDiagnostic ResultPropagationDestination = new(
-        DiagnosticNumber.Mint("MIST0479"),
+        DiagnosticNumber.Mint("MIST0483"),
         Title: "Propagation needs an error return destination",
         Template: "Error propagation requires a compatible error return destination in this callable.",
         Description: "Use a Result-returning factory instead of a constructor, or declare a return type that accepts the propagated error.",

@@ -134,6 +134,11 @@ internal sealed partial class OwnershipFlow(
 
     public State Transfer(State state, FlowStep step)
     {
+        if(SnapshotAt(step) is { } snapshot)
+        {
+            return state with { Moved = Without(state.Moved, snapshot.Place).SetItem(snapshot.Place, new Moved(snapshot.Pattern, Dropped: false)) };
+        }
+
         if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression }
             && expression is not (ResultIdentityExpression or ElementReadExpression) && ResultTransfers.Source(expression) is { } transfer && Place.Of(transfer) is { } transferred)
         {

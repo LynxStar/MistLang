@@ -484,7 +484,8 @@ internal sealed partial class Origins
         return local switch
         {
             { Ownership: OwnershipKind.Owned } => Origin.Own,
-            _ when ResultTransfers.Payloads(local.Type).Count > 0 && ResultTransfers.Discipline(local.Type) != SubstructuralDiscipline.None => Origin.Own,
+            _ when local.Ownership == OwnershipKind.Unrestricted && ResultTransfers.Payloads(local.Type).Count > 0
+                && ResultTransfers.Discipline(local.Type) != SubstructuralDiscipline.None => Origin.Own,
             { Ownership: OwnershipKind.Frozen } when assigned.Contains(local) => Origin.External,
             { Ownership: OwnershipKind.Frozen } => leased.TryGetValue(local, out var lender) ? Worst(Origin.Frozen, Of(lender)) : Origin.Frozen,
             { IsRef: true, Parameter: null } => refTargets.TryGetValue(local, out var target) ? OfReferent(target) : Origin.External,

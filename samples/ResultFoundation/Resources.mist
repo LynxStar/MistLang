@@ -90,16 +90,26 @@ public class Resources
         }
         {
             var result = Make(3);
-            if (result.Inspect() is (true, var token))
+            var inspected = result.Inspect();
+            if (inspected is (true, var token))
             {
                 Console.WriteLine($"inspected={token.Id}");
             }
+            else if (inspected is (false, var error))
+            {
+                Console.WriteLine(error);
+            }
         }
         {
-            if (Make(5).Inspect() is (true, var token))
+            var inspected = Make(5).Inspect();
+            if (inspected is (true, var token))
             {
                 Console.WriteLine($"fresh={token.Id}");
                 token.Drop();
+            }
+            else if (inspected is (false, var error))
+            {
+                Console.WriteLine(error);
             }
         }
         {
@@ -117,6 +127,10 @@ public class Resources
                 owned var moved = payload;
                 Console.WriteLine($"owned={moved.Id}");
             }
+            else if (snapshot is (false, var error))
+            {
+                Console.WriteLine(error);
+            }
         }
         {
             var result = Make(4);
@@ -124,6 +138,10 @@ public class Resources
             if (snapshot is (true, var token))
             {
                 Console.WriteLine($"snapshot={token.Id}");
+            }
+            else if (snapshot is (false, var error))
+            {
+                Console.WriteLine(error);
             }
         }
     }

@@ -144,6 +144,35 @@ public sealed class ResultFlowTests
         Assert.Equal(!borrowed, findings.Any(finding => finding.Number == Mist.Common.Diagnostics.ProgramAnalysisDiagnostics.UseAfterMove.Number));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExtractingAnOwnedSnapshotPayloadConsumesThatSnapshotUntilReassignment(bool reassign)
+    {
+        var resource = Class("Resource");
+        resource.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
+        var inspection = shapes.Inspection(resource, shapes.Text);
+        var snapshot = new LocalVariable("snapshot", inspection);
+        var tuple = shapes.Built.Interner.GetOrCreateTupleType([shapes.True, resource]);
+        IfStatement extract()
+        {
+            var payload = new LocalVariable("payload", resource) { Ownership = OwnershipKind.Owned };
+            var pattern = new TuplePattern(Node(), [shapes.Tag(true), new CatchAllPattern(Node(), resource, payload)], tuple, null, null)
+            { CorrelatedInput = inspection, Constituent = tuple };
+            return new IfStatement(new IsPatternExpression(Node(), new LocalReferenceExpression(Node(), snapshot), pattern, shapes.Boolean), Block(), null);
+        }
+
+        var statements = new List<Statement> { new LocalDeclarationStatement(snapshot, Literal(inspection)), extract() };
+        if(reassign)
+        {
+            statements.Add(new ExpressionStatement(new AssignmentExpression(Node(), new LocalReferenceExpression(Node(), snapshot), Literal(inspection), inspection)));
+        }
+
+        statements.Add(extract());
+        var findings = shapes.Built.Analyze(new OwnershipAnalyzer(), Block([.. statements]));
+        Assert.Equal(!reassign, findings.Any(finding => finding.Number == Mist.Common.Diagnostics.ProgramAnalysisDiagnostics.UseAfterMove.Number));
+    }
+
     private static IEnumerable<FlowBlock> Reachable(FlowBlock start)
     {
         var pending = new Stack<FlowBlock>();

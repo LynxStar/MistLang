@@ -60,6 +60,8 @@ internal static class ResultTransfers
     public static bool IsOwned(Expression expression)
     {
         return expression is LocalReferenceExpression { Local.Ownership: OwnershipKind.Owned }
+            || (expression is LocalReferenceExpression { Local: { Ownership: OwnershipKind.Unrestricted, IsRef: false } local }
+                && Payloads(local.Type).Count > 0 && Discipline(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine)
             || (Source(expression) is { } source && IsOwned(source))
             || expression is InvocationExpression { Method.Modifiers.IsOwned: true } or InvocationExpression { Method.ReturnOwnership: OwnershipKind.Owned };
     }

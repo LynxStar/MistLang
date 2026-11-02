@@ -38,6 +38,24 @@ internal sealed partial class OwnershipFlow
 
     private void Judge(FlowGraph graph, State state, FlowStep step)
     {
+        if(SnapshotAt(step) is { } snapshot)
+        {
+            if(state.Moved.TryGetValue(snapshot.Place, out var moved))
+            {
+                if(!ReferenceEquals(moved.Node, snapshot.Pattern))
+                {
+                    context.Report(ProgramAnalysisDiagnostics.UseAfterMove, snapshot.Source.Node, [snapshot.Source],
+                        new NameValue(snapshot.Place.Display), new EnumValue(moved.Dropped ? "dropped" : "moved"));
+                }
+            }
+            else
+            {
+                JudgeAction(state, snapshot.Place, snapshot.Source, Action.Move);
+            }
+
+            return;
+        }
+
         if(step is { Kind: FlowStepKind.Evaluate, Node: Expression expression }
             && expression is not (ResultIdentityExpression or ElementReadExpression) && ResultTransfers.Source(expression) is { } transfer && Place.Of(transfer) is { } transferred && Place.Tracked(transferred))
         {

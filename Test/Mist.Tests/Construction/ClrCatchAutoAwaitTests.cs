@@ -70,7 +70,9 @@ public sealed class ClrCatchAutoAwaitTests
         var method = ClrCatchBindingTests.Catch(shapes);
         var group = new MethodGroupExpression(Node(), null, "Catch", [method], null);
 
-        // The reference the direct call adapts to: Task<Result<T, E>>, not the declared Result<Task<T>, E>.
+        // The value form carries the task-adapted Task<Result<T, E>> the direct call produces, not the
+        // declared Result<Task<T>, E> that covers only task creation: the adapted target converts and the
+        // unadapted one is refused rather than silently accepted.
         var converted = MethodGroupConversion.Convert(group, new FunctionType([operation], adapted), f.Builder, out _);
         var reference = Assert.IsType<FunctionReferenceExpression>(converted);
         Assert.Same(method, reference.Method);
@@ -79,7 +81,6 @@ public sealed class ClrCatchAutoAwaitTests
         Assert.NotNull(intercepted);
         Assert.Same(f.Built.Type("Int32"), intercepted.Success);
 
-        // The unadapted shape covers only task creation, so it is refused rather than silently accepted.
         var declared = new FunctionType([operation], shapes.Result(foreignReturn, shapes.Text));
         Assert.Null(MethodGroupConversion.Convert(group, declared, f.Builder, out _));
         Assert.Empty(f.Diagnostics.ToImmutableArray());

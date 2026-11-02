@@ -78,14 +78,22 @@ internal static class MethodGroupConversion
     /// <summary>
     /// What the one overload taking exactly these parameter types returns, for a call that learns its own
     /// type arguments from a group's result, or null where no overload or several do. The same choice
-    /// <see cref="Convert"/> makes, with the result left for the overload to say.
+    /// <see cref="Convert"/> makes, with the result left for the overload to say -- a Catch group's
+    /// task-adapted return (<see cref="SignatureIs"/>), so an outer generic method learns the shape its
+    /// reference produces rather than the declared one.
     /// </summary>
     internal static IMistType? ResultType(
-        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, TypeInterner interner)
+        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask = null)
     {
-        return Preferred(group, parameterTypes, returnType: null, interner, constructTask: null) is [var (match, substitution)]
-            ? substitution.Apply(match.ReturnType, interner)
-            : null;
+        if(Preferred(group, parameterTypes, returnType: null, interner, constructTask) is not [var (match, substitution)])
+        {
+            return null;
+        }
+
+        var declaredReturn = substitution.Apply(match.ReturnType, interner);
+
+        return constructTask is null ? declaredReturn : ClrCatch.Adapt(match, declaredReturn, constructTask, interner);
     }
 
     private static List<(Method Method, TypeSubstitution Substitution)> Preferred(
@@ -134,9 +142,10 @@ internal static class MethodGroupConversion
         return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
     }
 
-    internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner)
+    internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask = null)
     {
-        return Convert(group, parameterType, interner) is not null;
+        return Convert(group, parameterType, interner, out _, constructTask) is not null;
     }
 
     internal static IReadOnlyList<Expression> Settle(

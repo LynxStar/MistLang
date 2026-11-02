@@ -489,7 +489,7 @@ internal static class ExpressionBinder
 
         var choice = OverloadResolution.Select(
             declared, arguments, constructed, null, context.ProgramModel.TypeInterner,
-            argumentIsRef, lambdas: lambdas, contextual: contextual);
+            argumentIsRef, lambdas: lambdas, contextual: contextual, constructTask: context.Resolver.ConstructTask);
 
         if(choice.Selected is null)
         {

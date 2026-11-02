@@ -58,9 +58,6 @@ internal static class ClrCatchEmitter
         writer.Append(inputs.Count == 1 ? ")" : "))");
     }
 
-    // Taking the intrinsic as a value closes its pack to the delegate's parameters, so the same boundary
-    // is written over named parameters rather than a prepared tuple, and the delegate itself defers
-    // evaluation of every input until it is invoked.
     public static string Reference(FunctionReferenceExpression reference)
     {
         var delegateType = (IFunctionType)TypeNameEmitter.Closed(reference.Type);

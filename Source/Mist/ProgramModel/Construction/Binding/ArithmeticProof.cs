@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
@@ -15,10 +16,11 @@ internal static class ArithmeticProof
         Fallible,
     }
 
-    public static Verdict? Judge(BinaryOperatorKind op, IMistType numericType, Admitted left, Admitted right)
+    public static Verdict? Judge(BinaryOperatorKind op, IMistType numericType, Admitted left, Admitted right,
+        Int128? leftConstant = null, Int128? rightConstant = null)
     {
         if(op is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo)
-            || Contract(numericType, "Nonzero") is not { } nonzero)
+            || Contract(numericType, "Nonzero") is null)
         {
             return null;
         }
@@ -28,29 +30,44 @@ internal static class ArithmeticProof
             return Verdict.Fallible;
         }
 
-        if(right.IsSubsetOf(nonzero.Not()))
+        if(Satisfies(numericType, "Nonzero", right, rightConstant, negated: true))
         {
             return Verdict.Invalid;
         }
 
-        var noOverflow = Contract(numericType, "QuotientDividend") is not { } dividend
-            || Contract(numericType, "QuotientDivisor") is not { } divisor
-            || left.IsSubsetOf(dividend) || right.IsSubsetOf(divisor);
+        var noOverflow = Contract(numericType, "QuotientDividend") is null
+            || Contract(numericType, "QuotientDivisor") is null
+            || Satisfies(numericType, "QuotientDividend", left, leftConstant) || Satisfies(numericType, "QuotientDivisor", right, rightConstant);
 
         if(op == BinaryOperatorKind.Modulo)
         {
-            return !right.IsSubsetOf(nonzero) ? Verdict.Fallible
+            return !Satisfies(numericType, "Nonzero", right, rightConstant) ? Verdict.Fallible
                 : noOverflow ? Verdict.Safe : Verdict.SafeGuardedRemainder;
         }
 
-        if(Contract(numericType, "QuotientDividend") is { } validLeft
-            && Contract(numericType, "QuotientDivisor") is { } validRight
-            && left.IsSubsetOf(validLeft.Not()) && right.IsSubsetOf(validRight.Not()))
+        if(Contract(numericType, "QuotientDividend") is not null
+            && Contract(numericType, "QuotientDivisor") is not null
+            && Satisfies(numericType, "QuotientDividend", left, leftConstant, negated: true)
+            && Satisfies(numericType, "QuotientDivisor", right, rightConstant, negated: true))
         {
             return Verdict.Invalid;
         }
 
-        return right.IsSubsetOf(nonzero) && noOverflow ? Verdict.Safe : Verdict.Fallible;
+        return Satisfies(numericType, "Nonzero", right, rightConstant) && noOverflow ? Verdict.Safe : Verdict.Fallible;
+    }
+
+    private static bool Satisfies(IMistType numeric, string name, Admitted values, Int128? constant, bool negated = false)
+    {
+        if(constant is { } exact && (exact < long.MinValue || exact > long.MaxValue))
+        {
+            var declared = numeric.NestedTypes.FirstOrDefault(type => type.Name == name);
+            var predicate = declared is null ? null : (Requirement.Refined(declared) as RefinedType)?.Predicate;
+            var required = RealRequirement.Of(predicate, RealKind.Decimal);
+            return required is not null && (negated ? required.Not() : required)
+                .Contains(new LiteralValue((decimal)exact, "Standard.Decimal"));
+        }
+
+        return Contract(numeric, name) is { } contract && values.IsSubsetOf(negated ? contract.Not() : contract);
     }
 
     private static Admitted? Contract(IMistType numeric, string name)

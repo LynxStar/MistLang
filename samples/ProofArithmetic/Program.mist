@@ -5,6 +5,23 @@ namespace ProofArithmetic;
 public type Count = new int;
 public type SmallCount = new short;
 
+public class Weight
+{
+    public int Amount { get; }
+
+    public Weight(int amount) { Amount = amount; }
+
+    public static int operator +(Result<int, DivisionError> a, Weight b)
+    {
+        return Program.Value(a) + b.Amount;
+    }
+
+    public static int operator +(Weight a, Result<int, DivisionError> b)
+    {
+        return a.Amount + Program.Value(b);
+    }
+}
+
 public class Program
 {
     public static void Main()
@@ -129,6 +146,53 @@ public class Program
         Console.WriteLine($"decimal product -> {Decimals(product)}");
         var byZeroDecimal = money / DecimalZero();
         Console.WriteLine($"decimal / 0 -> {Decimals(byZeroDecimal)}");
+        Console.WriteLine($"wrapped integer guard -> {Division(WrappedIntegerGuard(Minimum()))}");
+        Console.WriteLine($"wrapped decimal guard -> {Failed(WrappedDecimalGuard(-2147483648m))}");
+        Console.WriteLine($"upper ulong constant -> {UpperConstant()}");
+        Console.WriteLine($"upper ulong local -> {UpperLocal()}");
+        Console.WriteLine($"upper ulong folded -> {UpperFolded()}");
+        Result<int, DivisionError> success = 3;
+        Result<int, DivisionError> failure = DivisionError.DivideByZero();
+        var weight = new Weight(4);
+        Console.WriteLine($"user Result operator -> {success + weight}");
+        Console.WriteLine($"user mirrored operator -> {weight + success}");
+        Console.WriteLine($"user receives failure -> {failure + weight}");
+    }
+
+    public static Result<int, DivisionError> WrappedIntegerGuard(int a)
+    {
+        if (a >= -(-2147483648)) { return a / -1; }
+        return 0;
+    }
+
+    public static Result<Decimal, System.Exception> WrappedDecimalGuard(Decimal a)
+    {
+        if (a >= -(-2147483648)) { return a - 79228162514264337593543950335m; }
+        return 0m;
+    }
+
+    public static bool Failed<T, E>(Result<T, E> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => false,
+            (false, var error) => true,
+            _ => false
+        };
+    }
+
+    public static ulong UpperConstant() { return 1UL / 18446744073709551615UL; }
+
+    public static ulong UpperLocal()
+    {
+        ulong d = 18446744073709551615UL;
+        return 1UL / d;
+    }
+
+    public static ulong UpperFolded()
+    {
+        ulong d = 0UL - 1UL;
+        return 1UL / d;
     }
 
     public static void Clear(ref int value)

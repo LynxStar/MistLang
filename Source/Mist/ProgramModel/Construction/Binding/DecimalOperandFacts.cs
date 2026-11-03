@@ -10,12 +10,18 @@ internal static class DecimalOperandFacts
 {
     public static RealSet For(BindingContext ctx, Scope scope, Expression operand)
     {
+        if(operand is ImplicitConversionExpression { Operator.Modifiers.IsIntrinsic: true } conversion
+            && RealRequirement.KindOf(conversion.Type) == RealKind.Decimal
+            && (Requirement.IsIntegral(conversion.Operand.Type) || RealRequirement.KindOf(conversion.Operand.Type) == RealKind.Decimal))
+        {
+            return For(ctx, scope, conversion.Operand);
+        }
+
         if(Requirement.IsIntegral(operand.Type))
         {
-            var integral = OperandFacts.For(ctx, scope, operand);
-            if(integral.Low is { } low && integral.High == low)
+            if(IntegerOperandValue.Exact(ctx, scope, operand) is { } value)
             {
-                return RealSet.Exactly(RealKind.Decimal, new LiteralValue((decimal)low, "Standard.Decimal"))!;
+                return RealSet.Exactly(RealKind.Decimal, new LiteralValue((decimal)value, "Standard.Decimal"))!;
             }
 
             return RealSet.Everything(RealKind.Decimal);
@@ -61,7 +67,8 @@ internal static class DecimalOperandFacts
     public static void Narrow(BindingContext ctx, BodyScope scope, LocalVariable local, ComparisonKind kind, Expression bound, bool holds)
     {
         if(OperandFacts.IsMutable(ctx, local) || RealRequirement.KindOf(local.Type) != RealKind.Decimal
-            || RealRequirement.Compared(kind, bound, RealKind.Decimal) is not { } narrowed)
+            || DecimalArithmeticProof.Exact(For(ctx, scope, bound)) is not { } constant
+            || RealSet.Compare(RealKind.Decimal, kind, new LiteralValue(constant, "Standard.Decimal")) is not { } narrowed)
         {
             return;
         }

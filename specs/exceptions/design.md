@@ -723,6 +723,11 @@ used as a typed or inferred ref-alias initializer, or returned by ref, supplies
 no stored facts. This conservative
 write scan includes nested callables, branches and loop backedges. `IntegerOperandFold`
 uses the selected result width, including wrapping, rather than a wider intermediate.
+Guard bounds use the same evaluated-value facts, including when an integral bound
+is converted to Decimal. Unknown bounds do not narrow either domain. Exact integral
+facts retain the full UInt64 range alongside the shared signed interval facts;
+full-width constants are checked against Standard's predicates through the shared
+Decimal set representation, which represents every UInt64 value exactly.
 Properties and calls acquire no facts from a previous evaluation. Operands are
 passed once to the selected helper or operator.
 
@@ -748,7 +753,9 @@ Result assignment remains invariant.
 
 Operator declarations support inferred type parameters and ordinary constraints.
 Resolution discovers composition declarations through a Result operand's numeric
-payload type; bare numeric operands do not admit these candidates. Newtype clones
+payload type; bare numeric operands do not admit these candidates. This restriction
+applies to Standard numeric declarations; user operators on either operand retain
+ordinary lookup even when a parameter is a Result. Newtype clones
 exclude Result composition operators before resolving their signatures, while
 intrinsic numeric operators retain their fallible contracts. Their target
 implementations invoke the checked source operation once and wrap only its success. Numeric Mist-bodied

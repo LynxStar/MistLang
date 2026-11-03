@@ -130,6 +130,8 @@ internal sealed class BindingContext
 
     public Dictionary<BodyScope, Dictionary<LocalVariable, RealSet>> DecimalFacts { get; }
 
+    public Dictionary<LocalVariable, Int128> IntegerConstants { get; }
+
     public IReadOnlySet<string> AssignedLocals { get; set; } = EmptyNames;
 
     private static readonly IReadOnlySet<string> EmptyNames = new HashSet<string>(StringComparer.Ordinal);
@@ -138,6 +140,7 @@ internal sealed class BindingContext
     {
         Scope = scope;
         ReturnType = returnType;
+        IntegerConstants = new Dictionary<LocalVariable, Int128>(ReferenceEqualityComparer.Instance);
         DecimalFacts = new Dictionary<BodyScope, Dictionary<LocalVariable, RealSet>>(ReferenceEqualityComparer.Instance);
         ArithmeticFacts = new Dictionary<BodyScope, Dictionary<LocalVariable, Admitted>>(ReferenceEqualityComparer.Instance);
     }
@@ -153,6 +156,7 @@ internal sealed class BindingContext
     {
         ArithmeticFacts = enclosing.ArithmeticFacts;
         DecimalFacts = enclosing.DecimalFacts;
+        IntegerConstants = enclosing.IntegerConstants;
         AssignedLocals = enclosing.AssignedLocals;
         ReturnTypeIsFailed = ReferenceEquals(ReturnType, enclosing.ReturnType) && enclosing.ReturnTypeIsFailed;
         ExitCodeType = enclosing.ExitCodeType;

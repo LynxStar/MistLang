@@ -6,15 +6,15 @@ namespace Mist.ProgramModel.Construction.Binding;
 // Facts describe the selected fixed-width result, including its wrapping, rather than a wider intermediate.
 internal static class IntegerOperandFold
 {
-    public static long? Fold(IMistType type, BinaryOperatorKind op, long left, long right)
+    public static Int128? Fold(IMistType type, BinaryOperatorKind op, Int128 left, Int128 right)
     {
         Int128? result = op switch
         {
-            BinaryOperatorKind.Add => (Int128)left + right,
-            BinaryOperatorKind.Subtract => (Int128)left - right,
-            BinaryOperatorKind.Multiply => (Int128)left * right,
-            BinaryOperatorKind.Divide when right != 0 => (Int128)left / right,
-            BinaryOperatorKind.Modulo when right != 0 => (Int128)left % right,
+            BinaryOperatorKind.Add => left + right,
+            BinaryOperatorKind.Subtract => left - right,
+            BinaryOperatorKind.Multiply => unchecked(left * right),
+            BinaryOperatorKind.Divide when right != 0 => left / right,
+            BinaryOperatorKind.Modulo when right != 0 => left % right,
             _ => null,
         };
 
@@ -32,7 +32,7 @@ internal static class IntegerOperandFold
             "Standard.Int32" => unchecked((int)value),
             "Standard.UInt32" => unchecked((uint)value),
             "Standard.Int64" => unchecked((long)value),
-            "Standard.UInt64" when unchecked((ulong)value) <= long.MaxValue => (long)unchecked((ulong)value),
+            "Standard.UInt64" => unchecked((ulong)value),
             _ => null,
         };
     }

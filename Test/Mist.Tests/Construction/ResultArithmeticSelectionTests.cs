@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -73,6 +74,23 @@ public sealed class ResultArithmeticSelectionTests
         { DeclaringType = f.Integer };
         f.Integer.OperatorsList.Add(precise);
         Assert.Same(precise, OperatorSelection.Select(OperatorKind.Plus, [type, type], null, f.Shapes.Built.Interner).Selected!.Declaration);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UserOperatorsOnEitherOperandKeepTheirResultParameters(bool resultOnRight)
+    {
+        var f = new Fixture();
+        var weight = HandBuiltModel.Class("Weight");
+        var result = f.Shapes.Result(f.Integer, f.Division);
+        var operands = resultOnRight ? new IMistType[] { weight, result } : new IMistType[] { result, weight };
+        var declared = new Operator(OperatorKind.Plus, f.Integer,
+            [new Parameter("a", operands[0]), new Parameter("b", operands[1])], new MemberModifiers { IsStatic = true })
+        { DeclaringType = weight };
+        weight.OperatorsList.Add(declared);
+
+        Assert.Same(declared, OperatorSelection.Select(OperatorKind.Plus, operands, null, f.Shapes.Built.Interner).Selected?.Declaration);
     }
 
     private sealed class Fixture

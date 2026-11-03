@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Expressions;
@@ -38,9 +39,12 @@ public sealed class ArithmeticProofTests
         void add(string contract, long excluded)
         {
             var comparison = new ComparisonPattern(HandBuiltModel.Node(), type, ComparisonKind.Equal, HandBuiltModel.Literal(type, excluded));
-            type.NestedTypes.Add(new RefinedType(type, HandBuiltModel.Node(), contract)
+            type.NestedTypes.Add(new TypeAlias(contract, "Standard", type.Scope, type, new TypeAliasDeclarationNode())
             {
-                Predicate = new NegatedPattern(HandBuiltModel.Node(), type, comparison),
+                AliasedType = new RefinedType(type, HandBuiltModel.Node(), contract)
+                {
+                    Predicate = new NegatedPattern(HandBuiltModel.Node(), type, comparison),
+                },
             });
         }
     }
@@ -156,5 +160,14 @@ public sealed class ArithmeticProofTests
             BinaryOperatorKind.Divide, Unsigned, Admitted.Everything, Admitted.AtLeast(1)));
         Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
             BinaryOperatorKind.Divide, Unsigned, Admitted.Everything, Admitted.Everything));
+    }
+    [Theory]
+    [InlineData((int)BinaryOperatorKind.Divide)]
+    [InlineData((int)BinaryOperatorKind.Modulo)]
+    public void FullWidthUnsignedConstantsMeetTheDeclaredNonzeroContract(int kind)
+    {
+        var op = (BinaryOperatorKind)kind;
+        Assert.Equal(ArithmeticProof.Verdict.Safe, ArithmeticProof.Judge(
+            op, Family("UInt64", null), Admitted.Everything, Admitted.Everything, rightConstant: ulong.MaxValue));
     }
 }

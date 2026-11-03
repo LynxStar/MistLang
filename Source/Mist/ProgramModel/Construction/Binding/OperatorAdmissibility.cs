@@ -233,7 +233,7 @@ internal static class OperatorAdmissibility
         return WellKnownTypes.Int32;
     }
 
-    private static bool IsNumeric(IMistType type)
+    internal static bool IsNumeric(IMistType type)
     {
         return NumericPromotionOrder.Concat(IntegralOperands).Any(candidate => Is(type, candidate));
     }

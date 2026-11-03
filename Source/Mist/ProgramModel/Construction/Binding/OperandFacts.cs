@@ -50,9 +50,10 @@ internal static class OperandFacts
     {
         var values = Admitted.Everything;
 
-        if(operand is not UnaryExpression && Requirement.Constant(operand) is { } constant)
+        if(IntegerOperandValue.Exact(ctx, scope, operand) is { } constant
+            && constant >= long.MinValue && constant <= long.MaxValue)
         {
-            values = values.And(Admitted.Exactly(constant));
+            values = values.And(Admitted.Exactly((long)constant));
         }
 
         if(Requirement.ValuesOf(operand.Type) is { } declared)
@@ -65,27 +66,7 @@ internal static class OperandFacts
             values = values.And(FactFor(ctx, scope, local.Local));
         }
 
-        if(operand is UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } } unary
-            && Exact(For(ctx, scope, unary.Operand)) is { } original
-            && IntegerOperandFold.Fold(unary.Type, BinaryOperatorKind.Subtract, 0, original) is { } negated)
-        {
-            values = values.And(Admitted.Exactly(negated));
-        }
-
-        if(operand is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } arithmetic
-            && Exact(For(ctx, scope, arithmetic.Left)) is { } leftValue
-            && Exact(For(ctx, scope, arithmetic.Right)) is { } rightValue
-            && IntegerOperandFold.Fold(arithmetic.Type, arithmetic.OperatorKind, leftValue, rightValue) is { } folded)
-        {
-            values = values.And(Admitted.Exactly(folded));
-        }
-
         return values;
-    }
-
-    private static long? Exact(Admitted values)
-    {
-        return values.Low is { } low && values.High == low ? low : null;
     }
 
     public static void Declared(BindingContext ctx, BodyScope scope, LocalVariable local, Expression? initializer)
@@ -94,6 +75,10 @@ internal static class OperandFacts
         if(!IsMutable(ctx, local) && initializer is not null)
         {
             Facts(ctx, scope)[local] = For(ctx, scope, initializer);
+            if(IntegerOperandValue.Exact(ctx, scope, initializer) is { } constant)
+            {
+                ctx.IntegerConstants[local] = constant;
+            }
         }
     }
 
@@ -110,13 +95,15 @@ internal static class OperandFacts
                 when Compare(comparison.OperatorKind) is { } kind:
                 var effective = comparison.OperatorKind == BinaryOperatorKind.NotEqual ? !holds : holds;
 
-                if(comparison.Left is LocalReferenceExpression subject && Requirement.Constant(comparison.Right) is { } bound)
+                if(comparison.Left is LocalReferenceExpression subject && IntegerOperandValue.Exact(ctx, scope, comparison.Right) is { } bound
+                    && bound >= long.MinValue && bound <= long.MaxValue)
                 {
-                    Narrow(ctx, scope, subject.Local, kind, bound, effective);
+                    Narrow(ctx, scope, subject.Local, kind, (long)bound, effective);
                 }
-                else if(comparison.Right is LocalReferenceExpression mirrored && Requirement.Constant(comparison.Left) is { } limit)
+                else if(comparison.Right is LocalReferenceExpression mirrored && IntegerOperandValue.Exact(ctx, scope, comparison.Left) is { } limit
+                    && limit >= long.MinValue && limit <= long.MaxValue)
                 {
-                    Narrow(ctx, scope, mirrored.Local, Mirrored(kind), limit, effective);
+                    Narrow(ctx, scope, mirrored.Local, Mirrored(kind), (long)limit, effective);
                 }
 
                 if(comparison.Left is LocalReferenceExpression real)

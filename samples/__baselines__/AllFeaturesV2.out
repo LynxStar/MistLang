@@ -2723,3 +2723,11 @@ right operand evaluated
 generic mixed errors -> domain left wins
 decimal product -> ok
 decimal / 0 -> Attempted to divide by zero.
+wrapped integer guard -> Arithmetic operation resulted in an overflow.
+wrapped decimal guard -> True
+upper ulong constant -> 0
+upper ulong local -> 0
+upper ulong folded -> 0
+user Result operator -> 7
+user mirrored operator -> 7
+user receives failure -> 3

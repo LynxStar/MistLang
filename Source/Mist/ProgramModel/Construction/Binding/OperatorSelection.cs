@@ -55,7 +55,7 @@ internal static class OperatorSelection
         // carry a working generic Result operator, so Standard declares the concrete ones on the payload,
         // and surfacing them for a bare numeric operand (or a newtype over it) would make an ordinary
         // `n % 2` ambiguous against the intrinsic operator. The payload path admits them; the operand's
-        // own chain does not.
+        // own numeric chain does not. User declarations on either operand retain ordinary lookup.
         if(ResultTypes.Of(operand) is { Success: { } payload })
         {
             foreach(var inherited in OperatorsOf(payload, kind, arity, interner, admitComposition: true))
@@ -94,7 +94,8 @@ internal static class OperatorSelection
 
                 var parameterTypes = declared.ParametersList.Select(parameter => closing.Apply(parameter.Type, interner)).ToArray();
 
-                if(!admitComposition && Array.Exists(parameterTypes, type => ResultTypes.Of(type) is not null))
+                if(!admitComposition && OperatorAdmissibility.IsNumeric(definition)
+                    && Array.Exists(parameterTypes, type => ResultTypes.Of(type) is not null))
                 {
                     continue;
                 }

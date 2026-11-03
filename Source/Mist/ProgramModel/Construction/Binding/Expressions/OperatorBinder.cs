@@ -579,7 +579,8 @@ internal static class OperatorBinder
         return RealRequirement.KindOf(numeric) == RealKind.Decimal
             && op is BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo
             ? DecimalArithmeticProof.Judge(op, DecimalOperandFacts.For(ctx, ctx.Scope, left), DecimalOperandFacts.For(ctx, ctx.Scope, right))
-            : ArithmeticProof.Judge(op, numeric, OperandFacts.For(ctx, ctx.Scope, left), OperandFacts.For(ctx, ctx.Scope, right));
+            : ArithmeticProof.Judge(op, numeric, OperandFacts.For(ctx, ctx.Scope, left), OperandFacts.For(ctx, ctx.Scope, right),
+                IntegerOperandValue.Exact(ctx, ctx.Scope, left), IntegerOperandValue.Exact(ctx, ctx.Scope, right));
     }
 
     private static Expression? Fallible(

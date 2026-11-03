@@ -86,7 +86,7 @@ internal static class UnionCarrierEmitter
         var typeName = TypeNameEmitter.Emit(constituent);
 
         writer.WriteBlankLine();
-        writer.WriteLine(UnionEntry.SharesSpelling(union, constituent)
+        writer.WriteLine(UnionEntry.NeedsFactory(union, constituent)
             ? $"public static {name} {UnionCarrierNames.EntryFactory(constituent, union)}({typeName} value)"
             : $"public static implicit operator {name}({typeName} value)");
         writer.WriteLine($"    => new {name}({tag}, value);");

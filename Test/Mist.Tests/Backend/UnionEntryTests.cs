@@ -16,6 +16,15 @@ public sealed class UnionEntryTests
     private static readonly UnionType Sized = new([Three, Five]);
 
     [Fact]
+    public void AnAbstractConstituentUsesANamedFactory()
+    {
+        var error = new AbstractType("Error", "Standard", null, null, null);
+        var union = new UnionType([error, IntegerType]);
+        Assert.True(UnionEntry.NeedsFactory(union, error));
+        Assert.Equal("Union_Error_Int32.FromError", UnionEntry.Factory(error, union));
+    }
+
+    [Fact]
     public void OnlyConstituentsSharingACSharpSpelling_ShareIt()
     {
         var mixed = new UnionType([Three, Five, StringType]);

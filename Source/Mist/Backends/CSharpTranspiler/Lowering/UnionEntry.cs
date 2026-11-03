@@ -24,7 +24,7 @@ internal static class UnionEntry
             || Carrier(slot) is not { } union
             || Carrier(from) is not null
             || Entered(TypeNameEmitter.Closed(from), union) is not { } constituent
-            || !SharesSpelling(union, constituent))
+            || !NeedsFactory(union, constituent))
         {
             return null;
         }
@@ -105,6 +105,12 @@ internal static class UnionEntry
     {
         return Factory(value.Type, slot) is not null
             || (value is TupleLiteralExpression literal ? Elements(slot, literal) is not null : Decomposed(value.Type, slot, "") is not null);
+    }
+
+    public static bool NeedsFactory(UnionType union, IMistType constituent)
+    {
+        var plain = Unaliased(constituent);
+        return plain is AbstractType or ConstructedType { Definition: AbstractType } || SharesSpelling(union, constituent);
     }
 
     public static bool SharesSpelling(UnionType union, IMistType constituent)

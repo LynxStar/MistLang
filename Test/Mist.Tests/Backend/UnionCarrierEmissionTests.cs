@@ -22,6 +22,17 @@ public sealed class UnionCarrierEmissionTests
     private static readonly UnionType Wide = new([Three, Five, StringType]);
 
     [Fact]
+    public void AnAbstractConstituentNeverDeclaresAnIllegalInterfaceConversion()
+    {
+        var error = new AbstractType("Error", "Standard", null, null, null);
+        var union = new UnionType([error, IntegerType]);
+        var writer = new CSharpWriter();
+        UnionCarrierEmitter.Emit("Union_Error_Int32", union, new Dictionary<string, UnionType>(), writer);
+        Assert.Contains("FromError(Standard.Error value)", writer.ToString());
+        Assert.DoesNotContain("implicit operator Union_Error_Int32(Standard.Error value)", writer.ToString());
+    }
+
+    [Fact]
     public void ACarrierOfSharedSpellings_EntersThemThroughFactoriesAndNamesEachAccessorForItsLength()
     {
         var emitted = Carrier(Wide, SizedUnion);

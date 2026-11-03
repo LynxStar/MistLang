@@ -46,18 +46,6 @@ internal static class OperatorSelection
 
     public static IEnumerable<ClosedOperator> DeclaredOn(IMistType operand, OperatorKind kind, int arity, TypeInterner? interner)
     {
-        // A Result operand also reaches its payload type's operators, which is where Standard declares
-        // the arithmetic composition overloads (exceptions Requirement 4): a numeric type cannot carry a
-        // working generic Result operator, so the concrete ones live on the payload and are found here
-        // even for Result-on-both-sides, where neither operand is the payload type itself.
-        if(ResultTypes.Of(operand) is { Success: { } payload })
-        {
-            foreach(var inherited in DeclaredOn(payload, kind, arity, interner))
-            {
-                yield return inherited;
-            }
-        }
-
         var visited = new HashSet<MemberType>(ReferenceEqualityComparer.Instance);
         var closing = TypeSubstitution.Empty;
 

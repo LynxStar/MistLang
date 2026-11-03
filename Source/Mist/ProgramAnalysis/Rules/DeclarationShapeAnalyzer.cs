@@ -477,14 +477,6 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     private static bool Names(IMistType parameter, ConcreteType declaring)
     {
-        // A Result over the declaring type counts as naming it: that is how a numeric type declares the
-        // Result arithmetic composition overloads (exceptions Requirement 4), found through the operand's
-        // payload type, including the overload whose operands are both Results.
-        if(ResultTypes.Of(parameter) is { Success: { } payload } && Names(payload, declaring))
-        {
-            return true;
-        }
-
         return parameter switch
         {
             RefinedType refined => Names(refined.BaseType, declaring),

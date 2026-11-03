@@ -122,7 +122,9 @@ internal static class TypeEmitter
             ClassType => "class",
             _ => throw new InvalidOperationException($"ICE: unexpected MemberType kind '{type.GetType().Name}' in TypeEmitter"),
         };
-        var accessibility = MemberModifierEmitter.Spell(type.Modifiers.Accessibility);
+        var instance = UnionSpecialization.Current();
+        var accessibility = CarrierVisibility.Restrict(MemberModifierEmitter.Spell(type.Modifiers.Accessibility),
+            ReferenceEquals(instance?.Definition, type) ? instance : null);
         var sealedModifier = type is ClassType && type.Modifiers.IsSealed ? "sealed " : "";
         var readonlyModifier = type.IsReadonly && type is StructType ? "readonly " : "";
 

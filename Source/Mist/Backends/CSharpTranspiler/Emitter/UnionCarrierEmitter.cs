@@ -10,7 +10,7 @@ internal static class UnionCarrierEmitter
         string name, UnionType union, IReadOnlyDictionary<string, UnionType> carriers, CSharpWriter writer)
     {
         writer.WriteLine("[System.Runtime.CompilerServices.CompilerGenerated]");
-        writer.WriteLine($"public readonly struct {name}");
+        writer.WriteLine($"{(CarrierVisibility.IsPublic(union) ? "public" : "internal")} readonly struct {name}");
 
         using(writer.Block())
         {

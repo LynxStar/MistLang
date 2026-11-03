@@ -105,16 +105,20 @@ public sealed class ArithmeticProofTests
             BinaryOperatorKind.Add, Integer, Admitted.Everything, Admitted.Exactly(0)));
     }
 
-    [Theory]
-    [InlineData(BinaryOperatorKind.Add)]
-    [InlineData(BinaryOperatorKind.Subtract)]
-    [InlineData(BinaryOperatorKind.Multiply)]
-    [InlineData(BinaryOperatorKind.Divide)]
-    [InlineData(BinaryOperatorKind.Modulo)]
-    public void EveryDecimalOperationIsFallible(BinaryOperatorKind op)
+    [Fact]
+    public void EveryDecimalOperationIsFallible()
     {
-        Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
-            op, Money, Admitted.Everything, Admitted.Everything));
+        var operations = new[]
+        {
+            BinaryOperatorKind.Add, BinaryOperatorKind.Subtract, BinaryOperatorKind.Multiply,
+            BinaryOperatorKind.Divide, BinaryOperatorKind.Modulo,
+        };
+
+        foreach(var op in operations)
+        {
+            Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
+                op, Money, Admitted.Everything, Admitted.Everything));
+        }
     }
 
     [Fact]

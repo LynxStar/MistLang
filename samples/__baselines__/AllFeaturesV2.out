@@ -2701,6 +2701,7 @@ checked min % -1 -> 0
 guarded min % -1 -> 0
 ref call divisor -> Attempted to divide by zero.
 ref alias divisor -> Attempted to divide by zero.
+inferred ref alias divisor -> Attempted to divide by zero.
 byte wrap divisor -> Attempted to divide by zero.
 short min / -1 -> Arithmetic operation resulted in an overflow.
 sbyte min / -1 -> Arithmetic operation resulted in an overflow.

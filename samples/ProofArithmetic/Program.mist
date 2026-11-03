@@ -98,6 +98,7 @@ public class Program
 
         Console.WriteLine($"ref call divisor -> {Message(RefCall())}");
         Console.WriteLine($"ref alias divisor -> {Message(RefAlias())}");
+        Console.WriteLine($"inferred ref alias divisor -> {Message(InferredRefAlias())}");
         Console.WriteLine($"byte wrap divisor -> {Division(ByteWrap(255, 1))}");
         Console.WriteLine($"short min / -1 -> {Division(Narrow(-32768, -1))}");
         Console.WriteLine($"sbyte min / -1 -> {Division(NarrowByte(-128, -1))}");
@@ -146,6 +147,14 @@ public class Program
     {
         int d = 1;
         ref int alias = d;
+        alias = 0;
+        return 20 / d;
+    }
+
+    public static Result<int, DivisionError> InferredRefAlias()
+    {
+        int d = 1;
+        ref var alias = d;
         alias = 0;
         return 20 / d;
     }

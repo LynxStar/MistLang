@@ -719,7 +719,8 @@ and signed negation keep their wrapping behavior.
 
 `OperandFacts` reads constants, declared refinements and lexical guard facts.
 A name assigned anywhere in the callable, exposed through a ref argument, or
-used as a ref-alias initializer supplies no stored facts. This conservative
+used as a typed or inferred ref-alias initializer, or returned by ref, supplies
+no stored facts. This conservative
 write scan includes nested callables, branches and loop backedges. `IntegerOperandFold`
 uses the selected result width, including wrapping, rather than a wider intermediate.
 Properties and calls acquire no facts from a previous evaluation. Operands are

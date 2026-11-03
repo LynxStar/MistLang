@@ -48,19 +48,32 @@ public sealed class ArithmeticBindingTests
     [Theory]
     [InlineData("ref-call")]
     [InlineData("ref-alias")]
+    [InlineData("inferred-ref-alias")]
+    [InlineData("readonly-ref-alias")]
+    [InlineData("ref-return")]
     public void ExposedOriginalLocationsCannotSupplyProof(string exposure)
     {
         var f = new Fixture();
         var read = BindingFragments.Expression(BindingFragments.Identifier("d"));
-        Storm.Runtime.SyntaxNode syntax = exposure == "ref-call"
-            ? new RefArgumentArgumentNode { Expression = read }
-            : new TypedVariableDeclarationVariableDeclarationStatementNode
+        Storm.Runtime.SyntaxNode syntax = exposure switch
+        {
+            "ref-call" => new RefArgumentArgumentNode { Expression = read },
+            "inferred-ref-alias" => new InferredVariableDeclarationVariableDeclarationStatementNode
+            {
+                Name = BindingFragments.Token("alias"),
+                OwnershipSpecifier = new RefSpecifierOwnershipSpecifierNode(),
+                Initializer = read,
+            },
+            "ref-return" => new ReturnStatementNode { RefKeyword = BindingFragments.Token("ref"), Value = read },
+            _ => new TypedVariableDeclarationVariableDeclarationStatementNode
             {
                 Name = BindingFragments.Token("alias"),
                 Type = BindingFragments.TypeName("Int32"),
-                OwnershipSpecifier = new RefSpecifierOwnershipSpecifierNode(),
+                OwnershipSpecifier = exposure == "readonly-ref-alias"
+                    ? new ReadonlyRefSpecifierOwnershipSpecifierNode() : new RefSpecifierOwnershipSpecifierNode(),
                 Initializer = read,
-            };
+            },
+        };
         f.Fragments.Binding.AssignedLocals = OperandFacts.AssignedNames(syntax);
         _ = f.Local("d", 1);
 

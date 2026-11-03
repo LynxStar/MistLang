@@ -159,7 +159,9 @@ internal static class OperandFacts
         var exposed = node switch
         {
             RefArgumentArgumentNode argument => (StormSyntaxNode)argument.Expression,
-            TypedVariableDeclarationVariableDeclarationStatementNode { OwnershipSpecifier: RefSpecifierOwnershipSpecifierNode } alias => alias.Initializer,
+            TypedVariableDeclarationVariableDeclarationStatementNode { OwnershipSpecifier: RefSpecifierOwnershipSpecifierNode or ReadonlyRefSpecifierOwnershipSpecifierNode } alias => alias.Initializer,
+            InferredVariableDeclarationVariableDeclarationStatementNode { OwnershipSpecifier: RefSpecifierOwnershipSpecifierNode or ReadonlyRefSpecifierOwnershipSpecifierNode } alias => alias.Initializer,
+            ReturnStatementNode { RefKeyword: not null, Value: { } returned } => returned,
             _ => null,
         };
 

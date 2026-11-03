@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Lexing;

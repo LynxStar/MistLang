@@ -30,13 +30,21 @@ internal sealed class OperatorBuilder
     /// </summary>
     public void Resolve(OperatorDeclarationNode opDecl, MemberType memberType)
     {
-        var operatorScope = new MethodScope(memberType.Scope);
+        // A newtype's clone does not inherit a Result composition operator (exceptions Requirement 4):
+        // it operates on a Result over the source type, not on the source value itself, so cloning it
+        // under the newtype's name is neither wanted nor expressible. Decided off the declaration's
+        // syntax, before any type is resolved, so the clone never interns a Result over the newtype.
+        if(memberType is ConcreteType { CloneSource: not null } && ReturnsResult(opDecl))
+        {
+            return;
+        }
 
+        var operatorScope = new MethodScope(memberType.Scope);
+        var returnType = scopeResolver.Resolve(opDecl.ReturnType, operatorScope);
         var common = delegateResolver.ResolveDelegate(opDecl, operatorScope, memberType, "operator");
         operatorScope.IsStatic = common.Modifiers.IsStatic;
 
         var kind = MapOperatorSymbol(opDecl.Symbol);
-        var returnType = scopeResolver.Resolve(opDecl.ReturnType, operatorScope);
 
         if(!common.Modifiers.IsStatic)
         {
@@ -58,6 +66,13 @@ internal sealed class OperatorBuilder
             DeclarationNode = opDecl,
         };
         memberType.OperatorsList.Add(op);
+    }
+
+    private static bool ReturnsResult(OperatorDeclarationNode opDecl)
+    {
+        return opDecl.ReturnType.First is NamedSingleTypeRefSingleTypeRefNode named
+            && QualifiedNameHelper.Build(named.Name) is var built
+            && (built == "Result" || built.EndsWith(".Result", StringComparison.Ordinal));
     }
 
     private void ValidateParameterCount(OperatorKind kind, int count, OperatorDeclarationNode opDecl)

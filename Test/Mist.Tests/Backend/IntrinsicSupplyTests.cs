@@ -55,7 +55,11 @@ public sealed class IntrinsicSupplyTests : IDisposable
         StandardDeclarationEmissionTests.AssertCarries(carrier, "extension(int @this)");
         StandardDeclarationEmissionTests.AssertCarries(carrier, "public bool IsEven()");
         StandardDeclarationEmissionTests.AssertCarries(carrier, "return @this % 2 == 0;");
-        Assert.DoesNotContain("operator", carrier);
+
+        // The Result arithmetic composition operators are carried as extension operators on their
+        // Result operand, since the backing int cannot be reopened to hold them (Requirement 4).
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "extension(Standard.Result<int, Standard.DivisionError>)");
+        StandardDeclarationEmissionTests.AssertCarries(carrier, "operator +(Standard.Result<int, Standard.DivisionError> a, int b)");
     }
 
     [Fact]

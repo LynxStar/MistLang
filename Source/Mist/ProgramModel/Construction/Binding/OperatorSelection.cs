@@ -46,6 +46,29 @@ internal static class OperatorSelection
 
     public static IEnumerable<ClosedOperator> DeclaredOn(IMistType operand, OperatorKind kind, int arity, TypeInterner? interner)
     {
+        // A Result composition overload (exceptions Requirement 4) is reached ONLY through a Result
+        // operand's payload type, never through the payload type standing alone: a numeric type cannot
+        // carry a working generic Result operator, so Standard declares the concrete ones on the payload,
+        // and surfacing them for a bare numeric operand (or a newtype over it) would make an ordinary
+        // `n % 2` ambiguous against the intrinsic operator. The payload path admits them; the operand's
+        // own chain does not.
+        if(ResultTypes.Of(operand) is { Success: { } payload })
+        {
+            foreach(var inherited in OperatorsOf(payload, kind, arity, interner, admitComposition: true))
+            {
+                yield return inherited;
+            }
+        }
+
+        foreach(var declared in OperatorsOf(operand, kind, arity, interner, admitComposition: false))
+        {
+            yield return declared;
+        }
+    }
+
+    private static IEnumerable<ClosedOperator> OperatorsOf(
+        IMistType operand, OperatorKind kind, int arity, TypeInterner? interner, bool admitComposition)
+    {
         var visited = new HashSet<MemberType>(ReferenceEqualityComparer.Instance);
         var closing = TypeSubstitution.Empty;
 
@@ -60,15 +83,19 @@ internal static class OperatorSelection
 
             foreach(var declared in definition.OperatorsList)
             {
-                if(declared.Kind == kind && declared.ParametersList.Count == arity)
+                if(declared.Kind != kind || declared.ParametersList.Count != arity)
                 {
-                    yield return new ClosedOperator(
-                        declared,
-                        owner,
-                        closing,
-                        [.. declared.ParametersList.Select(parameter => closing.Apply(parameter.Type, interner))],
-                        closing.Apply(declared.ReturnType, interner));
+                    continue;
                 }
+
+                var parameterTypes = declared.ParametersList.Select(parameter => closing.Apply(parameter.Type, interner)).ToArray();
+
+                if(!admitComposition && Array.Exists(parameterTypes, type => ResultTypes.Of(type) is not null))
+                {
+                    continue;
+                }
+
+                yield return new ClosedOperator(declared, owner, closing, parameterTypes, closing.Apply(declared.ReturnType, interner));
             }
 
             owner = definition is ConcreteType { BaseType: { } baseType } ? closing.Apply(baseType, interner) : null;

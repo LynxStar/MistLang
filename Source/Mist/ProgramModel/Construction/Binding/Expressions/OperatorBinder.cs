@@ -553,11 +553,6 @@ internal static class OperatorBinder
             }
         }
 
-        if(selected is null && Composition(node, left, op, right, ctx, context) is { } composed)
-        {
-            return composed;
-        }
-
         var operands = ImplicitConversions.AtParameters([left, right], selected?.Declaration, selected?.ParameterTypes, interner);
 
         return new BinaryExpression(node, operands[0], op, operands[1], choice.Type ?? ErrorType.Instance)
@@ -567,46 +562,6 @@ internal static class OperatorBinder
             ParameterTypes = selected?.ParameterTypes,
             AmbiguousOperators = choice.Tied,
         };
-    }
-
-    /// <summary>
-    /// Composition of a Result into arithmetic: an operator with a Result operand carries an existing
-    /// error forward or applies the operation to the proven payloads, which Standard spells out as
-    /// ordinary methods on each numeric family. The language cannot declare these as operator overloads
-    /// -- a generic Result operator would emit payload arithmetic into every instantiation, a numeric
-    /// type's operator cannot be emitted onto the backing CLR primitive -- so the compiler routes the
-    /// operator to the family's method, the same way it routes an unproven division to its checked
-    /// helper. Only Int32 Results are composed today.
-    /// </summary>
-    private static Expression? Composition(
-        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BindingContext ctx, BuilderContext context)
-    {
-        var name = op switch
-        {
-            BinaryOperatorKind.Add => "Add",
-            BinaryOperatorKind.Subtract => "Sub",
-            BinaryOperatorKind.Multiply => "Mul",
-            BinaryOperatorKind.Divide => "Div",
-            BinaryOperatorKind.Modulo => "Rem",
-            _ => null,
-        };
-
-        var variant = (IsIntResult(left.Type), IsIntResult(right.Type)) switch
-        {
-            (true, true) => "ResultResult",
-            (true, false) => "ResultValue",
-            (false, true) => "ValueResult",
-            _ => null,
-        };
-
-        return name is null || variant is null ? null : StandardCall(node, "ResultArithmetic", name + variant, [left, right], ctx, context);
-    }
-
-    private static bool IsIntResult(IMistType type)
-    {
-        return ResultTypes.Of(type) is { Success: { } success, Error: { } error }
-            && success.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName
-            && error.FullyQualifiedName == "Standard.DivisionError";
     }
 
     private static Expression? Fallible(

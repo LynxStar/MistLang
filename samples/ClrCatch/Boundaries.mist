@@ -1,0 +1,97 @@
+using Standard;
+using System;
+using System.IO;
+using ClrCatchFixture;
+
+namespace ClrCatch;
+
+public class Boundaries
+{
+    public static Result<int> Propagate()
+    {
+        return Exception.Catch(Boundary.Invoke, "fail")!;
+    }
+
+    public static int PriorArgument()
+    {
+        return Exception.Catch(Boundary.Invoke, Boundary.FailingArgument()).Inspect() switch
+        {
+            (true, var value) => value,
+            _ => -1
+        };
+    }
+
+    public static Result<int, string> Inner()
+    {
+        return "inner failure";
+    }
+
+    public static string DescribeError(Error error)
+    {
+        if (error is ExceptionError adapted)
+        {
+            return $"adapted={Object.ReferenceEquals(adapted.Original, Boundary.Failure)}:{adapted.Message}";
+        }
+
+        return "wrong adapter";
+    }
+
+    public static void RunDemo()
+    {
+        Boundary.Reset();
+        Console.WriteLine(Program.Describe(Exception.Catch(Boundary.Receiver().Member, Boundary.Argument())));
+        Console.WriteLine(Boundary.Trace);
+        Boundary.Reset();
+        Console.WriteLine(Program.Describe(Exception.Catch(Boundary.Callable(), Boundary.Argument())));
+        Console.WriteLine(Boundary.Trace);
+        Boundary.Reset();
+        Console.WriteLine(Program.Describe(Exception.Catch(PriorArgument)));
+        Console.WriteLine(Boundary.Trace);
+        Boundary.Reset();
+        Console.WriteLine(Program.Describe(Exception.Catch(() => Boundary.Invoke(Boundary.Argument()))));
+        Console.WriteLine(Boundary.Trace);
+        func<string, int> stored = Boundary.Invoke;
+        Console.WriteLine(Program.Describe(Exception.Catch(stored, "ok")));
+        System.Predicate<int> positive = n => n > 0;
+        Console.WriteLine(Exception.Catch(positive, 2).Inspect() switch
+        {
+            (true, var value) => $"delegate={value}",
+            _ => "unreachable"
+        });
+        Console.WriteLine(Propagate().Inspect() switch
+        {
+            (false, var error) => DescribeError(error),
+            _ => "unreachable"
+        });
+        Console.WriteLine(Exception.Catch(Inner).Inspect() switch
+        {
+            (true, var inner) => inner.Inspect() switch
+            {
+                (false, var error) => $"nested={error}",
+                _ => "unreachable"
+            },
+            _ => "flattened"
+        });
+        Boundary.Reset();
+        Console.WriteLine(Exception.Catch(Forwarding.Combine, Boundary.Arguments()...).Inspect() switch
+        {
+            (true, var value) => $"spread={value}:{Boundary.Trace}",
+            _ => "unreachable"
+        });
+        Console.WriteLine(Program.Describe(GenericForwarding.Forward(Boundary.Invoke, "ok")));
+        Console.WriteLine(Program.Describe(GenericForwarding.Forward(() => 9)));
+        var path = Boundary.WriteFile();
+        Console.WriteLine(Exception.Catch(File.ReadAllText, path).Inspect() switch
+        {
+            (true, var text) => $"file={text}",
+            _ => "unreachable"
+        });
+        var written = Exception.Catch(File.WriteAllText, path, "changed");
+        Console.WriteLine(written.Inspect() switch
+        {
+            (true, _) => "write=success",
+            _ => "unreachable"
+        });
+        Boundary.RemoveFile(path);
+    }
+}

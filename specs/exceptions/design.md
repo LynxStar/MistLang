@@ -470,8 +470,9 @@ The value pack is declared with params TArgs args, not TArgs... args. Inside
 the body, args is a tuple of type (TArgs...), and operation(args...) spreads it
 back into the callable's argument list. Func<TArgs..., TResult> spreads the
 type pack into the function signature. The existing Variadics sample's Apply
-method uses this same parameter and forwarding shape. This is specification
-work, not an implemented Catch API or an executed Catch inference probe.
+method uses this same parameter and forwarding shape. The CLR boundary
+implementation supplies this declaration in `Source/Standard/Exception.mist`,
+with callable inference over the closed pack.
 
 The implementation invokes operation(args...) inside the conversion boundary.
 Each receiver and argument is evaluated once before entering Catch, under the
@@ -738,3 +739,20 @@ non-numeric ones, and an operator on the numeric type cannot be emitted onto
 the backing CLR primitive. This delivery composes `Int32` Results across all
 five operators and all three operand arrangements. The wider families and
 decimal follow the same shape and are not yet provided.
+
+## CLR boundary implementation surface
+
+`Standard/Exception.mist` supplies the static extension intrinsic on System.Exception
+and the `ExceptionError` adapter with its declared implicit conversion.
+`StandardErrorAdaptation` exposes this one Standard conversion to ordinary cast
+selection from the foreign source and its derived types. It does not assert CLR
+interface conformance. `Original` retains the exception object; propagation uses
+the selected conversion when constructing the destination's error alternative.
+
+`ClrCatch` identifies the intrinsic and adapts a task payload before PostfixBinder
+inserts an ordinary task Drop. Variadic inference closes the argument pack before
+querying a deferred callable's return shape. `ClrCatchEmitter` receives prepared
+callable/argument values outside the protected region and invokes once inside it.
+Its task form places both invocation and await in the same try, catching
+System.Exception, including cancellation, into a normally completed Result. The
+sample `ClrCatch` banks runtime behavior through AllFeaturesV2.

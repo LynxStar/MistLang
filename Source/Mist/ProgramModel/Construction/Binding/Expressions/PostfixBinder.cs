@@ -302,7 +302,8 @@ internal static class PostfixBinder
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
-            ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context), new ContextualExpressionTrials(ctx, context));
+            ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context, group.Candidates.Any(ClrCatch.Is)), new ContextualExpressionTrials(ctx, context),
+            context.Resolver.ConstructTask);
 
         if(choice.Selected is not { } selected)
         {
@@ -319,6 +320,8 @@ internal static class PostfixBinder
             choice.Substitution.Apply(selected.ReturnType, interner),
             context.Resolver.LookupWellKnown(WellKnownTypes.Void),
             interner);
+
+        returnType = ClrCatch.Adapt(selected, returnType, context.Resolver.ConstructTask, interner);
 
         if(group.IsConditional)
         {

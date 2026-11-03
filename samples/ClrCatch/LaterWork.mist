@@ -1,0 +1,39 @@
+using Standard;
+using System;
+using ClrCatchFixture;
+
+namespace ClrCatch;
+
+public class LaterWork
+{
+    public static int DisposeResource(LateResource resource)
+    {
+        resource.Dispose();
+        return 0;
+    }
+
+    public static int DisposeAfterCreation()
+    {
+        return Exception.Catch(Boundary.CreateResource).Inspect() switch
+        {
+            (true, var resource) => DisposeResource(resource),
+            _ => -1
+        };
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine(Exception.Catch(Boundary.Deferred).Inspect() switch
+        {
+            (true, var items) => $"deferred={Program.Describe(Exception.Catch(Boundary.Advance, items))}",
+            _ => "unreachable"
+        });
+        Console.WriteLine($"disposal={Program.Describe(Exception.Catch(DisposeAfterCreation))}");
+        var completed = Exception.Catch(Boundary.Finish);
+        Console.WriteLine(completed.Inspect() switch
+        {
+            (true, _) => "void=success",
+            _ => "unreachable"
+        });
+    }
+}

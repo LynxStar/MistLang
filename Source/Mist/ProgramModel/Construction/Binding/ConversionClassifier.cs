@@ -220,6 +220,7 @@ internal static class ConversionClassifier
     private static bool CrossesDelegateShape(IMistType from, IMistType to)
     {
         return (from is IFunctionType) != (to is IFunctionType)
+            && !DelegateShape.UsesReferences(from) && !DelegateShape.UsesReferences(to)
             && to is not IFunctionType { IsPure: true }
             && DelegateShape.Of(from) is { } source
             && DelegateShape.Of(to) is { } target

@@ -1,0 +1,24 @@
+using System;
+
+namespace Standard;
+
+extension(Exception self)
+{
+    intrinsic public static Result<TResult, Exception> Catch<params TArgs, TResult>(Func<TArgs..., TResult> operation, params TArgs args);
+}
+
+public sealed class ExceptionError : Error
+{
+    public Exception Original { get; }
+    public string Message => Original.Message;
+
+    public static implicit operator ExceptionError(Exception original)
+    {
+        return new ExceptionError(original);
+    }
+
+    public ExceptionError(Exception original)
+    {
+        Original = original;
+    }
+}

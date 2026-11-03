@@ -1,0 +1,4 @@
+name = "ClrCatch"
+
+[references]
+Foreign = { path = "Foreign/Foreign.csproj" }

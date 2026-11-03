@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
+using Mist.Tests.Helpers;
 using Mist.Tests.InteropFixtures;
 
 namespace Mist.Tests.Backend;
@@ -81,7 +82,7 @@ public sealed class TypeInspectorProjectionFixture : IDisposable
         var diagnostics = new DiagnosticBag();
         Provider = AmbientProviderTestHelper.ProviderOver(diagnostics, typeof(Inspected).Assembly.Location);
 
-        if(!TypeInspector.ProjectBesideStandard(Provider, diagnostics))
+        if(!TypeInspector.ProjectBesideStandard(new StandardInteropAmbient(Provider), diagnostics))
         {
             Provider.Dispose();
             throw new InvalidOperationException(string.Join(Environment.NewLine, diagnostics.ToImmutableArray().Select(DiagnosticFormatter.Format)));

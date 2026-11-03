@@ -50,7 +50,8 @@ internal static class MethodGroupConversion
     }
 
     internal static Expression? Convert(
-        MethodGroupExpression group, IMistType? targetType, TypeInterner interner, out bool ambiguous)
+        MethodGroupExpression group, IMistType? targetType, TypeInterner interner, out bool ambiguous,
+        Func<IMistType, IMistType>? constructTask = null)
     {
         ambiguous = false;
 
@@ -59,7 +60,7 @@ internal static class MethodGroupConversion
             return null;
         }
 
-        var preferred = Preferred(group, target.ParameterTypes, target.ReturnType, interner);
+        var preferred = Preferred(group, target.ParameterTypes, target.ReturnType, interner, constructTask);
 
         if(preferred is not [var (match, substitution)])
         {
@@ -77,18 +78,27 @@ internal static class MethodGroupConversion
     /// <summary>
     /// What the one overload taking exactly these parameter types returns, for a call that learns its own
     /// type arguments from a group's result, or null where no overload or several do. The same choice
-    /// <see cref="Convert"/> makes, with the result left for the overload to say.
+    /// <see cref="Convert"/> makes, with the result left for the overload to say -- a Catch group's
+    /// task-adapted return (<see cref="SignatureIs"/>), so an outer generic method learns the shape its
+    /// reference produces rather than the declared one.
     /// </summary>
     internal static IMistType? ResultType(
-        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, TypeInterner interner)
+        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask = null)
     {
-        return Preferred(group, parameterTypes, returnType: null, interner) is [var (match, substitution)]
-            ? substitution.Apply(match.ReturnType, interner)
-            : null;
+        if(Preferred(group, parameterTypes, returnType: null, interner, constructTask) is not [var (match, substitution)])
+        {
+            return null;
+        }
+
+        var declaredReturn = substitution.Apply(match.ReturnType, interner);
+
+        return constructTask is null ? declaredReturn : ClrCatch.Adapt(match, declaredReturn, constructTask, interner);
     }
 
     private static List<(Method Method, TypeSubstitution Substitution)> Preferred(
-        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, IMistType? returnType, TypeInterner interner)
+        MethodGroupExpression group, IReadOnlyList<IMistType> parameterTypes, IMistType? returnType, TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask)
     {
         TypeSubstitution substitutionOf(Method candidate)
         {
@@ -96,7 +106,7 @@ internal static class MethodGroupConversion
         }
 
         var closed = group.Candidates
-            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, parameterTypes, returnType, substitutionOf(candidate), interner)))
+            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, parameterTypes, returnType, substitutionOf(candidate), interner, constructTask)))
             .Where(candidate => candidate.Substitution is not null)
             .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
 
@@ -112,7 +122,7 @@ internal static class MethodGroupConversion
     internal static Expression? Convert(
         MethodGroupExpression group, IMistType? targetType, BuilderContext context, out bool ambiguous, Scope? boundIn = null)
     {
-        var converted = Convert(group, targetType, context.ProgramModel.TypeInterner, out ambiguous);
+        var converted = Convert(group, targetType, context.ProgramModel.TypeInterner, out ambiguous, context.Resolver.ConstructTask);
 
         if(converted is FunctionReferenceExpression { TypeArguments.Count: > 0 } reference)
         {
@@ -132,9 +142,10 @@ internal static class MethodGroupConversion
         return TypeSubstitution.ForPath(group.ReceiverConstructed, group.Paths?.GetValueOrDefault(candidate), interner);
     }
 
-    internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner)
+    internal static bool Accepts(MethodGroupExpression group, IMistType parameterType, TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask = null)
     {
-        return Convert(group, parameterType, interner) is not null;
+        return Convert(group, parameterType, interner, out _, constructTask) is not null;
     }
 
     internal static IReadOnlyList<Expression> Settle(
@@ -188,7 +199,8 @@ internal static class MethodGroupConversion
         IReadOnlyList<IMistType> parameterTypes,
         IMistType? returnType,
         TypeSubstitution substitution,
-        TypeInterner interner)
+        TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask)
     {
         if(stated is not null && stated.Count != candidate.TypeParametersList.Count)
         {
@@ -205,7 +217,7 @@ internal static class MethodGroupConversion
             substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, closing));
         }
 
-        return SignatureIs(candidate, parameterTypes, returnType, substitution, interner) ? substitution : null;
+        return SignatureIs(candidate, parameterTypes, returnType, substitution, interner, constructTask) ? substitution : null;
     }
 
     private static bool SignatureIs(
@@ -213,10 +225,11 @@ internal static class MethodGroupConversion
         IReadOnlyList<IMistType> parameterTypes,
         IMistType? returnType,
         TypeSubstitution substitution,
-        TypeInterner interner)
+        TypeInterner interner,
+        Func<IMistType, IMistType>? constructTask)
     {
         var parameters = ValuePack.Expand(candidate.ParametersList, substitution, interner);
-        if(parameters.Count != parameterTypes.Count)
+        if(candidate.Modifiers.IsRef || parameters.Count != parameterTypes.Count || parameters.Any(parameter => parameter.Modifier.IsRef))
         {
             return false;
         }
@@ -229,7 +242,13 @@ internal static class MethodGroupConversion
             }
         }
 
-        return returnType is null || IsTheSame(substitution.Apply(candidate.ReturnType, interner), returnType);
+        // A Catch group named as a value is held to the same task-adapted return the direct call produces
+        // (exceptions Requirement 5.13): its reference carries Task<Result<T, E>>, not the declared
+        // Result<Task<T>, E>, so completion is intercepted rather than left as a success payload.
+        var declaredReturn = substitution.Apply(candidate.ReturnType, interner);
+        var effectiveReturn = constructTask is null ? declaredReturn : ClrCatch.Adapt(candidate, declaredReturn, constructTask, interner);
+
+        return returnType is null || IsTheSame(effectiveReturn, returnType);
     }
 
     private static bool IsTheSame(IMistType declared, IMistType expected)

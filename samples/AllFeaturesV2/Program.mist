@@ -122,6 +122,7 @@ public class Program
         TypeValues.Program.RunDemo();
         ClrSlotFilling.Program.RunDemo();
         ResultFoundation.Program.RunDemo();
+        ClrCatch.Program.RunDemo();
         ProofArithmetic.Program.RunDemo();
     }
 }

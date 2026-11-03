@@ -21,14 +21,20 @@ internal static class TypeArgumentInference
         TypeSubstitution receiver,
         TypeInterner interner,
         ILambdaTrials? lambdas,
-        out TypeArgumentConflict? conflict)
+        out TypeArgumentConflict? conflict,
+        Func<IMistType, IMistType>? constructTask = null)
     {
         var bounds = NewBounds(method.TypeParametersList.Count);
 
         if(ValuePack.FlattenedSlot(method.ParametersList) is { } flattened)
         {
             InferAcrossPack(method, arguments, receiver, interner, bounds, flattened);
-            return Fix(method.TypeParametersList, bounds, interner, out conflict);
+            var pending = Enumerable.Range(0, Math.Min(flattened, arguments.Count))
+                .Where(i => arguments[i] is UnboundLambdaExpression or MethodGroupExpression).ToList();
+            var blockedPack = InferFromCallables(method, arguments, pending, receiver, interner, lambdas, constructTask, bounds);
+            var packTypes = Fix(method.TypeParametersList, bounds, interner, out conflict);
+            conflict = blockedPack ?? conflict;
+            return packTypes;
         }
 
         // OverloadResolution.Select has already matched the counts exactly, so a mismatch here is
@@ -50,7 +56,7 @@ internal static class TypeArgumentInference
             MatchArgument(declared, arguments[i], method.TypeParametersList, bounds);
         }
 
-        var blocked = InferFromCallables(method, arguments, callables, receiver, interner, lambdas, bounds);
+        var blocked = InferFromCallables(method, arguments, callables, receiver, interner, lambdas, constructTask, bounds);
         var fixedTypes = Fix(method.TypeParametersList, bounds, interner, out conflict);
         conflict = blocked ?? conflict;
 
@@ -70,6 +76,7 @@ internal static class TypeArgumentInference
         TypeSubstitution receiver,
         TypeInterner interner,
         ILambdaTrials? lambdas,
+        Func<IMistType, IMistType>? constructTask,
         List<IMistType>[] bounds)
     {
         var parameters = method.TypeParametersList;
@@ -116,6 +123,7 @@ internal static class TypeArgumentInference
                 }
 
                 var substitution = TypeSubstitution.ForParameters(parameters, frozen);
+                shape = (IFunctionType)substitution.Apply(shape, interner);
                 var given = shape.ParameterTypes
                     .Select((type, k) => k < stated.Count && stated[k] is { } own ? own : substitution.Apply(type, interner))
                     .ToList();
@@ -123,7 +131,7 @@ internal static class TypeArgumentInference
                 var output = arguments[i] switch
                 {
                     UnboundLambdaExpression unbound => lambdas?.ResultType(unbound, given),
-                    MethodGroupExpression group => MethodGroupConversion.ResultType(group, given, interner),
+                    MethodGroupExpression group => MethodGroupConversion.ResultType(group, given, interner, constructTask),
                     _ => null,
                 };
 

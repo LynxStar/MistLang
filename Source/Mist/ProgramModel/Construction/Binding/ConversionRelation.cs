@@ -184,7 +184,7 @@ internal static class ConversionRelation
             yield break;
         }
 
-        foreach(var castOperator in declaring.CastOperatorsList)
+        foreach(var castOperator in declaring.CastOperatorsList.Concat(declaring.ErrorAdaptation is { } adaptation ? [adaptation] : []))
         {
             yield return new ConversionFunction(
                 castOperator,

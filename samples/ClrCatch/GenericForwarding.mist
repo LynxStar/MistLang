@@ -1,0 +1,12 @@
+using Standard;
+using System;
+
+namespace ClrCatch;
+
+public class GenericForwarding
+{
+    public static Result<TResult, Exception> Forward<params TArgs, TResult>(Func<TArgs..., TResult> operation, params TArgs args)
+    {
+        return Exception.Catch(operation, args...);
+    }
+}

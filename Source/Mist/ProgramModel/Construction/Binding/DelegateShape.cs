@@ -25,6 +25,11 @@ internal static class DelegateShape
         return IsClrDelegate(type) ? InvokeShape(type) : null;
     }
 
+    public static bool UsesReferences(IMistType type)
+    {
+        return InvokeOf(type) is { } method && (method.Modifiers.IsRef || method.ParametersList.Any(parameter => parameter.Modifier.IsRef));
+    }
+
     public static bool SameShape(IFunctionType left, IFunctionType right)
     {
         if(left.ParameterTypes.Count != right.ParameterTypes.Count

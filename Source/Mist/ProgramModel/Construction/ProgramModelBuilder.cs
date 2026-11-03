@@ -166,6 +166,7 @@ public sealed class ProgramModelBuilder
         // Phase 2c: Resolve retroactive conformance declarations (with blocks).
         var conformanceBuilder = new ConformanceBuilder(context, context.Resolver);
         conformanceBuilder.BuildAll();
+        StandardErrorAdaptation.Register(programModel.FindQualifiedType("Standard.ExceptionError") as ConcreteType);
 
         // Phase 3.
         PredicateBinder.BindAll(programModel, context);

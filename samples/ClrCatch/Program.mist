@@ -1,0 +1,34 @@
+using Standard;
+using System;
+using ClrCatchFixture;
+
+namespace ClrCatch;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static string Describe(Result<int, Exception> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => $"value={value}",
+            (false, var error) => $"error={error.GetType().Name}",
+            _ => "unreachable"
+        };
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== CLR Catch ===");
+        Console.WriteLine(Describe(Exception.Catch(Boundary.Invoke, "ok")));
+        Console.WriteLine(Describe(Exception.Catch(Boundary.Invoke, "bad")));
+        Console.WriteLine(Describe(Exception.Catch((int n) => n + 1, 4)));
+        Boundaries.RunDemo();
+        Tasks.RunDemo();
+        LaterWork.RunDemo();
+    }
+}

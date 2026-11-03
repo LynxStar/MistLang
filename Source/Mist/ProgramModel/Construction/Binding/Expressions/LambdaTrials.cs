@@ -18,7 +18,7 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// here and the candidate stays applicable.
 /// </para>
 /// </summary>
-internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) : ILambdaTrials
+internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context, bool retainTaskResult = false) : ILambdaTrials
 {
     private readonly Dictionary<UnboundLambdaExpression, IReadOnlyList<IMistType?>> stated = [];
 
@@ -53,7 +53,23 @@ internal sealed class LambdaTrials(BindingContext ctx, BuilderContext context) :
             byParameters.Add((lambda, parameterTypes, trial));
         }
 
-        return trial.Bound is LambdaExpression { Type: IFunctionType function } ? function.ReturnType : ErrorType.Instance;
+        if(trial.Bound is not LambdaExpression { Type: IFunctionType function } bound)
+        {
+            return ErrorType.Instance;
+        }
+
+        // A boundary that adapts a task reads the callable's result as the task it hands back, where an
+        // ordinary sync context would have awaited that task down to its value. Only the result the
+        // callable itself returns is kept whole: an auto-await inside a larger result expression still
+        // runs, so `() => Read().Length` reads Length off the awaited text rather than off the task.
+        return retainTaskResult && RetainedTask(bound) is { } retained ? retained : function.ReturnType;
+    }
+
+    private static IMistType? RetainedTask(LambdaExpression lambda)
+    {
+        return lambda.Result is InvocationExpression { IsImplicit: true } dropped && TaskResult.Dropped(dropped) is { } task
+            ? task.Type
+            : null;
     }
 
     public bool Fits(UnboundLambdaExpression lambda, IMistType parameterType)

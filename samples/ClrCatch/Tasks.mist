@@ -1,0 +1,47 @@
+using Standard;
+using System;
+using ClrCatchFixture;
+
+namespace ClrCatch;
+
+public class Tasks
+{
+    public static async Result<int, Exception> ExplicitAwait()
+    {
+        return await Exception.Catch(Boundary.CancelLater);
+    }
+
+    public static Result<int> PropagateCancellation()
+    {
+        return Exception.Catch(Boundary.CancelLater)!;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine(Program.Describe(Exception.Catch(Boundary.SynchronousTaskFailure)));
+        Console.WriteLine(Program.Describe(Exception.Catch(Boundary.FaultLater)));
+        Console.WriteLine(Program.Describe(Exception.Catch(() => Boundary.FaultLater())));
+        Task<Result<int, Exception>> pending = Exception.Catch(Boundary.CancelLater);
+        var completed = await pending;
+        Console.WriteLine(completed.Inspect() switch
+        {
+            (false, var error) => $"cancellation={Object.ReferenceEquals(error, Boundary.Cancellation)}",
+            _ => "unreachable"
+        });
+        Console.WriteLine($"adapter={Boundary.State(pending)}");
+        Console.WriteLine(Program.Describe(ExplicitAwait()));
+        Console.WriteLine(PropagateCancellation().Inspect() switch
+        {
+            (false, var error) => $"propagated={error.Message}",
+            _ => "unreachable"
+        });
+        Task<int> raw = Boundary.CancelLater();
+        Console.WriteLine(Program.Describe(Exception.Catch(() => await raw)));
+        Console.WriteLine($"raw={Boundary.State(raw)}");
+        Console.WriteLine(Exception.Catch(Boundary.CompleteLater).Inspect() switch
+        {
+            (true, _) => "task-void=success",
+            _ => "unreachable"
+        });
+    }
+}

@@ -299,12 +299,12 @@ internal static class ArgumentBinder
             : Enumerable.Range(0, count).Select(index => sole.ParametersList[ValuePack.SlotOf(sole.ParametersList, count, index)].IsFailed).ToArray();
 
         var settled = sole is null
-            || (typeArguments is null && sole.TypeParametersList.Count > 0 && ValuePack.FlattenedSlot(sole.ParametersList) is null);
+            || (typeArguments is null && sole.TypeParametersList.Count > 0);
 
         return BindTargeted(
             argumentList, targets, ctx, context,
             settlesMethodGroups: settled,
-            defersLambdas: settled && candidates.Count > 0 && !candidates.Any(candidate => ValuePack.FlattenedSlot(candidate.ParametersList) is not null),
+            defersLambdas: settled && candidates.Count > 0,
             defersContextual: candidates.Count > 0 && (sole is null || (typeArguments is null && sole.TypeParametersList.Count > 0)),
             absorbing: sole is null ? null : Absorbing(sole, inferring: typeArguments is null),
             targetFailures: targetFailures);
@@ -357,7 +357,7 @@ internal static class ArgumentBinder
                 : ContextualExpressionTrials.BindAgainst((UnboundContextualExpression)argument, target, ctx, context, parameter.IsFailed);
         }).ToList();
 
-        return MethodGroupConversion.Settle(contextuallyBound, parameters, substitution, context, ctx.Scope);
+        return MethodGroupConversion.Settle(contextuallyBound, effective, substitution, context, ctx.Scope);
     }
 
     /// <summary>

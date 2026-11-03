@@ -46,7 +46,8 @@ internal static class OverloadResolution
         IReadOnlyList<bool>? argumentIsRef = null,
         IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null,
         ILambdaTrials? lambdas = null,
-        IContextualExpressionTrials? contextual = null)
+        IContextualExpressionTrials? contextual = null,
+        Func<IMistType, IMistType>? constructTask = null)
         where T : class, IOverload
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
@@ -97,7 +98,7 @@ internal static class OverloadResolution
 
         foreach(var candidate in byArity)
         {
-            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, lambdas, out var conflict);
+            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, lambdas, constructTask, out var conflict);
 
             if(substitution is null)
             {
@@ -123,7 +124,7 @@ internal static class OverloadResolution
             return Winner(closed[0]);
         }
 
-        var applicable = closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas, contextual));
+        var applicable = closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas, contextual, constructTask));
 
         if(applicable.Count == 0)
         {
@@ -131,7 +132,7 @@ internal static class OverloadResolution
             // itself rather than evidence against one of them, so where those arguments leave exactly
             // one, it is chosen and binding the lambda against it reports what is wrong with the body.
             return (lambdas is not null || contextual is not null)
-                && closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas: null, contextual: null)) is [var only]
+                && closed.FindAll(candidate => IsApplicable(candidate, arguments, argumentIsRef, interner, lambdas: null, contextual: null, constructTask: null)) is [var only]
                     ? Winner(only)
                     : new OverloadChoice<T> { Selected = null, Unresolvable = Methods(closed) };
         }
@@ -282,6 +283,7 @@ internal static class OverloadResolution
         IReadOnlyList<IMistType>? typeArguments,
         TypeInterner interner,
         ILambdaTrials? lambdas,
+        Func<IMistType, IMistType>? constructTask,
         out TypeArgumentConflict? conflict)
         where T : class, IOverload
     {
@@ -293,7 +295,7 @@ internal static class OverloadResolution
         }
 
         var own = typeArguments is null
-            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, lambdas, out conflict))
+            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, lambdas, out conflict, constructTask))
             : TypeSubstitution.ForMethod(candidate, typeArguments)
             ;
 
@@ -385,7 +387,8 @@ internal static class OverloadResolution
         IReadOnlyList<bool>? argumentIsRef,
         TypeInterner interner,
         ILambdaTrials? lambdas,
-        IContextualExpressionTrials? contextual)
+        IContextualExpressionTrials? contextual,
+        Func<IMistType, IMistType>? constructTask)
         where T : class, IOverload
     {
         for(var i = 0; i < arguments.Count; i++)
@@ -405,7 +408,7 @@ internal static class OverloadResolution
             // argument is a group -- which is the whole reason the group was left unsettled.
             if(arguments[i] is MethodGroupExpression group)
             {
-                if(!MethodGroupConversion.Accepts(group, parameter, interner))
+                if(!MethodGroupConversion.Accepts(group, parameter, interner, constructTask))
                 {
                     return false;
                 }

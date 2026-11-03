@@ -104,4 +104,5 @@ GenericSelfReceivers = { path = "../GenericSelfReceivers" }
 TypeValues = { path = "../TypeValues" }
 ClrSlotFilling = { path = "../ClrSlotFilling" }
 ResultFoundation = { path = "../ResultFoundation" }
+ClrCatch = { path = "../ClrCatch" }
 ProofArithmetic = { path = "../ProofArithmetic" }

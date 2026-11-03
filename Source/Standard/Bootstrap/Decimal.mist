@@ -22,4 +22,13 @@ intrinsic public readonly owned struct Decimal : IClonable<Decimal>
 
     // Unary negation — Requirement 3.3
     intrinsic public pure static Decimal operator -(Decimal a);
+
+    // Raw CLR operations behind the checked routes (exceptions Requirement 4): these throw on overflow
+    // and zero division rather than being proof-routed, so the fallible helpers wrap them in a Catch
+    // boundary instead of re-entering the proof-sensitive operator.
+    intrinsic public pure static Decimal Add(Decimal a, Decimal b);
+    intrinsic public pure static Decimal Subtract(Decimal a, Decimal b);
+    intrinsic public pure static Decimal Multiply(Decimal a, Decimal b);
+    intrinsic public pure static Decimal Divide(Decimal a, Decimal b);
+    intrinsic public pure static Decimal Remainder(Decimal a, Decimal b);
 }

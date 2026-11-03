@@ -92,6 +92,28 @@ public class Program
             int guardedRem = low % negOne;
             Console.WriteLine($"guarded min % -1 -> {guardedRem}");
         }
+
+        Decimal money = 100.0m;
+        Decimal rate = 3.0m;
+        var product = money * rate;
+        Console.WriteLine($"decimal product -> {Decimals(product)}");
+        var byZeroDecimal = money / DecimalZero();
+        Console.WriteLine($"decimal / 0 -> {Decimals(byZeroDecimal)}");
+    }
+
+    public static string Decimals(Result<Decimal, System.Exception> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var payload) => "ok",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static Decimal DecimalZero()
+    {
+        return 0.0m;
     }
 
     public static int Minimum()

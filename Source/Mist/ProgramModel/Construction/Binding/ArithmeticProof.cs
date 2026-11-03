@@ -27,6 +27,18 @@ internal static class ArithmeticProof
 
     public static Verdict? Judge(BinaryOperatorKind op, IMistType numericType, Admitted left, Admitted right)
     {
+        // Decimal has no wrapping to fall back on: every add, subtract, multiply, divide and remainder
+        // can overflow (and divide/remainder can hit a zero divisor), and the integer interval algebra
+        // cannot reason about a decimal value, so none is provably safe -- each takes the fallible route
+        // (exceptions Requirement 4), which checks the hazard at a Catch boundary.
+        if(numericType.FullyQualifiedName == WellKnownTypes.Decimal.FullyQualifiedName)
+        {
+            return op is BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply
+                or BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo
+                ? Verdict.Fallible
+                : null;
+        }
+
         if(op is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo)
             || Family(numericType) is not { } family)
         {

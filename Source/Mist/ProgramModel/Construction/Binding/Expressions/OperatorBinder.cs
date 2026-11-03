@@ -568,9 +568,16 @@ internal static class OperatorBinder
         Storm.Runtime.SyntaxNode node, IMistType numeric, Expression left, BinaryOperatorKind op, Expression right,
         BindingContext ctx, BuilderContext context)
     {
-        var helperName = (op == BinaryOperatorKind.Divide ? "DivideChecked" : "RemainderChecked") + HelperSuffix(numeric);
+        var verb = op switch
+        {
+            BinaryOperatorKind.Add => "AddChecked",
+            BinaryOperatorKind.Subtract => "SubtractChecked",
+            BinaryOperatorKind.Multiply => "MultiplyChecked",
+            BinaryOperatorKind.Divide => "DivideChecked",
+            _ => "RemainderChecked",
+        };
 
-        return StandardCall(node, "ResultArithmetic", helperName, [left, right], ctx, context);
+        return StandardCall(node, "ResultArithmetic", verb + HelperSuffix(numeric), [left, right], ctx, context);
     }
 
     /// <summary>

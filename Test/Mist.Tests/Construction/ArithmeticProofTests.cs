@@ -19,6 +19,8 @@ public sealed class ArithmeticProofTests
 
     private ClassType Unsigned => built.Type("UInt32");
 
+    private ClassType Money => built.Type("Decimal");
+
     [Fact]
     public void UnknownDivisorIsFallible()
     {
@@ -101,6 +103,18 @@ public sealed class ArithmeticProofTests
     {
         Assert.Null(ArithmeticProof.Judge(
             BinaryOperatorKind.Add, Integer, Admitted.Everything, Admitted.Exactly(0)));
+    }
+
+    [Theory]
+    [InlineData(BinaryOperatorKind.Add)]
+    [InlineData(BinaryOperatorKind.Subtract)]
+    [InlineData(BinaryOperatorKind.Multiply)]
+    [InlineData(BinaryOperatorKind.Divide)]
+    [InlineData(BinaryOperatorKind.Modulo)]
+    public void EveryDecimalOperationIsFallible(BinaryOperatorKind op)
+    {
+        Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
+            op, Money, Admitted.Everything, Admitted.Everything));
     }
 
     [Fact]

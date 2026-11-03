@@ -229,4 +229,32 @@ public class ResultArithmetic
             return a % b;
         }
     }
+
+    // Decimal has no wrapping, so every operation returns the overflow or zero-division the CLR would
+    // throw, captured at the Exception.Catch boundary over the raw CLR operation rather than the
+    // proof-sensitive operator, so the check does not re-enter itself (exceptions Requirement 4).
+    public static Result<Decimal, System.Exception> AddCheckedDecimal(Decimal a, Decimal b)
+    {
+        return System.Exception.Catch(Decimal.Add, a, b);
+    }
+
+    public static Result<Decimal, System.Exception> SubtractCheckedDecimal(Decimal a, Decimal b)
+    {
+        return System.Exception.Catch(Decimal.Subtract, a, b);
+    }
+
+    public static Result<Decimal, System.Exception> MultiplyCheckedDecimal(Decimal a, Decimal b)
+    {
+        return System.Exception.Catch(Decimal.Multiply, a, b);
+    }
+
+    public static Result<Decimal, System.Exception> DivideCheckedDecimal(Decimal a, Decimal b)
+    {
+        return System.Exception.Catch(Decimal.Divide, a, b);
+    }
+
+    public static Result<Decimal, System.Exception> RemainderCheckedDecimal(Decimal a, Decimal b)
+    {
+        return System.Exception.Catch(Decimal.Remainder, a, b);
+    }
 }

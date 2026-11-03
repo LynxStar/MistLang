@@ -540,12 +540,12 @@ internal static class OperatorBinder
                 context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InvalidArithmetic, node, null);
             }
             else if(verdict == ArithmeticProof.Verdict.Fallible
-                && Fallible(node, left, op, right, ctx, context) is { } fallible)
+                && Fallible(node, numeric, left, op, right, ctx, context) is { } fallible)
             {
                 return fallible;
             }
             else if(verdict == ArithmeticProof.Verdict.SafeGuardedRemainder
-                && StandardCall(node, "ResultArithmetic", "Remainder", [left, right], ctx, context) is { } guarded)
+                && StandardCall(node, "ResultArithmetic", "Remainder" + HelperSuffix(numeric), [left, right], ctx, context) is { } guarded)
             {
                 // Still the numeric value, but minimum-value % -1 traps the CLR rem, so the proven-safe
                 // route is a guarded Standard helper rather than the bare operator (Requirement 4).
@@ -610,12 +610,29 @@ internal static class OperatorBinder
     }
 
     private static Expression? Fallible(
-        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right,
+        Storm.Runtime.SyntaxNode node, IMistType numeric, Expression left, BinaryOperatorKind op, Expression right,
         BindingContext ctx, BuilderContext context)
     {
-        var helperName = op == BinaryOperatorKind.Divide ? "DivideChecked" : "RemainderChecked";
+        var helperName = (op == BinaryOperatorKind.Divide ? "DivideChecked" : "RemainderChecked") + HelperSuffix(numeric);
 
         return StandardCall(node, "ResultArithmetic", helperName, [left, right], ctx, context);
+    }
+
+    /// <summary>
+    /// Each integer family has its own checked helpers, because a generic one cannot do the payload
+    /// arithmetic -- Int32's are unsuffixed so the first family's emission is unchanged.
+    /// </summary>
+    private static string HelperSuffix(IMistType numeric)
+    {
+        if(numeric.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName)
+        {
+            return string.Empty;
+        }
+
+        var fqn = numeric.FullyQualifiedName;
+        var dot = fqn.LastIndexOf('.');
+
+        return dot < 0 ? fqn : fqn[(dot + 1)..];
     }
 
     private static Expression? StandardCall(

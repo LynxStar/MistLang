@@ -15,6 +15,10 @@ public sealed class ArithmeticProofTests
 
     private ClassType Long => built.Type("Int64");
 
+    private ClassType Short => built.Type("Int16");
+
+    private ClassType Unsigned => built.Type("UInt32");
+
     [Fact]
     public void UnknownDivisorIsFallible()
     {
@@ -100,9 +104,33 @@ public sealed class ArithmeticProofTests
     }
 
     [Fact]
-    public void WiderIntegerFamiliesStayUnconditional()
+    public void WiderSignedFamiliesAreJudgedWithTheirOwnMinimum()
     {
-        Assert.Null(ArithmeticProof.Judge(
+        Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
             BinaryOperatorKind.Divide, Long, Admitted.Everything, Admitted.Everything));
+        Assert.Equal(ArithmeticProof.Verdict.Invalid, ArithmeticProof.Judge(
+            BinaryOperatorKind.Divide, Long, Admitted.Exactly(long.MinValue), Admitted.Exactly(-1)));
+        Assert.Equal(ArithmeticProof.Verdict.SafeGuardedRemainder, ArithmeticProof.Judge(
+            BinaryOperatorKind.Modulo, Long, Admitted.Exactly(long.MinValue), Admitted.Exactly(-1)));
+    }
+
+    [Fact]
+    public void NarrowSignedFamiliesPromoteAndAreNotJudgedAtTheirOwnWidth()
+    {
+        // Int16/SByte drop their division/remainder operators and promote into Int32, so the proof is
+        // never asked about the narrow width -- its unrepresentable minimum / -1 cannot be a narrow error.
+        Assert.Null(ArithmeticProof.Judge(
+            BinaryOperatorKind.Divide, Short, Admitted.Exactly(short.MinValue), Admitted.Exactly(-1)));
+        Assert.Null(ArithmeticProof.Judge(
+            BinaryOperatorKind.Modulo, Short, Admitted.Everything, Admitted.Everything));
+    }
+
+    [Fact]
+    public void UnsignedFamiliesHaveNoOverflowCaseOnlyZero()
+    {
+        Assert.Equal(ArithmeticProof.Verdict.Safe, ArithmeticProof.Judge(
+            BinaryOperatorKind.Divide, Unsigned, Admitted.Everything, Admitted.AtLeast(1)));
+        Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
+            BinaryOperatorKind.Divide, Unsigned, Admitted.Everything, Admitted.Everything));
     }
 }

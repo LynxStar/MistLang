@@ -9,8 +9,9 @@ intrinsic public readonly owned struct SByte : IClonable<SByte>
     intrinsic public pure static SByte operator +(SByte a, SByte b);
     intrinsic public pure static SByte operator -(SByte a, SByte b);
     intrinsic public pure static SByte operator *(SByte a, SByte b);
-    intrinsic public pure static SByte operator /(SByte a, SByte b);
-    intrinsic public pure static SByte operator %(SByte a, SByte b);
+
+    // Division and remainder promote into Int32 (exceptions Requirement 4): the narrow signed quotient
+    // minimum / -1 is unrepresentable, so these do not stay SByte and are judged at the wider type.
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(SByte a, SByte b);

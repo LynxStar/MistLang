@@ -9,8 +9,9 @@ intrinsic public readonly owned struct Int16 : IClonable<Int16>
     intrinsic public pure static Int16 operator +(Int16 a, Int16 b);
     intrinsic public pure static Int16 operator -(Int16 a, Int16 b);
     intrinsic public pure static Int16 operator *(Int16 a, Int16 b);
-    intrinsic public pure static Int16 operator /(Int16 a, Int16 b);
-    intrinsic public pure static Int16 operator %(Int16 a, Int16 b);
+
+    // Division and remainder promote into Int32 (exceptions Requirement 4): the narrow signed quotient
+    // minimum / -1 is unrepresentable, so these do not stay Int16 and are judged at the wider type.
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(Int16 a, Int16 b);

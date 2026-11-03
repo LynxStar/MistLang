@@ -8,10 +8,12 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// The three-way rule for integer division and remainder (exceptions Requirement 4): proven safe takes
 /// the numeric value, proven invalid is refused, and anything unproven takes the fallible Result route.
 /// The proof is read off the operands' binding-time facts -- a constant, a declared refinement, or a
-/// sound flow narrowing -- never off the destination type, so an expected <c>int</c> does not force
-/// safety. Signed remainder adds a fourth answer: the minimum-value remainder negative one is DEFINED to
-/// be zero, so the operation keeps its numeric type, but the CLR's own <c>rem</c> traps on it, so a
-/// nonzero divisor that cannot exclude that pair is proven safe yet guarded rather than emitted bare.
+/// sound flow narrowing -- never off the destination type, so an expected numeric destination does not
+/// force safety. Every signed integer family shares one shape (a nonzero divisor that also excludes the
+/// family minimum over negative one is safe), differing only in that minimum; unsigned families have no
+/// overflow case. Signed remainder minimum over negative one is a defined zero, but the CLR rem traps on
+/// it at the Int32 and Int64 widths (narrow families promote and compute it as zero), so that pair is
+/// proven safe yet guarded rather than emitted bare where the backend would trap.
 /// </summary>
 internal static class ArithmeticProof
 {
@@ -26,7 +28,7 @@ internal static class ArithmeticProof
     public static Verdict? Judge(BinaryOperatorKind op, IMistType numericType, Admitted left, Admitted right)
     {
         if(op is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo)
-            || numericType.FullyQualifiedName != WellKnownTypes.Int32.FullyQualifiedName)
+            || Family(numericType) is not { } family)
         {
             return null;
         }
@@ -38,8 +40,8 @@ internal static class ArithmeticProof
 
         var zeroPossible = right.Contains(0);
         var zeroOnly = right.IsSubsetOf(Admitted.Exactly(0));
-        var minusOnePossible = right.Contains(-1);
-        var minimumPossible = left.Contains(int.MinValue);
+        var minusOnePossible = family.Signed && right.Contains(-1);
+        var minimumPossible = family.Signed && left.Contains(family.Minimum);
 
         if(op == BinaryOperatorKind.Modulo)
         {
@@ -49,12 +51,13 @@ internal static class ArithmeticProof
             }
 
             return zeroPossible ? Verdict.Fallible
-                : minimumPossible && minusOnePossible ? Verdict.SafeGuardedRemainder
+                : family.RemainderTraps && minimumPossible && minusOnePossible ? Verdict.SafeGuardedRemainder
                 : Verdict.Safe;
         }
 
         var overflowPossible = minimumPossible && minusOnePossible;
-        var overflowCertain = left.IsSubsetOf(Admitted.Exactly(int.MinValue)) && right.IsSubsetOf(Admitted.Exactly(-1));
+        var overflowCertain = family.Signed
+            && left.IsSubsetOf(Admitted.Exactly(family.Minimum)) && right.IsSubsetOf(Admitted.Exactly(-1));
 
         if(zeroOnly || overflowCertain)
         {
@@ -62,5 +65,26 @@ internal static class ArithmeticProof
         }
 
         return !zeroPossible && !overflowPossible ? Verdict.Safe : Verdict.Fallible;
+    }
+
+    private readonly record struct IntegerFamily(bool Signed, long Minimum, bool RemainderTraps);
+
+    private static IntegerFamily? Family(IMistType numericType)
+    {
+        var fqn = numericType.FullyQualifiedName;
+
+        return fqn switch
+        {
+            // SByte and Int16 are absent on purpose: a narrow signed quotient minimum / -1 is
+            // unrepresentable and cannot be expressed as a narrow checked helper, so those two families
+            // drop their division/remainder operators and promote into Int32, judged there.
+            _ when fqn == WellKnownTypes.Int32.FullyQualifiedName => new IntegerFamily(true, int.MinValue, true),
+            _ when fqn == WellKnownTypes.Int64.FullyQualifiedName => new IntegerFamily(true, long.MinValue, true),
+            _ when fqn == WellKnownTypes.Byte.FullyQualifiedName => new IntegerFamily(false, 0, false),
+            _ when fqn == WellKnownTypes.UInt16.FullyQualifiedName => new IntegerFamily(false, 0, false),
+            _ when fqn == WellKnownTypes.UInt32.FullyQualifiedName => new IntegerFamily(false, 0, false),
+            _ when fqn == WellKnownTypes.UInt64.FullyQualifiedName => new IntegerFamily(false, 0, false),
+            _ => null,
+        };
     }
 }

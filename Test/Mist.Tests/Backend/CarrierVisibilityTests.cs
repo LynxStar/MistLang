@@ -20,7 +20,7 @@ public sealed class CarrierVisibilityTests
         var writer = new CSharpWriter();
         UnionCarrierEmitter.Emit("InternalCarrier", union, new Dictionary<string, UnionType>(), writer);
         Assert.Contains("internal readonly struct InternalCarrier", writer.ToString());
-        Assert.Equal("internal", CarrierVisibility.Restrict("public", shapes.Result(hidden, shapes.Text)));
+        Assert.Equal(Accessibility.Internal, CarrierVisibility.Restrict(Accessibility.Public, shapes.Result(hidden, shapes.Text)));
     }
 
     [Fact]
@@ -28,6 +28,6 @@ public sealed class CarrierVisibilityTests
     {
         var shapes = new ResultModel();
         Assert.True(CarrierVisibility.IsPublic(shapes.Result(shapes.Integer, shapes.Text)));
-        Assert.Equal("public", CarrierVisibility.Restrict("public", shapes.Result(shapes.Integer, shapes.Text)));
+        Assert.Equal(Accessibility.Public, CarrierVisibility.Restrict(Accessibility.Public, shapes.Result(shapes.Integer, shapes.Text)));
     }
 }

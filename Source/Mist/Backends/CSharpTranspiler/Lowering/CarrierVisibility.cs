@@ -7,9 +7,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 // Generated carriers cannot expose a payload more widely than its declaration permits.
 internal static class CarrierVisibility
 {
-    public static string Restrict(string declared, IMistType? instance)
+    public static Accessibility Restrict(Accessibility declared, IMistType? instance)
     {
-        return declared == "public" && instance is not null && !IsPublic(instance) ? "internal" : declared;
+        return declared == Accessibility.Public && instance is not null && !IsPublic(instance) ? Accessibility.Internal : declared;
     }
 
     public static bool IsPublic(IMistType type)

@@ -1,75 +1,85 @@
-# Introduction
+# Mist
 
-> Follow [What's New](updates/index.md) for weekly updates on the language, tooling, and compiler.
+Mist brings a richer type system to familiar C# syntax: express more of your program's rules in its types, and let the compiler check them. It compiles to C# and runs on .NET.
 
-Mist is a programming language and idea that has been bouncing around my head since 2015 in different forms. Every single feature of the language arose from pushing the type system of existing languages to their limits. I was programming and I ran into some limitation and wanted something that didn't exist. I am definitely a craftsperson over an academic. Most of the things concepts were things I've been bouncing around my head for a while without concern for the underlying computer science behind it. It is most heavily influenced by C# followed closely by Typescript with a sprinkling of Haskell. While many other language may have the same features it is not derived from them, and then instead more of a coincidence, and consequently deviated without concern.
+This book assumes some C# knowledge and focuses on what Mist adds and changes. Start with a small program, then explore the features that make Mist its own language.
 
-## Tenets
+**[Install Mist](getting-started/installation.md)** · **[Write your first program](getting-started/hello-world.md)**
 
-- **C# Foundation** - When in doubt default to the C# way of doing things. Assume if it's part of C# it has a place in Mist. Anything removed or modified must have a rationale on why it doesn't belong. If something in Mist is semantiaclly the same as C# we should default to the C# syntax. When introducing new concepts we should respect the C# origin as much as possible. A C# developer should be able to self discover how the features work.
-- **Comptime Focused** - I strongly believe that the purpose of a programming language is to allow for the programmer to express guarentees that they want the compiler to enforce at compile time so that they do not need to reason about it at runtime. With that in mind all new features should be things that can reasoned about at comptime. We aim to make taking unproven actions comptime errors and couple with a type system to arm the developer to express this properly.
-- **Composable** - Language features should be building blocks that interact and compose with other language features. We should be weary of islands of functionality that exist on their own.
-- **Conservative Keywords** - Less is more when it comes to keywords. We should be hestitant to introduce new keywords when existing ones can be leveraged. A new keyword should signal something that is a novel addition from something C# can do to help bring attention that there is no parallel in the parent language.
+## A Slice of Mist
 
-## The Language
+Two small programs explore the same ticketing scenario. First, a desk that checks seat labels, prevents double booking, and closes automatically. Then, a variadic record that turns differently shaped data into seat labels using pure transformations.
 
-Some properties of Mist:
+### Reserve a Seat
 
-- **Static** - The type of objects cannot change at runtime. Once something is allocated it is that type forever.
-- **Strong** - An alias to an object is always typed. You can only perform actions that are comptime provable on the object. The type of the alias must be comptime provable. There is no free casting like C#, there is no any type like Typescript. You can only interact with the information that you've proven is valid at that point in time.
-- **Kinds** - Mist supports the follow kinds
-  - **Concrete Types** - 
-    - **Struct** - Value type. Pass by value. Lives directly at the address behind the alias; could be the stack or within another object. 
-    - **Class** - Reference type. Pass by reference. It's alias is a pointer to it's location.
-    - **Enum** - A reaonly named list of objects associated to a nominal type. The enum is a type itself and has a nominal parent. This is significantly more powerful than it's C# cousin.
-  - **Abstract Types** -
-    - **Abstract** - Nominal types that provide a contract an implementer is guaranteed to have met.
-
-Significant Features
-
-- **Ownership** — A tiered ownership system that tracks how values are shared and mutated, catching use-after-move and aliasing errors at compile time.
-- **Type Aliases** — Transparent alternative names for existing types (`type Name = ExistingType;`) that the compiler erases during transpilation. Values of the alias and the underlying type are fully interchangeable without casts.
-- **Newtypes** — Distinct types cloned from an existing type (`type Name = new SourceType;`). A newtype has its source's members but never its identity: a raw value enters it only through a cast, or as a literal written where the newtype is in sight, so a `UserId` cannot be confused with an `OrderId` or a plain `int`.
-- **Type Unions** — First-class union types (`A | B`) that let a value hold one of several types, narrowed safely via pattern matching.
-- **Refinement Types** — Types constrained by predicates (e.g., `int where > 0`) that are enforced at compile time and runtime boundaries.
-- **Dependent Types** — Types parameterized by a compile-time constant value rather than another type (e.g., `FixedBuffer<Size:int>`), creating a family of distinct types indexed by that value. A `FixedBuffer<5>` and a `FixedBuffer<10>` are incompatible types, giving compile-time guarantees about dimensions and capacities.
-- **Null Removed** — Mist eliminates null entirely. Every type must have a well-defined default value (0 for numerics, `""` for strings, a fully-initialized instance for classes and structs). The `default` keyword and optional `default` blocks let types specify their zero-state, removing null-reference errors by construction.
-- **Associated Types** — Abstract type slots declared inside abstract types whose concrete definition is provided by implementors. Where generic type parameters are chosen by the caller, associated types are chosen by the implementor — enabling patterns like zero-allocation iteration where the compiler resolves the concrete enumerator struct statically, eliminating boxing and virtual dispatch.
-- **Structured Context** — A mechanism for passing values through a call chain without threading them as explicit parameters, using a per-type context stack and `with` clauses. The compiler statically verifies that every required context value is available at each call site, giving the ergonomics of dependency injection with compile-time safety.
-
-## Target Audience
-
-This book is written for my friends that are trying out the language and want to poke at it. It is currently written assuming you have a working knowledge of C# and will not explain how anything in C# work only deviations from the bsae language. Use clankers to supplement your knowledge if there is a C# concept you need a quick explanation of first if you're missing knowledge.
-
-Mist's compiler has a strong separation between its frontend and backend. At the moment it only has a C# transpiler as its backend. Mist gets emitted to C# which is then AOT to native code.
-
-## A Taste of Mist
-
-Here is a small Mist program and the C# code the compiler emits:
+The desk's type carries its number of rows and seats per row. Its nested `Seat` type accepts labels such as `A7`; `Reserve` checks that the seat exists in this venue, that there is room, and that the seat is available. The third reservation below reaches the capacity guard.
 
 {{#tabs }}
 {{#tab name="Mist" }}
 ```mist
-{{#include ../snippets/introduction/greeter.mist}}
+{{#include ../snippets/introduction/ticket-desk.mist}}
 ```
 {{#endtab }}
 {{#tab name="Emitted C#" }}
 ```csharp
-{{#include ../snippets/introduction/greeter.cs}}
+{{#include ../snippets/introduction/ticket-desk.cs}}
 ```
 {{#endtab }}
 {{#endtabs }}
 
-This small example shows three features working together: a **type alias** (`Percentage`) gives a readable name to `int` and is erased in the output, an **adhoc refinement** (`where score >= 0 and <= 100`) is proven at every call site at compile time, and a **type union** (`string | int`) emits as a discriminated struct that is narrowed via pattern matching. The compiler verifies these stronger guarantees and then emits standard C# that runs anywhere .NET does.
+```text
+Mist Meetup: guest 42, seat A1
+Mist Meetup: guest 7, seat A2
+Sold out
+Desk closed with 2 reservations
+```
 
-## What This Book Covers
+The [newtype](type-system/newtypes.md) keeps user IDs distinct from ordinary integers, while the [generic alias](type-system/type-aliases.md) fixes the request dictionary's key and leaves its value type open. Numeric [refinements](type-system/refinement-types.md) bound the venue to rows A–Z and seats 1–9; the [dependent type](type-system/dependent-types.md) carries the chosen dimensions. The `is` pattern checks each incoming string against the nested regex refinement before it reaches `Reserve`.
 
-The book is organized into seven parts, each building on the previous:
+[Structured context](advanced/structured-context.md) supplies the event name. The [linear discipline](advanced/drop-semantics.md#linear-types) calls `Drop()` exactly once when the desk leaves scope, reporting its final state.
 
-- **Getting Started** — Install the toolchain, write your first program, and understand project layout.
-- **Basics** — Built-in types, variables, namespaces, control flow, methods, arrays, tuples, and regex literals.
-- **Object Model** — Classes, inheritance, structs, properties, abstract types, enums, overloading, and extension methods.
-- **Type System** — Generics, constraints, type unions, aliases, newtypes, pattern matching, switch expressions, cast operators, refinement types, and dependent types.
-- **Advanced Features** — Ownership tiers, ref parameters, readonly contexts, structured context, the unknown type, default values, and nested scoping.
-- **Standard Library** — An overview of the modules and types available out of the box.
-- **Tooling** — CLI usage, editor support, and project configuration.
+### Build and Check Seat Labels
+
+One [variadic](type-system/variadics.md) record holds either a row and seat number, or a row, seat number, and offset. `Map` expands those fields into a callback with the matching parameters. The [`pure` type](advanced/purity.md#promises-on-a-type) makes its fields readonly and its methods pure; requiring a pure callback keeps external side effects out of these transformations.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../snippets/introduction/seat-labels.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../snippets/introduction/seat-labels.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+```text
+A7
+A8
+Expected a seat such as A7
+Expected a seat such as A7
+```
+
+`ReadSeat` accepts [`unknown`](advanced/unknown-type.md): a formatted label, a malformed string, or even an integer. Its [switch](type-system/switch-expressions.md) checks the regex refinement and returns a [union](type-system/type-unions.md) containing either a proven `Seat` or an error string. Both alternatives print directly. Each program starts at its marked [top-level statements](getting-started/top-level-statements.md).
+
+## Get Started
+
+1. **[Install the toolchain](getting-started/installation.md).** Set up the .NET SDK and the Mist compiler.
+2. **[Write and run Hello, World!](getting-started/hello-world.md)** Create a `mist.toml` and a source file, then run your project with `mist run`.
+3. **[Set up your editor](tooling/editor-support.md).** Add syntax highlighting for Mist files.
+4. **[Grow your project](getting-started/project-structure.md).** Organize source files and reference other Mist projects.
+
+The examples throughout this book have an **Emitted C#** tab so you can see how Mist's features translate. The [CLI reference](tooling/cli-usage.md) covers the commands you'll use as you build.
+
+## Explore the Language
+
+Follow the book in order, or start with the part you're curious about:
+
+- **Express more in types:** [newtypes](type-system/newtypes.md) give values a distinct identity, [refinements](type-system/refinement-types.md) constrain their values, and [dependent types](type-system/dependent-types.md) make constants part of a type.
+- **Make alternatives explicit:** use [type unions](type-system/type-unions.md), [optional types](type-system/optional-types.md), and [pattern matching](type-system/pattern-matching.md) to describe and handle the values a computation can produce.
+- **Control how values are used:** explore [ownership](advanced/ownership.md), [drop semantics](advanced/drop-semantics.md), and [pure and local members](advanced/purity.md).
+- **Connect the pieces:** supply dependencies through [structured context](advanced/structured-context.md), let implementors choose [associated types](type-system/associated-types.md), and use existing libraries through [.NET interop](advanced/dotnet-interop.md).
+
+Read the [design tenets](tenets.md) for the thinking behind Mist, or follow [What's New](updates/index.md) for updates on the language, tooling, and compiler.

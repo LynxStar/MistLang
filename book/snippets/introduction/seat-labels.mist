@@ -1,0 +1,40 @@
+using Standard;
+
+type Seat = string `[A-Z][1-9]`;
+
+pure class Record<params T> // pure variadic type
+{
+    (T...) Fields { get; }
+
+    public Record(params T values)
+    {
+        Fields = values;
+    }
+
+    public TResult Map<TResult>(pure func<T..., TResult> project)
+    {
+        return project(Fields...);
+    }
+}
+
+// unknown input + union result
+Seat | string ReadSeat(unknown input)
+{
+    return input switch
+    {
+        Seat seat => seat,
+        _ => "Expected a seat such as A7"
+    };
+}
+
+// Top-level statements: the program starts executing here.
+var selected = new Record<string, int>("A", 7);
+var selectedLabel = selected.Map((row, number) => $"{row}{number}");
+Console.WriteLine(ReadSeat(selectedLabel)); // A7
+
+var adjacent = new Record<string, int, int>("A", 7, 1);
+var adjacentLabel = adjacent.Map((row, number, offset) => $"{row}{number + offset}");
+Console.WriteLine(ReadSeat(adjacentLabel)); // A8
+
+Console.WriteLine(ReadSeat("AC")); // Expected a seat such as A7
+Console.WriteLine(ReadSeat(7)); // Expected a seat such as A7

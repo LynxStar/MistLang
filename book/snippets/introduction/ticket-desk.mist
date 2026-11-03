@@ -1,0 +1,67 @@
+using Standard;
+using System.Collections.Generic;
+
+type UserId = new int; // newtype
+type RowCount = int >= 1 and <= 26; // refinement types
+type RowSize = int >= 1 and <= 9;
+type ByUser<T> = Dictionary<UserId, T>; // partial generic alias
+
+// linear discipline + dependent type
+linear class TicketDesk<Rows:RowCount, Depth:RowSize>
+{
+    public type Seat = string `[A-Z][1-9]`; // regex refinement
+    List<Seat> bookings = new();
+
+    public string Reserve(UserId guest, Seat seat)
+        with string eventName // structured context
+    {
+        string label = seat;
+        if (label[0] - 'A' >= Rows || label[1] - '1' >= Depth)
+        {
+            return "Seat outside the venue";
+        }
+
+        if (bookings.Count >= Rows * Depth)
+        {
+            return "Sold out";
+        }
+
+        if (bookings.Contains(seat))
+        {
+            return "Seat already reserved";
+        }
+
+        bookings.Add(seat);
+        return $"{eventName}: guest {guest}, seat {seat}";
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"Desk closed with {bookings.Count} reservations");
+        // Desk closed with 2 reservations
+    }
+}
+
+// Top-level statements: the program starts executing here.
+with "Mist Meetup";
+var desk = new TicketDesk<1, 2>(); // one row, two seats
+
+UserId ada = 42;
+UserId grace = 7;
+UserId linus = 11;
+ByUser<string> requests = new();
+requests.Add(ada, "A1");
+requests.Add(grace, "A2");
+requests.Add(linus, "A1");
+
+foreach (var request in requests)
+{
+    if (request.Value is TicketDesk<1, 2>.Seat seat)
+    {
+        Console.WriteLine(desk.Reserve(request.Key, seat));
+        // Outputs, in order:
+        // Mist Meetup: guest 42, seat A1
+        // Mist Meetup: guest 7, seat A2
+        // Sold out
+    }
+}

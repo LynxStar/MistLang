@@ -7,6 +7,7 @@ This chapter walks you through installing the Mist compiler on your machine. By 
 Mist is currently implemented in C#, targets .NET 10, and requires the .NET SDK to build from source. It also has a single backend, a C# transpiler which has the same requirements to use. Before you begin, ensure you have:
 
 - **.NET SDK 10.0 or later** — Download it from [https://dotnet.microsoft.com/download](https://dotnet.microsoft.com/download). The SDK includes the runtime, so no separate runtime install is needed.
+- **Git access to the private Storm repository** — Building Mist from source requires its Storm source-generator submodule.
 
 You can verify your installed SDK version by running:
 
@@ -37,9 +38,11 @@ The simplest way to use Mist during development. Build the CLI project and invok
 1. Clone the Mist repository:
 
    ```sh
-   git clone https://github.com/mist-lang/mist.git
-   cd mist
+   git clone --recurse-submodules https://github.com/LynxStar/MistLang.git
+   cd MistLang
    ```
+
+   If you already have a checkout, run `git submodule update --init --recursive` from its root before building.
 
 2. Build the CLI project:
 
@@ -58,7 +61,7 @@ This approach requires the .NET SDK on every invocation but needs no installatio
 
 ### Option B: Install via Publish Script
 
-For a permanent installation that puts `mist` on your PATH, use the publish script in the repository root. It auto-detects your platform, builds a self-contained binary, installs it to `~/.mist/bin/`, and configures your shell PATH.
+For a permanent installation that puts `mist` on your PATH, clone the repository as above, then use the publish script in its root. It auto-detects your platform, builds a self-contained binary, installs it to `~/.mist/bin/`, and configures your shell PATH.
 
 **macOS / Linux:**
 
@@ -99,14 +102,14 @@ Create `Program.mist`:
 {{#include ../../snippets/getting-started/installation-verify.mist}}
 ```
 
-Run the compiler (use whichever approach matches your installation):
+From the `hello` directory, run the compiler (use whichever approach matches your installation):
 
 ```sh
 # Option A (dotnet run):
-dotnet run --project /path/to/mist/Source/Mist.CLI -- run ./hello
+dotnet run --project /path/to/MistLang/Source/Mist.CLI -- run .
 
 # Option B (installed binary):
-mist run ./hello
+mist run .
 ```
 
 Expected output:

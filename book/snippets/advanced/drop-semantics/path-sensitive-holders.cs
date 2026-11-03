@@ -34,19 +34,19 @@ public class Pair
 
     public void Drop()
     {
-        var __e1 = true;
+        var __e1309 = true;
         try
         {
             try
             {
                 if (this.Early)
                 {
-                    MistOwnership.Handed(this.First, ref __e1).Drop();
+                    MistOwnership.Handed(this.First, ref __e1309).Drop();
                 }
             }
             finally
             {
-                if (__e1)
+                if (__e1309)
                 {
                     this.First.Drop();
                 }
@@ -63,17 +63,17 @@ public class Program
 {
     public static void Settle(Snippets.Lease lease, bool early)
     {
-        var __e2 = true;
+        var __e1310 = true;
         try
         {
             if (early)
             {
-                MistOwnership.Handed(lease, ref __e2).Drop();
+                MistOwnership.Handed(lease, ref __e1310).Drop();
             }
         }
         finally
         {
-            if (__e2)
+            if (__e1310)
             {
                 lease.Drop();
             }
@@ -88,47 +88,32 @@ public class Program
         try
         {
             Snippets.Lease scoped = new Snippets.Lease(5);
-            var __e3 = true;
-            try
             {
+                var __e1311 = scoped;
+                MistContext.Push<Snippets.Lease>(__e1311);
+                try
                 {
-                    var __e4 = scoped;
-                    MistContext.Push<Snippets.Lease>(__e4);
-                    try
-                    {
-                        System.Console.WriteLine("inside the with");
-                    }
-                    finally
-                    {
-                        MistContext.Pop<Snippets.Lease>();
-                        if (__e3)
-                        {
-                            __e3 = false;
-                            scoped.Drop();
-                        }
-                    }
+                    System.Console.WriteLine("inside the with");
                 }
+                finally
                 {
-                    Snippets.Lease counter = new Snippets.Lease(6);
-                    try
-                    {
-                        for (; true; )
-                        {
-                            System.Console.WriteLine("loop body");
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        counter.Drop();
-                    }
+                    MistContext.Pop<Snippets.Lease>();
+                    __e1311.Drop();
                 }
             }
-            finally
             {
-                if (__e3)
+                Snippets.Lease counter = new Snippets.Lease(6);
+                try
                 {
-                    scoped.Drop();
+                    for (; true; )
+                    {
+                        System.Console.WriteLine("loop body");
+                        break;
+                    }
+                }
+                finally
+                {
+                    counter.Drop();
                 }
             }
         }

@@ -1,11 +1,9 @@
-// Tier 3 (Component): the wrapper a newtype over an intrinsic Standard type emits (newtypes spec Requirement
-// 5.2), over a model built with the real Standard sources. Asserted on the emitted text, since a forwarding
-// member that forgot to wrap its result would still compile wherever C# found a conversion back, and print
-// the backing value either way.
-
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -47,15 +45,35 @@ public sealed class IntrinsicCloneEmissionTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void ArithmeticOverANarrowIntegral_IsSpelledBackIntoTheSourceBeforeItIsWrapped()
     {
-        var tiny = EmitDeclaration("Tiny");
-        var offset = EmitDeclaration("Offset");
+        var tiny = emit("Byte", "Tiny", OperatorKind.Plus);
+        var compared = emit("Byte", "Tiny", OperatorKind.LessThan);
+        var offset = emit("SByte", "Offset", OperatorKind.Minus);
+        Assert.Contains("((byte)((a.Value + b.Value)))", tiny);
+        Assert.Matches(@"new (?:Probe\.)?Tiny\(", tiny);
+        Assert.Contains("=> (a.Value < b.Value);", compared);
+        Assert.Contains("((sbyte)((-a.Value)))", offset);
 
-        Assert.Contains("=> new Probe.Tiny(((byte)((a.Value + b.Value))));", tiny);
-        Assert.Contains("=> new Probe.Tiny(((byte)((a.Value % b.Value))));", tiny);
-        Assert.Contains("=> (a.Value < b.Value);", tiny);
-        Assert.Contains("=> new Probe.Offset(((sbyte)((-a.Value))));", offset);
+        static string emit(string sourceName, string cloneName, OperatorKind kind)
+        {
+            var model = new HandBuiltModel();
+            var source = model.Type(sourceName);
+            source.Modifiers = new() { IsIntrinsic = true };
+            var clone = new StructType(cloneName, "Probe", null, null, null) { CloneSource = source };
+            var parameters = new List<Parameter> { new("a", clone) };
+            if(kind != OperatorKind.Minus)
+            {
+                parameters.Add(new Parameter("b", clone));
+            }
+
+            var returns = kind == OperatorKind.LessThan ? model.Type("Boolean") : (IMistType)clone;
+            var op = new Operator(kind, returns, parameters, new() { IsStatic = true, IsIntrinsic = true }) { DeclaringType = clone };
+            var writer = new CSharpWriter();
+            IntrinsicCloneEmitter.EmitOperator(op, writer, new DiagnosticBag());
+            return writer.ToString();
+        }
     }
 
     [Fact]

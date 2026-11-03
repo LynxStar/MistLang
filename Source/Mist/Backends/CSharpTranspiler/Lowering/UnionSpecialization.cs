@@ -265,7 +265,7 @@ internal sealed class UnionSpecialization
                 _ = typeOwners.TryAdd(parameter, type);
             }
 
-            foreach(var method in type.MethodsList)
+            foreach(var method in type.MethodsList.Concat(type.OperatorsList))
             {
                 foreach(var parameter in method.TypeParametersList)
                 {
@@ -277,6 +277,12 @@ internal sealed class UnionSpecialization
         var calls = model.GenericCalls.All().ToList();
         var requiredTypes = new HashSet<MemberType>();
         var requiredMethods = new HashSet<Method>();
+        foreach(var op in model.TypesByFQN.Values.OfType<MemberType>().SelectMany(type => type.OperatorsList)
+            .Where(op => op.TypeParametersList.Count > 0))
+        {
+            _ = requiredMethods.Add(op);
+        }
+
         var erased = model.TypesByFQN.Values.OfType<TypeAlias>().SelectMany(alias => alias.TypeParametersList).ToHashSet();
 
         var overPackElements = new SortedDictionary<string, (IMistType Type, PackElementType Element)>(StringComparer.Ordinal);

@@ -700,46 +700,60 @@ remain the contracts of their separate implementation packets.
 
 ## Arithmetic implementation surface
 
-The three-way division rule is a binding decision, because it fixes an
-expression's static type and Stage 5 may not retype a finished model.
-`ArithmeticProof` judges a built-in integer `/` or `%` from the operands'
-`Admitted` interval facts: a nonzero divisor that also excludes the signed
-minimum over negative one is safe and keeps the numeric type; a proven zero
-divisor or minimum-over-negative-one is refused with `MIST0484`; anything
-unproven takes the Result route. Every signed integer family shares that shape
-with its own minimum (`SByte`, `Int16`, `Int32`, `Int64`); the unsigned
-families have only the zero-divisor hazard. `OperandFacts` supplies the facts
-at binding time: a local that the callable assigns to anywhere carries no
-proof, so a branch join, a loop backedge, a nested store or a `ref` alias
-cannot leave a stale fact behind; only a once-pinned local's declaration
-constant or a guard narrowing counts, read through the refinement engine's
-`Admitted`, `Requirement` and interval algebra rather than a second proof
-engine.
+Numeric Standard declarations expose the uncertain return contract: integer `/`
+and `%` return `Result<T, DivisionError>` at their own width, including `SByte`
+and `Int16`; decimal binary arithmetic returns `Result<Decimal, System.Exception>`.
+The binder selects the numeric success type only from sound operand facts,
+before dependent lookup. Stage 5 validates the finished model.
 
-The unproven integer route lowers to a per-family `Standard.ResultArithmetic`
-helper (`DivideChecked`, `RemainderChecked`, and the `Int32`/`Int64`
-`Remainder` guard whose minimum remainder negative one returns zero without the
-trapping CLR rem). `DivisionError` carries a `Message` and an overflow
-discriminant. `SByte` and `Int16` drop their `/` and `%` operators and promote
-into `Int32`, because a narrow signed quotient minimum over negative one is
-unrepresentable and has no narrow checked helper. Decimal has no wrapping, so
-every operation is fallible: `AddCheckedDecimal` and the rest wrap the raw CLR
-`Decimal.Add`/`Divide`/... in `System.Exception.Catch`, turning an overflow or
-zero division into `Result<Decimal, System.Exception>` without re-entering the
-proof-sensitive operator. Float and double keep their IEEE values unchanged.
+Each integer type declares reusable nested refinements: `Nonzero` excludes zero;
+signed types also declare `QuotientDividend` (excluding their minimum) and
+`QuotientDivisor` (excluding negative one). `ArithmeticProof` consumes these
+predicates through `Requirement` and `Admitted`. Division requires `Nonzero`
+and either quotient refinement. A proven violation reports `MIST0484`. Unknown
+safety calls the corresponding `ResultArithmetic.DivideChecked*` or
+`RemainderChecked*` API. Remainder needs only `Nonzero`; the guarded numeric
+`Remainder*` route defines minimum remainder negative one as zero without a
+trapping backend instruction. Fixed-width addition, subtraction, multiplication
+and signed negation keep their wrapping behavior.
 
-Result composition is ordinary operator overloads, declared on the numeric
-payload type (`Int32`) for `Result/value`, `value/Result` and `Result/Result`
-over both `DivisionError` and the base `Error`; they carry an existing error
-forward (the left one when both fail) or apply the operation to the proven
-payloads, reusing the proof-sensitive `/` and `%` so one Result layer is kept
-and evaluation stays eager. Operator resolution reaches them only through a
-Result operand's payload type, never through a bare numeric operand, so an
-ordinary `n % 2` stays unambiguous; the declaring-type rule accepts a Result
-over the type; the backend carries them as C# extension operators on the Result
-operand, since the backing primitive cannot be reopened; and a newtype clone
-drops them off their Result return type before any type is resolved, so it
-neither rebinds nor interns a Result over the newtype.
+`OperandFacts` reads constants, declared refinements and lexical guard facts.
+A name assigned anywhere in the callable, exposed through a ref argument, or
+used as a ref-alias initializer supplies no stored facts. This conservative
+write scan includes nested callables, branches and loop backedges. `IntegerOperandFold`
+uses the selected result width, including wrapping, rather than a wider intermediate.
+Properties and calls acquire no facts from a previous evaluation. Operands are
+passed once to the selected helper or operator.
+
+`DecimalOperandFacts` uses shared `RealRequirement`/`RealSet` semantics for
+constants, declarations and guard narrowing under the same mutation gate.
+`DecimalArithmeticProof` checks constant arithmetic and conservative interval
+endpoints: safe operations keep Decimal, known overflow or zero division is
+refused, and uncertainty calls the checked Decimal helpers. Remainder only needs
+a nonzero divisor and never forms an overflowing quotient. The checked helpers
+capture raw CLR Decimal operations through the pure-callable `Exception.CatchDecimal`
+boundary, which shares the existing Catch implementation and accepts only a
+pure binary Decimal callback. Float and double retain IEEE infinities and NaNs as values.
+
+All eleven numeric types declare ordinary Result/value, value/Result and
+Result/Result arithmetic overloads. Integer native errors remain `DivisionError`;
+decimal native errors remain `System.Exception`. Concrete overloads provide the shared `Error` channel and Standard CLR exception
+adaptation. Generic overloads preserve the input error domain or union of domains,
+including the underlying operation's native failure when needed. Assigning that
+union to a different error contract requires explicit inspection/mapping. A final postfix `!`
+propagates one layer after composition. Each overload propagates only from its
+own body, so both operands are evaluated eagerly and two failures choose the left.
+Result assignment remains invariant.
+
+Operator declarations support inferred type parameters and ordinary constraints.
+Resolution discovers composition declarations through a Result operand's numeric
+payload type; bare numeric operands do not admit these candidates. Newtype clones
+exclude Result composition operators before resolving their signatures, while
+intrinsic numeric operators retain their fallible contracts. Their target
+implementations invoke the checked source operation once and wrap only its success. Numeric Mist-bodied
+operators become named target methods in `MistIntrinsics`, and generic operators
+use the existing specialization registry so closed Result and union representations
+agree at parameters, returns and calls.
 
 ## CLR boundary implementation surface
 

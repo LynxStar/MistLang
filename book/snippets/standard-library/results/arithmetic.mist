@@ -1,0 +1,25 @@
+using Standard;
+
+namespace ResultArithmeticExample;
+
+public class Program
+{
+    public static Result<int, DivisionError> Scaled(int x, int y, int scale)
+    {
+        return (x / y * scale)!;
+    }
+
+    public static void Main()
+    {
+        int proven = 20 / 4;
+        decimal rounded = 1m / 3m;
+        var uncertain = Scaled(20, 0, 3);
+        var description = uncertain.Inspect() switch
+        {
+            (true, var value) => $"success={value}",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+        Console.WriteLine($"{proven}; {rounded}; {description}");
+    }
+}

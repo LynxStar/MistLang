@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct SByte : IClonable<SByte>
 {
+    public type Nonzero = SByte not 0;
+    public type QuotientDividend = SByte not (>= -128 and <= -128);
+    public type QuotientDivisor = SByte not (>= -1 and <= -1);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned SByte Clone();
 
@@ -10,8 +14,8 @@ intrinsic public readonly owned struct SByte : IClonable<SByte>
     intrinsic public pure static SByte operator -(SByte a, SByte b);
     intrinsic public pure static SByte operator *(SByte a, SByte b);
 
-    // Division and remainder promote into Int32 (exceptions Requirement 4): the narrow signed quotient
-    // minimum / -1 is unrepresentable, so these do not stay SByte and are judged at the wider type.
+    intrinsic public pure static Result<SByte, DivisionError> operator /(SByte a, SByte b);
+    intrinsic public pure static Result<SByte, DivisionError> operator %(SByte a, SByte b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(SByte a, SByte b);
@@ -31,4 +35,564 @@ intrinsic public readonly owned struct SByte : IClonable<SByte>
     intrinsic public pure static implicit operator Single(SByte value);
     intrinsic public pure static implicit operator Double(SByte value);
     intrinsic public pure static implicit operator Decimal(SByte value);
+
+    public static Result<SByte, DivisionError> operator +(Result<SByte, DivisionError> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator +(SByte a, Result<SByte, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator +(Result<SByte, DivisionError> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, Error> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(SByte a, Result<SByte, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, Error> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, System.Exception> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(SByte a, Result<SByte, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, System.Exception> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, Error> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, DivisionError> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, Error> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, Error> operator +(Result<SByte, System.Exception> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, E> operator +<E>(Result<SByte, E> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, E> operator +<E>(SByte a, Result<SByte, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, E | F> operator +<E, F>(Result<SByte, E> a, Result<SByte, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator -(Result<SByte, DivisionError> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator -(SByte a, Result<SByte, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator -(Result<SByte, DivisionError> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, Error> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(SByte a, Result<SByte, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, Error> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, System.Exception> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(SByte a, Result<SByte, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, System.Exception> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, Error> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, DivisionError> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, Error> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, Error> operator -(Result<SByte, System.Exception> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, E> operator -<E>(Result<SByte, E> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, E> operator -<E>(SByte a, Result<SByte, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, E | F> operator -<E, F>(Result<SByte, E> a, Result<SByte, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator *(Result<SByte, DivisionError> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator *(SByte a, Result<SByte, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator *(Result<SByte, DivisionError> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, Error> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(SByte a, Result<SByte, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, Error> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, System.Exception> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(SByte a, Result<SByte, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, System.Exception> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, Error> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, DivisionError> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, Error> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, Error> operator *(Result<SByte, System.Exception> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, E> operator *<E>(Result<SByte, E> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, E> operator *<E>(SByte a, Result<SByte, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, E | F> operator *<E, F>(Result<SByte, E> a, Result<SByte, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator /(Result<SByte, DivisionError> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator /(SByte a, Result<SByte, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator /(Result<SByte, DivisionError> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, Error> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(SByte a, Result<SByte, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, Error> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, System.Exception> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(SByte a, Result<SByte, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, System.Exception> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, Error> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, DivisionError> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, Error> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, Error> operator /(Result<SByte, System.Exception> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, E | DivisionError> operator /<E>(Result<SByte, E> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, E | DivisionError> operator /<E>(SByte a, Result<SByte, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, E | F | DivisionError> operator /<E, F>(Result<SByte, E> a, Result<SByte, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator %(Result<SByte, DivisionError> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator %(SByte a, Result<SByte, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, DivisionError> operator %(Result<SByte, DivisionError> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, Error> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(SByte a, Result<SByte, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, Error> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, System.Exception> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(SByte a, Result<SByte, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, System.Exception> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, Error> a, Result<SByte, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, DivisionError> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, Error> a, Result<SByte, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, Error> operator %(Result<SByte, System.Exception> a, Result<SByte, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, E | DivisionError> operator %<E>(Result<SByte, E> a, SByte b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, E | DivisionError> operator %<E>(SByte a, Result<SByte, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<SByte, E | F | DivisionError> operator %<E, F>(Result<SByte, E> a, Result<SByte, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

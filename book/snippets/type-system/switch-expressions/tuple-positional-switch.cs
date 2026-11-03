@@ -36,7 +36,7 @@ public class Program
     {
         Snippet.Season weather = Snippet.Season.Winter;
         Snippet.Season region = Snippet.Season.Summer;
-        string advisory = (weather, region) switch { (var __e1, var __e2) when __e1 == Snippet.Season.Winter && __e2 == Snippet.Season.Winter => "stay indoors", (var __e3, var __e4) when __e3 == Snippet.Season.Summer && __e4 == Snippet.Season.Summer => "stay hydrated", (var __e5, var _) when __e5 == Snippet.Season.Winter => "pack warm layers", (var _, var __e6) when __e6 == Snippet.Season.Winter => "expect cold snap", var _ => "no advisory" };
+        string advisory = (weather, region) switch { (var __e1309, var __e1310) when __e1309 == Snippet.Season.Winter && __e1310 == Snippet.Season.Winter => "stay indoors", (var __e1311, var __e1312) when __e1311 == Snippet.Season.Summer && __e1312 == Snippet.Season.Summer => "stay hydrated", (var __e1313, var _) when __e1313 == Snippet.Season.Winter => "pack warm layers", (var _, var __e1314) when __e1314 == Snippet.Season.Winter => "expect cold snap", var _ => "no advisory" };
         System.Console.WriteLine($"advisory: {advisory}");
     }
 

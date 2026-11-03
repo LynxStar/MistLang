@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -531,9 +532,10 @@ internal static class OperatorBinder
             op, left.Type, right.Type, context.Resolver.LookupWellKnown,
             [ConstantConversion.IntegerConstant(left), ConstantConversion.IntegerConstant(right)], interner);
         var selected = choice.Selected;
+        var numeric = ResultTypes.Of(choice.Type)?.Success ?? choice.Type;
 
-        if(selected is null or { Declaration.Modifiers.IsIntrinsic: true } && choice.Type is { } numeric
-            && ArithmeticProof.Judge(op, numeric, OperandFacts.For(ctx, ctx.Scope, left), OperandFacts.For(ctx, ctx.Scope, right)) is { } verdict)
+        if(selected is null or { Declaration.Modifiers.IsIntrinsic: true } && numeric is not null
+            && Judge(op, numeric, left, right, ctx) is { } verdict)
         {
             if(verdict == ArithmeticProof.Verdict.Invalid)
             {
@@ -547,10 +549,17 @@ internal static class OperatorBinder
             else if(verdict == ArithmeticProof.Verdict.SafeGuardedRemainder
                 && StandardCall(node, "ResultArithmetic", "Remainder" + HelperSuffix(numeric), [left, right], ctx, context) is { } guarded)
             {
-                // Still the numeric value, but minimum-value % -1 traps the CLR rem, so the proven-safe
-                // route is a guarded Standard helper rather than the bare operator (Requirement 4).
                 return guarded;
             }
+
+            choice = choice with { Type = numeric };
+        }
+
+        if(selected is { Declaration.TypeParametersList.Count: > 0 })
+        {
+            var arguments = selected.Declaration.TypeParametersList.Select(parameter => selected.Closing.Apply(parameter, interner)).ToArray();
+            context.ProgramModel.GenericCalls.Record(selected.Declaration, arguments);
+            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected.Declaration, arguments, selected.Closing, node, ctx.Scope);
         }
 
         var operands = ImplicitConversions.AtParameters([left, right], selected?.Declaration, selected?.ParameterTypes, interner);
@@ -562,6 +571,15 @@ internal static class OperatorBinder
             ParameterTypes = selected?.ParameterTypes,
             AmbiguousOperators = choice.Tied,
         };
+    }
+
+    private static ArithmeticProof.Verdict? Judge(
+        BinaryOperatorKind op, IMistType numeric, Expression left, Expression right, BindingContext ctx)
+    {
+        return RealRequirement.KindOf(numeric) == RealKind.Decimal
+            && op is BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo
+            ? DecimalArithmeticProof.Judge(op, DecimalOperandFacts.For(ctx, ctx.Scope, left), DecimalOperandFacts.For(ctx, ctx.Scope, right))
+            : ArithmeticProof.Judge(op, numeric, OperandFacts.For(ctx, ctx.Scope, left), OperandFacts.For(ctx, ctx.Scope, right));
     }
 
     private static Expression? Fallible(
@@ -580,10 +598,6 @@ internal static class OperatorBinder
         return StandardCall(node, "ResultArithmetic", verb + HelperSuffix(numeric), [left, right], ctx, context);
     }
 
-    /// <summary>
-    /// Each integer family has its own checked helpers, because a generic one cannot do the payload
-    /// arithmetic -- Int32's are unsuffixed so the first family's emission is unchanged.
-    /// </summary>
     private static string HelperSuffix(IMistType numeric)
     {
         if(numeric.FullyQualifiedName == WellKnownTypes.Int32.FullyQualifiedName)
@@ -627,6 +641,13 @@ internal static class OperatorBinder
         UnaryNode node, UnaryOperatorKind op, Expression operand, IMistType? type, OperatorChoice choice, BuilderContext context)
     {
         var selected = choice.Selected;
+        if(selected is { Declaration.TypeParametersList.Count: > 0 })
+        {
+            var arguments = selected.Declaration.TypeParametersList.Select(parameter => selected.Closing.Apply(parameter, context.ProgramModel.TypeInterner)).ToArray();
+            context.ProgramModel.GenericCalls.Record(selected.Declaration, arguments);
+            context.ProgramModel.ConstructorConstraintClosures.RecordMethod(selected.Declaration, arguments, selected.Closing, node);
+        }
+
         var converted = ImplicitConversions.AtParameters([operand], selected?.Declaration, selected?.ParameterTypes, context.ProgramModel.TypeInterner);
 
         return new UnaryExpression(node, op, converted[0], type ?? ErrorType.Instance)

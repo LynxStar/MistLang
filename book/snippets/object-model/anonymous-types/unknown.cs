@@ -9,7 +9,7 @@ internal class Program
         object box = new { X = 10, Y = 20 };
         System.Console.WriteLine($"box is object: {box is object}");
         {
-            if ((box is not null and var __e1 && ((dynamic)__e1).X is var x && ((dynamic)__e1).Y is var y))
+            if ((box is not null and var __e1309 && ((dynamic)__e1309).X is var x && ((dynamic)__e1309).Y is var y))
             {
                 System.Console.WriteLine($"X={MistInvariant.Text(x)} Y={MistInvariant.Text(y)}");
             }

@@ -155,11 +155,25 @@ internal readonly struct Age : Standard.IClonable<Snippet.Age>
     public static Snippet.Age operator *(Snippet.Age a, Snippet.Age b)
         => new Snippet.Age((a.Value * b.Value));
 
-    public static Snippet.Age operator /(Snippet.Age a, Snippet.Age b)
-        => new Snippet.Age((a.Value / b.Value));
+    public static Standard.Result__Snippet_Age__Standard_DivisionError operator /(Snippet.Age a, Snippet.Age b)
+    {
+        var inspected = Standard.ResultArithmetic.DivideChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_Age__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_Age__Standard_DivisionError.Success(new Snippet.Age(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
-    public static Snippet.Age operator %(Snippet.Age a, Snippet.Age b)
-        => new Snippet.Age((a.Value % b.Value));
+    public static Standard.Result__Snippet_Age__Standard_DivisionError operator %(Snippet.Age a, Snippet.Age b)
+    {
+        var inspected = Standard.ResultArithmetic.RemainderChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_Age__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_Age__Standard_DivisionError.Success(new Snippet.Age(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
     public static bool operator <(Snippet.Age a, Snippet.Age b)
         => (a.Value < b.Value);
@@ -242,11 +256,25 @@ internal readonly struct Years : Standard.IClonable<Snippet.Years>
     public static Snippet.Years operator *(Snippet.Years a, Snippet.Years b)
         => new Snippet.Years((a.Value * b.Value));
 
-    public static Snippet.Years operator /(Snippet.Years a, Snippet.Years b)
-        => new Snippet.Years((a.Value / b.Value));
+    public static Standard.Result__Snippet_Years__Standard_DivisionError operator /(Snippet.Years a, Snippet.Years b)
+    {
+        var inspected = Standard.ResultArithmetic.DivideChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_Years__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_Years__Standard_DivisionError.Success(new Snippet.Years(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
-    public static Snippet.Years operator %(Snippet.Years a, Snippet.Years b)
-        => new Snippet.Years((a.Value % b.Value));
+    public static Standard.Result__Snippet_Years__Standard_DivisionError operator %(Snippet.Years a, Snippet.Years b)
+    {
+        var inspected = Standard.ResultArithmetic.RemainderChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_Years__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_Years__Standard_DivisionError.Success(new Snippet.Years(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
     public static bool operator <(Snippet.Years a, Snippet.Years b)
         => (a.Value < b.Value);

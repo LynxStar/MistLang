@@ -28,8 +28,8 @@ public class Program
     public static void Main()
     {
         {
-            var __e1 = new Snippets.Transaction("tx-001");
-            MistContext.Push<Snippets.Transaction>(__e1);
+            var __e1309 = new Snippets.Transaction("tx-001");
+            MistContext.Push<Snippets.Transaction>(__e1309);
             try
             {
                 System.Console.WriteLine("Inside transaction");
@@ -37,7 +37,7 @@ public class Program
             finally
             {
                 MistContext.Pop<Snippets.Transaction>();
-                __e1.Drop();
+                __e1309.Drop();
             }
         }
         Snippets.Transaction token = new Snippets.Transaction("tx-002");

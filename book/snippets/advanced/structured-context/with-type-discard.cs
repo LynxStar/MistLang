@@ -36,8 +36,8 @@ public class Program
     public static void Main(string[] args)
     {
         {
-            var __e1 = new Snippet.Config("discarded-binding");
-            MistContext.Push<Snippet.Config>(__e1);
+            var __e1309 = new Snippet.Config("discarded-binding");
+            MistContext.Push<Snippet.Config>(__e1309);
             try
             {
                 string result = Snippet.Consumers.GetConfig();

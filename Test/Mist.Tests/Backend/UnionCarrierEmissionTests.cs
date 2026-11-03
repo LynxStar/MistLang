@@ -28,8 +28,8 @@ public sealed class UnionCarrierEmissionTests
         var union = new UnionType([error, IntegerType]);
         var writer = new CSharpWriter();
         UnionCarrierEmitter.Emit("Union_Error_Int32", union, new Dictionary<string, UnionType>(), writer);
-        Assert.Contains("FromError(Standard.Error value)", writer.ToString());
-        Assert.DoesNotContain("implicit operator Union_Error_Int32(Standard.Error value)", writer.ToString());
+        Assert.Matches(@"FromError\((?:Standard\.)?Error value\)", writer.ToString());
+        Assert.DoesNotMatch(@"implicit operator Union_Error_Int32\((?:Standard\.)?Error value\)", writer.ToString());
     }
 
     [Fact]

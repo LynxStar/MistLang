@@ -31,8 +31,8 @@ public class Program
             {
                 System.Console.WriteLine(Snippet.Consumers.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture));
                 {
-                    var __e1 = 99;
-                    MistContext.Push<int>(__e1);
+                    var __e1309 = 99;
+                    MistContext.Push<int>(__e1309);
                     try
                     {
                         System.Console.WriteLine(Snippet.Consumers.GetInt().ToString(System.Globalization.CultureInfo.InvariantCulture));

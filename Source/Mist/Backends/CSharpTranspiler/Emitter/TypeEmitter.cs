@@ -319,8 +319,20 @@ internal static class TypeEmitter
 
             foreach(var op in concrete?.OperatorsList ?? [])
             {
-                SeparateMember(writer, ref anyEmitted);
-                OperatorEmitter.Emit(op, writer, diagnostics);
+                if(UnionSpecialization.Specializes(op))
+                {
+                    foreach(var arguments in UnionSpecialization.InstancesOf(op))
+                    {
+                        using var specializing = Specializing(op, arguments);
+                        SeparateMember(writer, ref anyEmitted);
+                        CarriedOperator.Emit(op, writer, diagnostics);
+                    }
+                }
+                else
+                {
+                    SeparateMember(writer, ref anyEmitted);
+                    OperatorEmitter.Emit(op, writer, diagnostics);
+                }
             }
 
             if(concrete is not null && DefaultSynthesis.IsDefaultable(type))
@@ -650,7 +662,7 @@ internal static class TypeEmitter
         return new Both(UnionSpecialization.For(instance), TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance)));
     }
 
-    private static IDisposable Specializing(Method method, IReadOnlyList<IMistType> arguments)
+    internal static IDisposable Specializing(Method method, IReadOnlyList<IMistType> arguments)
     {
         return new Both(
             UnionSpecialization.For(method, arguments),

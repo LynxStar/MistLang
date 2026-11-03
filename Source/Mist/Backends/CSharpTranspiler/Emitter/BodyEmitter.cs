@@ -1266,6 +1266,10 @@ internal static partial class BodyEmitter
                 EmitSubExpression(coalesce.Right, CoalescePrecedence, writer, diagnostics);
                 break;
 
+            case BinaryExpression binary when CarriedOperator.Applies(binary):
+                writer.Append(CarriedOperator.Call(binary, Render(binary.Left, diagnostics), Render(binary.Right, diagnostics)));
+                break;
+
             case BinaryExpression binary
                 when AnonymousEquality.Applies(binary.OperatorKind, binary.Left.Type, binary.Right.Type):
                 writer.Append(AnonymousEquality.Call(
@@ -1296,6 +1300,10 @@ internal static partial class BodyEmitter
                 EmitOperand(binary.Left, binary.Operator, binary.ParameterTypes, 0, GetPrecedence(binary.OperatorKind), writer, diagnostics);
                 writer.Append($" {MapBinaryOperator(binary.OperatorKind)} ");
                 EmitOperand(binary.Right, binary.Operator, binary.ParameterTypes, 1, GetPrecedence(binary.OperatorKind) + 1, writer, diagnostics);
+                break;
+
+            case UnaryExpression unary when CarriedOperator.Applies(unary):
+                writer.Append(CarriedOperator.Call(unary, Render(unary.Operand, diagnostics)));
                 break;
 
             case UnaryExpression unary when NarrowArithmetic.Promotes(unary.Type):

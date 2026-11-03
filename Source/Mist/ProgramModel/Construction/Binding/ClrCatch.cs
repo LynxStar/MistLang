@@ -17,7 +17,7 @@ internal static class ClrCatch
 
     public static bool Declares(IMethodHost host, string name)
     {
-        if(name != "Catch" || host is not ExtensionBlock
+        if(name is not ("Catch" or "CatchDecimal") || host is not ExtensionBlock
             { NamespaceName: "Standard", ResolvedReceiverType.FullyQualifiedName: "System.Exception" })
         {
             return false;

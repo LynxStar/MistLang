@@ -679,10 +679,12 @@ public sealed class MistPrettyPrinter
             _ => "?",
         };
         var parameters = EmitParameterList(opDecl.Parameters);
+        var typeParameters = EmitTypeParameterList(opDecl.TypeParams);
+        var constraints = EmitConstraintClauses(opDecl.Constraints);
 
         if(opDecl.Body is CallableBlockBodyCallableBodyNode blockBody)
         {
-            AppendLine($"{modifiers}{returnType} operator {symbol}({parameters}) {{");
+            AppendLine($"{modifiers}{returnType} operator {symbol}{typeParameters}({parameters}){constraints} {{");
             indentLevel++;
 
             foreach(var stmt in blockBody.Block.Statements)
@@ -695,7 +697,7 @@ public sealed class MistPrettyPrinter
         }
         else
         {
-            AppendLine($"{modifiers}{returnType} operator {symbol}({parameters});");
+            AppendLine($"{modifiers}{returnType} operator {symbol}{typeParameters}({parameters}){constraints};");
         }
     }
 

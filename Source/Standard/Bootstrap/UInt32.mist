@@ -2,6 +2,8 @@ namespace Standard;
 
 intrinsic public readonly owned struct UInt32 : IClonable<UInt32>
 {
+    public type Nonzero = UInt32 not 0;
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned UInt32 Clone();
 
@@ -9,8 +11,8 @@ intrinsic public readonly owned struct UInt32 : IClonable<UInt32>
     intrinsic public pure static UInt32 operator +(UInt32 a, UInt32 b);
     intrinsic public pure static UInt32 operator -(UInt32 a, UInt32 b);
     intrinsic public pure static UInt32 operator *(UInt32 a, UInt32 b);
-    intrinsic public pure static UInt32 operator /(UInt32 a, UInt32 b);
-    intrinsic public pure static UInt32 operator %(UInt32 a, UInt32 b);
+    intrinsic public pure static Result<UInt32, DivisionError> operator /(UInt32 a, UInt32 b);
+    intrinsic public pure static Result<UInt32, DivisionError> operator %(UInt32 a, UInt32 b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(UInt32 a, UInt32 b);
@@ -28,4 +30,564 @@ intrinsic public readonly owned struct UInt32 : IClonable<UInt32>
     intrinsic public pure static implicit operator Single(UInt32 value);
     intrinsic public pure static implicit operator Double(UInt32 value);
     intrinsic public pure static implicit operator Decimal(UInt32 value);
+
+    public static Result<UInt32, DivisionError> operator +(Result<UInt32, DivisionError> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator +(UInt32 a, Result<UInt32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator +(Result<UInt32, DivisionError> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, Error> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(UInt32 a, Result<UInt32, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, Error> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, System.Exception> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(UInt32 a, Result<UInt32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, System.Exception> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, Error> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, DivisionError> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, Error> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, Error> operator +(Result<UInt32, System.Exception> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, E> operator +<E>(Result<UInt32, E> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, E> operator +<E>(UInt32 a, Result<UInt32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, E | F> operator +<E, F>(Result<UInt32, E> a, Result<UInt32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator -(Result<UInt32, DivisionError> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator -(UInt32 a, Result<UInt32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator -(Result<UInt32, DivisionError> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, Error> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(UInt32 a, Result<UInt32, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, Error> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, System.Exception> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(UInt32 a, Result<UInt32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, System.Exception> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, Error> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, DivisionError> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, Error> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, Error> operator -(Result<UInt32, System.Exception> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, E> operator -<E>(Result<UInt32, E> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, E> operator -<E>(UInt32 a, Result<UInt32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, E | F> operator -<E, F>(Result<UInt32, E> a, Result<UInt32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator *(Result<UInt32, DivisionError> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator *(UInt32 a, Result<UInt32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator *(Result<UInt32, DivisionError> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, Error> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(UInt32 a, Result<UInt32, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, Error> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, System.Exception> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(UInt32 a, Result<UInt32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, System.Exception> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, Error> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, DivisionError> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, Error> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, Error> operator *(Result<UInt32, System.Exception> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, E> operator *<E>(Result<UInt32, E> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, E> operator *<E>(UInt32 a, Result<UInt32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, E | F> operator *<E, F>(Result<UInt32, E> a, Result<UInt32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator /(Result<UInt32, DivisionError> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator /(UInt32 a, Result<UInt32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator /(Result<UInt32, DivisionError> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, Error> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(UInt32 a, Result<UInt32, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, Error> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, System.Exception> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(UInt32 a, Result<UInt32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, System.Exception> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, Error> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, DivisionError> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, Error> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, Error> operator /(Result<UInt32, System.Exception> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, E | DivisionError> operator /<E>(Result<UInt32, E> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, E | DivisionError> operator /<E>(UInt32 a, Result<UInt32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, E | F | DivisionError> operator /<E, F>(Result<UInt32, E> a, Result<UInt32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator %(Result<UInt32, DivisionError> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator %(UInt32 a, Result<UInt32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, DivisionError> operator %(Result<UInt32, DivisionError> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, Error> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(UInt32 a, Result<UInt32, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, Error> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, System.Exception> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(UInt32 a, Result<UInt32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, System.Exception> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, Error> a, Result<UInt32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, DivisionError> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, Error> a, Result<UInt32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, Error> operator %(Result<UInt32, System.Exception> a, Result<UInt32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, E | DivisionError> operator %<E>(Result<UInt32, E> a, UInt32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, E | DivisionError> operator %<E>(UInt32 a, Result<UInt32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<UInt32, E | F | DivisionError> operator %<E, F>(Result<UInt32, E> a, Result<UInt32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

@@ -22,7 +22,14 @@ async System.Threading.Tasks.Task Main()
         {
             int value = await ComputeAsync();
             System.Threading.Tasks.Task<int> promotedTask = System.Threading.Tasks.Task.Run(async () => await ComputePromoted());
-            System.Console.WriteLine((await promotedTask).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            try
+            {
+                System.Console.WriteLine((await promotedTask).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            finally
+            {
+                await promotedTask;
+            }
         }
         finally
         {

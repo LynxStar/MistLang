@@ -245,3 +245,12 @@ Abstract types can declare parameter refinements as part of their contract. Impl
 An implementor cannot use a **stronger** constraint than the abstract type declares — that would reject values the abstract type promises to accept.
 
 A bound that names a member, a parameter or a dependent type parameter (`where entry >= 0 and < Count`, `where lo < hi`) is compared by what it names, never by its spelling. The implementor's `Count` matches the abstract type's `Count` when it is the member that fills that slot, and a parameter matches the parameter in the same position. A strict bound implies the inclusive one, so an implementor may accept `<= Count` where the abstract type promises `< Count`, but not the reverse. The compiler does no arithmetic on bounds: `< Count` and `<= Count - 1` are not treated as the same, and neither are `lo < hi` and `hi > lo`. A return or property type follows the same rule in the other direction: the implementor may promise a stronger bound, but not a weaker one.
+
+
+Arithmetic consumes refinements while binding each expression. Integer numeric
+types expose nested `Nonzero` refinements; signed types also expose
+`QuotientDividend` and `QuotientDivisor` to exclude their minimum and negative one.
+Division requires a nonzero denominator and either quotient exclusion. A positive
+denominator proves both conditions. Decimal uses its existing real-valued
+refinement ranges for overflow and zero-divisor proofs. A later guard cannot
+change an earlier expression's type. See [Results](../standard-library/results.md).

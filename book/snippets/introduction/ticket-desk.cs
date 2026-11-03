@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using Snippet;
 
 {
-    var __e1 = "Mist Meetup";
-    MistContext.Push<string>(__e1);
+    var __e1309 = "Mist Meetup";
+    MistContext.Push<string>(__e1309);
     try
     {
         Snippet.TicketDesk<Const_1, Const_2> desk = new Snippet.TicketDesk<Const_1, Const_2>();
@@ -21,7 +21,7 @@ using Snippet;
             foreach (System.Collections.Generic.KeyValuePair<Snippet.UserId, string> request in requests)
             {
                 {
-                    if ((request.Value is string and var __e2 and var seat && System.Text.RegularExpressions.Regex.IsMatch(__e2, "\\A(?:" + "[A-Z][1-9]" + "(?#\n(?#))\\z", System.Text.RegularExpressions.RegexOptions.CultureInvariant)))
+                    if ((request.Value is string and var __e1310 and var seat && System.Text.RegularExpressions.Regex.IsMatch(__e1310, "\\A(?:" + "[A-Z][1-9]" + "(?#\n(?#))\\z", System.Text.RegularExpressions.RegexOptions.CultureInvariant)))
                     {
                         System.Console.WriteLine(desk.Reserve(request.Key, seat));
                     }
@@ -99,11 +99,25 @@ namespace Snippet
         public static Snippet.UserId operator *(Snippet.UserId a, Snippet.UserId b)
             => new Snippet.UserId((a.Value * b.Value));
 
-        public static Snippet.UserId operator /(Snippet.UserId a, Snippet.UserId b)
-            => new Snippet.UserId((a.Value / b.Value));
+        public static Standard.Result__Snippet_UserId__Standard_DivisionError operator /(Snippet.UserId a, Snippet.UserId b)
+        {
+            var inspected = Standard.ResultArithmetic.DivideChecked(a.Value, b.Value).Inspect();
+            if (inspected.IsTuple_2_Boolean_DivisionError)
+            {
+                return Standard.Result__Snippet_UserId__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+            }
+            return Standard.Result__Snippet_UserId__Standard_DivisionError.Success(new Snippet.UserId(inspected.AsTuple_2_Boolean_Int32.Item2));
+        }
 
-        public static Snippet.UserId operator %(Snippet.UserId a, Snippet.UserId b)
-            => new Snippet.UserId((a.Value % b.Value));
+        public static Standard.Result__Snippet_UserId__Standard_DivisionError operator %(Snippet.UserId a, Snippet.UserId b)
+        {
+            var inspected = Standard.ResultArithmetic.RemainderChecked(a.Value, b.Value).Inspect();
+            if (inspected.IsTuple_2_Boolean_DivisionError)
+            {
+                return Standard.Result__Snippet_UserId__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+            }
+            return Standard.Result__Snippet_UserId__Standard_DivisionError.Success(new Snippet.UserId(inspected.AsTuple_2_Boolean_Int32.Item2));
+        }
 
         public static bool operator <(Snippet.UserId a, Snippet.UserId b)
             => (a.Value < b.Value);

@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -30,16 +31,15 @@ internal sealed class OperatorBuilder
     /// </summary>
     public void Resolve(OperatorDeclarationNode opDecl, MemberType memberType)
     {
-        // A newtype's clone does not inherit a Result composition operator (exceptions Requirement 4):
-        // it operates on a Result over the source type, not on the source value itself, so cloning it
-        // under the newtype's name is neither wanted nor expressible. Decided off the declaration's
-        // syntax, before any type is resolved, so the clone never interns a Result over the newtype.
-        if(memberType is ConcreteType { CloneSource: not null } && ReturnsResult(opDecl))
+        if(memberType is ConcreteType { CloneSource: not null } && ReturnsResult(opDecl)
+            && !opDecl.Modifiers.Any(modifier => modifier is IntrinsicModifierModifierNode))
         {
             return;
         }
 
         var operatorScope = new MethodScope(memberType.Scope);
+        var generic = new Operator(MapOperatorSymbol(opDecl.Symbol), ErrorType.Instance, [], default);
+        TypeParameterPopulator.Populate(generic, operatorScope, memberType, opDecl.TypeParams, context.Diagnostics, context.Domains);
         var returnType = scopeResolver.Resolve(opDecl.ReturnType, operatorScope);
         var common = delegateResolver.ResolveDelegate(opDecl, operatorScope, memberType, "operator");
         operatorScope.IsStatic = common.Modifiers.IsStatic;
@@ -65,6 +65,13 @@ internal sealed class OperatorBuilder
             DeclaringType = memberType,
             DeclarationNode = opDecl,
         };
+        op.TypeParametersList.AddRange(generic.TypeParametersList);
+        foreach(var parameter in op.TypeParametersList)
+        {
+            parameter.DeclaringMethod = op;
+        }
+
+        new ConstraintResolver(context, scopeResolver).Resolve(opDecl.Constraints, op.TypeParametersList, op.ParametersList, operatorScope);
         memberType.OperatorsList.Add(op);
     }
 

@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int64 : IClonable<Int64>
 {
+    public type Nonzero = Int64 not 0;
+    public type QuotientDividend = Int64 not (>= -9223372036854775808 and <= -9223372036854775808);
+    public type QuotientDivisor = Int64 not (>= -1 and <= -1);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int64 Clone();
 
@@ -9,8 +13,8 @@ intrinsic public readonly owned struct Int64 : IClonable<Int64>
     intrinsic public pure static Int64 operator +(Int64 a, Int64 b);
     intrinsic public pure static Int64 operator -(Int64 a, Int64 b);
     intrinsic public pure static Int64 operator *(Int64 a, Int64 b);
-    intrinsic public pure static Int64 operator /(Int64 a, Int64 b);
-    intrinsic public pure static Int64 operator %(Int64 a, Int64 b);
+    intrinsic public pure static Result<Int64, DivisionError> operator /(Int64 a, Int64 b);
+    intrinsic public pure static Result<Int64, DivisionError> operator %(Int64 a, Int64 b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(Int64 a, Int64 b);
@@ -27,4 +31,564 @@ intrinsic public readonly owned struct Int64 : IClonable<Int64>
     intrinsic public pure static implicit operator Single(Int64 value);
     intrinsic public pure static implicit operator Double(Int64 value);
     intrinsic public pure static implicit operator Decimal(Int64 value);
+
+    public static Result<Int64, DivisionError> operator +(Result<Int64, DivisionError> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator +(Int64 a, Result<Int64, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator +(Result<Int64, DivisionError> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, Error> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Int64 a, Result<Int64, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, Error> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, System.Exception> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Int64 a, Result<Int64, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, System.Exception> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, Error> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, DivisionError> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, Error> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, Error> operator +(Result<Int64, System.Exception> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, E> operator +<E>(Result<Int64, E> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, E> operator +<E>(Int64 a, Result<Int64, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, E | F> operator +<E, F>(Result<Int64, E> a, Result<Int64, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator -(Result<Int64, DivisionError> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator -(Int64 a, Result<Int64, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator -(Result<Int64, DivisionError> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, Error> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Int64 a, Result<Int64, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, Error> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, System.Exception> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Int64 a, Result<Int64, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, System.Exception> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, Error> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, DivisionError> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, Error> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, Error> operator -(Result<Int64, System.Exception> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, E> operator -<E>(Result<Int64, E> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, E> operator -<E>(Int64 a, Result<Int64, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, E | F> operator -<E, F>(Result<Int64, E> a, Result<Int64, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator *(Result<Int64, DivisionError> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator *(Int64 a, Result<Int64, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator *(Result<Int64, DivisionError> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, Error> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Int64 a, Result<Int64, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, Error> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, System.Exception> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Int64 a, Result<Int64, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, System.Exception> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, Error> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, DivisionError> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, Error> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, Error> operator *(Result<Int64, System.Exception> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, E> operator *<E>(Result<Int64, E> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, E> operator *<E>(Int64 a, Result<Int64, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, E | F> operator *<E, F>(Result<Int64, E> a, Result<Int64, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator /(Result<Int64, DivisionError> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator /(Int64 a, Result<Int64, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator /(Result<Int64, DivisionError> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, Error> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Int64 a, Result<Int64, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, Error> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, System.Exception> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Int64 a, Result<Int64, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, System.Exception> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, Error> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, DivisionError> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, Error> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, Error> operator /(Result<Int64, System.Exception> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, E | DivisionError> operator /<E>(Result<Int64, E> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, E | DivisionError> operator /<E>(Int64 a, Result<Int64, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, E | F | DivisionError> operator /<E, F>(Result<Int64, E> a, Result<Int64, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator %(Result<Int64, DivisionError> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator %(Int64 a, Result<Int64, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, DivisionError> operator %(Result<Int64, DivisionError> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, Error> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Int64 a, Result<Int64, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, Error> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, System.Exception> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Int64 a, Result<Int64, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, System.Exception> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, Error> a, Result<Int64, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, DivisionError> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, Error> a, Result<Int64, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, Error> operator %(Result<Int64, System.Exception> a, Result<Int64, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, E | DivisionError> operator %<E>(Result<Int64, E> a, Int64 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, E | DivisionError> operator %<E>(Int64 a, Result<Int64, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int64, E | F | DivisionError> operator %<E, F>(Result<Int64, E> a, Result<Int64, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

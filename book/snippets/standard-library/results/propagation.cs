@@ -15,12 +15,12 @@ public class Program
 
     public static Standard.Result__Standard_Int32__Standard_Error Next(bool fail)
     {
-        var __e1 = (Read(fail)).Inspect();
-        if (__e1.IsTuple_2_Boolean_Error)
+        var __e1309 = (Read(fail)).Inspect();
+        if (__e1309.IsTuple_2_Boolean_Error)
         {
-            return Standard.Result__Standard_Int32__Standard_Error.Failure(__e1.AsTuple_2_Boolean_Error.Item2);
+            return Standard.Result__Standard_Int32__Standard_Error.Failure(__e1309.AsTuple_2_Boolean_Error.Item2);
         }
-        return Standard.Result__Standard_Int32__Standard_Error.Success(__e1.AsTuple_2_Boolean_Int32.Item2 + 1);
+        return Standard.Result__Standard_Int32__Standard_Error.Success(__e1309.AsTuple_2_Boolean_Int32.Item2 + 1);
     }
 
     public static void Main()

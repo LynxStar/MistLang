@@ -28,17 +28,17 @@ public class Program
     public static void Settle(bool early)
     {
         Snippets.Lease lease = new Snippets.Lease(1);
-        var __e1 = true;
+        var __e1309 = true;
         try
         {
             if (early)
             {
-                MistOwnership.Handed(lease, ref __e1).Drop();
+                MistOwnership.Handed(lease, ref __e1309).Drop();
             }
         }
         finally
         {
-            if (__e1)
+            if (__e1309)
             {
                 lease.Drop();
             }
@@ -48,18 +48,18 @@ public class Program
     public static Snippets.Lease KeepOrReplace(bool keep)
     {
         Snippets.Lease lease = new Snippets.Lease(2);
-        var __e2 = true;
+        var __e1310 = true;
         try
         {
             if (keep)
             {
-                return MistOwnership.Handed(lease, ref __e2);
+                return MistOwnership.Handed(lease, ref __e1310);
             }
             return new Snippets.Lease(3);
         }
         finally
         {
-            if (__e2)
+            if (__e1310)
             {
                 lease.Drop();
             }
@@ -79,15 +79,15 @@ public class Program
             {
                 System.Console.WriteLine(System.FormattableString.Invariant($"Kept Lease({kept.GetId()})"));
                 Snippets.Lease renewed = new Snippets.Lease(5);
-                var __e3 = true;
+                var __e1311 = true;
                 try
                 {
-                    MistOwnership.Handed(renewed, ref __e3).Drop();
-                    MistOwnership.Taken(renewed = new Snippets.Lease(6), ref __e3);
+                    MistOwnership.Handed(renewed, ref __e1311).Drop();
+                    MistOwnership.Taken(renewed = new Snippets.Lease(6), ref __e1311);
                 }
                 finally
                 {
-                    if (__e3)
+                    if (__e1311)
                     {
                         renewed.Drop();
                     }

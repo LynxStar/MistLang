@@ -8,7 +8,14 @@ async System.Threading.Tasks.Task<int> ExpensiveComputation()
 async System.Threading.Tasks.Task Main()
 {
     System.Threading.Tasks.Task<int> task = ExpensiveComputation();
-    int first = await task;
-    int second = await task;
-    System.Console.WriteLine(first == second);
+    try
+    {
+        int first = await task;
+        int second = await task;
+        System.Console.WriteLine(first == second);
+    }
+    finally
+    {
+        await task;
+    }
 }

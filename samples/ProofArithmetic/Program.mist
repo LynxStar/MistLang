@@ -2,6 +2,9 @@ using Standard;
 
 namespace ProofArithmetic;
 
+public type Count = new int;
+public type SmallCount = new short;
+
 public class Program
 {
     public static void Main()
@@ -93,12 +96,190 @@ public class Program
             Console.WriteLine($"guarded min % -1 -> {guardedRem}");
         }
 
+        Console.WriteLine($"ref call divisor -> {Message(RefCall())}");
+        Console.WriteLine($"ref alias divisor -> {Message(RefAlias())}");
+        Console.WriteLine($"byte wrap divisor -> {Division(ByteWrap(255, 1))}");
+        Console.WriteLine($"short min / -1 -> {Division(Narrow(-32768, -1))}");
+        Console.WriteLine($"sbyte min / -1 -> {Division(NarrowByte(-128, -1))}");
+        Console.WriteLine($"int / -1 -> {Value(DivideByNegativeOne(20))}");
+        Console.WriteLine($"short / -1 -> {Division(Narrow(20, -1))}");
+        Console.WriteLine($"sbyte / -1 -> {Division(NarrowByte(20, -1))}");
+        Console.WriteLine($"short min % -1 -> {NarrowRemainder(-32768, -1)}");
+        Count count = (Count)20;
+        Count minus = (Count)(-1);
+        Console.WriteLine($"numeric clone / -1 -> {CountValue(count / minus)}");
+        SmallCount smallMinimum = (SmallCount)(-32768);
+        SmallCount smallMinus = (SmallCount)(-1);
+        Console.WriteLine($"narrow clone min / -1 -> {Division(smallMinimum / smallMinus)}");
+        Console.WriteLine($"long composition -> {LongChain(20, 4, 3)}");
+        Console.WriteLine($"decimal composition -> {Decimals(DecimalChain(10m, 2m, 3m))}");
+        Decimal safeMoney = 4m / 2m;
+        Console.WriteLine($"decimal constant -> {safeMoney}");
+        Decimal smallRemainder = 79228162514264337593543950335m % 0.1m;
+        Console.WriteLine($"decimal small remainder -> {smallRemainder}");
+        Console.WriteLine($"mixed errors -> {MixedErrors()}");
+        Console.WriteLine($"custom error -> {CustomError()}");
+        Console.WriteLine($"error union -> {ErrorUnion()}");
+        Console.WriteLine($"generic mixed errors -> {MixedDomains()}");
+
         Decimal money = 100.0m;
         Decimal rate = 3.0m;
         var product = money * rate;
         Console.WriteLine($"decimal product -> {Decimals(product)}");
         var byZeroDecimal = money / DecimalZero();
         Console.WriteLine($"decimal / 0 -> {Decimals(byZeroDecimal)}");
+    }
+
+    public static void Clear(ref int value)
+    {
+        value = 0;
+    }
+
+    public static Result<int, DivisionError> RefCall()
+    {
+        int d = 1;
+        Clear(ref d);
+        return 20 / d;
+    }
+
+    public static Result<int, DivisionError> RefAlias()
+    {
+        int d = 1;
+        ref int alias = d;
+        alias = 0;
+        return 20 / d;
+    }
+
+    public static Result<byte, DivisionError> ByteWrap(byte a, byte b)
+    {
+        byte n = 20;
+        return n / (a + b);
+    }
+
+    public static Result<int, DivisionError> DivideByNegativeOne(int a)
+    {
+        return a / -1;
+    }
+
+    public static Result<short, DivisionError> Narrow(short a, short b)
+    {
+        return a / b;
+    }
+
+    public static Result<sbyte, DivisionError> NarrowByte(sbyte a, sbyte b)
+    {
+        return a / b;
+    }
+
+    public static short NarrowRemainder(short a, short b)
+    {
+        if (b != 0) { return a % b; }
+        return 1;
+    }
+
+    public static string Division<T>(Result<T, DivisionError> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var payload) => "ok",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static int CountValue(Result<Count, DivisionError> result)
+    {
+        return result.Inspect() switch
+        {
+            (true, var value) => (int)value,
+            (false, var error) => -999,
+            _ => -998
+        };
+    }
+
+    public static Result<Decimal, System.Exception> DecimalChain(Decimal a, Decimal b, Decimal c)
+    {
+        return (a + b) * c;
+    }
+
+    public static long LongChain(long a, long b, long c)
+    {
+        var result = a / b * c;
+        return result.Inspect() switch
+        {
+            (true, var value) => value,
+            (false, var error) => -1L,
+            _ => -2L
+        };
+    }
+
+    public static Result<int, DivisionError> RightError()
+    {
+        Console.WriteLine("right operand evaluated");
+        return DivisionError.DivideByZero();
+    }
+
+    public static string MixedErrors()
+    {
+        Result<int, Error> left = new MessageError("left wins");
+        var result = left + RightError();
+        return result.Inspect() switch
+        {
+            (true, var value) => "ok",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static string CustomError()
+    {
+        Result<int, MessageError> left = new MessageError("custom retained");
+        var result = 1 + left;
+        return result.Inspect() switch
+        {
+            (true, var value) => "ok",
+            (false, var error) => error.Message,
+            _ => "unreachable"
+        };
+    }
+
+    public static Result<int, MessageError | DivisionError> SumUnion(Result<int, MessageError | DivisionError> left)
+    {
+        return left + 1;
+    }
+
+    public static string ErrorUnion()
+    {
+        Result<int, MessageError | DivisionError> left = new MessageError("union retained");
+        var result = SumUnion(left);
+        return result.Inspect() switch
+        {
+            (true, var value) => "ok",
+            (false, var error) => UnionMessage(error),
+            _ => "unreachable"
+        };
+    }
+
+    public static string MixedDomains()
+    {
+        Result<int, MessageError> left = new MessageError("domain left wins");
+        var result = left + RightError();
+        return result.Inspect() switch
+        {
+            (true, var value) => "ok",
+            (false, var error) => UnionMessage(error),
+            _ => "unreachable"
+        };
+    }
+
+    public static string UnionMessage(MessageError | DivisionError error)
+    {
+        return error switch
+        {
+            MessageError message => message.Message,
+            DivisionError division => division.Message,
+            _ => "unreachable"
+        };
     }
 
     public static string Decimals(Result<Decimal, System.Exception> result)

@@ -230,31 +230,156 @@ public class ResultArithmetic
         }
     }
 
-    // Decimal has no wrapping, so every operation returns the overflow or zero-division the CLR would
-    // throw, captured at the Exception.Catch boundary over the raw CLR operation rather than the
-    // proof-sensitive operator, so the check does not re-enter itself (exceptions Requirement 4).
-    public static Result<Decimal, System.Exception> AddCheckedDecimal(Decimal a, Decimal b)
+    public pure static Result<Decimal, System.Exception> AddCheckedDecimal(Decimal a, Decimal b)
     {
-        return System.Exception.Catch(Decimal.Add, a, b);
+        return System.Exception.CatchDecimal(Decimal.Add, a, b);
     }
 
-    public static Result<Decimal, System.Exception> SubtractCheckedDecimal(Decimal a, Decimal b)
+    public pure static Result<Decimal, System.Exception> SubtractCheckedDecimal(Decimal a, Decimal b)
     {
-        return System.Exception.Catch(Decimal.Subtract, a, b);
+        return System.Exception.CatchDecimal(Decimal.Subtract, a, b);
     }
 
-    public static Result<Decimal, System.Exception> MultiplyCheckedDecimal(Decimal a, Decimal b)
+    public pure static Result<Decimal, System.Exception> MultiplyCheckedDecimal(Decimal a, Decimal b)
     {
-        return System.Exception.Catch(Decimal.Multiply, a, b);
+        return System.Exception.CatchDecimal(Decimal.Multiply, a, b);
     }
 
-    public static Result<Decimal, System.Exception> DivideCheckedDecimal(Decimal a, Decimal b)
+    public pure static Result<Decimal, System.Exception> DivideCheckedDecimal(Decimal a, Decimal b)
     {
-        return System.Exception.Catch(Decimal.Divide, a, b);
+        return System.Exception.CatchDecimal(Decimal.Divide, a, b);
     }
 
-    public static Result<Decimal, System.Exception> RemainderCheckedDecimal(Decimal a, Decimal b)
+    public pure static Result<Decimal, System.Exception> RemainderCheckedDecimal(Decimal a, Decimal b)
     {
-        return System.Exception.Catch(Decimal.Remainder, a, b);
+        return System.Exception.CatchDecimal(Decimal.Remainder, a, b);
     }
+    public static Result<SByte, DivisionError> DivideCheckedSByte(SByte a, SByte b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            if (b == -1)
+            {
+                if (a == -128)
+                {
+                    return DivisionError.Overflow();
+                }
+                else
+                {
+                    return a / b;
+                }
+            }
+            else
+            {
+                return a / b;
+            }
+        }
+    }
+
+    public static Result<SByte, DivisionError> RemainderCheckedSByte(SByte a, SByte b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
+        }
+    }
+
+    public pure static SByte RemainderSByte(SByte a, SByte b)
+    {
+        if (b == 0)
+        {
+            return 0;
+        }
+        else
+        {
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
+        }
+    }
+
+    public static Result<Int16, DivisionError> DivideCheckedInt16(Int16 a, Int16 b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            if (b == -1)
+            {
+                if (a == -32768)
+                {
+                    return DivisionError.Overflow();
+                }
+                else
+                {
+                    return a / b;
+                }
+            }
+            else
+            {
+                return a / b;
+            }
+        }
+    }
+
+    public static Result<Int16, DivisionError> RemainderCheckedInt16(Int16 a, Int16 b)
+    {
+        if (b == 0)
+        {
+            return DivisionError.DivideByZero();
+        }
+        else
+        {
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
+        }
+    }
+
+    public pure static Int16 RemainderInt16(Int16 a, Int16 b)
+    {
+        if (b == 0)
+        {
+            return 0;
+        }
+        else
+        {
+            if (b == -1)
+            {
+                return 0;
+            }
+            else
+            {
+                return a % b;
+            }
+        }
+    }
+
 }

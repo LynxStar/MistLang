@@ -55,6 +55,13 @@ Mist supports signed and unsigned integer types at various bit widths. Each type
 {{#endtab }}
 {{#endtabs }}
 
+Integer addition, subtraction, multiplication and signed negation wrap at the
+selected width. Division truncates toward zero and treats a zero divisor or an
+unrepresentable signed quotient as an error, including narrow minimum divided
+by negative one. Remainder treats zero divisors as errors and defines signed
+minimum remainder negative one as zero. The [Result rules](../standard-library/results.md)
+determine whether arithmetic yields a plain number, a Result, or a compile-time refusal.
+
 ## Floating-Point and Decimal Types
 
 For fractional numbers, Mist provides `float` (32-bit), `double` (64-bit), and `decimal` (128-bit high-precision).

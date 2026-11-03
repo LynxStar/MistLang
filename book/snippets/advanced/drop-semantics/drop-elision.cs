@@ -39,15 +39,15 @@ public class Program
 
     public static Snippets.Connection Upgrade(Snippets.Connection conn)
     {
-        var __e1 = true;
+        var __e1309 = true;
         try
         {
             System.Console.WriteLine($"Upgrading {conn.GetHost()}");
-            return MistOwnership.Handed(conn, ref __e1);
+            return MistOwnership.Handed(conn, ref __e1309);
         }
         finally
         {
-            if (__e1)
+            if (__e1309)
             {
                 conn.Drop();
             }

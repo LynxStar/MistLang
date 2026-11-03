@@ -76,7 +76,7 @@ internal sealed record ResultTypes(ConstructedType Type, IMistType Success, IMis
         return new ResultConstructionExpression(value.Node, ImplicitConversions.At(payload, selected == ResultCase.Success ? Success : Error, interner), Type, selected);
     }
 
-    public UnionType Inspection(TypeInterner interner)
+    public UnionType Inspection(TypeInterner? interner)
     {
         var method = ((ConcreteType)Type.Definition).MethodsList.Single(method => method.Name == "Inspect");
         return (UnionType)TypeSubstitution.ForReceiver(Type).Apply(method.ReturnType, interner);

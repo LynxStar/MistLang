@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int16 : IClonable<Int16>
 {
+    public type Nonzero = Int16 not 0;
+    public type QuotientDividend = Int16 not (>= -32768 and <= -32768);
+    public type QuotientDivisor = Int16 not (>= -1 and <= -1);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int16 Clone();
 
@@ -10,8 +14,8 @@ intrinsic public readonly owned struct Int16 : IClonable<Int16>
     intrinsic public pure static Int16 operator -(Int16 a, Int16 b);
     intrinsic public pure static Int16 operator *(Int16 a, Int16 b);
 
-    // Division and remainder promote into Int32 (exceptions Requirement 4): the narrow signed quotient
-    // minimum / -1 is unrepresentable, so these do not stay Int16 and are judged at the wider type.
+    intrinsic public pure static Result<Int16, DivisionError> operator /(Int16 a, Int16 b);
+    intrinsic public pure static Result<Int16, DivisionError> operator %(Int16 a, Int16 b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(Int16 a, Int16 b);
@@ -30,4 +34,564 @@ intrinsic public readonly owned struct Int16 : IClonable<Int16>
     intrinsic public pure static implicit operator Single(Int16 value);
     intrinsic public pure static implicit operator Double(Int16 value);
     intrinsic public pure static implicit operator Decimal(Int16 value);
+
+    public static Result<Int16, DivisionError> operator +(Result<Int16, DivisionError> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator +(Int16 a, Result<Int16, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator +(Result<Int16, DivisionError> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, Error> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Int16 a, Result<Int16, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, Error> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, System.Exception> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Int16 a, Result<Int16, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, System.Exception> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, Error> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, DivisionError> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, Error> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, Error> operator +(Result<Int16, System.Exception> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, E> operator +<E>(Result<Int16, E> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, E> operator +<E>(Int16 a, Result<Int16, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, E | F> operator +<E, F>(Result<Int16, E> a, Result<Int16, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator -(Result<Int16, DivisionError> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator -(Int16 a, Result<Int16, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator -(Result<Int16, DivisionError> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, Error> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Int16 a, Result<Int16, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, Error> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, System.Exception> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Int16 a, Result<Int16, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, System.Exception> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, Error> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, DivisionError> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, Error> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, Error> operator -(Result<Int16, System.Exception> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, E> operator -<E>(Result<Int16, E> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, E> operator -<E>(Int16 a, Result<Int16, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, E | F> operator -<E, F>(Result<Int16, E> a, Result<Int16, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator *(Result<Int16, DivisionError> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator *(Int16 a, Result<Int16, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator *(Result<Int16, DivisionError> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, Error> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Int16 a, Result<Int16, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, Error> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, System.Exception> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Int16 a, Result<Int16, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, System.Exception> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, Error> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, DivisionError> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, Error> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, Error> operator *(Result<Int16, System.Exception> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, E> operator *<E>(Result<Int16, E> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, E> operator *<E>(Int16 a, Result<Int16, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, E | F> operator *<E, F>(Result<Int16, E> a, Result<Int16, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator /(Result<Int16, DivisionError> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator /(Int16 a, Result<Int16, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator /(Result<Int16, DivisionError> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, Error> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Int16 a, Result<Int16, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, Error> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, System.Exception> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Int16 a, Result<Int16, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, System.Exception> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, Error> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, DivisionError> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, Error> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, Error> operator /(Result<Int16, System.Exception> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, E | DivisionError> operator /<E>(Result<Int16, E> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, E | DivisionError> operator /<E>(Int16 a, Result<Int16, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, E | F | DivisionError> operator /<E, F>(Result<Int16, E> a, Result<Int16, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator %(Result<Int16, DivisionError> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator %(Int16 a, Result<Int16, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, DivisionError> operator %(Result<Int16, DivisionError> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, Error> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Int16 a, Result<Int16, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, Error> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, System.Exception> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Int16 a, Result<Int16, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, System.Exception> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, Error> a, Result<Int16, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, DivisionError> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, Error> a, Result<Int16, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, Error> operator %(Result<Int16, System.Exception> a, Result<Int16, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, E | DivisionError> operator %<E>(Result<Int16, E> a, Int16 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, E | DivisionError> operator %<E>(Int16 a, Result<Int16, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int16, E | F | DivisionError> operator %<E, F>(Result<Int16, E> a, Result<Int16, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

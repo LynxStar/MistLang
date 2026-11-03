@@ -2,6 +2,10 @@ namespace Standard;
 
 intrinsic public readonly owned struct Int32 : IClonable<Int32>
 {
+    public type Nonzero = Int32 not 0;
+    public type QuotientDividend = Int32 not (>= -2147483648 and <= -2147483648);
+    public type QuotientDivisor = Int32 not (>= -1 and <= -1);
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Int32 Clone();
 
@@ -9,8 +13,8 @@ intrinsic public readonly owned struct Int32 : IClonable<Int32>
     intrinsic public pure static Int32 operator +(Int32 a, Int32 b);
     intrinsic public pure static Int32 operator -(Int32 a, Int32 b);
     intrinsic public pure static Int32 operator *(Int32 a, Int32 b);
-    intrinsic public pure static Int32 operator /(Int32 a, Int32 b);
-    intrinsic public pure static Int32 operator %(Int32 a, Int32 b);
+    intrinsic public pure static Result<Int32, DivisionError> operator /(Int32 a, Int32 b);
+    intrinsic public pure static Result<Int32, DivisionError> operator %(Int32 a, Int32 b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(Int32 a, Int32 b);
@@ -34,305 +38,564 @@ intrinsic public readonly owned struct Int32 : IClonable<Int32>
     intrinsic public pure static implicit operator Double(Int32 value);
     intrinsic public pure static implicit operator Decimal(Int32 value);
 
-    // Result arithmetic composition (exceptions Requirement 4): ordinary overloads that carry an
-    // existing error forward (the left one when both fail) or apply the operation to the proven
-    // payloads, reusing the proof-sensitive division and remainder so one Result layer is kept.
+
     public static Result<Int32, DivisionError> operator +(Result<Int32, DivisionError> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value + b; }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
     }
 
     public static Result<Int32, DivisionError> operator +(Int32 a, Result<Int32, DivisionError> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a + value; }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
     }
 
     public static Result<Int32, DivisionError> operator +(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av + bv; } }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
     }
 
-    public static Result<Int32, DivisionError> operator -(Result<Int32, DivisionError> a, Int32 b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value - b; }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator -(Int32 a, Result<Int32, DivisionError> b)
-    {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a - value; }
-        return b;
-    }
-
-    public static Result<Int32, DivisionError> operator -(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av - bv; } }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator *(Result<Int32, DivisionError> a, Int32 b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value * b; }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator *(Int32 a, Result<Int32, DivisionError> b)
-    {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a * value; }
-        return b;
-    }
-
-    public static Result<Int32, DivisionError> operator *(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av * bv; } }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator /(Result<Int32, DivisionError> a, Int32 b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value / b; }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator /(Int32 a, Result<Int32, DivisionError> b)
-    {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a / value; }
-        return b;
-    }
-
-    public static Result<Int32, DivisionError> operator /(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av / bv; } }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator %(Result<Int32, DivisionError> a, Int32 b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value % b; }
-        return a;
-    }
-
-    public static Result<Int32, DivisionError> operator %(Int32 a, Result<Int32, DivisionError> b)
-    {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a % value; }
-        return b;
-    }
-
-    public static Result<Int32, DivisionError> operator %(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
-    {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av % bv; } }
-        return a;
-    }
-
-    // The same composition over the base Error, so a Result carrying any Error composes too: addition,
-    // subtraction and multiplication carry it forward, while division and remainder fold their own
-    // DivisionError up into the Error channel, since DivisionError is an Error.
     public static Result<Int32, Error> operator +(Result<Int32, Error> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value + b; }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
     }
 
     public static Result<Int32, Error> operator +(Int32 a, Result<Int32, Error> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a + value; }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
     }
 
     public static Result<Int32, Error> operator +(Result<Int32, Error> a, Result<Int32, Error> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av + bv; } }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, System.Exception> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Int32 a, Result<Int32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, System.Exception> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, Error> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, DivisionError> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, Error> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, Error> operator +(Result<Int32, System.Exception> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, E> operator +<E>(Result<Int32, E> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, E> operator +<E>(Int32 a, Result<Int32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, E | F> operator +<E, F>(Result<Int32, E> a, Result<Int32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator -(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator -(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator -(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
     }
 
     public static Result<Int32, Error> operator -(Result<Int32, Error> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value - b; }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
     }
 
     public static Result<Int32, Error> operator -(Int32 a, Result<Int32, Error> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a - value; }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
     }
 
     public static Result<Int32, Error> operator -(Result<Int32, Error> a, Result<Int32, Error> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av - bv; } }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, System.Exception> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Int32 a, Result<Int32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, System.Exception> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, Error> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, DivisionError> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, Error> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, Error> operator -(Result<Int32, System.Exception> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, E> operator -<E>(Result<Int32, E> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, E> operator -<E>(Int32 a, Result<Int32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, E | F> operator -<E, F>(Result<Int32, E> a, Result<Int32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator *(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator *(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator *(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
     }
 
     public static Result<Int32, Error> operator *(Result<Int32, Error> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value)) { return value * b; }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
     }
 
     public static Result<Int32, Error> operator *(Int32 a, Result<Int32, Error> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value)) { return a * value; }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
     }
 
     public static Result<Int32, Error> operator *(Result<Int32, Error> a, Result<Int32, Error> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av)) { if (bi is (true, var bv)) { return av * bv; } }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, System.Exception> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Int32 a, Result<Int32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, System.Exception> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, Error> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, DivisionError> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, Error> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, Error> operator *(Result<Int32, System.Exception> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, E> operator *<E>(Result<Int32, E> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, E> operator *<E>(Int32 a, Result<Int32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, E | F> operator *<E, F>(Result<Int32, E> a, Result<Int32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator /(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator /(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator /(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
     }
 
     public static Result<Int32, Error> operator /(Result<Int32, Error> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value))
-        {
-            var qi = (value / b).Inspect();
-            if (qi is (false, var de)) { return de; }
-            if (qi is (true, var qv)) { return qv; }
-        }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
     }
 
     public static Result<Int32, Error> operator /(Int32 a, Result<Int32, Error> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value))
-        {
-            var qi = (a / value).Inspect();
-            if (qi is (false, var de)) { return de; }
-            if (qi is (true, var qv)) { return qv; }
-        }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
     }
 
     public static Result<Int32, Error> operator /(Result<Int32, Error> a, Result<Int32, Error> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av))
-        {
-            if (bi is (true, var bv))
-            {
-                var qi = (av / bv).Inspect();
-                if (qi is (false, var de)) { return de; }
-                if (qi is (true, var qv)) { return qv; }
-            }
-        }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, System.Exception> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Int32 a, Result<Int32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, System.Exception> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, Error> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, DivisionError> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, Error> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, Error> operator /(Result<Int32, System.Exception> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, E | DivisionError> operator /<E>(Result<Int32, E> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, E | DivisionError> operator /<E>(Int32 a, Result<Int32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, E | F | DivisionError> operator /<E, F>(Result<Int32, E> a, Result<Int32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator %(Result<Int32, DivisionError> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator %(Int32 a, Result<Int32, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, DivisionError> operator %(Result<Int32, DivisionError> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
     }
 
     public static Result<Int32, Error> operator %(Result<Int32, Error> a, Int32 b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var error)) { return error; }
-        if (ai is (true, var value))
-        {
-            var qi = (value % b).Inspect();
-            if (qi is (false, var de)) { return de; }
-            if (qi is (true, var qv)) { return qv; }
-        }
-        return a;
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
     }
 
     public static Result<Int32, Error> operator %(Int32 a, Result<Int32, Error> b)
     {
-        var bi = b.Inspect();
-        if (bi is (false, var error)) { return error; }
-        if (bi is (true, var value))
-        {
-            var qi = (a % value).Inspect();
-            if (qi is (false, var de)) { return de; }
-            if (qi is (true, var qv)) { return qv; }
-        }
-        return b;
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
     }
 
     public static Result<Int32, Error> operator %(Result<Int32, Error> a, Result<Int32, Error> b)
     {
-        var ai = a.Inspect();
-        if (ai is (false, var ae)) { return ae; }
-        var bi = b.Inspect();
-        if (bi is (false, var be)) { return be; }
-        if (ai is (true, var av))
-        {
-            if (bi is (true, var bv))
-            {
-                var qi = (av % bv).Inspect();
-                if (qi is (false, var de)) { return de; }
-                if (qi is (true, var qv)) { return qv; }
-            }
-        }
-        return a;
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, System.Exception> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Int32 a, Result<Int32, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, System.Exception> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, Error> a, Result<Int32, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, DivisionError> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, Error> a, Result<Int32, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, Error> operator %(Result<Int32, System.Exception> a, Result<Int32, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, E | DivisionError> operator %<E>(Result<Int32, E> a, Int32 b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, E | DivisionError> operator %<E>(Int32 a, Result<Int32, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Int32, E | F | DivisionError> operator %<E, F>(Result<Int32, E> a, Result<Int32, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
     }
 }

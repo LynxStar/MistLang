@@ -19,22 +19,22 @@ public class Program
     public static void Main()
     {
         {
-            var __e1 = "outer";
-            MistContext.Push<string>(__e1);
+            var __e1309 = "outer";
+            MistContext.Push<string>(__e1309);
             try
             {
                 string? absent = null;
                 {
-                    var __e2 = absent;
-                    MistContext.Push<MistContext.Optional<string>>(__e2);
+                    var __e1310 = absent;
+                    MistContext.Push<MistContext.Optional<string>>(__e1310);
                     try
                     {
                         System.Console.WriteLine(Required());
                         System.Console.WriteLine(Optional() ?? "absent");
                         string? present = "inner";
                         {
-                            var __e3 = present;
-                            MistContext.Push<MistContext.Optional<string>>(__e3);
+                            var __e1311 = present;
+                            MistContext.Push<MistContext.Optional<string>>(__e1311);
                             try
                             {
                                 System.Console.WriteLine(Optional());

@@ -1,6 +1,8 @@
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -35,6 +37,8 @@ internal static class OperatorSelection
         var applicable = operands
             .SelectMany(operand => DeclaredOn(operand, kind, operands.Count, interner))
             .DistinctBy(candidate => (candidate.Declaration, candidate.Owner.FullyQualifiedName))
+            .Select(candidate => Close(candidate, operands, interner))
+            .OfType<ClosedOperator>()
             .Where(candidate => Applies(candidate, operands, constants))
             .ToList();
 
@@ -107,6 +111,43 @@ internal static class OperatorSelection
         var parameters = string.Join(", ", candidate.ParameterTypes.Select(TypeDisplay.Mist));
 
         return $"{TypeDisplay.Mist(candidate.Owner)}.operator {candidate.Declaration.Symbol}({parameters})";
+    }
+
+    private static ClosedOperator? Close(ClosedOperator candidate, IReadOnlyList<IMistType> operands, TypeInterner? interner)
+    {
+        var declaration = candidate.Declaration;
+        if(declaration.TypeParametersList.Count == 0)
+        {
+            return candidate;
+        }
+
+        if(interner is null || declaration.DeclarationNode is not { } node)
+        {
+            return null;
+        }
+
+        var arguments = operands.Select(type => (Expression)new LiteralExpression(node, null, type)).ToArray();
+        var inferred = TypeArgumentInference.Infer(declaration, arguments, candidate.Closing, interner, null, out _);
+        var closing = candidate.Closing.Extend(TypeSubstitution.ForMethod(declaration, inferred));
+        if(closing.Unbound(declaration.TypeParametersList).Count > 0
+            || declaration.TypeParametersList.Any(parameter => parameter.ConstraintsList.OfType<TypeConstraint>().Any(
+                constraint => !ConstraintFits(closing.Apply(parameter, interner), closing.Apply(constraint.ConstraintType, interner), interner))))
+        {
+            return null;
+        }
+
+        return candidate with
+        {
+            Closing = closing,
+            ParameterTypes = declaration.ParametersList.Select(parameter => closing.Apply(parameter.Type, interner)).ToArray(),
+            ReturnType = closing.Apply(declaration.ReturnType, interner),
+        };
+    }
+
+    private static bool ConstraintFits(IMistType from, IMistType to, TypeInterner interner)
+    {
+        return ConversionClassifier.Classify(from, to, interner) is ConversionKind.Identity
+            || (ConversionClassifier.IsFree(from, to, interner) && ResultTypes.Fits(from, to, interner));
     }
 
     private static bool Applies(ClosedOperator candidate, IReadOnlyList<IMistType> operands, IReadOnlyList<Int128?>? constants)

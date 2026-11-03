@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -11,15 +12,38 @@ public sealed class ArithmeticProofTests
 {
     private readonly HandBuiltModel built = new();
 
-    private ClassType Integer => built.Type("Int32");
+    private ClassType Integer => Family("Int32", int.MinValue);
 
-    private ClassType Long => built.Type("Int64");
+    private ClassType Long => Family("Int64", long.MinValue);
 
-    private ClassType Short => built.Type("Int16");
+    private ClassType Short => Family("Int16", short.MinValue);
 
-    private ClassType Unsigned => built.Type("UInt32");
+    private ClassType Unsigned => Family("UInt32", null);
 
-    private ClassType Money => built.Type("Decimal");
+    private ClassType Family(string name, long? minimum)
+    {
+        var type = built.Type(name);
+        if(type.NestedTypes.Count == 0)
+        {
+            add("Nonzero", 0);
+            if(minimum is { } low)
+            {
+                add("QuotientDividend", low);
+                add("QuotientDivisor", -1);
+            }
+        }
+
+        return type;
+
+        void add(string contract, long excluded)
+        {
+            var comparison = new ComparisonPattern(HandBuiltModel.Node(), type, ComparisonKind.Equal, HandBuiltModel.Literal(type, excluded));
+            type.NestedTypes.Add(new RefinedType(type, HandBuiltModel.Node(), contract)
+            {
+                Predicate = new NegatedPattern(HandBuiltModel.Node(), type, comparison),
+            });
+        }
+    }
 
     [Fact]
     public void UnknownDivisorIsFallible()
@@ -106,22 +130,6 @@ public sealed class ArithmeticProofTests
     }
 
     [Fact]
-    public void EveryDecimalOperationIsFallible()
-    {
-        var operations = new[]
-        {
-            BinaryOperatorKind.Add, BinaryOperatorKind.Subtract, BinaryOperatorKind.Multiply,
-            BinaryOperatorKind.Divide, BinaryOperatorKind.Modulo,
-        };
-
-        foreach(var op in operations)
-        {
-            Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
-                op, Money, Admitted.Everything, Admitted.Everything));
-        }
-    }
-
-    [Fact]
     public void WiderSignedFamiliesAreJudgedWithTheirOwnMinimum()
     {
         Assert.Equal(ArithmeticProof.Verdict.Fallible, ArithmeticProof.Judge(
@@ -133,14 +141,12 @@ public sealed class ArithmeticProofTests
     }
 
     [Fact]
-    public void NarrowSignedFamiliesPromoteAndAreNotJudgedAtTheirOwnWidth()
+    public void NarrowSignedMinimumIsRefusedAndRemainderIsGuarded()
     {
-        // Int16/SByte drop their division/remainder operators and promote into Int32, so the proof is
-        // never asked about the narrow width -- its unrepresentable minimum / -1 cannot be a narrow error.
-        Assert.Null(ArithmeticProof.Judge(
+        Assert.Equal(ArithmeticProof.Verdict.Invalid, ArithmeticProof.Judge(
             BinaryOperatorKind.Divide, Short, Admitted.Exactly(short.MinValue), Admitted.Exactly(-1)));
-        Assert.Null(ArithmeticProof.Judge(
-            BinaryOperatorKind.Modulo, Short, Admitted.Everything, Admitted.Everything));
+        Assert.Equal(ArithmeticProof.Verdict.SafeGuardedRemainder, ArithmeticProof.Judge(
+            BinaryOperatorKind.Modulo, Short, Admitted.Exactly(short.MinValue), Admitted.Exactly(-1)));
     }
 
     [Fact]

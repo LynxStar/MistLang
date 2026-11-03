@@ -10,21 +10,21 @@ async System.Threading.Tasks.Task SendNotification()
 }
 async System.Threading.Tasks.Task ProcessAll()
 {
-    var __e1 = FetchData();
+    var __e1309 = FetchData();
     try
     {
-        var __e2 = SendNotification();
+        var __e1310 = SendNotification();
         try
         {
             System.Console.WriteLine("Processing...");
         }
         finally
         {
-            await __e2;
+            await __e1310;
         }
     }
     finally
     {
-        await __e1;
+        await __e1309;
     }
 }

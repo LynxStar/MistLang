@@ -34,13 +34,13 @@ public class Program
     public static void Main()
     {
         {
-            var __e1 = 7;
-            MistContext.Push<int>(__e1);
+            var __e1309 = 7;
+            MistContext.Push<int>(__e1309);
             try
             {
                 {
-                    var __e2 = "context";
-                    MistContext.Push<string>(__e2);
+                    var __e1310 = "context";
+                    MistContext.Push<string>(__e1310);
                     try
                     {
                         System.Console.WriteLine(Snippet.StringExtensions_methodentry_0.Describe("x"));

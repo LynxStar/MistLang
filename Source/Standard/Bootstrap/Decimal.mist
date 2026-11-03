@@ -2,15 +2,17 @@ namespace Standard;
 
 intrinsic public readonly owned struct Decimal : IClonable<Decimal>
 {
+    public type Nonzero = Decimal not 0m;
+
     // IClonable base case — value-type identity copy (Requirement 8.6)
     intrinsic public pure owned Decimal Clone();
 
     // Binary arithmetic operators — Requirement 3.1
-    intrinsic public pure static Decimal operator +(Decimal a, Decimal b);
-    intrinsic public pure static Decimal operator -(Decimal a, Decimal b);
-    intrinsic public pure static Decimal operator *(Decimal a, Decimal b);
-    intrinsic public pure static Decimal operator /(Decimal a, Decimal b);
-    intrinsic public pure static Decimal operator %(Decimal a, Decimal b);
+    intrinsic public pure static Result<Decimal, System.Exception> operator +(Decimal a, Decimal b);
+    intrinsic public pure static Result<Decimal, System.Exception> operator -(Decimal a, Decimal b);
+    intrinsic public pure static Result<Decimal, System.Exception> operator *(Decimal a, Decimal b);
+    intrinsic public pure static Result<Decimal, System.Exception> operator /(Decimal a, Decimal b);
+    intrinsic public pure static Result<Decimal, System.Exception> operator %(Decimal a, Decimal b);
 
     // Comparison operators — Requirement 3.2
     intrinsic public pure static Boolean operator <(Decimal a, Decimal b);
@@ -23,12 +25,395 @@ intrinsic public readonly owned struct Decimal : IClonable<Decimal>
     // Unary negation — Requirement 3.3
     intrinsic public pure static Decimal operator -(Decimal a);
 
-    // Raw CLR operations behind the checked routes (exceptions Requirement 4): these throw on overflow
-    // and zero division rather than being proof-routed, so the fallible helpers wrap them in a Catch
-    // boundary instead of re-entering the proof-sensitive operator.
+    // Raw CLR operations are used only inside Catch; operators select their declared Result unless operand facts prove safety.
     intrinsic public pure static Decimal Add(Decimal a, Decimal b);
     intrinsic public pure static Decimal Subtract(Decimal a, Decimal b);
     intrinsic public pure static Decimal Multiply(Decimal a, Decimal b);
     intrinsic public pure static Decimal Divide(Decimal a, Decimal b);
     intrinsic public pure static Decimal Remainder(Decimal a, Decimal b);
+
+    public static Result<Decimal, System.Exception> operator +(Result<Decimal, System.Exception> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator +(Decimal a, Result<Decimal, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator +(Result<Decimal, System.Exception> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, Error> operator +(Result<Decimal, Error> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, Error> operator +(Decimal a, Result<Decimal, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, Error> operator +(Result<Decimal, Error> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, Error> operator +(Result<Decimal, Error> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, Error> operator +(Result<Decimal, System.Exception> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator +<E>(Result<Decimal, E> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator +<E>(Decimal a, Result<Decimal, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, E | F | System.Exception> operator +<E, F>(Result<Decimal, E> a, Result<Decimal, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator -(Result<Decimal, System.Exception> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator -(Decimal a, Result<Decimal, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator -(Result<Decimal, System.Exception> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, Error> operator -(Result<Decimal, Error> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, Error> operator -(Decimal a, Result<Decimal, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, Error> operator -(Result<Decimal, Error> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, Error> operator -(Result<Decimal, Error> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, Error> operator -(Result<Decimal, System.Exception> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator -<E>(Result<Decimal, E> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator -<E>(Decimal a, Result<Decimal, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, E | F | System.Exception> operator -<E, F>(Result<Decimal, E> a, Result<Decimal, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator *(Result<Decimal, System.Exception> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator *(Decimal a, Result<Decimal, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator *(Result<Decimal, System.Exception> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, Error> operator *(Result<Decimal, Error> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, Error> operator *(Decimal a, Result<Decimal, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, Error> operator *(Result<Decimal, Error> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, Error> operator *(Result<Decimal, Error> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, Error> operator *(Result<Decimal, System.Exception> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator *<E>(Result<Decimal, E> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator *<E>(Decimal a, Result<Decimal, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, E | F | System.Exception> operator *<E, F>(Result<Decimal, E> a, Result<Decimal, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator /(Result<Decimal, System.Exception> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator /(Decimal a, Result<Decimal, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator /(Result<Decimal, System.Exception> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, Error> operator /(Result<Decimal, Error> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, Error> operator /(Decimal a, Result<Decimal, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, Error> operator /(Result<Decimal, Error> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, Error> operator /(Result<Decimal, Error> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, Error> operator /(Result<Decimal, System.Exception> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator /<E>(Result<Decimal, E> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator /<E>(Decimal a, Result<Decimal, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, E | F | System.Exception> operator /<E, F>(Result<Decimal, E> a, Result<Decimal, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator %(Result<Decimal, System.Exception> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator %(Decimal a, Result<Decimal, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, System.Exception> operator %(Result<Decimal, System.Exception> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, Error> operator %(Result<Decimal, Error> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, Error> operator %(Decimal a, Result<Decimal, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, Error> operator %(Result<Decimal, Error> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, Error> operator %(Result<Decimal, Error> a, Result<Decimal, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, Error> operator %(Result<Decimal, System.Exception> a, Result<Decimal, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator %<E>(Result<Decimal, E> a, Decimal b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, E | System.Exception> operator %<E>(Decimal a, Result<Decimal, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Decimal, E | F | System.Exception> operator %<E, F>(Result<Decimal, E> a, Result<Decimal, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

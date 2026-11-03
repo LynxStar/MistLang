@@ -341,8 +341,9 @@ rule OperatorDeclaration : Delegate = attributes:AttributeList*
                            modifiers:Modifier*
                            returnType:TypeReference
                            OPERATOR
-                           symbol:OperatorSymbol
+                           symbol:OperatorSymbol typeParams:TypeParameterList?
                            LEFT_PARENTHESIS parameters:ParameterList? RIGHT_PARENTHESIS
+                           constraints:WhereClause*
                            body:CallableBody;
 
 rule CastOperatorDeclaration : Delegate = attributes:AttributeList*

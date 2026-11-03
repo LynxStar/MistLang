@@ -1,6 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
@@ -57,55 +56,26 @@ internal static class IntrinsicMemberEmitter
         }
     }
 
-    /// <summary>
-    /// A non-intrinsic operator on an intrinsic type is carried as a C# extension operator, grouped by
-    /// an operand type it can extend: the backing primitive cannot be reopened, so the composition
-    /// overloads (exceptions Requirement 4) land on their Result operand, which is present in every
-    /// arrangement including Result on both sides.
-    /// </summary>
     private static void EmitOperatorBlocks(
         IReadOnlyList<ConcreteType> types, CSharpWriter writer, DiagnosticBag diagnostics, ref bool first)
     {
-        var groups = types
-            .SelectMany(type => Operators(type).Select(op => (Op: op, Receiver: Receiver(op, type))))
-            .GroupBy(entry => TypeNameEmitter.Emit(entry.Receiver))
-            .OrderBy(group => group.Key, StringComparer.Ordinal);
-
-        foreach(var group in groups)
+        foreach(var op in types.SelectMany(Operators))
         {
-            if(!first)
+            if(UnionSpecialization.Specializes(op))
             {
-                writer.WriteBlankLine();
-            }
-
-            first = false;
-
-            writer.WriteLine($"extension({group.Key})");
-
-            using(writer.Block())
-            {
-                var firstMember = true;
-
-                foreach(var entry in group)
+                foreach(var arguments in UnionSpecialization.InstancesOf(op))
                 {
-                    Separate(writer, ref firstMember);
-                    OperatorEmitter.Emit(entry.Op, writer, diagnostics);
+                    using var specializing = TypeEmitter.Specializing(op, arguments);
+                    Separate(writer, ref first);
+                    CarriedOperator.Emit(op, writer, diagnostics);
                 }
             }
-        }
-    }
-
-    private static IMistType Receiver(Operator op, ConcreteType declaring)
-    {
-        foreach(var parameter in op.ParametersList)
-        {
-            if(parameter.Type.FullyQualifiedName != declaring.FullyQualifiedName)
+            else
             {
-                return parameter.Type;
+                Separate(writer, ref first);
+                CarriedOperator.Emit(op, writer, diagnostics);
             }
         }
-
-        return declaring;
     }
 
     private static void EmitBlock(

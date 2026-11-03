@@ -91,11 +91,25 @@ public readonly struct UserId : Standard.IClonable<Snippet.UserId>
     public static Snippet.UserId operator *(Snippet.UserId a, Snippet.UserId b)
         => new Snippet.UserId((a.Value * b.Value));
 
-    public static Snippet.UserId operator /(Snippet.UserId a, Snippet.UserId b)
-        => new Snippet.UserId((a.Value / b.Value));
+    public static Standard.Result__Snippet_UserId__Standard_DivisionError operator /(Snippet.UserId a, Snippet.UserId b)
+    {
+        var inspected = Standard.ResultArithmetic.DivideChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_UserId__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_UserId__Standard_DivisionError.Success(new Snippet.UserId(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
-    public static Snippet.UserId operator %(Snippet.UserId a, Snippet.UserId b)
-        => new Snippet.UserId((a.Value % b.Value));
+    public static Standard.Result__Snippet_UserId__Standard_DivisionError operator %(Snippet.UserId a, Snippet.UserId b)
+    {
+        var inspected = Standard.ResultArithmetic.RemainderChecked(a.Value, b.Value).Inspect();
+        if (inspected.IsTuple_2_Boolean_DivisionError)
+        {
+            return Standard.Result__Snippet_UserId__Standard_DivisionError.Failure(inspected.AsTuple_2_Boolean_DivisionError.Item2);
+        }
+        return Standard.Result__Snippet_UserId__Standard_DivisionError.Success(new Snippet.UserId(inspected.AsTuple_2_Boolean_Int32.Item2));
+    }
 
     public static bool operator <(Snippet.UserId a, Snippet.UserId b)
         => (a.Value < b.Value);

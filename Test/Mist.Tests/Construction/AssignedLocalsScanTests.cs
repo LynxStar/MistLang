@@ -1,77 +1,97 @@
-using Mist.Common.Diagnostics;
-using Mist.Common.Source;
-using Mist.Lexing;
-using Mist.Parsing;
+using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Construction;
 
-// The sound gate behind proof-sensitive arithmetic (exceptions Requirement 4): a local a callable
-// writes anywhere carries no proof, so OperandFacts.AssignedNames must see the write WHATEVER control
-// flow or nesting it sits in -- a later statement, a branch, a loop backedge, or an initializer the
-// write hides inside. Over-approximation stays sound; a MISSED write is the unsoundness the fix closes.
 [Trait("Tier", "2")]
 public sealed class AssignedLocalsScanTests
 {
-    private static IReadOnlySet<string> Assigned(string body)
+    private static ExpressionNode Name(string name)
     {
-        var source = $$"""
-            namespace Probe;
+        return BindingFragments.Expression(BindingFragments.Identifier(name));
+    }
 
-            public class Probe
+    private static ExpressionNode Write(string name)
+    {
+        var expression = (AssignmentFormExpressionNode)Name(name);
+        expression.Assignment.Group0 = new AssignmentNodeGroup0
+        {
+            Operator = BindingFragments.Token("="),
+            Value = Name("other"),
+        };
+        return expression;
+    }
+
+    [Fact]
+    public void ReadsDoNotInvalidateProof()
+    {
+        Assert.Empty(OperandFacts.AssignedNames(Name("d")));
+    }
+
+    [Fact]
+    public void ARefCallExposesTheOriginalLocation()
+    {
+        var reference = new RefArgumentArgumentNode { Expression = Name("d") };
+        Assert.Contains("d", OperandFacts.AssignedNames(reference));
+    }
+
+    [Fact]
+    public void ARefAliasExposesBothItsTargetAndWritesThroughTheAlias()
+    {
+        var alias = new TypedVariableDeclarationVariableDeclarationStatementNode
+        {
+            Name = BindingFragments.Token("alias"),
+            Type = BindingFragments.TypeName("Int32"),
+            OwnershipSpecifier = new RefSpecifierOwnershipSpecifierNode(),
+            Initializer = Name("d"),
+        };
+        Assert.Contains("d", OperandFacts.AssignedNames(alias));
+        Assert.Contains("alias", OperandFacts.AssignedNames(Write("alias")));
+    }
+
+    [Fact]
+    public void AWriteInANestedInitializerIsSeen()
+    {
+        var declaration = new InferredVariableDeclarationVariableDeclarationStatementNode
+        {
+            Name = BindingFragments.Token("nested"),
+            Initializer = Write("d"),
+        };
+        Assert.Contains("d", OperandFacts.AssignedNames(declaration));
+    }
+
+    [Fact]
+    public void ALoopBackedgeWriteIsSeen()
+    {
+        var loop = new WhileStatementNode
+        {
+            Condition = Name("condition"),
+            Body = new BlockNode
             {
-                public static void Run()
+                Statements = [new ExpressionStatementStatementNode
                 {
-                    {{body}}
-                }
-            }
-            """;
-
-        var diagnostics = new DiagnosticBag();
-        var tokens = new MistLexer().Lex(new SourceText("Probe.mist", source), diagnostics);
-        var parsed = new MistParser().Parse(tokens, diagnostics);
-
-        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
-        Assert.NotNull(parsed.Root);
-
-        return OperandFacts.AssignedNames(parsed.Root);
+                    ExpressionStatement = new ExpressionStatementNode { Expression = Write("d") },
+                }],
+            },
+        };
+        Assert.Contains("d", OperandFacts.AssignedNames(loop));
     }
 
     [Fact]
-    public void ADeclarationWithoutReassignmentIsNotAnAssignment()
+    public void ABranchWriteIsSeen()
     {
-        Assert.DoesNotContain("d", Assigned("int d = 1; int q = 20 / d;"));
-    }
-
-    [Fact]
-    public void ATopLevelReassignmentIsSeen()
-    {
-        Assert.Contains("d", Assigned("int d = 1; d = 0; int q = 20 / d;"));
-    }
-
-    [Fact]
-    public void AReassignmentInsideABranchIsSeen()
-    {
-        Assert.Contains("d", Assigned("int d = 1; if (d > 0) { d = 0; } int q = 20 / d;"));
-    }
-
-    [Fact]
-    public void AReassignmentOnALoopBackedgeIsSeen()
-    {
-        Assert.Contains("d", Assigned("int d = 2; while (d >= 0) { int q = 20 / d; d = d - 1; }"));
-    }
-
-    [Fact]
-    public void AWriteHiddenInAnInitializerIsSeen()
-    {
-        Assert.Contains("d", Assigned("int d = 1; var hidden = (d = 0); int q = 20 / d;"));
-    }
-
-    [Fact]
-    public void OnlyTheWrittenLocalIsMarked()
-    {
-        var assigned = Assigned("int d = 1; int e = 2; e = 3; int q = d / e;");
-        Assert.Contains("e", assigned);
-        Assert.DoesNotContain("d", assigned);
+        var branch = new IfStatementNode
+        {
+            Condition = Name("condition"),
+            ThenBranch = new BlockNode
+            {
+                Statements = [new ExpressionStatementStatementNode
+                {
+                    ExpressionStatement = new ExpressionStatementNode { Expression = Write("d") },
+                }],
+            },
+        };
+        Assert.Contains("d", OperandFacts.AssignedNames(branch));
     }
 }

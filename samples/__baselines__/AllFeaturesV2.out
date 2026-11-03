@@ -2699,5 +2699,26 @@ loop 1 -> 20
 loop 0 -> -1
 checked min % -1 -> 0
 guarded min % -1 -> 0
+ref call divisor -> Attempted to divide by zero.
+ref alias divisor -> Attempted to divide by zero.
+byte wrap divisor -> Attempted to divide by zero.
+short min / -1 -> Arithmetic operation resulted in an overflow.
+sbyte min / -1 -> Arithmetic operation resulted in an overflow.
+int / -1 -> -20
+short / -1 -> ok
+sbyte / -1 -> ok
+short min % -1 -> 0
+numeric clone / -1 -> -20
+narrow clone min / -1 -> Arithmetic operation resulted in an overflow.
+long composition -> 15
+decimal composition -> ok
+decimal constant -> 2
+decimal small remainder -> 0.0
+right operand evaluated
+mixed errors -> left wins
+custom error -> custom retained
+error union -> union retained
+right operand evaluated
+generic mixed errors -> domain left wins
 decimal product -> ok
 decimal / 0 -> Attempted to divide by zero.

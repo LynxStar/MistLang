@@ -50,7 +50,7 @@ internal static class OperandFacts
     {
         var values = Admitted.Everything;
 
-        if(Requirement.Constant(operand) is { } constant)
+        if(operand is not UnaryExpression && Requirement.Constant(operand) is { } constant)
         {
             values = values.And(Admitted.Exactly(constant));
         }
@@ -65,10 +65,17 @@ internal static class OperandFacts
             values = values.And(FactFor(ctx, scope, local.Local));
         }
 
+        if(operand is UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } } unary
+            && Exact(For(ctx, scope, unary.Operand)) is { } original
+            && IntegerOperandFold.Fold(unary.Type, BinaryOperatorKind.Subtract, 0, original) is { } negated)
+        {
+            values = values.And(Admitted.Exactly(negated));
+        }
+
         if(operand is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } arithmetic
             && Exact(For(ctx, scope, arithmetic.Left)) is { } leftValue
             && Exact(For(ctx, scope, arithmetic.Right)) is { } rightValue
-            && Fold(arithmetic.OperatorKind, leftValue, rightValue) is { } folded)
+            && IntegerOperandFold.Fold(arithmetic.Type, arithmetic.OperatorKind, leftValue, rightValue) is { } folded)
         {
             values = values.And(Admitted.Exactly(folded));
         }
@@ -81,26 +88,12 @@ internal static class OperandFacts
         return values.Low is { } low && values.High == low ? low : null;
     }
 
-    private static long? Fold(BinaryOperatorKind op, long left, long right)
-    {
-        var folded = op switch
-        {
-            BinaryOperatorKind.Add => left + right,
-            BinaryOperatorKind.Subtract => left - right,
-            BinaryOperatorKind.Multiply => left * right,
-            BinaryOperatorKind.Divide when right != 0 && !(left == int.MinValue && right == -1) => left / right,
-            BinaryOperatorKind.Modulo when right != 0 => left % right,
-            _ => (long?)null,
-        };
-
-        return folded is { } value && value >= int.MinValue && value <= int.MaxValue ? value : null;
-    }
-
     public static void Declared(BindingContext ctx, BodyScope scope, LocalVariable local, Expression? initializer)
     {
-        if(!IsMutable(ctx, local) && initializer is not null && Requirement.Constant(initializer) is { } constant)
+        DecimalOperandFacts.Declared(ctx, scope, local, initializer);
+        if(!IsMutable(ctx, local) && initializer is not null)
         {
-            Facts(ctx, scope)[local] = Admitted.Exactly(constant);
+            Facts(ctx, scope)[local] = For(ctx, scope, initializer);
         }
     }
 
@@ -126,6 +119,15 @@ internal static class OperandFacts
                     Narrow(ctx, scope, mirrored.Local, Mirrored(kind), limit, effective);
                 }
 
+                if(comparison.Left is LocalReferenceExpression real)
+                {
+                    DecimalOperandFacts.Narrow(ctx, scope, real.Local, kind, comparison.Right, effective);
+                }
+                else if(comparison.Right is LocalReferenceExpression reverse)
+                {
+                    DecimalOperandFacts.Narrow(ctx, scope, reverse.Local, Mirrored(kind), comparison.Left, effective);
+                }
+
                 return;
 
             default:
@@ -133,12 +135,6 @@ internal static class OperandFacts
         }
     }
 
-    /// <summary>
-    /// The names a callable assigns to anywhere in its body -- the leading identifier of every <c>=</c>
-    /// or <c>??=</c> target, read off the syntax before binding so a write that textually follows a use
-    /// is seen. Over-approximating by name (a member or element target contributes its root, a shadowed
-    /// name marks both) only drops more proofs, which stays sound.
-    /// </summary>
     public static IReadOnlySet<string> AssignedNames(StormSyntaxNode? root)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -160,9 +156,34 @@ internal static class OperandFacts
             _ = names.Add(name);
         }
 
+        var exposed = node switch
+        {
+            RefArgumentArgumentNode argument => (StormSyntaxNode)argument.Expression,
+            TypedVariableDeclarationVariableDeclarationStatementNode { OwnershipSpecifier: RefSpecifierOwnershipSpecifierNode } alias => alias.Initializer,
+            _ => null,
+        };
+
+        if(exposed is not null)
+        {
+            CollectIdentifiers(exposed, names);
+        }
+
         foreach(var child in node.Children())
         {
             Collect(child, names);
+        }
+    }
+
+    private static void CollectIdentifiers(StormSyntaxNode node, HashSet<string> names)
+    {
+        if(node is IdentifierExpressionPrimaryNode identifier)
+        {
+            _ = names.Add(identifier.Name.Lexeme);
+        }
+
+        foreach(var child in node.Children())
+        {
+            CollectIdentifiers(child, names);
         }
     }
 
@@ -184,7 +205,7 @@ internal static class OperandFacts
         return null;
     }
 
-    private static bool IsMutable(BindingContext ctx, LocalVariable local)
+    internal static bool IsMutable(BindingContext ctx, LocalVariable local)
     {
         return local.IsRef || ctx.AssignedLocals.Contains(local.Name);
     }

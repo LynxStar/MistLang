@@ -61,5 +61,42 @@ is not a successful identity value. Prefix `!` remains logical negation.
 
 Domain error types can carry additional structured data and conform to `Error`
 through the ordinary abstract-type mechanisms. They do not inherit from a CLR
-exception. This foundation does not change arithmetic or wrap foreign calls;
-CLR interception and adaptation have their own implementation scope.
+exception.
+
+Integer division and remainder use their own numeric width. When operand facts
+prove safety the expression is numeric; known zero divisors or unrepresentable
+signed quotients are compile-time errors; uncertainty produces
+`Result<T, DivisionError>`. This includes narrow signed minimum divided by negative
+one. Signed minimum remainder negative one is zero. Integer addition, subtraction,
+multiplication and signed negation wrap. Float and double keep IEEE values.
+
+Decimal binary arithmetic follows the same three-way rule for overflow and zero
+division, returning `Result<Decimal, System.Exception>` when safety is unknown.
+Decimal remainder needs no representable quotient. Constants, declared refinements
+and sound guards can prove safety; an expected numeric destination cannot.
+Arithmetic facts do not survive writable reference exposure or assignment, and
+a check of a property or call does not prove a later evaluation.
+
+Standard declares arithmetic composition for all numeric types in Result/value,
+value/Result and Result/Result arrangements. Native integer and decimal error
+channels retain their types. Concrete overloads provide `Result<T, Error>` for shared Error contracts and
+Standard CLR exception adaptation. Generic overloads retain the input error
+domain or an explicit union of domains, adding a native numeric error when needed.
+Different error destinations can be mapped explicitly through inspection. These declarations preserve one Result layer, evaluate both
+operands before entering the operator, and select the left failure when both fail.
+A final grouped postfix `!` propagates from the caller; operators themselves do
+not cause an implicit return from it.
+
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/standard-library/results/arithmetic.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/standard-library/results/arithmetic.cs}}
+```
+{{#endtab }}
+{{#endtabs }}

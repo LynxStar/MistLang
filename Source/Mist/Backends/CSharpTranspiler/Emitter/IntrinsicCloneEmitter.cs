@@ -58,6 +58,12 @@ internal static class IntrinsicCloneEmitter
     {
         var clone = (ConcreteType)op.DeclaringType!;
         var operands = op.ParametersList.Select(parameter => Unwrap(parameter, clone)).ToList();
+        if(Counterpart(clone.CloneSource!.EnumerateDelegates(), op.DeclarationNode) is Operator source
+            && IntrinsicCloneArithmetic.Emit(op, source, clone, operands, writer, diagnostics))
+        {
+            return;
+        }
+
         var expression = operands.Count == 1 ? $"{op.Symbol}{operands[0]}" : $"{operands[0]} {op.Symbol} {operands[1]}";
         var parameters = ParameterEmitter.Emit(op.ParametersList, diagnostics);
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);

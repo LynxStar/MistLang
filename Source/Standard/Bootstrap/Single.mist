@@ -25,4 +25,564 @@ intrinsic public readonly owned struct Single : IClonable<Single>
 
     // Implicit widening conversions
     intrinsic public pure static implicit operator Double(Single value);
+
+    public static Result<Single, DivisionError> operator +(Result<Single, DivisionError> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator +(Single a, Result<Single, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator +(Result<Single, DivisionError> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, Error> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Single a, Result<Single, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, Error> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, System.Exception> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Single a, Result<Single, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, System.Exception> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, Error> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, DivisionError> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, Error> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, Error> operator +(Result<Single, System.Exception> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, E> operator +<E>(Result<Single, E> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, E> operator +<E>(Single a, Result<Single, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, E | F> operator +<E, F>(Result<Single, E> a, Result<Single, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av + bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator -(Result<Single, DivisionError> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator -(Single a, Result<Single, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator -(Result<Single, DivisionError> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, Error> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Single a, Result<Single, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, Error> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, System.Exception> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Single a, Result<Single, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, System.Exception> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, Error> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, DivisionError> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, Error> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, Error> operator -(Result<Single, System.Exception> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, E> operator -<E>(Result<Single, E> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, E> operator -<E>(Single a, Result<Single, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, E | F> operator -<E, F>(Result<Single, E> a, Result<Single, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av - bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator *(Result<Single, DivisionError> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator *(Single a, Result<Single, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator *(Result<Single, DivisionError> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, Error> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Single a, Result<Single, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, Error> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, System.Exception> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Single a, Result<Single, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, System.Exception> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, Error> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, DivisionError> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, Error> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, Error> operator *(Result<Single, System.Exception> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, E> operator *<E>(Result<Single, E> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, E> operator *<E>(Single a, Result<Single, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, E | F> operator *<E, F>(Result<Single, E> a, Result<Single, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av * bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator /(Result<Single, DivisionError> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator /(Single a, Result<Single, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator /(Result<Single, DivisionError> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, Error> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Single a, Result<Single, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, Error> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, System.Exception> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Single a, Result<Single, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, System.Exception> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, Error> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, DivisionError> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, Error> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, Error> operator /(Result<Single, System.Exception> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, E> operator /<E>(Result<Single, E> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, E> operator /<E>(Single a, Result<Single, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, E | F> operator /<E, F>(Result<Single, E> a, Result<Single, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av / bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator %(Result<Single, DivisionError> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator %(Single a, Result<Single, DivisionError> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, DivisionError> operator %(Result<Single, DivisionError> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, Error> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Single a, Result<Single, Error> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, Error> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, System.Exception> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Single a, Result<Single, System.Exception> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, System.Exception> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, Error> a, Result<Single, DivisionError> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, DivisionError> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, Error> a, Result<Single, System.Exception> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, Error> operator %(Result<Single, System.Exception> a, Result<Single, Error> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, E> operator %<E>(Result<Single, E> a, Single b)
+    {
+        var av = a!;
+        var bv = b;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, E> operator %<E>(Single a, Result<Single, E> b)
+    {
+        var av = a;
+        var bv = b!;
+        return (av % bv)!;
+    }
+
+    public static Result<Single, E | F> operator %<E, F>(Result<Single, E> a, Result<Single, F> b)
+    {
+        var av = a!;
+        var bv = b!;
+        return (av % bv)!;
+    }
 }

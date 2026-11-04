@@ -147,5 +147,213 @@
       "TestResults/ledger/20261104-085437/test.log": "db37ab3f89b4eca408a1de2202ca68c042515914ef00f752b31d361480018f78",
       "TestResults/ledger/20261104-085437/trx/_virtue_2026-11-04_08_55_17.trx": "b46b5e119f5274611f4547ba96a04976a0144990a50a124c3ffb4f61d597418c"
     }
+  },
+  "candidate-mutation": {
+    "command": [
+      "tools/test-ledger/run.sh",
+      "Test/Mist.Tests",
+      "--filter",
+      "FullyQualifiedName~Mist.Tests.Semantics.ScopeResolverAmbiguityTests"
+    ],
+    "head": "7749b875303f7252abfaac8fb9d981fc58adb385",
+    "storm": "86dfd33895ba15ec7a3187e00340b236e666ab19",
+    "ledger": "TestResults/ledger/20261104-085542",
+    "exitCode": 1,
+    "total": 19,
+    "passed": 15,
+    "failed": [
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.ThreeImports_TwoHaveSameName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameTypeName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoProjectedImports_SameTypeName_StillReportsAmbiguity"
+    ],
+    "inventory": [
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.EnclosingNamespace_SeesTypesFromOtherFiles",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.EnclosingNamespace_ShadowsFileUsing_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.FileUsing_ShadowsGlobalUsing_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.GlobalUsing_AnswersWhenFileDoesNot",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.LocalType_ShadowsGlobalAndFileImports",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_NothingAnywhere_ReturnsNotFound",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_NothingLexical_ReachesNamespaceLevels",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_TypeInInnerScope_ShadowsVariableInOuterScope",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_VariableInInnerScope_ShadowsTypeInOuterScope",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.NamespaceBlock_DoesNotSeeRestOfFileNamespace",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.ProjectedImport_AnswersWhenNoSourceDeclaredOneDoes",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SameNamespaceImportedTwice_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SingleImportedNamespace_ResolvesCleanly",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SourceDeclaredImport_OutranksProjectedImport_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.ThreeImports_TwoHaveSameName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TopLevelType_IsVisibleFromNamespaceBlockInSameFile",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameTypeName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoProjectedImports_SameTypeName_StillReportsAmbiguity"
+    ],
+    "testSha256": "d5bf853e4d935098cb07bf5c5599fff10081ce56a8885eaa7dc6d17eba5496f2",
+    "classification": {
+      "TwoImportedNamespaces_SameTypeName_ReportsAmbiguity": "2",
+      "ThreeImports_TwoHaveSameName_ReportsAmbiguity": "2",
+      "TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity": "2",
+      "SameNamespaceImportedTwice_NoAmbiguity": "unclassified",
+      "SingleImportedNamespace_ResolvesCleanly": "unclassified",
+      "SourceDeclaredImport_OutranksProjectedImport_NoAmbiguity": "unclassified",
+      "ProjectedImport_AnswersWhenNoSourceDeclaredOneDoes": "unclassified",
+      "TwoProjectedImports_SameTypeName_StillReportsAmbiguity": "2",
+      "FileUsing_ShadowsGlobalUsing_NoAmbiguity": "unclassified",
+      "GlobalUsing_AnswersWhenFileDoesNot": "unclassified",
+      "EnclosingNamespace_ShadowsFileUsing_NoAmbiguity": "unclassified",
+      "EnclosingNamespace_SeesTypesFromOtherFiles": "unclassified",
+      "LocalType_ShadowsGlobalAndFileImports": "unclassified",
+      "TopLevelType_IsVisibleFromNamespaceBlockInSameFile": "unclassified",
+      "NamespaceBlock_DoesNotSeeRestOfFileNamespace": "unclassified",
+      "Lookup_VariableInInnerScope_ShadowsTypeInOuterScope": "unclassified",
+      "Lookup_TypeInInnerScope_ShadowsVariableInOuterScope": "unclassified",
+      "Lookup_NothingLexical_ReachesNamespaceLevels": "unclassified",
+      "Lookup_NothingAnywhere_ReturnsNotFound": "unclassified"
+    },
+    "restoration": {
+      "before": "abeb99cc1168d37e193c03fb8a0a218665085c76e8bb2f91a8714279076f8f11",
+      "mutated": "1bdf2133c35489234bff8547a0bd5bc7be0db2b16a71cc050f5d350a370299a3",
+      "after": "abeb99cc1168d37e193c03fb8a0a218665085c76e8bb2f91a8714279076f8f11"
+    },
+    "rawSha256": {
+      "TestResults/ledger/20261104-085542/build.log": "6b6be6643c3631d285aa7422c699c977b4a8dfb030293a259124a9452ff2bc1c",
+      "TestResults/ledger/20261104-085542/env.txt": "df846411174073de476b2b91be97860882ec6c56122aefb13c2ddb147d36a496",
+      "TestResults/ledger/20261104-085542/failures.txt": "366abaeb2b235d0160a0b063da4531b06f24cc3ff4155f3698cc17e7db55e606",
+      "TestResults/ledger/20261104-085542/summary.txt": "2d595153b9ed091aa3584ba834c05980307ace1866219c778908fc19f7dbb98a",
+      "TestResults/ledger/20261104-085542/test.log": "e47a768a7a6c6fd25b8cddd8f7f639a0e1b3da7d99a3d0c6593d221c770c071f",
+      "TestResults/ledger/20261104-085542/trx/_virtue_2026-11-04_08_56_44.trx": "b4d7b746c57524b14c5b095d91cac2e16bcadfd413ab06c0c1541043a1b45d5b"
+    }
+  },
+  "scope": {
+    "baseline": "d3768f0b42459f8d840108d84d207679c3fd66ef",
+    "verifiedSourceCommit": "7749b875303f7252abfaac8fb9d981fc58adb385",
+    "testSha256": "d5bf853e4d935098cb07bf5c5599fff10081ce56a8885eaa7dc6d17eba5496f2",
+    "productionSha256": "abeb99cc1168d37e193c03fb8a0a218665085c76e8bb2f91a8714279076f8f11",
+    "classificationDelta": {
+      "TwoImportedNamespaces_SameTypeName_ReportsAmbiguity": "unclassified -> Tier 2",
+      "ThreeImports_TwoHaveSameName_ReportsAmbiguity": "unclassified -> Tier 2",
+      "TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity": "unclassified -> Tier 2",
+      "TwoProjectedImports_SameTypeName_StillReportsAmbiguity": "unclassified -> Tier 2"
+    },
+    "otherTests": "15 remain unclassified; selection does not filter by Tier",
+    "exactAllowedSourceDelta": true,
+    "productionSpecsSamplesUnchanged": true,
+    "changedPaths": [
+      "Test/Mist.Tests/Semantics/ScopeResolverAmbiguityTests.cs",
+      "investigations/assert-ambiguous-pilot/Recovery.cs.txt",
+      "investigations/assert-ambiguous-pilot/checks.json",
+      "investigations/assert-ambiguous-pilot/manifest.md",
+      "investigations/assert-ambiguous-pilot/reproduce.py"
+    ]
+  },
+  "candidate": {
+    "command": [
+      "tools/test-ledger/run.sh",
+      "Test/Mist.Tests",
+      "--filter",
+      "FullyQualifiedName~Mist.Tests.Semantics.ScopeResolverAmbiguityTests"
+    ],
+    "head": "7749b875303f7252abfaac8fb9d981fc58adb385",
+    "storm": "86dfd33895ba15ec7a3187e00340b236e666ab19",
+    "ledger": "TestResults/ledger/20261104-085650",
+    "exitCode": 0,
+    "total": 19,
+    "passed": 19,
+    "failed": [],
+    "inventory": [
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.EnclosingNamespace_SeesTypesFromOtherFiles",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.EnclosingNamespace_ShadowsFileUsing_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.FileUsing_ShadowsGlobalUsing_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.GlobalUsing_AnswersWhenFileDoesNot",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.LocalType_ShadowsGlobalAndFileImports",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_NothingAnywhere_ReturnsNotFound",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_NothingLexical_ReachesNamespaceLevels",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_TypeInInnerScope_ShadowsVariableInOuterScope",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.Lookup_VariableInInnerScope_ShadowsTypeInOuterScope",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.NamespaceBlock_DoesNotSeeRestOfFileNamespace",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.ProjectedImport_AnswersWhenNoSourceDeclaredOneDoes",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SameNamespaceImportedTwice_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SingleImportedNamespace_ResolvesCleanly",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.SourceDeclaredImport_OutranksProjectedImport_NoAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.ThreeImports_TwoHaveSameName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TopLevelType_IsVisibleFromNamespaceBlockInSameFile",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoImportedNamespaces_SameTypeName_ReportsAmbiguity",
+      "Mist.Tests.Semantics.ScopeResolverAmbiguityTests.TwoProjectedImports_SameTypeName_StillReportsAmbiguity"
+    ],
+    "testSha256": "d5bf853e4d935098cb07bf5c5599fff10081ce56a8885eaa7dc6d17eba5496f2",
+    "classification": {
+      "TwoImportedNamespaces_SameTypeName_ReportsAmbiguity": "2",
+      "ThreeImports_TwoHaveSameName_ReportsAmbiguity": "2",
+      "TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity": "2",
+      "SameNamespaceImportedTwice_NoAmbiguity": "unclassified",
+      "SingleImportedNamespace_ResolvesCleanly": "unclassified",
+      "SourceDeclaredImport_OutranksProjectedImport_NoAmbiguity": "unclassified",
+      "ProjectedImport_AnswersWhenNoSourceDeclaredOneDoes": "unclassified",
+      "TwoProjectedImports_SameTypeName_StillReportsAmbiguity": "2",
+      "FileUsing_ShadowsGlobalUsing_NoAmbiguity": "unclassified",
+      "GlobalUsing_AnswersWhenFileDoesNot": "unclassified",
+      "EnclosingNamespace_ShadowsFileUsing_NoAmbiguity": "unclassified",
+      "EnclosingNamespace_SeesTypesFromOtherFiles": "unclassified",
+      "LocalType_ShadowsGlobalAndFileImports": "unclassified",
+      "TopLevelType_IsVisibleFromNamespaceBlockInSameFile": "unclassified",
+      "NamespaceBlock_DoesNotSeeRestOfFileNamespace": "unclassified",
+      "Lookup_VariableInInnerScope_ShadowsTypeInOuterScope": "unclassified",
+      "Lookup_TypeInInnerScope_ShadowsVariableInOuterScope": "unclassified",
+      "Lookup_NothingLexical_ReachesNamespaceLevels": "unclassified",
+      "Lookup_NothingAnywhere_ReturnsNotFound": "unclassified"
+    },
+    "restoration": null,
+    "rawSha256": {
+      "TestResults/ledger/20261104-085650/build.log": "5ce620d1487cd3bb87b233e8ba8c6fa25e19c84ced6475752d3e845e8e3e56e9",
+      "TestResults/ledger/20261104-085650/env.txt": "498efdfe76e6e9fd803edd16e9745094019ecd9e838208aa477b0a0c26251b94",
+      "TestResults/ledger/20261104-085650/failures.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "TestResults/ledger/20261104-085650/summary.txt": "e0e35b3e40b8ca5c67bf47cb667b0716ac2c12bf1e3b1473552fe13f2ab20207",
+      "TestResults/ledger/20261104-085650/test.log": "4c2014858c2351fd8bc79add8afc76466547e80ff6283241640152919302b827",
+      "TestResults/ledger/20261104-085650/trx/_virtue_2026-11-04_08_57_26.trx": "20a84f59c8199bcdebac3ca7e4563bd3c494060da3c0315146a363303fe46db5"
+    }
+  },
+  "candidate-recovery": {
+    "command": [
+      "dotnet",
+      "run",
+      "--project",
+      "/Users/lynxstar/Library/Application Support/Carbonek/Grotto/workspaces/7fa9e8b2cf2041f080dfb0eb7a21e8eb/repo/TestResults/assert-ambiguous-pilot/recovery/Recovery.csproj"
+    ],
+    "exitCode": 0,
+    "raw": "TestResults/assert-ambiguous-pilot/candidate-recovery.txt",
+    "sha256": "af10a947f7938d6e68fd5e35d234357c5785a42424c0066d879616ce22885d91"
+  },
+  "build": {
+    "command": [
+      "dotnet",
+      "build",
+      "Mist.slnx"
+    ],
+    "exitCode": 0,
+    "raw": "TestResults/assert-ambiguous-pilot/build.log",
+    "sha256": "bed0e316332a2afe8c795abdea800e49b5488594d4f22cf62f110e16729b9835"
+  },
+  "format": {
+    "command": [
+      "dotnet",
+      "format",
+      "Mist.slnx",
+      "--verify-no-changes"
+    ],
+    "exitCode": 0,
+    "raw": "TestResults/assert-ambiguous-pilot/format.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "rawEvidenceSha256": {
+    "TestResults/assert-ambiguous-pilot/baseline-mutation-restoration.json": "82eec22bb1a437fcd4e20cd7ac67b248f9f250f95ff2030ca932efeb6c2f6542",
+    "TestResults/assert-ambiguous-pilot/baseline-mutation.patch": "a557d91f130a591ce2cd4c325f217599750c442e57b181984e2a0fa4b36481cb",
+    "TestResults/assert-ambiguous-pilot/baseline-recovery.txt": "af10a947f7938d6e68fd5e35d234357c5785a42424c0066d879616ce22885d91",
+    "TestResults/assert-ambiguous-pilot/build.log": "bed0e316332a2afe8c795abdea800e49b5488594d4f22cf62f110e16729b9835",
+    "TestResults/assert-ambiguous-pilot/candidate-mutation-restoration.json": "82eec22bb1a437fcd4e20cd7ac67b248f9f250f95ff2030ca932efeb6c2f6542",
+    "TestResults/assert-ambiguous-pilot/candidate-mutation.patch": "a557d91f130a591ce2cd4c325f217599750c442e57b181984e2a0fa4b36481cb",
+    "TestResults/assert-ambiguous-pilot/candidate-recovery.txt": "af10a947f7938d6e68fd5e35d234357c5785a42424c0066d879616ce22885d91",
+    "TestResults/assert-ambiguous-pilot/format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "TestResults/assert-ambiguous-pilot/provenance.json": "0fb0bb884003f05128fdea7559e5d1301f4df302524624895797e9eb77f4d916"
   }
 }

@@ -60,7 +60,10 @@ def record(label, ledger, exit_code, restoration=None):
     checks[label] = data
     REPORT.write_text(json.dumps(checks, indent=2) + '\n')
     assert len(results) == 19 and observed == expected_failures, data
+    assert data['passed'] == 19 - len(expected_failures), data
     assert exit_code == (1 if expected_failures else 0), data
+    if expected_failures:
+        assert (ledger / 'failures.txt').read_text().count('Got ErrorType with 0 diagnostics.') == 4
     assert re.search(r'\b0 Warning\(s\)', build), build
     assert not re.search(r': warning ', build), build
     if 'baseline' in checks:
@@ -86,8 +89,8 @@ def run(label):
         result = subprocess.run(['tools/test-ledger/run.sh', 'Test/Mist.Tests', '--filter', FILTER], cwd=ROOT)
         ledger = (ROOT / 'TestResults/ledger/latest').resolve()
     finally:
-        SOURCE.write_bytes(original)
         if restoration is not None:
+            SOURCE.write_bytes(original)
             restoration['after'] = sha(SOURCE)
             (RAW / (label + '-restoration.json')).write_text(json.dumps(restoration, indent=2) + '\n')
         assert sha(SOURCE) == before
@@ -114,11 +117,69 @@ def recovery(label):
     assert ': warning ' not in output.read_text()
 
 
+def scope():
+    baseline = 'd3768f0b42459f8d840108d84d207679c3fd66ef'
+    original = subprocess.check_output(['git', 'show', baseline + ':' + str(TEST.relative_to(ROOT))], cwd=ROOT)
+    expected = original.replace(
+        b'result is ErrorType || diags.Any(d => d.Number.Value == "MIST0299")',
+        b'result is ErrorType && diags.Any(d => d.Number.Value == "MIST0299" && d.Severity == DiagnosticSeverity.Error)')
+    callers = [
+        'TwoImportedNamespaces_SameTypeName_ReportsAmbiguity',
+        'ThreeImports_TwoHaveSameName_ReportsAmbiguity',
+        'TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity',
+        'TwoProjectedImports_SameTypeName_StillReportsAmbiguity',
+    ]
+    for name in callers:
+        old = ('    [Fact]\n    public void ' + name).encode()
+        new = ('    [Fact]\n    [Trait("Tier", "2")]\n    public void ' + name).encode()
+        assert expected.count(old) == 1
+        expected = expected.replace(old, new)
+    assert TEST.read_bytes() == expected
+    assert not git('diff', baseline, '--', 'Source', 'specs', 'samples')
+    assert not git('-C', 'Source/Storm.SourceGenerator', 'status', '--porcelain')
+    changed = git('diff', '--name-only', baseline).splitlines()
+    assert all(p == str(TEST.relative_to(ROOT)) or p.startswith('investigations/assert-ambiguous-pilot/') for p in changed)
+    checks = json.loads(REPORT.read_text())
+    checks['scope'] = {
+        'baseline': baseline, 'verifiedSourceCommit': git('rev-parse', 'HEAD'),
+        'testSha256': sha(TEST), 'productionSha256': sha(SOURCE),
+        'classificationDelta': {name: 'unclassified -> Tier 2' for name in callers},
+        'otherTests': '15 remain unclassified; selection does not filter by Tier',
+        'exactAllowedSourceDelta': True, 'productionSpecsSamplesUnchanged': True,
+        'changedPaths': changed,
+    }
+    REPORT.write_text(json.dumps(checks, indent=2) + '\n')
+    print(json.dumps(checks['scope'], indent=2))
+
+
+def verify():
+    for name, command in [
+        ('build', ['dotnet', 'build', 'Mist.slnx']),
+        ('format', ['dotnet', 'format', 'Mist.slnx', '--verify-no-changes']),
+    ]:
+        output = RAW / (name + '.log')
+        with output.open('w') as stream:
+            result = subprocess.run(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
+        print(output.read_text(), flush=True)
+        checks = json.loads(REPORT.read_text())
+        checks[name] = {'command': command, 'exitCode': result.returncode, 'raw': str(output.relative_to(ROOT)), 'sha256': sha(output)}
+        REPORT.write_text(json.dumps(checks, indent=2) + '\n')
+        assert result.returncode == 0
+        assert ': warning ' not in output.read_text()
+        if name == 'build':
+            assert re.search(r'\b0 Warning\(s\)', output.read_text())
+            assert re.search(r'\b0 Error\(s\)', output.read_text())
+
+
 if __name__ == '__main__':
     if sys.argv[1] == 'capture':
         saved = json.loads(REPORT.read_text()) if REPORT.exists() else {}
         record(sys.argv[2], ROOT / sys.argv[3], int(sys.argv[4]), saved.get(sys.argv[2], {}).get('restoration'))
     elif sys.argv[1] == 'recovery':
         recovery(sys.argv[2])
+    elif sys.argv[1] == 'scope':
+        scope()
+    elif sys.argv[1] == 'verify':
+        verify()
     else:
         run(sys.argv[1])

@@ -106,7 +106,7 @@ public sealed class ScopeResolverAmbiguityTests
     {
         var diags = diagnostics.ToImmutableArray();
         Assert.True(
-            result is ErrorType || diags.Any(d => d.Number.Value == "MIST0299"),
+            result is ErrorType && diags.Any(d => d.Number.Value == "MIST0299" && d.Severity == DiagnosticSeverity.Error),
             $"{because} Got {result.GetType().Name} with {diags.Length} diagnostics.");
     }
 
@@ -119,6 +119,7 @@ public sealed class ScopeResolverAmbiguityTests
     /// other, so there is nothing to choose between them.
     /// </summary>
     [Fact]
+    [Trait("Tier", "2")]
     public void TwoImportedNamespaces_SameTypeName_ReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();
@@ -140,6 +141,7 @@ public sealed class ScopeResolverAmbiguityTests
     /// Ambiguity does not require that every using match -- only that two of them do.
     /// </summary>
     [Fact]
+    [Trait("Tier", "2")]
     public void ThreeImports_TwoHaveSameName_ReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();
@@ -164,6 +166,7 @@ public sealed class ScopeResolverAmbiguityTests
     /// are ambiguous under the same conditions.
     /// </summary>
     [Fact]
+    [Trait("Tier", "2")]
     public void TwoImportedNamespaces_SameArityBearingName_ReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();
@@ -268,6 +271,7 @@ public sealed class ScopeResolverAmbiguityTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void TwoProjectedImports_SameTypeName_StillReportsAmbiguity()
     {
         var (context, diagnostics) = CreateContext();

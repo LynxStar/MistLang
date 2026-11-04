@@ -1,0 +1,45 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Mist.Common.Diagnostics;
+using Mist.Tests.Semantics;
+
+var fixture = typeof(ScopeResolverAmbiguityTests);
+var flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+object Call(string name, params object[] args) => fixture.GetMethod(name, flags).Invoke(null, args);
+object Get(object value, string name) => value.GetType().GetProperty(name, flags).GetValue(value);
+void Require(bool condition, string message)
+{
+    if (!condition)
+    {
+        throw new Exception(message);
+    }
+}
+
+foreach (var projected in new[] { false, true })
+{
+    var pair = (ITuple)Call("CreateContext");
+    var context = pair[0];
+    var diagnostics = (DiagnosticBag)pair[1];
+    var model = Get(context, "ProgramModel");
+    var scope = Call("NewFileScope", context, diagnostics);
+    foreach (var ns in new[] { "First", "Second" })
+    {
+        _ = Call(projected ? "RegisterProjectedType" : "RegisterSourceType", model, ns, "Widget");
+        _ = scope.GetType().GetMethod("DeclareImport", flags).Invoke(scope, new object[] { ns });
+    }
+
+    var assembly = context.GetType().Assembly;
+    var requestType = assembly.GetType("Mist.ProgramModel.Model.Scopes.LookupRequest");
+    var visibilityType = assembly.GetType("Mist.ProgramModel.Model.Scopes.MemberVisibility");
+    var request = Activator.CreateInstance(requestType, new object[] { "Widget", Enum.Parse(visibilityType, "None"), null });
+    var lookup = scope.GetType().GetMethod("Lookup", flags).Invoke(scope, new[] { request });
+    Require(Get(lookup, "Type").GetType().Name == "ErrorType", "Node-less ambiguity must return ErrorType");
+    Require(diagnostics.ToImmutableArray().Length == 0, "Node-less lookup must not report a diagnostic");
+
+    var resolver = Get(context, "Resolver");
+    var anchored = resolver.GetType().GetMethod("ResolveNamedType", flags).Invoke(resolver, new[] { "Widget", scope, Call("MakeDummyNode") });
+    Require(anchored.GetType().Name == "ErrorType", "Anchored ambiguity must return ErrorType");
+    Require(diagnostics.ToImmutableArray().Any(d => d.Number.Value == "MIST0299" && d.Severity == DiagnosticSeverity.Error), "Anchored ambiguity requires error-level MIST0299");
+    _ = Call("AssertAmbiguous", anchored, diagnostics, "Anchored recovery counterpart");
+    Console.WriteLine($"PASS {(projected ? "projected" : "source")}: node-less ErrorType/no diagnostic; anchored ErrorType/Error MIST0299; actual helper accepts anchored result");
+}

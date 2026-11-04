@@ -1,6 +1,6 @@
 # AssertAmbiguous acceptance pilot
 
-Current MIST-1204 implementation evidence is in [implementation.md](implementation.md) and `implementation-checks.json`. The investigation record below belongs to its original Session.
+Current MIST-1204 controlled-rework evidence is in [rework.md](rework.md) and `rework-checks.json`. Earlier implementation evidence is in [implementation.md](implementation.md) and `implementation-checks.json`. The investigation record below belongs to its original Session.
 
 MIST-1203; run `ff10fc06-b79c-4e50-96e6-8249ff159427`; investigation Session `7fa9e8b2-cf20-41f0-80df-b0eb7a21e8eb`. Stable finding: `scope-ambiguity-assertion`, with `existingTaskKey: null`. This is the assigned acceptance pilot, not a newly discovered backlog obligation.
 

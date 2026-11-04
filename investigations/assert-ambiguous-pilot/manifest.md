@@ -1,5 +1,7 @@
 # AssertAmbiguous acceptance pilot
 
+Current MIST-1204 implementation evidence is in [implementation.md](implementation.md) and `implementation-checks.json`. The investigation record below belongs to its original Session.
+
 MIST-1203; run `ff10fc06-b79c-4e50-96e6-8249ff159427`; investigation Session `7fa9e8b2-cf20-41f0-80df-b0eb7a21e8eb`. Stable finding: `scope-ambiguity-assertion`, with `existingTaskKey: null`. This is the assigned acceptance pilot, not a newly discovered backlog obligation.
 
 Original HEAD, recorded before edits: `d3768f0b42459f8d840108d84d207679c3fd66ef`. Initialized Storm gitlink and checkout: `86dfd33895ba15ec7a3187e00340b236e666ab19`. Environment: macOS arm64, SDK 10.0.113. Read-only fetch of `refs/heads/codex/recurring-work-pilot-20261104` returned the original source revision; the divergence count was `0 0`, so the destination was already integrated before verification. Provenance commands and output are retained in `TestResults/assert-ambiguous-pilot/provenance.json`.

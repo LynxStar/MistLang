@@ -17,5 +17,4 @@ async void ProcessAll()
     SendNotification();   // discarded task — awaited at scope exit
 
     Console.WriteLine("Processing...");
-    // Both tasks are implicitly awaited here when the scope exits
 }

@@ -59,7 +59,7 @@ internal sealed partial class FactFlow
                         }
                     }
 
-                    if(widened || changes > 2 && values.Intervals.Length > 1)
+                    if(widened || (changes > 2 && values.Intervals.Length > 1))
                     {
                         values = new IntegralSet([new(low, high)]);
                     }

@@ -12,7 +12,6 @@ internal sealed class ProofBudget(Budget limit)
     private readonly long started = Stopwatch.GetTimestamp();
     private int derived;
     private int checks;
-    private bool timedOut;
 
     // Sampling the clock bounds small proofs by their fact work rather than a scheduler pause.
     public bool Expired
@@ -24,12 +23,12 @@ internal sealed class ProofBudget(Budget limit)
                 return true;
             }
 
-            if(!timedOut && (++checks & 255) == 0)
+            if(!field && (++checks & 255) == 0)
             {
-                timedOut = Stopwatch.GetElapsedTime(started) > limit.Time;
+                field = Stopwatch.GetElapsedTime(started) > limit.Time;
             }
 
-            return timedOut;
+            return field;
         }
     }
 

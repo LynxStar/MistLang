@@ -325,7 +325,7 @@ public sealed class FactFlowTests
         var h = new HandBuiltRefinements();
         var impossible = h.Refine(h.Int, ComparisonKind.GreaterThan, (long)int.MaxValue, "Impossible");
         var local = HandBuiltRefinements.Local(impossible, "unproduced");
-        var statements = new List<Statement> { new LocalDeclarationStatement(local.Local, initialized ? h.Literal(0L) : null) };
+        List<Statement> statements = [new LocalDeclarationStatement(local.Local, initialized ? h.Literal(0L) : null)];
         statements.Add(initialized ? HandBuiltRefinements.Evaluate(local) : HandBuiltRefinements.Need(h.Literal(0L), h.Refine(h.Int, ComparisonKind.GreaterThan, 0L)));
 
         Assert.Equal("MIST0271", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);

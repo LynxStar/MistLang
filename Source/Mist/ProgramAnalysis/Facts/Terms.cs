@@ -27,7 +27,7 @@ internal static class Terms
 
         switch(expression)
         {
-            case LocalReferenceExpression or MemberAccessExpression { IsConditional: false, IsFailed: false }:
+            case LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression { IsConditional: false, IsFailed: false }:
                 return readHolder(expression) is { } value ? new Term(value) : null;
 
             case UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } } unary:
@@ -55,6 +55,7 @@ internal static class Terms
         return expression switch
         {
             LocalReferenceExpression local => local.Local,
+            FieldReferenceExpression field => field.Field,
             MemberAccessExpression { IsConditional: false, IsFailed: false, Receiver: ThisExpression, Member: FieldResult field } => field.Field,
             MemberAccessExpression { IsConditional: false, IsFailed: false, Member: { } member } access
                 when Holder(access.Receiver, bindings) is { } receiver && bindings.Get(receiver) is { } value

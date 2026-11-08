@@ -18,6 +18,8 @@ public sealed class TermsTests
     [InlineData("local")]
     [InlineData("member")]
     [InlineData("field")]
+    [InlineData("bareField")]
+    [InlineData("bareFieldMember")]
     [InlineData("add")]
     [InlineData("subtract")]
     [InlineData("multiplyLeft")]
@@ -60,6 +62,17 @@ public sealed class TermsTests
                 expression = new MemberAccessExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), owner),
                     "count", h.Int, member: new FieldResult(field, owner, []));
                 bindings = bindings.Set(field, value);
+                break;
+            case "bareField":
+                var count = new Field("count", h.Int, default, new MemberModifiers());
+                expression = new FieldReferenceExpression(HandBuiltModel.Node(), count);
+                bindings = bindings.Set(count, value);
+                break;
+            case "bareFieldMember":
+                var backing = new Field("backing", h.Sequence(), default, new MemberModifiers());
+                expression = h.Length(new FieldReferenceExpression(HandBuiltModel.Node(), backing));
+                bindings = bindings.Set(backing, value);
+                bindings = bindings.Set(Terms.Holder(expression, bindings)!, value);
                 break;
             case "add":
                 expression = h.Binary(local, BinaryOperatorKind.Add, h.Literal(2), h.Int);
@@ -128,5 +141,28 @@ public sealed class TermsTests
         };
 
         Assert.Null(Terms.Read(expression, bindings));
+    }
+
+    [Fact]
+    public void BareAndExplicitFieldReadsShareHolders()
+    {
+        var model = new FactModel();
+        var h = model.Expressions;
+        var owner = h.Built.Type("Owner");
+        var backing = new Field("backing", h.Sequence(), default, new MemberModifiers());
+        var bare = new FieldReferenceExpression(HandBuiltModel.Node(), backing);
+        var explicitRead = new MemberAccessExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), owner),
+            "backing", backing.Type, member: new FieldResult(backing, owner, []));
+        var value = model.Value("backing");
+        var length = model.Value("length");
+        var bindings = Bindings.Empty.Set(backing, value);
+        bindings = bindings.Set(Terms.Holder(h.Length(bare), bindings)!, length);
+
+        Assert.Same(backing, Terms.Holder(bare, bindings));
+        Assert.Same(backing, Terms.Holder(explicitRead, bindings));
+        Assert.Equal(new Term(value), Terms.Read(bare, bindings));
+        Assert.Equal(Terms.Read(explicitRead, bindings), Terms.Read(bare, bindings));
+        Assert.Equal(Terms.Holder(h.Length(explicitRead), bindings), Terms.Holder(h.Length(bare), bindings));
+        Assert.Equal(new Term(length), Terms.Read(h.Length(explicitRead), bindings));
     }
 }

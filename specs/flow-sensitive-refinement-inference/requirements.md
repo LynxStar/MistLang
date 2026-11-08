@@ -90,8 +90,9 @@ Facts in hand at the call: `capacity >= 0`, `capacity <= 1_000_000`,
 gives `doubled + 1 <= capacity`; substituting `doubled` gives
 `capacity * 2 + 1 <= capacity`, which reduces to `capacity <= -1`; with
 `capacity >= 0` no value satisfies both, so the call is proven. Remove the
-`Capacity` type and the chain stops at `capacity <= -1`, which the diagnostic
-reports as the failing case.
+`Capacity` type and the chain stops at `capacity <= -1`; stated over the call's
+own values it is `doubled <= -2`, and that is the failing case the diagnostic
+reports.
 
 ## Requirement 2 Which facts are recorded
 

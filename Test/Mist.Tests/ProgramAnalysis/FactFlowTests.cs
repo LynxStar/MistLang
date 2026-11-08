@@ -331,4 +331,14 @@ public sealed class FactFlowTests
         Assert.Equal("MIST0271", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. statements]))).Number.Value);
     }
 
+    [Fact]
+    public void ANestedBodyIsJudgedWhenItsParentHasNoRefinementSites()
+    {
+        var h = new HandBuiltRefinements();
+        var nested = HandBuiltModel.Block(HandBuiltRefinements.Need(h.Literal(7L), h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 18L)));
+        var lambda = new LambdaExpression(HandBuiltModel.Node(), [], null, nested, false, h.Int);
+
+        Assert.Equal("MIST0271", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block(HandBuiltRefinements.Evaluate(lambda)))).Number.Value);
+    }
+
 }

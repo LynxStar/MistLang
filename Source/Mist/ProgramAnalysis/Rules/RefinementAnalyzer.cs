@@ -91,6 +91,16 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
     {
         public void Judge(FlowGraph graph, FactState entry)
         {
+            if(!NeedsFacts(graph))
+            {
+                foreach(var nested in graph.Nested.Values)
+                {
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, FactFlow.Nothing);
+                }
+
+                return;
+            }
+
             entry = Prepare(entry with { Unseen = unseenWrites }, graph);
             var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph), entry);
             solution.Replay((state, step) => Judge(graph, state, step));

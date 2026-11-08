@@ -14,7 +14,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class RangeIndexMemberDecisionTests
 {
-    private const string Preamble = "bool flag = true; int[] numbers = [10, 20, 30, 40, 50];";
+    private const string Preamble = "bool flag = Branch.Choose(true); int[] numbers = [10, 20, 30, 40, 50];";
     private const string Unknown = "public class Pick { public static Index Edge() { return ^1; } public static void Change(ref Index edge) { edge = ^5; } public static int Offset(int value) { return value; } }";
 
     [Theory]
@@ -151,7 +151,7 @@ public sealed class RangeIndexMemberDecisionTests
 
     private static ProgramModelClass Build(string statements, string types = "")
     {
-        var model = StandardModelProbe.Build(Preamble + statements, out var diagnostics, types);
+        var model = StandardModelProbe.Build(Preamble + statements, out var diagnostics, types + " public class Branch { public static bool Choose(bool value) { return value; } }");
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         foreach(var index in BodyWalker.DescendantsAndSelf(Body(model)).OfType<IndexExpression>())

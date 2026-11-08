@@ -150,9 +150,10 @@ the requirements meets it.
 
 `Budget(TimeSpan time, int facts)`. The chain counts the facts it derives and
 reads the clock every few hundred steps; exceeding either returns `Exhausted`.
-Starting values: 50 ms and 20,000 derived facts per proof, declared beside
-`LiteralPredicates.MatchLimit` and threaded through `RefinementAnalyzer`'s
-existing `matchLimit` constructor path.
+Starting values: 50 ms and 20,000 derived facts per proof, declared once in
+`Facts/Budget.cs`, so the library owns its own limits the way
+`LiteralPredicates.MatchLimit` owns the regex one, and threaded through
+`RefinementAnalyzer`'s existing `matchLimit` constructor path.
 
 ## The lattice (Requirements 3, 4, 5)
 

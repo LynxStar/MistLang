@@ -1,6 +1,5 @@
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -22,7 +21,7 @@ public sealed class ExactnessTests
         var h = model.Expressions;
         var capacity = model.Value("capacity");
         var expression = h.Binary(HandBuiltRefinements.Local(h.Int), BinaryOperatorKind.Multiply, h.Literal(2), h.Int);
-        var bag = MakeBag(Mist.ProgramAnalysis.Facts.Fact.In(capacity, new IntegralSet([IntegralTypes.Range(capacity.Type)!.Value])));
+        var bag = MakeBag(Fact.In(capacity, new IntegralSet([IntegralTypes.Range(capacity.Type)!.Value])));
         if(bounded)
         {
             bag = bag.Add(Le(0, (capacity, -1))).Add(Le(-1_000_000, (capacity, 1)));
@@ -52,7 +51,7 @@ public sealed class ExactnessTests
             "add" => (h.Binary(local, BinaryOperatorKind.Add, h.Literal(1), h.Int), operand.Add(new Term(1)), fits ? 10L : int.MaxValue),
             "subtract" => (h.Binary(local, BinaryOperatorKind.Subtract, h.Literal(1), h.Int), operand.Add(new Term(-1)), fits ? 10L : int.MinValue),
             "multiply" => (h.Binary(local, BinaryOperatorKind.Multiply, h.Literal(-2), h.Int), operand.Scale(-2), fits ? 10L : int.MaxValue),
-            _ => ((Expression)new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, local, h.Int), operand.Scale(-1), fits ? 10L : int.MinValue),
+            _ => (new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, local, h.Int), operand.Scale(-1), fits ? 10L : int.MinValue),
         };
 
         Assert.Equal(fits, Exactness.Holds(expression, term, MakeBag(Eq(-input, (value, 1))), Limit));
@@ -96,7 +95,7 @@ public sealed class ExactnessTests
         var local = HandBuiltRefinements.Local(type);
         var expression = h.Binary(local, BinaryOperatorKind.Add, h.Literal(1UL, type), type);
         var max = new BigInteger(ulong.MaxValue);
-        var bag = MakeBag(new Mist.ProgramAnalysis.Facts.Fact(new Term(value).Add(new Term(1 - max)), Relation.Equal));
+        var bag = MakeBag(new Fact(new Term(value).Add(new Term(1 - max)), Relation.Equal));
 
         Assert.True(Exactness.Holds(expression, new Term(value).Add(new Term(1)), bag, Limit));
         Assert.False(Exactness.Holds(expression, new Term(value).Add(new Term(2)), bag, Limit));

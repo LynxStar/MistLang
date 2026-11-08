@@ -136,7 +136,7 @@ public sealed class ChainTests
         var x = model.Value("x");
         var unused = model.Value("unused");
         var values = new IntegralSet([new(1, 1), new(100, 100)]);
-        var bag = MakeBag(Eq(-5, (x, 1)), Mist.ProgramAnalysis.Facts.Fact.In(unused, values));
+        var bag = MakeBag(Eq(-5, (x, 1)), Fact.In(unused, values));
 
         _ = Assert.IsType<Proven>(Chain.Prove(bag, [new Alternative([Le(6, (x, -1))])], new HashSet<Value> { x }, new Budget(TimeSpan.FromMinutes(1), 1)));
     }

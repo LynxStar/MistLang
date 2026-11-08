@@ -1,6 +1,5 @@
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -110,7 +109,7 @@ public sealed class TermsTests
         var local = HandBuiltRefinements.Local(h.Int);
         var call = h.Call(local, h.Int);
         var bindings = Bindings.Empty.Set(local.Local, model.Value("value"));
-        Expression expression = shape switch
+        var expression = shape switch
         {
             "divide" => h.Binary(local, BinaryOperatorKind.Divide, h.Literal(2), h.Int),
             "modulo" => h.Binary(local, BinaryOperatorKind.Modulo, h.Literal(2), h.Int),

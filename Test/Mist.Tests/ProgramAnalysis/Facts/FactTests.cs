@@ -1,6 +1,5 @@
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
-using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.Tests.Helpers;
 using Comparison = Mist.ProgramAnalysis.Facts.Fact;

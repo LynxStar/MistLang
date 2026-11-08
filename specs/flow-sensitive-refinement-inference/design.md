@@ -153,12 +153,15 @@ contradiction. A system with no whole-number solution but with fractional ones i
 reported unproven, never proven. That is the safe direction, and no example in
 the requirements meets it.
 
-`Budget(TimeSpan time, int facts)`. The chain counts the facts it derives and
-reads the clock every few hundred steps; exceeding either returns `Exhausted`.
-Starting values: 50 ms and 20,000 derived facts per proof, declared once in
-`Facts/Budget.cs`, so the library owns its own limits the way
-`LiteralPredicates.MatchLimit` owns the regex one, and threaded through
-`RefinementAnalyzer`'s existing `matchLimit` constructor path.
+`Budget(int facts)`. The chain counts the facts it derives; exceeding the count
+returns `Exhausted`. There is no clock. A proof that reads wall time gives one
+answer on an idle machine and another under load, and a compiler's diagnostics
+may not vary with the machine that runs it; the count alone bounds the work,
+since each derived fact costs a bounded number of term operations. Starting
+value: 20,000 derived facts per proof, declared once in `Facts/Budget.cs`, so
+the library owns its own limit the way `LiteralPredicates.MatchLimit` owns the
+regex one, and threaded through `RefinementAnalyzer`'s existing `matchLimit`
+constructor path.
 
 ## The lattice (Requirements 3, 4, 5)
 
@@ -276,9 +279,14 @@ free number at this revision, allocated as diagnostics Requirement 1.4 states.
 Measured before this change on `samples/AllFeaturesV2`, Debug: Stage 5 takes
 1.81 s of a 9.87 s compile, and `refinement-proving` 0.11 s. The budget for this
 change is that `refinement-proving` stays under 0.5 s on that sample, read from
-`--verbose`. The levers, in order: projection before every proof; the
-`Common`/`Alternatives` split, so a join whose bindings agree adds nothing; one
-`FlowGraph` per body root built once and shared through
+`--verbose`. The second measurement is the test suite: `Test/Mist.Tests` runs
+the analyzer over thousands of hand-built bodies, and its wall time on one
+machine may not rise by more than a tenth over the run before the change. The
+levers, in order: projection before every proof; a projection computed once per
+value and bag and carried with the state, so a read of what a variable admits is
+a lookup and not a chain; a proof run only where a contract is judged, never on
+every step; the `Common`/`Alternatives` split, so a join whose bindings agree
+adds nothing; one `FlowGraph` per body root built once and shared through
 `AnalysisContext.GraphOf(SourceRoot)` instead of the eight rebuilds today; the
 cap and the rounds. If the budget is missed, the cap and the rounds are tuned
 first and the fact language last.

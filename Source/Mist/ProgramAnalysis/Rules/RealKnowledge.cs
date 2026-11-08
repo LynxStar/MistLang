@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -9,7 +8,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class RealKnowledge
 {
-    public static RealSet? Of(ImmutableDictionary<object, Knowledge> state, Expression value)
+    public static RealSet? Of(FactState state, Expression value)
     {
         if(RealRequirement.KindOf(value.Type) is not { } kind)
         {
@@ -21,7 +20,7 @@ internal static class RealKnowledge
         return known is null ? declared : declared is null ? known : known.And(declared);
     }
 
-    public static RealSet? Assigned(ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target)
+    public static RealSet? Assigned(FactState state, Expression value, IMistType target)
     {
         if(RealRequirement.KindOf(target) is not { } kind)
         {
@@ -32,8 +31,8 @@ internal static class RealKnowledge
         return literal is not null ? RealSet.Exactly(kind, literal) : Of(state, value)?.ConvertedTo(kind);
     }
 
-    public static ImmutableDictionary<object, Knowledge> Compared(
-        ImmutableDictionary<object, Knowledge> state, LocalVariable subject, Expression bound, ComparisonKind kind, bool holds)
+    public static FactState Compared(
+        FactState state, LocalVariable subject, Expression bound, ComparisonKind kind, bool holds)
     {
         if(RealRequirement.KindOf(subject.Type) is not { } domain
             || RealRequirement.LiteralOf(bound, local => state.TryGetValue(local, out var held) ? held.Literal : null) is not { } literal
@@ -45,8 +44,8 @@ internal static class RealKnowledge
         return Narrow(state, subject, holds ? admitted : admitted.Not());
     }
 
-    public static ImmutableDictionary<object, Knowledge> Narrow(
-        ImmutableDictionary<object, Knowledge> state, LocalVariable subject, RealSet admitted)
+    public static FactState Narrow(
+        FactState state, LocalVariable subject, RealSet admitted)
     {
         var known = state.TryGetValue(subject, out var held) ? held : Knowledge.Unknown;
         var before = Held(state, subject) ?? RealSet.Everything(admitted.Kind);
@@ -59,7 +58,7 @@ internal static class RealKnowledge
             && known.ConvertedTo(required.Kind) is { } converted && converted.IsSubsetOf(required);
     }
 
-    private static RealSet? Held(ImmutableDictionary<object, Knowledge> state, LocalVariable local)
+    private static RealSet? Held(FactState state, LocalVariable local)
     {
         var declared = RealRequirement.OfType(local.Type);
         var known = state.TryGetValue(local, out var held) ? held.Real : null;

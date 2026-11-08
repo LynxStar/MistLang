@@ -15,7 +15,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Discharges a refinement where a value meets one: a constant against the predicate, a refined value
-/// against another refinement by implication, and anything else against what <see cref="RefinementFlow"/>
+/// against another refinement by implication, and anything else against what <see cref="FactFlow"/>
 /// has established about the local it is -- a condition assumed on the path, a constant it was given, an
 /// increment it took, a parameter's own `where`. What cannot be proven is refused where
 /// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
@@ -46,7 +46,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), RefinementFlow.Nothing);
+            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), FactFlow.Nothing);
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
@@ -81,21 +81,22 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
                     new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedArguments(
-                        RefinementFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
+                        FactFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
         }
     }
 
-    private sealed class Proving(AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
+    private sealed partial class Proving(AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
     {
-        public void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> entry)
+        public void Judge(FlowGraph graph, FactState entry)
         {
-            var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(unseenWrites, lifted, effects), entry);
+            entry = Prepare(entry with { Unseen = unseenWrites }, graph);
+            var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
-        private void Judge(FlowGraph graph, ImmutableDictionary<object, Knowledge> state, FlowStep step)
+        private void Judge(FlowGraph graph, FactState state, FlowStep step)
         {
             switch(step)
             {
@@ -116,7 +117,8 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
                 case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }
                     when StorageLocations.NotAssignable(compound.Target) is null:
-                    Need(state, CompoundAssignments.LongForm(compound).Value, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target));
+                    var result = CompoundValue(ref state, compound);
+                    Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target));
 
                     if(compound.Target is IndexExpression incremented)
                     {
@@ -154,13 +156,13 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, RefinementFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, FactFlow.Nothing);
                     break;
             }
         }
 
         public void NeedArguments(
-            ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments,
+            FactState state, IReadOnlyList<Expression> arguments,
             IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null)
         {
             if(parameterTypes is null)
@@ -169,7 +171,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             }
 
             var flattened = parameters is not null && ValuePack.FlattenedSlot(parameters) is not null;
-            var reading = Reading.Of(state, arguments, callee?.SourceDeclaration ?? callee, flattened, this);
+            var reading = Reading.Of(state, arguments, callee?.SourceDeclaration ?? callee, flattened, this, receiver);
             var targets = flattened
                 ? ArgumentTargets.Of(
                     parameters, parameterTypes, [.. arguments.Select(argument => argument is SpreadExpression ? null : argument.Type)],
@@ -194,9 +196,9 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             }
         }
 
-        private void NeedIndex(ImmutableDictionary<object, Knowledge> state, IndexExpression index)
+        private void NeedIndex(FactState state, IndexExpression index)
         {
-            if(RefinementFlow.Refused(state, index.Receiver, lifted))
+            if(FactFlow.Refused(state, index.Receiver, lifted))
             {
                 return;
             }
@@ -206,7 +208,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             if((receiverType is ConstructedType { Definition: var definition, TypeArguments.Count: 2 } && Lengths.IsIndexable(definition))
                 || (receiverType.FullyQualifiedName == "Standard.String" && RangeBound.IsIndex(index.Index.Type)))
             {
-                var length = RefinementFlow.Length(state, index.Receiver, lifted);
+                var length = FactFlow.Length(state, index.Receiver, lifted);
 
                 if(Lengths.IsRangeSlice(index))
                 {
@@ -224,7 +226,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 var symbolic = new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]);
                 var required = Lengths.Shortest(length) is { } shortest ? new Requirement(Admitted.Between(0, shortest - 1), []) : symbolic;
 
-                if(!Satisfied(known, symbolic, index.Receiver))
+                if(!Satisfied(known, symbolic, index.Receiver) && !Proves(state, index.Index, symbolic, Reading.None, index.Receiver))
                 {
                     Need(known, index.Index, Lengths.Exact(length) is null ? symbolic : required, onIndex: index.Receiver, alsoSatisfies: required);
                 }
@@ -234,13 +236,13 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
             if(Lengths.IsRangeSlice(index))
             {
-                NeedRange(state, index, RefinementFlow.Length(state, index.Receiver, lifted));
+                NeedRange(state, index, FactFlow.Length(state, index.Receiver, lifted));
                 return;
             }
 
             if(index.Slice is { Method: { } slice } sliced)
             {
-                var (start, length) = RefinementFlow.Range(state, index.Index, lifted) is { } range
+                var (start, length) = FactFlow.Range(state, index.Index, lifted) is { } range
                     ? Offsets(range, Counted(sliced.Count))
                     : (Admitted.Everything, Admitted.Everything);
                 var shown = RefinementFindings.Display(index.Index);
@@ -262,13 +264,13 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name);
+                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name, reading: Reading.ForReceiver(index.Receiver));
             }
         }
 
-        private void NeedRange(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
+        private void NeedRange(FactState state, IndexExpression index, Admitted? length)
         {
-            if(RefinementFlow.Refused(state, index.Receiver, lifted) || RefinementFlow.Range(state, index.Index, lifted) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
+            if(FactFlow.Refused(state, index.Receiver, lifted) || FactFlow.Range(state, index.Index, lifted) is not { } range || Lengths.SafetyOf(range, length) != RangeSafety.Violated)
             {
                 return;
             }
@@ -282,7 +284,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
         // `Length - k`, so its knowledge is the length less every k it may be, and below Length by
         // construction whenever every k is at least one -- the prover then asks of it what it asks of
         // any other index, and never learns what `^` means. Null for an index the slot's type refuses.
-        private Knowledge? Reaching(ImmutableDictionary<object, Knowledge> state, IndexExpression index, Admitted? length)
+        private Knowledge? Reaching(FactState state, IndexExpression index, Admitted? length)
         {
             if(index.Index is not UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd } && !RangeBound.IsIndex(index.Index.Type))
             {
@@ -308,7 +310,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 return Knowledge.Unknown;
             }
 
-            var below = nearest >= 1 && RefinementFlow.Holder(index.Receiver) is { } holder
+            var below = nearest >= 1 && FactFlow.Holder(index.Receiver) is { } holder
                 ? ImmutableHashSet.Create(new Bound(holder, ComparisonKind.LessThan))
                 : ImmutableHashSet<Bound>.Empty;
 
@@ -323,7 +325,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
         }
 
         private void Need(
-            ImmutableDictionary<object, Knowledge> state, Expression value, IMistType target, Expression at, string? onConstraint = null,
+            FactState state, Expression value, IMistType target, Expression at, string? onConstraint = null,
             Expression? measured = null, Reading? reading = null)
         {
             reading ??= Reading.None;
@@ -344,6 +346,11 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 && Requirement.OfType(target) is { Bounds.Length: > 0 } constrained)
             {
                 Need(state, value, constrained, at, onConstraint, measured: measured, reading: reading);
+                return;
+            }
+
+            if(considered.Any(constituent => Requirement.OfType(constituent) is { } contract && Proves(state, value, contract, reading, measured)))
+            {
                 return;
             }
 
@@ -556,7 +563,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
         }
 
         private void Need(
-            ImmutableDictionary<object, Knowledge> state, Expression value, Requirement required, Expression at,
+            FactState state, Expression value, Requirement required, Expression at,
             string? onConstraint = null, Expression? onIndex = null, Expression? measured = null, Reading? reading = null)
         {
             if(value.Type is ErrorType)
@@ -567,7 +574,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             var known = Known(state, value);
             reading ??= Reading.None;
 
-            if(!Satisfied(known, Read(required, proving: true, reading), onIndex ?? measured, Length(state, measured)))
+            if(!Proves(state, value, required, reading, onIndex ?? measured) && !Satisfied(known, Read(required, proving: true, reading), onIndex ?? measured, Length(state, measured)))
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)),
@@ -595,9 +602,9 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 ;
         }
 
-        private Admitted? Length(ImmutableDictionary<object, Knowledge> state, Expression? measured)
+        private Admitted? Length(FactState state, Expression? measured)
         {
-            return RefinementFlow.Length(state, measured, lifted);
+            return FactFlow.Length(state, measured, lifted);
         }
 
         private static Requirement Stated(Requirement required, Admitted? length)
@@ -630,7 +637,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                     continue;
                 }
 
-                if(RefinementFlow.Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
+                if(FactFlow.Holder(onIndex) is not { } holder || !known.Bounds.Contains(new Bound(holder, bound.Kind)))
                 {
                     return false;
                 }
@@ -639,67 +646,10 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             return true;
         }
 
-        private Knowledge Known(ImmutableDictionary<object, Knowledge> state, Expression value)
-        {
-            if(Requirement.Constant(value) is { } constant)
-            {
-                return new Knowledge(Admitted.Exactly(constant), ImmutableHashSet<Bound>.Empty);
-            }
-
-            var typed = (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted.Of(value) ?? Admitted.Everything);
-
-            if(value is not LocalReferenceExpression local)
-            {
-                return new Knowledge(typed, ImmutableHashSet<Bound>.Empty) { Real = RealKnowledge.Of(state, value) };
-            }
-
-            var flow = state.TryGetValue(local.Local, out var known) ? known : Knowledge.Unknown;
-
-            return new Knowledge(flow.Values.And(typed), flow.Bounds) { Real = RealKnowledge.Of(state, value) };
-        }
-
         private static bool Accepts(IMistType constituent, IMistType valueType)
         {
             return ConversionClassifier.Classify(Requirement.Unrefined(valueType), Requirement.Unrefined(constituent)) is ConversionKind.Identity or ConversionKind.Implicit;
         }
 
-        // A member bound written through a local is read only when that local is the callee's own extension
-        // receiver: a captured receiver or another parameter is not the instance the call supplies, however
-        // it is named. A bound naming a sibling parameter reads what the call passes in that position.
-        private sealed class Reading(LocalVariable? receiver, Func<Parameter, Admitted?>? sibling)
-        {
-            public static readonly Reading None = new(null, null);
-
-            public static Reading Of(
-                ImmutableDictionary<object, Knowledge> state, IReadOnlyList<Expression> arguments, Method? callee, bool flattened, Proving proving)
-            {
-                if(callee is null)
-                {
-                    return None;
-                }
-
-                var parameters = callee.ParametersList;
-
-                return new Reading(callee.DeclaringBlock?.Receiver, flattened ? null : named =>
-                {
-                    var index = parameters.FindIndex(parameter => ReferenceEquals(parameter, named));
-
-                    return index >= 0 && index < arguments.Count && parameters[index].Modifier.Direction != ByRefDirection.Out
-                        ? proving.Known(state, arguments[index]).Values
-                        : null;
-                });
-            }
-
-            public Admitted? Of(SymbolicBound bound, Proving proving)
-            {
-                return bound switch
-                {
-                    { Member: { } member, Receiver: null } => proving.Signature(member),
-                    { Member: { } member, Receiver: var through } when ReferenceEquals(through, receiver) => proving.Signature(member),
-                    { Named: Parameter named } => sibling?.Invoke(named),
-                    _ => null,
-                };
-            }
-        }
     }
 }

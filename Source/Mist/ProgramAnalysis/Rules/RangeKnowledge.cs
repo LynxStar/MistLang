@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -8,17 +7,17 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal static class RangeKnowledge
 {
-    public static RangeBound? Index(ImmutableDictionary<object, Knowledge> state, Expression value, LiftedReturns? lifted = null)
+    public static RangeBound? Index(FactState state, Expression value, LiftedReturns? lifted = null)
     {
         return RangeBound.Of(value, offset => Captured(state, offset, lifted),
-            held => RefinementFlow.Holder(held) is { } holder && state.TryGetValue(holder, out var known) ? known.IndexValue : null,
+            held => FactFlow.Holder(held) is { } holder && state.TryGetValue(holder, out var known) ? known.IndexValue : null,
             length => CapturedLength(state, length, lifted));
     }
 
-    public static StoredRange? Range(ImmutableDictionary<object, Knowledge> state, RangeExpression value, LiftedReturns? lifted = null)
+    public static StoredRange? Range(FactState state, RangeExpression value, LiftedReturns? lifted = null)
     {
         return StoredRange.Of(value, offset => Captured(state, offset, lifted),
-            held => RefinementFlow.Holder(held) is { } holder && state.TryGetValue(holder, out var known) ? known.IndexValue : null,
+            held => FactFlow.Holder(held) is { } holder && state.TryGetValue(holder, out var known) ? known.IndexValue : null,
             length => CapturedLength(state, length, lifted));
     }
 
@@ -36,7 +35,7 @@ internal static class RangeKnowledge
         };
     }
 
-    private static Admitted Captured(ImmutableDictionary<object, Knowledge> state, Expression value, LiftedReturns? lifted)
+    private static Admitted Captured(FactState state, Expression value, LiftedReturns? lifted)
     {
         var declared = (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted?.Produced(value) ?? Admitted.Everything);
 
@@ -45,15 +44,15 @@ internal static class RangeKnowledge
             : declared;
     }
 
-    private static RangeBound? CapturedLength(ImmutableDictionary<object, Knowledge> state, Expression value, LiftedReturns? lifted)
+    private static RangeBound? CapturedLength(FactState state, Expression value, LiftedReturns? lifted)
     {
         if(value is not MemberAccessExpression access || !IsLength(access))
         {
             return null;
         }
 
-        var length = RefinementFlow.Length(state, access.Receiver, lifted) ?? Admitted.AtLeast(0);
-        var holder = RefinementFlow.Holder(access.Receiver);
+        var length = FactFlow.Length(state, access.Receiver, lifted) ?? Admitted.AtLeast(0);
+        var holder = FactFlow.Holder(access.Receiver);
 
         return Lengths.Exact(length) is not null ? new RangeBound(length, null, false)
             : holder is not null ? new RangeBound(length, new LengthSymbol(holder), false) : null;

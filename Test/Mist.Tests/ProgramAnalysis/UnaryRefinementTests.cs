@@ -46,7 +46,7 @@ public sealed class UnaryRefinementTests
 
         var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), At(h, site, value, target)));
 
-        Assert.Equal(form == "anonymous" && site == "argument" ? "MIST0277" : "MIST0272", finding.Number.Value);
+        Assert.Equal(domain == "integer" && form == "lifted" ? "MIST0271" : form == "anonymous" && site == "argument" ? "MIST0277" : "MIST0272", finding.Number.Value);
         Assert.Equal(25, finding.Position().Start.Column);
     }
 

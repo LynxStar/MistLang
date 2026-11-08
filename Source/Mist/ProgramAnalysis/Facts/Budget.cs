@@ -11,8 +11,27 @@ internal sealed class ProofBudget(Budget limit)
 {
     private readonly long started = Stopwatch.GetTimestamp();
     private int derived;
+    private int checks;
+    private bool timedOut;
 
-    public bool Expired => derived > limit.DerivedFacts || Stopwatch.GetElapsedTime(started) > limit.Time;
+    // Sampling the clock bounds small proofs by their fact work rather than a scheduler pause.
+    public bool Expired
+    {
+        get
+        {
+            if(derived > limit.DerivedFacts || limit.Time <= TimeSpan.Zero)
+            {
+                return true;
+            }
+
+            if(!timedOut && (++checks & 255) == 0)
+            {
+                timedOut = Stopwatch.GetElapsedTime(started) > limit.Time;
+            }
+
+            return timedOut;
+        }
+    }
 
     public bool Derive()
     {

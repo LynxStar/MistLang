@@ -18,7 +18,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class StoredRangeDecisionTests
 {
-    private const string Preamble = "bool flag = true; int[] numbers = [10, 20, 30, 40, 50];";
+    private const string Preamble = "bool flag = Branch.Choose(true); int[] numbers = [10, 20, 30, 40, 50];";
 
     [Theory]
     [InlineData("0..3", "0..3", 2)]
@@ -80,7 +80,7 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
         var state = StateAtExit(body);
 
-        Assert.NotNull(state[Local(body, "window")].Slice);
+        Assert.NotNull(Held(state, Local(body, "window")).Slice);
         Assert.Empty(Findings(model));
     }
 
@@ -95,7 +95,7 @@ public sealed class StoredRangeDecisionTests
         Assert.Equal(2, bounds.Count);
         Assert.Equal(bounds[0].Local.Name, bounds[1].Local.Name);
         Assert.NotSame(bounds[0].Local, bounds[1].Local);
-        Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
+        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
         Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
@@ -107,7 +107,7 @@ public sealed class StoredRangeDecisionTests
         var model = BuildResolved($"int low = 0; int high = 3; Range window = low..high; if(flag) {{ window = low..high; }} {write} var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
 
-        Assert.NotNull(StateAtExit(body)[Local(body, "window")].Slice);
+        Assert.NotNull(Held(StateAtExit(body), Local(body, "window")).Slice);
         Assert.Empty(Findings(model));
     }
 
@@ -118,8 +118,8 @@ public sealed class StoredRangeDecisionTests
         var body = Body(model);
         var state = StateAtExit(body);
 
-        Assert.NotNull(state[Local(body, "original")].Slice);
-        Assert.NotNull(state[Local(body, "window")].Slice);
+        Assert.NotNull(Held(state, Local(body, "original")).Slice);
+        Assert.NotNull(Held(state, Local(body, "window")).Slice);
         Assert.Empty(Findings(model));
     }
 
@@ -130,7 +130,7 @@ public sealed class StoredRangeDecisionTests
         var model = BuildResolved(ranges + "var slice = numbers[window]; var last = slice[0];");
         var body = Body(model);
 
-        Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
+        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
         Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
@@ -149,7 +149,7 @@ public sealed class StoredRangeDecisionTests
                 return;
             }
 
-            Assert.NotNull(state[Local(body, "window")].Slice);
+            Assert.NotNull(Held(state, Local(body, "window")).Slice);
             inspected = true;
         });
 
@@ -165,7 +165,7 @@ public sealed class StoredRangeDecisionTests
             "public class Pick { public static int End() { return 3; } }");
         var body = Body(model);
 
-        Assert.Null(StateAtExit(body)[Local(body, "window")].Slice);
+        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
         Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
@@ -181,7 +181,7 @@ public sealed class StoredRangeDecisionTests
 
     private static ProgramModelClass BuildResolved(string statements, string types = "")
     {
-        var model = StandardModelProbe.Build(Preamble + statements, out var diagnostics, types);
+        var model = StandardModelProbe.Build(Preamble + statements, out var diagnostics, types + " public class Branch { public static bool Choose(bool value) { return value; } }");
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         var declarations = BodyWalker.DescendantsAndSelf(Body(model)).OfType<LocalDeclarationStatement>().ToList();
@@ -213,17 +213,31 @@ public sealed class StoredRangeDecisionTests
         return BodyWalker.DescendantsAndSelf(body).OfType<LocalDeclarationStatement>().Single(declaration => declaration.Local.Name == name).Local;
     }
 
-    private static ImmutableDictionary<object, Knowledge> StateAtExit(Block body)
+    private static Knowledge Held(FactState state, LocalVariable local)
     {
-        return Solution(body).AtExit;
+        Assert.True(state.TryGetValue(local, out var known));
+        return known;
     }
 
-    private static FlowSolution<ImmutableDictionary<object, Knowledge>> Solution(Block body)
+    private static FactState StateAtExit(Block body)
+    {
+        var captured = FactState.Empty;
+        Solution(body).Replay((state, step) =>
+        {
+            if(step.Kind == FlowStepKind.Leave && ReferenceEquals(step.Node, body))
+            {
+                captured = state;
+            }
+        });
+        return captured;
+    }
+
+    private static FlowSolution<FactState> Solution(Block body)
     {
         var graph = FlowGraphBuilder.Build(body);
 
-        return FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(
-            graph, new RefinementFlow(UnseenWrites.Of(body), new LiftedReturns()), RefinementFlow.Nothing);
+        return FlowSolution<FactState>.Solve(
+            graph, new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
     }
 
     private static ImmutableArray<Diagnostic> Findings(ProgramModelClass model)

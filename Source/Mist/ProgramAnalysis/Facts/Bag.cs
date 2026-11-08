@@ -22,13 +22,28 @@ internal sealed class Bag
         Alternatives = Unreachable ? [Alternative.Empty] : [.. viable];
     }
 
+    private Bag(ImmutableArray<Fact> common, ImmutableArray<Alternative> alternatives)
+    {
+        Common = common;
+        Unreachable = alternatives.IsEmpty;
+        Alternatives = Unreachable ? [Alternative.Empty] : alternatives;
+    }
+
     public ImmutableArray<Fact> Common { get; }
     public ImmutableArray<Alternative> Alternatives { get; }
     public bool Unreachable { get; }
 
     public Bag Add(Fact fact)
     {
-        return new Bag(Common.Add(fact), Unreachable ? [] : Alternatives);
+        if(Common.Contains(fact))
+        {
+            return this;
+        }
+
+        var common = Common.Add(fact);
+        var viable = Unreachable || fact.IsContradiction ? [] : Alternatives.Where(alternative =>
+            !fact.Term.Coefficients.Keys.Any(value => Chain.SingleValue(common.Concat(alternative.Facts), value).IsEmpty)).ToImmutableArray();
+        return new Bag(common, viable);
     }
 
     public Bag AddAlternatives(IEnumerable<Alternative> alternatives)

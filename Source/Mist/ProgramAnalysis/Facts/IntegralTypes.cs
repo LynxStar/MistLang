@@ -24,6 +24,21 @@ internal static class IntegralTypes
     public static IntegralInterval? Range(IMistType type)
     {
         type = Requirement.Unrefined(type);
+        if(type is LiftedType lifted)
+        {
+            return Range(lifted.Type);
+        }
+
+        if(type is UnknownValueType unknown)
+        {
+            return Range(unknown.Domain);
+        }
+
+        if(type is TypeParameter { IsDependent: true, Domain: { } domain })
+        {
+            return Range(domain);
+        }
+
         if(type is EnumType enumeration)
         {
             return enumeration.UnderlyingType is { } underlying ? Range(underlying) : new IntegralInterval(int.MinValue, int.MaxValue);

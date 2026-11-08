@@ -16,7 +16,7 @@ namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class RangeCaptureDecisionTests
 {
-    private const string Preamble = "bool flag = true; int[] numbers = [10, 20, 30, 40, 50];";
+    private const string Preamble = "bool flag = Branch.Choose(true); int[] numbers = [10, 20, 30, 40, 50];";
     private const string Unknown = "public class Pick { public static int End(int value) { return value; } public static int[] Values() { return [10, 20, 30, 40, 50]; } public static void Change(ref int value) { value = 0; } }";
     private const string Intervals = "public class Pick { public static int Begin(bool flag) { if(flag) { return 0; } return 1; } public static int End(bool flag) { if(flag) { return 4; } return 5; } }";
 
@@ -52,10 +52,19 @@ public sealed class RangeCaptureDecisionTests
         var model = Build($"int start = Pick.Begin(flag); int end = Pick.End(flag); Range window = {bounds}; start = 4; end = 0; var slice = numbers[window]; var last = slice[{last}];", Intervals);
         var body = Body(model);
         var graph = FlowGraphBuilder.Build(body);
-        var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(graph, new RefinementFlow(UnseenWrites.Of(body), new LiftedReturns()), RefinementFlow.Nothing);
+        var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
         var slice = BodyWalker.DescendantsAndSelf(body).OfType<LocalDeclarationStatement>().Single(declaration => declaration.Local.Name == "slice").Local;
 
-        Assert.Equal(shortest, Lengths.Shortest(solution.AtExit[slice].Length));
+        var captured = FactState.Empty;
+        solution.Replay((state, step) =>
+        {
+            if(step.Kind == FlowStepKind.Leave && ReferenceEquals(step.Node, body))
+            {
+                captured = state;
+            }
+        });
+        Assert.True(captured.TryGetValue(slice, out var known));
+        Assert.Equal(shortest, Lengths.Shortest(known.Length));
         Assert.Empty(Findings(model));
     }
 
@@ -208,7 +217,7 @@ public sealed class RangeCaptureDecisionTests
 
     private static ProgramModelClass Build(string statements, string types = "", string preamble = Preamble)
     {
-        var model = StandardModelProbe.Build(preamble + statements, out var diagnostics, types);
+        var model = StandardModelProbe.Build(preamble + statements, out var diagnostics, types + " public class Branch { public static bool Choose(bool value) { return value; } }");
         Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
 
         foreach(var index in BodyWalker.DescendantsAndSelf(Body(model)).OfType<IndexExpression>())

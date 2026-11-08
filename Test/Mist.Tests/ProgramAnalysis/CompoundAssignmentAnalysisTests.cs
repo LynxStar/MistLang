@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
@@ -211,9 +210,17 @@ public sealed class CompoundAssignmentAnalysisTests
     private Knowledge Known(LocalVariable local, Expression write)
     {
         var body = HandBuiltModel.Block(new LocalDeclarationStatement(local, HandBuiltModel.Literal(Integer, 3L)), Run(write));
-        var solution = FlowSolution<ImmutableDictionary<object, Knowledge>>.Solve(
-            FlowGraphBuilder.Build(body), new RefinementFlow(UnseenWrites.Of(body), new LiftedReturns()), RefinementFlow.Nothing);
-        return solution.AtExit[local];
+        var solution = FlowSolution<FactState>.Solve(
+            FlowGraphBuilder.Build(body), new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
+        var known = Knowledge.Unknown;
+        solution.Replay((state, step) =>
+        {
+            if(step.Kind == FlowStepKind.Leave && ReferenceEquals(step.Node, body))
+            {
+                Assert.True(state.TryGetValue(local, out known));
+            }
+        });
+        return known;
     }
 
     private IReadOnlyList<Diagnostic> Readonly(ConcreteType owner, Expression write)

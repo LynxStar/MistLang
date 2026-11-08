@@ -130,6 +130,8 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                     => state.Union(slots.Written(new LocalStoragePath(declared))),
                 { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     => state.Union(Written(assignment.Target)),
+                { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }
+                    => state.Union(Written(compound.Target)),
                 { Kind: FlowStepKind.Evaluate, IsStorageReceiver: false, Node: Expression expression }
                     when LocalStoragePath.Of(expression) is { } read && slots.Tracks(read)
                     => state.Union(slots.Required(read)),
@@ -160,11 +162,13 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                 return;
             }
 
-            switch(step.Node)
+            var judged = step.Node is CompoundAssignmentExpression compound ? compound.Target : step.Node;
+
+            switch(judged)
             {
-                case Expression expression when LocalStoragePath.Of(expression) is { } read
-                    && slots.Tracks(read) && !slots.Required(read).All(state.Contains):
-                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, expression.Node, [expression], new NameValue(read.Name));
+                case Expression expression when LocalStoragePath.Of(expression) is { } path
+                    && slots.Tracks(path) && !slots.Required(path).All(state.Contains):
+                    context.Report(ProgramAnalysisDiagnostics.LocalReadBeforeAssignment, expression.Node, [expression], new NameValue(path.Name));
                     break;
 
                 case MemberAccessExpression { Receiver: ThisExpression } access

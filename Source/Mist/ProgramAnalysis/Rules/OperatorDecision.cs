@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -21,6 +22,20 @@ internal static class OperatorDecision
 
         return left is UnknownType || right is UnknownType
             ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
+    }
+
+    /// <summary>
+    /// <c>++</c> and <c>--</c> are defined on the integral and real families alone, so a type whose <c>+</c> admits
+    /// an integer -- a string, or one that declares the operator -- is refused all the same.
+    /// </summary>
+    public static MistDiagnostic? Increment(IMistType target, BinaryOperatorKind kind, Func<WellKnownType, IMistType> wellKnown)
+    {
+        if(CompoundAssignmentBinder.Increments(target))
+        {
+            return Binary(kind, target, wellKnown(WellKnownTypes.Int32), wellKnown);
+        }
+
+        return target is UnknownType ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
     }
 
     public static MistDiagnostic? Unary(UnaryOperatorKind kind, IMistType operand)

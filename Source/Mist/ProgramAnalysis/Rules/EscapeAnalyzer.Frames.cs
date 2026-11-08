@@ -66,6 +66,10 @@ internal sealed partial class EscapeAnalyzer
                     DiagnosticSnapshot.Type(assignment.Value.Type), new NameValue(origin), new NameValue(destination.Where), new NameValue(destination.Why));
                 break;
 
+            case CompoundAssignmentExpression compound:
+                JudgeFrameStep(context, lattice, graph, state, step with { Node = CompoundAssignments.LongForm(compound) });
+                break;
+
             case InvocationExpression call:
                 JudgeLent(context, call.Signature, ThisTiers.ReceiverOf(call), call.Arguments, call.Parameters, state);
                 break;

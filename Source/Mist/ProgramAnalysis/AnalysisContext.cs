@@ -16,7 +16,7 @@ internal sealed class AnalysisContext(
     AnalysisScope scope,
     IReadOnlyList<object> nodes,
     IReadOnlyDictionary<object, SourceRoot> roots,
-    IReadOnlyDictionary<object, AssignmentExpression> assignedBy,
+    IReadOnlyDictionary<object, Expression> assignedBy,
     IReadOnlySet<string> sourcePaths,
     DiagnosticBag diagnostics,
     string analyzerId,
@@ -94,7 +94,7 @@ internal sealed class AnalysisContext(
     /// Answered from the assignment holding the node as its target, and read for everything else. The
     /// model records no direction on an expression that can be a target -- see
     /// <see cref="PropertyReferenceExpression"/> -- so this is the one place it is derived, and a
-    /// <c>??=</c> target is both, since it is read before it is written.
+    /// <c>??=</c> or compound target is both, since it is read before it is written.
     /// </summary>
     public AccessDirection DirectionOf(object node)
     {
@@ -103,7 +103,7 @@ internal sealed class AnalysisContext(
             return AccessDirection.Read;
         }
 
-        return assignment.IsCoalescing ? AccessDirection.ReadWrite : AccessDirection.Write;
+        return assignment is AssignmentExpression { IsCoalescing: false } ? AccessDirection.Write : AccessDirection.ReadWrite;
     }
 
     public bool IsInSource(SyntaxNode node)

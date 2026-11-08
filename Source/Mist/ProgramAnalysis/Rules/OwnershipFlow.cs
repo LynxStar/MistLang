@@ -208,6 +208,17 @@ internal sealed partial class OwnershipFlow(
 
                 return LocalOwnership.Sources(assignment.Value).Aggregate(state, (current, source) => Move(current, source, assignment.Value));
 
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression target } compound }:
+                return Tracked(Place.Of(target.Local)) ? BindValue(state, target.Local, compound, compound, assignment: true) : state;
+
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }:
+                if(LocalStoragePath.Of(compound.Target) is { Receiver: not null } written)
+                {
+                    state = state with { Moved = state.Moved.Remove(Place.Of(written.Local)) };
+                }
+
+                return Stored(state, compound.Target, compound);
+
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
                 foreach(var (target, value) in Deconstructions.Pairs(assignment))
                 {

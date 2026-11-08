@@ -95,13 +95,17 @@ internal sealed class HandBuiltModel
         var bodies = root is null ? Array.Empty<SourceRoot>() : [new SourceRoot(root, owner, MistAssembly.Synthetic, member)];
         var nodes = bodies.SelectMany(body => BodyWalker.DescendantsAndSelf(body.Root)).ToList();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
-        var assignments = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
+        var assignments = new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance);
         foreach(var node in nodes)
         {
             roots[node] = bodies[0];
             if(node is AssignmentExpression assignment)
             {
                 assignments[assignment.Target] = assignment;
+            }
+            else if(node is CompoundAssignmentExpression compound)
+            {
+                assignments[compound.Target] = compound;
             }
         }
 

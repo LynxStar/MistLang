@@ -112,6 +112,10 @@ internal sealed class RefinementFlow(IReadOnlySet<object> unseenWrites, LiftedRe
                 state = Forget(state, holder => ReferenceEquals(holder, declaration.Local), andTheHolder: true);
                 return Given(state, declaration.Local, declaration.Initializer);
 
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }:
+                state = Step(state, step with { Node = CompoundAssignments.LongForm(compound) });
+                return effects.MayWrite(compound) ? Forget(state, IsMutableField) : state;
+
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
                 state = Forget(state, holder => ReferenceEquals(holder, target.Local));
 

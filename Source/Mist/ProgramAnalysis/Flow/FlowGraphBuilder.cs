@@ -394,6 +394,11 @@ internal sealed class FlowGraphBuilder
             case AssignmentExpression assignment:
                 return Assignment(assignment, current);
 
+            case CompoundAssignmentExpression compound:
+                current = Expression(compound.Value, TargetParts(compound.Target, current));
+                current.Steps.Add(Evaluate(compound));
+                return current;
+
             case CoalesceExpression coalesce:
                 {
                     current = Expression(coalesce.Left, current);
@@ -481,14 +486,7 @@ internal sealed class FlowGraphBuilder
 
     private FlowBlock Assignment(AssignmentExpression assignment, FlowBlock current)
     {
-        current = assignment.Target switch
-        {
-            MemberAccessExpression member when LocalStoragePath.Of(member) is not null || member.Type is ErrorType => current,
-            MemberAccessExpression member => Expression(member.Receiver, current),
-            IndexExpression index => Expression(index.Index, Expression(index.Receiver, current)),
-            ExtensionPropertyAccessExpression extension => Expression(extension.Receiver, current),
-            _ => current,
-        };
+        current = TargetParts(assignment.Target, current);
 
         if(!assignment.IsCoalescing)
         {
@@ -502,6 +500,18 @@ internal sealed class FlowGraphBuilder
         absent = Expression(assignment.Value, absent);
         absent.Steps.Add(Evaluate(assignment));
         return Join(present, absent);
+    }
+
+    private FlowBlock TargetParts(Expression target, FlowBlock current)
+    {
+        return target switch
+        {
+            MemberAccessExpression member when LocalStoragePath.Of(member) is not null || member.Type is ErrorType => current,
+            MemberAccessExpression member => Expression(member.Receiver, current),
+            IndexExpression index => Expression(index.Index, Expression(index.Receiver, current)),
+            ExtensionPropertyAccessExpression extension => Expression(extension.Receiver, current),
+            _ => current,
+        };
     }
 
     private void Leave(FlowBlock current, int depth)

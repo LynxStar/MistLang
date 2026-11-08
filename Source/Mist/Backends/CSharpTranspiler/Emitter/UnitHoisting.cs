@@ -117,6 +117,7 @@ internal static class UnitHoisting
             BinaryExpression binary => [new Operand(binary.Left), new Operand(binary.Right)],
             CoalesceExpression coalesce => [new Operand(coalesce.Left), new Operand(coalesce.Right, Conditional: true)],
             AssignmentExpression assignment => [.. Target(assignment.Target), new Operand(assignment.Value, Conditional: assignment.IsCoalescing)],
+            CompoundAssignmentExpression compound => [.. Target(compound.Target), new Operand(compound.Value)],
             UnaryExpression unary => [new Operand(unary.Operand)],
             CastExpression cast => [new Operand(cast.Operand)],
             ImplicitConversionExpression conversion => [new Operand(conversion.Operand)],
@@ -289,7 +290,7 @@ internal static class UnitHoisting
                 return false;
             }
 
-            if(expression is InvocationExpression or AssignmentExpression)
+            if(expression is InvocationExpression or AssignmentExpression or CompoundAssignmentExpression)
             {
                 foreach(var operand in operands.Where(operand => !operand.Conditional))
                 {

@@ -80,7 +80,7 @@ internal static class ExpressionBinder
                 return new AssignmentExpression(expression, target, value, AssignmentResultType(target, value, isCoalescing), isCoalescing);
             }
 
-            return new UnresolvedExpression(expression);
+            return CompoundAssignmentBinder.Bind(expression, assignment.Target, assignmentOp.Operator.Lexeme, assignmentOp.Value, ctx, context);
         }
 
         return OperatorBinder.BindVoidCoalescing(assignment.Target, ctx, context);

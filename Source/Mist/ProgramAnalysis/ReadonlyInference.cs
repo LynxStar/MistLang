@@ -208,6 +208,8 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
         return Triggers(node, member, callees) || node switch
         {
             AssignmentExpression assignment => Deconstructions.Pairs(assignment).Any(pair => Writes(pair.Target, origins, member) || StoresUnowned(origins, pair.Target, pair.Value)),
+            CompoundAssignmentExpression compound => Writes(compound.Target, origins, member)
+                || (compound.Operator is { Modifiers.IsIntrinsic: false } compoundOperator && Unproven(compoundOperator, callees)),
             ObjectInitializerAssignment { IsTargetFailed: false } entry => StoresUnowned(origins, entry) || EntryWrites(entry, callees),
             IndexExpression { Indexer: { } indexer } indexed =>
                 CountWrites(indexed.FromEnd, origins.Of(indexed.Receiver), callees)

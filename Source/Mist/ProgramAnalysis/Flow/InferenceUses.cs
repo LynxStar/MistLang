@@ -69,9 +69,14 @@ internal sealed class InferenceUses : IFlowLattice<ImmutableDictionary<LocalVari
                         }
                     }
                 }
-                else if(step is { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: not LocalReferenceExpression } assignment })
+                else if(step.Kind == FlowStepKind.Evaluate && step.Node switch
                 {
-                    var written = BodyWalker.DescendantsAndSelf(assignment.Target).OfType<LocalReferenceExpression>().Select(reference => reference.Local).ToHashSet();
+                    AssignmentExpression { Target: not LocalReferenceExpression } assignment => assignment.Target,
+                    CompoundAssignmentExpression compound => compound.Target,
+                    _ => null,
+                } is { } target)
+                {
+                    var written = BodyWalker.DescendantsAndSelf(target).OfType<LocalReferenceExpression>().Select(reference => reference.Local).ToHashSet();
                     foreach(var (local, active) in state)
                     {
                         if((active & 1) != 0 && uses.sources[local].Overlaps(written))
@@ -110,6 +115,8 @@ internal sealed class InferenceUses : IFlowLattice<ImmutableDictionary<LocalVari
             { Kind: FlowStepKind.Leave, Node: Block block } => state.SetItems(state.Where(pair => homes.GetValueOrDefault(pair.Key) == block).Select(pair => new KeyValuePair<LocalVariable, int>(pair.Key, 2))),
             { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: LocalReferenceExpression reference } }
                 => state.RemoveRange(state.Keys.Where(local => sources[local].Contains(reference.Local))),
+            { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression incremented } }
+                => state.RemoveRange(state.Keys.Where(local => sources[local].Contains(incremented.Local))),
             _ => state,
         };
     }

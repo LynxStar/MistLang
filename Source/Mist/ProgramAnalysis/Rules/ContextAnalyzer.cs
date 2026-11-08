@@ -111,6 +111,10 @@ internal sealed class ContextAnalyzer : IProgramAnalyzer
                 context.Report(ProgramAnalysisDiagnostics.ContextVariableNotReassignable, assignment.Node, [target], new NameValue(target.Local.Name), new NameValue(""));
                 break;
 
+            case CompoundAssignmentExpression { Target: LocalReferenceExpression { Local.IsContextBound: true } target } compound:
+                context.Report(ProgramAnalysisDiagnostics.ContextVariableNotReassignable, compound.Node, [target], new NameValue(target.Local.Name), new NameValue(""));
+                break;
+
             case LocalDeclarationStatement { Local: { IsRef: true, IsReadonly: false } alias, Initializer: LocalReferenceExpression { Local.IsContextBound: true } aliased }:
                 context.Report(
                     ProgramAnalysisDiagnostics.ContextVariableNotReassignable, aliased.Node, [aliased],

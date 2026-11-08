@@ -32,6 +32,7 @@ internal static class PriorFailure
             MemberAccessExpression access => access.IsFailed || Of(access.Receiver),
             IndexExpression index => Of(index.Receiver) || Of(index.Index),
             AssignmentExpression assignment => Of(assignment.Target) || Of(assignment.Value),
+            CompoundAssignmentExpression compound => Of(compound.Target) || Of(compound.Value),
             NewExpression creation => creation.Arguments.Any(Of) || creation.Initializer.Any(entry => entry.IsTargetFailed || Of(entry.Value)),
             ImplicitConversionExpression conversion => Of(conversion.Operand),
             ArrayLiteralExpression array => array.Elements.Any(Of),

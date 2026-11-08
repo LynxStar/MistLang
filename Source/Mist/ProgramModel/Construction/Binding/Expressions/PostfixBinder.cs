@@ -17,17 +17,29 @@ internal static class PostfixBinder
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
     {
         Expression result;
+        var increment = Array.FindIndex([.. node.Suffix], suffix => suffix is IncrementSuffixPostfixSuffixNode);
         var primaryTarget = node.Suffix.Length == 0 ? ctx.TargetType : ResultPropagationBinder.ProjectionTarget(node, ctx);
-        using(ctx.PushTargetType(primaryTarget, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
+        using(increment >= 0
+            ? ctx.PushWriteTarget(AssignmentTargets.AccessNodeBefore(node, increment), StorageAccess.ReadWrite)
+            : ctx.PushWriteTarget(ctx.WriteTargetNode, ctx.WriteAccess))
         {
-            result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
-        }
-
-        for(var i = 0; i < node.Suffix.Length; i++)
-        {
-            using(ctx.PushTargetType(i == node.Suffix.Length - 1 ? ctx.TargetType : null, i == node.Suffix.Length - 1 && ctx.TargetTypeIsFailed))
+            using(ctx.PushTargetType(increment >= 0 ? null : primaryTarget, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
             {
-                result = BindPostfixSuffix(node.Suffix[i], result, ctx, context);
+                result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
+            }
+
+            for(var i = 0; i < node.Suffix.Length; i++)
+            {
+                if(node.Suffix[i] is IncrementSuffixPostfixSuffixNode suffix)
+                {
+                    result = CompoundAssignmentBinder.BindIncrement(suffix, result, suffix.Operator.Lexeme, IncrementForm.Postfix, ctx, context);
+                    continue;
+                }
+
+                using(ctx.PushTargetType(i == node.Suffix.Length - 1 ? ctx.TargetType : null, i == node.Suffix.Length - 1 && ctx.TargetTypeIsFailed))
+                {
+                    result = BindPostfixSuffix(node.Suffix[i], result, ctx, context);
+                }
             }
         }
 

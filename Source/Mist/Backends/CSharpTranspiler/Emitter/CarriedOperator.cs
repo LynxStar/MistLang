@@ -20,6 +20,11 @@ internal static class CarriedOperator
         return Applies(unary.Operator);
     }
 
+    public static bool Applies(CompoundAssignmentExpression compound)
+    {
+        return Applies(compound.Operator);
+    }
+
     private static bool Applies(Operator? op)
     {
         return op is { Modifiers.IsIntrinsic: false }
@@ -41,6 +46,11 @@ internal static class CarriedOperator
     public static string Call(UnaryExpression unary, string operand)
     {
         return Call(unary.Operator!, unary.OperatorClosing, [operand]);
+    }
+
+    public static string Call(CompoundAssignmentExpression compound, string target, string value)
+    {
+        return Call(compound.Operator!, compound.OperatorClosing, [target, value]);
     }
 
     private static string Call(Operator op, TypeSubstitution closing, IReadOnlyList<string> operands)

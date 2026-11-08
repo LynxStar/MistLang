@@ -202,7 +202,7 @@ public sealed class EntryPointAnalyzerTests
             new AnalysisScope([], [], [], [], RestrictToScope: true),
             [],
             new Dictionary<object, SourceRoot>(),
-            new Dictionary<object, AssignmentExpression>(),
+            new Dictionary<object, Expression>(),
             new HashSet<string>(),
             diagnostics,
             analyzer.Id,

@@ -56,6 +56,7 @@ internal sealed class ThisTiers
             var demand = node switch
             {
                 AssignmentExpression assignment when Deconstructions.Pairs(assignment).Any(pair => WritesOwnedField(pair.Target)) => ThisTier.Borrowed,
+                CompoundAssignmentExpression compound when WritesOwnedField(compound.Target) => ThisTier.Borrowed,
                 InvocationExpression { Receiver: MemberAccessExpression { Receiver: ThisExpression }, Method: { } callee } invocation
                     => Max(Required(callee), Lent(invocation.Arguments, invocation.Parameters)),
                 InvocationExpression invocation => Lent(invocation.Arguments, invocation.Parameters),
@@ -99,6 +100,21 @@ internal sealed class ThisTiers
             foreach(var (target, _) in Deconstructions.Pairs(assignment))
             {
                 _ = written.Add(target);
+            }
+        }
+
+        foreach(var compound in BodyWalker.DescendantsAndSelf(method.Body).OfType<CompoundAssignmentExpression>())
+        {
+            _ = written.Add(compound.Target);
+
+            if(compound.Target switch
+            {
+                FieldReferenceExpression { Field: { Modifiers.IsStatic: false } field } => field,
+                MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult { Field: { Modifiers.IsStatic: false } field } } => field,
+                _ => null,
+            } is { } read)
+            {
+                Record(found, read, writes: false);
             }
         }
 

@@ -44,6 +44,10 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
                     JudgeBinary(context, binary);
                     break;
 
+                case CompoundAssignmentExpression { ResultType: ErrorType } compound:
+                    JudgeCompound(context, compound);
+                    break;
+
                 case UnaryExpression { Type: ErrorType } unary when OperatorDecision.Tie(unary.AmbiguousOperators) is { } tie:
                     context.Refuse(
                         unary, tie, [unary.Operand],
@@ -95,6 +99,44 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
         context.Refuse(
             binary, descriptor, [binary.Left, binary.Right],
             new NameValue(Spelling(binary.OperatorKind)), DiagnosticSnapshot.Type(binary.Left.Type), DiagnosticSnapshot.Type(binary.Right.Type));
+    }
+
+    private static void JudgeCompound(AnalysisContext context, CompoundAssignmentExpression compound)
+    {
+        IMistType wellKnown(WellKnownType type)
+        {
+            return context.Model.TypesByFQN[type.FullyQualifiedName];
+        }
+
+        var spelling = Spelling(compound.OperatorKind, compound.IncrementForm);
+
+        if(OperatorDecision.Tie(compound.AmbiguousOperators) is { } tie)
+        {
+            context.Refuse(
+                compound, tie, [compound.Target, compound.Value],
+                OperatorDecision.Callee(compound.AmbiguousOperators, $"operator '{spelling}'"), OperatorDecision.Signatures(compound.AmbiguousOperators));
+            return;
+        }
+
+        var descriptor = compound.IncrementForm == IncrementForm.None
+            ? OperatorDecision.Binary(compound.OperatorKind, compound.Target.Type, compound.Value.Type, wellKnown)
+            : OperatorDecision.Increment(compound.Target.Type, compound.OperatorKind, wellKnown);
+
+        if(descriptor is null || context.HasFailure(compound.Target))
+        {
+            return;
+        }
+
+        context.Refuse(
+            compound, descriptor, [],
+            new NameValue(spelling), DiagnosticSnapshot.Type(compound.Target.Type), DiagnosticSnapshot.Type(compound.Value.Type));
+    }
+
+    private static string Spelling(BinaryOperatorKind kind, IncrementForm form)
+    {
+        return form == IncrementForm.None
+            ? Spelling(kind) + "="
+            : kind == BinaryOperatorKind.Add ? "++" : "--";
     }
 
     private static string Spelling(BinaryOperatorKind kind)

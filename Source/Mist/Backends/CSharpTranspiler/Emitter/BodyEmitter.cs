@@ -1379,6 +1379,10 @@ internal static partial class BodyEmitter
                 writer.Append(written);
                 break;
 
+            case CompoundAssignmentExpression compound:
+                writer.Append(CompoundAssignment(compound, diagnostics));
+                break;
+
             case AssignmentExpression assignment:
                 if(assignment.Target is LocalReferenceExpression assigned)
                 {
@@ -3162,7 +3166,8 @@ internal static partial class BodyEmitter
             AsExpression { Kind: AsConversionKind.Identity } identity => GetPrecedence(identity.Operand),
             SwitchExpression => SwitchPrecedence,
             CoalesceExpression => CoalescePrecedence,
-            AssignmentExpression => AssignmentPrecedence,
+            AssignmentExpression or CompoundAssignmentExpression { IncrementForm: IncrementForm.None } => AssignmentPrecedence,
+            CompoundAssignmentExpression { IncrementForm: IncrementForm.Prefix } => PrefixPrecedence,
             _ => int.MaxValue,
         };
     }

@@ -48,7 +48,19 @@ internal sealed class StorageEffects(ProgramModelClass model)
                         _ = alsoRead.Add(assignment.Target);
                     }
 
-                    Write(assignment.Target, assignment.Value, into);
+                    Write(assignment.Target, assignment.Value.Type, into);
+                    break;
+
+                case CompoundAssignmentExpression compound:
+                    _ = written.Add(compound.Target);
+                    _ = alsoRead.Add(compound.Target);
+                    Write(compound.Target, compound.Target.Type, into);
+
+                    if(compound.Operator is { } applied)
+                    {
+                        Operator(applied, [compound.Target.Type, compound.Value.Type], into);
+                    }
+
                     break;
 
                 case MemberAccessExpression { Member: PropertyResult property } access when Reads(access, written, alsoRead):
@@ -103,7 +115,7 @@ internal sealed class StorageEffects(ProgramModelClass model)
         return !written.Contains(access) || alsoRead.Contains(access);
     }
 
-    private void Write(Expression target, Expression value, StorageEffect into)
+    private void Write(Expression target, IMistType value, StorageEffect into)
     {
         switch(target)
         {
@@ -112,15 +124,15 @@ internal sealed class StorageEffects(ProgramModelClass model)
                 break;
 
             case MemberAccessExpression { Member: PropertyResult property } access:
-                Accessor(property.Property, StorageAccess.Write, ReceiverConstructed(access), property.BaseConstructions, [value.Type], into);
+                Accessor(property.Property, StorageAccess.Write, ReceiverConstructed(access), property.BaseConstructions, [value], into);
                 break;
 
             case PropertyReferenceExpression reference:
-                Accessor(reference.Property, StorageAccess.Write, receiver: null, reference.BaseConstructions, [value.Type], into);
+                Accessor(reference.Property, StorageAccess.Write, receiver: null, reference.BaseConstructions, [value], into);
                 break;
 
             case IndexExpression { Indexer: { } indexer } index:
-                Member(indexer, StorageAccess.Write, index.Receiver.Type, [index.Index.Type, value.Type], into);
+                Member(indexer, StorageAccess.Write, index.Receiver.Type, [index.Index.Type, value], into);
                 break;
 
             case IndexExpression element:
@@ -128,7 +140,7 @@ internal sealed class StorageEffects(ProgramModelClass model)
                 break;
 
             case ExtensionPropertyAccessExpression extension:
-                ExtensionAccessor(extension.Property, StorageAccess.Write, extension.Receiver.Type, [value.Type], into);
+                ExtensionAccessor(extension.Property, StorageAccess.Write, extension.Receiver.Type, [value], into);
                 break;
 
             case SpreadExpression spread:

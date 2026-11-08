@@ -38,6 +38,8 @@ internal sealed class FieldEffects
             AssignmentExpression { Target: ExtensionPropertyAccessExpression { Property: var property } } => !Keeps(property.Setter, property, property.Modifiers, property.DeclaringType),
             AssignmentExpression { Target: IndexExpression { Indexer: { } indexer } } => !Keeps(indexer.Setter, indexer, indexer.Modifiers, indexer.DeclaringType),
             AssignmentExpression => false,
+            CompoundAssignmentExpression compound => MayWrite(CompoundAssignments.LongForm(compound))
+                || MayWrite(CompoundAssignments.LongForm(compound).Value) || MayWrite(compound.Target),
             MemberAccessExpression { Member: PropertyResult { Property: var property } } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),
             PropertyReferenceExpression { Property: var property } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),
             ExtensionPropertyAccessExpression { Property: var property } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),

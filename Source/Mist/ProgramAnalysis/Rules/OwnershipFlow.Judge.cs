@@ -112,6 +112,15 @@ internal sealed partial class OwnershipFlow
                 JudgeAssignment(state, assignment);
                 break;
 
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression target } }
+                when Place.Of(target) is { } read:
+                JudgeRead(state, target, read);
+                break;
+
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }:
+                JudgeWrite(state, compound.Target, compound);
+                break;
+
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, IsRef: false } }:
                 foreach(var returned in LocalOwnership.Sources(value))
                 {
@@ -218,28 +227,33 @@ internal sealed partial class OwnershipFlow
                 continue;
             }
 
-            if(LocalStoragePath.Of(target) is { Receiver: not null } storage && state.Moved.ContainsKey(Place.Of(storage.Local)))
-            {
-                JudgeRead(state, target, Place.Of(storage.Local));
-            }
+            JudgeWrite(state, target, value);
+        }
+    }
 
-            if(Place.Of(target) is { } slot)
-            {
-                JudgeAction(state, slot, target, Action.Write, evaluated: false);
-            }
-            else if(target is MemberAccessExpression { Receiver: var receiver } && Place.Nearest(receiver) is { } holder
-                && Lent(state, holder, Action.Write, evaluated: true) is var (lent, kind))
-            {
-                context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
-            }
+    private void JudgeWrite(State state, Expression target, Expression value)
+    {
+        if(LocalStoragePath.Of(target) is { Receiver: not null } storage && state.Moved.ContainsKey(Place.Of(storage.Local)))
+        {
+            JudgeRead(state, target, Place.Of(storage.Local));
+        }
 
-            if(ThisTiers.OwnedSlot(target) is { } destination)
+        if(Place.Of(target) is { } slot)
+        {
+            JudgeAction(state, slot, target, Action.Write, evaluated: false);
+        }
+        else if(target is MemberAccessExpression { Receiver: var receiver } && Place.Nearest(receiver) is { } holder
+            && Lent(state, holder, Action.Write, evaluated: true) is var (lent, kind))
+        {
+            context.Report(ProgramAnalysisDiagnostics.LeaseViolation, receiver.Node, [receiver], new NameValue(lent.Display), new EnumValue("mutate"), new EnumValue(Display(kind)));
+        }
+
+        if(ThisTiers.OwnedSlot(target) is { } destination)
+        {
+            foreach(var stored in LocalOwnership.Sources(value).Where(Tracked))
             {
-                foreach(var stored in LocalOwnership.Sources(value).Where(Tracked))
-                {
-                    JudgeAction(state, stored, value, Action.Move);
-                    JudgeShared(state, value, destination, owned: true);
-                }
+                JudgeAction(state, stored, value, Action.Move);
+                JudgeShared(state, value, destination, owned: true);
             }
         }
     }

@@ -513,7 +513,7 @@ internal sealed partial class StructuredContextFragments
         var scope = new AnalysisScope(alone is null ? types : [], alone ?? bodies, extensions, []);
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
-        var assignments = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
+        var assignments = new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance);
 
         foreach(var body in scope.Bodies)
         {

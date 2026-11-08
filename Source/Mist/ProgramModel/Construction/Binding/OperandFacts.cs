@@ -137,10 +137,20 @@ internal static class OperandFacts
     private static void Collect(StormSyntaxNode node, HashSet<string> names)
     {
         if(node is ExpressionNode expression
-            && expression.AsAssignmentOrNull() is { Group0.Operator.Lexeme: "=" or "??=" } write
+            && expression.AsAssignmentOrNull() is { Group0: not null } write
             && LeadingIdentifier(write.Target) is { } name)
         {
             _ = names.Add(name);
+        }
+
+        if(node switch
+        {
+            PrefixIncrementUnaryNode prefix => LeadingIdentifier(prefix.Operand),
+            PostfixNode postfix when postfix.Suffix.Any(suffix => suffix is IncrementSuffixPostfixSuffixNode) => LeadingIdentifier(postfix.Target),
+            _ => null,
+        } is { } incremented)
+        {
+            _ = names.Add(incremented);
         }
 
         var exposed = node switch

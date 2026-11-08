@@ -77,6 +77,7 @@ internal static class BodyWalker
         add<CastExpression>(e => [e.Operand]);
         add<CloneExpression>(e => [e.Source]);
         add<CoalesceExpression>(e => [e.Left, e.Right]);
+        add<CompoundAssignmentExpression>(e => [e.Target, e.Value]);
         add<DefaultExpression>(_ => []);
         add<ElementReadExpression>(_ => []);
         add<ErrorExpression>(e => [.. e.Children]);

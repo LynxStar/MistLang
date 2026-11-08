@@ -65,7 +65,10 @@ internal static class UnseenWrites
     {
         var own = Captures.OwnNames(parameters, inside);
 
-        foreach(var written in inside.OfType<AssignmentExpression>().Select(assignment => Referenced(assignment.Target)).OfType<object>())
+        var targets = inside.OfType<AssignmentExpression>().Select(assignment => assignment.Target)
+            .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target));
+
+        foreach(var written in targets.Select(Referenced).OfType<object>())
         {
             if(written is not LocalVariable local || !own.Contains(local))
             {

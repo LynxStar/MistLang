@@ -106,6 +106,17 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 
                 break;
 
+            case CompoundAssignmentExpression compound:
+                if(compound.Operator is { Modifiers.IsIntrinsic: false } compoundOperator && frame.IsReadonly && !inference.IsReadonly(compoundOperator))
+                {
+                    context.Report(
+                        ProgramAnalysisDiagnostics.ReadonlyContextCallsMutable, compound.Node, [compound],
+                        new NameValue($"operator {compoundOperator.Symbol}"), new NameValue(frame.Describe()));
+                }
+
+                JudgeAssignment(compound.Target, compound, frame, context, inference);
+                break;
+
             case ObjectInitializerAssignment { IsTargetFailed: false } entry when frame.IsReadonly:
                 JudgeEntry(entry, frame, context, inference);
                 break;

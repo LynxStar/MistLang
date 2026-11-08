@@ -303,7 +303,7 @@ internal sealed class FormattingFragments
         }
 
         analyzer.Analyze(new AnalysisContext(Model.Model, new AnalysisScope(types, roots, [], []), nodes, owners,
-            new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance),
+            new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance),
             new HashSet<string>(StringComparer.Ordinal) { "hand-built.mist" }, diagnostics, analyzer.Id, CloneConversionRefusals.None));
         return diagnostics.ToImmutableArray();
     }

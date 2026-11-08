@@ -80,6 +80,17 @@ internal sealed partial class ContextCalls
 
                     break;
 
+                case CompoundAssignmentExpression compound:
+                    _ = written.Add(compound.Target);
+                    _ = readBack.Add(compound.Target);
+
+                    if(compound.Operator is { } compoundOperator)
+                    {
+                        Record(compound.Node, compound, compoundOperator, ContextBinding.TypesOf(compoundOperator, type => compound.OperatorClosing.Apply(type, interner: null)), frame);
+                    }
+
+                    break;
+
                 case InvocationExpression { Method: { } callee } call:
                     Record(call.Node, call, callee, call.ContextTypes, frame);
                     break;

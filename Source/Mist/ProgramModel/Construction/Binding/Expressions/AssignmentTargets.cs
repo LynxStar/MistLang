@@ -23,11 +23,25 @@ internal static class AssignmentTargets
         return AccessNodeOf(postfix);
     }
 
-    private static SyntaxNode? AccessNodeOf(PostfixNode postfix)
+    public static SyntaxNode? AccessNodeOf(UnaryNode target)
     {
-        if(postfix.Suffix.Length > 0)
+        return target is PostfixExpressionUnaryNode { Primary: var postfix } ? AccessNodeOf(postfix) : null;
+    }
+
+    public static SyntaxNode? AccessNodeOf(PostfixNode postfix)
+    {
+        return AccessNodeBefore(postfix, postfix.Suffix.Length);
+    }
+
+    /// <summary>
+    /// The access that the suffix at <paramref name="suffixIndex"/> writes through, which is how a postfix
+    /// increment names its target from inside the chain it ends.
+    /// </summary>
+    public static SyntaxNode? AccessNodeBefore(PostfixNode postfix, int suffixIndex)
+    {
+        if(suffixIndex > 0)
         {
-            return postfix.Suffix[^1];
+            return postfix.Suffix[suffixIndex - 1];
         }
 
         if(postfix.Target is ParenthesizedExpressionPrimaryNode { Inner: var inner })

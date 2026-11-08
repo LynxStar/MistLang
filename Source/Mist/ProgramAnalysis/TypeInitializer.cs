@@ -95,6 +95,7 @@ internal sealed class TypeInitializer
         return node switch
         {
             BinaryExpression binary => binary.Operator,
+            CompoundAssignmentExpression compound => compound.Operator,
             UnaryExpression unary => unary.Operator,
             CastExpression cast => cast.Operator,
             ImplicitConversionExpression conversion => conversion.Operator,

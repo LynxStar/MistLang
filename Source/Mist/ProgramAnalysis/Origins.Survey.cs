@@ -53,6 +53,10 @@ internal sealed partial class Origins
 
                     break;
 
+                case CompoundAssignmentExpression compound:
+                    Assign(compound.Target, compound, values);
+                    break;
+
                 case InvocationExpression invocation:
                     MarkByRef(invocation.Arguments, invocation.Parameters);
                     MarkHanded(invocation.Arguments, invocation.Parameters);

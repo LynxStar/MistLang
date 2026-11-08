@@ -157,6 +157,11 @@ internal static class InvariantCulture
             && !(Fixes(binary.Left.Type) && Fixes(binary.Right.Type));
     }
 
+    public static bool Appends(CompoundAssignmentExpression compound)
+    {
+        return compound is { Operator: null, OperatorKind: BinaryOperatorKind.Add } && Is(compound.ResultType, WellKnownTypes.String);
+    }
+
     public static bool FormatsItself(Method? method)
     {
         return method is { Name: "ToString", ParametersList.Count: 0, Modifiers.IsStatic: false }

@@ -45,6 +45,8 @@ internal sealed class FormattingCallbacks
             InterpolatedStringExpression interpolated => interpolated.Parts.OfType<InterpolatedStringHole>().Select(hole => hole.Expression),
             BinaryExpression { Operator: null, OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Concatenate } concatenation
                 when PurityJudge.DefinitionOf(concatenation.Type) is ConcreteType { IsIntrinsic: true, Name: "String" } => [concatenation.Left, concatenation.Right],
+            CompoundAssignmentExpression { Operator: null, OperatorKind: BinaryOperatorKind.Add } appended
+                when PurityJudge.DefinitionOf(appended.ResultType) is ConcreteType { IsIntrinsic: true, Name: "String" } => [appended.Target, appended.Value],
             _ => [],
         };
     }
@@ -86,6 +88,10 @@ internal sealed class FormattingCallbacks
 
             case BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } binaryOperator } binary:
                 yield return new FormatUse(binaryOperator, binaryOperator.Modifiers, binaryOperator.DeclaringType, binary, binary.OperatorClosing);
+                break;
+
+            case CompoundAssignmentExpression { Operator: { Modifiers.IsIntrinsic: false } compoundOperator } compound:
+                yield return new FormatUse(compoundOperator, compoundOperator.Modifiers, compoundOperator.DeclaringType, compound, compound.OperatorClosing);
                 break;
 
             case UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } unaryOperator } unary:

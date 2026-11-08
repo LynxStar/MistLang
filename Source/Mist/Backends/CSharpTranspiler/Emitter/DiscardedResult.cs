@@ -16,7 +16,7 @@ internal static class DiscardedResult
     {
         return result switch
         {
-            AssignmentExpression => null,
+            AssignmentExpression or CompoundAssignmentExpression => null,
             InvocationExpression call when OptionalUnion.IsVoid(call.Type) || !IntrinsicCalls.Respells(call.Method) => null,
             _ => "_ = ",
         };

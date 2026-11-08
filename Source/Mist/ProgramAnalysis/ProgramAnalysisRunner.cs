@@ -58,7 +58,7 @@ internal static class ProgramAnalysisRunner
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
         var projectStarted = Stopwatch.GetTimestamp();
         ProjectAnalyzer.Analyze(new AnalysisContext(model, new AnalysisScope([], [], [], []), [],
-            new Dictionary<object, SourceRoot>(), new Dictionary<object, AssignmentExpression>(),
+            new Dictionary<object, SourceRoot>(), new Dictionary<object, Expression>(),
             sourcePaths, diagnostics, ProjectAnalyzer.Id, CloneConversionRefusals.None));
         timings.Record(ProjectAnalyzer, Stopwatch.GetElapsedTime(projectStarted));
         var types = SourceTypes.Of(model).ToList();
@@ -68,7 +68,7 @@ internal static class ProgramAnalysisRunner
         {
             var hierarchy = new AnalysisScope(types, [], [], []);
             var context = new AnalysisContext(model, hierarchy, [],
-                new Dictionary<object, SourceRoot>(), new Dictionary<object, AssignmentExpression>(),
+                new Dictionary<object, SourceRoot>(), new Dictionary<object, Expression>(),
                 sourcePaths, diagnostics, HierarchyAnalyzer.Id, CloneConversionRefusals.None);
             InheritanceCycleAnalyzer.Report(context, cycles);
         }
@@ -129,7 +129,7 @@ internal static class ProgramAnalysisRunner
 
         var nodes = new List<object>();
         var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
-        var assignedBy = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
+        var assignedBy = new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance);
 
         foreach(var root in scope.Bodies)
         {
@@ -141,6 +141,10 @@ internal static class ProgramAnalysisRunner
                 if(node is AssignmentExpression assignment)
                 {
                     assignedBy[assignment.Target] = assignment;
+                }
+                else if(node is CompoundAssignmentExpression compound)
+                {
+                    assignedBy[compound.Target] = compound;
                 }
             }
         }

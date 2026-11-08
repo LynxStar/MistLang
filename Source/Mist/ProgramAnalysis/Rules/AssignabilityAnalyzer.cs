@@ -35,6 +35,10 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     Check(context, assignment.Value, AssignedType(context, assignment), assignment.Target);
                     break;
 
+                case CompoundAssignmentExpression { ResultType: not ErrorType } compound when StorageLocations.NotAssignable(compound.Target) is null:
+                    Check(context, compound.ResultType, compound.Target.Type, compound.Node, [compound, compound.Target]);
+                    break;
+
                 case ReturnStatement { Value: { } value, TargetType: { } target }:
                     Check(context, value, target);
                     break;

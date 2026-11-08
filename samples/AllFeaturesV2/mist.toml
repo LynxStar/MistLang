@@ -106,3 +106,4 @@ ClrSlotFilling = { path = "../ClrSlotFilling" }
 ResultFoundation = { path = "../ResultFoundation" }
 ClrCatch = { path = "../ClrCatch" }
 ProofArithmetic = { path = "../ProofArithmetic" }
+CompoundAssignment = { path = "../CompoundAssignment" }

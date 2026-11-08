@@ -124,5 +124,6 @@ public class Program
         ResultFoundation.Program.RunDemo();
         ClrCatch.Program.RunDemo();
         ProofArithmetic.Program.RunDemo();
+        CompoundAssignment.Program.RunDemo();
     }
 }

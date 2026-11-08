@@ -323,6 +323,18 @@ internal static class OperatorBinder
                     return MakeUnary(node, UnaryOperatorKind.Negate, operand, negated, choice, context);
                 }
 
+            case PrefixIncrementUnaryNode prefix:
+                {
+                    Expression target;
+                    using(ctx.PushWriteTarget(AssignmentTargets.AccessNodeOf(prefix.Operand), StorageAccess.ReadWrite))
+                    using(ctx.PushTargetType(null))
+                    {
+                        target = BindUnary(prefix.Operand, ctx, context);
+                    }
+
+                    return CompoundAssignmentBinder.BindIncrement(node, target, prefix.Operator.Lexeme, IncrementForm.Prefix, ctx, context);
+                }
+
             case LogicalNotUnaryNode logicalNot:
                 {
                     var operand = BindUnary(logicalNot.Operand, ctx, context);
@@ -527,6 +539,14 @@ internal static class OperatorBinder
     private static Expression MakeBinary(
         Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BindingContext ctx, BuilderContext context)
     {
+        return MakeBinary(node, left, op, right, ctx, context, out _);
+    }
+
+    internal static Expression MakeBinary(
+        Storm.Runtime.SyntaxNode node, Expression left, BinaryOperatorKind op, Expression right, BindingContext ctx, BuilderContext context,
+        out ArithmeticProof.Verdict? verdict)
+    {
+        verdict = null;
         var interner = context.ProgramModel.TypeInterner;
         var choice = OperatorAdmissibility.Binary(
             op, left.Type, right.Type, context.Resolver.LookupWellKnown,
@@ -535,8 +555,9 @@ internal static class OperatorBinder
         var numeric = ResultTypes.Of(choice.Type)?.Success ?? choice.Type;
 
         if(selected is null or { Declaration.Modifiers.IsIntrinsic: true } && numeric is not null
-            && Judge(op, numeric, left, right, ctx) is { } verdict)
+            && Judge(op, numeric, left, right, ctx) is { } judged)
         {
+            verdict = judged;
             if(verdict == ArithmeticProof.Verdict.Invalid)
             {
                 context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.InvalidArithmetic, node, null);
@@ -660,7 +681,7 @@ internal static class OperatorBinder
         };
     }
 
-    private static BinaryOperatorKind MapOperator(string? lexeme)
+    internal static BinaryOperatorKind MapOperator(string? lexeme)
     {
         return lexeme switch
         {

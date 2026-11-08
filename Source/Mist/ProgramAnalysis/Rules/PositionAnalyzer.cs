@@ -52,6 +52,19 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, assignment.Node, [target], new NameValue(through), new EnumValue("assigned to"));
                     break;
 
+                case CompoundAssignmentExpression compound when StorageLocations.NotAssignable(compound.Target) is { } value:
+                    context.Report(ProgramAnalysisDiagnostics.NotAssignable, compound.Target.Node, [compound.Target], new NameValue(value));
+                    break;
+
+                case CompoundAssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } compound:
+                    context.Report(PositionDecision.Reassignment(target.Local)!, compound.Node, [target], new NameValue(target.Local.Name));
+                    break;
+
+                case CompoundAssignmentExpression { Target: not LocalReferenceExpression and var target } compound
+                    when PositionDecision.ReadonlyReference(target) is { } through:
+                    context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, compound.Node, [target], new NameValue(through), new EnumValue("assigned to"));
+                    break;
+
                 case LocalDeclarationStatement { Local: { IsRef: true } local, Initializer: { } aliased }:
                     JudgeReference(context, aliased, $"bound to ref local '{local.Name}'", writable: !local.IsReadonly);
                     break;

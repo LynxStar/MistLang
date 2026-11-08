@@ -91,7 +91,7 @@ internal sealed class DeclarationFragments
         var roots = Root is null ? Array.Empty<SourceRoot>() : [new SourceRoot(Root, Owner, MistAssembly.Synthetic, null)];
         var nodes = roots.SelectMany(root => BodyWalker.DescendantsAndSelf(root.Root)).ToList();
         var owners = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
-        var assigned = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
+        var assigned = new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance);
 
         foreach(var node in nodes)
         {

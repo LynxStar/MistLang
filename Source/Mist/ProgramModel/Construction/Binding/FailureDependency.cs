@@ -46,6 +46,7 @@ internal static class FailureDependency
             AsyncExpression lift => [lift.Operand],
             CoalesceExpression coalesce => [coalesce.Left, coalesce.Right],
             AssignmentExpression assignment => [assignment.Target, assignment.Value],
+            CompoundAssignmentExpression compound => [compound.Target, compound.Value],
             CloneExpression clone => [clone.Source],
             ExtensionPropertyAccessExpression access => [access.Receiver],
             ArrayCreationExpression creation => [creation.Size],

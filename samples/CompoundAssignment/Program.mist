@@ -1,0 +1,129 @@
+using Standard;
+
+namespace CompoundAssignment;
+
+public class Counter
+{
+    public int Calls;
+    public int Total { get; set; }
+
+    public string Log = "";
+
+    public int Next()
+    {
+        Calls++;
+        return Calls - 1;
+    }
+
+    public int Logged(string step, int result)
+    {
+        Log += step;
+        Log += " ";
+        return result;
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static int Divisor()
+    {
+        return 5;
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== CompoundAssignment Sample ===");
+
+        var items = new List<int>();
+        items.Add(10);
+        items.Add(20);
+        items.Add(30);
+        var counter = new Counter();
+        items[counter.Next()] += 5;
+        items[counter.Next()] *= 3;
+        Console.WriteLine($"items = {items[0]}, {items[1]}, {items[2]}; Next() ran {counter.Calls} times");
+
+        var order = new Counter();
+        items[order.Logged("index", 2)] += order.Logged("value", 100);
+        Console.WriteLine($"order: {order.Log}-> items[2] = {items[2]}");
+
+        int i = 5;
+        int before = i++;
+        int after = ++i;
+        Console.WriteLine($"i++ gave {before}, ++i gave {after}, i = {i}");
+
+        int j = 3;
+        int down = j--;
+        int downAgain = --j;
+        Console.WriteLine($"j-- gave {down}, --j gave {downAgain}, j = {j}");
+
+        int k = 0;
+        int read = items[k++];
+        Console.WriteLine($"items[k++] read {read}, k = {k}");
+
+        var text = "a";
+        text += "b";
+        text += 3;
+        text += 1.5;
+        Console.WriteLine($"text = {text}");
+
+        int total = 100;
+        total /= 4;
+        total %= 7;
+        total -= 1;
+        Console.WriteLine($"100 /= 4, %= 7, -= 1 -> {total}");
+
+        int divisor = Divisor();
+        int pool = 90;
+        if(divisor > 0)
+        {
+            pool /= divisor;
+        }
+
+        Console.WriteLine($"90 /= a divisor proven positive -> {pool}");
+
+        var sum = 0;
+        for(var n = 0; n < 5; n++)
+        {
+            sum += n;
+        }
+
+        Console.WriteLine($"sum of 0..4 = {sum}");
+
+        int[] squares = new int[4];
+        for(var q = 0; q < squares.Length; q++)
+        {
+            squares[q] = q * q;
+        }
+
+        Console.WriteLine($"squares = {squares[0]}, {squares[1]}, {squares[2]}, {squares[3]}");
+
+        var countdown = 3;
+        var ticks = "";
+        while(countdown-- > 0)
+        {
+            ticks += countdown;
+        }
+
+        Console.WriteLine($"countdown-- ticks {ticks}, ends at {countdown}");
+
+        counter.Total += 7;
+        counter.Total *= 2;
+        counter.Calls -= 2;
+        Console.WriteLine($"property Total = {counter.Total}, field Calls = {counter.Calls}");
+
+        double half = 0.5;
+        half++;
+        half *= 3;
+        long big = 10;
+        big--;
+        Console.WriteLine($"double {half}, long {big}");
+
+        Console.WriteLine("=== CompoundAssignment Done ===");
+    }
+}

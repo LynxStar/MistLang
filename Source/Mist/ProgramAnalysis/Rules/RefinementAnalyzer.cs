@@ -114,6 +114,17 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
                     break;
 
+                case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }
+                    when StorageLocations.NotAssignable(compound.Target) is null:
+                    Need(state, CompoundAssignments.LongForm(compound).Value, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target));
+
+                    if(compound.Target is IndexExpression incremented)
+                    {
+                        NeedIndex(state, incremented);
+                    }
+
+                    break;
+
                 case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, TargetType: { } target } }:
                     Need(state, value, target, value);
                     break;

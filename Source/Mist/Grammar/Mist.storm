@@ -570,7 +570,8 @@ rule Expression
 // — which live above Assignment at the Expression level — are reachable from the
 // RHS of an assignment, and right-associativity falls out naturally
 // (`f = x => x + 1` parses as `f = (x => x + 1)`).
-rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL) value:Expression)?;
+rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL | PLUS_EQUAL | MINUS_EQUAL
+                                                   | STAR_EQUAL | SLASH_EQUAL | PERCENT_EQUAL) value:Expression)?;
 
 rule VoidCoalescing = left:LogicalOr (QUESTION_QUESTION right:LogicalOr)*;
 
@@ -608,6 +609,7 @@ rule Unary
     | ASYNC operand:Unary                                                         as AsyncExpression
     | AWAIT operand:Unary                                                         as AwaitExpression
     | EXCLAMATION operand:Unary    as LogicalNot
+    | operator:(PLUS_PLUS | MINUS_MINUS) operand:Unary  as PrefixIncrement
     | MINUS operand:Unary          as Negate
     | CARET operand:Unary          as FromEndExpression
     ;
@@ -629,6 +631,7 @@ rule PostfixSuffix
     | LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS                       as InvocationSuffix
     | SWITCH LEFT_BRACE arms:SwitchArmList? RIGHT_BRACE                           as SwitchExpressionSuffix
     | EXCLAMATION                                                                 as PropagationSuffix
+    | operator:(PLUS_PLUS | MINUS_MINUS)                                          as IncrementSuffix
     | ELLIPSIS                                                                    as SpreadSuffix
     ;
 

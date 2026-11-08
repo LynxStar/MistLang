@@ -123,6 +123,11 @@ internal static partial class PurityJudge
                 MarkWritten(assignment);
             }
 
+            foreach(var compound in nodes.OfType<CompoundAssignmentExpression>())
+            {
+                MarkWritten(compound.Target, alsoRead: true);
+            }
+
             foreach(var node in nodes)
             {
                 JudgeNode(node);
@@ -138,17 +143,22 @@ internal static partial class PurityJudge
         {
             foreach(var (target, _) in Deconstructions.Pairs(assignment))
             {
-                _ = written.Add(target);
+                MarkWritten(target, assignment.IsCoalescing);
+            }
+        }
 
-                if(assignment.IsCoalescing)
-                {
-                    _ = readBack.Add(target);
-                }
+        private void MarkWritten(Expression target, bool alsoRead)
+        {
+            _ = written.Add(target);
 
-                for(var hop = ReceiverOf(target); hop is not null && IsValueStorage(hop); hop = ReceiverOf(hop))
-                {
-                    _ = written.Add(hop);
-                }
+            if(alsoRead)
+            {
+                _ = readBack.Add(target);
+            }
+
+            for(var hop = ReceiverOf(target); hop is not null && IsValueStorage(hop); hop = ReceiverOf(hop))
+            {
+                _ = written.Add(hop);
             }
         }
 
@@ -163,6 +173,21 @@ internal static partial class PurityJudge
             {
                 case AssignmentExpression assignment:
                     JudgeAssignment(assignment);
+                    break;
+
+                case CompoundAssignmentExpression compound:
+                    JudgeAssignment(compound.Target, compound);
+
+                    if(compound.Operator is { } compoundOperator)
+                    {
+                        _ = JudgeCall(compoundOperator, Origin.External, $"call operator {compoundOperator.Symbol}", compound.Node, [compound]);
+                    }
+                    else if(compound.OperatorKind == BinaryOperatorKind.Add && DefinitionOf(compound.ResultType) is ConcreteType { IsIntrinsic: true, Name: "String" })
+                    {
+                        JudgeFormat(compound.Target);
+                        JudgeFormat(compound.Value);
+                    }
+
                     break;
 
                 case ObjectInitializerAssignment entry:

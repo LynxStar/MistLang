@@ -479,7 +479,7 @@ public sealed class CloneAnalysisIsolationTests
         {
             var nodes = new List<object>();
             var roots = new Dictionary<object, SourceRoot>(ReferenceEqualityComparer.Instance);
-            var assignments = new Dictionary<object, AssignmentExpression>(ReferenceEqualityComparer.Instance);
+            var assignments = new Dictionary<object, Expression>(ReferenceEqualityComparer.Instance);
             foreach(var root in scope.Bodies)
             {
                 foreach(var node in BodyWalker.DescendantsAndSelf(root.Root))

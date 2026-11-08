@@ -161,6 +161,6 @@ internal static class ConditionalLowering
 
     private static string? Discarding(Expression result)
     {
-        return result is InvocationExpression or AssignmentExpression ? null : "_ = ";
+        return result is InvocationExpression or AssignmentExpression or CompoundAssignmentExpression ? null : "_ = ";
     }
 }

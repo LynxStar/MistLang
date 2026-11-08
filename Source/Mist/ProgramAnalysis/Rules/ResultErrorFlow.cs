@@ -47,6 +47,7 @@ internal sealed class ResultErrorFlow : IFlowLattice<ImmutableHashSet<LocalVaria
             { Kind: FlowStepKind.Bind, Variable: { IsKnownResultError: true } variable } => state.Add(variable),
             { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Local: var local, Initializer: { } value } } => Set(state, local, IsError(value, state)),
             { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { Target: LocalReferenceExpression { Local: var local }, Value: var value } } => Set(state, local, IsError(value, state)),
+            { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression { Local: var local } } } => state.Remove(local),
             _ => state,
         };
     }

@@ -307,15 +307,19 @@ and 2 only.
 
 ## Sequencing
 
-1. `Facts/`: `Value`, `Term`, `Fact`, `Bag`, `Chain`, `Budget`, with Tier 1
-   tests, integers only. No caller yet.
+1. `Facts/`: `Value`, `Term`, `Fact`, `Bag`, `Chain`, `Budget` and `Exactness`,
+   with Tier 1 tests, integers only. No caller yet. `Exactness` is here and not
+   in stage 4 because stage 2 records arithmetic facts and may not record one it
+   cannot prove.
 2. `FactFlow` for the integral family, replacing `RefinementFlow` behind the
    existing proof sites, with `ContractReader` for interval and symbolic
    contracts. The existing Tier 2 refinement tests and `AllFeaturesV2` must pass
    unchanged before anything new is admitted.
 3. Expression operands in predicates, the failing case in MIST0271 to MIST0277,
    MIST0485, the catalog regenerated.
-4. Alternatives, the cap, `Widen` in `FlowSolution`, `Exactness`.
+4. Alternatives, the cap, and `Widen` in `FlowSolution`. Until this stage,
+   `FactFlow.Join` merges per variable, which is Requirement 4.4's fallback
+   applied everywhere, and widens as `RefinementFlow` does today.
 5. The real family, strings, regex and bools (Requirement 7).
 6. `AnalysisContext.GraphOf`, the timing check against the budget, and
    `samples/FlowFacts` banked.

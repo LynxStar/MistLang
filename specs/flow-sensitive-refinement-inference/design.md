@@ -96,8 +96,13 @@ bool initializer or a join, pairs each existing alternative with each new one,
 under the cap of the lattice section.
 
 Type facts: `Requirement.OfType(type)` gives an `Admitted`. One interval gives
-two facts, several give one alternative per interval. `RealRequirement.OfType`
-does the same for the real family with `<` kept as written. A `where` clause on
+two facts. Several intervals, as a `!=` refinement has, give one interval-set
+fact about that value: a single-value fact that carries the `Admitted` itself,
+which the chain expands into its intervals one at a time only when the value is
+reachable from the contract, under the budget. That keeps the alternative count
+for the pairing between variables, where it matters, and out of single-value
+holes. `RealRequirement.OfType` does the same for the real family with `<` kept
+as written. A `where` clause on
 the enclosing member and a dependent parameter's predicate become facts at the
 entry step, read by the contract reader below with the parameter's holder as the
 constrained name (Requirement 2.4.2).
@@ -198,7 +203,8 @@ left's followed by right's, and a fact in both `Common`s stays common. When the
 count exceeds `AlternativeCap`, starting at 16, the oldest alternatives are
 merged per variable: for each value they mention, each alternative is projected
 onto that value alone, the intervals are unioned with `Admitted.Or`, and the
-merged alternative holds only those single-value facts, marked merged. `Same` is
+merged alternative holds one interval-set fact per value, marked merged. The
+union is never replaced by its hull: `a == 1 or a == 100` stays two intervals. `Same` is
 structural equality of bindings and bag.
 
 Loops: `FlowSolution.Solve` already knows each block's entry and whether a join

@@ -71,6 +71,14 @@ internal static class OwnedDestinations
 
                 break;
 
+            case CompoundAssignmentExpression { Target: LocalReferenceExpression { Local: { Ownership: OwnershipKind.Owned } local } } compound:
+                Require(context, compound, $"owned binding '{local.Name}'", method, origins, extracts: true);
+                break;
+
+            case CompoundAssignmentExpression compound when !storesJudgedByPurity && Destination(compound.Target, origins) is { } destination:
+                Require(context, compound, destination, method, origins);
+                break;
+
             case ObjectInitializerAssignment { IsTargetFailed: false, Add: null } entry when !storesJudgedByPurity && Destination(entry.Member) is { } destination:
                 Require(context, entry.Value, destination, method, origins);
                 break;

@@ -303,6 +303,11 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
 
                 break;
 
+            case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }
+                when owners.TargetOf(compound.Target) is { } updated && state.ContainsKey(updated):
+                yield return (updated, true, compound);
+                break;
+
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } } when Source(returned, state) is { } source:
                 yield return (source, false, returned);
                 break;

@@ -92,14 +92,19 @@ internal sealed class LocalOwnership
                 case AssignmentExpression assignment when ThisTiers.OwnedSlot(assignment.Target) is not null:
                     demand(assignment.Value, ThisTier.Owned);
                     break;
+                case CompoundAssignmentExpression compound when ThisTiers.OwnedSlot(compound.Target) is not null:
+                    demand(compound, ThisTier.Owned);
+                    break;
             }
         }
 
         var uses = InferenceUses.Of(root, candidates);
         var installed = nodes.OfType<WithBlockStatement>().ToList();
-        var assigned = nodes.OfType<AssignmentExpression>().Where(assignment => assignment.Target is LocalReferenceExpression)
-            .GroupBy(assignment => ((LocalReferenceExpression)assignment.Target).Local)
-            .ToDictionary(group => group.Key, group => group.Select(assignment => assignment.Value).ToList());
+        var assigned = nodes.OfType<AssignmentExpression>().Select(assignment => (assignment.Target, assignment.Value))
+            .Concat(nodes.OfType<CompoundAssignmentExpression>().Select(compound => (compound.Target, Value: (Expression)compound)))
+            .Where(write => write.Target is LocalReferenceExpression)
+            .GroupBy(write => ((LocalReferenceExpression)write.Target).Local)
+            .ToDictionary(group => group.Key, group => group.Select(write => write.Value).ToList());
         foreach(var declaration in candidates)
         {
             inferred[declaration.Local] = ThisTier.Owned;

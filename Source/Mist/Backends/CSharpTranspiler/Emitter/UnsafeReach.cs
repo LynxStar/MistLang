@@ -241,6 +241,46 @@ internal sealed class UnsafeReach : IDisposable
         return reach.Coalesced(typedTarget, "(object?)null", $"(__t, __k) => {getter}(__t)", $"(__t, __k, __v) => {setter}(__t, __v)", render(assignment.Value));
     }
 
+    public static string? Compound(CompoundAssignmentExpression compound, Func<Expression, string> render, Func<string, string> operate)
+    {
+        if(current is not { } reach)
+        {
+            return null;
+        }
+
+        var postfix = compound.IncrementForm == IncrementForm.Postfix ? "true" : "false";
+
+        if(compound.Target is IndexExpression { Indexer: { } indexer } index
+            && !reach.Reaches(Narrowest(indexer), false, indexer.DeclaringType, index.Receiver.Type))
+        {
+            var owner = ClosedOwner(indexer.DeclaringType!, index.Receiver.Type, reach.result);
+            var get = reach.accessors.Indexer(indexer, owner, isSetter: false);
+            var set = reach.accessors.Indexer(indexer, owner, isSetter: true);
+
+            return reach.Updated(render(index.Receiver), render(index.Index), $"(__t, __k) => {get}(__t, __k)", $"(__t, __k, __v) => {set}(__t, __k, __v)", operate("__o"), postfix);
+        }
+
+        var (property, receiverType, renderReceiver) = compound.Target switch
+        {
+            PropertyReferenceExpression implicitProperty => (implicitProperty.Property, reach.receiver, (Func<string>?)null),
+            MemberAccessExpression { Member: PropertyResult found, IsConditional: false } access
+                => (found.Property, access.Receiver.Type, () => render(access.Receiver)),
+            _ => (null, null, null),
+        };
+
+        if(property is null || IsAuto(property) || reach.Reaches(Narrowest(property), property.Modifiers.IsStatic, property.DeclaringType, receiverType))
+        {
+            return null;
+        }
+
+        var propertyOwner = ClosedOwner(property.DeclaringType!, receiverType!, reach.result);
+        var getter = reach.accessors.Property(property, propertyOwner, isSetter: false);
+        var setter = reach.accessors.Property(property, propertyOwner, isSetter: true);
+        var target = property.Modifiers.IsStatic ? $"({TypeNameEmitter.Emit(propertyOwner)}?)null" : Leading(false, renderReceiver);
+
+        return reach.Updated(target, "(object?)null", $"(__t, __k) => {getter}(__t)", $"(__t, __k, __v) => {setter}(__t, __v)", operate("__o"), postfix);
+    }
+
     public static string? Unreached(CountedSlice slice, IMistType receiverType)
     {
         if(current is not { } reach)
@@ -348,6 +388,22 @@ internal sealed class UnsafeReach : IDisposable
         ]);
 
         return $"{helper}({target}, {key}, {get}, {set}, () => {value})";
+    }
+
+    private string Updated(string target, string key, string get, string set, string operation, string postfix)
+    {
+        var helper = accessors.Helper("Updated", name =>
+        [
+            $"private static __T {name}<__TTarget, __TKey, __T>(__TTarget target, __TKey key, System.Func<__TTarget, __TKey, __T> get, System.Action<__TTarget, __TKey, __T> set, System.Func<__T, __T> operate, bool postfix)",
+            "{",
+            "    var old = get(target, key);",
+            "    var updated = operate(old);",
+            "    set(target, key, updated);",
+            "    return postfix ? old : updated;",
+            "}",
+        ]);
+
+        return $"{helper}({target}, {key}, {get}, {set}, __o => {operation}, {postfix})";
     }
 
     private bool Reaches(LookupResult member, MemberType created)

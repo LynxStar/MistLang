@@ -389,7 +389,7 @@ internal static partial class BodyEmitter
                         break;
                     }
 
-                    writer.Write(exprStmt.Expression is ResultIdentityExpression ? "_ = " : "");
+                    writer.Write(StatementLead(exprStmt.Expression));
 
                     if(DiscardedCombinator(exprStmt.Expression, diagnostics) is { } direct)
                     {
@@ -1002,6 +1002,7 @@ internal static partial class BodyEmitter
         // Iterator
         if(forStmt.Iterator is not null)
         {
+            writer.Append(StatementLead(forStmt.Iterator));
             EmitExpression(forStmt.Iterator, writer, diagnostics);
         }
 
@@ -1015,6 +1016,11 @@ internal static partial class BodyEmitter
 
     internal static void EmitExpression(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(BoundPart(expression, writer))
+        {
+            return;
+        }
+
         using var emission = EmissionDiagnostics.Enter(diagnostics, expression.Node);
         if(LifetimeLowering.Captured(expression) is { } receiver)
         {

@@ -70,6 +70,33 @@ public sealed class CompoundAssignmentAnalysisTests
         Assert.Equal(38, diagnostic.Position().Start.Column);
     }
 
+    [Theory]
+    [InlineData(OwnershipKind.Owned, "MIST0264")]
+    [InlineData(OwnershipKind.Unrestricted, null)]
+    public void AnOwnedBindingRefusesASharedOperatorResultAsTheLongFormDoes(OwnershipKind ownership, string? expected)
+    {
+        var box = HandBuiltModel.Class("Box");
+        var constructor = new Constructor(box.Name, box, [], default) { DeclaringType = box, Body = HandBuiltModel.Block() };
+        box.ConstructorsList.Add(constructor);
+        var plus = new Operator(OperatorKind.Plus, box, [new Parameter("left", box), new Parameter("right", Integer)], new MemberModifiers { IsStatic = true }) { DeclaringType = box };
+        var held = new LocalVariable("held", box) { Ownership = ownership };
+
+        IReadOnlyList<string> findings(Expression write)
+        {
+            return model.Analyze(new OwnershipAnalyzer(), HandBuiltModel.Block(
+                new LocalDeclarationStatement(held, new NewExpression(HandBuiltModel.Node(), box, [], constructor, [], [])),
+                Run(write))).Select(finding => finding.Number.Value).ToList();
+        }
+
+        var shortForm = findings(new CompoundAssignmentExpression(HandBuiltModel.Node(37), Ref(held), BinaryOperatorKind.Add,
+            HandBuiltModel.Literal(Integer, 1L), box, plus, IncrementForm.None));
+        var longForm = findings(new AssignmentExpression(HandBuiltModel.Node(), Ref(held),
+            new BinaryExpression(HandBuiltModel.Node(37), Ref(held), BinaryOperatorKind.Add, HandBuiltModel.Literal(Integer, 1L), box) { Operator = plus }, box));
+
+        Assert.Equal(expected is null ? [] : [expected], shortForm);
+        Assert.Equal(longForm, shortForm);
+    }
+
     [Fact]
     public void AReadonlyMethodRefusesACompoundFieldWriteAsItRefusesTheAssignment()
     {

@@ -56,7 +56,7 @@ internal static partial class BodyEmitter
             return;
         }
 
-        writer.Write(lead ?? "");
+        writer.Write(lead ?? StatementLead(value));
         EmitEntering(value, slot, writer, diagnostics);
         writer.Append(";");
         writer.AppendLine();

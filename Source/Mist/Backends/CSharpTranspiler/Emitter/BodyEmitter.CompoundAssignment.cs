@@ -42,7 +42,11 @@ internal static partial class BodyEmitter
 
     private static string Carried(CompoundAssignmentExpression compound, DiagnosticBag diagnostics)
     {
-        var parts = BoundParts(compound.Target).Select(part => (Part: part, Rendered: RenderAt(part, AssignmentPrecedence, diagnostics), Name: TemporaryName())).ToList();
+        // A lone part governs the switch itself, so it binds tighter than one; a tuple element only needs to sit
+        // in its parentheses.
+        var bound = BoundParts(compound.Target).ToList();
+        var precedence = bound.Count == 1 ? SwitchPrecedence + 1 : AssignmentPrecedence;
+        var parts = bound.Select(part => (Part: part, Rendered: RenderAt(part, precedence, diagnostics), Name: TemporaryName())).ToList();
         var enclosing = boundParts;
         boundParts = new Dictionary<Expression, string>(enclosing ?? [], ReferenceEqualityComparer.Instance);
 

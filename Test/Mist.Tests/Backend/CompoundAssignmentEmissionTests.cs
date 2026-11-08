@@ -111,6 +111,25 @@ public sealed class CompoundAssignmentEmissionTests
     }
 
     [Theory]
+    [InlineData("None", "((i + 1) switch { var __e1 => this[__e1] = MistIntrinsics.Number_op_Addition(this[__e1], 5) })")]
+    [InlineData("Postfix", "((i + 1) switch { var __e1 => (this[__e1] switch { var __e2 => (this[__e1] = MistIntrinsics.Number_op_Addition(__e2, 5), __e2).Item2 }) })")]
+    public void ACarriedOperatorBindingOnlyItsIndexParenthesizesTheIndexItSwitchesOn(string increment, string expected)
+    {
+        var form = Enum.Parse<IncrementForm>(increment);
+        var number = HandBuiltModel.Class("Number");
+        number.Modifiers = new MemberModifiers { IsIntrinsic = true };
+        var plus = new Operator(OperatorKind.Plus, number, [new Parameter("left", number), new Parameter("right", Integer)], new MemberModifiers { IsStatic = true }) { DeclaringType = number };
+        var holder = HandBuiltModel.Class("Holder");
+        var indexer = new Indexer(number, [new Parameter("position", Integer)], default) { DeclaringType = holder };
+        var index = new BinaryExpression(HandBuiltModel.Node(), Ref(new LocalVariable("i", Integer)), BinaryOperatorKind.Add, HandBuiltModel.Literal(Integer, 1L), Integer);
+        var element = new IndexExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), holder), index, number) { Indexer = indexer };
+
+        var emitted = Emit(new CompoundAssignmentExpression(HandBuiltModel.Node(), element, BinaryOperatorKind.Add, HandBuiltModel.Literal(Integer, 5L), number, plus, form));
+
+        Assert.Equal(expected, emitted);
+    }
+
+    [Theory]
     [InlineData("None", "__o + (2), false)")]
     [InlineData("Postfix", "__o + (1), true)")]
     public void APropertyAConversionReachesThroughAccessorsIsReadAndWrittenThroughBoth(string increment, string ending)

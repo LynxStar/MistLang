@@ -8,6 +8,7 @@ using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -69,7 +70,9 @@ internal sealed partial class RefinementAnalyzer
 
         private FactState Prepare(FactState state, FlowGraph graph)
         {
-            var reads = graph.Blocks.SelectMany(block => block.Steps).Select(step => step.Node).OfType<LocalReferenceExpression>();
+            var steps = graph.Blocks.SelectMany(block => block.Steps).ToList();
+            var declared = steps.Select(step => step.Node is LocalDeclarationStatement declaration ? declaration.Local : step.Variable).OfType<LocalVariable>().ToHashSet();
+            var reads = steps.Select(step => step.Node).OfType<LocalReferenceExpression>().Where(read => !declared.Contains(read.Local));
             foreach(var read in reads)
             {
                 _ = factReading.Read(ref state, read);

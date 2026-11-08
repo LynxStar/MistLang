@@ -46,6 +46,9 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             case { Kind: FlowStepKind.Introduce or FlowStepKind.Bind, Variable: { } local }:
                 return Give(state, local, null);
 
+            case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: null } declaration }:
+                return state with { Bindings = state.Bindings.Remove([declaration.Local]) };
+
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
                 return Give(state, declaration.Local, declaration.Initializer);
 
@@ -115,7 +118,8 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var term = expression is not null ? reading.Read(ref state, expression) : null;
         var known = expression is not null ? KnowledgeOf(state, expression, local.Type) : Knowledge.Unknown;
         var trusted = matched || term is null || AssignmentHolds(ref state, local.Type, term);
-        var value = Shared(local.Type, expression, term) ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
+        var supplied = expression is null && local.Parameter is { } parameter ? state.Bindings.Get(parameter) : null;
+        var value = supplied ?? Shared(local.Type, expression, term) ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
         state = state with { Bindings = state.Bindings.Set(local, value) };
         if(term is not null && Shared(local.Type, expression, term) is null)
         {

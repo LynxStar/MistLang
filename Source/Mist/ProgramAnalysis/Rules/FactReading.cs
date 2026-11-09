@@ -147,6 +147,13 @@ internal sealed class FactReading(LiftedReturns lifted)
         };
     }
 
+    public static MemberAccessExpression Rebased(MemberAccessExpression member, Expression receiver)
+    {
+        var found = Requirement.Unrefined(receiver.Type) is ConstructedType { Definition: ConcreteType { TypeParametersList: [_, { IsDependent: true } length, ..] } }
+            && member.Member is TypeResult ? new TypeResult(length) : member.Member;
+        return new MemberAccessExpression(member.Node, receiver, member.MemberName, member.Type, member: found);
+    }
+
     public static object LengthMember(IMistType type)
     {
         return Requirement.Unrefined(type) is ConstructedType { Definition: ConcreteType { TypeParametersList.Count: > 1 } definition }
@@ -173,6 +180,19 @@ internal sealed class FactReading(LiftedReturns lifted)
 
     public Term? Symbol(ref FactState state, SymbolicBound bound, Expression? instance = null)
     {
+        if(bound.Operand is MemberAccessExpression measured)
+        {
+            return Read(ref state, measured);
+        }
+
+        if(bound.Operand is not null)
+        {
+            var current = state;
+            var operand = ContractReader.Limit(bound, symbol => Symbol(ref current, symbol, instance));
+            state = current;
+            return operand;
+        }
+
         if(bound.Named is LocalVariable local)
         {
             return Read(ref state, new LocalReferenceExpression(local.Parameter?.DeclarationNode!, local));

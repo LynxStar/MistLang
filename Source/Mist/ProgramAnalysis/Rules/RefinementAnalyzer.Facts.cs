@@ -68,7 +68,7 @@ internal sealed partial class RefinementAnalyzer
             return result;
         }
 
-        private FactState Prepare(FactState state, FlowGraph graph)
+        private FactState Prepare(FactState state, FlowGraph graph, IReadOnlyList<Parameter> parameters)
         {
             var steps = graph.Blocks.SelectMany(block => block.Steps).ToList();
             var declared = steps.Select(step => step.Node is LocalDeclarationStatement declaration ? declaration.Local : step.Variable).OfType<LocalVariable>().ToHashSet();
@@ -76,6 +76,11 @@ internal sealed partial class RefinementAnalyzer
             foreach(var read in reads)
             {
                 _ = factReading.Read(ref state, read);
+            }
+
+            foreach(var parameter in parameters.Where(parameter => Requirement.OfType(parameter.Type) is { Bounds.Length: > 0 }))
+            {
+                _ = factReading.Symbol(ref state, new SymbolicBound(parameter.Name, ComparisonKind.Equal) { Named = parameter });
             }
 
             foreach(var test in graph.Blocks.SelectMany(block => block.Steps).Select(step => step.Node).OfType<IsPatternExpression>())
@@ -99,26 +104,33 @@ internal sealed partial class RefinementAnalyzer
             }
         }
 
-        private bool Proves(FactState state, Expression expression, Requirement required, Reading reading, Expression? measured)
+        private Proof? Proves(FactState state, Expression expression, Requirement required, Reading reading, Expression? measured)
         {
             if(IntegralTypes.Range(expression.Type) is null)
             {
-                return false;
+                return null;
             }
 
             if(required.Values.IsEverything && required.Bounds.IsEmpty && Requirement.Unrefined(expression.Type) is EnumType
                 && Known(state, expression).Values.IsEverything)
             {
-                return false;
+                return null;
             }
 
             var term = factReading.Read(ref state, expression);
             var denial = ContractReader.Denial(required, term, readSymbol);
             var contractValues = term.Variables.Concat(denial?.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables) ?? []).ToHashSet();
-            return denial is not null && Chain.Prove(state.Bag, denial, contractValues) is Proven;
+            return denial is null ? null : Chain.Prove(state.Bag, denial, contractValues, budget);
 
             Term? readSymbol(SymbolicBound bound)
             {
+                if(bound.Operand is MemberAccessExpression measuredMember)
+                {
+                    return bound.Named is Parameter owner && reading.Argument(owner) is { } supplied
+                        ? factReading.Read(ref state, FactReading.Rebased(measuredMember, supplied))
+                        : factReading.Symbol(ref state, bound);
+                }
+
                 if(bound.Named is Parameter parameter && reading.Argument(parameter) is { } argument)
                 {
                     return factReading.Read(ref state, argument);
@@ -230,6 +242,7 @@ internal sealed partial class RefinementAnalyzer
             {
                 return bound switch
                 {
+                    { Operand: not null } => null,
                     { Member: { } member, Receiver: null } => proving.Signature(member),
                     { Member: { } member, Receiver: var through } when ReferenceEquals(through, receiver) => proving.Signature(member),
                     { Named: Parameter named } => sibling?.Invoke(named),

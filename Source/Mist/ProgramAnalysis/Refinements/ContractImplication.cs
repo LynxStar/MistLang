@@ -126,6 +126,7 @@ internal static class ContractImplication
     {
         return (supplied, demanded) switch
         {
+            ({ Operand: not null }, _) or (_, { Operand: not null }) => false,
             ({ Member: { } left, Receiver: null }, { Member: { } right, Receiver: null }) => symbols.SameMember(left, right),
             ({ Member: { } left, Receiver: { } through }, { Member: { } right, Receiver: { } other }) =>
                 ReferenceEquals(left, right) && symbols.SameReceiver(through, other),

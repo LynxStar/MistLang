@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -13,44 +14,58 @@ internal static class RefinementFindings
 {
     public static void Report(
         AnalysisContext context, Admitted known, Expression value, Requirement required, SlotValue target, Expression at,
-        string? onConstraint, Expression? onIndex = null)
+        string? onConstraint, Expression? onIndex = null, Proof? proof = null)
     {
         var predicate = Describe(required);
+        IReadOnlyList<Expression> about = onIndex is not null ? [value, onIndex] : [value, at];
+
+        if(proof is Exhausted)
+        {
+            context.Report(ProgramAnalysisDiagnostics.RefinementProofExhausted, at.Node, about, new NameValue(predicate), new NameValue(Display(value)));
+            return;
+        }
+
+        var shown = Case(proof);
 
         if(onIndex is not null)
         {
             if(known.Intervals is [var only] && only.Low == only.High && !required.Values.Contains(only.Low))
             {
-                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, [value, onIndex], new NameValue(only.Low.ToString(CultureInfo.InvariantCulture)), target, new NameValue(predicate));
+                context.Report(ProgramAnalysisDiagnostics.IndexOutOfBounds, at.Node, about, new NameValue(only.Low.ToString(CultureInfo.InvariantCulture)), target, new NameValue(predicate), shown);
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.IndexUnproven, at.Node, [value, onIndex], new NameValue(Display(value)), target, new NameValue(predicate));
+                context.Report(ProgramAnalysisDiagnostics.IndexUnproven, at.Node, about, new NameValue(Display(value)), target, new NameValue(predicate), shown);
             }
         }
         else if(onConstraint is not null)
         {
             if(Violating(value, known, required) is { } constant)
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, [value, at], new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(onConstraint));
+                context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at.Node, about, new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(onConstraint), shown);
             }
             else
             {
-                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint));
+                context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, about, new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint), shown);
             }
         }
         else if(Violating(value, known, required) is { } constant)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, [value, at], new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), target);
+            context.Report(ProgramAnalysisDiagnostics.RefinementViolated, at.Node, about, new NameValue(constant.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), target, shown);
         }
         else if(Requirement.Refined(value.Type) is not null)
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(known.ToString()), new NameValue(predicate));
+            context.Report(ProgramAnalysisDiagnostics.RefinementNotImplied, at.Node, about, DiagnosticSnapshot.Type(value.Type), target, new NameValue(known.ToString()), new NameValue(predicate), shown);
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate));
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, about, DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate), shown);
         }
+    }
+
+    public static OptionalValue Case(Proof? proof)
+    {
+        return new OptionalValue(SlotKind.Name, proof is Refuted refuted && FailingCase.Describe(refuted) is { } failing ? new NameValue($" ({failing})") : null);
     }
 
     public static void ReportPosition(
@@ -61,11 +76,11 @@ internal static class RefinementFindings
 
         if(Lengths.Exact(position) is { } only && !required.Values.Contains(only))
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at, about, new NameValue(only.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(parameter));
+            context.Report(ProgramAnalysisDiagnostics.ConstraintViolated, at, about, new NameValue(only.ToString(CultureInfo.InvariantCulture)), new NameValue(predicate), new NameValue(parameter), Case(null));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(predicate), new NameValue(parameter));
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(predicate), new NameValue(parameter), Case(null));
         }
     }
 
@@ -76,11 +91,11 @@ internal static class RefinementFindings
 
         if(onConstraint is not null)
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint));
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint), Case(null));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate));
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate), Case(null));
         }
     }
 
@@ -97,13 +112,13 @@ internal static class RefinementFindings
         context.Report(
             onConstraint is null ? ProgramAnalysisDiagnostics.RefinementViolated : ProgramAnalysisDiagnostics.ConstraintViolated,
             at.Node, [value, at], new NameValue(literal!.ToString()), new NameValue(Describe(constituent)),
-            onConstraint is null ? target : new NameValue(onConstraint));
+            onConstraint is null ? target : new NameValue(onConstraint), Case(null));
     }
 
     public static void ReportPositionUnreadable(
         AnalysisContext context, IMistType slot, Storm.Runtime.SyntaxNode at, string shown, string parameter, IReadOnlyList<Expression> about)
     {
-        context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(Describe(slot)), new NameValue(parameter));
+        context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at, about, new NameValue(shown), new NameValue(Describe(slot)), new NameValue(parameter), Case(null));
     }
 
     private static string Describe(IMistType constituent)
@@ -152,8 +167,26 @@ internal static class RefinementFindings
             LiteralExpression { Value: { } constant } => Convert.ToString(constant, CultureInfo.InvariantCulture) ?? "",
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: not null } negated } => $"-{Display(negated)}",
+            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var negated } => $"-{Grouped(negated)}",
+            BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply, Operator: null or { Modifiers.IsIntrinsic: true } } binary
+                => $"{(binary.OperatorKind == BinaryOperatorKind.Multiply ? Grouped(binary.Left) : Display(binary.Left))} {Arithmetic(binary.OperatorKind)} {(binary.OperatorKind == BinaryOperatorKind.Add ? Display(binary.Right) : Grouped(binary.Right))}",
             RangeExpression range => $"{(range.Start is { } start ? Display(start) : "")}..{(range.End is { } end ? Display(end) : "")}",
             _ => TypeDisplay.Mist(expression.Type),
+        };
+    }
+
+    private static string Grouped(Expression operand)
+    {
+        return operand is BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply } ? $"({Display(operand)})" : Display(operand);
+    }
+
+    private static string Arithmetic(BinaryOperatorKind kind)
+    {
+        return kind switch
+        {
+            BinaryOperatorKind.Add => "+",
+            BinaryOperatorKind.Subtract => "-",
+            _ => "*",
         };
     }
 
@@ -168,7 +201,7 @@ internal static class RefinementFindings
 
         foreach(var bound in required.Bounds)
         {
-            parts.Add($"{Symbol(bound.Kind)} {bound.Name}");
+            parts.Add($"{Symbol(bound.Kind)} {(bound.Operand is { } operand ? Display(operand) : bound.Name)}");
         }
 
         return parts.Count == 0 ? "anything" : string.Join(" and ", parts);

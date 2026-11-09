@@ -9,6 +9,7 @@ using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
+using Budget = Mist.ProgramAnalysis.Facts.Budget;
 
 namespace Mist.Tests.ProgramAnalysis;
 
@@ -341,4 +342,82 @@ public sealed class FactFlowTests
         Assert.Equal("MIST0271", Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block(HandBuiltRefinements.Evaluate(lambda)))).Number.Value);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ShowProvesTheIndexFromAThreeValueWhereClauseAndTheGuard(bool guarded)
+    {
+        var h = new HandBuiltRefinements();
+
+        var (body, show) = Show(h, guarded);
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body, member: show);
+
+        if(guarded)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            var finding = Assert.Single(findings);
+            Assert.Equal("MIST0275", finding.Number.Value);
+            Assert.Equal("Index 'start' is not proven within the bounds of 'items', which needs >= 0 and < Length (fails when start == items.Length and items.Length >= 0).", finding.Message);
+        }
+    }
+
+    [Fact]
+    public void ShowUnderAOneFactBudgetIsRefusedAsUnfinished()
+    {
+        var h = new HandBuiltRefinements();
+        var (body, show) = Show(h, guarded: true);
+
+        var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(new Budget(1)), body, member: show));
+
+        Assert.Equal("MIST0485", finding.Number.Value);
+        Assert.StartsWith("Could not finish proving '>= 0 and < Length' for 'start' within the compiler's limit", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, "(fails when capacity <= -1)")]
+    [InlineData(false, "(fails when used >= capacity * 2 + 1)")]
+    public void ReserveWithoutANonnegativeCapacityStatesTheFailingCase(bool exact, string failing)
+    {
+        var h = new HandBuiltRefinements();
+        var used = HandBuiltRefinements.Local(h.Int, "used");
+        var capacity = HandBuiltRefinements.Local(exact ? h.Between(h.Int, -1_000_000L, 1_000_000L, "Signed") : h.Int, "capacity");
+        var available = new Parameter("available", h.Int);
+        var limit = new LocalVariable("available", h.Int) { Parameter = available };
+        var neededType = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, HandBuiltRefinements.Read(limit), null);
+        var reserve = new Method("Reserve", h.Int, [new Parameter("needed", neededType), available], new MemberModifiers { IsReadonly = true });
+        var product = h.Binary(capacity, BinaryOperatorKind.Multiply, h.Literal(2L), h.Int);
+        var call = new InvocationExpression(HandBuiltModel.Node(), h.Literal(0L), [used, product], h.Int, reserve, [neededType, h.Int]);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(h.Binary(used, BinaryOperatorKind.LessThanOrEqual, capacity), HandBuiltRefinements.Evaluate(call)));
+
+        var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), body));
+
+        Assert.Equal("MIST0277", finding.Number.Value);
+        Assert.Equal($"Argument 'used' is not proven to satisfy the refinement constraint '<= available' on parameter 'needed' {failing}.", finding.Message);
+    }
+
+    private static (Block Body, Method Show) Show(HandBuiltRefinements h, bool guarded)
+    {
+        var span = h.Sequence("Span");
+        var zeroOrPositive = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L, "ZeroOrPositiveInt");
+        var itemsParameter = new Parameter("items", span);
+        var startParameter = new Parameter("start", zeroOrPositive);
+        var operand = h.Binary(h.Length(HandBuiltRefinements.Read(new LocalVariable("items", span) { Parameter = itemsParameter })), BinaryOperatorKind.Subtract,
+            HandBuiltRefinements.Read(new LocalVariable("start", zeroOrPositive) { Parameter = startParameter }), h.Int);
+        var countType = h.Refine(zeroOrPositive, ComparisonKind.LessThanOrEqual, operand, null);
+        var countParameter = new Parameter("count", countType);
+        var count = new LocalVariable("count", countType) { Parameter = countParameter };
+        var items = new LocalVariable("items", span) { Parameter = itemsParameter };
+        var start = new LocalVariable("start", zeroOrPositive) { Parameter = startParameter };
+        var read = HandBuiltRefinements.Evaluate(h.At(HandBuiltRefinements.Read(items), HandBuiltRefinements.Read(start)));
+
+        var show = new Method("Show", h.Int, [itemsParameter, startParameter, countParameter], new MemberModifiers());
+
+        return (guarded
+            ? HandBuiltModel.Block(HandBuiltRefinements.If(h.Binary(HandBuiltRefinements.Read(count), BinaryOperatorKind.GreaterThanOrEqual, h.Literal(1L)), read))
+            : HandBuiltModel.Block(read), show);
+    }
 }

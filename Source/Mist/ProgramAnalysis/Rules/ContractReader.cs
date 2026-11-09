@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -17,7 +18,7 @@ internal static class ContractReader
         var denial = Intervals(required.Values.Not(), value).ToList();
         foreach(var bound in required.Bounds)
         {
-            if(symbols(bound) is not { } limit)
+            if(Limit(bound, symbols) is not { } limit)
             {
                 return null;
             }
@@ -26,6 +27,13 @@ internal static class ContractReader
         }
 
         return denial;
+    }
+
+    public static Term? Limit(SymbolicBound bound, Func<SymbolicBound, Term?> symbols)
+    {
+        return bound.Operand is BinaryExpression or UnaryExpression
+            ? Terms.ReadNamed(bound.Operand, name => Requirement.Symbol(name, bound.Kind) is { } named ? symbols(named) : null)
+            : symbols(bound);
     }
 
     public static IEnumerable<Alternative> Intervals(Admitted values, Term value)

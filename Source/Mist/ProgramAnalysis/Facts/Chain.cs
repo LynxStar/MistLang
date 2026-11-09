@@ -254,50 +254,55 @@ internal static class Chain
         while(!meter.Expired && !facts.Any(fact => fact.IsContradiction))
         {
             var value = Rarest(facts, keep);
-            if(value is null)
+            if(value is null || Eliminate(facts, value, meter) is not { } next)
             {
                 break;
             }
 
-            var involving = facts.Where(fact => fact.Term.Variables.Contains(value)).ToList();
-            var next = facts.Where(fact => !fact.Term.Variables.Contains(value)).ToList();
-            var equality = involving.FirstOrDefault(fact => fact.Relation == Relation.Equal);
-            if(equality is not null)
-            {
-                var coefficient = equality.Term.Multiplier(value);
-                foreach(var fact in involving.Where(fact => !ReferenceEquals(fact, equality)))
-                {
-                    if(!meter.Derive())
-                    {
-                        return facts;
-                    }
-
-                    var term = fact.Term.Scale(BigInteger.Abs(coefficient))
-                        .Subtract(equality.Term.Scale(fact.Term.Multiplier(value) * coefficient.Sign));
-                    next.Add(new Fact(term, fact.Relation, fact.IsMerged || equality.IsMerged));
-                }
-            }
-            else
-            {
-                foreach(var upper in involving.Where(fact => fact.Term.Multiplier(value).Sign > 0))
-                {
-                    foreach(var lower in involving.Where(fact => fact.Term.Multiplier(value).Sign < 0))
-                    {
-                        if(!meter.Derive())
-                        {
-                            return facts;
-                        }
-
-                        var term = upper.Term.Scale(-lower.Term.Multiplier(value)).Add(lower.Term.Scale(upper.Term.Multiplier(value)));
-                        next.Add(new Fact(term, merged: upper.IsMerged || lower.IsMerged));
-                    }
-                }
-            }
-
-            facts = Clean(next);
+            facts = next;
         }
 
         return facts;
+    }
+
+    internal static List<Fact>? Eliminate(List<Fact> facts, Value value, ProofBudget meter)
+    {
+        var involving = facts.Where(fact => fact.Term.Variables.Contains(value)).ToList();
+        var next = facts.Where(fact => !fact.Term.Variables.Contains(value)).ToList();
+        var equality = involving.FirstOrDefault(fact => fact.Relation == Relation.Equal);
+        if(equality is not null)
+        {
+            var coefficient = equality.Term.Multiplier(value);
+            foreach(var fact in involving.Where(fact => !ReferenceEquals(fact, equality)))
+            {
+                if(!meter.Derive())
+                {
+                    return null;
+                }
+
+                var term = fact.Term.Scale(BigInteger.Abs(coefficient))
+                    .Subtract(equality.Term.Scale(fact.Term.Multiplier(value) * coefficient.Sign));
+                next.Add(new Fact(term, fact.Relation, fact.IsMerged || equality.IsMerged));
+            }
+        }
+        else
+        {
+            foreach(var upper in involving.Where(fact => fact.Term.Multiplier(value).Sign > 0))
+            {
+                foreach(var lower in involving.Where(fact => fact.Term.Multiplier(value).Sign < 0))
+                {
+                    if(!meter.Derive())
+                    {
+                        return null;
+                    }
+
+                    var term = upper.Term.Scale(-lower.Term.Multiplier(value)).Add(lower.Term.Scale(upper.Term.Multiplier(value)));
+                    next.Add(new Fact(term, merged: upper.IsMerged || lower.IsMerged));
+                }
+            }
+        }
+
+        return Clean(next);
     }
 
     private static Value? Rarest(List<Fact> facts, IReadOnlySet<Value> keep)
@@ -326,7 +331,7 @@ internal static class Chain
         return rarest;
     }
 
-    private static List<Fact> Clean(IEnumerable<Fact> source)
+    internal static List<Fact> Clean(IEnumerable<Fact> source)
     {
         var facts = source.Distinct().ToList();
         var contradiction = facts.FirstOrDefault(fact => fact.IsContradiction);

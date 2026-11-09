@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
@@ -30,10 +31,20 @@ namespace Mist.ProgramAnalysis.Rules;
 /// neither an interval nor a sound literal decision is met only by a value already of that refinement,
 /// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
 /// </summary>
-internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgramAnalyzer
+internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget budget) : IProgramAnalyzer
 {
     public RefinementAnalyzer()
-        : this(LiteralPredicates.MatchLimit)
+        : this(LiteralPredicates.MatchLimit, Budget.Default)
+    {
+    }
+
+    public RefinementAnalyzer(TimeSpan matchLimit)
+        : this(matchLimit, Budget.Default)
+    {
+    }
+
+    public RefinementAnalyzer(Budget budget)
+        : this(LiteralPredicates.MatchLimit, budget)
     {
     }
 
@@ -46,19 +57,20 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit).Judge(FlowGraphBuilder.Build(root.Root), FactFlow.Nothing);
+            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget).Judge(
+                FlowGraphBuilder.Build(root.Root), FactFlow.Nothing, root.Member is Method method ? method.ParametersList : []);
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedElements(list, reads);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedElements(list, reads);
             }
 
             if(list.Slice is { Method: { } slice } sliced)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedSliceElements(list, sliced, slice);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedSliceElements(list, sliced, slice);
             }
         }
 
@@ -80,28 +92,29 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit).NeedArguments(
+                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedArguments(
                         FactFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
         }
     }
 
-    private sealed partial class Proving(AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit)
+    private sealed partial class Proving(
+        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget)
     {
-        public void Judge(FlowGraph graph, FactState entry)
+        public void Judge(FlowGraph graph, FactState entry, IReadOnlyList<Parameter>? parameters = null)
         {
             if(!NeedsFacts(graph))
             {
                 foreach(var nested in graph.Nested.Values)
                 {
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget).Judge(nested, FactFlow.Nothing);
                 }
 
                 return;
             }
 
-            entry = Prepare(entry with { Unseen = unseenWrites }, graph);
+            entry = Prepare(entry with { Unseen = unseenWrites }, graph, parameters ?? []);
             var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
@@ -166,7 +179,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget).Judge(nested, FactFlow.Nothing);
                     break;
             }
         }
@@ -236,9 +249,9 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 var symbolic = new Requirement(Admitted.AtLeast(0), [new SymbolicBound("Length", ComparisonKind.LessThan)]);
                 var required = Lengths.Shortest(length) is { } shortest ? new Requirement(Admitted.Between(0, shortest - 1), []) : symbolic;
 
-                if(!Satisfied(known, symbolic, index.Receiver) && !Proves(state, index.Index, symbolic, Reading.None, index.Receiver))
+                if(!Satisfied(known, symbolic, index.Receiver) && Proves(state, index.Index, symbolic, Reading.None, index.Receiver) is var proof and not Proven)
                 {
-                    Need(known, index.Index, Lengths.Exact(length) is null ? symbolic : required, onIndex: index.Receiver, alsoSatisfies: required);
+                    Need(known, index.Index, Lengths.Exact(length) is null ? symbolic : required, onIndex: index.Receiver, alsoSatisfies: required, proof);
                 }
 
                 return;
@@ -287,7 +300,8 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
 
             context.Report(
                 ProgramAnalysisDiagnostics.IndexOutOfBounds, index.Index.Node, [index.Index, index.Receiver],
-                new NameValue(RefinementFindings.Display(index.Index)), new NameValue(RefinementFindings.Display(index.Receiver)), new NameValue("0 <= start <= end <= Length"));
+                new NameValue(RefinementFindings.Display(index.Index)), new NameValue(RefinementFindings.Display(index.Receiver)), new NameValue("0 <= start <= end <= Length"),
+                RefinementFindings.Case(null));
         }
 
         // What is known of the value that meets an array's or a span's slot. `^k` names the position
@@ -359,9 +373,16 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
                 return;
             }
 
-            if(considered.Any(constituent => Requirement.OfType(constituent) is { } contract && Proves(state, value, contract, reading, measured)))
+            Proof? proof = null;
+            for(var i = 0; i < considered.Count; i++)
             {
-                return;
+                var outcome = Requirement.OfType(considered[i]) is { } contract ? Proves(state, value, contract, reading, measured) : null;
+                if(outcome is Proven)
+                {
+                    return;
+                }
+
+                proof = i == 0 ? outcome : proof;
             }
 
             var known = Known(state, value);
@@ -387,7 +408,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)), DiagnosticSnapshot.Type(target), at,
-                    onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null);
+                    onConstraint: Requirement.IsAnonymous(target) ? onConstraint : null, proof: proof);
             }
             else
             {
@@ -584,22 +605,23 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit) : IProgram
             var known = Known(state, value);
             reading ??= Reading.None;
 
-            if(!Proves(state, value, required, reading, onIndex ?? measured) && !Satisfied(known, Read(required, proving: true, reading), onIndex ?? measured, Length(state, measured)))
+            var proof = Proves(state, value, required, reading, onIndex ?? measured);
+            if(proof is not Proven && !Satisfied(known, Read(required, proving: true, reading), onIndex ?? measured, Length(state, measured)))
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)),
-                    new NameValue(onIndex is { } receiver ? RefinementFindings.Display(receiver) : ""), at, onConstraint, onIndex);
+                    new NameValue(onIndex is { } receiver ? RefinementFindings.Display(receiver) : ""), at, onConstraint, onIndex, proof);
             }
         }
 
-        private void Need(Knowledge known, Expression value, Requirement required, Expression onIndex, Requirement alsoSatisfies)
+        private void Need(Knowledge known, Expression value, Requirement required, Expression onIndex, Requirement alsoSatisfies, Proof? proof)
         {
             if(value.Type is ErrorType || Satisfied(known, required, onIndex) || Satisfied(known, alsoSatisfies, onIndex))
             {
                 return;
             }
 
-            RefinementFindings.Report(context, known.Values, value, required, new NameValue(RefinementFindings.Display(onIndex)), value, onConstraint: null, onIndex);
+            RefinementFindings.Report(context, known.Values, value, required, new NameValue(RefinementFindings.Display(onIndex)), value, onConstraint: null, onIndex, proof);
         }
 
         private static Expression? Measured(Expression? receiver)

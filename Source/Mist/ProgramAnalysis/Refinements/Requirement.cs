@@ -203,7 +203,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
         };
     }
 
-    private static SymbolicBound? Symbol(Expression bound, ComparisonKind kind)
+    public static SymbolicBound? Symbol(Expression bound, ComparisonKind kind)
     {
         return bound switch
         {
@@ -211,10 +211,27 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
             MemberAccessExpression { Receiver: null or ThisExpression, MemberName: var name, Member: var found } => new(name, kind, MemberOf(found)),
             MemberAccessExpression { Receiver: LocalReferenceExpression { Local: var receiver }, MemberName: var name, Member: var found }
                 when MemberOf(found) is { } member => new(name, kind, member) { Receiver = receiver },
+            MemberAccessExpression { IsConditional: false, IsFailed: false, Receiver: LocalReferenceExpression { Local: var receiver }, Member: TypeResult { Type: TypeParameter { IsDependent: true } } } access
+                => new(string.Empty, kind) { Named = (object?)receiver.Parameter ?? receiver, Operand = access },
             PropertyReferenceExpression { Property: var property } => new(property.Name, kind, property),
             FieldReferenceExpression { Field: var field } => new(field.Name, kind, field),
             LocalReferenceExpression local => new(local.Local.Name, kind) { Named = (object?)local.Local.Parameter ?? local.Local },
+            BinaryExpression or UnaryExpression when Readable(bound, kind) => new(string.Empty, kind) { Operand = bound },
             _ => null,
+        };
+    }
+
+    private static bool Readable(Expression operand, ComparisonKind kind)
+    {
+        return Constant(operand) is not null || operand switch
+        {
+            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var inner } => Readable(inner, kind),
+            BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract, Operator: null or { Modifiers.IsIntrinsic: true } } sum
+                => Readable(sum.Left, kind) && Readable(sum.Right, kind),
+            BinaryExpression { OperatorKind: BinaryOperatorKind.Multiply, Operator: null or { Modifiers.IsIntrinsic: true } } product
+                => (Constant(product.Left) is not null && Readable(product.Right, kind)) || (Constant(product.Right) is not null && Readable(product.Left, kind)),
+            BinaryExpression or UnaryExpression => false,
+            _ => Symbol(operand, kind) is not null,
         };
     }
 
@@ -266,11 +283,15 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 /// A bound a predicate names rather than states. <see cref="Member"/> is the property or field it names,
 /// when it names one, so a use can read that member's type or lift (refinement-types R18) -- never the
 /// flow, which does not cross a member -- and a bound with no member is met only by what the flow
-/// relates to it, an array's or a span's `Length`.
+/// relates to it, an array's or a span's `Length`. A bound with an <see cref="Operand"/> is an expression
+/// over the predicate's names, `items.Length - start`, which only <see cref="Rules.ContractReader"/> reads,
+/// as a term with each name bound; nothing that reads a bound by its name or member may treat it as one.
 /// </summary>
 internal sealed record SymbolicBound(string Name, ComparisonKind Kind, object? Member = null)
 {
     public object? Named { get; init; }
 
     public LocalVariable? Receiver { get; init; }
+
+    public Expression? Operand { get; init; }
 }

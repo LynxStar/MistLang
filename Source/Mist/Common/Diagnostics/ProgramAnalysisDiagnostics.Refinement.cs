@@ -15,72 +15,72 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic RefinementViolated = new(
         DiagnosticNumber.Mint("MIST0271"),
         Title: "Refinement violated",
-        Template: "Value '{value}' does not satisfy refinement '{predicate}' on type '{type}'.",
+        Template: "Value '{value}' does not satisfy refinement '{predicate}' on type '{type}'{case}.",
         Description: "The constant value is known at compile time and fails the refinement predicate of its target type. Use a value the refinement admits.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("value", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+        Slots: [new Slot("value", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic RefinementUnproven = new(
         DiagnosticNumber.Mint("MIST0272"),
         Title: "Refinement unproven",
-        Template: "Cannot assign '{source}' to '{target}' without proving its refinement '{predicate}': narrow the value with a pattern first.",
+        Template: "Cannot assign '{source}' to '{target}' without proving its refinement '{predicate}'{case}: narrow the value with a pattern first.",
         Description: "The value's type is the refined type's base, and nothing on this path establishes that the predicate holds. Test the value with a pattern first, or produce it from a source already typed with the refinement.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("predicate", SlotKind.Name)]);
+        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("predicate", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic RefinementNotImplied = new(
         DiagnosticNumber.Mint("MIST0273"),
         Title: "Refinement not implied",
-        Template: "Cannot assign '{source}' to '{target}': '{known}' does not imply '{required}'.",
+        Template: "Cannot assign '{source}' to '{target}': '{known}' does not imply '{required}'{case}.",
         Description: "The source carries one refinement and the target demands another, and the first does not entail the second. Narrow the value with a pattern that proves the target refinement.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("known", SlotKind.Name), new Slot("required", SlotKind.Name)]);
+        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("known", SlotKind.Name), new Slot("required", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic IndexOutOfBounds = new(
         DiagnosticNumber.Mint("MIST0274"),
         Title: "Index out of bounds",
-        Template: "Index {index} is outside the bounds of '{target}', which needs {predicate}.",
+        Template: "Index {index} is outside the bounds of '{target}', which needs {predicate}{case}.",
         Description: "The constant index lies outside the range the indexed collection's dependent bound permits. Use an index within the collection's length.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("index", SlotKind.Name), new Slot("target", SlotKind.Name), new Slot("predicate", SlotKind.Name)]);
+        Slots: [new Slot("index", SlotKind.Name), new Slot("target", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic IndexUnproven = new(
         DiagnosticNumber.Mint("MIST0275"),
         Title: "Index not proven in bounds",
-        Template: "Index '{index}' is not proven within the bounds of '{target}', which needs {predicate}.",
+        Template: "Index '{index}' is not proven within the bounds of '{target}', which needs {predicate}{case}.",
         Description: "The indexed collection's length is a dependent type, and nothing on this path proves the index lies within it. Guard the access with a bounds pattern, or use an index typed to the collection's length.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("index", SlotKind.Name), new Slot("target", SlotKind.Name), new Slot("predicate", SlotKind.Name)]);
+        Slots: [new Slot("index", SlotKind.Name), new Slot("target", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic ConstraintViolated = new(
         DiagnosticNumber.Mint("MIST0276"),
         Title: "Refinement constraint violated",
-        Template: "Value '{value}' violates the refinement constraint '{predicate}' on parameter '{parameter}'.",
+        Template: "Value '{value}' violates the refinement constraint '{predicate}' on parameter '{parameter}'{case}.",
         Description: "The constant argument fails the refinement constraint on the parameter it is passed to. Pass a value the constraint admits.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("value", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
+        Slots: [new Slot("value", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic ConstraintUnproven = new(
         DiagnosticNumber.Mint("MIST0277"),
         Title: "Refinement constraint unproven",
-        Template: "Argument '{argument}' is not proven to satisfy the refinement constraint '{predicate}' on parameter '{parameter}'.",
+        Template: "Argument '{argument}' is not proven to satisfy the refinement constraint '{predicate}' on parameter '{parameter}'{case}.",
         Description: "The argument's type does not establish the refinement constraint on the parameter, and no narrowing on this path proves it. Test the argument with a pattern first, or pass a value already typed with the refinement.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("argument", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("parameter", SlotKind.Name)]);
+        Slots: [new Slot("argument", SlotKind.Name), new Slot("predicate", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 
     public static readonly MistDiagnostic DependentArgumentViolated = new(
         DiagnosticNumber.Mint("MIST0278"),
@@ -181,4 +181,14 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("declaration", SlotKind.Enum), new Slot("refined", SlotKind.Type), new Slot("base", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic RefinementProofExhausted = new(
+        DiagnosticNumber.Mint("MIST0485"),
+        Title: "Refinement proof exhausted",
+        Template: "Could not finish proving '{predicate}' for '{value}' within the compiler's limit: add an explicit check on this path.",
+        Description: "The facts on this path interact in more ways than the compiler's proof budget allows it to combine, so the refinement was neither proven nor disproven. Test the value with a condition or pattern before this use, so the proof needs fewer facts.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("predicate", SlotKind.Name), new Slot("value", SlotKind.Name)]);
 }

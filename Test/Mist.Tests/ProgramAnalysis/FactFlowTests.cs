@@ -455,6 +455,107 @@ public sealed class FactFlowTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void APropertyReachedThroughANamedReceiverInAWhereClauseOperandIsReadAtEntry(bool sameReceiver)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var owner = h.Built.Type("Owner");
+        var property = new Property("Limit", bounded, new MemberModifiers()) { DeclaringType = owner, Getter = new PropertyAccessor { IsAuto = true } };
+        var ownerParameter = new Parameter("owner", owner);
+        var otherParameter = new Parameter("other", owner);
+        var ownerRead = HandBuiltRefinements.Read(new LocalVariable("owner", owner) { Parameter = ownerParameter });
+        var otherRead = HandBuiltRefinements.Read(new LocalVariable("other", owner) { Parameter = otherParameter });
+        var startParameter = new Parameter("start", bounded);
+        var start = HandBuiltRefinements.Read(new LocalVariable("start", bounded) { Parameter = startParameter });
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 1L, "Positive");
+        var countType = h.Refine(positive, ComparisonKind.LessThanOrEqual, h.Binary(FactReading.Through(ownerRead, property), BinaryOperatorKind.Subtract, start, h.Int), null);
+        var countParameter = new Parameter("count", countType);
+        var count = HandBuiltRefinements.Read(new LocalVariable("count", countType) { Parameter = countParameter });
+        var guarded = FactReading.Through(sameReceiver ? ownerRead : otherRead, property);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(h.Binary(guarded, BinaryOperatorKind.LessThanOrEqual, h.Literal(100L)),
+            HandBuiltRefinements.Need(h.Binary(start, BinaryOperatorKind.Add, count, h.Int), h.Refine(h.Int, ComparisonKind.LessThanOrEqual, 100L))));
+        var use = new Method("Use", h.Int, [ownerParameter, otherParameter, startParameter, countParameter], new MemberModifiers()) { Body = body };
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body, owner: owner, member: use);
+
+        if(sameReceiver)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            var finding = Assert.Single(findings);
+            Assert.Equal("MIST0272", finding.Number.Value);
+            Assert.EndsWith("(fails when start >= -count + 101 and start <= -count + 1000000): narrow the value with a pattern first.", finding.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ATargetNamingAReceiversPropertyIsProvenByAGuardOnThatReceiver(bool sameReceiver)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var owner = h.Built.Type("Owner");
+        var property = new Property("Limit", bounded, new MemberModifiers()) { DeclaringType = owner, Getter = new PropertyAccessor { IsAuto = true } };
+        var ownerRead = HandBuiltRefinements.Read(new LocalVariable("owner", owner) { Parameter = new Parameter("owner", owner) });
+        var other = HandBuiltRefinements.Local(owner, "other");
+        var x = HandBuiltRefinements.Local(h.Int, "x");
+        var target = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, h.Binary(FactReading.Through(ownerRead, property), BinaryOperatorKind.Subtract, h.Literal(1L), h.Int), null);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(h.Binary(x, BinaryOperatorKind.LessThan, FactReading.Through(sameReceiver ? ownerRead : other, property)),
+            HandBuiltRefinements.Need(x, target)));
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body, owner: owner);
+
+        if(sameReceiver)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            Assert.Equal("MIST0272", Assert.Single(findings).Number.Value);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACallBindsAWhereClausesNamedReceiverToItsArgument(bool sameReceiver)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var owner = h.Built.Type("Owner");
+        var property = new Property("Limit", bounded, new MemberModifiers()) { DeclaringType = owner, Getter = new PropertyAccessor { IsAuto = true } };
+        var ownerParameter = new Parameter("owner", owner);
+        var startParameter = new Parameter("start", bounded);
+        var start = new LocalVariable("start", bounded) { Parameter = startParameter };
+        var ownerLocal = new LocalVariable("owner", owner) { Parameter = ownerParameter };
+        var countType = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, h.Binary(FactReading.Through(HandBuiltRefinements.Read(ownerLocal), property), BinaryOperatorKind.Subtract, HandBuiltRefinements.Read(start), h.Int), null);
+        var use = new Method("Use", h.Int, [ownerParameter, startParameter, new Parameter("count", countType)], new MemberModifiers { IsReadonly = true });
+        var o = HandBuiltRefinements.Local(owner, "o");
+        var p = HandBuiltRefinements.Local(owner, "p");
+        var s = HandBuiltRefinements.Local(bounded, "s");
+        var c = HandBuiltRefinements.Local(bounded, "c");
+        var call = new InvocationExpression(HandBuiltModel.Node(), h.Literal(0L), [sameReceiver ? o : p, s, c], h.Int, use, [owner, bounded, countType]);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(
+            h.Binary(h.Binary(s, BinaryOperatorKind.Add, c, h.Int), BinaryOperatorKind.LessThanOrEqual, FactReading.Through(o, property)), HandBuiltRefinements.Evaluate(call)));
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body, owner: owner);
+
+        if(sameReceiver)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            Assert.Equal("MIST0277", Assert.Single(findings).Number.Value);
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void AUnionWithAnUnfinishedConstituentAndNoProofIsRefusedAsUnfinished(bool unfinishedFirst)

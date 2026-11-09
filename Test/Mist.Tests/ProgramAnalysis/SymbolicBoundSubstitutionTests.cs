@@ -28,8 +28,10 @@ public sealed class SymbolicBoundSubstitutionTests
     [InlineData("this", "fixed", 7L, "MIST0276")]
     [InlineData("this", "open", 2L, "MIST0277")]
     [InlineData("captured-receiver", "fixed", 2L, "MIST0277")]
-    [InlineData("parameter-named-like-the-receiver", "fixed", 2L, "MIST0277")]
-    public void AReceiverMemberBound_IsReadOnlyThroughTheCalleesOwnReceiver(string receiver, string count, long argument, string? expected)
+    [InlineData("parameter-named-like-the-receiver", "fixed", 2L, null)]
+    [InlineData("parameter-named-like-the-receiver", "fixed", 7L, "MIST0276")]
+    [InlineData("parameter-named-like-the-receiver", "open", 2L, "MIST0277")]
+    public void AReceiverMemberBound_IsReadThroughTheInstanceTheCallSupplies(string receiver, string count, long argument, string? expected)
     {
         var block = new ExtensionBlock("self", "Probe", new ExtensionScope(null), null)
         {

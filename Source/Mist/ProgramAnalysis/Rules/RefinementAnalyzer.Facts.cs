@@ -136,6 +136,16 @@ internal sealed partial class RefinementAnalyzer
                     return factReading.Read(ref state, argument);
                 }
 
+                if(bound is { Member: { } through, Receiver.Parameter: { } receiverParameter } && reading.Argument(receiverParameter) is { } receiverArgument)
+                {
+                    return factReading.Read(ref state, FactReading.Through(receiverArgument, through));
+                }
+
+                if(bound is { Member: not null, Receiver: not null } && ReferenceEquals(reading, Reading.None))
+                {
+                    return factReading.Symbol(ref state, bound);
+                }
+
                 if(bound is { Name: "Length", Member: null } && measured is not null)
                 {
                     var source = factReading.Read(ref state, measured);
@@ -179,8 +189,9 @@ internal sealed partial class RefinementAnalyzer
         }
 
         // A member bound written through a local is read only when that local is the callee's own extension
-        // receiver: a captured receiver or another parameter is not the instance the call supplies, however
-        // it is named. A bound naming a sibling parameter reads what the call passes in that position.
+        // receiver or one of its parameters, whose member is read on the argument the call passes for it: a
+        // captured receiver is not the instance the call supplies, however it is named. A bound naming a
+        // sibling parameter reads what the call passes in that position.
         private sealed class Reading(LocalVariable? receiver, Func<Parameter, Admitted?>? sibling, Func<Parameter, Expression?>? argument = null, Expression? instance = null, bool currentInstance = true)
         {
             public Expression? Argument(Parameter parameter)
@@ -245,6 +256,7 @@ internal sealed partial class RefinementAnalyzer
                     { Operand: not null } => null,
                     { Member: { } member, Receiver: null } => proving.Signature(member),
                     { Member: { } member, Receiver: var through } when ReferenceEquals(through, receiver) => proving.Signature(member),
+                    { Member: { } member, Receiver.Parameter: { } owner } when Argument(owner) is not null => proving.Signature(member),
                     { Named: Parameter named } => sibling?.Invoke(named),
                     _ => null,
                 };

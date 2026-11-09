@@ -215,19 +215,19 @@ internal sealed class FactReading(LiftedReturns lifted)
             return new Term(supplied);
         }
 
-        if(bound.Member is Field field && bound.Receiver is null)
+        if(bound is { Member: Field or Property, Receiver: { } receiver })
         {
-            Expression member = instance is null || field.Modifiers.IsStatic ? new FieldReferenceExpression(field.DeclarationNode!, field)
-                : new MemberAccessExpression(instance.Node, instance, field.Name, field.Type, member: new FieldResult(field, field.DeclaringType ?? instance.Type, []));
-            return Read(ref state, member);
+            return Read(ref state, Through(new LocalReferenceExpression(receiver.Parameter?.DeclarationNode!, receiver), bound.Member));
         }
 
-        if(bound.Member is Property property && bound.Receiver is null)
+        if(bound.Member is Field field)
         {
-            Expression member = instance is null || property.Modifiers.IsStatic ? new PropertyReferenceExpression(property.DeclarationNode!, property)
-                : new MemberAccessExpression(instance.Node, instance, property.Name, property.Type,
-                    member: new PropertyResult(property, property.DeclaringType ?? instance.Type, []));
-            return Read(ref state, member);
+            return Read(ref state, instance is null || field.Modifiers.IsStatic ? new FieldReferenceExpression(field.DeclarationNode!, field) : Through(instance, field));
+        }
+
+        if(bound.Member is Property property)
+        {
+            return Read(ref state, instance is null || property.Modifiers.IsStatic ? new PropertyReferenceExpression(property.DeclarationNode!, property) : Through(instance, property));
         }
 
         if(bound.Named is TypeParameter { IsDependent: true } dependent && dependent.Domain is { } domain)
@@ -253,6 +253,18 @@ internal sealed class FactReading(LiftedReturns lifted)
         }
 
         return null;
+    }
+
+    public static MemberAccessExpression Through(Expression receiver, object member)
+    {
+        return member switch
+        {
+            Field field => new MemberAccessExpression(receiver.Node, receiver, field.Name, field.Type,
+                member: new FieldResult(field, field.DeclaringType ?? receiver.Type, [])),
+            Property property => new MemberAccessExpression(receiver.Node, receiver, property.Name, property.Type,
+                member: new PropertyResult(property, property.DeclaringType ?? receiver.Type, [])),
+            _ => throw new ArgumentException($"A member bound names a field or a property, not {member.GetType().Name}.", nameof(member)),
+        };
     }
 
     public void AddSymbols(ref FactState state, Value value, IMistType type, Expression? instance = null)

@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -135,6 +136,36 @@ public sealed class ContractReaderTests
         Assert.Contains(Assert.Single(limit.Variables), fact.Term.Variables);
         Assert.Contains(Assert.Single(count.Variables), fact.Term.Variables);
         Assert.Equal("Limit", Assert.Single(limit.Variables).DisplayName);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void APropertyLeafReachedThroughANamedReceiverIsRecordedOnlyWhenStable(bool stable)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var owner = h.Built.Type("Owner");
+        var property = new Property("Limit", bounded, new MemberModifiers())
+        {
+            DeclaringType = owner,
+            Getter = new PropertyAccessor { IsAuto = true },
+            Setter = stable ? null : new PropertyAccessor { IsAuto = true },
+        };
+        var ownerLocal = new LocalVariable("owner", owner) { Parameter = new Parameter("owner", owner) };
+        var limitRead = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(ownerLocal), "Limit", bounded, member: new PropertyResult(property, owner, []));
+        var startRead = HandBuiltRefinements.Local(bounded, "start");
+        var target = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, h.Binary(limitRead, BinaryOperatorKind.Subtract, startRead, h.Int), null);
+        var reading = new FactReading(new LiftedReturns());
+        var state = FactState.Empty;
+
+        var count = reading.Read(ref state, HandBuiltRefinements.Local(target, "count"));
+        var limit = reading.Read(ref state, limitRead);
+
+        var fact = Assert.Single(state.Bag.Common, fact => fact.Term.Variables.Length == 3);
+        Assert.Contains(Assert.Single(count.Variables), fact.Term.Variables);
+        Assert.Equal(stable, fact.Term.Variables.Contains(Assert.Single(limit.Variables)));
+        Assert.Equal("owner.Limit", Assert.Single(limit.Variables).DisplayName);
     }
 
     private sealed class ShowContract

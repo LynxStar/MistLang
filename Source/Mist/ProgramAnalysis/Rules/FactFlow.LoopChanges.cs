@@ -13,12 +13,41 @@ internal sealed partial class FactFlow
         public static Dictionary<FlowBlock, LoopChanges> Of(FlowGraph? graph)
         {
             var result = new Dictionary<FlowBlock, LoopChanges>();
-            var evaluated = graph?.Blocks.SelectMany(block => block.Steps).Where(step => step.Kind == FlowStepKind.Evaluate)
-                .Select(step => step.Node).ToHashSet(ReferenceEqualityComparer.Instance) ?? [];
-            foreach(var loop in graph?.Loops ?? [])
+            if(graph is null || graph.Loops.Count == 0)
             {
-                var nodes = BodyWalker.DescendantsAndSelf(loop.Body).OfType<Expression>().Where(evaluated.Contains)
-                    .Concat(loop.Latch.Steps.Select(step => step.Node).OfType<Expression>()).ToList();
+                return result;
+            }
+
+            var predecessors = graph.Blocks.Select(_ => new List<FlowBlock>()).ToArray();
+            foreach(var block in graph.Blocks)
+            {
+                foreach(var successor in block.Successors)
+                {
+                    predecessors[successor.Ordinal].Add(block);
+                }
+            }
+
+            foreach(var loop in graph.Loops)
+            {
+                // Only paths back to the header can change the next round; nested function bodies belong to separate graphs.
+                var region = new HashSet<FlowBlock> { loop.Header };
+                var pending = new Stack<FlowBlock>();
+                pending.Push(loop.Latch);
+                while(pending.TryPop(out var block))
+                {
+                    if(!region.Add(block))
+                    {
+                        continue;
+                    }
+
+                    foreach(var predecessor in predecessors[block.Ordinal])
+                    {
+                        pending.Push(predecessor);
+                    }
+                }
+
+                var nodes = graph.Blocks.Where(region.Contains).SelectMany(block => block.Steps)
+                    .Where(step => step.Kind == FlowStepKind.Evaluate).Select(step => step.Node).OfType<Expression>().ToList();
                 result.Add(loop.Header, new LoopChanges(nodes));
             }
 

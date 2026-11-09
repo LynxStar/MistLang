@@ -97,6 +97,46 @@ public sealed class ContractReaderTests
         _ = Assert.IsType<Refuted>(Chain.Prove(state.Bag, [outside], start.Variables.Concat(length.Variables).ToHashSet()));
     }
 
+    [Fact]
+    public void AnEqualityOverAnExpressionIsDeniedOnBothSides()
+    {
+        var h = new HandBuiltRefinements();
+        var a = new LocalVariable("a", h.Int);
+        var b = new LocalVariable("b", h.Int);
+        var sum = h.Binary(HandBuiltRefinements.Read(a), BinaryOperatorKind.Add, HandBuiltRefinements.Read(b), h.Int);
+        var x = new Value(h.Int, "x", HandBuiltModel.Node());
+        var left = new Value(h.Int, "a", HandBuiltModel.Node());
+        var right = new Value(h.Int, "b", HandBuiltModel.Node());
+
+        var required = Assert.IsType<Requirement>(Requirement.OfType(h.Refine(h.Int, ComparisonKind.Equal, sum, null)));
+        var denial = ContractReader.Denial(required, new Term(x), symbol => ReferenceEquals(symbol.Named, a) ? new Term(left) : ReferenceEquals(symbol.Named, b) ? new Term(right) : null);
+
+        _ = Assert.IsType<BinaryExpression>(Assert.Single(required.Bounds).Operand);
+        var difference = new Term(x).Subtract(new Term(left)).Subtract(new Term(right));
+        Assert.Equal([new Alternative([new Fact(difference.Add(new Term(1)))]), new Alternative([new Fact(difference.Scale(-1).Add(new Term(1)))])], denial);
+    }
+
+    [Fact]
+    public void AStablePropertyLeafInAnExpressionContractIsRecorded()
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var property = new Property("Limit", bounded, new MemberModifiers()) { DeclaringType = h.Built.Type("Owner"), Getter = new PropertyAccessor { IsAuto = true } };
+        var limitRead = new PropertyReferenceExpression(HandBuiltModel.Node(), property);
+        var startRead = HandBuiltRefinements.Local(bounded, "start");
+        var target = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, h.Binary(limitRead, BinaryOperatorKind.Subtract, startRead, h.Int), null);
+        var reading = new FactReading(new LiftedReturns());
+        var state = FactState.Empty;
+
+        var count = reading.Read(ref state, HandBuiltRefinements.Local(target, "count"));
+        var limit = reading.Read(ref state, limitRead);
+
+        var fact = Assert.Single(state.Bag.Common, fact => fact.Term.Variables.Length == 3);
+        Assert.Contains(Assert.Single(limit.Variables), fact.Term.Variables);
+        Assert.Contains(Assert.Single(count.Variables), fact.Term.Variables);
+        Assert.Equal("Limit", Assert.Single(limit.Variables).DisplayName);
+    }
+
     private sealed class ShowContract
     {
         public ShowContract(HandBuiltRefinements h)

@@ -161,6 +161,7 @@ internal static class RefinementFindings
         {
             LocalReferenceExpression local => local.Local.Name,
             FieldReferenceExpression field => field.Field.Name,
+            PropertyReferenceExpression property => property.Property.Name,
             ThisExpression => "this",
             TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true } named } => named.Name,
             MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",

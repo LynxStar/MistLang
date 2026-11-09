@@ -222,6 +222,14 @@ internal sealed class FactReading(LiftedReturns lifted)
             return Read(ref state, member);
         }
 
+        if(bound.Member is Property property && bound.Receiver is null)
+        {
+            Expression member = instance is null || property.Modifiers.IsStatic ? new PropertyReferenceExpression(property.DeclarationNode!, property)
+                : new MemberAccessExpression(instance.Node, instance, property.Name, property.Type,
+                    member: new PropertyResult(property, property.DeclaringType ?? instance.Type, []));
+            return Read(ref state, member);
+        }
+
         if(bound.Named is TypeParameter { IsDependent: true } dependent && dependent.Domain is { } domain)
         {
             if(state.Bindings.Get(dependent) is not { } value)

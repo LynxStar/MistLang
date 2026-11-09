@@ -35,7 +35,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                     return new Requirement(Interval(kind, constant), []);
                 }
 
-                return kind != ComparisonKind.Equal && Symbol(bound, kind) is { } symbolic
+                return Symbol(bound, kind) is { } symbolic && (kind != ComparisonKind.Equal || symbolic.Operand is BinaryExpression or UnaryExpression)
                     ? new Requirement(Admitted.Everything, [symbolic])
                     : null;
 

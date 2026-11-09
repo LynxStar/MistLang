@@ -58,7 +58,12 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
         foreach(var root in context.Bodies)
         {
             new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget).Judge(
-                FlowGraphBuilder.Build(root.Root), FactFlow.Nothing, root.Member is Method method ? method.ParametersList : []);
+                FlowGraphBuilder.Build(root.Root), FactFlow.Nothing, root.Member switch
+                {
+                    Method method => method.ParametersList,
+                    Indexer indexer => indexer.ParametersList,
+                    _ => [],
+                });
         }
 
         foreach(var list in context.Nodes.OfType<ListPattern>())
@@ -374,6 +379,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             }
 
             Proof? proof = null;
+            var reported = 0;
             for(var i = 0; i < considered.Count; i++)
             {
                 var outcome = Requirement.OfType(considered[i]) is { } contract ? Proves(state, value, contract, reading, measured) : null;
@@ -382,7 +388,10 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     return;
                 }
 
-                proof = i == 0 ? outcome : proof;
+                if(i == 0 || (outcome is Exhausted && proof is not Exhausted))
+                {
+                    (proof, reported) = (outcome, i);
+                }
             }
 
             var known = Known(state, value);
@@ -398,13 +407,13 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 return;
             }
 
-            if(LiteralPredicates.Applies(considered[0]))
+            if(LiteralPredicates.Applies(considered[reported]))
             {
                 RefinementFindings.ReportLiteral(
-                    context, value, considered[0], DiagnosticSnapshot.Type(target), at,
+                    context, value, considered[reported], DiagnosticSnapshot.Type(target), at,
                     Requirement.IsAnonymous(target) ? onConstraint : null, literal, matchLimit);
             }
-            else if(Requirement.OfType(considered[0]) is { } required)
+            else if(Requirement.OfType(considered[reported]) is { } required)
             {
                 RefinementFindings.Report(
                     context, known.Values, value, Stated(Read(required, proving: false, reading), Length(state, measured)), DiagnosticSnapshot.Type(target), at,

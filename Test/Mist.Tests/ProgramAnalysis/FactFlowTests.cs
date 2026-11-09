@@ -399,6 +399,103 @@ public sealed class FactFlowTests
         Assert.Equal($"Argument 'used' is not proven to satisfy the refinement constraint '<= available' on parameter 'needed' {failing}.", finding.Message);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnIndexerAccessorSeedsAPositiveCountsWhereClauseAtEntry(bool indexer)
+    {
+        var h = new HandBuiltRefinements();
+        var span = h.Sequence("Span");
+        var zeroOrPositive = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L, "ZeroOrPositiveInt");
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 1L, "PositiveInt");
+        var itemsParameter = new Parameter("items", span);
+        var startParameter = new Parameter("start", zeroOrPositive);
+        var items = new LocalVariable("items", span) { Parameter = itemsParameter };
+        var start = new LocalVariable("start", zeroOrPositive) { Parameter = startParameter };
+        var operand = h.Binary(h.Length(HandBuiltRefinements.Read(items)), BinaryOperatorKind.Subtract, HandBuiltRefinements.Read(start), h.Int);
+        var countParameter = new Parameter("count", h.Refine(positive, ComparisonKind.LessThanOrEqual, operand, null));
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(h.At(HandBuiltRefinements.Read(items), HandBuiltRefinements.Read(start))));
+        List<Parameter> parameters = [itemsParameter, startParameter, countParameter];
+        object member = indexer
+            ? new Indexer(h.Int, parameters, new MemberModifiers())
+            : new Method("Show", h.Int, parameters, new MemberModifiers()) { Body = body };
+
+        Assert.Empty(h.Built.Analyze(new RefinementAnalyzer(), body, member: member));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AStablePropertyInAWhereClauseOperandIsReadAtEntry(bool counted)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, 0L, 1_000_000L, "Bounded");
+        var owner = h.Built.Type("Owner");
+        var property = new Property("Limit", bounded, new MemberModifiers()) { DeclaringType = owner, Getter = new PropertyAccessor { IsAuto = true } };
+        var limit = new PropertyReferenceExpression(HandBuiltModel.Node(), property);
+        var startParameter = new Parameter("start", bounded);
+        var start = new LocalVariable("start", bounded) { Parameter = startParameter };
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 1L, "Positive");
+        var countParameter = new Parameter("count", h.Refine(positive, ComparisonKind.LessThanOrEqual, h.Binary(limit, BinaryOperatorKind.Subtract, HandBuiltRefinements.Read(start), h.Int), null));
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Need(HandBuiltRefinements.Read(start), h.Refine(h.Int, ComparisonKind.LessThan, limit, null)));
+        var use = new Method("Use", h.Int, counted ? [startParameter, countParameter] : [startParameter], new MemberModifiers()) { Body = body };
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body, owner: owner, member: use);
+
+        if(counted)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            var finding = Assert.Single(findings);
+            Assert.Equal("MIST0273", finding.Number.Value);
+            Assert.EndsWith("(fails when start >= Limit).", finding.Message, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AUnionWithAnUnfinishedConstituentAndNoProofIsRefusedAsUnfinished(bool unfinishedFirst)
+    {
+        var h = new HandBuiltRefinements();
+        var ten = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 10L, "Ten");
+        var belowY = h.Refine(h.Int, ComparisonKind.LessThanOrEqual, HandBuiltRefinements.Local(h.Int, "y"), "BelowY");
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Need(HandBuiltRefinements.Local(h.Int, "x"), new UnionType(unfinishedFirst ? [belowY, ten] : [ten, belowY])));
+
+        var finding = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(new Budget(3)), body));
+
+        Assert.Equal("MIST0485", finding.Number.Value);
+        Assert.StartsWith("Could not finish proving '<= y' for 'x'", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0L, true)]
+    [InlineData(1L, false)]
+    public void AnEqualityOverAnExpressionIsProvenByAnExactGuard(long offset, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var bounded = h.Between(h.Int, -100L, 100L, "Bounded");
+        var x = HandBuiltRefinements.Local(h.Int, "x");
+        var sum = h.Binary(HandBuiltRefinements.Local(bounded, "a"), BinaryOperatorKind.Add, HandBuiltRefinements.Local(bounded, "b"), h.Int);
+        var guard = h.Binary(x, BinaryOperatorKind.Equal, h.Binary(sum, BinaryOperatorKind.Add, h.Literal(offset), h.Int));
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(guard, HandBuiltRefinements.Need(x, h.Refine(h.Int, ComparisonKind.Equal, sum, null))));
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body);
+
+        if(admitted)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            var finding = Assert.Single(findings);
+            Assert.Equal("MIST0272", finding.Number.Value);
+            Assert.Contains("(fails when", finding.Message, StringComparison.Ordinal);
+        }
+    }
+
     private static (Block Body, Method Show) Show(HandBuiltRefinements h, bool guarded)
     {
         var span = h.Sequence("Span");

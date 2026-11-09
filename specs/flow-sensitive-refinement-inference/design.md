@@ -285,11 +285,19 @@ machine may not rise by more than a tenth over the run before the change. The
 levers, in order: projection before every proof; a projection computed once per
 value and bag and carried with the state, so a read of what a variable admits is
 a lookup and not a chain; a proof run only where a contract is judged, never on
-every step; the `Common`/`Alternatives` split, so a join whose bindings agree
-adds nothing; one `FlowGraph` per body root built once and shared through
+every step; the solver's worklist visiting blocks in reverse postorder, so a
+block is joined after its predecessors have settled and the joins roughly halve;
+a join that starts from one incoming state's bag and index and adds what the
+other side contributes, instead of rebuilding both from the fact list; the
+`Common`/`Alternatives` split, so a join whose bindings agree adds nothing; one
+`FlowGraph` per body root built once and shared through
 `AnalysisContext.GraphOf(SourceRoot)` instead of the eight rebuilds today; the
 cap and the rounds. If the budget is missed, the cap and the rounds are tuned
-first and the fact language last.
+first and the fact language last. Measured with the first three levers in place
+(Virtue, Debug): 1.57 s, of which `Join` takes 0.9 s over 1,372 joins, each
+rebuilding the bag and its index from about 45 facts, and `Transfer` 0.5 s over
+26,800 steps; the worklist order and the extending join are the levers that
+address those two figures.
 
 ## Tests
 

@@ -57,6 +57,29 @@ internal static class Chain
         return new Proven { Runs = runs };
     }
 
+    internal static IEnumerable<Alternative> Without(IEnumerable<Fact> source, IReadOnlySet<Value> removed, ProofBudget meter)
+    {
+        var facts = source.ToList();
+        var affected = facts.Where(fact => fact.Term.Variables.Any(removed.Contains)).ToList();
+        var untouched = facts.Where(fact => !fact.Term.Variables.Any(removed.Contains)).ToList();
+        var keep = affected.SelectMany(fact => fact.Term.Variables).Where(value => !removed.Contains(value)).ToHashSet();
+        foreach(var expanded in Expand(affected, meter))
+        {
+            var projected = Remove(expanded, keep, meter);
+            if(meter.Expired)
+            {
+                break;
+            }
+
+            yield return new Alternative(untouched.Concat(projected));
+        }
+
+        if(meter.Expired)
+        {
+            yield return new Alternative([], exhausted: true);
+        }
+    }
+
     private static Proof? Pair(Alternative projected, IReadOnlySet<Value> contractValues, ProofBudget meter)
     {
         var contract = contractValues.OrderBy(value => value.Id).ToImmutableArray();

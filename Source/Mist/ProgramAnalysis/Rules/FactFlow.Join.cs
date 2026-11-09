@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Facts;
-using Mist.ProgramModel.Model.Patterns;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -13,87 +12,57 @@ internal sealed partial class FactFlow
             return left.Bag.Unreachable ? right : left;
         }
 
-        var inputs = Agreeing(left.CompoundInputs, right.CompoundInputs);
-        var results = Agreeing(left.Results, right.Results);
-        var common = left.Bag.Shared(right.Bag);
-        var joined = Nothing with { Unseen = unseenWrites, IsSummary = true, PatternSources = left.PatternSources, CompoundInputs = inputs, Results = results, Bag = common };
-        foreach(var (holder, mine) in left.Bindings.Values)
+        if(ReferenceEquals(left, right))
         {
-            if(right.Bindings.Get(holder) is not { } theirs)
+            return left;
+        }
+
+        var joined = Nothing with
+        {
+            Unseen = unseenWrites,
+            PatternSources = left.PatternSources,
+            CompoundInputs = Agreeing(left.CompoundInputs, right.CompoundInputs),
+            Results = Agreeing(left.Results, right.Results),
+        };
+        var mine = new List<Fact>();
+        var theirs = new List<Fact>();
+        var pairs = new Dictionary<(Value, Value), Value>();
+        foreach(var holder in left.Bindings.Order)
+        {
+            var before = left.Bindings.Values[holder];
+            if(right.Bindings.Get(holder) is not { } after)
             {
                 continue;
             }
 
-            var before = left.Intervals(mine);
-            var values = before.Or(right.Intervals(theirs));
-            var known = left.Details.GetValueOrDefault(mine) ?? Knowledge.Unknown;
-            var other = right.Details.GetValueOrDefault(theirs) ?? Knowledge.Unknown;
-            var changes = known.Changes;
-            var lowerChanges = known.LowerChanges;
-            var upperChanges = known.UpperChanges;
-            if(!values.Equals(before))
+            if(!pairs.TryGetValue((before, after), out var value))
             {
-                changes++;
-                if(values.Intervals.Length > 0 && before.Intervals.Length > 0)
+                value = ReferenceEquals(before, after) ? before : new Value(before.Type, before.DisplayName, before.Node);
+                pairs.Add((before, after), value);
+                if(!ReferenceEquals(before, after))
                 {
-                    var low = values.Intervals[0].Low;
-                    var high = values.Intervals[^1].High;
-                    var widened = false;
-                    if(low != before.Intervals[0].Low)
-                    {
-                        lowerChanges++;
-                        if(lowerChanges > 2)
-                        {
-                            low = null;
-                            widened = true;
-                        }
-                    }
-
-                    if(high != before.Intervals[^1].High)
-                    {
-                        upperChanges++;
-                        if(upperChanges > 2)
-                        {
-                            high = null;
-                            widened = true;
-                        }
-                    }
-
-                    if(widened || (changes > 2 && values.Intervals.Length > 1))
-                    {
-                        values = new IntegralSet([new(low, high)]);
-                    }
+                    mine.Add(new Fact(new Term(value).Subtract(new Term(before)), Relation.Equal));
+                    theirs.Add(new Fact(new Term(value).Subtract(new Term(after)), Relation.Equal));
                 }
             }
 
-            var real = known.Real is { } leftReal && other.Real is { } rightReal && leftReal.Kind == rightReal.Kind ? leftReal.Or(rightReal) : null;
-            var realChanges = known.RealChanges;
-            if(real is not null && known.Real is { } previousReal && !real.Equals(previousReal))
-            {
-                realChanges++;
-                real = realChanges > 2 ? real.WidenedAgainst(previousReal) : real;
-            }
-
-            var merged = new Knowledge(FactState.AdmittedValues(values), known.Bounds.IsEmpty ? known.Bounds : known.Bounds.Intersect(other.Bounds), changes,
-                known.Length is { } a && other.Length is { } b ? a.Or(b) : null,
-                Equals(known.Slice, other.Slice) ? known.Slice : null,
-                known.RefusedSlice && other.RefusedSlice,
-                Equals(known.Literal, other.Literal) ? known.Literal : null,
-                Equals(known.IndexValue, other.IndexValue) ? known.IndexValue : null, real, realChanges, lowerChanges, upperChanges);
-            var value = ReferenceEquals(mine, theirs) ? mine : FactReading.Fresh(ref joined, mine.Type, mine.DisplayName, mine.Node);
-            joined = joined with { Bindings = joined.Bindings.Set(holder, value), Bag = joined.Bag.Add(Fact.In(value, values, merged: true)) };
-            joined = joined.SetItem(holder, merged);
-            foreach(var bound in merged.Bounds)
-            {
-                if(bound.Domain is { High: { } high } && bound.Kind is ComparisonKind.LessThan or ComparisonKind.LessThanOrEqual)
-                {
-                    var strict = bound.Kind == ComparisonKind.LessThan ? 1 : 0;
-                    joined = joined with { Bag = joined.Bag.Add(new Fact(new Term(value).Add(new Term(strict - high)))) };
-                }
-            }
+            joined = joined with { Bindings = joined.Bindings.Set(holder, value) };
+            joined = joined.SetItem(holder, JoinKnowledge(left.Details.GetValueOrDefault(before) ?? Knowledge.Unknown,
+                right.Details.GetValueOrDefault(after) ?? Knowledge.Unknown));
         }
 
-        return joined;
+        return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap) };
+    }
+
+    private static Knowledge JoinKnowledge(Knowledge left, Knowledge right)
+    {
+        return new Knowledge(left.Values.Or(right.Values), left.Bounds.Intersect(right.Bounds),
+            left.Length is { } a && right.Length is { } b ? a.Or(b) : null,
+            Equals(left.Slice, right.Slice) ? left.Slice : null,
+            left.RefusedSlice && right.RefusedSlice,
+            Equals(left.Literal, right.Literal) ? left.Literal : null,
+            Equals(left.IndexValue, right.IndexValue) ? left.IndexValue : null,
+            left.Real is { } mine && right.Real is { } theirs && mine.Kind == theirs.Kind ? mine.Or(theirs) : null);
     }
 
     private static ImmutableDictionary<TKey, Term> Agreeing<TKey>(ImmutableDictionary<TKey, Term> left, ImmutableDictionary<TKey, Term> right)
@@ -106,69 +75,5 @@ internal sealed partial class FactFlow
 
         var differing = left.Where(pair => !right.TryGetValue(pair.Key, out var term) || !pair.Value.Equals(term)).Select(pair => pair.Key).ToList();
         return differing.Count == 0 ? left : left.RemoveRange(differing);
-    }
-
-    private static bool SameAliasing(Bindings left, Bindings right)
-    {
-        var forward = new Dictionary<Value, Value>();
-        var backward = new Dictionary<Value, Value>();
-        foreach(var (holder, mine) in left.Values)
-        {
-            if(right.Get(holder) is not { } theirs || (forward.TryGetValue(mine, out var paired) && !ReferenceEquals(paired, theirs))
-                || (backward.TryGetValue(theirs, out var reverse) && !ReferenceEquals(reverse, mine)))
-            {
-                return false;
-            }
-
-            forward[mine] = theirs;
-            backward[theirs] = mine;
-        }
-
-        return true;
-    }
-
-    public bool Same(FactState left, FactState right)
-    {
-        if(left.Bag.Unreachable || right.Bag.Unreachable)
-        {
-            return left.Bag.Unreachable == right.Bag.Unreachable;
-        }
-
-        if(left.IsSummary != right.IsSummary || left.Bindings.Values.Count != right.Bindings.Values.Count
-            || left.Results.Count != right.Results.Count || left.Results.Any(pair => !right.Results.TryGetValue(pair.Key, out var term) || !pair.Value.Equals(term))
-            || left.CompoundInputs.Count != right.CompoundInputs.Count || left.CompoundInputs.Any(pair => !right.CompoundInputs.TryGetValue(pair.Key, out var term) || !pair.Value.Equals(term)))
-        {
-            return false;
-        }
-
-        var relations = left.Bag.Common.Where(fact => fact.Term.Variables.Length > 1).ToHashSet();
-        if(!relations.SetEquals(right.Bag.Common.Where(fact => fact.Term.Variables.Length > 1)))
-        {
-            return false;
-        }
-
-        if(!SameAliasing(left.Bindings, right.Bindings))
-        {
-            return false;
-        }
-
-        foreach(var (holder, value) in left.Bindings.Values)
-        {
-            if(right.Bindings.Get(holder) is not { } other || !left.Intervals(value).Equals(right.Intervals(other)))
-            {
-                return false;
-            }
-
-            var mine = left.Details.GetValueOrDefault(value) ?? Knowledge.Unknown;
-            var theirs = right.Details.GetValueOrDefault(other) ?? Knowledge.Unknown;
-            if(!mine.Bounds.SetEquals(theirs.Bounds) || !Equals(mine.Length, theirs.Length) || !Equals(mine.Slice, theirs.Slice)
-                || mine.RefusedSlice != theirs.RefusedSlice || !Equals(mine.Literal, theirs.Literal)
-                || !Equals(mine.IndexValue, theirs.IndexValue) || !Equals(mine.Real, theirs.Real))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

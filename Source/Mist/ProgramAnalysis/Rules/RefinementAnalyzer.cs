@@ -31,23 +31,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// neither an interval nor a sound literal decision is met only by a value already of that refinement,
 /// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
 /// </summary>
-internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget budget) : IProgramAnalyzer
+internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget budget, int alternativeCap = Bag.AlternativeCap) : IProgramAnalyzer
 {
-    public RefinementAnalyzer()
-        : this(LiteralPredicates.MatchLimit, Budget.Default)
-    {
-    }
-
-    public RefinementAnalyzer(TimeSpan matchLimit)
-        : this(matchLimit, Budget.Default)
-    {
-    }
-
-    public RefinementAnalyzer(Budget budget)
-        : this(LiteralPredicates.MatchLimit, budget)
-    {
-    }
-
     public string Id => "refinement-proving";
 
     public void Analyze(AnalysisContext context)
@@ -57,7 +42,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget).Judge(
+            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget, alternativeCap).Judge(
                 FlowGraphBuilder.Build(root.Root), FactFlow.Nothing, root.Member switch
                 {
                     Method method => method.ParametersList,
@@ -70,12 +55,12 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedElements(list, reads);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedElements(list, reads);
             }
 
             if(list.Slice is { Method: { } slice } sliced)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedSliceElements(list, sliced, slice);
+                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedSliceElements(list, sliced, slice);
             }
         }
 
@@ -97,7 +82,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget).NeedArguments(
+                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedArguments(
                         FactFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
@@ -105,7 +90,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
     }
 
     private sealed partial class Proving(
-        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget)
+        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget, int alternativeCap)
     {
         public void Judge(FlowGraph graph, FactState entry, IReadOnlyList<Parameter>? parameters = null)
         {
@@ -113,14 +98,14 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 foreach(var nested in graph.Nested.Values)
                 {
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
                 }
 
                 return;
             }
 
             entry = Prepare(entry with { Unseen = unseenWrites }, graph, parameters ?? []);
-            var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph), entry);
+            var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph, alternativeCap), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -184,7 +169,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
                     break;
             }
         }

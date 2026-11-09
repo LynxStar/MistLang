@@ -48,6 +48,34 @@ public sealed class BagTests
     }
 
     [Fact]
+    public void AConfiguredCapFollowsAdditionsAndKeepsFactOrderWhenMerging()
+    {
+        var model = new FactModel();
+        var b = model.Value("b");
+        var a = model.Value("a");
+        var start = new Bag([], [Alternative.Empty], alternativeCap: 1);
+        var bag = start.AddAlternatives([new Alternative([Eq(-1, (a, 1)), Eq(-2, (b, 1))]),
+            new Alternative([Eq(-100, (a, 1)), Eq(-200, (b, 1))])]);
+
+        var merged = Assert.Single(bag.Alternatives);
+        Assert.Equal([a, b], merged.Facts.Select(fact => fact.Subject).ToArray());
+        Assert.Equal(new IntegralSet([new(1, 1), new(100, 100)]), merged.Facts[0].Values);
+        Assert.Equal(new IntegralSet([new(2, 2), new(200, 200)]), merged.Facts[1].Values);
+        Assert.All(merged.Facts, fact => Assert.True(fact.IsMerged));
+    }
+
+    [Fact]
+    public void AJoinThatAddsNothingReusesTheSharedAncestorBag()
+    {
+        var model = new FactModel();
+        var x = model.Value("x");
+        var prefix = MakeBag(Le(0, (x, -1)));
+        _ = prefix.Intervals(x);
+
+        Assert.Same(prefix, prefix.Join(prefix));
+    }
+
+    [Fact]
     public void AProjectionThatExhaustsItsBudgetAdmitsEverythingEveryTime()
     {
         var model = new FactModel();

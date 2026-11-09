@@ -12,7 +12,7 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted, FieldEffects? effects = null, FlowGraph? graph = null)
+internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted, FieldEffects? effects = null, FlowGraph? graph = null, int alternativeCap = Bag.AlternativeCap)
     : IFlowLattice<FactState>
 {
     private readonly FieldEffects effects = effects ?? new();
@@ -22,7 +22,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
 
     public FactState Transfer(FactState state, FlowStep step)
     {
-        state = state with { Unseen = unseenWrites, IsSummary = false };
+        state = state with { Unseen = unseenWrites, Bag = state.Bag.WithCap(alternativeCap) };
         if(step.Kind == FlowStepKind.Evaluate && compoundReads.TryGetValue(step.Node, out var compounds))
         {
             foreach(var compound in compounds)
@@ -131,7 +131,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             reading.AddSymbols(ref state, value, local.Type);
         }
 
-        return state.SetItem(local, known);
+        return RememberBoolean(state.SetItem(local, known), value, expression);
     }
 
     private FactState Assign(FactState state, AssignmentExpression assignment)
@@ -162,7 +162,27 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             reading.AddSymbols(ref state, value, assignment.Target.Type);
         }
 
-        return state.SetItem(holder, known);
+        return RememberBoolean(state.SetItem(holder, known), value, assignment.Value);
+    }
+
+    private FactState RememberBoolean(FactState state, Value value, Expression? expression)
+    {
+        if(expression is not BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } comparison
+            || Comparison(comparison.OperatorKind) is not { } kind || IntegralTypes.Range(comparison.Left.Type) is null
+            || IntegralTypes.Range(comparison.Right.Type) is null)
+        {
+            return state;
+        }
+
+        var fact = ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right));
+        var positive = comparison.OperatorKind != BinaryOperatorKind.NotEqual;
+        var yes = new Fact(new Term(value).Subtract(new Term(positive ? 1 : 0)), Relation.Equal);
+        var no = new Fact(new Term(value).Subtract(new Term(positive ? 0 : 1)), Relation.Equal);
+        return state with
+        {
+            Bag = state.Bag.AddAlternatives(new[] { new Alternative([yes, fact]) }
+            .Concat(fact.Denial().Select(alternative => alternative.Add([no]))))
+        };
     }
 
     private bool AssignmentHolds(ref FactState state, IMistType target, Term term)
@@ -211,11 +231,11 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
 
     private static FactState InvalidateFields(FactState state, bool all = false)
     {
-        foreach(var (holder, previous) in state.Bindings.Values)
+        foreach(var holder in state.Bindings.Order)
         {
             if(holder is Field field && (all || !field.Modifiers.IsReadonly))
             {
-                var value = FactReading.Fresh(ref state, field.Type, field.Name, previous.Node);
+                var value = FactReading.Fresh(ref state, field.Type, field.Name, state.Bindings.Values[holder].Node);
                 state = state with { Bindings = state.Bindings.Set(holder, value) };
             }
         }

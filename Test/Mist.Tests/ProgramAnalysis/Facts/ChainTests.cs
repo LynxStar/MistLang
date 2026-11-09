@@ -1,11 +1,39 @@
 using Mist.ProgramAnalysis.Facts;
 using static Mist.Tests.ProgramAnalysis.Facts.FactModel;
+using Comparison = Mist.ProgramAnalysis.Facts.Fact;
 
 namespace Mist.Tests.ProgramAnalysis.Facts;
 
 [Trait("Tier", "1")]
 public sealed class ChainTests
 {
+    [Fact]
+    public void RemovingAnOldValuePreservesTheCopiesHolesAndMergeProvenance()
+    {
+        var model = new FactModel();
+        var old = model.Value("old");
+        var copy = model.Value("copy");
+        var source = new[] { Comparison.In(old, new IntegralSet([new(1, 1), new(100, 100)]), merged: true), Eq(0, (copy, 1), (old, -1)) };
+
+        var alternatives = Chain.Without(source, new HashSet<Value> { old }, new ProofBudget(Limit)).ToList();
+        var bag = new Bag([], alternatives);
+
+        Assert.Equal(new IntegralSet([new(1, 1), new(100, 100)]), bag.Intervals(copy));
+        Assert.All(alternatives.SelectMany(alternative => alternative.Facts), fact => Assert.DoesNotContain(old, fact.Term.Variables));
+        Assert.All(alternatives.SelectMany(alternative => alternative.Facts), fact => Assert.True(fact.IsMerged));
+    }
+
+    [Fact]
+    public void RemovingAnOldValueRetainsExhaustionAsAnAlternative()
+    {
+        var old = new FactModel().Value("old");
+        var source = new[] { Comparison.In(old, new IntegralSet([new(1, 3)])) };
+
+        var alternatives = Chain.Without(source, new HashSet<Value> { old }, new ProofBudget(new Budget(0)));
+
+        Assert.True(Assert.Single(alternatives).IsExhausted);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

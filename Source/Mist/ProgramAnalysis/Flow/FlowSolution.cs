@@ -7,6 +7,11 @@ internal interface IFlowLattice<TState>
     bool Same(TState left, TState right);
 
     TState Transfer(TState state, FlowStep step);
+
+    TState Widen(TState previous, TState joined, int round)
+    {
+        return joined;
+    }
 }
 
 /// <summary>
@@ -41,6 +46,24 @@ internal sealed class FlowSolution<TState>
         var entries = new TState[count];
         var reached = new bool[count];
         var queued = new bool[count];
+        var changes = new int[count];
+        var headers = new bool[count];
+        foreach(var loop in graph.Loops)
+        {
+            headers[loop.Header.Ordinal] = true;
+        }
+
+        var outputs = new TState[count];
+        var available = new bool[count];
+        var predecessors = Enumerable.Range(0, count).Select(_ => new List<FlowBlock>()).ToArray();
+        foreach(var source in graph.Blocks)
+        {
+            foreach(var target in source.Successors)
+            {
+                predecessors[target.Ordinal].Add(source);
+            }
+        }
+
         var order = ReversePostorder(graph);
         var pending = new PriorityQueue<FlowBlock, int>();
 
@@ -59,26 +82,46 @@ internal sealed class FlowSolution<TState>
                 state = lattice.Transfer(state, step);
             }
 
+            if(available[block.Ordinal] && lattice.Same(outputs[block.Ordinal], state))
+            {
+                continue;
+            }
+
+            outputs[block.Ordinal] = state;
+            available[block.Ordinal] = true;
             foreach(var successor in block.Successors)
             {
                 var index = successor.Ordinal;
+                // Rebuild from current predecessor outputs so a widening summary replaces earlier rounds on every path through the body.
+                var hasInput = ReferenceEquals(successor, graph.Entry);
+                var joined = entry;
+                foreach(var predecessor in predecessors[index])
+                {
+                    if(available[predecessor.Ordinal])
+                    {
+                        joined = hasInput ? lattice.Join(joined, outputs[predecessor.Ordinal]) : outputs[predecessor.Ordinal];
+                        hasInput = true;
+                    }
+                }
 
                 if(reached[index])
                 {
-                    var joined = lattice.Join(entries[index], state);
-
-                    if(lattice.Same(joined, entries[index]))
+                    var previous = entries[index];
+                    if(lattice.Same(joined, previous))
                     {
                         continue;
                     }
 
-                    entries[index] = joined;
+                    var round = ++changes[index];
+                    joined = headers[index] ? lattice.Widen(previous, joined, round) : joined;
+                    if(lattice.Same(joined, previous))
+                    {
+                        continue;
+                    }
                 }
-                else
-                {
-                    entries[index] = state;
-                    reached[index] = true;
-                }
+
+                entries[index] = joined;
+                reached[index] = true;
 
                 if(!queued[index])
                 {

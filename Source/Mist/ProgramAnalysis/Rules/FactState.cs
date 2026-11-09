@@ -10,7 +10,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed record Bound(object Holder, ComparisonKind Kind, IntegralInterval? Domain = null);
 
-internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, int Changes = 0, Admitted? Length = null, StoredRange? Slice = null, bool RefusedSlice = false, LiteralValue? Literal = null, RangeBound? IndexValue = null, RealSet? Real = null, int RealChanges = 0, int LowerChanges = 0, int UpperChanges = 0)
+internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, Admitted? Length = null, StoredRange? Slice = null, bool RefusedSlice = false, LiteralValue? Literal = null, RangeBound? IndexValue = null, RealSet? Real = null)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 }
@@ -24,7 +24,6 @@ internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary
     public ImmutableDictionary<CompoundAssignmentExpression, Term> CompoundInputs { get; init; } = ImmutableDictionary<CompoundAssignmentExpression, Term>.Empty;
     public IReadOnlySet<object> Unseen { get; init; } = UnseenWrites.None;
     public ImmutableDictionary<LocalVariable, Expression> PatternSources { get; init; } = ImmutableDictionary<LocalVariable, Expression>.Empty;
-    public bool IsSummary { get; init; }
 
     public bool TryGetValue(object holder, out Knowledge known)
     {

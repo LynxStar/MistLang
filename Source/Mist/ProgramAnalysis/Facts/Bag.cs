@@ -7,21 +7,23 @@ internal sealed class Bag
     public const int AlternativeCap = 16;
     public static readonly Bag Empty = new([], [Alternative.Empty]);
 
-    public Bag(IEnumerable<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget = null)
-        : this([.. common.Distinct()], alternatives, mergeBudget, parent: null)
+    public Bag(IEnumerable<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget = null, int alternativeCap = AlternativeCap)
+        : this([.. common.Distinct()], alternatives, mergeBudget, parent: null, alternativeCap)
     {
     }
 
-    private Bag(ImmutableArray<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget, Bag? parent)
+    private Bag(ImmutableArray<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget, Bag? parent, int alternativeCap)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(alternativeCap, 1);
+        this.alternativeCap = alternativeCap;
         Common = common;
         index = parent?.index ?? FactIndex.Of(Common);
         this.parent = parent;
         var contradicted = Common.Any(fact => fact.IsContradiction) || index.Bounds.Values.Any(values => values.IsEmpty);
-        var viable = contradicted ? [] : alternatives.Where(alternative => !Contradicted(alternative)).ToList();
-        if(viable.Count > AlternativeCap)
+        var viable = contradicted ? [] : alternatives.Where(alternative => !Contradicted(alternative)).Distinct().ToList();
+        if(viable.Count > alternativeCap)
         {
-            var count = viable.Count - AlternativeCap + 1;
+            var count = viable.Count - alternativeCap + 1;
             var merged = MergePerVariable(viable.Take(count).Select(alternative => alternative.Add(Common)), mergeBudget);
             viable = [merged, .. viable.Skip(count)];
         }
@@ -38,8 +40,10 @@ internal sealed class Bag
         this.index = index;
         this.projections = Unreachable ? ImmutableDictionary<Value, IntegralSet>.Empty : projections;
         this.parent = parent;
+        alternativeCap = parent.alternativeCap;
     }
 
+    private readonly int alternativeCap;
     private readonly FactIndex index;
     private readonly Bag? parent;
     private ImmutableDictionary<Value, IntegralSet> projections = ImmutableDictionary<Value, IntegralSet>.Empty;
@@ -203,7 +207,7 @@ internal sealed class Bag
     public Bag AddAlternatives(IEnumerable<Alternative> alternatives)
     {
         var added = alternatives.ToList();
-        return new Bag(Common, Unreachable ? [] : Alternatives.SelectMany(existing => added.Select(next => existing.Add(next.Facts, next.IsExhausted))), null, this);
+        return new Bag(Common, Unreachable ? [] : Alternatives.SelectMany(existing => added.Select(next => existing.Add(next.Facts, next.IsExhausted))), null, this, alternativeCap);
     }
 
     /// <summary>
@@ -259,9 +263,28 @@ internal sealed class Bag
             return Unreachable ? other : this;
         }
 
-        var common = Common.Intersect(other.Common).ToList();
-        return new Bag(common, Alternatives.Select(alternative => alternative.Add(Common.Except(common)))
-            .Concat(other.Alternatives.Select(alternative => alternative.Add(other.Common.Except(common)))));
+        return Join(other, [], [], alternativeCap);
+    }
+
+    public Bag WithCap(int cap)
+    {
+        return cap == alternativeCap ? this : new Bag(Common, Unreachable ? [] : Alternatives, null, this, cap);
+    }
+
+    public Bag Join(Bag other, IEnumerable<Fact> leftFacts, IEnumerable<Fact> rightFacts, int cap)
+    {
+        if(Unreachable || other.Unreachable)
+        {
+            return Unreachable ? other : this;
+        }
+
+        var common = Shared(other);
+        var mine = Common.Where(fact => !common.Holds(fact)).Concat(leftFacts).ToList();
+        var theirs = other.Common.Where(fact => !common.Holds(fact)).Concat(rightFacts).ToList();
+        var alternatives = Alternatives.Select(alternative => alternative.Add(mine))
+            .Concat(other.Alternatives.Select(alternative => alternative.Add(theirs))).Distinct().ToImmutableArray();
+        return alternatives is [{ IsExhausted: false, Facts.IsEmpty: true }] ? common.WithCap(cap)
+            : new Bag(common.Common, alternatives, null, common, cap);
     }
 
     public static Alternative MergePerVariable(IEnumerable<Alternative> source, Budget? budget = null)

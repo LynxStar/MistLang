@@ -138,7 +138,7 @@ public sealed class ChainTests
         var values = new IntegralSet([new(1, 1), new(100, 100)]);
         var bag = MakeBag(Eq(-5, (x, 1)), Fact.In(unused, values));
 
-        _ = Assert.IsType<Proven>(Chain.Prove(bag, [new Alternative([Le(6, (x, -1))])], new HashSet<Value> { x }, new Budget(TimeSpan.FromMinutes(1), 1)));
+        _ = Assert.IsType<Proven>(Chain.Prove(bag, [new Alternative([Le(6, (x, -1))])], new HashSet<Value> { x }, new Budget(1)));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class ChainTests
         var c = model.Value("c");
         var bag = MakeBag(Eq(-1, (a, 1)), Eq(0, (b, 1), (a, -1)), Eq(0, (c, 1), (b, -1)));
 
-        _ = Assert.IsType<Exhausted>(Chain.Prove(bag, [new Alternative([Le(2, (c, -1))])], new HashSet<Value> { c }, new Budget(TimeSpan.FromMinutes(1), 1)));
+        _ = Assert.IsType<Exhausted>(Chain.Prove(bag, [new Alternative([Le(2, (c, -1))])], new HashSet<Value> { c }, new Budget(1)));
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public sealed class ChainTests
     {
         var x = new FactModel().Value("x");
 
-        _ = Assert.IsType<Exhausted>(Chain.Prove(MakeBag(Eq(0, (x, 1))), Eq(0, (x, 1)).Denial(), new HashSet<Value> { x }, new Budget(TimeSpan.Zero, 100)));
+        _ = Assert.IsType<Exhausted>(Chain.Prove(MakeBag(Eq(0, (x, 1))), Eq(0, (x, 1)).Denial(), new HashSet<Value> { x }, new Budget(0)));
     }
 
     [Fact]

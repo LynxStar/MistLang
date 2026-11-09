@@ -8,7 +8,7 @@ namespace Mist.Tests.ProgramAnalysis.Facts;
 internal sealed class FactModel
 {
     public HandBuiltRefinements Expressions { get; } = new();
-    public static readonly Budget Limit = new(TimeSpan.FromMinutes(1), Budget.Default.DerivedFacts);
+    public static readonly Budget Limit = new(Budget.Default.DerivedFacts);
 
     public Value Value(string name)
     {

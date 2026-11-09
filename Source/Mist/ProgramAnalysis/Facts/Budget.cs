@@ -1,40 +1,19 @@
-using System.Diagnostics;
-
 namespace Mist.ProgramAnalysis.Facts;
 
-internal sealed record Budget(TimeSpan Time, int DerivedFacts)
+internal sealed record Budget(int DerivedFacts)
 {
-    public static readonly Budget Default = new(TimeSpan.FromMilliseconds(50), 20_000);
+    public static readonly Budget Default = new(20_000);
 }
 
 internal sealed class ProofBudget(Budget limit)
 {
-    private readonly long started = Stopwatch.GetTimestamp();
-    private int derived;
-    private int checks;
+    public int Derived { get; private set; }
 
-    // Sampling the clock bounds small proofs by their fact work rather than a scheduler pause.
-    public bool Expired
+    public bool Expired => limit.DerivedFacts <= 0 || Derived > limit.DerivedFacts;
+
+    public bool Derive(int count = 1)
     {
-        get
-        {
-            if(derived > limit.DerivedFacts || limit.Time <= TimeSpan.Zero)
-            {
-                return true;
-            }
-
-            if(!field && (++checks & 255) == 0)
-            {
-                field = Stopwatch.GetElapsedTime(started) > limit.Time;
-            }
-
-            return field;
-        }
-    }
-
-    public bool Derive()
-    {
-        derived++;
+        Derived += count;
         return !Expired;
     }
 }

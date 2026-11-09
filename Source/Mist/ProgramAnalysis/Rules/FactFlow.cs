@@ -175,7 +175,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var current = state;
         var denial = ContractReader.Denial(required, term, bound => reading.Symbol(ref current, bound));
         state = current;
-        return denial is not null && Chain.Prove(state.Bag, denial, term.Coefficients.Keys.ToHashSet()) is Proven;
+        return denial is not null && Chain.Prove(state.Bag, denial, term.Variables.ToHashSet()) is Proven;
     }
 
     private static Value? Shared(IMistType type, Expression? expression, Term? term)
@@ -189,8 +189,8 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         }
 
         return expression is LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression
-            && term is { Constant.IsZero: true, Coefficients.Count: 1 } && term.Coefficients.First().Value.IsOne
-            ? term.Coefficients.First().Key : null;
+            && term is { Constant.IsZero: true, Variables.Length: 1 } && term.Multipliers[0].IsOne
+            ? term.Variables[0] : null;
     }
 
     private Knowledge KnowledgeOf(FactState state, Expression expression, IMistType target)
@@ -312,13 +312,13 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         }
 
         var term = reading.Read(ref state, access.Receiver);
-        if(term.Coefficients.Count != 1)
+        if(term.Variables.Length != 1)
         {
             return state;
         }
 
         var known = state.TryGetValue(local.Local, out var current) ? current : Knowledge.Unknown;
-        return state.SetItem(local.Local, known with { Bounds = known.Bounds.Add(new Bound(term.Coefficients.First().Key, kind, IntegralTypes.Range(bound.Type))) });
+        return state.SetItem(local.Local, known with { Bounds = known.Bounds.Add(new Bound(term.Variables[0], kind, IntegralTypes.Range(bound.Type))) });
     }
 
 }

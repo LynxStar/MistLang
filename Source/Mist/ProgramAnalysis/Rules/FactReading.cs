@@ -29,7 +29,7 @@ internal sealed class FactReading(LiftedReturns lifted)
             var operand = Evaluated(ref state, conversion.Operand);
             var temporary = new Value(conversion.Type, "conversion", conversion.Node);
             var bag = AddRange(state.Bag, temporary, range);
-            if(Chain.Prove(bag, BoundsDenial(operand, range), operand.Coefficients.Keys.ToHashSet()) is Proven)
+            if(Chain.Prove(bag, BoundsDenial(operand, range), operand.Variables.ToHashSet()) is Proven)
             {
                 return operand;
             }
@@ -115,8 +115,8 @@ internal sealed class FactReading(LiftedReturns lifted)
         {
             BinaryOperatorKind.Add => left.Add(right),
             BinaryOperatorKind.Subtract => left.Subtract(right),
-            BinaryOperatorKind.Multiply when left.Coefficients.Count == 0 => right.Scale(left.Constant),
-            BinaryOperatorKind.Multiply when right.Coefficients.Count == 0 => left.Scale(right.Constant),
+            BinaryOperatorKind.Multiply when left.Variables.Length == 0 => right.Scale(left.Constant),
+            BinaryOperatorKind.Multiply when right.Variables.Length == 0 => left.Scale(right.Constant),
             _ => null,
         };
         if(term is not null && Exactness.Holds(operation, term, state.Bag))
@@ -133,9 +133,9 @@ internal sealed class FactReading(LiftedReturns lifted)
         if(expression is MemberAccessExpression { Receiver: not ThisExpression } access)
         {
             var receiver = Read(ref state, access.Receiver);
-            if(RangeKnowledge.IsLength(access) && receiver is { Constant.IsZero: true, Coefficients.Count: 1 })
+            if(RangeKnowledge.IsLength(access) && receiver is { Constant.IsZero: true, Variables.Length: 1 })
             {
-                return new MemberHolder(receiver.Coefficients.First().Key, LengthMember(access.Receiver.Type));
+                return new MemberHolder(receiver.Variables[0], LengthMember(access.Receiver.Type));
             }
         }
 

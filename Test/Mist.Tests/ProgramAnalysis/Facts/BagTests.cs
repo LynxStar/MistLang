@@ -48,6 +48,19 @@ public sealed class BagTests
     }
 
     [Fact]
+    public void AProjectionThatExhaustsItsBudgetAdmitsEverythingEveryTime()
+    {
+        var model = new FactModel();
+        var x = model.Value("x");
+        var y = model.Value("y");
+        var bag = MakeBag(Comparison.In(x, new IntegralSet([new(0, 10)])), Comparison.In(y, new IntegralSet([new(0, 5)])), Eq(0, (x, 1), (y, -1)));
+
+        Assert.Equal(IntegralSet.Everything, Bag.Project(bag, x, new Budget(1)));
+        Assert.Equal(new IntegralSet([new(0, 5)]), Bag.Project(bag, x, Limit));
+        Assert.Equal(IntegralSet.Everything, Bag.Project(bag, x, new Budget(1)));
+    }
+
+    [Fact]
     public void MergePreservesHolesRatherThanTakingAnIntervalHull()
     {
         var a = new FactModel().Value("a");
@@ -147,7 +160,7 @@ public sealed class BagTests
     {
         var model = new FactModel();
         var a = model.Value("a");
-        var merged = Bag.MergePerVariable([new Alternative([Eq(-1, (a, 1))]), new Alternative([Eq(-100, (a, 1))])], new Budget(TimeSpan.Zero, 0));
+        var merged = Bag.MergePerVariable([new Alternative([Eq(-1, (a, 1))]), new Alternative([Eq(-100, (a, 1))])], new Budget(0));
         var bag = MakeBag().AddAlternatives([merged]).AddAlternatives([new Alternative([Le(0, (a, -1))])]);
 
         Assert.True(merged.IsExhausted);

@@ -30,9 +30,9 @@ internal sealed partial class RefinementAnalyzer
             {
                 var term = factReading.Read(ref state, value);
                 Value result;
-                if(term is { Constant.IsZero: true, Coefficients.Count: 1 } && term.Coefficients.First().Value.IsOne)
+                if(term is { Constant.IsZero: true, Variables.Length: 1 } && term.Multipliers[0].IsOne)
                 {
-                    result = term.Coefficients.First().Key;
+                    result = term.Variables[0];
                 }
                 else
                 {
@@ -114,7 +114,7 @@ internal sealed partial class RefinementAnalyzer
 
             var term = factReading.Read(ref state, expression);
             var denial = ContractReader.Denial(required, term, readSymbol);
-            var contractValues = term.Coefficients.Keys.Concat(denial?.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Coefficients.Keys) ?? []).ToHashSet();
+            var contractValues = term.Variables.Concat(denial?.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables) ?? []).ToHashSet();
             return denial is not null && Chain.Prove(state.Bag, denial, contractValues) is Proven;
 
             Term? readSymbol(SymbolicBound bound)
@@ -127,9 +127,9 @@ internal sealed partial class RefinementAnalyzer
                 if(bound is { Name: "Length", Member: null } && measured is not null)
                 {
                     var source = factReading.Read(ref state, measured);
-                    if(source.Coefficients.Count == 1 && source.Coefficients.First() is var receiver)
+                    if(source.Variables is [var receiver])
                     {
-                        var holder = new MemberHolder(receiver.Key, FactReading.LengthMember(measured.Type));
+                        var holder = new MemberHolder(receiver, FactReading.LengthMember(measured.Type));
                         if(state.Bindings.Get(holder) is not { } length)
                         {
                             var value = FactReading.Fresh(ref state, expression.Type, $"{RefinementFindings.Display(measured)}.Length", measured.Node);

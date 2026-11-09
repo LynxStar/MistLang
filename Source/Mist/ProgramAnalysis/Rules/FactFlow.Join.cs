@@ -13,8 +13,8 @@ internal sealed partial class FactFlow
             return left.Bag.Unreachable ? right : left;
         }
 
-        var inputs = left.CompoundInputs.Where(pair => right.CompoundInputs.TryGetValue(pair.Key, out var term) && pair.Value.Equals(term)).ToImmutableDictionary();
-        var results = left.Results.Where(pair => right.Results.TryGetValue(pair.Key, out var term) && pair.Value.Equals(term)).ToImmutableDictionary();
+        var inputs = Agreeing(left.CompoundInputs, right.CompoundInputs);
+        var results = Agreeing(left.Results, right.Results);
         var common = new Bag(left.Bag.Common.Intersect(right.Bag.Common), [Alternative.Empty]);
         var joined = Nothing with { Unseen = unseenWrites, IsSummary = true, PatternSources = left.PatternSources, CompoundInputs = inputs, Results = results, Bag = common };
         foreach(var (holder, mine) in left.Bindings.Values)
@@ -74,7 +74,7 @@ internal sealed partial class FactFlow
                 real = realChanges > 2 ? real.WidenedAgainst(previousReal) : real;
             }
 
-            var merged = new Knowledge(FactState.AdmittedValues(values), known.Bounds.Intersect(other.Bounds), changes,
+            var merged = new Knowledge(FactState.AdmittedValues(values), known.Bounds.IsEmpty ? known.Bounds : known.Bounds.Intersect(other.Bounds), changes,
                 known.Length is { } a && other.Length is { } b ? a.Or(b) : null,
                 Equals(known.Slice, other.Slice) ? known.Slice : null,
                 known.RefusedSlice && other.RefusedSlice,
@@ -96,6 +96,37 @@ internal sealed partial class FactFlow
         return joined;
     }
 
+    private static ImmutableDictionary<TKey, Term> Agreeing<TKey>(ImmutableDictionary<TKey, Term> left, ImmutableDictionary<TKey, Term> right)
+        where TKey : notnull
+    {
+        if(ReferenceEquals(left, right))
+        {
+            return left;
+        }
+
+        var differing = left.Where(pair => !right.TryGetValue(pair.Key, out var term) || !pair.Value.Equals(term)).Select(pair => pair.Key).ToList();
+        return differing.Count == 0 ? left : left.RemoveRange(differing);
+    }
+
+    private static bool SameAliasing(Bindings left, Bindings right)
+    {
+        var forward = new Dictionary<Value, Value>();
+        var backward = new Dictionary<Value, Value>();
+        foreach(var (holder, mine) in left.Values)
+        {
+            if(right.Get(holder) is not { } theirs || (forward.TryGetValue(mine, out var paired) && !ReferenceEquals(paired, theirs))
+                || (backward.TryGetValue(theirs, out var reverse) && !ReferenceEquals(reverse, mine)))
+            {
+                return false;
+            }
+
+            forward[mine] = theirs;
+            backward[theirs] = mine;
+        }
+
+        return true;
+    }
+
     public bool Same(FactState left, FactState right)
     {
         if(left.Bag.Unreachable || right.Bag.Unreachable)
@@ -110,8 +141,13 @@ internal sealed partial class FactFlow
             return false;
         }
 
-        var relations = left.Bag.Common.Where(fact => fact.Term.Coefficients.Count > 1).ToHashSet();
-        if(!relations.SetEquals(right.Bag.Common.Where(fact => fact.Term.Coefficients.Count > 1)))
+        var relations = left.Bag.Common.Where(fact => fact.Term.Variables.Length > 1).ToHashSet();
+        if(!relations.SetEquals(right.Bag.Common.Where(fact => fact.Term.Variables.Length > 1)))
+        {
+            return false;
+        }
+
+        if(!SameAliasing(left.Bindings, right.Bindings))
         {
             return false;
         }
@@ -119,11 +155,6 @@ internal sealed partial class FactFlow
         foreach(var (holder, value) in left.Bindings.Values)
         {
             if(right.Bindings.Get(holder) is not { } other || !left.Intervals(value).Equals(right.Intervals(other)))
-            {
-                return false;
-            }
-
-            if(left.Bindings.Values.Any(pair => ReferenceEquals(pair.Value, value) != ReferenceEquals(right.Bindings.Get(pair.Key), other)))
             {
                 return false;
             }

@@ -131,6 +131,6 @@ public sealed class ExactnessTests
         var h = new HandBuiltRefinements();
         var expression = h.Binary(h.Literal(1), BinaryOperatorKind.Add, h.Literal(1), h.Int);
 
-        Assert.False(Exactness.Holds(expression, new Term(2), MakeBag(), new Budget(TimeSpan.Zero, 0)));
+        Assert.False(Exactness.Holds(expression, new Term(2), MakeBag(), new Budget(0)));
     }
 }

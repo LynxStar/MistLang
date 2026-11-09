@@ -13,9 +13,10 @@ internal sealed class IntegralSet : IEquatable<IntegralSet>
 
     public IntegralSet(IEnumerable<IntegralInterval> intervals)
     {
+        var sorted = intervals.Where(interval => interval.Low is null || interval.High is null || interval.Low <= interval.High).ToList();
+        sorted.Sort((left, right) => left.Low is { } low ? right.Low is { } otherLow ? low.CompareTo(otherLow) : 1 : right.Low is null ? 0 : -1);
         var result = new List<IntegralInterval>();
-        foreach(var interval in intervals.Where(interval => interval.Low is null || interval.High is null || interval.Low <= interval.High)
-            .OrderBy(interval => interval.Low is not null).ThenBy(interval => interval.Low))
+        foreach(var interval in sorted)
         {
             if(result.Count > 0 && (result[^1].High is null || interval.Low is null || interval.Low <= result[^1].High + 1))
             {
@@ -29,10 +30,20 @@ internal sealed class IntegralSet : IEquatable<IntegralSet>
         }
 
         Intervals = [.. result];
+        var hash = new HashCode();
+        foreach(var interval in Intervals)
+        {
+            hash.Add(interval);
+        }
+
+        hashCode = hash.ToHashCode();
     }
+
+    private readonly int hashCode;
 
     public ImmutableArray<IntegralInterval> Intervals { get; }
     public bool IsEmpty => Intervals.IsEmpty;
+    private bool IsEverything => Intervals is [{ Low: null, High: null }];
 
     public static IntegralSet Of(Admitted admitted)
     {
@@ -41,11 +52,21 @@ internal sealed class IntegralSet : IEquatable<IntegralSet>
 
     public IntegralSet Or(IntegralSet other)
     {
-        return new IntegralSet(Intervals.Concat(other.Intervals));
+        return other.IsEmpty ? this : IsEmpty ? other : new IntegralSet(Intervals.Concat(other.Intervals));
     }
 
     public IntegralSet And(IntegralSet other)
     {
+        if(IsEverything || other.IsEmpty)
+        {
+            return other;
+        }
+
+        if(other.IsEverything || IsEmpty)
+        {
+            return this;
+        }
+
         return new IntegralSet(from left in Intervals
                                from right in other.Intervals
                                select new IntegralInterval(
@@ -60,7 +81,7 @@ internal sealed class IntegralSet : IEquatable<IntegralSet>
 
     public bool Equals(IntegralSet? other)
     {
-        return other is not null && Intervals.SequenceEqual(other.Intervals);
+        return ReferenceEquals(this, other) || (other is not null && hashCode == other.hashCode && Intervals.SequenceEqual(other.Intervals));
     }
 
     public override bool Equals(object? obj)
@@ -70,12 +91,6 @@ internal sealed class IntegralSet : IEquatable<IntegralSet>
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
-        foreach(var interval in Intervals)
-        {
-            hash.Add(interval);
-        }
-
-        return hash.ToHashCode();
+        return hashCode;
     }
 }

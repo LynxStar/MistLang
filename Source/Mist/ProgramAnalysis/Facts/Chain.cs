@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Mist.ProgramAnalysis.Facts;
 
@@ -13,6 +16,11 @@ internal sealed record Exhausted : Proof;
 
 internal static class Chain
 {
+    // Each memo is keyed by everything its work reads, the projected facts in order, and a hit charges the meter the facts the first
+    // run derived: a remembered answer exhausts a budget exactly when recomputing it would.
+    private static readonly ConditionalWeakTable<Value, ConcurrentDictionary<ImmutableArray<Fact>, (IntegralSet Values, int Derived)>> Projections = new();
+    private static readonly ConditionalWeakTable<Value, ConcurrentDictionary<PairKey, (Proof? Proof, int Derived)>> Pairs = new();
+
     public static Proof Prove(Bag bag, IReadOnlyList<Alternative> denial, IReadOnlySet<Value> contractValues, Budget? budget = null)
     {
         if(bag.Unreachable)
@@ -32,38 +40,16 @@ internal static class Chain
                     return new Exhausted { Runs = runs };
                 }
 
-                var projected = Project(bag.Common.Concat(alternative.Facts).Concat(broken.Facts), contractValues, meter);
+                var projected = Project(bag.Relevant(contractValues, alternative.Facts.Concat(broken.Facts)), contractValues, meter);
                 if(!seen.Add(projected))
                 {
                     continue;
                 }
 
                 runs++;
-                foreach(var expanded in Expand(projected.Facts, meter))
+                if(Pair(projected, contractValues, meter) is { } unproven)
                 {
-                    var remaining = Remove(expanded, new HashSet<Value>(), meter);
-                    if(meter.Expired)
-                    {
-                        return new Exhausted { Runs = runs };
-                    }
-
-                    if(!remaining.Any(fact => fact.IsContradiction))
-                    {
-                        var failing = Remove(expanded, contractValues, meter);
-                        if(meter.Expired)
-                        {
-                            return new Exhausted { Runs = runs };
-                        }
-
-                        var afterMerge = failing.Any(fact => fact.IsMerged)
-                            || projected.Facts.Any(fact => fact.IsMerged && fact.Values is not null);
-                        return new Refuted(new Alternative(failing), afterMerge) { Runs = runs };
-                    }
-                }
-
-                if(meter.Expired)
-                {
-                    return new Exhausted { Runs = runs };
+                    return unproven with { Runs = runs };
                 }
             }
         }
@@ -71,19 +57,68 @@ internal static class Chain
         return new Proven { Runs = runs };
     }
 
+    private static Proof? Pair(Alternative projected, IReadOnlySet<Value> contractValues, ProofBudget meter)
+    {
+        var contract = contractValues.OrderBy(value => value.Id).ToImmutableArray();
+        var known = contract.IsEmpty ? null : Pairs.GetValue(contract[0], _ => new());
+        var key = new PairKey(projected.Facts, contract);
+        if(known is not null && known.TryGetValue(key, out var memo))
+        {
+            return !meter.Derive(memo.Derived) ? new Exhausted() : memo.Proof;
+        }
+
+        var start = meter.Derived;
+        var proof = Judged(projected, contractValues, meter);
+        if(known is not null && proof is not Exhausted)
+        {
+            known[key] = (proof, meter.Derived - start);
+        }
+
+        return proof;
+    }
+
+    private static Proof? Judged(Alternative projected, IReadOnlySet<Value> contractValues, ProofBudget meter)
+    {
+        foreach(var expanded in Expand(projected.Facts, meter))
+        {
+            var remaining = Remove(expanded, new HashSet<Value>(), meter);
+            if(meter.Expired)
+            {
+                return new Exhausted();
+            }
+
+            if(!remaining.Any(fact => fact.IsContradiction))
+            {
+                var failing = Remove(expanded, contractValues, meter);
+                if(meter.Expired)
+                {
+                    return new Exhausted();
+                }
+
+                var afterMerge = failing.Any(fact => fact.IsMerged)
+                    || projected.Facts.Any(fact => fact.IsMerged && fact.Values is not null);
+                return new Refuted(new Alternative(failing), afterMerge);
+            }
+        }
+
+        return meter.Expired ? new Exhausted() : null;
+    }
+
     internal static Alternative Project(IEnumerable<Fact> source, IReadOnlySet<Value> contractValues, ProofBudget meter)
     {
         var facts = source.ToList();
         var reachable = contractValues.ToHashSet();
+        var linked = new bool[facts.Count];
         var changed = true;
         while(changed && !meter.Expired)
         {
             changed = false;
-            foreach(var fact in facts)
+            for(var i = 0; i < facts.Count; i++)
             {
-                if(fact.Term.Coefficients.Keys.Any(reachable.Contains))
+                if(!linked[i] && Mentions(facts[i], reachable))
                 {
-                    foreach(var value in fact.Term.Coefficients.Keys)
+                    linked[i] = true;
+                    foreach(var value in facts[i].Term.Variables)
                     {
                         changed |= reachable.Add(value);
                     }
@@ -91,12 +126,19 @@ internal static class Chain
             }
         }
 
-        return new Alternative(facts.Where(fact => fact.Term.Coefficients.Count == 0 || fact.Term.Coefficients.Keys.Any(reachable.Contains)));
+        return new Alternative(facts.Where(fact => fact.Term.Variables.IsEmpty || Mentions(fact, reachable)));
     }
 
     internal static IntegralSet? ProjectIntervals(IEnumerable<Fact> facts, Value value, ProofBudget meter)
     {
         var projected = Project(facts, new HashSet<Value> { value }, meter);
+        var known = Projections.GetValue(value, _ => new(InOrder.Instance));
+        if(known.TryGetValue(projected.Facts, out var memo))
+        {
+            return meter.Derive(memo.Derived) ? memo.Values : null;
+        }
+
+        var start = meter.Derived;
         var union = IntegralSet.Nothing;
         foreach(var expanded in Expand(projected.Facts, meter))
         {
@@ -109,7 +151,26 @@ internal static class Chain
             union = union.Or(SingleValue(remaining, value));
         }
 
-        return meter.Expired ? null : union;
+        if(meter.Expired)
+        {
+            return null;
+        }
+
+        known[projected.Facts] = (union, meter.Derived - start);
+        return union;
+    }
+
+    private static bool Mentions(Fact fact, HashSet<Value> values)
+    {
+        foreach(var value in fact.Term.Variables)
+        {
+            if(values.Contains(value))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static IntegralSet SingleValue(IEnumerable<Fact> facts, Value value)
@@ -126,10 +187,10 @@ internal static class Chain
             {
                 result = result.And(values);
             }
-            else if(fact.Values is null && fact.Term.Coefficients.Count == 1 && fact.Term.Coefficients.GetValueOrDefault(value) is var coefficient && !coefficient.IsZero)
+            else if(fact.Values is null && fact.Term.Variables is [var only] && only == value)
             {
                 var normalized = Integral(fact);
-                coefficient = normalized.Term.Coefficients[value];
+                var coefficient = normalized.Term.Multiplier(value);
                 var bound = -normalized.Term.Constant / coefficient;
                 result = result.And(new IntegralSet([normalized.Relation == Relation.Equal ? new(bound, bound)
                     : coefficient.Sign > 0 ? new(null, bound) : new(bound, null)]));
@@ -192,19 +253,18 @@ internal static class Chain
         var facts = Clean(source);
         while(!meter.Expired && !facts.Any(fact => fact.IsContradiction))
         {
-            var value = facts.SelectMany(fact => fact.Term.Coefficients.Keys).Where(value => !keep.Contains(value))
-                .GroupBy(value => value).OrderBy(group => group.Count()).ThenBy(group => group.Key.Id).Select(group => group.Key).FirstOrDefault();
+            var value = Rarest(facts, keep);
             if(value is null)
             {
                 break;
             }
 
-            var involving = facts.Where(fact => fact.Term.Coefficients.ContainsKey(value)).ToList();
-            var next = facts.Except(involving).ToList();
+            var involving = facts.Where(fact => fact.Term.Variables.Contains(value)).ToList();
+            var next = facts.Where(fact => !fact.Term.Variables.Contains(value)).ToList();
             var equality = involving.FirstOrDefault(fact => fact.Relation == Relation.Equal);
             if(equality is not null)
             {
-                var coefficient = equality.Term.Coefficients[value];
+                var coefficient = equality.Term.Multiplier(value);
                 foreach(var fact in involving.Where(fact => !ReferenceEquals(fact, equality)))
                 {
                     if(!meter.Derive())
@@ -213,22 +273,22 @@ internal static class Chain
                     }
 
                     var term = fact.Term.Scale(BigInteger.Abs(coefficient))
-                        .Subtract(equality.Term.Scale(fact.Term.Coefficients[value] * coefficient.Sign));
+                        .Subtract(equality.Term.Scale(fact.Term.Multiplier(value) * coefficient.Sign));
                     next.Add(new Fact(term, fact.Relation, fact.IsMerged || equality.IsMerged));
                 }
             }
             else
             {
-                foreach(var upper in involving.Where(fact => fact.Term.Coefficients[value].Sign > 0))
+                foreach(var upper in involving.Where(fact => fact.Term.Multiplier(value).Sign > 0))
                 {
-                    foreach(var lower in involving.Where(fact => fact.Term.Coefficients[value].Sign < 0))
+                    foreach(var lower in involving.Where(fact => fact.Term.Multiplier(value).Sign < 0))
                     {
                         if(!meter.Derive())
                         {
                             return facts;
                         }
 
-                        var term = upper.Term.Scale(-lower.Term.Coefficients[value]).Add(lower.Term.Scale(upper.Term.Coefficients[value]));
+                        var term = upper.Term.Scale(-lower.Term.Multiplier(value)).Add(lower.Term.Scale(upper.Term.Multiplier(value)));
                         next.Add(new Fact(term, merged: upper.IsMerged || lower.IsMerged));
                     }
                 }
@@ -240,10 +300,70 @@ internal static class Chain
         return facts;
     }
 
+    private static Value? Rarest(List<Fact> facts, IReadOnlySet<Value> keep)
+    {
+        var mentions = new Dictionary<Value, int>();
+        foreach(var fact in facts)
+        {
+            foreach(var value in fact.Term.Variables)
+            {
+                if(!keep.Contains(value))
+                {
+                    mentions[value] = mentions.GetValueOrDefault(value) + 1;
+                }
+            }
+        }
+
+        Value? rarest = null;
+        foreach(var (value, count) in mentions)
+        {
+            if(rarest is null || count < mentions[rarest] || (count == mentions[rarest] && value.Id < rarest.Id))
+            {
+                rarest = value;
+            }
+        }
+
+        return rarest;
+    }
+
     private static List<Fact> Clean(IEnumerable<Fact> source)
     {
         var facts = source.Distinct().ToList();
         var contradiction = facts.FirstOrDefault(fact => fact.IsContradiction);
-        return contradiction is not null ? [contradiction] : facts.Where(fact => fact.Term.Coefficients.Count > 0).ToList();
+        return contradiction is not null ? [contradiction] : facts.Where(fact => !fact.Term.Variables.IsEmpty).ToList();
+    }
+
+    private sealed class InOrder : IEqualityComparer<ImmutableArray<Fact>>
+    {
+        public static readonly InOrder Instance = new();
+
+        public bool Equals(ImmutableArray<Fact> left, ImmutableArray<Fact> right)
+        {
+            return left.SequenceEqual(right);
+        }
+
+        public int GetHashCode(ImmutableArray<Fact> facts)
+        {
+            var hash = new HashCode();
+            foreach(var fact in facts)
+            {
+                hash.Add(fact);
+            }
+
+            return hash.ToHashCode();
+        }
+    }
+
+    private sealed record PairKey(ImmutableArray<Fact> Facts, ImmutableArray<Value> Contract)
+    {
+        public bool Equals(PairKey? other)
+        {
+            return other is not null && Facts.SequenceEqual(other.Facts) && Contract.SequenceEqual(other.Contract);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(InOrder.Instance.GetHashCode(Facts), Contract.Length);
+        }
     }
 }

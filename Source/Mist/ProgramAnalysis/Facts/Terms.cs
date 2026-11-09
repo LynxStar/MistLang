@@ -40,8 +40,8 @@ internal static class Terms
                 {
                     BinaryOperatorKind.Add => left.Add(right),
                     BinaryOperatorKind.Subtract => left.Subtract(right),
-                    BinaryOperatorKind.Multiply when left.Coefficients.Count == 0 => right.Scale(left.Constant),
-                    BinaryOperatorKind.Multiply when right.Coefficients.Count == 0 => left.Scale(right.Constant),
+                    BinaryOperatorKind.Multiply when left.Variables.Length == 0 => right.Scale(left.Constant),
+                    BinaryOperatorKind.Multiply when right.Variables.Length == 0 => left.Scale(right.Constant),
                     _ => null,
                 };
 

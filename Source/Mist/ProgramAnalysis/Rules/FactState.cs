@@ -1,7 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model;
@@ -19,7 +17,6 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 
 internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary<Value, StoredRange> Ranges)
 {
-    private static ConditionalWeakTable<Bag, ConcurrentDictionary<Value, IntegralSet>> ProjectedIntervals { get; } = new();
     public static readonly FactState Empty = new(Bindings.Empty, Bag.Empty, ImmutableDictionary<Value, StoredRange>.Empty);
 
     public ImmutableDictionary<Value, Knowledge> Details { get; init; } = ImmutableDictionary<Value, Knowledge>.Empty;
@@ -44,37 +41,7 @@ internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary
 
     public IntegralSet Intervals(Value value)
     {
-        var cached = ProjectedIntervals.GetValue(Bag, _ => new ConcurrentDictionary<Value, IntegralSet>());
-        return cached.GetOrAdd(value, current => Project(Bag, current));
-    }
-
-    private static IntegralSet Project(Bag bag, Value value)
-    {
-        if(bag.Unreachable)
-        {
-            return IntegralSet.Nothing;
-        }
-
-        var values = IntegralSet.Nothing;
-        var meter = new ProofBudget(Budget.Default);
-        foreach(var alternative in bag.Alternatives)
-        {
-            var facts = bag.Common.Concat(alternative.Facts).ToList();
-            if(!facts.Any(fact => fact.Term.Coefficients.Count > 1 && fact.Term.Coefficients.ContainsKey(value)))
-            {
-                values = values.Or(Chain.SingleValue(facts, value));
-                continue;
-            }
-
-            if(Chain.ProjectIntervals(facts, value, meter) is not { } projected)
-            {
-                return IntegralSet.Everything;
-            }
-
-            values = values.Or(projected);
-        }
-
-        return values;
+        return Bag.Intervals(value);
     }
 
     public FactState SetItem(object holder, Knowledge known)

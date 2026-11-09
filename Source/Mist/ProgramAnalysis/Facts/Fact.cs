@@ -15,7 +15,7 @@ internal sealed record Fact
 {
     public Fact(Term term, Relation relation = Relation.LessThanOrEqual, bool merged = false)
     {
-        var divisor = term.Coefficients.Values.Aggregate(BigInteger.Zero, (gcd, coefficient) => BigInteger.GreatestCommonDivisor(gcd, BigInteger.Abs(coefficient)));
+        var divisor = term.Multipliers.Aggregate(BigInteger.Zero, (gcd, coefficient) => BigInteger.GreatestCommonDivisor(gcd, BigInteger.Abs(coefficient)));
         if(divisor > 1)
         {
             if(relation == Relation.Equal && term.Constant % divisor != 0)
@@ -25,12 +25,12 @@ internal sealed record Fact
             else if(relation != Relation.LessThan)
             {
                 var constant = BigInteger.DivRem(term.Constant, divisor, out var remainder);
-                term = new Term(term.Coefficients.Select(pair => KeyValuePair.Create(pair.Key, pair.Value / divisor)),
+                term = new Term(term.Variables.Zip(term.Multipliers, (value, multiplier) => KeyValuePair.Create(value, multiplier / divisor)),
                     constant + (relation == Relation.LessThanOrEqual && remainder > 0 ? 1 : 0));
             }
         }
 
-        if(relation == Relation.Equal && term.Coefficients.Count > 0 && term.Coefficients.First().Value.Sign < 0)
+        if(relation == Relation.Equal && term.Variables.Length > 0 && term.Multipliers[0].Sign < 0)
         {
             term = term.Scale(-1);
         }
@@ -55,7 +55,7 @@ internal sealed record Fact
     public Value? Subject { get; }
     public IntegralSet? Values { get; }
 
-    public bool IsContradiction => Values is { } values ? values.IsEmpty : Term.Coefficients.Count == 0 && Relation switch
+    public bool IsContradiction => Values is { } values ? values.IsEmpty : Term.Variables.IsEmpty && Relation switch
     {
         Relation.Equal => !Term.Constant.IsZero,
         Relation.LessThanOrEqual => Term.Constant.Sign > 0,

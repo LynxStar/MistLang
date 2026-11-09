@@ -41,14 +41,15 @@ internal sealed class FlowSolution<TState>
         var entries = new TState[count];
         var reached = new bool[count];
         var queued = new bool[count];
-        var pending = new Queue<FlowBlock>();
+        var order = ReversePostorder(graph);
+        var pending = new PriorityQueue<FlowBlock, int>();
 
         entries[graph.Entry.Ordinal] = entry;
         reached[graph.Entry.Ordinal] = true;
         queued[graph.Entry.Ordinal] = true;
-        pending.Enqueue(graph.Entry);
+        pending.Enqueue(graph.Entry, order[graph.Entry.Ordinal]);
 
-        while(pending.TryDequeue(out var block))
+        while(pending.TryDequeue(out var block, out _))
         {
             queued[block.Ordinal] = false;
             var state = entries[block.Ordinal];
@@ -82,12 +83,46 @@ internal sealed class FlowSolution<TState>
                 if(!queued[index])
                 {
                     queued[index] = true;
-                    pending.Enqueue(successor);
+                    pending.Enqueue(successor, order[index]);
                 }
             }
         }
 
         return new FlowSolution<TState>(graph, lattice, entries, reached);
+    }
+
+    /// <summary>
+    /// Each block's place in reverse postorder from the entry, so the worklist takes a block only once every predecessor that is
+    /// not behind a back edge has settled. Successors are explored last first so a block's first successor -- the path a
+    /// condition holds on -- comes ahead of its others.
+    /// </summary>
+    private static int[] ReversePostorder(FlowGraph graph)
+    {
+        var order = new int[graph.Blocks.Count];
+        var visited = new bool[graph.Blocks.Count];
+        var next = graph.Blocks.Count;
+        var path = new Stack<(FlowBlock Block, int Remaining)>();
+        visited[graph.Entry.Ordinal] = true;
+        path.Push((graph.Entry, graph.Entry.Successors.Count));
+
+        while(path.TryPop(out var frame))
+        {
+            if(frame.Remaining == 0)
+            {
+                order[frame.Block.Ordinal] = --next;
+                continue;
+            }
+
+            path.Push((frame.Block, frame.Remaining - 1));
+            var successor = frame.Block.Successors[frame.Remaining - 1];
+            if(!visited[successor.Ordinal])
+            {
+                visited[successor.Ordinal] = true;
+                path.Push((successor, successor.Successors.Count));
+            }
+        }
+
+        return order;
     }
 
     public bool Reaches(FlowBlock block)

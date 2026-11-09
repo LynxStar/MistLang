@@ -15,7 +15,7 @@ internal sealed partial class FactFlow
 
         var inputs = Agreeing(left.CompoundInputs, right.CompoundInputs);
         var results = Agreeing(left.Results, right.Results);
-        var common = new Bag(left.Bag.Common.Intersect(right.Bag.Common), [Alternative.Empty]);
+        var common = left.Bag.Shared(right.Bag);
         var joined = Nothing with { Unseen = unseenWrites, IsSummary = true, PatternSources = left.PatternSources, CompoundInputs = inputs, Results = results, Bag = common };
         foreach(var (holder, mine) in left.Bindings.Values)
         {

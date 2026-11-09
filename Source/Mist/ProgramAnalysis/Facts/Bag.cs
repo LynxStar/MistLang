@@ -8,9 +8,15 @@ internal sealed class Bag
     public static readonly Bag Empty = new([], [Alternative.Empty]);
 
     public Bag(IEnumerable<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget = null)
+        : this([.. common.Distinct()], alternatives, mergeBudget, parent: null)
     {
-        Common = [.. common.Distinct()];
-        index = FactIndex.Of(Common);
+    }
+
+    private Bag(ImmutableArray<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget, Bag? parent)
+    {
+        Common = common;
+        index = parent?.index ?? FactIndex.Of(Common);
+        this.parent = parent;
         var contradicted = Common.Any(fact => fact.IsContradiction) || index.Bounds.Values.Any(values => values.IsEmpty);
         var viable = contradicted ? [] : alternatives.Where(alternative => !Contradicted(alternative)).ToList();
         if(viable.Count > AlternativeCap)
@@ -24,16 +30,18 @@ internal sealed class Bag
         Alternatives = Unreachable ? [Alternative.Empty] : [.. viable];
     }
 
-    private Bag(ImmutableArray<Fact> common, ImmutableArray<Alternative> alternatives, FactIndex index, ImmutableDictionary<Value, IntegralSet> projections)
+    private Bag(ImmutableArray<Fact> common, ImmutableArray<Alternative> alternatives, FactIndex index, ImmutableDictionary<Value, IntegralSet> projections, Bag parent)
     {
         Common = common;
         Unreachable = alternatives.IsEmpty;
         Alternatives = Unreachable ? [Alternative.Empty] : alternatives;
         this.index = index;
         this.projections = Unreachable ? ImmutableDictionary<Value, IntegralSet>.Empty : projections;
+        this.parent = parent;
     }
 
     private readonly FactIndex index;
+    private readonly Bag? parent;
     private ImmutableDictionary<Value, IntegralSet> projections = ImmutableDictionary<Value, IntegralSet>.Empty;
 
     public ImmutableArray<Fact> Common { get; }
@@ -53,7 +61,7 @@ internal sealed class Bag
             !fact.Term.Variables.Any(value => indexed.Bound(value).And(Chain.SingleValue(alternative.Facts, value)).IsEmpty)).ToImmutableArray();
         var kept = viable.Length != Alternatives.Length || projections.IsEmpty ? ImmutableDictionary<Value, IntegralSet>.Empty
             : projections.RemoveRange(Connected(fact, common, indexed, viable));
-        return new Bag(common, viable, indexed, kept);
+        return new Bag(common, viable, indexed, kept, this);
     }
 
     public IntegralSet Intervals(Value value)
@@ -195,7 +203,53 @@ internal sealed class Bag
     public Bag AddAlternatives(IEnumerable<Alternative> alternatives)
     {
         var added = alternatives.ToList();
-        return new Bag(Common, Unreachable ? [] : Alternatives.SelectMany(existing => added.Select(next => existing.Add(next.Facts, next.IsExhausted))));
+        return new Bag(Common, Unreachable ? [] : Alternatives.SelectMany(existing => added.Select(next => existing.Add(next.Facts, next.IsExhausted))), null, this);
+    }
+
+    /// <summary>
+    /// The facts of <see cref="Common"/> that <paramref name="other"/> also holds, in this bag's order, with no alternatives. The
+    /// longest prefix of them is a bag this one was extended from, so its index and projections are reused and only the shared
+    /// facts after it are added, rather than indexing every shared fact again.
+    /// </summary>
+    public Bag Shared(Bag other)
+    {
+        var kept = 0;
+        while(kept < Common.Length && other.Holds(Common[kept]))
+        {
+            kept++;
+        }
+
+        var shared = Ancestor(kept);
+        for(var position = kept + 1; position < Common.Length; position++)
+        {
+            if(other.Holds(Common[position]))
+            {
+                shared = shared.Add(Common[position]);
+            }
+        }
+
+        return shared;
+    }
+
+    private Bag Ancestor(int length)
+    {
+        var ancestor = this;
+        while(ancestor.Common.Length > length && ancestor.parent is { } parent)
+        {
+            ancestor = parent;
+        }
+
+        if(ancestor.Common.Length != length)
+        {
+            return new Bag(Common.Take(length), [Alternative.Empty]);
+        }
+
+        if(ancestor.Alternatives is [{ IsExhausted: false, Facts.IsEmpty: true }] && !ancestor.Unreachable)
+        {
+            return ancestor;
+        }
+
+        return new Bag(ancestor.Common, [Alternative.Empty], ancestor.index, ImmutableDictionary<Value, IntegralSet>.Empty, ancestor);
     }
 
     public Bag Join(Bag other)

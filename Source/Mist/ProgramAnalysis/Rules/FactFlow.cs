@@ -18,11 +18,12 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
     private readonly FieldEffects effects = effects ?? new();
     private readonly FactReading reading = new(lifted);
     private readonly Dictionary<object, List<CompoundAssignmentExpression>> compoundReads = CompoundReads(graph);
+    private readonly Dictionary<FlowBlock, LoopChanges> loopChanges = LoopChanges.Of(graph);
     public static readonly FactState Nothing = FactState.Empty;
 
     public FactState Transfer(FactState state, FlowStep step)
     {
-        state = state with { Unseen = unseenWrites, Bag = state.Bag.WithCap(alternativeCap) };
+        state = state with { Unseen = unseenWrites, Bag = state.Bag.WithCap(alternativeCap), WideningEntry = null, WideningHeader = null };
         if(step.Kind == FlowStepKind.Evaluate && compoundReads.TryGetValue(step.Node, out var compounds))
         {
             foreach(var compound in compounds)
@@ -151,7 +152,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var trusted = AssignmentHolds(ref state, assignment.Target.Type, term);
         var value = Shared(assignment.Target.Type, assignment.Value, term)
             ?? FactReading.Fresh(ref state, assignment.Target.Type, RefinementFindings.Display(assignment.Target), assignment.Node, trusted);
-        state = state with { Bindings = state.Bindings.Set(holder, value), Results = state.Results.SetItem(assignment, new Term(value)) };
+        state = state with { Bindings = state.Bindings.Set(holder, value), StableHolders = state.StableHolders.Remove(holder), Results = state.Results.SetItem(assignment, new Term(value)) };
         if(!assignment.IsCoalescing)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };

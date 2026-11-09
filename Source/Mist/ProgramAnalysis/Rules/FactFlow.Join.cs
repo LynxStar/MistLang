@@ -21,6 +21,7 @@ internal sealed partial class FactFlow
         {
             Unseen = unseenWrites,
             PatternSources = left.PatternSources,
+            StableHolders = left.StableHolders.Intersect(right.StableHolders),
             CompoundInputs = Agreeing(left.CompoundInputs, right.CompoundInputs),
             Results = Agreeing(left.Results, right.Results),
         };
@@ -51,7 +52,10 @@ internal sealed partial class FactFlow
                 right.Details.GetValueOrDefault(after) ?? Knowledge.Unknown));
         }
 
-        return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap) };
+        var live = joined.Bindings.Order.Select(holder => joined.Bindings.Values[holder])
+            .Concat(joined.Results.Values.SelectMany(term => term.Variables))
+            .Concat(joined.CompoundInputs.Values.SelectMany(term => term.Variables));
+        return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap, live) };
     }
 
     private static Knowledge JoinKnowledge(Knowledge left, Knowledge right)

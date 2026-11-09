@@ -76,6 +76,25 @@ public sealed class BagTests
     }
 
     [Fact]
+    public void CapProjectionKeepsValuesLinkedByCommonFactsAndDropsDisconnectedHistory()
+    {
+        var model = new FactModel();
+        var a = model.Value("a");
+        var b = model.Value("b");
+        var old = model.Value("old");
+        var temporary = model.Value("temporary");
+        var common = Eq(0, (a, 1), (b, 1), (old, -1));
+        var left = MakeBag(common, Eq(-1, (old, 1)), Eq(-37, (temporary, 1)));
+        var right = MakeBag(common, Eq(-100, (old, 1)), Eq(-62, (temporary, 1)));
+
+        var joined = left.Join(right, [], [], 1, [a, b]);
+
+        var merged = Assert.Single(joined.Alternatives);
+        Assert.Equal(new IntegralSet([new(1, 1), new(100, 100)]), Assert.Single(merged.Facts, fact => fact.Subject == old).Values);
+        Assert.DoesNotContain(merged.Facts, fact => fact.Subject == temporary);
+    }
+
+    [Fact]
     public void AProjectionThatExhaustsItsBudgetAdmitsEverythingEveryTime()
     {
         var model = new FactModel();

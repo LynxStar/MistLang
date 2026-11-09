@@ -53,6 +53,7 @@ public sealed class FlowSolutionTests
         var solution = FlowSolution<int>.Solve(graph, lattice, 0);
 
         Assert.Equal([1, 2, 3], lattice.Rounds);
+        Assert.Equal([0, 0, 0], lattice.Incoming);
         Assert.Equal([(0, 1), (1, 2), (2, 3)], lattice.Inputs);
         Assert.Equal([0, 1, 2, 10], lattice.BodyEntries);
         Assert.Equal(10, solution.At(header));
@@ -62,6 +63,7 @@ public sealed class FlowSolutionTests
     private sealed class Counting : IFlowLattice<int>
     {
         public List<int> Rounds { get; } = [];
+        public List<int> Incoming { get; } = [];
         public List<(int Previous, int Joined)> Inputs { get; } = [];
         public List<int> BodyEntries { get; } = [];
 
@@ -79,6 +81,13 @@ public sealed class FlowSolutionTests
         {
             BodyEntries.Add(state);
             return Math.Min(state + 1, 10);
+        }
+
+        public int PrepareWiden(int joined, int incoming, FlowBlock header)
+        {
+            Assert.Equal(1, header.Ordinal);
+            Incoming.Add(incoming);
+            return joined;
         }
 
         public int Widen(int previous, int joined, int round)

@@ -8,6 +8,11 @@ internal interface IFlowLattice<TState>
 
     TState Transfer(TState state, FlowStep step);
 
+    TState PrepareWiden(TState joined, TState incoming, FlowBlock header)
+    {
+        return joined;
+    }
+
     TState Widen(TState previous, TState joined, int round)
     {
         return joined;
@@ -113,7 +118,23 @@ internal sealed class FlowSolution<TState>
                     }
 
                     var round = ++changes[index];
-                    joined = headers[index] ? lattice.Widen(previous, joined, round) : joined;
+                    if(headers[index])
+                    {
+                        var incoming = entry;
+                        var supplied = ReferenceEquals(successor, graph.Entry);
+                        foreach(var predecessor in predecessors[index])
+                        {
+                            if(available[predecessor.Ordinal] && order[predecessor.Ordinal] < order[index])
+                            {
+                                incoming = supplied ? lattice.Join(incoming, outputs[predecessor.Ordinal]) : outputs[predecessor.Ordinal];
+                                supplied = true;
+                            }
+                        }
+
+                        joined = lattice.PrepareWiden(joined, incoming, successor);
+                        joined = lattice.Widen(previous, joined, round);
+                    }
+
                     if(lattice.Same(joined, previous))
                     {
                         continue;

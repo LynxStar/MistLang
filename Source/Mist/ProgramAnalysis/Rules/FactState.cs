@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -18,6 +19,10 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
 internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary<Value, StoredRange> Ranges)
 {
     public static readonly FactState Empty = new(Bindings.Empty, Bag.Empty, ImmutableDictionary<Value, StoredRange>.Empty);
+
+    public FactState? WideningEntry { get; init; }
+    public FlowBlock? WideningHeader { get; init; }
+    public ImmutableHashSet<object> StableHolders { get; init; } = [];
 
     public ImmutableDictionary<Value, Knowledge> Details { get; init; } = ImmutableDictionary<Value, Knowledge>.Empty;
     public ImmutableDictionary<object, Term> Results { get; init; } = ImmutableDictionary<object, Term>.Empty;

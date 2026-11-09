@@ -12,7 +12,7 @@ internal sealed class Bag
     {
     }
 
-    private Bag(ImmutableArray<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget, Bag? parent, int alternativeCap)
+    private Bag(ImmutableArray<Fact> common, IEnumerable<Alternative> alternatives, Budget? mergeBudget, Bag? parent, int alternativeCap, IReadOnlySet<Value>? retained = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(alternativeCap, 1);
         this.alternativeCap = alternativeCap;
@@ -24,7 +24,7 @@ internal sealed class Bag
         if(viable.Count > alternativeCap)
         {
             var count = viable.Count - alternativeCap + 1;
-            var merged = MergePerVariable(viable.Take(count).Select(alternative => alternative.Add(Common)), mergeBudget);
+            var merged = MergePerVariable(viable.Take(count).Select(alternative => alternative.Add(Common)), mergeBudget, retained);
             viable = [merged, .. viable.Skip(count)];
         }
 
@@ -271,7 +271,7 @@ internal sealed class Bag
         return cap == alternativeCap ? this : new Bag(Common, Unreachable ? [] : Alternatives, null, this, cap);
     }
 
-    public Bag Join(Bag other, IEnumerable<Fact> leftFacts, IEnumerable<Fact> rightFacts, int cap)
+    public Bag Join(Bag other, IEnumerable<Fact> leftFacts, IEnumerable<Fact> rightFacts, int cap, IEnumerable<Value>? live = null)
     {
         if(Unreachable || other.Unreachable)
         {
@@ -279,15 +279,19 @@ internal sealed class Bag
         }
 
         var common = Shared(other);
+        // Common relations can still connect a live value to history after the alternatives lose their relations.
+        var retained = live?.ToHashSet();
+        retained?.UnionWith(common.Relevant(retained, []).SelectMany(fact => fact.Term.Variables));
+
         var mine = Common.Where(fact => !common.Holds(fact)).Concat(leftFacts).ToList();
         var theirs = other.Common.Where(fact => !common.Holds(fact)).Concat(rightFacts).ToList();
         var alternatives = Alternatives.Select(alternative => alternative.Add(mine))
             .Concat(other.Alternatives.Select(alternative => alternative.Add(theirs))).Distinct().ToImmutableArray();
         return alternatives is [{ IsExhausted: false, Facts.IsEmpty: true }] ? common.WithCap(cap)
-            : new Bag(common.Common, alternatives, null, common, cap);
+            : new Bag(common.Common, alternatives, null, common, cap, retained);
     }
 
-    public static Alternative MergePerVariable(IEnumerable<Alternative> source, Budget? budget = null)
+    public static Alternative MergePerVariable(IEnumerable<Alternative> source, Budget? budget = null, IReadOnlySet<Value>? retained = null)
     {
         var alternatives = source.ToList();
         if(alternatives.Any(alternative => alternative.IsExhausted))
@@ -297,7 +301,7 @@ internal sealed class Bag
 
         var meter = new ProofBudget(budget ?? Budget.Default);
         var facts = new List<Fact>();
-        foreach(var value in alternatives.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables).Distinct())
+        foreach(var value in alternatives.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables).Distinct().Where(value => retained is null || retained.Contains(value)))
         {
             var values = IntegralSet.Nothing;
             foreach(var alternative in alternatives)

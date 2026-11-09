@@ -12,9 +12,10 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class FactAlternativesTests
 {
     [Theory]
-    [InlineData(16)]
-    [InlineData(1)]
-    public void DemoKeepsThePairingUntilTheCapMergesPaths(int cap)
+    [InlineData(16, false)]
+    [InlineData(1, false)]
+    [InlineData(16, true)]
+    public void DemoKeepsThePairingUntilTheCapMergesPaths(int cap, bool loop)
     {
         var h = new HandBuiltRefinements();
         var flag = HandBuiltRefinements.Local(h.Bool, "flag");
@@ -24,10 +25,20 @@ public sealed class FactAlternativesTests
         var required = h.Refine(h.Int, ComparisonKind.LessThan, HandBuiltRefinements.Read(new LocalVariable("b", h.Int) { Parameter = limit }), null);
         var needs = new Method("Needs", h.Int, [new Parameter("a", required), limit], new MemberModifiers { IsReadonly = true });
         var call = new InvocationExpression(HandBuiltModel.Node(), h.Literal(0L), [a, b], h.Int, needs, [required, h.Int]);
+        Statement check = HandBuiltRefinements.Evaluate(call);
+        if(loop)
+        {
+            var i = HandBuiltRefinements.Local(h.Int, "i");
+            check = HandBuiltModel.Block(HandBuiltRefinements.Give(i, h.Literal(0L)),
+                new WhileStatement(h.Binary(i, BinaryOperatorKind.LessThan, h.Literal(3L)), HandBuiltModel.Block(
+                    HandBuiltRefinements.If(h.Binary(i, BinaryOperatorKind.GreaterThan, h.Literal(0L)), HandBuiltRefinements.Evaluate(h.Literal(0L))),
+                    check, HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(i, h.Binary(i, BinaryOperatorKind.Add, h.Literal(1L), h.Int))))));
+        }
+
         var body = HandBuiltModel.Block(new LocalDeclarationStatement(a.Local, null), new LocalDeclarationStatement(b.Local, null), new IfStatement(flag,
             HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(a, h.Literal(1L))), HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(b, h.Literal(2L)))),
             HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(a, h.Literal(100L))), HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(b, h.Literal(200L))))),
-            HandBuiltRefinements.Evaluate(call));
+            check);
 
         var findings = h.Built.Analyze(new RefinementAnalyzer(cap), body);
 

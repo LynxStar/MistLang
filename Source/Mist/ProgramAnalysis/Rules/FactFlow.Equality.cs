@@ -41,7 +41,8 @@ internal sealed partial class FactFlow
         foreach(var holder in left.Bindings.Order)
         {
             var mine = left.Bindings.Values[holder];
-            if(right.Bindings.Get(holder) is not { } theirs || !pair(mine, theirs))
+            if(right.Bindings.Get(holder) is not { } theirs
+                || ((left.StableHolders.Contains(holder) || right.StableHolders.Contains(holder)) && !ReferenceEquals(mine, theirs)) || !pair(mine, theirs))
             {
                 return false;
             }

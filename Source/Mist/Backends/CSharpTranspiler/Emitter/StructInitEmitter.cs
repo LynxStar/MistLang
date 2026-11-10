@@ -26,7 +26,7 @@ internal static class StructInitEmitter
     /// The initializer name per ancestor, chosen once so every overload of one ancestor's
     /// constructors shares it and a call can name it without knowing which overload it will bind to.
     /// <para>
-    /// A legal C# identifier, so unlike <c>.ctor</c> or <c>&lt;X&gt;k__BackingField</c> it cannot be
+    /// A legal C# identifier, so unlike <c>.ctor</c> or a compiler-generated backing field it cannot be
     /// made collision-proof by construction -- the CLR and the C# compiler both reserve names using
     /// characters no source identifier may contain, which emitting C# source rules out. Hence the
     /// check against names the struct already uses.

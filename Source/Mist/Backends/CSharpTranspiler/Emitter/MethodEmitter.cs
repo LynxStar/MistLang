@@ -10,9 +10,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits a method declaration: modifiers, return type, name, parameters, and body.
-/// </summary>
 internal static class MethodEmitter
 {
     public static void Emit(

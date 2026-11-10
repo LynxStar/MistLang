@@ -7,21 +7,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Refuses the two type shapes this backend has no C# spelling for, at the declaration that
-/// introduces them.
-/// <para>
-/// Both reach <see cref="TypeNameEmitter.Emit"/>'s fallback arm today and are written verbatim, so
-/// the generated file does not parse: a refinement emits its own display name, braces included, and
-/// a dependent VALUE parameter emits as a C# TYPE parameter that every body use then fails against.
-/// Neither produced a Mist diagnostic, which is the failure this project holds to be worse than an
-/// unbuilt feature -- the compiler reports success and hands back errors in a file nobody wrote.
-/// </para>
-/// <para>
-/// One walk over a declaration rather than a report at each emitter, because a refinement is legal
-/// in every type position and five member emitters would each have to remember it. A guard that has
-/// to be repeated is a guard that gets missed, which is how the ref-parameter check came to rest on
-/// a coincidence.
-/// </para>
+/// Refuses, at the declaration that introduces it, a pack no specialization binds: C# would name a
+/// type parameter not in scope there, and the compiler would report success and hand back errors in
+/// a file nobody wrote. One walk over a declaration rather than a report at each member emitter,
+/// because a pack can sit anywhere a type can and a repeated guard is one that gets missed.
 /// </summary>
 internal static class UnspellableTypeGuard
 {
@@ -112,13 +101,6 @@ internal static class UnspellableTypeGuard
     /// The first pack reachable from a type that no specialization binds, or null when every pack
     /// it mentions has a width. A member's OWN pack does not count, since that is bound while the
     /// member's specializations are emitted and this walk runs outside all of them.
-    /// <para>
-    /// Written as one walk over the signature for the same reason the refinement check is: a pack
-    /// can sit anywhere a type can, and a check repeated at each member emitter is one that gets
-    /// missed at the next. What it guards against is the failure this project holds worst -- C#
-    /// naming a type parameter that is not in scope there, which reads as a bug in generated code
-    /// rather than as an unbuilt feature.
-    /// </para>
     /// </summary>
     private static TypeParameter? FindUnspecializedPack(
         IMistType type, IReadOnlyList<TypeParameter> ownParameters)

@@ -8,9 +8,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
-/// Base class for Phase 2 builders that resolve member-bearing types (classes,
-/// structs, abstracts). Provides shared infrastructure for base type resolution,
-/// property building, and common modifier helpers.
+/// Phase 2 base for the member-bearing types: classes, structs and abstracts.
 /// </summary>
 internal abstract class MemberTypeBuilder
 {
@@ -49,10 +47,6 @@ internal abstract class MemberTypeBuilder
         OperatorBuilder = new OperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Entry points
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
     /// Records the method just resolved on its assembly if it has the shape of an entry point.
     /// <para>
@@ -74,9 +68,7 @@ internal abstract class MemberTypeBuilder
     }
 
     /// <summary>
-    /// Whether a method has the shape of an entry point: <c>static</c>, named <c>Main</c>,
-    /// at most one parameter, returning void or int. Accessibility does not participate --
-    /// a non-public <c>Main</c> is a valid entry point.
+    /// Accessibility does not participate: a non-public <c>Main</c> is a valid entry point.
     /// </summary>
     private static bool IsEntryPoint(Method method)
     {
@@ -95,13 +87,6 @@ internal abstract class MemberTypeBuilder
             or "Standard.Int32";
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Maps an optional <see cref="OwnershipSpecifierNode"/> to an <see cref="OwnershipKind"/>.
-    /// </summary>
     internal static OwnershipKind ResolveOwnership(OwnershipSpecifierNode? specifier)
     {
         return specifier switch

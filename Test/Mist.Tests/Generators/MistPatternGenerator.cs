@@ -1,9 +1,3 @@
-// Generators for Mist pattern matching AST nodes.
-// Produces random but structurally valid programs containing `is` expressions
-// with various pattern kinds for property-based testing.
-// Feature: pattern-matching
-// **Validates: Requirements 2.8, 3.3**
-
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
@@ -11,22 +5,11 @@ using Mist.Generated;
 
 namespace Mist.Tests.Generators;
 
-/// <summary>
-/// Represents a scrutinee variable declaration and a pattern to match against it.
-/// </summary>
 public record struct ScrutineeAndPattern(
     StatementNode Declaration,
     string ScrutineeName,
     PatternNode Pattern);
 
-/// <summary>
-/// FsCheck generators for Mist programs containing <c>is</c> expressions with
-/// various pattern kinds (type, constant, var, discard, property, relational,
-/// logical, list, parenthesized). Each generated program is a complete
-/// <see cref="CompilationUnitNode"/> with a class, a <c>static void Main</c>
-/// method, scrutinee variable declarations, and <c>if (scrutinee is pattern)</c>
-/// statements so the full compiler pipeline can process them.
-/// </summary>
 public static class MistPatternGenerator
 {
     private static Storm.Runtime.Token Tok(string lexeme)
@@ -46,11 +29,6 @@ public static class MistPatternGenerator
     // Helpers — wrap an AdditiveNode into a full ExpressionNode
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Wraps an <see cref="AdditiveNode"/> into a full <see cref="ExpressionNode"/>
-    /// through the precedence chain, using an <see cref="IsExpressionRelationalNode"/>
-    /// at the relational level.
-    /// </summary>
     private static ExpressionNode WrapIsExpression(AdditiveNode scrutinee, PatternNode pattern)
     {
         var rel = new IsExpressionRelationalNode { Left = scrutinee, Pattern = pattern };
@@ -61,9 +39,6 @@ public static class MistPatternGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>
-    /// Creates an <see cref="AdditiveNode"/> wrapping a simple identifier expression.
-    /// </summary>
     private static AdditiveNode MakeIdentifierAdditive(string name)
     {
         var primary = new IdentifierExpressionPrimaryNode { Name = Tok(name) };
@@ -81,7 +56,6 @@ public static class MistPatternGenerator
     // Pattern node builders
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Wraps a <see cref="PrimaryPatternNode"/> into a full <see cref="PatternNode"/>.</summary>
     private static PatternNode WrapPrimaryPattern(PrimaryPatternNode primary)
     {
         var unary = new DirectPatternUnaryPatternNode { Primary = primary };
@@ -90,7 +64,6 @@ public static class MistPatternGenerator
         return new PatternNode { OrPattern = or };
     }
 
-    /// <summary>Wraps a <see cref="UnaryPatternNode"/> into a full <see cref="PatternNode"/>.</summary>
     private static PatternNode WrapUnaryPattern(UnaryPatternNode unary)
     {
         var and = new AndPatternNode { Left = unary };
@@ -103,7 +76,6 @@ public static class MistPatternGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generates a type pattern: <c>int i</c>, <c>string s</c>.
     /// Scrutinee should be an <c>int</c> or <c>string</c> variable.
     /// </summary>
     public static Gen<PrimaryPatternNode> GenTypePattern()
@@ -137,9 +109,6 @@ public static class MistPatternGenerator
         return Gen.OneOf(intTypePattern, stringTypePattern);
     }
 
-    /// <summary>
-    /// Generates a constant pattern: <c>42</c>, <c>"hello"</c>, <c>true</c>.
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenConstantPattern()
     {
         var intConstant = Gen.Choose(0, 100).Select(n =>
@@ -171,9 +140,6 @@ public static class MistPatternGenerator
         return Gen.OneOf(intConstant, stringConstant, boolConstant);
     }
 
-    /// <summary>
-    /// Generates a var pattern: <c>var y</c>.
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenVarPattern()
     {
         return Gen.Elements(BindingNames).Select(name =>
@@ -184,7 +150,6 @@ public static class MistPatternGenerator
     }
 
     /// <summary>
-    /// Generates a discard pattern: bare <c>_</c> or <c>var _</c>.
     /// Both forms are valid catch-all patterns in Mist.
     /// </summary>
     public static Gen<PrimaryPatternNode> GenDiscardPattern()
@@ -200,9 +165,6 @@ public static class MistPatternGenerator
             }));
     }
 
-    /// <summary>
-    /// Generates a relational pattern: <c>&gt; 0</c>, <c>&lt;= 100</c>.
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenRelationalPattern()
     {
         var ltPattern = Gen.Choose(1, 100).Select(n =>
@@ -232,10 +194,6 @@ public static class MistPatternGenerator
         return Gen.OneOf(ltPattern, gtPattern, ltePattern, gtePattern);
     }
 
-    /// <summary>
-    /// Generates a property pattern: <c>{ Length: &gt; 0 }</c>.
-    /// Uses no type prefix (anonymous property pattern).
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenPropertyPattern()
     {
         return from propName in Gen.Elements(PropertyFieldNames)
@@ -259,9 +217,6 @@ public static class MistPatternGenerator
                };
     }
 
-    /// <summary>
-    /// Generates a list pattern: <c>[1, 2, ..]</c>.
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenListPattern()
     {
         var singleElement = Gen.Choose(0, 10).Select(n =>
@@ -321,9 +276,6 @@ public static class MistPatternGenerator
         return Gen.OneOf(singleElement, twoElements);
     }
 
-    /// <summary>
-    /// Generates a parenthesized pattern: <c>(&gt; 0 and &lt; 100)</c>.
-    /// </summary>
     public static Gen<PrimaryPatternNode> GenParenthesizedPattern()
     {
         return from lo in Gen.Choose(0, 49)
@@ -346,9 +298,6 @@ public static class MistPatternGenerator
     // Compound pattern generators (logical combinators)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a logical <c>and</c> pattern: <c>&gt; 0 and &lt; 100</c>.
-    /// </summary>
     public static Gen<PatternNode> GenAndPatternNode()
     {
         return from lo in Gen.Choose(0, 49)
@@ -364,10 +313,6 @@ public static class MistPatternGenerator
                    });
     }
 
-    /// <summary>
-    /// Generates a logical <c>or</c> pattern: <c>int or string</c>.
-    /// Uses type patterns for both alternatives.
-    /// </summary>
     public static Gen<PatternNode> GenOrPatternNode()
     {
         return from leftBind in Gen.Elements(BindingNames)
@@ -398,9 +343,6 @@ public static class MistPatternGenerator
                    });
     }
 
-    /// <summary>
-    /// Generates a <c>not</c> pattern: <c>not 0</c>.
-    /// </summary>
     public static Gen<PatternNode> GenNotPatternNode()
     {
         return Gen.Choose(0, 10).Select(n =>
@@ -421,10 +363,6 @@ public static class MistPatternGenerator
     // Pattern → full PatternNode generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a random <see cref="PatternNode"/> from any of the supported
-    /// primary pattern kinds (no logical combinators).
-    /// </summary>
     public static Gen<PatternNode> GenSimplePattern()
     {
         return Gen.OneOf(
@@ -438,9 +376,6 @@ public static class MistPatternGenerator
             GenParenthesizedPattern().Select(WrapPrimaryPattern));
     }
 
-    /// <summary>
-    /// Generates a random <see cref="PatternNode"/> including logical combinators.
-    /// </summary>
     public static Gen<PatternNode> GenPattern()
     {
         return Gen.OneOf(
@@ -455,7 +390,6 @@ public static class MistPatternGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generates a scrutinee variable declaration paired with a compatible pattern.
     /// The scrutinee type is chosen to be compatible with the generated pattern kind.
     /// </summary>
     public static Gen<ScrutineeAndPattern> GenScrutineeAndPattern()
@@ -496,20 +430,12 @@ public static class MistPatternGenerator
     // Complete program generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a complete <see cref="CompilationUnitNode"/> with a class containing
-    /// a <c>static void Main</c> method that declares a scrutinee variable and uses
-    /// an <c>if (scrutinee is pattern)</c> statement.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenPatternMatchingProgram()
     {
         return from sp in GenScrutineeAndPattern()
                select MakeProgramWithIsExpression(sp);
     }
 
-    /// <summary>
-    /// Generates a program with multiple <c>is</c> expressions using different pattern kinds.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenMultiPatternProgram()
     {
         return from sp1 in GenScrutineeAndPattern()
@@ -517,9 +443,6 @@ public static class MistPatternGenerator
                select MakeProgramWithMultipleIsExpressions(sp1, sp2);
     }
 
-    /// <summary>
-    /// Generates a random pattern matching program (single or multi-pattern).
-    /// </summary>
     public static Gen<CompilationUnitNode> GenAnyPatternProgram()
     {
         return Gen.OneOf(
@@ -531,9 +454,6 @@ public static class MistPatternGenerator
     // AST construction helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Creates a program with a single <c>if (scrutinee is pattern) { }</c> statement.
-    /// </summary>
     private static CompilationUnitNode MakeProgramWithIsExpression(ScrutineeAndPattern sp)
     {
         var scrutineeAdditive = MakeIdentifierAdditive(sp.ScrutineeName);
@@ -558,15 +478,10 @@ public static class MistPatternGenerator
         return MistProgramGenerator.MakeProgram(statements);
     }
 
-    /// <summary>
-    /// Creates a program with two <c>if (scrutinee is pattern) { }</c> statements
-    /// using different scrutinee names to avoid conflicts.
-    /// </summary>
     private static CompilationUnitNode MakeProgramWithMultipleIsExpressions(
         ScrutineeAndPattern sp1,
         ScrutineeAndPattern sp2)
     {
-        // Ensure distinct scrutinee names by appending a suffix to the second
         var name1 = sp1.ScrutineeName;
         var name2 = sp2.ScrutineeName == name1 ? sp2.ScrutineeName + "2" : sp2.ScrutineeName;
 
@@ -596,7 +511,6 @@ public static class MistPatternGenerator
             },
         };
 
-        // Rebuild the second declaration with the adjusted name if needed
         var decl2 = name2 != sp2.ScrutineeName
             ? RebuildDeclarationWithName(sp2.Declaration, name2)
             : sp2.Declaration;
@@ -610,9 +524,6 @@ public static class MistPatternGenerator
         return MistProgramGenerator.MakeProgram(statements);
     }
 
-    /// <summary>
-    /// Rebuilds a variable declaration statement with a new name.
-    /// </summary>
     private static StatementNode RebuildDeclarationWithName(StatementNode decl, string newName)
     {
         if(decl is VariableDeclarationStatementStatementNode varDeclStmt)
@@ -638,7 +549,6 @@ public static class MistPatternGenerator
     // Expression helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Creates a constant integer expression for use in relational patterns.</summary>
     /// <remarks>
     /// The relational-pattern <c>Constant</c> property is bounded to <see cref="VoidCoalescingNode"/>
     /// (the structural analogue of Roslyn's coalescing precedence floor), so this returns the
@@ -651,7 +561,6 @@ public static class MistPatternGenerator
             .AsAssignment().Target;
     }
 
-    /// <summary>Creates an <c>and</c> pattern from two primary patterns.</summary>
     private static PatternNode MakeAndPattern(PrimaryPatternNode left, PrimaryPatternNode right)
     {
         var leftUnary = new DirectPatternUnaryPatternNode { Primary = left };
@@ -661,7 +570,6 @@ public static class MistPatternGenerator
         return new PatternNode { OrPattern = or };
     }
 
-    /// <summary>Creates an <c>or</c> pattern from two primary patterns.</summary>
     private static PatternNode MakeOrPattern(PrimaryPatternNode left, PrimaryPatternNode right)
     {
         var leftUnary = new DirectPatternUnaryPatternNode { Primary = left };
@@ -676,7 +584,6 @@ public static class MistPatternGenerator
     // FsCheck Arbitrary registrations
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>FsCheck Arbitrary for pattern matching programs.</summary>
     public static Arbitrary<CompilationUnitNode> ArbitraryPatternProgram()
     {
         return GenAnyPatternProgram().ToArbitrary();

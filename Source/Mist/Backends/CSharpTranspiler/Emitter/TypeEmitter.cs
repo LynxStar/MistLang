@@ -11,10 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits one class, struct or abstract as a C# type declaration, with its fields,
-/// constructors and methods.
-/// </summary>
 internal static class TypeEmitter
 {
     /// <summary>
@@ -96,9 +92,8 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// Emits one type declaration into an open file. The using directives and the namespace
-    /// belong to the file, not the type, so <see cref="CSharpEmitterV2"/> writes those once per
-    /// compilation unit and calls this for each type the unit declares.
+    /// Writes no using directives or namespace: those belong to the file, and
+    /// <see cref="CSharpEmitterV2"/> writes them once per compilation unit.
     /// </summary>
     internal static void EmitTypeBody(
         MemberType type,
@@ -186,10 +181,8 @@ internal static class TypeEmitter
                 anyEmitted = DefaultWitnesses.Stored(concrete).Count > 0 || ConstructorWitnesses.Stored(concrete).Count > 0;
             }
 
-            // Fields first so they read as the type's state before the members that use
-            // it, and because C# requires nothing of the order. Each is a single line, so
-            // they run together as one block -- a blank line between every one of them
-            // reads as noise rather than as separation.
+            // Each field is a single line, so they run together as one block with no separator
+            // between them.
             if(flattened is not null)
             {
                 foreach(var field in flattened.Fields)
@@ -399,10 +392,6 @@ internal static class TypeEmitter
         }
     }
 
-    /// <summary>
-    /// The spelling scope an inherited member is emitted in, or nothing for a member reached through
-    /// no generic base.
-    /// </summary>
     public static IDisposable? Substituting(IReadOnlyList<ConstructedType>? path)
     {
         return path is { Count: > 0 }
@@ -471,13 +460,9 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// The <c>: Base, IFirst, ISecond</c> clause, or empty when the type has neither a base nor an
-    /// abstract to implement.
-    /// <para>
     /// The concrete base comes first because C# requires it to. Mist keeps the two apart --
     /// <see cref="ConcreteType.BaseType"/> against <see cref="MemberType.BaseAbstractTypes"/> --
     /// so the ordering does not depend on how the declaration was written.
-    /// </para>
     /// </summary>
     private static string EmitBaseList(MemberType type, IReadOnlyList<ConstructorWitness> closedConstraints)
     {
@@ -504,9 +489,8 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// Writes the blank line that precedes a block-bodied member, unless that member opens
-    /// the type body. Called per member rather than per section, so it also supplies the
-    /// break between the field block and whatever follows it.
+    /// Called per member rather than per section, so it also supplies the break between the field
+    /// block and whatever follows it.
     /// </summary>
     internal static void SeparateMember(CSharpWriter writer, ref bool anyEmitted)
     {
@@ -518,16 +502,6 @@ internal static class TypeEmitter
         anyEmitted = true;
     }
 
-    /// <summary>
-    /// A member of an abstract type, with no accessibility modifier because C# interface members
-    /// are implicitly public.
-    /// <para>
-    /// A body makes this a default implementation rather than a slot, and needs no lowering: a
-    /// C# default interface method is reachable on exactly the abstract-typed references Mist
-    /// expects it on. Reaching it through a concrete-typed reference is what
-    /// <c>default-member-forwarding-stubs</c> is for, and it is a separate capability.
-    /// </para>
-    /// </summary>
     private static void EmitMethod(
         Method method, MemberType type, bool emitReadonly, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -544,6 +518,12 @@ internal static class TypeEmitter
         }
     }
 
+    /// <summary>
+    /// No accessibility modifier: C# interface members are implicitly public. A body makes this a
+    /// default implementation rather than a slot, and needs no lowering: a C# default interface method
+    /// is reachable on exactly the abstract-typed references Mist expects it on. A concrete-typed
+    /// reference reaches it through <see cref="DefaultMemberDuplication"/>.
+    /// </summary>
     internal static void EmitInterfaceMethod(Method method, CSharpWriter writer, DiagnosticBag diagnostics, bool hides = false)
     {
         var signature = MethodEmitter.EmitSignature(method, diagnostics);
@@ -591,10 +571,6 @@ internal static class TypeEmitter
         }
     }
 
-    /// <summary>
-    /// The C# spelling of the declaration's name: <c>GenericBox&lt;T&gt;</c>, naming the
-    /// parameters that <see cref="CleanName"/> strips the placeholders for.
-    /// </summary>
     internal static string EmitTypeName(MemberType type)
     {
         var parameters = Parameters(type);
@@ -628,12 +604,9 @@ internal static class TypeEmitter
     }
 
     /// <summary>
-    /// The name a C# declaration is emitted under, via <see cref="MistType.StripArity"/>.
-    /// <para>
     /// The registered name is not a C# identifier, so nothing may emit it verbatim -- a
     /// declaration names its parameters instead (<see cref="EmitTypeName"/>) and a constructor
     /// names neither.
-    /// </para>
     /// </summary>
     internal static string CleanName(MemberType type)
     {

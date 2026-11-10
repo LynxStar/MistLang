@@ -9,13 +9,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits one extension block as the C# static class that carries its members.
-/// <para>
 /// Separate from <see cref="TypeEmitter"/> because a block is not a type: it declares none, is
 /// registered by receiver rather than by name, and its members become STATIC methods on a class the
 /// user never wrote. Sharing the type path would mean teaching every arm of it about a declaration
 /// that has no accessibility, no base, no nested types and no conformances.
-/// </para>
 /// </summary>
 internal static class ExtensionBlockEmitter
 {
@@ -142,9 +139,8 @@ internal static class ExtensionBlockEmitter
     }
 
     /// <summary>
-    /// The receiver, <c>this</c>-annotated, ahead of everything the member declared -- except on a
-    /// static member, which is namespaced under the type rather than called on an instance and so
-    /// takes no receiver at all.
+    /// A static member is namespaced under the type rather than called on an instance, so it takes no
+    /// receiver.
     /// </summary>
     private static string Parameters(
         IReadOnlyList<string> declared,
@@ -162,10 +158,6 @@ internal static class ExtensionBlockEmitter
         return string.Join(", ", parts);
     }
 
-    /// <summary>
-    /// The block's type parameters and the member's own, in that order. They cannot go on the class,
-    /// so every member restates them; a member declared inside a generic block is generic in both.
-    /// </summary>
     private static List<TypeParameter> CarrierTypeParameters(Method? method, ExtensionBlock block)
     {
         return [.. block.TypeParametersList, .. method?.TypeParametersList ?? []];

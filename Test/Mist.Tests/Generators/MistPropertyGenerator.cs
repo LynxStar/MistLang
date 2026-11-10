@@ -1,5 +1,3 @@
-// Generators for Mist property declaration AST nodes.
-// Produces random but structurally valid property declarations for property-based testing.
 // Feature: properties, Property 1: Parse–Print–Parse Round Trip
 // **Validates: Requirements 15.8, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 4.1, 4.2, 5.1, 7.1, 7.2, 7.3, 7.4, 8.1, 10.1, 11.1, 11.2, 15.1–15.7**
 
@@ -10,12 +8,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Generators;
 
-/// <summary>
-/// FsCheck generators for Mist property declaration AST nodes.
-/// Generates random property declarations with varying type names, property names,
-/// modifier combinations, accessor combinations (get/set/init; auto/block/expression),
-/// initializer expressions, and indexer parameters.
-/// </summary>
 public static class MistPropertyGenerator
 {
     private static Storm.Runtime.Token Tok(string lexeme)
@@ -40,7 +32,6 @@ public static class MistPropertyGenerator
     // Modifier generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Generates a random property-level modifier list (public, private, static combinations).</summary>
     public static Gen<ImmutableArray<ModifierNode>> GenPropertyModifiers()
     {
         return Gen.Elements(
@@ -54,10 +45,6 @@ public static class MistPropertyGenerator
             ImmutableArray.Create<ModifierNode>(new StaticModifierModifierNode()));
     }
 
-    /// <summary>
-    /// Generates an optional accessor modifier that is more restrictive than the property modifier.
-    /// Returns null (no modifier) or private.
-    /// </summary>
     public static Gen<ModifierNode?> GenAccessorModifier()
     {
         return Gen.Elements<ModifierNode?>(
@@ -69,7 +56,6 @@ public static class MistPropertyGenerator
     // Expression helpers (for accessor bodies and initializers)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Creates a simple integer literal expression.</summary>
     public static ExpressionNode MakeIntLiteral(string value = "0")
     {
         return MistAstGenerator.WrapPrimary(new IntegerLiteralExpressionPrimaryNode
@@ -78,7 +64,6 @@ public static class MistPropertyGenerator
         });
     }
 
-    /// <summary>Creates a simple bool literal expression.</summary>
     public static ExpressionNode MakeBoolLiteral(bool value)
     {
         return MistAstGenerator.WrapPrimary(value
@@ -86,7 +71,6 @@ public static class MistPropertyGenerator
             : new FalseLiteralExpressionPrimaryNode());
     }
 
-    /// <summary>Creates a simple string literal expression.</summary>
     public static ExpressionNode MakeStringLiteral(string value = "\"hello\"")
     {
         return MistAstGenerator.WrapPrimary(new StringLiteralExpressionPrimaryNode
@@ -95,19 +79,16 @@ public static class MistPropertyGenerator
         });
     }
 
-    /// <summary>Creates a field keyword expression.</summary>
     public static ExpressionNode MakeFieldKeywordExpr()
     {
         return MistAstGenerator.WrapPrimary(new FieldKeywordExpressionPrimaryNode());
     }
 
-    /// <summary>Creates an identifier expression.</summary>
     public static ExpressionNode MakeIdentifierExpr(string name)
     {
         return MistAstGenerator.MakeIdentifierExpr(name);
     }
 
-    /// <summary>Generates a simple initializer expression matching a type.</summary>
     public static Gen<ExpressionNode> GenInitializerForType(TypeReferenceNode type)
     {
         return type.First switch
@@ -127,7 +108,6 @@ public static class MistPropertyGenerator
     // Accessor generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Generates an auto get accessor: [modifier] get;</summary>
     public static Gen<AccessorDeclarationNode> GenAutoGetAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -137,7 +117,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates a block get accessor: [modifier] get { return expr; }</summary>
     public static Gen<AccessorDeclarationNode> GenBlockGetAccessor(TypeReferenceNode type)
     {
         return from mod in GenAccessorModifier()
@@ -156,7 +135,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates an expression get accessor: [modifier] get => expr;</summary>
     public static Gen<AccessorDeclarationNode> GenExpressionGetAccessor(TypeReferenceNode type)
     {
         return from mod in GenAccessorModifier()
@@ -168,7 +146,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates an auto set accessor: [modifier] set;</summary>
     public static Gen<AccessorDeclarationNode> GenAutoSetAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -178,7 +155,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates a block set accessor: [modifier] set { field = value; }</summary>
     public static Gen<AccessorDeclarationNode> GenBlockSetAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -194,7 +170,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates an expression set accessor: [modifier] set => field = value;</summary>
     public static Gen<AccessorDeclarationNode> GenExpressionSetAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -205,7 +180,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates an auto init accessor: [modifier] init;</summary>
     public static Gen<AccessorDeclarationNode> GenAutoInitAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -215,7 +189,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Generates a block init accessor: [modifier] init { field = value; }</summary>
     public static Gen<AccessorDeclarationNode> GenBlockInitAccessor()
     {
         return from mod in GenAccessorModifier()
@@ -231,7 +204,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>Creates a field = value assignment expression.</summary>
     private static ExpressionNode MakeFieldAssignment()
     {
         var fieldPrimary = new FieldKeywordExpressionPrimaryNode();
@@ -260,9 +232,6 @@ public static class MistPropertyGenerator
         };
     }
 
-    /// <summary>
-    /// Generates a random get accessor (auto, block, or expression).
-    /// </summary>
     public static Gen<AccessorDeclarationNode> GenGetAccessor(TypeReferenceNode type)
     {
         return Gen.OneOf(
@@ -271,9 +240,6 @@ public static class MistPropertyGenerator
             GenExpressionGetAccessor(type));
     }
 
-    /// <summary>
-    /// Generates a random set accessor (auto, block, or expression).
-    /// </summary>
     public static Gen<AccessorDeclarationNode> GenSetAccessor()
     {
         return Gen.OneOf(
@@ -282,9 +248,6 @@ public static class MistPropertyGenerator
             GenExpressionSetAccessor());
     }
 
-    /// <summary>
-    /// Generates a random init accessor (auto or block).
-    /// </summary>
     public static Gen<AccessorDeclarationNode> GenInitAccessor()
     {
         return Gen.OneOf(
@@ -296,37 +259,27 @@ public static class MistPropertyGenerator
     // Accessor combination generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a valid accessor list for a block property.
-    /// Combinations: get-only, get+set, get+init, get+set (mixed forms).
-    /// </summary>
     public static Gen<ImmutableArray<AccessorDeclarationNode>> GenAccessorList(TypeReferenceNode type)
     {
-        // get-only (auto)
         var getOnly = GenAutoGetAccessor().Select(g =>
             ImmutableArray.Create(g));
 
-        // get + set (both auto)
         var getSet = from g in GenAutoGetAccessor()
                      from s in GenAutoSetAccessor()
                      select ImmutableArray.Create(g, s);
 
-        // get + init (both auto)
         var getInit = from g in GenAutoGetAccessor()
                       from i in GenAutoInitAccessor()
                       select ImmutableArray.Create(g, i);
 
-        // get (block) + set (auto)
         var blockGetAutoSet = from g in GenBlockGetAccessor(type)
                               from s in GenAutoSetAccessor()
                               select ImmutableArray.Create(g, s);
 
-        // get (expression) + set (auto)
         var exprGetAutoSet = from g in GenExpressionGetAccessor(type)
                              from s in GenAutoSetAccessor()
                              select ImmutableArray.Create(g, s);
 
-        // get (auto) + set (block)
         var autoGetBlockSet = from g in GenAutoGetAccessor()
                               from s in GenBlockSetAccessor()
                               select ImmutableArray.Create(g, s);
@@ -338,9 +291,6 @@ public static class MistPropertyGenerator
     // Property declaration generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a random block property declaration (with accessor list).
-    /// </summary>
     public static Gen<PropertyDeclarationNode> GenBlockProperty()
     {
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
@@ -359,9 +309,6 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>
-    /// Generates a random expression-bodied property declaration.
-    /// </summary>
     public static Gen<PropertyDeclarationNode> GenExpressionBodiedProperty()
     {
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
@@ -377,17 +324,11 @@ public static class MistPropertyGenerator
                };
     }
 
-    /// <summary>
-    /// Generates a random property declaration (block or expression-bodied).
-    /// </summary>
     public static Gen<PropertyDeclarationNode> GenPropertyDeclaration()
     {
         return Gen.OneOf(GenBlockProperty(), GenExpressionBodiedProperty());
     }
 
-    /// <summary>
-    /// Generates a property member declaration node.
-    /// </summary>
     public static Gen<MemberDeclarationNode> GenPropertyMember()
     {
         return GenPropertyDeclaration().Select(p =>
@@ -398,9 +339,6 @@ public static class MistPropertyGenerator
     // Indexer declaration generators
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a random indexer declaration.
-    /// </summary>
     public static Gen<IndexerDeclarationNode> GenIndexerDeclaration()
     {
         return from type in MistTypeGenerator.GenPrimitiveTypeRef()
@@ -428,9 +366,6 @@ public static class MistPropertyGenerator
                });
     }
 
-    /// <summary>
-    /// Generates an indexer member declaration node.
-    /// </summary>
     public static Gen<MemberDeclarationNode> GenIndexerMember()
     {
         return GenIndexerDeclaration().Select(i =>
@@ -442,7 +377,6 @@ public static class MistPropertyGenerator
     // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Generates a random abstract type property declaration (using auto accessors).
     /// In the unified grammar, abstract properties are regular PropertyDeclarations with
     /// AutoGetAccessor/AutoSetAccessor variants.
     /// </summary>
@@ -473,9 +407,6 @@ public static class MistPropertyGenerator
     // Complete program generators (with properties)
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Generates a CompilationUnitNode with a class containing random property members.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenClassWithProperties()
     {
         return from className in Gen.Elements(ClassNames)
@@ -484,9 +415,6 @@ public static class MistPropertyGenerator
                select MakeClassWithMembers(className, props.ToImmutableArray());
     }
 
-    /// <summary>
-    /// Generates a CompilationUnitNode with a class containing an indexer.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenClassWithIndexer()
     {
         return from className in Gen.Elements(ClassNames)
@@ -494,9 +422,6 @@ public static class MistPropertyGenerator
                select MakeClassWithMembers(className, ImmutableArray.Create(indexer));
     }
 
-    /// <summary>
-    /// Generates a CompilationUnitNode with an abstract type containing property declarations.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenAbstractWithProperties()
     {
         return from name in Gen.Elements("IReadable", "IWritable", "IConfigurable", "IEntity")
@@ -505,9 +430,6 @@ public static class MistPropertyGenerator
                select MakeAbstractUnit(name, props.ToImmutableArray());
     }
 
-    /// <summary>
-    /// Generates a random CompilationUnitNode with property-related declarations.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenPropertyProgram()
     {
         return Gen.OneOf(
@@ -520,7 +442,6 @@ public static class MistPropertyGenerator
     // AST construction helpers
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>Creates a CompilationUnitNode with a single class containing the given members.</summary>
     public static CompilationUnitNode MakeClassWithMembers(
         string className,
         ImmutableArray<MemberDeclarationNode> members)
@@ -539,7 +460,6 @@ public static class MistPropertyGenerator
         };
     }
 
-    /// <summary>Creates a CompilationUnitNode with a single abstract type containing property declarations.</summary>
     public static CompilationUnitNode MakeAbstractUnit(
         string abstractName,
         ImmutableArray<PropertyDeclarationNode> properties)
@@ -564,10 +484,6 @@ public static class MistPropertyGenerator
         };
     }
 
-    /// <summary>
-    /// Creates a CompilationUnitNode with a class containing a property and a Main method
-    /// that accesses the property. Useful for semantic/type-checker tests.
-    /// </summary>
     public static CompilationUnitNode MakeProgramWithProperty(
         PropertyDeclarationNode property,
         ImmutableArray<StatementNode>? mainStatements = null)
@@ -611,7 +527,6 @@ public static class MistPropertyGenerator
     // FsCheck Arbitrary registrations
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>FsCheck Arbitrary for property programs.</summary>
     public static Arbitrary<CompilationUnitNode> ArbitraryPropertyProgram()
     {
         return GenPropertyProgram().ToArbitrary();

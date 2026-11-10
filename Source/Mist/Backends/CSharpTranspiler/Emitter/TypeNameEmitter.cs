@@ -9,34 +9,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Maps ProgramModel types to their C# source representation.
-/// </summary>
 internal static class TypeNameEmitter
 {
-    /// <summary>
-    /// The C# spelling of a Mist type.
-    /// <para>
-    /// A dependent type argument emits its DOMAIN, whether or not its value is known. Both
-    /// carriers would otherwise emit something that is not a C# type -- a <see cref="LiftedType"/>
-    /// is named for the value it holds, so the fallback arm would emit the <c>3</c> of
-    /// <c>Array&lt;int, 3&gt;</c>, and an <see cref="UnknownValueType"/> is named <c>unknown</c>.
-    /// C# has neither singleton types nor a spelling for "some int I cannot name", so the domain
-    /// is the only faithful projection of either. Reached whenever a dependent argument becomes an
-    /// expression's type, which today means an array length read through <c>arr.Length</c>.
-    /// </para>
-    /// <para>
-    /// <see cref="UnknownType"/> is the separate case and keeps emitting <c>object</c>: it is the
-    /// user-facing top type, with no domain to fall back on.
-    /// </para>
-    /// <para>
-    /// A <see cref="RefinedType"/> is spelled as the type it refines, its predicate being a
-    /// compile-time constraint on which values may reach the slot rather than a different runtime
-    /// representation. Where the predicate has to be TESTED rather than assumed -- an `is` against a
-    /// refinement -- the test carries it, and erasing there would make the test succeed for every
-    /// value; see <c>BodyEmitter.EmitPattern</c>.
-    /// </para>
-    /// </summary>
     [ThreadStatic]
     private static Frame? substituting;
 
@@ -103,6 +77,19 @@ internal static class TypeNameEmitter
         return Emit(type);
     }
 
+    /// <summary>
+    /// A dependent type argument emits its DOMAIN, whether or not its value is known: a
+    /// <see cref="LiftedType"/> is named for the value it holds and an <see cref="UnknownValueType"/>
+    /// is named <c>unknown</c>, and C# has neither singleton types nor a spelling for "some int I
+    /// cannot name". Reached when a dependent argument becomes an expression's type, such as an array
+    /// length read through <c>arr.Length</c>. <see cref="UnknownType"/>, the top type, has no domain
+    /// and stays <c>object</c>.
+    /// <para>
+    /// A <see cref="RefinedType"/> is spelled as the type it refines, its predicate constraining which
+    /// values reach the slot rather than their runtime representation. Where the predicate is TESTED --
+    /// an `is` against a refinement -- the test carries it; see <c>BodyEmitter.EmitPattern</c>.
+    /// </para>
+    /// </summary>
     public static string Emit(IMistType type)
     {
         type = Closed(type);
@@ -165,15 +152,10 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// The spelling for a variable whose type C# can infer from its initializer -- a local, a foreach
-    /// variable, a deconstruction target. <c>var</c> wherever the type mentions an anonymous type, which
-    /// C# has no name for at all, and the ordinary spelling everywhere else so the emitted declaration
-    /// still states what the MODEL resolved rather than leaving C# to reach its own answer.
-    /// <para>
-    /// One hook for the three positions, because a check repeated at each is one that gets missed at the
-    /// next -- and the failure it would let through is the worst kind, a generated file that does not
-    /// parse.
-    /// </para>
+    /// <c>var</c> wherever the type mentions an anonymous type, which C# cannot name, and the ordinary
+    /// spelling elsewhere so the declaration states what the MODEL resolved rather than what C# infers.
+    /// One hook for locals, foreach variables and deconstruction targets, so none misses the check and
+    /// emits a file that does not parse.
     /// </summary>
     internal static string EmitInferable(IMistType type)
     {
@@ -185,8 +167,7 @@ internal static class TypeNameEmitter
     /// <see cref="Emit"/> gives it. C# reads <c>(int, string)</c> in pattern position as a positional
     /// pattern rather than as a type, so a type test emitted through <see cref="Emit"/> silently becomes
     /// a deconstruction OF the scrutinee -- and fails outright on an <c>unknown</c>, which has no
-    /// Deconstruct. Naming the ValueTuple is the only spelling C# reads as a type here. Anything that is
-    /// not a tuple is spelled as it always is.
+    /// Deconstruct. Naming the ValueTuple is the only spelling C# reads as a type here.
     /// </summary>
     internal static string EmitAsPatternType(IMistType type)
     {
@@ -247,10 +228,6 @@ internal static class TypeNameEmitter
             ;
     }
 
-    /// <summary>
-    /// An optional (<c>T | void</c>) bypasses the carrier and lowers to the spelling above. Every other
-    /// union is spelled as its generated carrier struct, whose name <see cref="UnionCarrierNames"/> owns.
-    /// </summary>
     private static string EmitUnion(UnionType union)
     {
         return OptionalUnion.InnerType(union) is { } inner
@@ -307,21 +284,13 @@ internal static class TypeNameEmitter
     // A value-type KEYWORD, never a type constraint that happens to name a struct: C# reads
     // `K?` as Nullable of K only under that guarantee, and spells the same `?` as a reference
     // annotation otherwise -- so a parameter constrained to a struct BY TYPE would take this
-    // spelling and not the meaning. An unconstrained parameter has no C# type for "a K, or absent"
-    // at all and is the case a carrier would be for.
+    // spelling and not the meaning.
     private static bool HasStructConstraint(TypeParameter parameter)
     {
         return parameter.ConstraintsList.Exists(
             constraint => constraint is KeywordConstraint { Kind: TypeParameterConstraintKind.Struct or TypeParameterConstraintKind.Stampable });
     }
 
-    /// <summary>
-    /// A void result picks Action and any other picks Func, which is the CLR drawing a distinction Mist
-    /// does not: void is an ordinary unit type here, so <c>func&lt;int, void&gt;</c> and
-    /// <c>func&lt;int, bool&gt;</c> differ only in their result, while <c>Action&lt;int&gt;</c> and
-    /// <c>Func&lt;int, bool&gt;</c> are unrelated families. Arity does the rest -- neither family spells
-    /// its no-argument case with an empty argument list.
-    /// </summary>
     private static string EmitFunction(FunctionType function)
     {
         var spelled = EmitDelegate(function);
@@ -347,13 +316,9 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// A tuple, with any spread among its elements expanded to the width the specialization being
-    /// emitted fixed.
-    /// <para>
-    /// C#'s tuple SYNTAX cannot spell every width -- it needs at least two elements -- so the one
-    /// and zero cases name ValueTuple outright. They are reachable: a value pack over a
-    /// single-element or empty pack is a real type, and `()` and `(T)` are not.
-    /// </para>
+    /// C#'s tuple SYNTAX needs at least two elements, so the one and zero cases name ValueTuple
+    /// outright. They are reachable: a value pack over a single-element or empty pack is a real type,
+    /// and `()` and `(T)` are not.
     /// </summary>
     private static string EmitTuple(IReadOnlyList<IMistType> elementTypes, IReadOnlyList<string?>? elementNames)
     {
@@ -379,10 +344,6 @@ internal static class TypeNameEmitter
         };
     }
 
-    /// <summary>
-    /// The element list with a spread replaced by what the specialization bound it to, or the list
-    /// unchanged when it holds none.
-    /// </summary>
     internal static IReadOnlyList<IMistType> Expand(IReadOnlyList<IMistType> elementTypes)
     {
         if(Monomorph.InScope() is not { } monomorph || !elementTypes.Any(e => e is SpreadType))
@@ -466,7 +427,6 @@ internal static class TypeNameEmitter
             return specialized;
         }
 
-        // Generic types: Definition<Arg1, Arg2, ...>
         var baseName = IdentifierSpelling.Of(MistType.StripArity(constructed.Definition.Name));
         var args = string.Join(", ", constructed.TypeArguments.Select(
             (argument, ordinal) => EmitArgument(constructed.Definition, ordinal, argument)));
@@ -489,9 +449,8 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// <c>Box&lt;int&gt;.Wrapper</c>, spelled as its enclosing instantiation and then its own segment,
-    /// which is how C# names a nested type of a constructed generic. An enclosing that spells
-    /// <c>dynamic</c> has no members to name, so the nested type is <c>dynamic</c> with it.
+    /// An enclosing that spells <c>dynamic</c> has no members to name, so the nested type is
+    /// <c>dynamic</c> with it.
     /// </summary>
     private static string EmitNested(ConstructedType nested, ConstructedType enclosing)
     {
@@ -521,12 +480,9 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// A type argument, which is the one position where a lifted value is spelled as its CARRIER
-    /// rather than as its domain. Everywhere else a lifted type is an expression's type -- an
-    /// <c>arr.Length</c> read -- and the domain is the only faithful projection; here the value is
-    /// what the construction is identified BY, so erasing it to the domain would make
-    /// FixedBuffer&lt;5&gt; and FixedBuffer&lt;6&gt; one C# type. Array is handled above and never
-    /// reaches this.
+    /// The one position where a lifted value is spelled as its CARRIER rather than its domain: the
+    /// value is what the construction is identified BY, so erasing it would make two fixed buffers of
+    /// different lengths one C# type. Array is handled before this and never reaches it.
     /// </summary>
     private static string EmitArgument(IMistType definition, int ordinal, IMistType argument)
     {
@@ -587,10 +543,8 @@ internal static class TypeNameEmitter
     }
 
     /// <summary>
-    /// Whether a type must be emitted by its fully qualified name. A bare name is
-    /// resolved by C# against the enclosing namespace first, so a cross-project
-    /// reference such as <c>Simpliest.Program</c> emitted as <c>Program</c> inside
-    /// <c>namespace AllFeaturesV2;</c> silently binds to <c>AllFeaturesV2.Program</c>.
+    /// C# resolves a bare name against the enclosing namespace first, so a cross-project
+    /// <c>Program</c> emitted bare silently binds to the emitting namespace's own <c>Program</c>.
     /// </summary>
     private static bool ShouldQualify(DeclaredType type)
     {

@@ -13,9 +13,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
-/// Phase 2 builder for concrete types (classes and structs). Resolves the type's
-/// declaration-level information (base types, generics, modifiers) and its member
-/// signatures (fields, properties, methods, etc.) from the stashed AST.
+/// Phase 2 builder for classes and structs.
 /// </summary>
 internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 {
@@ -29,9 +27,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         castOperatorBuilder = new CastOperatorBuilder(context, scopeResolver, DelegateResolver);
     }
 
-    /// <summary>
-    /// Entry point: resolves the full type definition for a concrete type.
-    /// </summary>
     public void Build(ConcreteType typeDef)
     {
         BuildDeclaration(typeDef);
@@ -42,9 +37,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         SpreadMember.ValidateStems(typeDef, typeDef.DeclarationNode!, Context.Diagnostics);
     }
 
-    /// <summary>
-    /// Resolves declaration-level information: base types, modifiers, constraints.
-    /// </summary>
     private void BuildDeclaration(ConcreteType typeDef)
     {
         BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
@@ -65,9 +57,9 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         typeDef.Modifiers = modifiers;
 
         // Refused here rather than left to emission, which drops an intrinsic type and everything it
-        // declares: a user type marked intrinsic vanished, and a call to one of its ordinary members
-        // then failed against generated C#. The member-level marker needs no separate check, the
-        // pairing rule already requiring an intrinsic container (spec Req 5.6, 5.13 and 5.15).
+        // declares, so a call to one of its ordinary members fails against generated C#. The
+        // member-level marker needs no separate check, the pairing rule already requiring an
+        // intrinsic container (spec Req 5.6, 5.13 and 5.15).
         if(modifiers.IsIntrinsic && typeDef.Assembly.Kind != MistAssemblyKind.Standard && typeDef.CloneSource is null)
         {
             Context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicReservedForStandard, body.TypeBody, null, new NameValue(typeDef.Name));
@@ -86,9 +78,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
 
-    /// <summary>
-    /// Resolves all member signatures for the concrete type.
-    /// </summary>
     private void BuildMembers(ConcreteType typeDef)
     {
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
@@ -99,9 +88,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         }
     }
 
-    /// <summary>
-    /// Dispatches a single member declaration to the appropriate handler.
-    /// </summary>
     private void ResolveMember(MemberDeclarationNode member, ConcreteType typeDef)
     {
         switch(member)
@@ -155,10 +141,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Fields
-    // ═══════════════════════════════════════════════════════════════════════
-
     private void ResolveField(FieldDeclarationNode fieldDecl, ConcreteType typeDef)
     {
         var name = fieldDecl.Name.Lexeme;
@@ -179,9 +161,8 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
 
         if(modifiers.IsIntrinsic)
         {
-            // An intrinsic field represents backend-provided storage on a built-in
-            // type. It is only meaningful when public (otherwise nothing outside the
-            // type could observe it) and inside an intrinsic type.
+            // Backend-provided storage, so only meaningful when public: nothing outside the type
+            // could otherwise observe it.
             IntrinsicMemberValidation.Validate(typeDef.IsIntrinsic, typeDef.Name, modifiers.Accessibility == Accessibility.Public, fieldDecl, Context.Diagnostics);
         }
 
@@ -194,10 +175,6 @@ internal sealed class ConcreteTypeBuilder : MemberTypeBuilder
         Context.Attributes.Build(fieldDecl.Attributes, field.DeclaredAttributesList, typeDef.Scope);
         typeDef.FieldsList.Add(field);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Default Block
-    // ═══════════════════════════════════════════════════════════════════════
 
     private void ResolveDefaultBlock(DefaultBlockDeclarationNode blockDecl, ConcreteType typeDef)
     {

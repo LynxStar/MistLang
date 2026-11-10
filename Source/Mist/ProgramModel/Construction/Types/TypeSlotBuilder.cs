@@ -7,15 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
 
-/// <summary>
-/// Resolves associated type slot declarations into <see cref="TypeSlot"/>
-/// instances. A slot is a type parameter closed by conformance rather than by a
-/// type argument. This builder fully resolves the slot: its own type parameters,
-/// its constraint bound (the <c>:</c> clause, which constrains the slot itself),
-/// and its <c>where</c> clauses (which constrain the slot's type parameters). The
-/// slot is registered as a type in the abstract's scope so members can reference
-/// it by simple name.
-/// </summary>
 internal sealed class TypeSlotBuilder
 {
     private readonly BuilderContext context;
@@ -27,24 +18,18 @@ internal sealed class TypeSlotBuilder
         this.constraintResolver = constraintResolver;
     }
 
-    /// <summary>
-    /// Resolves an associated type slot declaration, validating slot-level rules
-    /// and registering the fully-built slot on the abstract type and in its scope.
-    /// </summary>
     public void Resolve(AssociatedTypeSlotDeclarationNode slotDecl, AbstractType typeDef)
     {
         var name = slotDecl.Name.Lexeme;
 
-        // Modifiers are not permitted on associated type slots.
         if(!slotDecl.Modifiers.IsDefaultOrEmpty)
         {
             context.Diagnostics.ReportAtNodeTyped(CommonDiagnostics.ModifiersOnAssociatedTypeSlot, slotDecl, null);
         }
 
-        // Slot names must be unique within their declaring abstract type. Compared without the
-        // arity marker, so two slots differing only in arity still collide -- whether a slot may
-        // be overloaded on arity the way an ordinary generic is, is a language question nobody
-        // has asked.
+        // Compared without the arity marker, so two slots differing only in arity still collide;
+        // whether a slot may be overloaded on arity like an ordinary generic is an open language
+        // question.
         if(typeDef.TypeSlotsList.Any(existing => MistType.StripArity(existing.Name) == name))
         {
             context.Diagnostics.ReportAtNodeTyped(CommonDiagnostics.DuplicateAssociatedTypeSlot, slotDecl, null, new NameValue(typeDef.Name), new NameValue(name));
@@ -64,18 +49,14 @@ internal sealed class TypeSlotBuilder
         var slot = new TypeSlot(
             ArityName(name, slotDecl.TypeParams), typeDef.TypeSlotsList.Count, slotScope, typeDef);
 
-        // The slot's own type parameters (e.g. T in `type Foo<T>;`).
         TypeParameterPopulator.Populate(
             slot, slotScope, slot, slotDecl.TypeParams, context.Diagnostics, context.Domains);
 
-        // The `:` bound constrains the slot itself; store it on the slot's own
-        // constraint list (inherited from TypeParameter).
         if(slotDecl.ConstraintClause is { } bound)
         {
             constraintResolver.ResolveConstraintList(bound, slot.ConstraintsList, slotScope);
         }
 
-        // The `where` clauses constrain the slot's own type parameters.
         constraintResolver.Resolve(slotDecl.Group0?.SlotWhereConstraints ?? default, slot.TypeParametersList, slotScope);
 
         // Adding it to the abstract is also what makes it nameable by simple name in the

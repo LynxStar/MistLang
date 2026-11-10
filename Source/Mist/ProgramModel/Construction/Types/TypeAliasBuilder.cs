@@ -8,11 +8,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
 
-/// <summary>
-/// Phase 2 builder for type aliases. Resolves the aliased type reference
-/// from the declaration's <c>RefinableTypeExpression</c>, wrapping in a
-/// <see cref="RefinedType"/> when a refinement predicate is present.
-/// </summary>
 internal sealed class TypeAliasBuilder
 {
     private readonly ScopeResolver scopeResolver;
@@ -26,8 +21,7 @@ internal sealed class TypeAliasBuilder
     }
 
     /// <summary>
-    /// Resolves the type alias's modifiers and target type reference. Re-entrant: an alias
-    /// whose target names a later-declared alias is completed on demand from
+    /// Re-entrant: an alias whose target names a later-declared alias is completed on demand from
     /// <see cref="ScopeResolver.ExpandAlias(TypeAlias, IReadOnlyList{IMistType}?, Storm.Runtime.SyntaxNode?)"/>, so a
     /// second call for an already-built alias returns without work, and re-entering an alias
     /// still being built is the definition of a cycle -- reported at that alias's declaration,
@@ -74,7 +68,7 @@ internal sealed class TypeAliasBuilder
 
         if(refinableExpr.RefinableSingleTypeExprs.Length > 0)
         {
-            // Union type alias: resolve all constituents, each potentially refined.
+            // A union alias; each constituent may be refined.
             var constituents = new List<IMistType>(refinableExpr.RefinableSingleTypeExprs.Length + 1)
             {
                 ResolvePossiblyRefined(refinableExpr.First, typeDef)
@@ -103,10 +97,6 @@ internal sealed class TypeAliasBuilder
         typeDef.AliasedType ??= resolved;
     }
 
-    /// <summary>
-    /// Resolves a single refinable type expression. If a refinement predicate is
-    /// present, wraps the resolved base type in a <see cref="RefinedType"/>.
-    /// </summary>
     private IMistType ResolvePossiblyRefined(RefinableSingleTypeExprNode node, TypeAlias alias)
     {
         var resolution = scopeResolver.ResolveWithFailure(node.Type, alias.Scope);

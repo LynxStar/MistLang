@@ -9,17 +9,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
 
-/// <summary>
-/// Shared logic for creating <see cref="TypeParameter"/> instances from AST
-/// type parameter list nodes. Used by both <see cref="TypeBuilder"/> (Phase 1,
-/// type-level params) and <see cref="MethodBuilder"/> (Phase 2, method-level params).
-/// </summary>
 internal static class TypeParameterPopulator
 {
-    /// <summary>
-    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list and adds them
-    /// to <paramref name="declaration"/>, which is where lookup reads them from.
-    /// </summary>
     /// <param name="declaringScope">
     /// Not taken from the declaration: a method's scope exists before the final
     /// <see cref="Model.Members.Method"/> it will belong to, so there is a caller for whom the
@@ -104,10 +95,9 @@ internal static class TypeParameterPopulator
 
         switch(node)
         {
-            // A pack is dependent for the same reason `Size:int` is, and this is the whole of the
-            // design rather than a convenience: its domain is a comptime `Type[]`, so what fills
-            // the slot is a value and the construction's identity is that value. `params TArgs`
-            // is sugar for `Type[]:TArgs`.
+            // A pack is dependent for the same reason `Size:int` is: its domain is a comptime
+            // `Type[]`, so what fills the slot is a value and the construction's identity is that
+            // value. `params TArgs` is sugar for `Type[]:TArgs`.
             case ParamsPackTypeParameterTypeParameterNode:
                 typeParam.PackKind = TypePackKind.Unbracketed;
                 typeParam.IsDependent = true;

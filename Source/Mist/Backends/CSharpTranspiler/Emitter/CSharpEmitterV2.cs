@@ -15,11 +15,6 @@ using CompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// V2 C# emitter that consumes an <see cref="IProgramModel"/> and produces one
-/// compilable C# source file per Mist source file, then compiles them into a DLL
-/// using <see cref="CSharpCompilationDriver"/>.
-/// </summary>
 internal sealed class CSharpEmitterV2
 {
     private readonly IProgramModel programModel;
@@ -64,13 +59,10 @@ internal sealed class CSharpEmitterV2
     public int RuntimeAssetsDeployed { get; private set; }
 
     /// <summary>
-    /// Emits all compilation units to disk and compiles the result.
-    /// <para>
     /// One C# file per Mist file, which is what preserves file scope: a file's using
     /// directives reach its own types and nothing else, exactly as they do in the source.
     /// Emitting per TYPE instead would either lose the usings or leak one file's imports
     /// into another's.
-    /// </para>
     /// </summary>
     public CompilerResult Emit()
     {
@@ -80,7 +72,6 @@ internal sealed class CSharpEmitterV2
             return new CompilerResult(false, null, diagnostics.ToImmutableArray());
         }
 
-        // Compile the emitted sources using the in-process Roslyn driver.
         var binDir = options.BinDirectory;
         _ = Directory.CreateDirectory(binDir);
 
@@ -196,17 +187,12 @@ internal sealed class CSharpEmitterV2
         var csprojPath = Path.Combine(outputDir, $"{options.ProjectName}.csproj");
         File.WriteAllText(csprojPath, csprojContent);
 
-        // Transpilation is done; compiling it is a separate step, and it must not run if
-        // transpilation failed. Roslyn would answer with C# errors against generated files,
-        // which describe symptoms in code the user never wrote and bury the Mist-level cause
-        // that is already sitting in the bag. The pipeline gates Stages 4 and 5 before calling
-        // here, so an error at this point is emission's own.
+        // Compiling must not follow a failed transpilation: Roslyn would answer with C# errors
+        // against generated files, burying the Mist-level cause already in the bag. The pipeline
+        // gates Stages 4 and 5 before calling here, so an error at this point is emission's own.
         return diagnostics.HasErrors ? null : startup;
     }
 
-    /// <summary>
-    /// Emits a single compilation unit as one C# source file.
-    /// </summary>
     private void EmitCompilationUnit(
         CompilationUnit unit,
         IAssembly assembly,
@@ -245,7 +231,6 @@ internal sealed class CSharpEmitterV2
             EmitFileTypes(emittableTypes, emittableBlocks, emitsStatements, closures, writer);
         }
 
-        // Determine output path: {outputDir}/{Assembly.Name}/{RelativePath}/{FileName}.cs
         var fileName = DeriveOutputFileName(unit);
         var pathSegments = new List<string> { outputDir, assembly.Name };
         if(!string.IsNullOrEmpty(unit.RelativePath))
@@ -426,9 +411,6 @@ internal sealed class CSharpEmitterV2
         emittedFiles.Add(path);
     }
 
-    /// <summary>
-    /// Every dependent type parameter the program declares, on a type or on one of its methods.
-    /// </summary>
     private IEnumerable<TypeParameter> DependentParameters()
     {
         foreach(var type in ((ProgramModel.Model.ProgramModel)programModel).TypesByFQN.Values)
@@ -714,13 +696,10 @@ internal sealed class CSharpEmitterV2
     }
 
     /// <summary>
-    /// A file's types under the namespaces that declare them, one Mist file to one C# file.
-    /// <para>
-    /// The file-scoped form can be written ONCE and must precede every other member, so it serves
-    /// exactly the file that declares one namespace and no top-level statements. Anything else needs
-    /// blocks: a second namespace has nowhere to go, and statements already emitted are members the
-    /// file-scoped form may not follow.
-    /// </para>
+    /// The file-scoped namespace form can be written ONCE and must precede every other member, so it
+    /// serves exactly the file that declares one namespace and no top-level statements. Anything else
+    /// needs blocks: a second namespace has nowhere to go, and statements already emitted are members
+    /// the file-scoped form may not follow.
     /// </summary>
     private void EmitFileTypes(
         List<DeclaredType> types,

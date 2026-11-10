@@ -12,8 +12,6 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Types;
 
 /// <summary>
-/// Walks the AST to register type declarations in the program model.
-/// Creates type shells with their scopes and handles nested types recursively.
 /// One instance is created per compilation and reused across all files.
 /// </summary>
 internal sealed class TypeBuilder
@@ -21,9 +19,8 @@ internal sealed class TypeBuilder
     private readonly BuilderContext context;
 
     /// <summary>
-    /// The assembly owning the file currently being processed. Held as state for the
-    /// duration of one <see cref="Build"/> call so every type kind, nested types
-    /// included, can be stamped from the single place they all funnel through.
+    /// Held as state for the duration of one <see cref="Build"/> call so every type kind, nested
+    /// types included, can be stamped from the single place they all funnel through.
     /// <para>
     /// Seeded with the synthetic assembly, which is only ever observable if a type were
     /// registered outside a <see cref="Build"/> call -- there is no declaration boundary
@@ -38,20 +35,9 @@ internal sealed class TypeBuilder
         this.context = context;
     }
 
-    /// <summary>
-    /// Processes all type declarations in a compilation unit, including types
-    /// inside block namespaces.
-    /// </summary>
     /// <param name="fileScope">
     /// The file's scope. Top-level types are published on it by simple name, which is what makes
     /// them -- and only them -- nameable from the namespace blocks written in the same file.
-    /// </param>
-    /// <param name="fileNamespace">
-    /// The namespace the file's top-level items belong to, explicit or inferred.
-    /// </param>
-    /// <param name="assembly">
-    /// The assembly owning this compilation unit, recorded on every type registered
-    /// from it.
     /// </param>
     public TypeBuilderResult Build(FileScope fileScope, string fileNamespace, CompilationUnitNode ast, MistAssembly assembly)
     {
@@ -109,8 +95,8 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Makes a top-level type nameable from this file's namespace blocks. Accepts null so callers
-    /// need not check: an unrecognized declaration registered nothing and has nothing to publish.
+    /// Accepts null so callers need not check: an unrecognized declaration registered nothing and
+    /// has nothing to publish.
     /// </summary>
     private static void PublishTopLevel(FileScope fileScope, MistType? typeDef)
     {
@@ -121,14 +107,10 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Wraps the file's top-level statements in a <c>Main</c> on a synthesized
-    /// <c>$TopLevel</c> class, and returns that method.
-    /// <para>
     /// The class is registered even though it is never emitted as a declaration, because
     /// registration is what puts it in Phase 3's walk -- and Phase 3 is what binds the
     /// statements. It also owns the scope the method binds against, which a bare method
     /// would have nowhere to get.
-    /// </para>
     /// <para>
     /// Deliberately NOT recorded among the assembly's entry points. A declared <c>Main</c>
     /// elsewhere in the project is still a valid method and must still be recorded, so
@@ -175,8 +157,8 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// The name of the synthesized top-level statement type. The <c>$</c> makes it
-    /// unspellable as a Mist identifier, so it cannot collide with a declared type.
+    /// The <c>$</c> makes it unspellable as a Mist identifier, so it cannot collide with a
+    /// declared type.
     /// </summary>
     private const string TopLevelTypeName = "$TopLevel";
 
@@ -188,10 +170,6 @@ internal sealed class TypeBuilder
     /// </summary>
     private int topLevelPrograms;
 
-    /// <summary>
-    /// Processes types inside a block namespace. Creates a namespace level for the block and
-    /// registers types under it.
-    /// </summary>
     private void ProcessBlockNamespace(Scope parentScope, string parentNamespace, BlockNamespaceNamespaceDeclarationNode blockNs)
     {
         var blockNamespace = BlockNamespaceName.Build(blockNs, parentNamespace);
@@ -200,9 +178,6 @@ internal sealed class TypeBuilder
         ProcessNamespaceBody(blockScope, blockNamespace, blockNs.Body, publishTo: null);
     }
 
-    /// <summary>
-    /// Processes namespace body items, registering any type declarations found.
-    /// </summary>
     /// <param name="publishTo">
     /// The file scope when this body IS the file's top level (a file-scoped namespace), null when
     /// it is a block. Only the former's types are nameable from the file's namespace blocks.
@@ -239,8 +214,7 @@ internal sealed class TypeBuilder
     }
 
     /// <summary>
-    /// Stashes an extension block AST for deferred processing in Phase 2.
-    /// The receiver type cannot be resolved until all types are registered.
+    /// Deferred to Phase 2: the receiver type cannot be resolved until all types are registered.
     /// </summary>
     private void StashExtension(Scope scope, string namespaceName, ExtensionBlockDeclarationNode extensionDecl)
     {
@@ -264,12 +238,6 @@ internal sealed class TypeBuilder
         _ = context.ProgramModel.GetOrAddNamespace(namespaceName);
     }
 
-    /// <summary>
-    /// Registers a single type declaration: creates the type shell, its scope,
-    /// registers it in the namespace, and recurses into nested types.
-    /// Newtypes and type aliases have no member bodies, so nested type
-    /// registration is skipped for them.
-    /// </summary>
     private DeclaredType? RegisterType(
         Scope parentScope,
         string namespaceName,
@@ -284,14 +252,12 @@ internal sealed class TypeBuilder
 
         FinalizeRegistration(typeDef, declaringType);
 
-        // Newtypes and type aliases don't have member bodies — skip nested
-        // type registration for them.
+        // Newtypes and type aliases don't have member bodies.
         if(typeDef is Newtype or TypeAlias)
         {
             return typeDef;
         }
 
-        // Recurse into nested types within the type body.
         RegisterNestedTypes(typeDef.Scope, typeDecl, typeDef);
 
         return typeDef;
@@ -302,7 +268,6 @@ internal sealed class TypeBuilder
         var namespaceName = declaringType.NamespaceName;
 
         var name = BuildGenericName(bodyDecl.Name.Lexeme, bodyDecl.TypeParams);
-        // Wrap in a synthetic TypeDeclarationNode for CreateMistType compatibility
         var wrappedDecl = new BodyTypeTypeDeclarationNode { TypeBody = bodyDecl };
         MemberType? typeDef = bodyDecl.Keyword switch
         {
@@ -351,16 +316,10 @@ internal sealed class TypeBuilder
         FinalizeRegistration(typeDef, declaringType);
     }
 
-    /// <summary>
-    /// Shared registration logic: adds the type to the flat FQN dictionary,
-    /// the declaring type, and the scope.
-    /// Reports a diagnostic if a type with the same FQN already exists.
-    /// </summary>
     private void FinalizeRegistration(DeclaredType typeDef, MistType? declaringType)
     {
         typeDef.Assembly = currentAssembly;
 
-        // Register in the flat FQN dictionary.
         if(!context.ProgramModel.RegisterType(typeDef))
         {
             var declared = typeDef switch
@@ -387,25 +346,18 @@ internal sealed class TypeBuilder
         // Ensure the namespace exists (for extensions/conformances that reference it).
         _ = context.ProgramModel.GetOrAddNamespace(typeDef.NamespaceName);
 
-        // If nested, add to the declaring type. That is also what makes it visible by simple name
-        // inside that type, since the declaring type's scope reads NestedTypes rather than keeping
-        // a table of its own.
+        // This is also what makes a nested type visible by simple name inside its declaring type,
+        // whose scope reads NestedTypes rather than keeping a table of its own.
         if(declaringType is not null)
         {
             declaringType.NestedTypes.Add(typeDef);
         }
         else
         {
-            // Only the top level is collected: a nested type is emitted inside its declaring
-            // type's body, so listing it again would emit it twice.
             registeredTypes.Add(typeDef);
         }
     }
 
-    /// <summary>
-    /// Iterates over the members of a type declaration and registers any
-    /// nested type declarations found.
-    /// </summary>
     private void RegisterNestedTypes(Scope typeScope, TypeDeclarationNode typeDecl, DeclaredType declaringType)
     {
         var members = GetMembers(typeDecl);
@@ -434,10 +386,6 @@ internal sealed class TypeBuilder
         }
     }
 
-    /// <summary>
-    /// Creates the appropriate concrete MistType subclass for a type declaration node.
-    /// Reports a diagnostic and returns null for unrecognized node types.
-    /// </summary>
     private DeclaredType? CreateMistType(TypeDeclarationNode typeDecl, Scope parentScope, string namespaceName, MistType? declaringType)
     {
         switch(typeDecl)
@@ -476,10 +424,6 @@ internal sealed class TypeBuilder
         }
     }
 
-    /// <summary>
-    /// Gets the members array from a type declaration, or default if the
-    /// type kind does not support nested type declarations (e.g., enums, newtypes, type aliases).
-    /// </summary>
     private static ImmutableArray<MemberDeclarationNode> GetMembers(TypeDeclarationNode typeDecl)
     {
         return typeDecl switch
@@ -489,11 +433,6 @@ internal sealed class TypeBuilder
         };
     }
 
-    /// <summary>
-    /// Builds the arity-bearing name for a type. Non-generic types get their plain name;
-    /// generic types get the angle-bracket arity suffix (e.g., <c>Foo&lt;&gt;</c> for 1 param,
-    /// <c>Foo&lt;,&gt;</c> for 2, <c>Foo&lt;,,&gt;</c> for 3).
-    /// </summary>
     private static string BuildGenericName(string simpleName, TypeParameterListNode? typeParams)
     {
         if(typeParams is null)
@@ -507,11 +446,6 @@ internal sealed class TypeBuilder
         return $"{simpleName}<{commas}>";
     }
 
-    /// <summary>
-    /// Creates <see cref="TypeParameter"/> instances from the AST type parameter list and adds them
-    /// to the declaring type's own list. One overload for every type kind now that the namespace
-    /// comes off the declaring type rather than the scope it was declared in.
-    /// </summary>
     private void PopulateTypeParameters<T>(T declaringType, TypeParameterListNode? typeParams)
         where T : MistType, IHasTypeParameters
     {

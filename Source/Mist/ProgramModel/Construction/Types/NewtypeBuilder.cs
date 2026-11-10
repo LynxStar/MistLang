@@ -10,10 +10,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
 
-/// <summary>
-/// Phase 2 builder for newtypes. Resolves modifiers and the source type reference
-/// from the <c>new T</c> annotation on the declaration.
-/// </summary>
 internal sealed class NewtypeBuilder
 {
     private readonly BuilderContext context;
@@ -25,9 +21,6 @@ internal sealed class NewtypeBuilder
         this.scopeResolver = scopeResolver;
     }
 
-    /// <summary>
-    /// Resolves the newtype's modifiers and source type reference.
-    /// </summary>
     public void Build(Newtype typeDef)
     {
         var decl = typeDef.DeclarationNode;

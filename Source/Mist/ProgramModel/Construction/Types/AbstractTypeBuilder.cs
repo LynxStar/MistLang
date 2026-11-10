@@ -6,10 +6,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Types;
 
-/// <summary>
-/// Phase 2 builder for abstract types. Resolves base abstracts and member
-/// signatures (method declarations, property declarations, associated type slots).
-/// </summary>
 internal sealed class AbstractTypeBuilder : MemberTypeBuilder
 {
     private readonly TypeSlotBuilder typeSlotBuilder;
@@ -20,18 +16,12 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         typeSlotBuilder = new TypeSlotBuilder(context, ConstraintResolver);
     }
 
-    /// <summary>
-    /// Entry point: resolves the full type definition for an abstract type.
-    /// </summary>
     public void Build(AbstractType typeDef)
     {
         BuildDeclaration(typeDef);
         BuildMembers(typeDef);
     }
 
-    /// <summary>
-    /// Resolves declaration-level information: base abstracts, modifiers, constraints.
-    /// </summary>
     private void BuildDeclaration(AbstractType typeDef)
     {
         BaseTypeResolver.Resolve(typeDef.DeclarationNode!, typeDef);
@@ -45,16 +35,12 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
         ConstraintResolver.Resolve(body.TypeBody.Constraints, typeDef.TypeParametersList, typeDef.Scope);
     }
 
-    /// <summary>
-    /// Resolves all member signatures for the abstract type.
-    /// </summary>
     private void BuildMembers(AbstractType typeDef)
     {
         var body = (BodyTypeTypeDeclarationNode)typeDef.DeclarationNode!;
 
-        // First pass: register associated type slots as types in the abstract's
-        // scope so members can reference them by simple name regardless of the
-        // order in which they are declared.
+        // Slots first, so members can reference them by simple name whatever order they are
+        // declared in.
         foreach(var member in body.TypeBody.Members)
         {
             if(member is AssociatedTypeMemberMemberDeclarationNode assocType)
@@ -63,16 +49,12 @@ internal sealed class AbstractTypeBuilder : MemberTypeBuilder
             }
         }
 
-        // Second pass: resolve the remaining member signatures.
         foreach(var member in body.TypeBody.Members)
         {
             ResolveMember(member, typeDef);
         }
     }
 
-    /// <summary>
-    /// Dispatches a single abstract member declaration.
-    /// </summary>
     private void ResolveMember(MemberDeclarationNode member, AbstractType typeDef)
     {
         switch(member)

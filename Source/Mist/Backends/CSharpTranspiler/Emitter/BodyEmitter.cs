@@ -16,13 +16,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits C# source for method bodies by walking the Statement/Expression model.
-/// <para>
 /// Emission is where an unresolved node becomes a user-facing problem, which is why a
 /// <see cref="DiagnosticBag"/> travels with the writer: the binder parks sentinels deliberately, and
 /// writing one out is the moment that turns into C# that will not compile. See
 /// <see cref="BackendDiagnostics.UnsupportedExpression"/>.
-/// </para>
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -120,10 +117,8 @@ internal static partial class BodyEmitter
     }
 
     /// <summary>
-    /// A local function's body, emitted where the function is declared. An await inside it is a real
-    /// one whatever encloses it -- a sync lambda included -- because the function can be made async on
-    /// its own, which <see cref="AsyncPromotion"/> does; so the blocking mode is off for its duration
-    /// and restored after.
+    /// An await inside a local function is a real one whatever encloses it -- a sync lambda included --
+    /// because <see cref="AsyncPromotion"/> can make the function async on its own.
     /// </summary>
     public static void EmitLocalFunctionBody(
         LocalFunctionStatement function, Func<Parameter, string> spell, CSharpWriter writer, DiagnosticBag diagnostics)
@@ -231,9 +226,9 @@ internal static partial class BodyEmitter
     }
 
     /// <summary>
-    /// The statements from <paramref name="index"/> on. A declaration that still owns a droppable value
-    /// at the end of the scope takes the REST OF THE BLOCK as the body of a try, with the drop in its
-    /// finally, so the emission recurses rather than looping.
+    /// A declaration that still owns a droppable value at the end of the scope takes the REST OF THE
+    /// BLOCK as the body of a try, with the drop in its finally, so the emission recurses rather than
+    /// looping.
     /// <para>
     /// The nesting is what gives reverse declaration order, each drop sitting inside the try of every
     /// binding declared before it. try/finally rather than a trailing statement because the drop has to
@@ -465,21 +460,6 @@ internal static partial class BodyEmitter
         }
     }
 
-    /// <summary>
-    /// A call's arguments, each marked <c>ref</c> where the parameter it fills is.
-    /// <para>
-    /// Read from the RESOLVED CALLEE rather than from the argument, because binding drops the
-    /// <c>ref</c> a call site wrote -- so the parameter is the only surviving record, and it is the one
-    /// C# insists the two agree on anyway. A callee that resolved to nothing marks nothing, which is
-    /// right: invoking a function value has no parameter to consult and Mist's function types carry no
-    /// ref.
-    /// </para>
-    /// </summary>
-    /// <summary>
-    /// The factory arguments a call to a default-constrained generic supplies, ahead of the declared
-    /// ones. The type arguments come off the CALLEE rather than being re-derived, so an inferred one
-    /// reaches here already substituted -- the emitter runs no inference of its own.
-    /// </summary>
     private static void EmitOperand(
         Expression operand, Operator? declared, IReadOnlyList<IMistType>? closed, int position, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -957,7 +937,6 @@ internal static partial class BodyEmitter
 
         writer.Write("for (");
 
-        // Initializer
         var initializer = initialized ? null : forStmt.Initializer;
 
         if(initializer is LocalDeclarationStatement initDecl)
@@ -977,7 +956,6 @@ internal static partial class BodyEmitter
 
         writer.Append("; ");
 
-        // Condition
         var discard = (forStmt.Initializer as LocalDeclarationStatement)?.Local;
         if(discard is { IsDiscard: true })
         {
@@ -999,7 +977,6 @@ internal static partial class BodyEmitter
 
         writer.Append("; ");
 
-        // Iterator
         if(forStmt.Iterator is not null)
         {
             writer.Append(StatementLead(forStmt.Iterator));
@@ -1729,12 +1706,6 @@ internal static partial class BodyEmitter
     }
 
     /// <summary>
-    /// Parameters are always spelled with their types, even where source left them implicit. The types
-    /// are the ones the MODEL resolved, so this stops C# inferring its own from the target and reaching a
-    /// different answer -- and it costs nothing, C# accepting an explicit list wherever it accepts an
-    /// implicit one.
-    /// </summary>
-    /// <summary>
     /// Whether an await inside the construct being emitted has to block. False in a method body, which
     /// <see cref="AsyncPromotion"/> makes async so the await can be real; true inside a lambda whose
     /// delegate type is synchronous.
@@ -1788,6 +1759,12 @@ internal static partial class BodyEmitter
         return OptionalUnion.IsVoid(lambda.IsAsync ? TaskResult.Of(result) ?? result : result);
     }
 
+    /// <summary>
+    /// Parameters are always spelled with their types, even where source left them implicit. The types
+    /// are the ones the MODEL resolved, so this stops C# inferring its own from the target and reaching a
+    /// different answer -- and it costs nothing, C# accepting an explicit list wherever it accepts an
+    /// implicit one.
+    /// </summary>
     private static void EmitLambdaBody(
         LambdaExpression lambda, CSharpWriter writer, DiagnosticBag diagnostics)
     {
@@ -1915,8 +1892,7 @@ internal static partial class BodyEmitter
     /// <summary>
     /// An enum variant lifted out of a tuple element into a condition beside the pattern, because C#
     /// admits only a compile-time constant in a pattern and a Mist variant lowers to a static readonly
-    /// field. <see cref="Bound"/> names what the element position binds instead, so the comparison has
-    /// something to read.
+    /// field.
     /// </summary>
     /// <param name="Text">
     /// The test as C#, rendered where it was hoisted rather than at the guard, because the two
@@ -1969,12 +1945,6 @@ internal static partial class BodyEmitter
         }
     }
 
-    /// <summary>
-    /// Emits a pattern, parenthesizing it when it binds looser than the combinator applying to it.
-    /// Needed for the same reason the expression side needs it: the model carries no grouping, so
-    /// <c>(a or b) and c</c> arrives as a conjunction OF a disjunction and written bare would be C# for
-    /// <c>a or (b and c)</c>. Mist and C# rank these identically -- or, then and, then not.
-    /// </summary>
     internal static void EmitScrutinee(Expression scrutinee, int precedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         if(scrutinee.Type is UnionType && TypeNameEmitter.Closed(scrutinee.Type) is not UnionType)
@@ -2055,11 +2025,11 @@ internal static partial class BodyEmitter
     /// accessor -- <c>int n</c> emits as <c>{ AsInt32OrNull: int n }</c>. The accessor is
     /// <see cref="EmitUnionNarrowing"/>'s, and discriminates for the reason given there.
     /// <para>
-    /// A CHAIN OF CONDITIONALS is the other shape and both of its defects were measured rather than
-    /// reasoned. C# scopes a pattern variable to the whole enclosing statement instead of to the
-    /// conditional that introduced it, so two arms binding one name -- legal Mist, since every arm binds
-    /// in a scope of its own -- collide on CS0128. And a chain has nowhere to bind the scrutinee, so it
-    /// re-emits it per arm and runs a side-effecting one once per test.
+    /// A CHAIN OF CONDITIONALS is the other shape, with two defects. C# scopes a pattern variable to the
+    /// whole enclosing statement instead of to the conditional that introduced it, so two arms binding
+    /// one name -- legal Mist, since every arm binds in a scope of its own -- collide on CS0128. And a
+    /// chain has nowhere to bind the scrutinee, so it re-emits it per arm and runs a side-effecting one
+    /// once per test.
     /// </para>
     /// <para>
     /// Staying an arm also leaves first-match ordering, the <c>when</c> guard and the no-match throw to
@@ -2194,10 +2164,10 @@ internal static partial class BodyEmitter
     /// <para>
     /// COUNTED RATHER THAN DERIVED FROM THE NODE, because one node can be emitted at many sites. A
     /// refinement's predicate is written once in its alias and reached by every test of that
-    /// refinement, so a name taken from its span repeats -- two `is Email` tests in one scope
-    /// declared the same local. Deterministic because emission walks in a fixed order and the count
-    /// starts over for each program, so what a process emitted before it leaves no mark; thread-static
-    /// so parallel emissions cannot hand out the same number.
+    /// refinement, so a name taken from its span repeats within one scope. Deterministic because
+    /// emission walks in a fixed order and the count starts over for each program, so what a process
+    /// emitted before it leaves no mark; thread-static so parallel emissions cannot hand out the same
+    /// number.
     /// </para>
     /// </summary>
     internal static string TemporaryName()
@@ -2214,10 +2184,7 @@ internal static partial class BodyEmitter
     /// The enum variant a pattern tests BARE, which the two positions a pattern can occupy then lower
     /// differently -- an <c>is</c> becomes the comparison outright, an arm binds the scrutinee and
     /// compares in a <c>when</c> guard, because an arm admits a pattern and only a pattern. The arm's
-    /// binding names what the switch already evaluated, so a side-effecting scrutinee is not run twice,
-    /// and its name carries the pattern's SOURCE OFFSET: an arm ordinal would be unique within one
-    /// switch and collide with the enclosing one's for a switch nested inside an arm's result, which C#
-    /// rejects outright rather than shadowing.
+    /// binding names what the switch already evaluated, so a side-effecting scrutinee is not run twice.
     /// <para>
     /// The <c>is</c> form is parenthesized because the equality replaces an <c>is</c> and the two do NOT
     /// rank alike in C#: type testing outranks equality, so <c>flag == d is Direction.North</c> -- which
@@ -2241,6 +2208,12 @@ internal static partial class BodyEmitter
     /// A predicate requiring a call or numeric promotion travels as a guard on a captured value.
     /// <see cref="BooleanPatternConditions"/> keeps those guards inside their Boolean branch;
     /// structural patterns retain C# pattern precedence and bindings.
+    /// <para>
+    /// Parenthesized when it binds looser than the combinator applying to it, because the model
+    /// carries no grouping: <c>(a or b) and c</c> arrives as a conjunction OF a disjunction and written
+    /// bare would be C# for <c>a or (b and c)</c>. Mist and C# rank these identically -- or, then and,
+    /// then not.
+    /// </para>
     /// </summary>
     private static void EmitPattern(
         Pattern pattern,
@@ -2564,14 +2537,12 @@ internal static partial class BodyEmitter
     /// and with it the whole subpattern, to the runtime binder. Every subpattern shape therefore
     /// survives, including the relational and constant ones C# would refuse against an object.
     /// <para>
-    /// Each member test goes into the condition rather than ahead of the branch, which is where classic
-    /// puts it. One evaluation of the scrutinee either way, and the binding then reaches the REST OF THE
-    /// CONDITION as well as the branch -- so a later conjunct may read it, which a statement hoisted
-    /// into the branch cannot offer.
+    /// Each member test goes into the condition rather than ahead of the branch, so the binding reaches
+    /// the REST OF THE CONDITION as well as the branch, where a later conjunct may read it.
     /// </para>
     /// <para>
-    /// A MISSING MEMBER THROWS rather than failing the match, exactly as it does on classic: nothing
-    /// here checks the shape, because there is no shape to check against.
+    /// A MISSING MEMBER THROWS rather than failing the match: nothing here checks the shape, because
+    /// there is no shape to check against.
     /// </para>
     /// </summary>
     private static void EmitUnknownPropertyPattern(
@@ -2958,10 +2929,6 @@ internal static partial class BodyEmitter
         }
     }
 
-    /// <summary>
-    /// How many elements a tuple type has, or null when the type is not one whose width is fixed --
-    /// a value pack whose spread is still symbolic among them.
-    /// </summary>
     private static int? TupleWidth(IMistType type)
     {
         var elements = TypeNameEmitter.Closed(type) switch
@@ -3006,10 +2973,6 @@ internal static partial class BodyEmitter
         }
     }
 
-    /// <summary>
-    /// The arity a <c>TArgs.Length</c> stands for where it is being emitted, or null when this access
-    /// is anything else.
-    /// </summary>
     private static int? PackArity(MemberAccessExpression memberAccess)
     {
         return memberAccess.MemberName == "Length"
@@ -3025,15 +2988,6 @@ internal static partial class BodyEmitter
             + EmitTypeArguments(arguments, parameters);
     }
 
-    /// <param name="parameters">
-    /// The slots being filled, when the caller knows them. A dependent slot takes the value's
-    /// CARRIER rather than its domain, and only the slot says which of the two an argument is --
-    /// the argument itself is a lifted value either way.
-    /// </param>
-    /// <summary>
-    /// The name a call writes, which for a variadic method is the specialization its width asked
-    /// for.
-    /// </summary>
     private static string CalleeName(
         string declaredName, IReadOnlyList<IMistType> typeArguments, IReadOnlyList<TypeParameter>? parameters)
     {
@@ -3103,10 +3057,8 @@ internal static partial class BodyEmitter
     }
 
     /// <summary>
-    /// Emits an integer literal with the appropriate type suffix based on the
-    /// expression's resolved type. Without suffixes, C# interprets bare integer
-    /// literals as <c>int</c>, which fails to compile when the target type requires
-    /// a wider or unsigned representation (e.g., <c>ulong x = 3000000000;</c>).
+    /// Suffixed because C# reads a bare integer literal as <c>int</c>, which fails to compile where the
+    /// target type requires a wider or unsigned representation.
     /// </summary>
     private static string EmitIntegerLiteral(Int128 value, IMistType type)
     {
@@ -3121,10 +3073,6 @@ internal static partial class BodyEmitter
         };
     }
 
-    /// <summary>
-    /// Emits a double literal, ensuring it always contains a decimal point or
-    /// exponent so C# doesn't parse it as an integer.
-    /// </summary>
     private static string EmitDoubleLiteral(double d)
     {
         var text = d.ToString("R", CultureInfo.InvariantCulture);

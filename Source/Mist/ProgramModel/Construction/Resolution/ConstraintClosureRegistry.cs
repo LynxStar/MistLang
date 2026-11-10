@@ -13,11 +13,9 @@ namespace Mist.ProgramModel.Construction.Resolution;
 /// Every type used to close a PARAMETERIZED constructor constraint, paired with the signature it
 /// closes and a node to report against.
 /// <para>
-/// SEPARATE FROM <see cref="TypeInterner"/> BECAUSE THE INTERNER CANNOT SEE HALF OF THEM. A generic
-/// TYPE closure interns a ConstructedType, but a generic METHOD closure does not -- a call's type
-/// arguments live on the expression that denotes the callee and are never interned, so
-/// <c>Foo(7)</c> resolved to <c>Foo of Widget</c> would be invisible. Both kinds are recorded here
-/// instead, so one collection answers the whole question.
+/// Separate from <see cref="TypeInterner"/> because the interner cannot see half of them: a generic
+/// TYPE closure interns a ConstructedType, but a generic METHOD call's type arguments live on the
+/// expression that denotes the callee and are never interned.
 /// </para>
 /// <para>
 /// A closure reached through substitution is deliberately NOT recorded. An <c>Outer of T</c> that
@@ -50,10 +48,6 @@ internal sealed class ConstraintClosureRegistry
     public IEnumerable<TypeArgumentClosing> StampableOpenClosings => openClosings.Where(closing =>
         closing.Parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Stampable));
 
-    /// <summary>
-    /// Records the closures a constructed generic TYPE performs, one per parameterized constructor
-    /// constraint on the parameter each argument fills.
-    /// </summary>
     public void RecordType(
         IMistType definition, IReadOnlyList<IMistType> typeArguments, SyntaxNode node, ConstructedType? enclosing = null, Scope? boundIn = null)
     {
@@ -87,9 +81,6 @@ internal sealed class ConstraintClosureRegistry
         }
     }
 
-    /// <summary>
-    /// Records the closures a generic METHOD call performs.
-    /// </summary>
     public void RecordMethod(
         Method method, IReadOnlyList<IMistType> typeArguments, TypeSubstitution closing, SyntaxNode node, Scope? boundIn = null)
     {

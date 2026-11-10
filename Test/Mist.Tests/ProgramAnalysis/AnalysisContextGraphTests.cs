@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;

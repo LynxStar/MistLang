@@ -2746,3 +2746,14 @@ countdown-- ticks 210, ends at -1
 property Total = 14, field Calls = 0
 double 4.5, long 9
 === CompoundAssignment Done ===
+=== FlowFacts Sample ===
+reserve: 3 <= 8
+show: 20
+copied value: 10
+rewritten x: 7
+paired: 1 < 2
+paired: 100 < 200
+fill total: 6
+filled: 0, 1, 2, 3
+selected: 2 < 5
+real: -2 < 3

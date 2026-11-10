@@ -107,3 +107,4 @@ ResultFoundation = { path = "../ResultFoundation" }
 ClrCatch = { path = "../ClrCatch" }
 ProofArithmetic = { path = "../ProofArithmetic" }
 CompoundAssignment = { path = "../CompoundAssignment" }
+FlowFacts = { path = "../FlowFacts" }

@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;

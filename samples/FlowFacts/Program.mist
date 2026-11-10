@@ -1,0 +1,137 @@
+// V2-ONLY: the baseline records these admitted contracts through the standard pipeline.
+using Standard;
+
+namespace FlowFacts;
+
+public type Capacity = int >= 0 and <= 1_000_000;
+
+public class Program
+{
+    public static void Main()
+    {
+        RunDemo();
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== FlowFacts Sample ===");
+        Demo(3, 4);
+
+        Span<int> items = stackalloc int[4];
+        items[1] = 20;
+        Show(items, 1, 2);
+        CopyBeforeWrite();
+        Paired(true);
+        Paired(false);
+        Fill(items, 4);
+        Console.WriteLine($"filled: {items[0]}, {items[1]}, {items[2]}, {items[3]}");
+        Select(2, 5);
+        Compare(-2.0, 3.0);
+    }
+
+    public static void Demo(int used, Capacity capacity)
+    {
+        if(used <= capacity)
+        {
+            var doubled = capacity * 2;
+            Reserve(used, doubled);
+        }
+    }
+
+    public static void Reserve(int needed, int available) where needed <= available
+    {
+        Console.WriteLine($"reserve: {needed} <= {available}");
+    }
+
+    public static void Show(Span<int> items, ZeroOrPositiveInt start, ZeroOrPositiveInt count)
+        where count <= items.Length - start
+    {
+        if(count >= 1)
+        {
+            Console.WriteLine($"show: {items[start]}");
+        }
+    }
+
+    public static void CopyBeforeWrite()
+    {
+        var x = 5;
+        var y = x * 2;
+        x = Replacement();
+        NeedsTen(y);
+        Console.WriteLine($"rewritten x: {x}");
+    }
+
+    public static int Replacement()
+    {
+        return 7;
+    }
+
+    public static void NeedsTen(int value) where value 10
+    {
+        Console.WriteLine($"copied value: {value}");
+    }
+
+    public static void Paired(bool flag)
+    {
+        int a;
+        int b;
+        if(flag)
+        {
+            a = 1;
+            b = 2;
+        }
+        else
+        {
+            a = 100;
+            b = 200;
+        }
+
+        Needs(a, b);
+    }
+
+    public static void Needs(int a, int b) where a < b
+    {
+        Console.WriteLine($"paired: {a} < {b}");
+    }
+
+    public static void Fill(Span<int> items, int n) where n <= items.Length
+    {
+        var i = 0;
+        var total = 0;
+        while(i < n)
+        {
+            items[i] = i;
+            total += i;
+            i++;
+        }
+
+        Console.WriteLine($"fill total: {total}");
+    }
+
+    public static void Select(int i, int n)
+    {
+        var ok = i < n;
+        if(ok)
+        {
+            Below(i, n);
+        }
+    }
+
+    public static void Below(int i, int n) where i < n
+    {
+        Console.WriteLine($"selected: {i} < {n}");
+    }
+
+    public static void Compare(double left, double right)
+    {
+        if(left < right)
+        {
+            Ordered(left, right);
+        }
+    }
+
+    public static void Ordered(double left, double right) where left < right
+    {
+        Console.WriteLine($"real: {left} < {right}");
+    }
+}

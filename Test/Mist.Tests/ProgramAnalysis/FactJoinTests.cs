@@ -49,9 +49,9 @@ public sealed class FactJoinTests
     }
 
     [Theory]
-    [InlineData(3, 0, 5)]
-    [InlineData(4, 0, int.MaxValue)]
-    public void WidenWaitsThreeRoundsAndKeepsTheUnmovedLowerEnd(int round, int low, int high)
+    [InlineData(2, 0, 5)]
+    [InlineData(3, 0, int.MaxValue)]
+    public void WidenWaitsTwoRoundsAndKeepsTheUnmovedLowerEnd(int round, int low, int high)
     {
         var model = new FactModel();
         var holder = new object();
@@ -61,7 +61,7 @@ public sealed class FactJoinTests
         var widened = Lattice().Widen(before, joined, round);
 
         Assert.Equal(new IntegralSet([new(low, high)]), widened.Intervals(widened.Bindings.Get(holder)!));
-        if(round == 3)
+        if(round == 2)
         {
             Assert.Same(joined, widened);
         }

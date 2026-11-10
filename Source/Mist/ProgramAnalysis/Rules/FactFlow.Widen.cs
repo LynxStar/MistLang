@@ -6,7 +6,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 internal sealed partial class FactFlow
 {
-    private const int Rounds = 3;
+    private const int Rounds = 2;
 
     public FactState PrepareWiden(FactState joined, FactState incoming, FlowBlock header)
     {

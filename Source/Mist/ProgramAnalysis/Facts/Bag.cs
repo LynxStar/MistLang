@@ -62,7 +62,7 @@ internal sealed class Bag
         var common = Common.Add(fact);
         var indexed = index.With(fact, Common.Length);
         var viable = Unreachable || fact.IsContradiction ? [] : Alternatives.Where(alternative =>
-            !fact.Term.Variables.Any(value => indexed.Bound(value).And(Chain.SingleValue(alternative.Facts, value)).IsEmpty)).ToImmutableArray();
+            !fact.Term.Variables.Any(value => indexed.Bound(value).And(alternative.Bound(value)).IsEmpty)).ToImmutableArray();
         var kept = viable.Length != Alternatives.Length || projections.IsEmpty ? ImmutableDictionary<Value, IntegralSet>.Empty
             : projections.RemoveRange(Connected(fact, common, indexed, viable));
         return new Bag(common, viable, indexed, kept, this);
@@ -94,7 +94,7 @@ internal sealed class Bag
         {
             if(!linked && !alternative.Facts.Any(fact => fact.Term.Variables.Length > 1 && fact.Term.Variables.Contains(value)))
             {
-                values = values.Or(bag.index.Bound(value).And(Chain.SingleValue(alternative.Facts, value)));
+                values = values.Or(bag.index.Bound(value).And(alternative.Bound(value)));
                 continue;
             }
 
@@ -279,16 +279,38 @@ internal sealed class Bag
         }
 
         var common = Shared(other);
-        // Common relations can still connect a live value to history after the alternatives lose their relations.
-        var retained = live?.ToHashSet();
-        retained?.UnionWith(common.Relevant(retained, []).SelectMany(fact => fact.Term.Variables));
-
         var mine = Common.Where(fact => !common.Holds(fact)).Concat(leftFacts).ToList();
         var theirs = other.Common.Where(fact => !common.Holds(fact)).Concat(rightFacts).ToList();
+        if(mine is [var first] && theirs is [var second] && Alternatives.SequenceEqual(other.Alternatives) && Covers(common, first, second))
+        {
+            return Alternatives is [{ IsExhausted: false, Facts.IsEmpty: true }] ? common.WithCap(cap)
+                : new Bag(common.Common, Alternatives, null, common, cap);
+        }
+
         var alternatives = Alternatives.Select(alternative => alternative.Add(mine))
             .Concat(other.Alternatives.Select(alternative => alternative.Add(theirs))).Distinct().ToImmutableArray();
+        HashSet<Value>? retained = null;
+        if(alternatives.Length > cap && live is not null)
+        {
+            // Common relations can still connect a live value to history after the alternatives lose their relations.
+            retained = live.ToHashSet();
+            retained.UnionWith(common.Relevant(retained, []).SelectMany(fact => fact.Term.Variables));
+        }
+
         return alternatives is [{ IsExhausted: false, Facts.IsEmpty: true }] ? common.WithCap(cap)
             : new Bag(common.Common, alternatives, null, common, cap, retained);
+    }
+
+    private static bool Covers(Bag common, Fact left, Fact right)
+    {
+        if(!left.IsReal && !right.IsReal && left.Term.Variables is [var value] && right.Term.Variables is [var other] && ReferenceEquals(value, other))
+        {
+            var bound = common.index.Bound(value);
+            return bound.And(Chain.SingleValue([left], value).Or(Chain.SingleValue([right], value))).Equals(bound);
+        }
+
+        return !left.IsReal && !right.IsReal && left.Values is null && left.Relation == Relation.LessThanOrEqual
+            && left.Denial() is [var denial] && denial.Facts is [var fact] && fact.Equals(right);
     }
 
     public static Alternative MergePerVariable(IEnumerable<Alternative> source, Budget? budget = null, IReadOnlySet<Value>? retained = null)
@@ -306,7 +328,7 @@ internal sealed class Bag
             var values = IntegralSet.Nothing;
             foreach(var alternative in alternatives)
             {
-                if(Chain.ProjectIntervals(alternative.Facts, value, meter) is not { } projected)
+                if(Chain.ProjectIntervals(alternative.Relevant([value]), value, meter) is not { } projected)
                 {
                     return new Alternative([], exhausted: true);
                 }
@@ -323,65 +345,6 @@ internal sealed class Bag
     private bool Contradicted(Alternative alternative)
     {
         return alternative.Facts.Any(fact => fact.IsContradiction) || alternative.Facts.SelectMany(fact => fact.Term.Variables).Distinct()
-            .Any(value => index.Bound(value).And(Chain.SingleValue(alternative.Facts, value)).IsEmpty);
-    }
-
-    private sealed record FactIndex(ImmutableDictionary<Value, ImmutableArray<int>> Mentions, ImmutableDictionary<Value, IntegralSet> Bounds, ImmutableArray<int> Constants)
-    {
-        public static FactIndex Of(ImmutableArray<Fact> common)
-        {
-            var mentions = new Dictionary<Value, List<int>>();
-            var bounds = new Dictionary<Value, IntegralSet>();
-            var constants = ImmutableArray.CreateBuilder<int>();
-            for(var position = 0; position < common.Length; position++)
-            {
-                var fact = common[position];
-                if(fact.Term.Variables.IsEmpty)
-                {
-                    constants.Add(position);
-                }
-
-                foreach(var value in fact.Term.Variables)
-                {
-                    if(!mentions.TryGetValue(value, out var positions))
-                    {
-                        positions = [];
-                        mentions.Add(value, positions);
-                    }
-
-                    positions.Add(position);
-                }
-
-                if(fact.Term.Variables is [var single])
-                {
-                    bounds[single] = bounds.GetValueOrDefault(single, IntegralSet.Everything).And(Chain.SingleValue([fact], single));
-                }
-            }
-
-            return new FactIndex(mentions.ToImmutableDictionary(pair => pair.Key, pair => pair.Value.ToImmutableArray()), bounds.ToImmutableDictionary(),
-                constants.ToImmutable());
-        }
-
-        public ImmutableArray<int> Of(Value value)
-        {
-            return Mentions.GetValueOrDefault(value, []);
-        }
-
-        public IntegralSet Bound(Value value)
-        {
-            return Bounds.GetValueOrDefault(value) ?? IntegralSet.Everything;
-        }
-
-        public FactIndex With(Fact fact, int position)
-        {
-            var mentions = Mentions;
-            foreach(var value in fact.Term.Variables)
-            {
-                mentions = mentions.SetItem(value, Of(value).Add(position));
-            }
-
-            return new FactIndex(mentions, fact.Term.Variables is [var single] ? Bounds.SetItem(single, Bound(single).And(Chain.SingleValue([fact], single))) : Bounds,
-                fact.Term.Variables.IsEmpty ? Constants.Add(position) : Constants);
-        }
+            .Any(value => index.Bound(value).And(alternative.Bound(value)).IsEmpty);
     }
 }

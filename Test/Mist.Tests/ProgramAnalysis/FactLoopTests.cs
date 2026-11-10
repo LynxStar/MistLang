@@ -111,9 +111,10 @@ public sealed class FactLoopTests
 
         public FactState Widen(FactState previous, FactState joined, int round)
         {
-            widened |= round > 3;
+            var result = inner.Widen(previous, joined, round);
+            widened |= !ReferenceEquals(result, joined);
             Assert.True(round < 16, "Widening did not stabilize.");
-            return inner.Widen(previous, joined, round);
+            return result;
         }
     }
 }

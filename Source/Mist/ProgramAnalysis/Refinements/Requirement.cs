@@ -13,13 +13,14 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// What a refinement predicate asks of a value, read off the pattern the binder bound for it: the
 /// integral set it admits, and the bounds it names symbolically -- `&lt; Length` inside Array, which
 /// no number stands for until an array is in hand. Null where the predicate has no integral reading;
-/// supported real, string and regex constant decisions belong to <see cref="LiteralPredicates"/>.
+/// supported real, string and regex constant decisions belong to <see cref="LiteralPredicates"/>. Read for a real
+/// family, a comparison with a literal is left to <see cref="RealRequirement.Literal"/> and only the symbolic bounds remain.
 /// </summary>
 internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound> Bounds)
 {
     public static readonly Requirement Anything = new(Admitted.Everything, []);
 
-    public static Requirement? Of(Pattern? predicate)
+    public static Requirement? Of(Pattern? predicate, RealKind? real = null)
     {
         switch(predicate)
         {
@@ -28,6 +29,9 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 
             case ComparisonPattern comparison when Comparability.Misordered(comparison) is not null:
                 return null;
+
+            case ComparisonPattern { Kind: var kind, Bound: var bound } when real is { } family && RealRequirement.Compared(kind, bound, family) is not null:
+                return Anything;
 
             case ComparisonPattern { Kind: var kind, Bound: var bound }:
                 if(Constant(bound) is { } constant)
@@ -46,7 +50,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 
                     foreach(var operand in conjunction.Operands)
                     {
-                        if(Of(operand) is not { } part)
+                        if(Of(operand, real) is not { } part)
                         {
                             return null;
                         }
@@ -64,7 +68,7 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
 
                     foreach(var operand in disjunction.Operands)
                     {
-                        if(Of(operand) is not { Bounds.Length: 0 } part)
+                        if(Of(operand, real) is not { Bounds.Length: 0 } part)
                         {
                             return null;
                         }
@@ -76,12 +80,12 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                 }
 
             case NegatedPattern negated:
-                return Of(negated.Operand) is { Bounds.Length: 0 } inner ? new Requirement(inner.Values.Not(), []) : null;
+                return Of(negated.Operand, real) is { Bounds.Length: 0 } inner ? new Requirement(inner.Values.Not(), []) : null;
 
             case TypeTestPattern { Refinement: { } refinement }:
-                return Of(refinement);
+                return Of(refinement, real);
 
-            case TypeTestPattern { NarrowedType: var narrowed } when OfType(narrowed) is { } named:
+            case TypeTestPattern { NarrowedType: var narrowed } when OfType(narrowed, real) is { } named:
                 return named;
 
             case CatchAllPattern:
@@ -92,23 +96,28 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
         }
     }
 
-    public static Requirement? OfType(IMistType type)
+    public static Requirement? OfType(IMistType type, RealKind? real = null)
     {
         switch(type)
         {
             case RefinedType refined:
                 {
-                    var own = Closed(Of(refined.Predicate), refined.Closing);
-                    var beneath = OfType(refined.BaseType);
+                    var own = Closed(Of(refined.Predicate, real), refined.Closing);
+                    var beneath = OfType(refined.BaseType, real);
                     return own is null || (beneath is null && Refined(refined.BaseType) is not null) ? null : beneath is null ? own : own.And(beneath);
                 }
 
             case TypeAlias { AliasedType: { } aliased }:
-                return OfType(aliased);
+                return OfType(aliased, real);
 
             default:
                 return null;
         }
+    }
+
+    public static Requirement? OfReal(IMistType type)
+    {
+        return RealRequirement.KindOf(type) is not { } kind ? null : OfType(type, kind) ?? (Refined(type) is null ? Anything : null);
     }
 
     public static Admitted? ValuesOf(IMistType type)

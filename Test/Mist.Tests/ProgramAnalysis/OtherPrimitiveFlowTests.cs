@@ -311,6 +311,73 @@ public sealed class OtherPrimitiveFlowTests
         AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
     }
 
+    [Theory]
+    [InlineData("Single", 0, true)]
+    [InlineData("Single", -1, false)]
+    [InlineData("Double", 0, true)]
+    [InlineData("Double", 0.0, true)]
+    [InlineData("Double", -1, false)]
+    [InlineData("Double", -1.0, false)]
+    [InlineData("Decimal", 0, true)]
+    [InlineData("Decimal", -1, false)]
+    public void ARealDeclaredWithACutoffAndASymbolicBoundKeepsTheCutoff(string kind, object cutoff, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var real = h.Built.Type(kind);
+        object zero = kind switch { "Single" => 0f, "Decimal" => 0m, _ => 0.0 };
+        var y = Parameter(real, "y");
+        var x = Parameter(HandBuiltRefinements.RefinePattern(real, new ConjunctionPattern(HandBuiltModel.Node(), real,
+            [h.Compare(real, ComparisonKind.GreaterThan, cutoff), h.Compare(real, ComparisonKind.LessThan, y)])), "x");
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(h.Call(x, h.Refine(real, ComparisonKind.GreaterThanOrEqual, zero))));
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
+    [Theory]
+    [InlineData(0, true, true)]
+    [InlineData(0.0, true, true)]
+    [InlineData(0, false, false)]
+    [InlineData(0.0, false, false)]
+    public void AGuardedDoubleMeetsAConjunctionOfACutoffAndASymbolicBound(object cutoff, bool positive, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var y = Parameter(h.Double, "y");
+        var x = Parameter(h.Double, "x");
+        var required = HandBuiltRefinements.RefinePattern(h.Double, new ConjunctionPattern(HandBuiltModel.Node(), h.Double,
+            [h.Compare(h.Double, ComparisonKind.GreaterThan, cutoff), h.Compare(h.Double, ComparisonKind.LessThan, y)]));
+        var below = h.Binary(x, BinaryOperatorKind.LessThan, y);
+        var guard = positive ? h.And(h.Binary(x, BinaryOperatorKind.GreaterThan, h.Literal(0.0)), below) : below;
+        var body = HandBuiltModel.Block(HandBuiltRefinements.If(guard, HandBuiltRefinements.Evaluate(h.Call(x, required))));
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
+    [Theory]
+    [InlineData("guard", "<=", true)]
+    [InlineData("guard", ">=", true)]
+    [InlineData("guard", "<", false)]
+    [InlineData("remembered", "<=", true)]
+    [InlineData("remembered", "<", false)]
+    [InlineData("copy", "<=", false)]
+    public void ASuccessfulDoubleEqualityOrdersItsOperandsButACopyDoesNot(string shape, string relation, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var y = Parameter(h.Double, "y");
+        var x = shape == "copy" ? HandBuiltRefinements.Local(h.Double, "x") : Parameter(h.Double, "x");
+        var required = relation switch { "<=" => ComparisonKind.LessThanOrEqual, ">=" => ComparisonKind.GreaterThanOrEqual, _ => ComparisonKind.LessThan };
+        var call = HandBuiltRefinements.Evaluate(h.Call(x, h.Refine(h.Double, required, y)));
+        var ok = HandBuiltRefinements.Local(h.Bool, "ok");
+        var equal = h.Binary(x, BinaryOperatorKind.Equal, y);
+        var body = shape switch
+        {
+            "guard" => HandBuiltModel.Block(HandBuiltRefinements.If(equal, call)),
+            "remembered" => HandBuiltModel.Block(HandBuiltRefinements.Give(ok, equal), HandBuiltRefinements.If(ok, call)),
+            _ => HandBuiltModel.Block(HandBuiltRefinements.Give(x, y), call),
+        };
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
     private static LocalReferenceExpression Parameter(IMistType type, string name)
     {
         return HandBuiltRefinements.Read(new LocalVariable(name, type) { Parameter = new Parameter(name, type) });

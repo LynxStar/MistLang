@@ -7,7 +7,8 @@ namespace Mist.ProgramAnalysis.Facts;
 /// <summary>
 /// Facts over float, double and decimal values. The chain orders values but cannot say NaN, so a fact about a binary value is
 /// recorded only where the value is known not to be NaN, and every such fact other than a copy (<c>a - b == 0</c> or
-/// <c>a + b == 0</c>) therefore tells <see cref="Ordered"/> its values are not NaN. An infinity is the end of the order, which
+/// <c>a + b == 0</c>) therefore tells <see cref="Ordered"/> its values are not NaN; an equality that a comparison found, not a copy,
+/// carries a <c>&lt;=</c> beside it to say so. An infinity is the end of the order, which
 /// is how a comparison treats it; a set's segment that reaches the type's largest value and holds the infinity beyond it is
 /// unbounded on that side.
 /// </summary>

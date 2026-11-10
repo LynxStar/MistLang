@@ -80,7 +80,7 @@ internal sealed partial class RefinementAnalyzer
                 _ = factReading.Read(ref state, read);
             }
 
-            foreach(var parameter in parameters.Where(parameter => Requirement.OfType(parameter.Type) is { Bounds.Length: > 0 }))
+            foreach(var parameter in parameters.Where(parameter => (Requirement.OfType(parameter.Type) ?? Requirement.OfReal(parameter.Type)) is { Bounds.Length: > 0 }))
             {
                 _ = factReading.Symbol(ref state, new SymbolicBound(parameter.Name, ComparisonKind.Equal) { Named = parameter });
             }
@@ -194,16 +194,6 @@ internal sealed partial class RefinementAnalyzer
             }
 
             return null;
-        }
-
-        private Proof? ProvesReal(FactState state, Expression expression, IMistType target)
-        {
-            if(RealRequirement.KindOf(expression.Type) is not { } kind || RealRequirement.OfType(target) is not { } required || required.Kind != kind)
-            {
-                return null;
-            }
-
-            return ProvesReal(state, expression, Requirement.Anything, kind, required, Reading.None, measured: null);
         }
 
         private Proof? ProvesReal(FactState state, Expression expression, Requirement contract, RealKind kind, RealSet? literal, Reading reading, Expression? measured)

@@ -208,7 +208,7 @@ internal sealed class FactReading(LiftedReturns lifted)
             bag = AddValues(bag, value, admitted);
         }
 
-        if(declared && value.IsReal && (type is LiftedType || Requirement.Refined(type) is not null) && RealRequirement.OfType(type) is { } real
+        if(declared && value.IsReal && (type is LiftedType || Requirement.Refined(type) is not null) && RealRequirement.Literal(type) is { } real
             && RealFacts.Within(real, new Term(value)) is [var within])
         {
             bag = within.Facts.Aggregate(bag, (facts, fact) => facts.Add(fact));
@@ -309,7 +309,7 @@ internal sealed class FactReading(LiftedReturns lifted)
 
     public void AddSymbols(ref FactState state, Value value, IMistType type, Expression? instance = null)
     {
-        if(Requirement.OfType(type) is not { } required)
+        if((RealRequirement.KindOf(type) is null ? Requirement.OfType(type) : Requirement.OfReal(type)) is not { } required)
         {
             return;
         }

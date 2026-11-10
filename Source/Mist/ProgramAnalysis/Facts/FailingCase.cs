@@ -10,7 +10,7 @@ internal static class FailingCase
     public static string? Describe(Refuted refuted)
     {
         var shown = Spelled(Narrowed(refuted.FailingCase.Facts));
-        return shown.Count == 0 ? null : $"fails when {string.Join(" and ", shown)}{(refuted.AfterMerge ? ", after merging paths" : "")}";
+        return shown.Count == 0 ? null : $"fails when {string.Join(" and ", shown.Distinct())}{(refuted.AfterMerge ? ", after merging paths" : "")}";
     }
 
     // The chain stops at the contract's values; a reader wants the statement those values are left with.
@@ -114,7 +114,7 @@ internal static class FailingCase
     {
         if(fact.Term.Variables is [{ IsReal: true } real])
         {
-            return RealRequirement.OfType(real.Type) is { } declared && RealFacts.Within(declared, new Term(real)) is [var within] && within.Facts.Contains(fact);
+            return RealRequirement.Literal(real.Type) is { } declared && RealFacts.Within(declared, new Term(real)) is [var within] && within.Facts.Contains(fact);
         }
 
         return fact.Term.Variables is [var only] && fact.Values is null && Declared(only) is var range

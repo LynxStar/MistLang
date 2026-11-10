@@ -15,7 +15,7 @@ internal static class RealKnowledge
             return null;
         }
 
-        var declared = Trusts(value) ? RealRequirement.OfType(value.Type) : RealSet.Everything(kind);
+        var declared = Trusts(value) ? RealRequirement.Literal(value.Type) : RealSet.Everything(kind);
         var known = RealRequirement.OfValue(value, local => Held(state, local));
         return known is null ? declared : declared is null ? known : known.And(declared);
     }
@@ -60,7 +60,7 @@ internal static class RealKnowledge
 
     private static RealSet? Held(FactState state, LocalVariable local)
     {
-        var declared = RealRequirement.OfType(local.Type);
+        var declared = RealRequirement.Literal(local.Type);
         var known = state.TryGetValue(local, out var held) ? held.Real : null;
         return known is null ? declared : declared is null ? known : known.And(declared);
     }

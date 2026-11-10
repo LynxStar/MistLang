@@ -294,6 +294,78 @@ public sealed class OtherPrimitiveFactTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(0.0)]
+    public void ARealConjunctionIsReadAsItsLiteralPartAndItsSymbolicBounds(object cutoff)
+    {
+        var h = new HandBuiltRefinements();
+        var y = HandBuiltRefinements.Local(h.Double, "y");
+        var bounded = HandBuiltRefinements.RefinePattern(h.Double, new ConjunctionPattern(HandBuiltModel.Node(), h.Double,
+            [h.Compare(h.Double, ComparisonKind.GreaterThan, cutoff), h.Compare(h.Double, ComparisonKind.LessThan, y)]));
+
+        var read = Requirement.OfReal(bounded);
+
+        Assert.NotNull(read);
+        var bound = Assert.Single(read.Bounds);
+        Assert.Equal(ComparisonKind.LessThan, bound.Kind);
+        Assert.Same(y.Local, bound.Named);
+        Assert.True(read.Values.IsEverything);
+        Assert.Equal(RealRequirement.OfType(h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0)), RealRequirement.Literal(bounded));
+        Assert.Same(Requirement.Anything, Requirement.OfReal(h.Double));
+        Assert.Null(Requirement.OfReal(h.Int));
+    }
+
+    [Fact]
+    public void AnUnreadableConjunctLeavesTheWholeRealConjunctionUnread()
+    {
+        var h = new HandBuiltRefinements();
+        var y = HandBuiltRefinements.Local(h.Double, "y");
+        var either = new DisjunctionPattern(HandBuiltModel.Node(), h.Double,
+            [h.Compare(h.Double, ComparisonKind.GreaterThan, 0.0), h.Compare(h.Double, ComparisonKind.LessThan, y)]);
+        var mixed = HandBuiltRefinements.RefinePattern(h.Double, new ConjunctionPattern(HandBuiltModel.Node(), h.Double,
+            [h.Compare(h.Double, ComparisonKind.GreaterThan, 0.0), either]));
+
+        Assert.Null(Requirement.OfReal(mixed));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OnlyAnEqualityWithItsWitnessOrdersItsValues(bool witnessed)
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+        var equal = RealFacts.Compare(new Term(x), ComparisonKind.Equal, new Term(y));
+        var bag = Bag.Empty.Add(equal);
+        bag = witnessed ? bag.Add(RealFacts.Compare(new Term(x), ComparisonKind.LessThanOrEqual, new Term(y))) : bag;
+
+        Assert.Equal(witnessed, RealFacts.Ordered(bag, x));
+        Assert.Equal(witnessed, RealFacts.Ordered(bag, y));
+        _ = Assert.IsType<Proven>(Prove(bag, RealFacts.Compare(new Term(x), ComparisonKind.GreaterThan, new Term(y)), x, y));
+        _ = Assert.IsType<Refuted>(Prove(bag, RealFacts.Compare(new Term(x), ComparisonKind.GreaterThanOrEqual, new Term(y)), x, y));
+    }
+
+    [Fact]
+    public void ABooleanInitializerCarriesTheWitnessOnItsTrueAlternativeOnly()
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+        var ok = new Value(h.Bool, "ok", HandBuiltModel.Node());
+        var equal = RealFacts.Compare(new Term(x), ComparisonKind.Equal, new Term(y));
+        var witness = RealFacts.Compare(new Term(x), ComparisonKind.LessThanOrEqual, new Term(y));
+
+        var alternatives = Booleans.Initializer(ok, equal, positive: true, [Alternative.Empty], witness).ToList();
+
+        Assert.Equal(2, alternatives.Count);
+        Assert.Contains(witness, alternatives[0].Facts);
+        Assert.DoesNotContain(witness, alternatives[1].Facts);
+        Assert.True(RealFacts.Ordered(new Bag([], alternatives).Add(Eq(-1, (ok, 1))), x));
+        Assert.False(RealFacts.Ordered(new Bag([], alternatives).Add(Eq(0, (ok, 1))), x));
+    }
+
+    [Theory]
     [InlineData(1, true)]
     [InlineData(0, false)]
     public void ABooleanInitializerKeepsOneAlternativePerOutcome(int flag, bool below)

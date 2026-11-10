@@ -176,27 +176,32 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         }
 
         var denial = compared.Deniable ? compared.Fact.Denial() : [Alternative.Empty];
-        return state with { Bag = state.Bag.AddAlternatives(Booleans.Initializer(value, compared.Fact, comparison.OperatorKind != BinaryOperatorKind.NotEqual, denial)) };
+        return state with
+        {
+            Bag = state.Bag.AddAlternatives(Booleans.Initializer(value, compared.Fact, comparison.OperatorKind != BinaryOperatorKind.NotEqual, denial, compared.Witness)),
+        };
     }
 
-    // A failed comparison of binary reals may have met a NaN, which no fact over the order can say, so it states nothing.
-    private (Fact Fact, bool Deniable)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
+    // A failed comparison of binary reals may have met a NaN, which no fact over the order can say, so it states nothing;
+    // a successful one met none, and an equality carries a witness of that, since its own fact reads as a copy.
+    private (Fact Fact, bool Deniable, Fact? Witness)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
     {
         var left = comparison.Left.Type;
         var right = comparison.Right.Type;
         if(Countable(left) && Countable(right))
         {
-            return (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), true);
+            return (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), true, null);
         }
 
         if(RealRequirement.KindOf(left) is { } mine && RealRequirement.KindOf(right) is { } theirs)
         {
-            return (RealFacts.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)),
-                mine == RealKind.Decimal && theirs == RealKind.Decimal);
+            var (first, second) = (reading.Evaluated(ref state, comparison.Left), reading.Evaluated(ref state, comparison.Right));
+            var binary = mine != RealKind.Decimal || theirs != RealKind.Decimal;
+            return (RealFacts.Compare(first, kind, second), !binary, binary && kind == ComparisonKind.Equal ? RealFacts.Compare(first, ComparisonKind.LessThanOrEqual, second) : null);
         }
 
         return kind == ComparisonKind.Equal && IsString(left) && IsString(right)
-            ? (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), false)
+            ? (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), false, null)
             : null;
     }
 
@@ -309,7 +314,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             {
                 state = state with
                 {
-                    Bag = positive ? state.Bag.Add(compared.Fact) : compared.Deniable ? state.Bag.AddAlternatives(compared.Fact.Denial()) : state.Bag,
+                    Bag = positive ? compared.Witness is { } witness ? state.Bag.Add(compared.Fact).Add(witness) : state.Bag.Add(compared.Fact) : compared.Deniable ? state.Bag.AddAlternatives(compared.Fact.Denial()) : state.Bag,
                 };
                 if(positive && kind == ComparisonKind.Equal && IsString(comparison.Left.Type))
                 {

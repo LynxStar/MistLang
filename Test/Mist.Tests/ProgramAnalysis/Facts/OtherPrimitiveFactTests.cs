@@ -244,6 +244,56 @@ public sealed class OtherPrimitiveFactTests
     }
 
     [Theory]
+    [InlineData(null, false)]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    public void AMatchFollowsTheLiteralOfTheSelectedAlternative(int? flag, bool proven)
+    {
+        var h = new HandBuiltRefinements();
+        var s = new Value(h.String, "s", HandBuiltModel.Node());
+        var letters = new Value(h.String, "letters", HandBuiltModel.Node());
+        var digits = new Value(h.String, "digits", HandBuiltModel.Node());
+        var chosen = new Value(h.Bool, "flag", HandBuiltModel.Node());
+        var joined = new Bag([], [new Alternative([Eq(-1, (chosen, 1)), Eq(0, (s, 1), (letters, -1))]), new Alternative([Eq(0, (chosen, 1)), Eq(0, (s, 1), (digits, -1))])]);
+        var bag = flag is { } selected ? joined.Add(Eq(-selected, (chosen, 1))) : joined;
+
+        Assert.Equal(proven, Matching.Proven(bag, s, h.Regex("^[a-z]+$"),
+            value => value == letters ? new LiteralValue("abc", "Standard.String") : value == digits ? new LiteralValue("123", "Standard.String") : null,
+            _ => [], LiteralPredicates.MatchLimit));
+    }
+
+    [Fact]
+    public void ARealSymbolicBoundKeepsItsRelationOnlyAgainstAValueOfTheSameKind()
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+        var n = new Value(h.Int, "n", HandBuiltModel.Node());
+
+        var below = RealFacts.Bound(RealKind.Double, new Term(x), ComparisonKind.LessThan, new Term(y));
+
+        Assert.Equal(new Comparison(Term(0, (x, 1), (y, -1)), Relation.LessThan), below);
+        Assert.Null(RealFacts.Bound(RealKind.Double, new Term(x), ComparisonKind.LessThan, new Term(n)));
+        Assert.Null(RealFacts.Bound(RealKind.Double, new Term(x), ComparisonKind.LessThan, new Term(y).Add(new Term(1))));
+        Assert.Null(RealFacts.Bound(RealKind.Double, new Term(x), ComparisonKind.LessThan, new Term(y).Scale(2)));
+        Assert.Null(RealFacts.Bound(RealKind.Single, new Term(x), ComparisonKind.LessThan, new Term(y)));
+    }
+
+    [Fact]
+    public void AWholeNumberCutoffOnARealIsReadAsARealSet()
+    {
+        var h = new HandBuiltRefinements();
+        var y = HandBuiltRefinements.Local(h.Double, "y");
+        var bounded = HandBuiltRefinements.RefinePattern(h.Double, new ConjunctionPattern(HandBuiltModel.Node(), h.Double,
+            [h.Compare(h.Double, ComparisonKind.GreaterThan, 0), h.Compare(h.Double, ComparisonKind.LessThan, y)]));
+
+        Assert.Equal(RealRequirement.OfType(h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0)), RealRequirement.Literal(h.Refine(h.Double, ComparisonKind.GreaterThan, 0)));
+        Assert.Equal(RealRequirement.OfType(h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0)), RealRequirement.Literal(bounded));
+        Assert.Equal(RealSet.Everything(RealKind.Double), RealRequirement.Literal(h.Refine(h.Double, ComparisonKind.LessThan, y)));
+        Assert.Null(RealRequirement.OfType(bounded));
+    }
+
+    [Theory]
     [InlineData(1, true)]
     [InlineData(0, false)]
     public void ABooleanInitializerKeepsOneAlternativePerOutcome(int flag, bool below)

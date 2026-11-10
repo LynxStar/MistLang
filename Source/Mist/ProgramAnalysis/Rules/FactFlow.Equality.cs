@@ -50,8 +50,7 @@ internal sealed partial class FactFlow
             var a = left.Details.GetValueOrDefault(mine) ?? Knowledge.Unknown;
             var b = right.Details.GetValueOrDefault(theirs) ?? Knowledge.Unknown;
             if(!a.Values.Equals(b.Values) || !a.Bounds.SetEquals(b.Bounds) || !Equals(a.Length, b.Length) || !Equals(a.Slice, b.Slice)
-                || a.RefusedSlice != b.RefusedSlice || !Equals(a.Literal, b.Literal) || !Equals(a.IndexValue, b.IndexValue) || !Equals(a.Real, b.Real) || !a.Matches.SetEquals(b.Matches)
-                || !a.Texts.SequenceEqual(b.Texts))
+                || a.RefusedSlice != b.RefusedSlice || !Equals(a.Literal, b.Literal) || !Equals(a.IndexValue, b.IndexValue) || !Equals(a.Real, b.Real) || !a.Matches.SetEquals(b.Matches))
             {
                 return false;
             }
@@ -112,6 +111,8 @@ internal sealed partial class FactFlow
         }
 
         return !left.Results.Any(entry => !right.Results.TryGetValue(entry.Key, out var other) || !term(entry.Value, other))
-            && !left.CompoundInputs.Any(entry => !right.CompoundInputs.TryGetValue(entry.Key, out var other) || !term(entry.Value, other));
+            && !left.CompoundInputs.Any(entry => !right.CompoundInputs.TryGetValue(entry.Key, out var other) || !term(entry.Value, other))
+            && forward.All(pair => left.Details.GetValueOrDefault(pair.Key) is var a && right.Details.GetValueOrDefault(pair.Value) is var b
+                && Equals(a?.Literal, b?.Literal) && (a?.Matches ?? []).SetEquals(b?.Matches ?? []));
     }
 }

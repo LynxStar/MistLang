@@ -370,8 +370,12 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         else if(condition is IsPatternExpression textTest && holds && IsString(textTest.Scrutinee.Type) && Matching.Stated(textTest.Pattern) is { Length: > 0 } patterns
             && reading.Read(ref state, textTest.Scrutinee) is { Constant.IsZero: true, Variables: [var text] } read && read.Multipliers[0].IsOne)
         {
-            var known = state.Details.GetValueOrDefault(text) ?? Knowledge.Unknown;
-            state = state with { Details = state.Details.SetItem(text, known with { Matches = known.Matches.Union(patterns) }) };
+            var witness = FactReading.Fresh(ref state, textTest.Scrutinee.Type, RefinementFindings.Display(textTest.Scrutinee), textTest.Node);
+            state = state with
+            {
+                Bag = state.Bag.Add(new Fact(new Term(witness).Subtract(new Term(text)), Relation.Equal)),
+                Details = state.Details.SetItem(witness, Knowledge.Unknown with { Matches = [.. patterns] }),
+            };
         }
         else if(condition is LocalReferenceExpression { Type.FullyQualifiedName: "Standard.Boolean" } boolean)
         {

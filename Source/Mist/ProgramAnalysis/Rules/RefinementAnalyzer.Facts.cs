@@ -48,7 +48,8 @@ internal sealed partial class RefinementAnalyzer
                 return new Knowledge(FactState.AdmittedValues(state.Intervals(result)), bounds);
             }
 
-            var typed = (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted.Of(value) ?? Admitted.Everything);
+            var real = RealRequirement.KindOf(value.Type) is not null;
+            var typed = real ? Admitted.Everything : (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted.Of(value) ?? Admitted.Everything);
 
             if(value is not LocalReferenceExpression local)
             {
@@ -57,7 +58,7 @@ internal sealed partial class RefinementAnalyzer
 
             var flow = state.TryGetValue(local.Local, out var known) ? known : Knowledge.Unknown;
 
-            return new Knowledge(flow.Values.And(typed), flow.Bounds) { Real = RealKnowledge.Of(state, value) };
+            return new Knowledge(real ? typed : flow.Values.And(typed), flow.Bounds) { Real = RealKnowledge.Of(state, value) };
         }
 
         private Expression CompoundValue(ref FactState state, CompoundAssignmentExpression compound)
@@ -105,8 +106,14 @@ internal sealed partial class RefinementAnalyzer
             }
         }
 
-        private Proof? Proves(FactState state, Expression expression, Requirement required, Reading reading, Expression? measured)
+        private Proof? Proves(FactState state, Expression expression, Requirement required, Reading reading, Expression? measured, IMistType? target = null)
         {
+            if(RealRequirement.KindOf(expression.Type) is { } real)
+            {
+                return ProvesReal(state, expression, required, real, target is null ? required.Values.IsEverything ? RealSet.Everything(real) : null : RealRequirement.Literal(target),
+                    reading, measured);
+            }
+
             if(IntegralTypes.Range(expression.Type) is null)
             {
                 return null;
@@ -119,74 +126,74 @@ internal sealed partial class RefinementAnalyzer
             }
 
             var term = factReading.Read(ref state, expression);
-            var denial = ContractReader.Denial(required, term, readSymbol);
+            var denial = ContractReader.Denial(required, term, bound => ReadSymbol(ref state, bound, expression, reading, measured));
             var contractValues = term.Variables.Concat(denial?.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables) ?? []).ToHashSet();
             return denial is null ? null : Chain.Prove(state.Bag, denial, contractValues, budget);
+        }
 
-            Term? readSymbol(SymbolicBound bound)
+        private Term? ReadSymbol(ref FactState state, SymbolicBound bound, Expression expression, Reading reading, Expression? measured)
+        {
+            if(bound.Operand is MemberAccessExpression measuredMember)
             {
-                if(bound.Operand is MemberAccessExpression measuredMember)
-                {
-                    return bound.Named is Parameter owner && reading.Argument(owner) is { } supplied
-                        ? factReading.Read(ref state, FactReading.Rebased(measuredMember, supplied))
-                        : factReading.Symbol(ref state, bound);
-                }
-
-                if(bound.Named is Parameter parameter && reading.Argument(parameter) is { } argument)
-                {
-                    return factReading.Read(ref state, argument);
-                }
-
-                if(bound is { Member: { } through, Receiver.Parameter: { } receiverParameter } && reading.Argument(receiverParameter) is { } receiverArgument)
-                {
-                    return factReading.Read(ref state, FactReading.Through(receiverArgument, through));
-                }
-
-                if(bound is { Member: not null, Receiver: not null } && ReferenceEquals(reading, Reading.None))
-                {
-                    return factReading.Symbol(ref state, bound);
-                }
-
-                if(bound is { Name: "Length", Member: null } && measured is not null)
-                {
-                    var source = factReading.Read(ref state, measured);
-                    if(source.Variables is [var receiver])
-                    {
-                        var holder = new MemberHolder(receiver, FactReading.LengthMember(measured.Type));
-                        if(state.Bindings.Get(holder) is not { } length)
-                        {
-                            var value = FactReading.Fresh(ref state, expression.Type, $"{RefinementFindings.Display(measured)}.Length", measured.Node);
-                            state = state with
-                            {
-                                Bindings = state.Bindings.Set(holder, value),
-                                Bag = FactReading.AddValues(state.Bag, value, FactFlow.Length(state, measured, lifted) ?? Admitted.AtLeast(0)),
-                            };
-                            length = value;
-                        }
-
-                        return new Term(length);
-                    }
-                }
-
-                if(bound.Member is not null && reading.Member(bound, expression.Node) is { } member)
-                {
-                    return factReading.Read(ref state, member);
-                }
-
-                if(bound.Member is null && factReading.Symbol(ref state, bound) is { } symbol)
-                {
-                    return symbol;
-                }
-
-                if(reading.Of(bound, this) is { } values && !values.IsEverything)
-                {
-                    var value = FactReading.Fresh(ref state, expression.Type, bound.Name, expression.Node);
-                    state = state with { Bag = FactReading.AddValues(state.Bag, value, values) };
-                    return new Term(value);
-                }
-
-                return null;
+                return bound.Named is Parameter owner && reading.Argument(owner) is { } supplied
+                    ? factReading.Read(ref state, FactReading.Rebased(measuredMember, supplied))
+                    : factReading.Symbol(ref state, bound);
             }
+
+            if(bound.Named is Parameter parameter && reading.Argument(parameter) is { } argument)
+            {
+                return factReading.Read(ref state, argument);
+            }
+
+            if(bound is { Member: { } through, Receiver.Parameter: { } receiverParameter } && reading.Argument(receiverParameter) is { } receiverArgument)
+            {
+                return factReading.Read(ref state, FactReading.Through(receiverArgument, through));
+            }
+
+            if(bound is { Member: not null, Receiver: not null } && ReferenceEquals(reading, Reading.None))
+            {
+                return factReading.Symbol(ref state, bound);
+            }
+
+            if(bound is { Name: "Length", Member: null } && measured is not null && IntegralTypes.Range(expression.Type) is not null)
+            {
+                var source = factReading.Read(ref state, measured);
+                if(source.Variables is [var receiver])
+                {
+                    var holder = new MemberHolder(receiver, FactReading.LengthMember(measured.Type));
+                    if(state.Bindings.Get(holder) is not { } length)
+                    {
+                        var value = FactReading.Fresh(ref state, expression.Type, $"{RefinementFindings.Display(measured)}.Length", measured.Node);
+                        state = state with
+                        {
+                            Bindings = state.Bindings.Set(holder, value),
+                            Bag = FactReading.AddValues(state.Bag, value, FactFlow.Length(state, measured, lifted) ?? Admitted.AtLeast(0)),
+                        };
+                        length = value;
+                    }
+
+                    return new Term(length);
+                }
+            }
+
+            if(bound.Member is not null && reading.Member(bound, expression.Node) is { } member)
+            {
+                return factReading.Read(ref state, member);
+            }
+
+            if(bound.Member is null && factReading.Symbol(ref state, bound) is { } symbol)
+            {
+                return symbol;
+            }
+
+            if(IntegralTypes.Range(expression.Type) is not null && reading.Of(bound, this) is { } values && !values.IsEverything)
+            {
+                var value = FactReading.Fresh(ref state, expression.Type, bound.Name, expression.Node);
+                state = state with { Bag = FactReading.AddValues(state.Bag, value, values) };
+                return new Term(value);
+            }
+
+            return null;
         }
 
         private Proof? ProvesReal(FactState state, Expression expression, IMistType target)
@@ -196,15 +203,43 @@ internal sealed partial class RefinementAnalyzer
                 return null;
             }
 
+            return ProvesReal(state, expression, Requirement.Anything, kind, required, Reading.None, measured: null);
+        }
+
+        private Proof? ProvesReal(FactState state, Expression expression, Requirement contract, RealKind kind, RealSet? literal, Reading reading, Expression? measured)
+        {
+            if(literal is null || literal.Kind != kind)
+            {
+                return null;
+            }
+
             var term = factReading.Read(ref state, expression);
+            if(RealFacts.Denial(literal, term) is not { } denial)
+            {
+                return null;
+            }
+
+            var alternatives = denial.ToList();
+            foreach(var bound in contract.Bounds)
+            {
+                if(bound.Operand is not null || ReadSymbol(ref state, bound, expression, reading, measured) is not { } limit
+                    || RealFacts.Bound(kind, term, bound.Kind, limit) is not { } fact)
+                {
+                    return null;
+                }
+
+                alternatives.AddRange(fact.Denial());
+            }
+
             var bag = state.Bag;
-            if(!required.IncludesNaN && kind != RealKind.Decimal && RealKnowledge.Of(state, expression) is not { IncludesNaN: false }
+            if((!literal.IncludesNaN || contract.Bounds.Length > 0) && kind != RealKind.Decimal && RealKnowledge.Of(state, expression) is not { IncludesNaN: false }
                 && !term.Variables.All(value => RealFacts.Ordered(bag, value)))
             {
                 return null;
             }
 
-            return RealFacts.Denial(required, term) is { } denial ? Chain.Prove(bag, denial, term.Variables.ToHashSet(), budget) : null;
+            var values = term.Variables.Concat(alternatives.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables)).ToHashSet();
+            return Chain.Prove(bag, alternatives, values, budget);
         }
 
         private Proof? ProvesMatch(FactState state, Expression expression, IMistType target)
@@ -218,7 +253,7 @@ internal sealed partial class RefinementAnalyzer
 
             var details = state.Details;
             return Matching.Proven(state.Bag, text, target, value => details.GetValueOrDefault(value)?.Literal,
-                value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit, value => details.GetValueOrDefault(value)?.Texts ?? []) ? new Proven() : null;
+                value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit) ? new Proven() : null;
         }
 
         // A member bound written through a local is read only when that local is the callee's own extension

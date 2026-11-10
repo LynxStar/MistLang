@@ -367,7 +367,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             var reported = 0;
             for(var i = 0; i < considered.Count; i++)
             {
-                var outcome = Requirement.OfType(considered[i]) is { } contract ? Proves(state, value, contract, reading, measured)
+                var outcome = Requirement.OfType(considered[i]) is { } contract ? Proves(state, value, contract, reading, measured, considered[i])
                     : ProvesReal(state, value, considered[i]) ?? ProvesMatch(state, value, considered[i]);
                 if(outcome is Proven)
                 {

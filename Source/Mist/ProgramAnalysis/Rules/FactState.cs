@@ -16,7 +16,6 @@ internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
 
     public ImmutableHashSet<string> Matches { get; init; } = [];
-    public ImmutableArray<TextCase> Texts { get; init; } = [];
 }
 
 internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary<Value, StoredRange> Ranges)

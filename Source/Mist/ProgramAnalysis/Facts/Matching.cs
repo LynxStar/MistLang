@@ -9,9 +9,9 @@ namespace Mist.ProgramAnalysis.Facts;
 /// <summary>
 /// Match facts: a string value fully matches a regex, named by the regex literal's body. A value's own type states the matches
 /// its refinement names; a narrowing <c>is</c> states the rest. A match is proven when a value equal to the text holds a literal
-/// <see cref="LiteralPredicates.Decide(IMistType, LiteralValue?)"/> accepts, or holds every match the target asks for. Where paths
-/// that knew different things about a value join, each path's knowledge is kept as a <see cref="TextCase"/> and the value holds
-/// at least one of them, so the match is proven when every case proves it.
+/// <see cref="LiteralPredicates.Decide(IMistType, LiteralValue?)"/> accepts, or holds every match the target asks for. A literal
+/// or match belongs to its own value and is reached through the copies in each alternative, so joined paths keep theirs and an
+/// alternative selected later proves with the knowledge of the path it came from.
 /// </summary>
 internal static class Matching
 {
@@ -61,8 +61,7 @@ internal static class Matching
     }
 
     public static bool Proven(
-        Bag bag, Value text, IMistType target, Func<Value, LiteralValue?> literal, Func<Value, IEnumerable<string>> matched, TimeSpan matchLimit,
-        Func<Value, ImmutableArray<TextCase>>? cases = null)
+        Bag bag, Value text, IMistType target, Func<Value, LiteralValue?> literal, Func<Value, IEnumerable<string>> matched, TimeSpan matchLimit)
     {
         if(bag.Unreachable)
         {
@@ -73,14 +72,8 @@ internal static class Matching
         foreach(var alternative in bag.Alternatives)
         {
             var equal = Equal(bag, alternative, text);
-            bool holds(LiteralValue? known, IEnumerable<string> extra)
-            {
-                return (known is not null && LiteralPredicates.Decide(target, known, matchLimit) == true) || (required is { } patterns
-                    && patterns.All(pattern => extra.Contains(pattern) || equal.Any(value => matched(value).Contains(pattern) || (Required(value.Type) ?? []).Contains(pattern))));
-            }
-
-            if(!equal.Any(value => holds(literal(value), [])) && (cases is null
-                || !equal.Any(value => cases(value) is { IsEmpty: false } either && either.All(known => holds(known.Literal, known.Matches)))))
+            if(!equal.Any(value => literal(value) is { } known && LiteralPredicates.Decide(target, known, matchLimit) == true) && (required is not { } patterns
+                || !patterns.All(pattern => equal.Any(value => matched(value).Contains(pattern) || (Required(value.Type) ?? []).Contains(pattern)))))
             {
                 return false;
             }
@@ -103,18 +96,5 @@ internal static class Matching
         }
 
         return equal;
-    }
-}
-
-internal sealed record TextCase(LiteralValue? Literal, ImmutableHashSet<string> Matches)
-{
-    public bool Equals(TextCase? other)
-    {
-        return other is not null && Equals(Literal, other.Literal) && Matches.SetEquals(other.Matches);
-    }
-
-    public override int GetHashCode()
-    {
-        return Matches.Aggregate(Literal?.GetHashCode() ?? 0, (hash, pattern) => hash ^ pattern.GetHashCode(StringComparison.Ordinal));
     }
 }

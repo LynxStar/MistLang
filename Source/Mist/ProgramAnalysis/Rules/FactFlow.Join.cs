@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Facts;
+using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -52,10 +54,40 @@ internal sealed partial class FactFlow
                 right.Details.GetValueOrDefault(after) ?? Knowledge.Unknown));
         }
 
+        joined = joined with { Details = Carried(left, right, Carried(right, left, joined.Details)) };
         var live = joined.Bindings.Order.Select(holder => joined.Bindings.Values[holder])
             .Concat(joined.Results.Values.SelectMany(term => term.Variables))
             .Concat(joined.CompoundInputs.Values.SelectMany(term => term.Variables));
         return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap, live) };
+    }
+
+    // Text knowledge holds in every alternative of the state that has it, so it stays with a value the other side never saw:
+    // that side's alternatives say nothing of the value, and an alternative selected later keeps the literal or match it was joined with.
+    private static ImmutableDictionary<Value, Knowledge> Carried(FactState side, FactState other, ImmutableDictionary<Value, Knowledge> details)
+    {
+        foreach(var (value, known) in side.Details)
+        {
+            if(details.ContainsKey(value) || (known.Literal is null && known.Matches.IsEmpty)
+                || (!IsString(value.Type) && Requirement.Unrefined(value.Type).FullyQualifiedName != WellKnownTypes.Regex.FullyQualifiedName))
+            {
+                continue;
+            }
+
+            var text = Knowledge.Unknown with { Literal = known.Literal, Matches = known.Matches };
+            if(other.Details.TryGetValue(value, out var theirs) ? Equals(theirs.Literal, known.Literal) && theirs.Matches.SetEquals(known.Matches) : !Mentions(other, value))
+            {
+                details = details.SetItem(value, text);
+            }
+        }
+
+        return details;
+    }
+
+    private static bool Mentions(FactState state, Value value)
+    {
+        return state.Bindings.Values.ContainsValue(value) || state.Results.Values.Any(term => term.Variables.Contains(value))
+            || state.CompoundInputs.Values.Any(term => term.Variables.Contains(value))
+            || state.Bag.Common.Concat(state.Bag.Alternatives.SelectMany(alternative => alternative.Facts)).Any(fact => fact.Term.Variables.Contains(value));
     }
 
     private static Knowledge JoinKnowledge(Knowledge left, Knowledge right)
@@ -69,20 +101,7 @@ internal sealed partial class FactFlow
             left.Real is { } mine && right.Real is { } theirs && mine.Kind == theirs.Kind ? mine.Or(theirs) : null)
         {
             Matches = left.Matches.Intersect(right.Matches),
-            Texts = Texts(left, right),
         };
-    }
-
-    private static ImmutableArray<TextCase> Texts(Knowledge left, Knowledge right)
-    {
-        var cases = Cases(left).Concat(Cases(right)).Distinct().ToImmutableArray();
-        return cases.Length < 2 || cases.Length > Bag.AlternativeCap || cases.Any(known => known is { Literal: null, Matches.IsEmpty: true }) ? [] : cases;
-    }
-
-    private static IEnumerable<TextCase> Cases(Knowledge known)
-    {
-        return known.Texts.IsEmpty ? [new TextCase(known.Literal, known.Matches)]
-            : known.Texts.Select(either => new TextCase(either.Literal ?? known.Literal, either.Matches.Union(known.Matches)));
     }
 
     private static ImmutableDictionary<TKey, Term> Agreeing<TKey>(ImmutableDictionary<TKey, Term> left, ImmutableDictionary<TKey, Term> right)

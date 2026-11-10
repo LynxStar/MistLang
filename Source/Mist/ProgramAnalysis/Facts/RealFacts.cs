@@ -31,6 +31,12 @@ internal static class RealFacts
         return Compare(value.Scale(bound.Denominator), kind, new Term(bound.Numerator));
     }
 
+    public static Fact? Bound(RealKind kind, Term value, ComparisonKind comparison, Term limit)
+    {
+        return limit is { Constant.IsZero: true, Variables: [var bound] } && limit.Multipliers[0].IsOne && RealRequirement.KindOf(bound.Type) == kind
+            ? Compare(value, comparison, limit) : null;
+    }
+
     public static IReadOnlyList<Alternative>? Within(RealSet set, Term value)
     {
         if(set.IncludesNaN || Segments(set) is not { } segments)

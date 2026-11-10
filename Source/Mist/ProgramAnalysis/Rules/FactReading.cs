@@ -106,6 +106,11 @@ internal sealed class FactReading(LiftedReturns lifted)
             state = state with { Bag = state.Bag.Add(new Fact(new Term(fresh).Scale(exact.Denominator).Subtract(new Term(exact.Numerator)), Relation.Equal)) };
         }
 
+        else if(expression is LiteralExpression && LiteralValue.Of(expression) is { Value: string } text)
+        {
+            state = state with { Details = state.Details.SetItem(fresh, Knowledge.Unknown with { Literal = text }) };
+        }
+
         if(lifted.Produced(expression) is { } produced)
         {
             state = state with { Bag = AddValues(state.Bag, fresh, produced) };
@@ -311,16 +316,25 @@ internal sealed class FactReading(LiftedReturns lifted)
 
         foreach(var bound in required.Bounds)
         {
-            if(Symbol(ref state, bound, instance) is { } term)
+            if(Symbol(ref state, bound, instance) is not { } term)
+            {
+                continue;
+            }
+
+            if(RealRequirement.KindOf(type) is not { } kind)
             {
                 state = state with { Bag = state.Bag.Add(ContractReader.Compare(new Term(value), bound.Kind, term)) };
+            }
+            else if(bound.Operand is null && RealFacts.Bound(kind, new Term(value), bound.Kind, term) is { } fact)
+            {
+                state = state with { Bag = state.Bag.Add(fact) };
             }
         }
     }
 
     public static Bag AddValues(Bag bag, Value value, Admitted values)
     {
-        return values.IsEverything ? bag : bag.Add(Fact.In(value, IntegralSet.Of(values)));
+        return values.IsEverything || value.IsReal ? bag : bag.Add(Fact.In(value, IntegralSet.Of(values)));
     }
 
     private static Bag AddRange(Bag bag, Value value, IntegralInterval range)

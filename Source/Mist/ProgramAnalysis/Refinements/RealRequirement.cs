@@ -74,6 +74,34 @@ internal static class RealRequirement
         }
     }
 
+    public static RealSet? Literal(IMistType type)
+    {
+        if(KindOf(type) is not { } kind)
+        {
+            return null;
+        }
+
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => Literal(aliased),
+            RefinedType refined when !Comparability.IsRefused(refined) =>
+                LiteralPart(refined.Predicate, kind) is { } own && Literal(refined.BaseType) is { } beneath ? own.And(beneath) : null,
+            RefinedType => null,
+            _ => OfType(type),
+        };
+    }
+
+    private static RealSet? LiteralPart(Pattern? predicate, RealKind kind)
+    {
+        return predicate switch
+        {
+            ComparisonPattern comparison when Requirement.Of(comparison) is { Bounds.Length: > 0 } => RealSet.Everything(kind),
+            ConjunctionPattern conjunction => conjunction.Operands.Aggregate((RealSet?)RealSet.Everything(kind),
+                (result, operand) => result is not null && LiteralPart(operand, kind) is { } part ? result.And(part) : null),
+            _ => Of(predicate, kind),
+        };
+    }
+
     public static RealSet? OfValue(Expression? expression, Func<LocalVariable, RealSet?>? held = null)
     {
         if(expression is null || KindOf(expression.Type) is not { } kind)

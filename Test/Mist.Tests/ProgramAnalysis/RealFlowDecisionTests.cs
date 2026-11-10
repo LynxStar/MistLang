@@ -86,6 +86,7 @@ public sealed class RealFlowDecisionTests
     [InlineData("if(input > 0.0) { var read = () => input; var ignored = read(); Positive value = input; }")]
     [InlineData("if(input > 0.0) { double unrelated = other; var write = () => { unrelated = other; }; write(); Positive value = input; }")]
     [InlineData("double number = 0.25; while(flag) { number = 0.75; flag = false; } Unit value = number;")]
+    [InlineData("double copy = input; if(input > 0.0) { Positive value = copy; }")]
     public void AJoinCopyOrUnrelatedWrite_PreservesTheSupportedRealFact(string body)
     {
         Assert.Empty(Analyse(body));
@@ -114,7 +115,6 @@ public sealed class RealFlowDecisionTests
     [InlineData("double number = 0.25; if(flag) { number = 1.5; } Unit value = number;", "MIST0272")]
     [InlineData("if(input > 0.0) { input = other; Positive value = input; }", "MIST0272")]
     [InlineData("if(input > 0.0) { double copy = input; copy = other; Positive value = copy; }", "MIST0272")]
-    [InlineData("double copy = input; if(input > 0.0) { Positive value = copy; }", "MIST0272")]
     [InlineData("if(input > 0.0) { var write = () => { input = other; }; write(); Positive value = input; }", "MIST0272")]
     [InlineData("if(input > 0.0) { void Write() { input = other; } Write(); Positive value = input; }", "MIST0272")]
     [InlineData("if(input > 0.0) { double sum = input + 1.0; Positive value = sum; }", "MIST0272")]

@@ -15,10 +15,16 @@ internal sealed record Fact
 {
     public Fact(Term term, Relation relation = Relation.LessThanOrEqual, bool merged = false)
     {
-        var divisor = term.Multipliers.Aggregate(BigInteger.Zero, (gcd, coefficient) => BigInteger.GreatestCommonDivisor(gcd, BigInteger.Abs(coefficient)));
+        IsReal = term.Variables.Any(value => value.IsReal);
+        var divisor = term.Multipliers.Aggregate(IsReal ? BigInteger.Abs(term.Constant) : BigInteger.Zero,
+            (gcd, coefficient) => BigInteger.GreatestCommonDivisor(gcd, BigInteger.Abs(coefficient)));
         if(divisor > 1)
         {
-            if(relation == Relation.Equal && term.Constant % divisor != 0)
+            if(IsReal)
+            {
+                term = new Term(term.Variables.Zip(term.Multipliers, (value, multiplier) => KeyValuePair.Create(value, multiplier / divisor)), term.Constant / divisor);
+            }
+            else if(relation == Relation.Equal && term.Constant % divisor != 0)
             {
                 term = new Term(1);
             }
@@ -51,6 +57,7 @@ internal sealed record Fact
 
     public Term Term { get; }
     public Relation Relation { get; }
+    public bool IsReal { get; }
     public bool IsMerged { get; init; }
     public Value? Subject { get; }
     public IntegralSet? Values { get; }
@@ -69,9 +76,19 @@ internal sealed record Fact
 
     public ImmutableArray<Alternative> Denial()
     {
-        if(Values is not null || Relation == Relation.LessThan)
+        if(Values is not null || (Relation == Relation.LessThan && !IsReal && !Term.Variables.IsEmpty))
         {
             throw new InvalidOperationException("Denial requires an integral comparison.");
+        }
+
+        if(IsReal || Relation == Relation.LessThan)
+        {
+            return Relation switch
+            {
+                Relation.Equal => [new Alternative([new Fact(Term, Relation.LessThan)]), new Alternative([new Fact(Term.Scale(-1), Relation.LessThan)])],
+                Relation.LessThan => [new Alternative([new Fact(Term.Scale(-1))])],
+                _ => [new Alternative([new Fact(Term.Scale(-1), Relation.LessThan)])],
+            };
         }
 
         return Relation == Relation.Equal

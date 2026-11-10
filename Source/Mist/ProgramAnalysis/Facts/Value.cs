@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Storm.Runtime;
 
@@ -12,6 +13,7 @@ internal sealed class Value(IMistType type, string displayName, SyntaxNode node)
     public IMistType Type { get; } = type;
     public string DisplayName { get; } = displayName;
     public SyntaxNode Node { get; } = node;
+    public bool IsReal { get; } = RealRequirement.KindOf(type) is not null;
 
     public override string ToString()
     {

@@ -66,7 +66,10 @@ internal sealed partial class FactFlow
             left.RefusedSlice && right.RefusedSlice,
             Equals(left.Literal, right.Literal) ? left.Literal : null,
             Equals(left.IndexValue, right.IndexValue) ? left.IndexValue : null,
-            left.Real is { } mine && right.Real is { } theirs && mine.Kind == theirs.Kind ? mine.Or(theirs) : null);
+            left.Real is { } mine && right.Real is { } theirs && mine.Kind == theirs.Kind ? mine.Or(theirs) : null)
+        {
+            Matches = left.Matches.Intersect(right.Matches),
+        };
     }
 
     private static ImmutableDictionary<TKey, Term> Agreeing<TKey>(ImmutableDictionary<TKey, Term> left, ImmutableDictionary<TKey, Term> right)

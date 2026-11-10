@@ -31,6 +31,11 @@ internal static class Terms
             return new Term((BigInteger)large);
         }
 
+        if(expression is LiteralExpression real && RealNumbers.Whole(real.Value) is { } whole)
+        {
+            return new Term(whole);
+        }
+
         switch(expression)
         {
             case LocalReferenceExpression or FieldReferenceExpression or PropertyReferenceExpression or TypeReferenceExpression

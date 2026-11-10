@@ -210,7 +210,7 @@ internal static class Chain
             {
                 result = result.And(values);
             }
-            else if(fact.Values is null && fact.Term.Variables is [var only] && only == value)
+            else if(fact.Values is null && !fact.IsReal && fact.Term.Variables is [var only] && only == value)
             {
                 var normalized = Integral(fact);
                 var coefficient = normalized.Term.Multiplier(value);
@@ -267,7 +267,7 @@ internal static class Chain
 
     private static Fact Integral(Fact fact)
     {
-        return fact.Relation == Relation.LessThan && fact.Values is null
+        return fact.Relation == Relation.LessThan && fact.Values is null && !fact.IsReal
             ? new Fact(fact.Term.Add(new Term(1)), merged: fact.IsMerged) : fact;
     }
 
@@ -320,7 +320,8 @@ internal static class Chain
                     }
 
                     var term = upper.Term.Scale(-lower.Term.Multiplier(value)).Add(lower.Term.Scale(upper.Term.Multiplier(value)));
-                    next.Add(new Fact(term, merged: upper.IsMerged || lower.IsMerged));
+                    var strict = upper.Relation == Relation.LessThan || lower.Relation == Relation.LessThan;
+                    next.Add(new Fact(term, strict ? Relation.LessThan : Relation.LessThanOrEqual, upper.IsMerged || lower.IsMerged));
                 }
             }
         }

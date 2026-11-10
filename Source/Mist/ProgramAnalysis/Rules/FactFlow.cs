@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -169,21 +170,55 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
     private FactState RememberBoolean(FactState state, Value value, Expression? expression)
     {
         if(expression is not BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } comparison
-            || Comparison(comparison.OperatorKind) is not { } kind || IntegralTypes.Range(comparison.Left.Type) is null
-            || IntegralTypes.Range(comparison.Right.Type) is null)
+            || Comparison(comparison.OperatorKind) is not { } kind || Compared(ref state, comparison, kind) is not { } compared)
         {
             return state;
         }
 
-        var fact = ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right));
-        var positive = comparison.OperatorKind != BinaryOperatorKind.NotEqual;
-        var yes = new Fact(new Term(value).Subtract(new Term(positive ? 1 : 0)), Relation.Equal);
-        var no = new Fact(new Term(value).Subtract(new Term(positive ? 0 : 1)), Relation.Equal);
-        return state with
+        var denial = compared.Deniable ? compared.Fact.Denial() : [Alternative.Empty];
+        return state with { Bag = state.Bag.AddAlternatives(Booleans.Initializer(value, compared.Fact, comparison.OperatorKind != BinaryOperatorKind.NotEqual, denial)) };
+    }
+
+    // A failed comparison of binary reals may have met a NaN, which no fact over the order can say, so it states nothing.
+    private (Fact Fact, bool Deniable)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
+    {
+        var left = comparison.Left.Type;
+        var right = comparison.Right.Type;
+        if(Countable(left) && Countable(right))
         {
-            Bag = state.Bag.AddAlternatives(new[] { new Alternative([yes, fact]) }
-            .Concat(fact.Denial().Select(alternative => alternative.Add([no]))))
-        };
+            return (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), true);
+        }
+
+        if(RealRequirement.KindOf(left) is { } mine && RealRequirement.KindOf(right) is { } theirs)
+        {
+            return (RealFacts.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)),
+                mine == RealKind.Decimal && theirs == RealKind.Decimal);
+        }
+
+        return kind == ComparisonKind.Equal && IsString(left) && IsString(right)
+            ? (ContractReader.Compare(reading.Evaluated(ref state, comparison.Left), kind, reading.Evaluated(ref state, comparison.Right)), false)
+            : null;
+    }
+
+    private FactState Spelled(FactState state, Expression text, Expression literal)
+    {
+        if(LiteralValue.Of(literal) is not { Value: string } spelled || reading.Evaluated(ref state, text) is not { Constant.IsZero: true, Variables: [var value] } term
+            || !term.Multipliers[0].IsOne)
+        {
+            return state;
+        }
+
+        return state with { Details = state.Details.SetItem(value, (state.Details.GetValueOrDefault(value) ?? Knowledge.Unknown) with { Literal = spelled }) };
+    }
+
+    private static bool Countable(IMistType type)
+    {
+        return IntegralTypes.Range(type) is not null || Requirement.Unrefined(type).FullyQualifiedName == WellKnownTypes.Boolean.FullyQualifiedName;
+    }
+
+    private static bool IsString(IMistType type)
+    {
+        return Requirement.Unrefined(type).FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName;
     }
 
     private bool AssignmentHolds(ref FactState state, IMistType target, Term term)
@@ -218,7 +253,8 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
     {
         var copied = Holder(expression) is { } holder && state.TryGetValue(holder, out var held) ? held : Knowledge.Unknown;
         var real = RealKnowledge.Assigned(state, expression, target);
-        var literal = LiteralValue.Of(expression, local => state.TryGetValue(local, out var known) ? known.Literal : null)?.ConvertedTo(target);
+        var literal = expression is RegexLiteralExpression regex ? new LiteralValue(regex.Pattern, WellKnownTypes.Regex.FullyQualifiedName)
+            : LiteralValue.Of(expression, local => state.TryGetValue(local, out var known) ? known.Literal : null)?.ConvertedTo(target);
         return copied with
         {
             Literal = literal,
@@ -268,24 +304,32 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
     {
         if(condition is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } comparison && Comparison(comparison.OperatorKind) is { } kind)
         {
+            var positive = comparison.OperatorKind == BinaryOperatorKind.NotEqual ? !holds : holds;
+            if(Compared(ref state, comparison, kind) is { } compared)
+            {
+                state = state with
+                {
+                    Bag = positive ? state.Bag.Add(compared.Fact) : compared.Deniable ? state.Bag.AddAlternatives(compared.Fact.Denial()) : state.Bag,
+                };
+                if(positive && kind == ComparisonKind.Equal && IsString(comparison.Left.Type))
+                {
+                    state = Spelled(Spelled(state, comparison.Left, comparison.Right), comparison.Right, comparison.Left);
+                }
+            }
+
             if(RealRequirement.KindOf(comparison.Left.Type) is not null || RealRequirement.KindOf(comparison.Right.Type) is not null)
             {
                 if(comparison.Left is LocalReferenceExpression local)
                 {
-                    return RealKnowledge.Compared(state, local.Local, comparison.Right, kind, comparison.OperatorKind == BinaryOperatorKind.NotEqual ? !holds : holds);
+                    return RealKnowledge.Compared(state, local.Local, comparison.Right, kind, positive);
                 }
 
                 return comparison.Right is LocalReferenceExpression mirrored
-                    ? RealKnowledge.Compared(state, mirrored.Local, comparison.Left, Mirrored(kind), comparison.OperatorKind == BinaryOperatorKind.NotEqual ? !holds : holds) : state;
+                    ? RealKnowledge.Compared(state, mirrored.Local, comparison.Left, Mirrored(kind), positive) : state;
             }
 
             if(IntegralTypes.Range(comparison.Left.Type) is not null && IntegralTypes.Range(comparison.Right.Type) is not null)
             {
-                var left = reading.Evaluated(ref state, comparison.Left);
-                var right = reading.Evaluated(ref state, comparison.Right);
-                var fact = ContractReader.Compare(left, kind, right);
-                var positive = comparison.OperatorKind == BinaryOperatorKind.NotEqual ? !holds : holds;
-                state = state with { Bag = positive ? state.Bag.Add(fact) : state.Bag.AddAlternatives(fact.Denial()) };
                 state = RememberLength(state, comparison.Left, comparison.Right, positive ? kind : Flipped(kind));
                 state = RememberLength(state, comparison.Right, comparison.Left, Mirrored(positive ? kind : Flipped(kind)));
             }
@@ -314,6 +358,20 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
                     }
                 }
             }
+        }
+        else if(condition is IsPatternExpression realTest && RealRequirement.KindOf(realTest.Scrutinee.Type) is { } realKind
+            && RealRequirement.Of(realTest.Pattern, realKind) is { } matched)
+        {
+            if(RealFacts.Within(holds ? matched : matched.Not(), reading.Read(ref state, realTest.Scrutinee)) is { } within)
+            {
+                state = state with { Bag = within is [var only] ? only.Facts.Aggregate(state.Bag, (bag, fact) => bag.Add(fact)) : state.Bag.AddAlternatives(within) };
+            }
+        }
+        else if(condition is IsPatternExpression textTest && holds && IsString(textTest.Scrutinee.Type) && Matching.Stated(textTest.Pattern) is { Length: > 0 } patterns
+            && reading.Read(ref state, textTest.Scrutinee) is { Constant.IsZero: true, Variables: [var text] } read && read.Multipliers[0].IsOne)
+        {
+            var known = state.Details.GetValueOrDefault(text) ?? Knowledge.Unknown;
+            state = state with { Details = state.Details.SetItem(text, known with { Matches = known.Matches.Union(patterns) }) };
         }
         else if(condition is LocalReferenceExpression { Type.FullyQualifiedName: "Standard.Boolean" } boolean)
         {

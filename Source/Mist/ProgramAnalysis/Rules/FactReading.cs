@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -43,9 +44,15 @@ internal sealed class FactReading(LiftedReturns lifted)
                 return term;
             }
         }
-        else if(expression is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } binary && IntegralTypes.Range(binary.Type) is not null)
+        else if(expression is BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true } } binary
+            && (IntegralTypes.Range(binary.Type) is not null || RealRequirement.KindOf(binary.Type) is not null))
         {
             return Operation(ref state, binary, Evaluated(ref state, binary.Left), Evaluated(ref state, binary.Right));
+        }
+        else if(expression is UnaryExpression { OperatorKind: UnaryOperatorKind.LogicalNot, Operator: null or { Modifiers.IsIntrinsic: true } } negation
+            && Requirement.Unrefined(negation.Type).FullyQualifiedName == WellKnownTypes.Boolean.FullyQualifiedName)
+        {
+            return new Term(1).Subtract(Evaluated(ref state, negation.Operand));
         }
         else if(Terms.Read(expression, _ => null) is { } constant)
         {
@@ -93,7 +100,12 @@ internal sealed class FactReading(LiftedReturns lifted)
             return new Term(value);
         }
 
-        var fresh = Fresh(ref state, expression.Type, RefinementFindings.Display(expression), expression.Node);
+        var fresh = Fresh(ref state, expression.Type, RefinementFindings.Display(expression), expression.Node, Declares(expression));
+        if(fresh.IsReal && expression is LiteralExpression literal && RealNumbers.Of(literal.Value) is { } exact)
+        {
+            state = state with { Bag = state.Bag.Add(new Fact(new Term(fresh).Scale(exact.Denominator).Subtract(new Term(exact.Numerator)), Relation.Equal)) };
+        }
+
         if(lifted.Produced(expression) is { } produced)
         {
             state = state with { Bag = AddValues(state.Bag, fresh, produced) };
@@ -111,6 +123,13 @@ internal sealed class FactReading(LiftedReturns lifted)
 
     public static Term Operation(ref FactState state, BinaryExpression operation, Term left, Term right)
     {
+        if(operation.OperatorKind == BinaryOperatorKind.Divide && right is { Variables.Length: 0, Constant.IsZero: false } && Exactness.Holds(operation, left, state.Bag))
+        {
+            var quotient = Fresh(ref state, operation.Type, RefinementFindings.Display(operation), operation.Node, Declares(operation));
+            state = state with { Bag = state.Bag.Add(new Fact(new Term(quotient).Scale(right.Constant).Subtract(left), Relation.Equal)) };
+            return new Term(quotient);
+        }
+
         var term = operation.OperatorKind switch
         {
             BinaryOperatorKind.Add => left.Add(right),
@@ -124,8 +143,18 @@ internal sealed class FactReading(LiftedReturns lifted)
             return term;
         }
 
-        var value = Fresh(ref state, operation.Type, RefinementFindings.Display(operation), operation.Node);
+        var value = Fresh(ref state, operation.Type, RefinementFindings.Display(operation), operation.Node, Declares(operation));
         return new Term(value);
+    }
+
+    private static bool Declares(Expression expression)
+    {
+        return RealRequirement.KindOf(expression.Type) is null || expression switch
+        {
+            UnaryExpression { Operator.Modifiers.IsIntrinsic: false } => true,
+            UnaryExpression or BinaryExpression => false,
+            _ => true,
+        };
     }
 
     public object? Holder(ref FactState state, Expression expression)
@@ -172,6 +201,12 @@ internal sealed class FactReading(LiftedReturns lifted)
         if(declared && Requirement.ValuesOf(type) is { } admitted)
         {
             bag = AddValues(bag, value, admitted);
+        }
+
+        if(declared && value.IsReal && (type is LiftedType || Requirement.Refined(type) is not null) && RealRequirement.OfType(type) is { } real
+            && RealFacts.Within(real, new Term(value)) is [var within])
+        {
+            bag = within.Facts.Aggregate(bag, (facts, fact) => facts.Add(fact));
         }
 
         state = state with { Bag = bag };

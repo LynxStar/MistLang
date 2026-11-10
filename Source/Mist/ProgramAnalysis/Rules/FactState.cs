@@ -14,6 +14,8 @@ internal sealed record Bound(object Holder, ComparisonKind Kind, IntegralInterva
 internal sealed record Knowledge(Admitted Values, ImmutableHashSet<Bound> Bounds, Admitted? Length = null, StoredRange? Slice = null, bool RefusedSlice = false, LiteralValue? Literal = null, RangeBound? IndexValue = null, RealSet? Real = null)
 {
     public static readonly Knowledge Unknown = new(Admitted.Everything, ImmutableHashSet<Bound>.Empty);
+
+    public ImmutableHashSet<string> Matches { get; init; } = [];
 }
 
 internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary<Value, StoredRange> Ranges)

@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -186,6 +187,38 @@ internal sealed partial class RefinementAnalyzer
 
                 return null;
             }
+        }
+
+        private Proof? ProvesReal(FactState state, Expression expression, IMistType target)
+        {
+            if(RealRequirement.KindOf(expression.Type) is not { } kind || RealRequirement.OfType(target) is not { } required || required.Kind != kind)
+            {
+                return null;
+            }
+
+            var term = factReading.Read(ref state, expression);
+            var bag = state.Bag;
+            if(!required.IncludesNaN && kind != RealKind.Decimal && RealKnowledge.Of(state, expression) is not { IncludesNaN: false }
+                && !term.Variables.All(value => RealFacts.Ordered(bag, value)))
+            {
+                return null;
+            }
+
+            return RealFacts.Denial(required, term) is { } denial ? Chain.Prove(bag, denial, term.Variables.ToHashSet(), budget) : null;
+        }
+
+        private Proof? ProvesMatch(FactState state, Expression expression, IMistType target)
+        {
+            if(Requirement.Unrefined(expression.Type).FullyQualifiedName != WellKnownTypes.String.FullyQualifiedName
+                || Requirement.Unrefined(target).FullyQualifiedName != WellKnownTypes.String.FullyQualifiedName
+                || factReading.Read(ref state, expression) is not { Constant.IsZero: true, Variables: [var text] } term || !term.Multipliers[0].IsOne)
+            {
+                return null;
+            }
+
+            var details = state.Details;
+            return Matching.Proven(state.Bag, text, target, value => details.GetValueOrDefault(value)?.Literal,
+                value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit) ? new Proven() : null;
         }
 
         // A member bound written through a local is read only when that local is the callee's own extension

@@ -52,7 +52,7 @@ internal static class FailingCase
                 continue;
             }
 
-            shown.Add(Compared(fact.Term, fact.Relation == Relation.Equal ? "==" : "<="));
+            shown.Add(Compared(fact.Term, fact.Relation switch { Relation.Equal => "==", Relation.LessThan => "<", _ => "<=" }));
         }
 
         foreach(var value in facts.Where(fact => fact.Term.Variables.Length == 1).Select(fact => fact.Term.Variables[0]).Distinct())
@@ -159,9 +159,9 @@ internal static class FailingCase
         var lead = term.Variables[0];
         var multiplier = term.Multipliers[0];
         var rest = new Term(term.Variables.Skip(1).Zip(term.Multipliers.Skip(1), KeyValuePair.Create), term.Constant);
-        var flipped = multiplier.Sign < 0 && relation == "<=";
+        var flipped = multiplier.Sign < 0 && relation != "==";
         var right = multiplier.Sign < 0 ? rest : rest.Scale(-1);
-        return $"{Sum(new Term([KeyValuePair.Create(lead, BigInteger.Abs(multiplier))]))} {(flipped ? ">=" : relation)} {Sum(right)}";
+        return $"{Sum(new Term([KeyValuePair.Create(lead, BigInteger.Abs(multiplier))]))} {(flipped ? relation.Replace('<', '>') : relation)} {Sum(right)}";
     }
 
     private static string Sum(Term term)

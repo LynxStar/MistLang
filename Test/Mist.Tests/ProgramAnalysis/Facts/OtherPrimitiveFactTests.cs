@@ -55,6 +55,17 @@ public sealed class OtherPrimitiveFactTests
     }
 
     [Fact]
+    public void AStrictRealFactIsSpelledWithLessThan()
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+
+        Assert.Equal(["x < y"], FailingCase.Spelled([new Comparison(Term(0, (x, 1), (y, -1)), Relation.LessThan)]));
+        Assert.Equal(["x > y"], FailingCase.Spelled([new Comparison(Term(0, (x, -1), (y, 1)), Relation.LessThan)]));
+    }
+
+    [Fact]
     public void ARealFactsDenialKeepsTheBoundaryOnTheOtherSide()
     {
         var x = new Value(new HandBuiltRefinements().Double, "x", HandBuiltModel.Node());

@@ -11,7 +11,7 @@ internal sealed class ResultErrorFlow : IFlowLattice<ImmutableHashSet<LocalVaria
 {
     public static void Judge(object root, AnalysisContext context)
     {
-        Judge(FlowGraphBuilder.Build(root), context, ImmutableHashSet<LocalVariable>.Empty);
+        Judge(context.GraphOf(root), context, ImmutableHashSet<LocalVariable>.Empty);
     }
 
     private static void Judge(FlowGraph graph, AnalysisContext context, ImmutableHashSet<LocalVariable> entry)

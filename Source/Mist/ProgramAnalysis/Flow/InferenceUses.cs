@@ -26,10 +26,9 @@ internal sealed class InferenceUses : IFlowLattice<ImmutableDictionary<LocalVari
 
     public HashSet<LocalVariable> MutatingOverlap { get; } = [];
 
-    public static InferenceUses Of(object root, IReadOnlyList<LocalDeclarationStatement> candidates)
+    public static InferenceUses Of(object root, IReadOnlyList<LocalDeclarationStatement> candidates, FlowGraph graph)
     {
         var uses = new InferenceUses(root, candidates);
-        var graph = FlowGraphBuilder.Build(root);
         var mutations = new HashSet<Expression>(ReferenceEqualityComparer.Instance);
         var tiers = new ThisTiers();
         foreach(var call in BodyWalker.DescendantsAndSelf(root).OfType<InvocationExpression>())

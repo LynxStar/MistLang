@@ -16,7 +16,7 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// making this a fixed point over the call graph. Only a constant or a refined value lifts; what the flow
 /// narrowed does not, so the lift is exactly what the returned expressions' types already say.
 /// </summary>
-internal sealed class LiftedReturns
+internal sealed class LiftedReturns(Func<object, FlowGraph>? graphOf = null)
 {
     private readonly Dictionary<object, Admitted?> settled = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<object> settling = new(ReferenceEqualityComparer.Instance);
@@ -77,7 +77,7 @@ internal sealed class LiftedReturns
     {
         var values = root is Expression body
             ? [body]
-            : FlowGraphBuilder.Build(root).Blocks
+            : (graphOf ?? FlowGraphs.Shared.GraphOf)(root).Blocks
                 .SelectMany(block => block.Steps)
                 .Select(step => step.Node is ReturnStatement { Value: { } value } ? value : null)
                 .OfType<Expression>()

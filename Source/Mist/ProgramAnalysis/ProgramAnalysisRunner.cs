@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Construction.Types;
@@ -81,6 +82,11 @@ internal static class ProgramAnalysisRunner
         }
 
         var bodies = SourceBodies.Of(model).ToList();
+        foreach(var body in bodies)
+        {
+            FlowGraphs.Shared.Register(body.Root);
+        }
+
         var clones = SourceTypes.Of(model).OfType<ConcreteType>().Where(IsClone).ToList();
         var conversions = bodies.Where(root => root.Member is CastOperator { ClonesThrough: not null }).ToList();
         var whole = new AnalysisScope([.. SourceTypes.Of(model)], bodies, [.. SourceTypes.ExtensionsOf(model)], []);

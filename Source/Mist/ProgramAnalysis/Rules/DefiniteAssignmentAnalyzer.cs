@@ -47,7 +47,7 @@ internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
                 .Concat(PatternLocals(root.Root))
                 .Distinct<LocalVariable>(ReferenceEqualityComparer.Instance);
 
-            var graph = FlowGraphBuilder.Build(root.Root);
+            var graph = context.GraphOf(root);
             var slots = new LocalAssignmentSlots(tracked, root.Root);
             var flow = new DefiniteAssignment(context, slots, storage, constructor, LocalFunctionReads.Of(graph));
             var solution = flow.Judge(graph, DefiniteAssignment.Nothing);

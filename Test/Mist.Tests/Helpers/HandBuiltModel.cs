@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -90,7 +91,7 @@ internal sealed class HandBuiltModel
     public AnalysisContext Context(
         IProgramAnalyzer analyzer, DiagnosticBag diagnostics, object? root = null,
         IReadOnlyList<MistType>? types = null, MistType? owner = null, object? member = null,
-        IReadOnlyList<ExtensionBlock>? extensions = null, ExpressionFailures? failures = null)
+        IReadOnlyList<ExtensionBlock>? extensions = null, ExpressionFailures? failures = null, FlowGraphs? graphs = null)
     {
         var bodies = root is null ? Array.Empty<SourceRoot>() : [new SourceRoot(root, owner, MistAssembly.Synthetic, member)];
         var nodes = bodies.SelectMany(body => BodyWalker.DescendantsAndSelf(body.Root)).ToList();
@@ -111,7 +112,7 @@ internal sealed class HandBuiltModel
 
         return new AnalysisContext(Model, new AnalysisScope(types ?? [], bodies, extensions ?? [], []), nodes, roots, assignments,
             new HashSet<string>(StringComparer.Ordinal) { "hand-built.mist" }, diagnostics, analyzer.Id, CloneConversionRefusals.None,
-            failures: failures);
+            failures: failures, graphs: graphs);
     }
 
     public IReadOnlyList<Diagnostic> Analyze(

@@ -98,7 +98,7 @@ internal sealed class LocalOwnership
             }
         }
 
-        var uses = InferenceUses.Of(root, candidates);
+        var uses = InferenceUses.Of(root, candidates, FlowGraphs.Shared.GraphOf(root));
         var installed = nodes.OfType<WithBlockStatement>().ToList();
         var assigned = nodes.OfType<AssignmentExpression>().Select(assignment => (assignment.Target, assignment.Value))
             .Concat(nodes.OfType<CompoundAssignmentExpression>().Select(compound => (compound.Target, Value: (Expression)compound)))

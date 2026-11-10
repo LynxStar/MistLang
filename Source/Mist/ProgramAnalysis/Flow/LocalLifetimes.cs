@@ -70,7 +70,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
             && PurityJudge.Drops(type, awaitable: false).Any();
     }
 
-    public static LifetimePlan Plan(object root, Method? method = null, ConcreteType? holder = null)
+    public static LifetimePlan Plan(object root, Method? method = null, ConcreteType? holder = null, FlowGraph? graph = null)
     {
         var owners = LifetimeOwners.Of(root, method, holder);
 
@@ -85,7 +85,7 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
         {
             var lifetimes = new LocalLifetimes(owners, root);
             var entry = owners.Entered.Aggregate(Nothing, (state, owner) => state.SetItem(owner, Holding.Owned));
-            lifetimes.Solve(FlowGraphBuilder.Build(root), plan, entry);
+            lifetimes.Solve(graph ?? FlowGraphs.Shared.GraphOf(root), plan, entry);
             plan.Settle();
         }
 

@@ -37,13 +37,13 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
     public void Analyze(AnalysisContext context)
     {
-        var lifted = new LiftedReturns();
+        var lifted = new LiftedReturns(context.GraphOf);
         var effects = new FieldEffects();
 
         foreach(var root in context.Bodies)
         {
             new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget, alternativeCap).Judge(
-                FlowGraphBuilder.Build(root.Root), FactFlow.Nothing, root.Member switch
+                context.GraphOf(root), FactFlow.Nothing, root.Member switch
                 {
                     Method method => method.ParametersList,
                     Indexer indexer => indexer.ParametersList,

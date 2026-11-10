@@ -23,7 +23,7 @@ internal sealed partial class EscapeAnalyzer
 
         var lattice = new FrameLifetimes(FrameLifetimes.ScrutineesIn(nodes));
         var returned = root.Root is Expression body && IsGetterBody(root.Member, body) ? body : null;
-        JudgeFrames(context, lattice, FlowGraphBuilder.Build(root.Root), FrameLifetimes.Nothing, returned);
+        JudgeFrames(context, lattice, context.GraphOf(root), FrameLifetimes.Nothing, returned);
     }
 
     private static void JudgeFrames(

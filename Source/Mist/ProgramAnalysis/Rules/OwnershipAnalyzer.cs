@@ -33,7 +33,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
-            var graph = FlowGraphBuilder.Build(root.Root);
+            var graph = context.GraphOf(root);
             var owning = OwningMethod(root);
             new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root)).Judge(graph, OwnershipFlow.Nothing);
 

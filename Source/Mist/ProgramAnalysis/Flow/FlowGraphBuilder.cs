@@ -26,19 +26,22 @@ internal sealed class FlowGraphBuilder
     private readonly Stack<Statement> scopes = new();
     private readonly FlowBlock exit;
 
-    private FlowGraphBuilder()
+    private readonly Func<object, object?, IReadOnlyList<LocalVariable>, FlowGraph> nestedBuilder;
+
+    private FlowGraphBuilder(Func<object, object?, IReadOnlyList<LocalVariable>, FlowGraph>? nestedBuilder)
     {
+        this.nestedBuilder = nestedBuilder ?? ((root, introducer, introduced) => Build(root, introducer, introduced, null));
         exit = NewBlock();
     }
 
     public static FlowGraph Build(object root)
     {
-        return Build(root, introducer: null, []);
+        return Build(root, introducer: null, [], null);
     }
 
-    private static FlowGraph Build(object root, object? introducer, IReadOnlyList<LocalVariable> introduced)
+    internal static FlowGraph Build(object root, object? introducer, IReadOnlyList<LocalVariable> introduced, Func<object, object?, IReadOnlyList<LocalVariable>, FlowGraph>? nestedBuilder)
     {
-        var builder = new FlowGraphBuilder();
+        var builder = new FlowGraphBuilder(nestedBuilder);
         var entry = builder.NewBlock();
 
         foreach(var variable in introduced)
@@ -183,7 +186,7 @@ internal sealed class FlowGraphBuilder
                 return Statement(withBlock.Body, current);
 
             case LocalFunctionStatement function:
-                nested[function] = Build(function.Body, function, function.Parameters);
+                nested[function] = nestedBuilder(function.Body, function, function.Parameters);
                 current.Steps.Add(Evaluate(function));
                 return current;
 
@@ -443,13 +446,13 @@ internal sealed class FlowGraphBuilder
             case LambdaExpression lambda:
                 if(((object?)lambda.Body ?? lambda.Result) is { } lambdaBody)
                 {
-                    nested[lambda] = Build(lambdaBody, lambda, lambda.Parameters);
+                    nested[lambda] = nestedBuilder(lambdaBody, lambda, lambda.Parameters);
                 }
 
                 break;
 
             case AsyncBlockExpression asyncBlock:
-                nested[asyncBlock] = Build(asyncBlock.Body, asyncBlock, []);
+                nested[asyncBlock] = nestedBuilder(asyncBlock.Body, asyncBlock, []);
                 break;
 
             default:

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -23,8 +24,11 @@ internal sealed class AnalysisContext(
     IReadOnlyDictionary<CastOperator, ConversionRefusal> conversionRefusals,
     AnalysisModel? scopedModel = null,
     AnalysisScope? program = null,
-    ExpressionFailures? failures = null)
+    ExpressionFailures? failures = null,
+    FlowGraphs? graphs = null)
 {
+    private readonly FlowGraphs graphs = graphs ?? FlowGraphs.Shared;
+
     private readonly ExpressionFailures failures = failures ?? new();
 
     private readonly DiagnosticBag diagnostics = Announce(diagnostics);
@@ -73,6 +77,16 @@ internal sealed class AnalysisContext(
     public MistType? OwnerOf(object node)
     {
         return roots.TryGetValue(node, out var root) ? root.Owner : null;
+    }
+
+    public FlowGraph GraphOf(SourceRoot root)
+    {
+        return GraphOf(root.Root);
+    }
+
+    public FlowGraph GraphOf(object root)
+    {
+        return graphs.GraphOf(root);
     }
 
     public object? MemberOf(object node)

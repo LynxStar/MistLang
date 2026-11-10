@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
@@ -15,7 +14,6 @@ internal sealed class LocalOwnership
 {
     public static readonly LocalOwnership Empty = new();
 
-    private static ConditionalWeakTable<object, LocalOwnership> Results { get; } = new();
     private readonly Dictionary<LocalVariable, ThisTier> inferred = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<LocalVariable, LocalDeclarationStatement> declarations;
     private readonly Dictionary<LocalVariable, Expression> bindings = new(ReferenceEqualityComparer.Instance);
@@ -176,7 +174,7 @@ internal sealed class LocalOwnership
 
     public static LocalOwnership For(object root)
     {
-        return Results.GetValue(root, value => new LocalOwnership(value));
+        return FlowGraphs.Shared.OwnershipOf(root, static value => new LocalOwnership(value));
     }
 
     public static ThisTier Choose(ThisTier source, ThisTier required, bool forwards, bool later, bool overlapping, bool exclusive, bool mutatingOverlap = false)

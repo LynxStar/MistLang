@@ -1,7 +1,10 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -45,6 +48,65 @@ public sealed class AnalysisContextGraphTests
 
         Assert.Same(first.GraphOf(body), second.GraphOf(body));
         Assert.Same(first.GraphOf(body), FlowGraphs.Shared.GraphOf(body));
+    }
+
+    [Fact]
+    public void ConsumersHandedOnlyABodyReadTheGraphOfTheCompileTheyRunIn()
+    {
+        var built = new List<object>();
+        var graphs = new FlowGraphs((root, introducer, introduced) =>
+        {
+            built.Add(root);
+            return FlowGraphBuilder.Build(root, introducer, introduced, null);
+        });
+        var f = new LifetimeFragments();
+        var source = f.Local("source", f.DisciplinedValue("class", SubstructuralDiscipline.Linear));
+        var body = HandBuiltModel.Block(LifetimeFragments.Declare(source, LifetimeFragments.Fresh(source.Type)));
+        var integer = f.Model.Type("Int32");
+        var lifted = HandBuiltModel.Block(new ReturnStatement(HandBuiltModel.Literal(integer, 1), integer));
+        var method = new Method("Lifted", integer, [], default) { Body = lifted };
+
+        using(FlowGraphs.Enter(graphs))
+        {
+            Assert.Equal(LifetimeRelease.AtExit, LocalLifetimes.Plan(body).ReleaseOf(source));
+            Assert.Equal([body], built);
+            _ = LocalOwnership.For(body);
+            _ = new LiftedReturns().Of(method);
+            Assert.Equal([body, lifted], built);
+
+            var context = f.Model.Context(new DefiniteAssignmentAnalyzer(), new DiagnosticBag(), body);
+            Assert.Same(graphs.GraphOf(body), context.GraphOf(body));
+            Assert.Same(graphs.GraphOf(lifted), context.GraphOf(lifted));
+        }
+
+        Assert.Equal([body, lifted], built);
+        Assert.NotSame(graphs, FlowGraphs.Shared);
+    }
+
+    [Fact]
+    public void AnalysisAndEmissionOfOneModelEnterTheSameGraphs()
+    {
+        var model = new HandBuiltModel();
+        var other = new HandBuiltModel();
+        var body = HandBuiltModel.Block();
+        FlowGraph analysed;
+
+        using(FlowGraphs.Enter(model.Model))
+        {
+            analysed = FlowGraphs.Shared.GraphOf(body);
+        }
+
+        using(FlowGraphs.Enter(model.Model))
+        {
+            Assert.Same(analysed, FlowGraphs.Shared.GraphOf(body));
+
+            using(FlowGraphs.Enter(other.Model))
+            {
+                Assert.NotSame(analysed, FlowGraphs.Shared.GraphOf(body));
+            }
+
+            Assert.Same(analysed, FlowGraphs.Shared.GraphOf(body));
+        }
     }
 
     [Fact]

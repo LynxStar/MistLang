@@ -4,6 +4,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
@@ -115,6 +116,7 @@ internal sealed class CSharpEmitterV2
     internal Startup? Transpile()
     {
         using var emission = EmissionDiagnostics.Enter(diagnostics);
+        using var graphs = FlowGraphs.Enter((ProgramModel.Model.ProgramModel)programModel);
         if(Startup.Of(programModel, options) is not { } startup)
         {
             return null;

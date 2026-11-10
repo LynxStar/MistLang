@@ -56,6 +56,7 @@ internal static class ProgramAnalysisRunner
     public static void Run(ProgramModelClass model, DiagnosticBag diagnostics, AnalysisTimings? timings = null)
     {
         timings ??= new AnalysisTimings();
+        using var graphs = FlowGraphs.Enter(model);
         var sourcePaths = SourceTypes.UnitsOf(model).Select(source => source.Unit.SourcePath).ToHashSet(StringComparer.Ordinal);
         var projectStarted = Stopwatch.GetTimestamp();
         ProjectAnalyzer.Analyze(new AnalysisContext(model, new AnalysisScope([], [], [], []), [],

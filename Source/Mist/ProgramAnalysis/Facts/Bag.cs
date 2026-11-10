@@ -328,7 +328,7 @@ internal sealed class Bag
             var values = IntegralSet.Nothing;
             foreach(var alternative in alternatives)
             {
-                if(Chain.ProjectIntervals(alternative.Relevant([value]), value, meter) is not { } projected)
+                if(Chain.ProjectedIntervals(alternative.Relevant([value]), value, meter) is not { } projected)
                 {
                     return new Alternative([], exhausted: true);
                 }

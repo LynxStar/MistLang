@@ -40,7 +40,7 @@ internal static class Chain
                     return new Exhausted { Runs = runs };
                 }
 
-                var projected = Project(bag.Relevant(contractValues, alternative.Facts.Concat(broken.Facts)), contractValues, meter);
+                var projected = new Alternative(bag.Relevant(contractValues, alternative.Facts.Concat(broken.Facts)));
                 if(!seen.Add(projected))
                 {
                     continue;
@@ -154,16 +154,25 @@ internal static class Chain
 
     internal static IntegralSet? ProjectIntervals(IEnumerable<Fact> facts, Value value, ProofBudget meter)
     {
-        var projected = Project(facts, new HashSet<Value> { value }, meter);
+        return ProjectedIntervals(Project(facts, new HashSet<Value> { value }, meter).Facts, value, meter);
+    }
+
+    internal static IntegralSet? ProjectedIntervals(ImmutableArray<Fact> projected, Value value, ProofBudget meter)
+    {
+        if(meter.Expired)
+        {
+            return null;
+        }
+
         var known = Projections.GetValue(value, _ => new(InOrder.Instance));
-        if(known.TryGetValue(projected.Facts, out var memo))
+        if(known.TryGetValue(projected, out var memo))
         {
             return meter.Derive(memo.Derived) ? memo.Values : null;
         }
 
         var start = meter.Derived;
         var union = IntegralSet.Nothing;
-        foreach(var expanded in Expand(projected.Facts, meter))
+        foreach(var expanded in Expand(projected, meter))
         {
             var remaining = Remove(expanded, new HashSet<Value> { value }, meter);
             if(meter.Expired)
@@ -179,7 +188,7 @@ internal static class Chain
             return null;
         }
 
-        known[projected.Facts] = (union, meter.Derived - start);
+        known[projected] = (union, meter.Derived - start);
         return union;
     }
 

@@ -8,7 +8,7 @@ namespace Mist.ProgramAnalysis.Facts;
 /// Facts over float, double and decimal values. The chain orders values but cannot say NaN, so a fact about a binary value is
 /// recorded only where the value is known not to be NaN, and every such fact other than a copy (<c>a - b == 0</c> or
 /// <c>a + b == 0</c>) therefore tells <see cref="Ordered"/> its values are not NaN; an equality that a comparison found, not a copy,
-/// carries a <c>&lt;=</c> beside it to say so. An infinity is the end of the order, which
+/// carries a <see cref="Witness"/> beside it to say so. An infinity is the end of the order, which
 /// is how a comparison treats it; a set's segment that reaches the type's largest value and holds the infinity beyond it is
 /// unbounded on that side.
 /// </summary>
@@ -30,6 +30,12 @@ internal static class RealFacts
     public static Fact Compare(Term value, ComparisonKind kind, Rational bound)
     {
         return Compare(value.Scale(bound.Denominator), kind, new Term(bound.Numerator));
+    }
+
+    public static IReadOnlyList<Fact> Witness(Term first, Term second, Value above)
+    {
+        return [.. new[] { first, second }.Where(term => !term.Variables.IsEmpty)
+            .Select(term => Compare(term, ComparisonKind.LessThanOrEqual, new Term(above))).Distinct()];
     }
 
     public static Fact? Bound(RealKind kind, Term value, ComparisonKind comparison, Term limit)

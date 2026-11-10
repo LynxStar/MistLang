@@ -375,6 +375,34 @@ public sealed class OtherPrimitiveFlowTests
             _ => HandBuiltModel.Block(HandBuiltRefinements.Give(x, y), call),
         };
 
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body);
+        AssertAdmitted(admitted, findings);
+        Assert.True(relation != "<" || findings[0].Message.Contains("(fails when x == y)", StringComparison.Ordinal), findings.FirstOrDefault()?.Message);
+    }
+
+    [Theory]
+    [InlineData("guard", false, true)]
+    [InlineData("guard", true, true)]
+    [InlineData("remembered", false, true)]
+    [InlineData("remembered", true, true)]
+    [InlineData("denied", false, false)]
+    [InlineData("denied", true, false)]
+    [InlineData("unguarded", false, false)]
+    public void ADoubleEqualityWhoseSidesReadAlikeStillOrdersItsValue(string shape, bool negated, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var x = Parameter(h.Double, "x");
+        var ok = HandBuiltRefinements.Local(h.Bool, "ok");
+        var call = HandBuiltRefinements.Evaluate(h.Call(x, h.Refine(h.Double, ComparisonKind.LessThanOrEqual, x)));
+        var equal = h.Binary(negated ? Negated(h, Negated(h, x)) : x, BinaryOperatorKind.Equal, x);
+        var body = shape switch
+        {
+            "guard" => HandBuiltModel.Block(HandBuiltRefinements.If(equal, call)),
+            "remembered" => HandBuiltModel.Block(HandBuiltRefinements.Give(ok, equal), HandBuiltRefinements.If(ok, call)),
+            "denied" => HandBuiltModel.Block(HandBuiltRefinements.Give(ok, equal), HandBuiltRefinements.If(h.Not(ok), call)),
+            _ => HandBuiltModel.Block(call),
+        };
+
         AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
     }
 

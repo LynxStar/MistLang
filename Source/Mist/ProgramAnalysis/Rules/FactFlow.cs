@@ -183,8 +183,9 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
     }
 
     // A failed comparison of binary reals may have met a NaN, which no fact over the order can say, so it states nothing;
-    // a successful one met none, and an equality carries a witness of that, since its own fact reads as a copy.
-    private (Fact Fact, bool Deniable, Fact? Witness)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
+    // a successful one met none, and an equality carries a witness of that, since its own fact reads as a copy and
+    // cancels to nothing when both sides read alike.
+    private (Fact Fact, bool Deniable, IReadOnlyList<Fact>? Witness)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
     {
         var left = comparison.Left.Type;
         var right = comparison.Right.Type;
@@ -197,7 +198,9 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         {
             var (first, second) = (reading.Evaluated(ref state, comparison.Left), reading.Evaluated(ref state, comparison.Right));
             var binary = mine != RealKind.Decimal || theirs != RealKind.Decimal;
-            return (RealFacts.Compare(first, kind, second), !binary, binary && kind == ComparisonKind.Equal ? RealFacts.Compare(first, ComparisonKind.LessThanOrEqual, second) : null);
+            var witness = binary && kind == ComparisonKind.Equal
+                ? RealFacts.Witness(first, second, new Value(mine != RealKind.Decimal ? left : right, RefinementFindings.Display(comparison), comparison.Node)) : null;
+            return (RealFacts.Compare(first, kind, second), !binary, witness);
         }
 
         return kind == ComparisonKind.Equal && IsString(left) && IsString(right)
@@ -314,7 +317,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             {
                 state = state with
                 {
-                    Bag = positive ? compared.Witness is { } witness ? state.Bag.Add(compared.Fact).Add(witness) : state.Bag.Add(compared.Fact) : compared.Deniable ? state.Bag.AddAlternatives(compared.Fact.Denial()) : state.Bag,
+                    Bag = positive ? (compared.Witness ?? []).Aggregate(state.Bag.Add(compared.Fact), (bag, witness) => bag.Add(witness)) : compared.Deniable ? state.Bag.AddAlternatives(compared.Fact.Denial()) : state.Bag,
                 };
                 if(positive && kind == ComparisonKind.Equal && IsString(comparison.Left.Type))
                 {

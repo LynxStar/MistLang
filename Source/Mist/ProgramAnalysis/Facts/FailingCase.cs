@@ -42,6 +42,11 @@ internal static class FailingCase
         foreach(var fact in facts.Where(fact => fact.Term.Variables.Length > 1))
         {
             var opposite = fact.Term.Scale(-1);
+            if(fact.Relation == Relation.LessThanOrEqual && facts.Any(other => other.Relation == Relation.Equal && (other.Term.Equals(fact.Term) || other.Term.Equals(opposite))))
+            {
+                continue;
+            }
+
             if(fact.Relation == Relation.LessThanOrEqual && facts.Any(other => other.Relation == Relation.LessThanOrEqual && other.Term.Equals(opposite)))
             {
                 if(fact.Term.Multipliers[0].Sign > 0)

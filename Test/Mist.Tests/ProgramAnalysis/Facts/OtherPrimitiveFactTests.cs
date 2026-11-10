@@ -102,6 +102,21 @@ public sealed class OtherPrimitiveFactTests
         Assert.Equal("fails when x < 0", FailingCase.Describe(new Refuted(new Alternative([declared, denied]), false)));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnOrderAnEqualityAlreadyStatesIsNotSpelledAgain(bool below)
+    {
+        var kind = below ? ComparisonKind.LessThanOrEqual : ComparisonKind.GreaterThanOrEqual;
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+        var equal = RealFacts.Compare(new Term(x), ComparisonKind.Equal, new Term(y));
+
+        Assert.Equal(["x == y"], FailingCase.Spelled([equal, RealFacts.Compare(new Term(x), kind, new Term(y))]));
+        Assert.Equal(["x == y", "x < y"], FailingCase.Spelled([equal, RealFacts.Compare(new Term(x), ComparisonKind.LessThan, new Term(y))]));
+    }
+
     [Fact]
     public void ARealFactsDenialKeepsTheBoundaryOnTheOtherSide()
     {
@@ -337,13 +352,37 @@ public sealed class OtherPrimitiveFactTests
         var x = new Value(h.Double, "x", HandBuiltModel.Node());
         var y = new Value(h.Double, "y", HandBuiltModel.Node());
         var equal = RealFacts.Compare(new Term(x), ComparisonKind.Equal, new Term(y));
+        var above = new Value(h.Double, "x == y", HandBuiltModel.Node());
         var bag = Bag.Empty.Add(equal);
-        bag = witnessed ? bag.Add(RealFacts.Compare(new Term(x), ComparisonKind.LessThanOrEqual, new Term(y))) : bag;
+        bag = witnessed ? RealFacts.Witness(new Term(x), new Term(y), above).Aggregate(bag, (current, fact) => current.Add(fact)) : bag;
 
         Assert.Equal(witnessed, RealFacts.Ordered(bag, x));
         Assert.Equal(witnessed, RealFacts.Ordered(bag, y));
         _ = Assert.IsType<Proven>(Prove(bag, RealFacts.Compare(new Term(x), ComparisonKind.GreaterThan, new Term(y)), x, y));
         _ = Assert.IsType<Refuted>(Prove(bag, RealFacts.Compare(new Term(x), ComparisonKind.GreaterThanOrEqual, new Term(y)), x, y));
+    }
+
+    [Theory]
+    [InlineData("x == x")]
+    [InlineData("x + y == x")]
+    public void AWitnessKeepsTheValuesOfAnEqualityWhoseSidesCancel(string shape)
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var y = new Value(h.Double, "y", HandBuiltModel.Node());
+        var above = new Value(h.Double, shape, HandBuiltModel.Node());
+        var first = shape == "x == x" ? new Term(x) : new Term(x).Add(new Term(y));
+        var equal = RealFacts.Compare(first, ComparisonKind.Equal, new Term(x));
+        var witness = RealFacts.Witness(first, new Term(x), above);
+        var bag = witness.Aggregate(Bag.Empty.Add(equal), (current, fact) => current.Add(fact));
+
+        Assert.Equal(shape == "x == x" ? 1 : 2, witness.Count);
+        Assert.False(RealFacts.Ordered(Bag.Empty.Add(equal), x));
+        Assert.True(RealFacts.Ordered(bag, x));
+        Assert.Equal(shape != "x == x", RealFacts.Ordered(bag, y));
+        Assert.Empty(RealFacts.Witness(new Term(2), new Term(2), above));
+        _ = Assert.IsType<Refuted>(Prove(witness.Aggregate(Bag.Empty, (current, fact) => current.Add(fact)),
+            RealFacts.Compare(new Term(x), ComparisonKind.GreaterThan, new Term(y)), x, y));
     }
 
     [Fact]
@@ -354,13 +393,13 @@ public sealed class OtherPrimitiveFactTests
         var y = new Value(h.Double, "y", HandBuiltModel.Node());
         var ok = new Value(h.Bool, "ok", HandBuiltModel.Node());
         var equal = RealFacts.Compare(new Term(x), ComparisonKind.Equal, new Term(y));
-        var witness = RealFacts.Compare(new Term(x), ComparisonKind.LessThanOrEqual, new Term(y));
+        var witness = RealFacts.Witness(new Term(x), new Term(y), new Value(h.Double, "x == y", HandBuiltModel.Node()));
 
         var alternatives = Booleans.Initializer(ok, equal, positive: true, [Alternative.Empty], witness).ToList();
 
         Assert.Equal(2, alternatives.Count);
-        Assert.Contains(witness, alternatives[0].Facts);
-        Assert.DoesNotContain(witness, alternatives[1].Facts);
+        Assert.All(witness, fact => Assert.Contains(fact, alternatives[0].Facts));
+        Assert.All(witness, fact => Assert.DoesNotContain(fact, alternatives[1].Facts));
         Assert.True(RealFacts.Ordered(new Bag([], alternatives).Add(Eq(-1, (ok, 1))), x));
         Assert.False(RealFacts.Ordered(new Bag([], alternatives).Add(Eq(0, (ok, 1))), x));
     }

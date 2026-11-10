@@ -10,26 +10,12 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
 
-/// <summary>
-/// Resolves AST type reference nodes into <see cref="IMistType"/> by performing
-/// scope-based name lookup against the program model.
-/// </summary>
 internal sealed partial class ScopeResolver
 {
-    /// <summary>
-    /// The prefix shared by every reserved positional tuple accessor
-    /// (<c>Item1</c>, <c>Item2</c>, ...). The positional digits follow this prefix.
-    /// </summary>
     private const string PositionalAccessorPrefix = "Item";
 
     private readonly BuilderContext context;
 
-    /// <summary>
-    /// Builds an alias whose target is not resolved yet, so <see cref="ExpandAlias(TypeAlias,
-    /// IReadOnlyList{IMistType}?, Storm.Runtime.SyntaxNode?)"/> can expand chains regardless of declaration order. Set by
-    /// <see cref="ProgramModelBuilder"/> to the Phase 2a alias builder; cycle detection lives
-    /// with the builder, which is why this completes rather than merely tolerates a null target.
-    /// </summary>
     private int? widestVariadicFamily;
 
     internal Action<TypeAlias>? AliasCompleter { get; set; }
@@ -61,9 +47,6 @@ internal sealed partial class ScopeResolver
         this.context = context;
     }
 
-    /// <summary>
-    /// Resolves a <see cref="TypeReferenceNode"/> to an <see cref="IMistType"/>.
-    /// </summary>
     public IMistType Resolve(TypeReferenceNode typeRef, Scope scope)
     {
         if(typeRef.SingleTypeRefs.Length > 0)
@@ -74,10 +57,6 @@ internal sealed partial class ScopeResolver
         return Resolve(typeRef.First, scope);
     }
 
-    /// <summary>
-    /// Resolves a union type reference (multiple pipe-separated constituents) into
-    /// an interned <see cref="UnionType"/>.
-    /// </summary>
     private IMistType ResolveUnion(TypeReferenceNode typeRef, Scope scope)
     {
         var constituents = new List<IMistType>(typeRef.SingleTypeRefs.Length + 1)
@@ -125,9 +104,8 @@ internal sealed partial class ScopeResolver
     }
 
     /// <summary>
-    /// Resolves a function type reference. The LAST type argument is the result and the rest are the
-    /// parameters, so <c>func&lt;bool&gt;</c> takes nothing -- one syntax across every arity, which is
-    /// what makes the grammar need no separate zero-parameter form.
+    /// The LAST type argument is the result and the rest are the parameters, so a single argument
+    /// takes nothing -- one syntax across every arity, so the grammar needs no zero-parameter form.
     /// </summary>
     internal IMistType ResolveFunction(TypeArgumentListNode arguments, Scope scope, Storm.Runtime.SyntaxNode node)
     {
@@ -160,11 +138,6 @@ internal sealed partial class ScopeResolver
         names.Add(name);
     }
 
-    /// <summary>
-    /// Determines whether a tuple element name collides with the reserved positional
-    /// accessors (<c>Item1</c>, <c>Item2</c>, ...). Such names are rejected because the
-    /// structural tuple already exposes every element positionally under these names.
-    /// </summary>
     private static bool IsReservedTupleElementName(string name)
     {
         if(!name.StartsWith(PositionalAccessorPrefix, StringComparison.Ordinal)
@@ -185,9 +158,6 @@ internal sealed partial class ScopeResolver
         return name[PositionalAccessorPrefix.Length] != '0';
     }
 
-    /// <summary>
-    /// Resolves a single (non-union) type reference node.
-    /// </summary>
     public IMistType Resolve(SingleTypeRefNode singleRef, Scope scope)
     {
         if(PackTypePositions.NarrowedElement(singleRef, scope, context.Diagnostics, MarkResolutionFailure) is { } narrowed)
@@ -222,8 +192,6 @@ internal sealed partial class ScopeResolver
             inner = PackPosition.AsSingleType(inner, scope, singleRef, context.Diagnostics, MarkResolutionFailure);
         }
 
-        // If the type reference has an array rank suffix, wrap the inner type
-        // in a constructed Standard.Array<TValue, Length>.
         if(GetArrayRank(singleRef) is { } rank)
         {
             if(PackTypePositions.Indexed(inner, rank, singleRef, context.Diagnostics, MarkResolutionFailure) is { } indexed)
@@ -275,10 +243,6 @@ internal sealed partial class ScopeResolver
             [inner, LookupWellKnown(WellKnownTypes.Void)]);
     }
 
-    /// <summary>
-    /// Resolves a reserved keyword to its corresponding type in the Standard namespace.
-    /// All reserved type aliases (primitives, void) funnel through here.
-    /// </summary>
     private IMistType ResolveReservedAlias(PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef)
     {
         var wellKnown = primitiveRef.PrimitiveType switch
@@ -309,17 +273,11 @@ internal sealed partial class ScopeResolver
         return LookupWellKnown(wellKnown);
     }
 
-    /// <summary>
-    /// Resolves a <see cref="WellKnownType"/> by looking up its name in its namespace.
-    /// </summary>
     public IMistType LookupWellKnown(WellKnownType wellKnown)
     {
         return context.ProgramModel.FindType(wellKnown.Namespace, wellKnown.Name) ?? ErrorType.Instance;
     }
 
-    /// <summary>
-    /// Resolves a named type reference by looking up the name in the scope.
-    /// </summary>
     internal IMistType ResolveNamed(
         QualifiedIdentifierNode name, TypeArgumentListNode? typeArguments, Scope scope, Storm.Runtime.SyntaxNode node)
     {
@@ -348,9 +306,8 @@ internal sealed partial class ScopeResolver
             return ExpandAlias(alias, typeArguments, scope, node);
         }
 
-        // If type arguments are present, resolve them and wrap in a ConstructedType. A variadic
-        // family is constructed even when NONE are written, since absorbing nothing is a binding
-        // like any other -- a bare `Action` is Action<[]>, not an unconstructed definition.
+        // A variadic family is constructed even when NONE are written, since absorbing nothing is a
+        // binding like any other -- a bare `Action` is Action<[]>, not an unconstructed definition.
         var written = typeArguments is { } typeArgList
             ? ResolveTypeArguments(typeArgList, scope, baseType)
             : [];
@@ -372,11 +329,6 @@ internal sealed partial class ScopeResolver
         return baseType;
     }
 
-    /// <summary>
-    /// The definition a generic reference names, whether its arity matches a declaration's slot
-    /// count or is absorbed by a pack. Shared so that every place naming a generic type agrees --
-    /// a type reference, an alias expansion and a `new` all reach a variadic family the same way.
-    /// </summary>
     /// <summary>
     /// <c>T.Output</c>: the associated type slot named on an abstract that constrains the type
     /// parameter <c>T</c>. Resolved to the slot itself, which is what the abstract's own members are
@@ -415,10 +367,10 @@ internal sealed partial class ScopeResolver
     }
 
     /// <summary>
-    /// <c>Box&lt;int&gt;.Wrapper</c> in a type position: the outer instantiation resolved as any generic
-    /// reference is, then each further segment looked up as a nested type on the definition reached so
-    /// far and carried under the instantiation -- the same carrying a member's declared type gets, so a
-    /// local written this way and one inferred from <c>Box&lt;int&gt;.Wrapper.Make()</c> hold one type.
+    /// A nested type reached through a written instantiation: the outer instantiation resolved as any
+    /// generic reference is, then each further segment looked up as a nested type on the definition
+    /// reached so far and carried under the instantiation -- the same carrying a member's declared type
+    /// gets, so a local written this way and one inferred from a call along the same path hold one type.
     /// A generic last segment is constructed over its own arguments, enclosed by its declaring type as the
     /// path to it closes that type -- the instantiation written, or the base it was reached through.
     /// </summary>
@@ -532,6 +484,11 @@ internal sealed partial class ScopeResolver
         return TryLookupType(lookupName, scope) ?? FindByArity(lookupName, stem, arity, scope);
     }
 
+    /// <summary>
+    /// The definition a generic reference names, whether its arity matches a declaration's slot
+    /// count or is absorbed by a pack. Shared so that every place naming a generic type agrees --
+    /// a type reference, an alias expansion and a `new` all reach a variadic family the same way.
+    /// </summary>
     public IMistType ResolveGenericDefinition(
         string stem, int arity, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
@@ -589,11 +546,9 @@ internal sealed partial class ScopeResolver
     /// A construction of <c>Standard.Func</c> collapsed into the structural function type it means.
     /// Null for anything else.
     /// <para>
-    /// THE TWO SPELLINGS HAVE TO MEET SOMEWHERE, and this is the only place they can: Func is
-    /// nominal and <c>func&lt;...&gt;</c> is structural, so without this a lambda assigned to a
-    /// Func has no parameter types to read, and a Func-typed value cannot be invoked as a function.
-    /// Collapsing needs the pack already bound, which is why it could not be done before packs
-    /// existed -- see <see cref="FunctionType"/>, which has said so all along.
+    /// The only place the two spellings can meet: Func is nominal and <c>func</c> is structural, so
+    /// without this a lambda assigned to a Func has no parameter types to read, and a Func-typed value
+    /// cannot be invoked as a function. Collapsing needs the pack already bound.
     /// </para>
     /// </summary>
     public IMistType? AsFunctionType(IMistType definition, IReadOnlyList<IMistType> typeArgs)
@@ -646,7 +601,7 @@ internal sealed partial class ScopeResolver
 
     /// <summary>
     /// A type alias is transparent: a use names the aliased type, never the alias. Expanding
-    /// here, at resolution, is what makes <c>Optional&lt;int&gt;</c> and <c>int?</c> reach the
+    /// here, at resolution, is what makes the Optional alias over int and <c>int?</c> reach the
     /// same interned union, so every later phase sees one type. An alias whose own target is
     /// not resolved yet -- an alias naming another alias, ahead of it in the Phase 2a pass --
     /// is completed on demand through <see cref="AliasCompleter"/>, so an expansion never
@@ -690,9 +645,6 @@ internal sealed partial class ScopeResolver
             .Apply(aliased, context.ProgramModel.TypeInterner);
     }
 
-    /// <summary>
-    /// Returns the number of type arguments in a type argument list, or 0 if absent.
-    /// </summary>
     internal static int GetTypeArgumentArity(TypeArgumentListNode? typeArgList)
     {
         if(typeArgList is null)
@@ -700,25 +652,15 @@ internal sealed partial class ScopeResolver
             return 0;
         }
 
-        // First argument + trailing arguments.
         return 1 + typeArgList.TypeArguments.Length;
     }
 
-    /// <summary>
-    /// Builds the arity-bearing lookup name for a generic type reference.
-    /// E.g., ("List", 1) → "List&lt;&gt;", ("Dict", 2) → "Dict&lt;,&gt;".
-    /// </summary>
     internal static string BuildArityName(string baseName, int arity)
     {
         var commas = new string(',', arity - 1);
         return $"{baseName}<{commas}>";
     }
 
-    /// <summary>
-    /// Resolves a TypeArgumentList into a list of resolved types.
-    /// Non-type arguments (integer literals, etc.) are reported as unsupported
-    /// and replaced with ErrorType.
-    /// </summary>
     public IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode typeArgList, Scope scope)
     {
         var args = new List<IMistType>();
@@ -785,8 +727,8 @@ internal sealed partial class ScopeResolver
 
     /// <summary>
     /// A bracketed pack argument, lifted to the same comptime <c>Type[]</c> value the binding rule
-    /// produces from a flat list -- so <c>Foo&lt;[int, string]&gt;</c> and <c>Foo&lt;int, string&gt;</c>
-    /// are one type rather than two spellings that happen to agree.
+    /// produces from a flat list -- so the bracketed and flat spellings are one type rather than two
+    /// that happen to agree.
     /// </summary>
     private IMistType ResolveBracketedPack(
         BracketedPackTypeArgumentTypeArgumentNode bracketed, Scope scope)
@@ -869,15 +811,11 @@ internal sealed partial class ScopeResolver
     }
 
     /// <summary>
-    /// Looks up a type name through the scope chain and filters to types only. Emits
-    /// diagnostics for wrong-kind or not-found.
-    /// <para>
     /// Requests <see cref="MemberVisibility.None"/>: a type-reference position can never
     /// denote a field, property or method, so members are excluded from consideration rather
     /// than matched and then rejected. Excluding them lets the lookup continue outward, so a
     /// field sharing its name with a type does not mask the type here -- while in an
     /// expression position, where both are legal, the field still wins.
-    /// </para>
     /// </summary>
     public IMistType ResolveNamedType(string name, Scope scope, Storm.Runtime.SyntaxNode locationNode)
     {
@@ -934,19 +872,8 @@ internal sealed partial class ScopeResolver
     }
 
     /// <summary>
-    /// Constructs <c>Standard.Array&lt;elementType, length&gt;</c>. A null
-    /// <paramref name="length"/> means the length is not statically known and yields
-    /// <c>Array&lt;elementType, unknown&gt;</c>; a known length is lifted into a
-    /// <see cref="LiftedType"/> so <c>ArrayBounds</c> can constrain indexing.
-    /// <para>
-    /// This is the single place an array type is built. Callers that hold array syntax
-    /// report their own diagnostic when this returns <see cref="ErrorType"/>, which
-    /// happens only when <c>Standard.Array&lt;,&gt;</c> is not registered.
-    /// </para>
-    /// </summary>
-    /// <summary>
-    /// Constructs <c>Standard.Task&lt;result&gt;</c>. A method with no result asks for
-    /// <c>Task&lt;void&gt;</c> rather than a second type, void being the unit value here.
+    /// A method with no result asks for a task of void rather than a second task type, void being
+    /// the unit value here.
     /// </summary>
     public IMistType ConstructTask(IMistType result)
     {
@@ -967,6 +894,12 @@ internal sealed partial class ScopeResolver
             ;
     }
 
+    /// <summary>
+    /// The single place an array type is built. A null <paramref name="length"/> is a length not
+    /// statically known; a known length is lifted into a <see cref="LiftedType"/> so
+    /// <c>ArrayBounds</c> can constrain indexing. Callers that hold array syntax report their own
+    /// diagnostic for the <see cref="ErrorType"/> returned when <c>Standard.Array</c> is not registered.
+    /// </summary>
     public IMistType ConstructArray(IMistType elementType, int? length)
     {
         return ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
@@ -1000,11 +933,6 @@ internal sealed partial class ScopeResolver
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(arrayDefinition, new IMistType[] { elementType, lengthArgument });
     }
 
-    /// <summary>
-    /// Wraps an element type in a <c>Standard.Array&lt;,&gt;</c> constructed type,
-    /// taking the length from the rank suffix: sized arrays (<c>int[5]</c>) carry the
-    /// literal length, unsized arrays (<c>int[]</c>) carry none.
-    /// </summary>
     private IMistType ResolveArrayType(SingleTypeRefNode singleRef, IMistType elementType)
     {
         var rank = GetArrayRank(singleRef)!;
@@ -1032,10 +960,7 @@ internal sealed partial class ScopeResolver
     }
 
     /// <summary>
-    /// Resolves a spread type reference (<c>TArgs...</c>) by looking up the named type
-    /// parameter and checking it is a pack. The spread resolves
-    /// to the type parameter itself — the semantics of unpacking are handled at the
-    /// use site (e.g., type alias expansion).
+    /// The semantics of unpacking are handled at the use site (type alias expansion, for one).
     /// </summary>
     private IMistType ResolveSpread(SpreadSingleTypeRefSingleTypeRefNode spread, Scope scope)
     {

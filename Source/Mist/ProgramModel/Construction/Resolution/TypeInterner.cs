@@ -5,11 +5,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Resolution;
 
-/// <summary>
-/// Interns synthetic type instances (unions, constructed types) so that structurally
-/// identical type references resolve to the same object. Keyed by constituent identity.
-/// Also provides factory methods for non-interned synthetic types (refined types).
-/// </summary>
 internal sealed class TypeInterner
 {
     private readonly Dictionary<ConstructedTypeKey, ConstructedType> constructedTypes = [];
@@ -21,16 +16,11 @@ internal sealed class TypeInterner
     private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>
-    /// Returns the canonical <see cref="LiftedType"/> for an integral compile-time
-    /// constant of the given Mist type.
-    /// <para>
     /// The overloads exist so a caller cannot choose the CLR box. Identity is keyed on
     /// the boxed value, so a boxed <c>int</c> and a boxed <c>long</c> of equal numeric
-    /// value would be different keys — previously that made <c>Array&lt;string, 7&gt;</c>
-    /// and <c>string[7]</c> distinct types. Widening every integral value to
+    /// value would be different keys. Widening every integral value to
     /// <see cref="long"/> at the signature removes the choice, and
     /// <paramref name="type"/> is what distinguishes an <c>int</c> from a <c>byte</c>.
-    /// </para>
     /// </summary>
     public LiftedType LiftLiteral(IMistType type, long value)
     {
@@ -105,7 +95,6 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Returns the canonical <see cref="ConstructedType"/> for the given definition and type arguments.
     /// The interner does not normalize inputs — callers pass types exactly as resolved.
     /// Structurally equivalent types that differ only by decoration (e.g., named vs unnamed
     /// tuples) will produce distinct interned instances. The type checker handles equivalence.
@@ -168,9 +157,6 @@ internal sealed class TypeInterner
 
     public IReadOnlyCollection<ConstructedType> ConstructedTypes => constructedTypes.Values;
 
-    /// <summary>
-    /// Returns the canonical <see cref="TupleType"/> for the given element types.
-    /// </summary>
     public TupleType GetOrCreateTupleType(IReadOnlyList<IMistType> elementTypes)
     {
         var key = new TypeListKey(elementTypes);
@@ -185,9 +171,6 @@ internal sealed class TypeInterner
         return tuple;
     }
 
-    /// <summary>
-    /// Returns the canonical <see cref="FunctionType"/> for the given parameter types and result.
-    /// </summary>
     public FunctionType GetOrCreateFunctionType(IReadOnlyList<IMistType> parameterTypes, IMistType returnType, bool isPure = false)
     {
         var function = new FunctionType(parameterTypes, returnType, isPure);
@@ -203,7 +186,6 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Returns the canonical <see cref="AnonymousType"/> for the given members in the given order.
     /// Keyed on the type's own NAME rather than on a type list, since the shape includes the member
     /// names and the name is already built from both halves in order.
     /// </summary>
@@ -222,8 +204,7 @@ internal sealed class TypeInterner
     }
 
     /// <summary>
-    /// Creates a new <see cref="RefinedType"/> wrapping the given base type with a
-    /// predicate AST node. Refined types are not interned — each declaration site
+    /// Refined types are not interned — each declaration site
     /// produces a distinct type instance even if the predicate is textually identical.
     /// </summary>
     public static RefinedType CreateRefinedType(IMistType baseType, SyntaxNode predicateNode, string? name = null)
@@ -384,8 +365,8 @@ internal sealed class TypeInterner
     /// <summary>
     /// Key for a structural type identified by an ordered list of type identities, which is both a
     /// tuple's elements and a function's parameters-then-result. Shared because the two agree on what
-    /// identity means and not because they are alike: each keys its OWN dictionary, so a
-    /// <c>func&lt;int, int&gt;</c> and an <c>(int, int)</c> never collide despite keying equal.
+    /// identity means and not because they are alike: each keys its OWN dictionary, so a function
+    /// from int to int and an <c>(int, int)</c> never collide despite keying equal.
     /// </summary>
     private readonly struct TypeListKey : IEquatable<TypeListKey>
     {

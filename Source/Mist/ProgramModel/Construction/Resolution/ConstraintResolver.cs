@@ -10,12 +10,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Resolution;
 
-/// <summary>
-/// Resolves <see cref="WhereClauseNode"/> arrays from the AST into
-/// <see cref="TypeParameterConstraint"/> instances on the target type parameters.
-/// Shared between type-level (Phase 2 type builders) and method-level
-/// (MethodBuilder) constraint resolution.
-/// </summary>
 internal sealed class ConstraintResolver
 {
     private readonly BuilderContext context;
@@ -28,24 +22,13 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
-    /// Resolves all generic constraint where clauses and adds the resulting
-    /// constraints to the corresponding type parameters.
     /// Adhoc refinement constraints target dependent type parameters only.
-    /// After resolution, validates for conflicting and duplicate constraints.
     /// </summary>
-    /// <param name="whereClauses">The where clause array from the AST node.</param>
-    /// <param name="typeParameters">The type parameters to match against by name.</param>
-    /// <param name="scope">The scope for resolving type references in constraints.</param>
     public void Resolve(ImmutableArray<WhereClauseNode> whereClauses, IReadOnlyList<TypeParameter> typeParameters, Scope scope)
     {
         Resolve(whereClauses, typeParameters, parameters: null, scope);
     }
 
-    /// <summary>
-    /// Resolves all where clauses: generic constraint clauses are added to type
-    /// parameters; adhoc refinement clauses are stashed on matching type parameters
-    /// or method parameters.
-    /// </summary>
     public void Resolve(
         ImmutableArray<WhereClauseNode> whereClauses,
         IReadOnlyList<TypeParameter> typeParameters,
@@ -71,7 +54,6 @@ internal sealed class ConstraintResolver
             }
         }
 
-        // Validate constraints after all clauses are resolved.
         foreach(var typeParam in typeParameters)
         {
             if(typeParam.ConstraintsList.Count > 0)
@@ -115,9 +97,6 @@ internal sealed class ConstraintResolver
         }
     }
 
-    /// <summary>
-    /// Resolves a generic constraint clause (where T : class, IFoo).
-    /// </summary>
     private void ResolveGenericConstraintClause(
         GenericConstraintClauseWhereClauseNode generic,
         IReadOnlyList<TypeParameter> typeParameters,
@@ -154,7 +133,6 @@ internal sealed class ConstraintResolver
     {
         var name = adhoc.Name.Lexeme;
 
-        // First, try to match a dependent type parameter.
         var typeParam = FindTypeParameter(name, typeParameters);
         if(typeParam is not null)
         {
@@ -162,7 +140,6 @@ internal sealed class ConstraintResolver
             return;
         }
 
-        // Second, try to match a method parameter.
         var param = FindParameter(name, parameters);
         if(param is not null)
         {
@@ -170,13 +147,9 @@ internal sealed class ConstraintResolver
             return;
         }
 
-        // Name doesn't match any type parameter or method parameter.
         context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.UnresolvedConstraintTarget, adhoc, null, new NameValue(name));
     }
 
-    /// <summary>
-    /// Finds a parameter by name in the provided list.
-    /// </summary>
     private static Parameter? FindParameter(string name, IReadOnlyList<Parameter>? parameters)
     {
         if(parameters is null)
@@ -196,9 +169,7 @@ internal sealed class ConstraintResolver
     }
 
     /// <summary>
-    /// Resolves a <see cref="ConstraintListNode"/> and adds all constraints to the
-    /// given target collection. Shared by type-parameter <c>where</c> clauses and by
-    /// a type slot's own (<c>:</c>) bound.
+    /// Shared by type-parameter <c>where</c> clauses and by a type slot's own (<c>:</c>) bound.
     /// </summary>
     internal void ResolveConstraintList(ConstraintListNode constraintList, List<TypeParameterConstraint> target, Scope scope)
     {
@@ -210,9 +181,6 @@ internal sealed class ConstraintResolver
         }
     }
 
-    /// <summary>
-    /// Resolves a single constraint node and adds it to the target collection.
-    /// </summary>
     private void ResolveConstraint(ConstraintNode constraint, List<TypeParameterConstraint> target, Scope scope)
     {
         TypeParameterConstraint resolved = constraint switch
@@ -235,9 +203,6 @@ internal sealed class ConstraintResolver
         target.Add(resolved);
     }
 
-    /// <summary>
-    /// Resolves a constructor constraint, including its parameter types if any.
-    /// </summary>
     private ConstructorConstraint ResolveConstructorConstraint(
         ConstructorConstraintConstraintNode ctor, Scope scope)
     {
@@ -259,18 +224,12 @@ internal sealed class ConstraintResolver
         return new ConstructorConstraint(paramTypes);
     }
 
-    /// <summary>
-    /// Resolves a type constraint by resolving the type reference.
-    /// </summary>
     private TypeConstraint ResolveTypeConstraint(TypeConstraintConstraintNode typeNode, Scope scope)
     {
         var resolved = scopeResolver.Resolve(typeNode.Type, scope);
         return new TypeConstraint(resolved);
     }
 
-    /// <summary>
-    /// Finds a type parameter by name in the provided list.
-    /// </summary>
     private static TypeParameter? FindTypeParameter(string name, IReadOnlyList<TypeParameter> typeParameters)
     {
         for(var i = 0; i < typeParameters.Count; i++)
@@ -288,11 +247,6 @@ internal sealed class ConstraintResolver
     // Validation
     // ═══════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Validates constraints on a type parameter after resolution:
-    /// - Reports errors for mutually exclusive constraint pairs.
-    /// - Reports warnings for duplicate keyword constraints.
-    /// </summary>
     private void ValidateConstraints(TypeParameter typeParam, Storm.Runtime.SyntaxNode? declaration)
     {
         var seen = new HashSet<TypeParameterConstraintKind>();
@@ -307,22 +261,17 @@ internal sealed class ConstraintResolver
 
             if(!seen.Add(constraint.Kind))
             {
-                // Duplicate keyword constraint.
                 ReportConstraint(ProgramModelDiagnostics.DuplicateConstraint, declaration,
                     new NameValue(typeParam.Name), new EnumValue(GetConstraintKeyword(constraint.Kind)));
             }
         }
 
-        // Check mutually exclusive pairs.
         CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Struct);
         CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Class, TypeParameterConstraintKind.Stampable);
         CheckConflict(typeParam, declaration, seen, TypeParameterConstraintKind.Readonly, TypeParameterConstraintKind.Mutable);
         CheckSubstructuralConflicts(typeParam, declaration, seen);
     }
 
-    /// <summary>
-    /// Reports an error if both constraint kinds are present on the same type parameter.
-    /// </summary>
     private void CheckConflict(
         TypeParameter typeParam,
         Storm.Runtime.SyntaxNode? declaration,
@@ -337,10 +286,6 @@ internal sealed class ConstraintResolver
         }
     }
 
-    /// <summary>
-    /// Reports an error if more than one substructural discipline constraint
-    /// (linear, affine, relevant) is present on the same type parameter.
-    /// </summary>
     private void CheckSubstructuralConflicts(TypeParameter typeParam, Storm.Runtime.SyntaxNode? declaration, HashSet<TypeParameterConstraintKind> seen)
     {
         var hasLinear = seen.Contains(TypeParameterConstraintKind.Linear);
@@ -390,9 +335,6 @@ internal sealed class ConstraintResolver
         }
     }
 
-    /// <summary>
-    /// Returns the Mist keyword string for a constraint kind.
-    /// </summary>
     private static string GetConstraintKeyword(TypeParameterConstraintKind kind)
     {
         return kind switch

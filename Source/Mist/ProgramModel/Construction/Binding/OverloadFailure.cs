@@ -7,9 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
-/// <summary>
-/// Turns a failed <see cref="OverloadChoice{T}"/> into the diagnostic it stands for.
-/// </summary>
 internal static class OverloadFailure
 {
     public static ErrorExpression Retain<T>(
@@ -42,13 +39,9 @@ internal static class OverloadFailure
     }
 
     /// <summary>
-    /// Reports whichever failure a null <see cref="OverloadChoice{T}.Selected"/> stands for. Called only
-    /// where selection failed; with a winner in hand there is nothing here to say.
-    /// <para>
-    /// ONE PLACE FOR ALL OF THEM, deliberately, rather than a test per call site: every failure member
-    /// but the one that fired is empty, so a site examining only some of them reports a tie between no
-    /// candidates at all.
-    /// </para>
+    /// Reports whichever failure a null <see cref="OverloadChoice{T}.Selected"/> stands for. One place for
+    /// all of them rather than a test per call site: every failure member but the one that fired is empty,
+    /// so a site examining only some of them reports a tie between no candidates at all.
     /// </summary>
     /// <param name="description">
     /// Names the callee, and appears mid-sentence in every message, so it is lower case and carries

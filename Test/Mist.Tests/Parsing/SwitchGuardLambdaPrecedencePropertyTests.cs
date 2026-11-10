@@ -13,34 +13,9 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Property-based tests for <b>Property 8: Switch-Arm Guard Never Captures a Trailing Lambda</b>.
-///
-/// <para><b>Validates: Requirements 12.5</b></para>
-///
-/// <para>
-/// Because lambda is re-anchored at the lowest precedence (a peer of assignment at the
-/// <c>Expression</c> level) and the switch-arm <c>when</c> guard is bounded to the
-/// <c>VoidCoalescing</c> rule, the guard can never reach the lambda alternative. The arm's
-/// <c>=&gt;</c> (<c>SUCH_THAT</c>) token is therefore always left for the <c>SwitchArm</c> rule
-/// to consume rather than being swallowed by a trailing single-parameter lambda.
-/// </para>
-///
-/// <para>
-/// For any switch arm of the form <c>pattern when &lt;VoidCoalescing-level guard&gt; =&gt; &lt;result&gt;</c>,
-/// the parser MUST:
-/// </para>
-/// <list type="number">
-///   <item>parse the guard condition as the generated guard expression (not as a lambda),</item>
-///   <item>leave the arm's <c>=&gt;</c> for the arm so <c>Result</c> is the post-<c>=&gt;</c> expression,</item>
-///   <item>never produce a <see cref="LambdaExpressionNode"/> anywhere inside the guard condition
-///         (structurally guaranteed because <c>WhenGuardNode.Condition</c> is a
-///         <see cref="VoidCoalescingNode"/>, which cannot be a lambda).</item>
-/// </list>
-///
-/// <para>
-/// These tests are parse-only and run fully in-process via <see cref="Mist.Lexing.MistLexer"/> and
-/// <see cref="Mist.Parsing.MistParser"/> — no <c>dotnet</c> process is spawned.
-/// </para>
+/// Lambda sits at the lowest precedence, a peer of assignment at the <c>Expression</c> level, and a
+/// <c>when</c> guard is bounded to <c>VoidCoalescing</c>, so the guard never reaches the lambda
+/// alternative and the arm's arrow (<c>SUCH_THAT</c>) is always left for <c>SwitchArm</c>.
 /// </summary>
 public class SwitchGuardLambdaPrecedencePropertyTests
 {
@@ -72,7 +47,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    /// <summary>Walks the syntax tree and returns the first node of type <typeparamref name="T"/>, or null.</summary>
     private static T? FindFirst<T>(SyntaxNode root) where T : SyntaxNode
     {
         if(root is T match)
@@ -97,7 +71,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         return null;
     }
 
-    /// <summary>Walks the syntax tree and returns every node of type <typeparamref name="T"/>.</summary>
     private static List<T> FindAll<T>(SyntaxNode root) where T : SyntaxNode
     {
         var results = new List<T>();
@@ -122,22 +95,18 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         return results;
     }
 
-    /// <summary>Extracts the source text covered by a node's span.</summary>
     private static string SpanText(string source, Storm.Runtime.SourceSpan span)
     {
         return source.Substring(span.Start, span.Length);
     }
 
-    /// <summary>Collapses runs of whitespace to a single space and trims.</summary>
     private static string NormalizeWs(string s)
     {
         return string.Join(" ", s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     /// <summary>
-    /// Wraps a switch-expression body in a complete, parseable Mist program. Names referenced by
-    /// the scrutinee/guard/result need not be defined — these tests only lex and parse, never
-    /// resolve or type-check.
+    /// The scrutinee, guard and result may name undefined symbols: these tests only lex and parse.
     /// </summary>
     private static string Wrap(string arms)
     {
@@ -146,9 +115,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         + "\n    }\n}";
     }
 
-    /// <summary>
-    /// Locates the single guarded arm in a parsed program, asserting there is exactly one.
-    /// </summary>
     private static SwitchArmNode SingleGuardedArm(CompilationUnitNode cu)
     {
         var guarded = FindAll<SwitchArmNode>(cu).Where(a => a.Guard is not null).ToList();
@@ -178,7 +144,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         return Gen.Elements(Identifiers);
     }
 
-    /// <summary>A relational/equality comparison (lives in the <c>Relational</c>/<c>Equality</c> tier).</summary>
     private static Gen<string> GenComparisonGuard()
     {
         return from id in Gen.Elements(Identifiers)
@@ -187,7 +152,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
                select $"{id} {op} {v}";
     }
 
-    /// <summary>A method/predicate invocation (lives in the <c>Postfix</c> tier — the idiomatic guard).</summary>
     private static Gen<string> GenInvocationGuard()
     {
         return from fn in Gen.Elements(FunctionNames)
@@ -195,7 +159,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
                select $"{fn}({arg})";
     }
 
-    /// <summary>A logical-and/or expression.</summary>
     private static Gen<string> GenLogicalGuard()
     {
         return from a in Gen.Elements(Identifiers)
@@ -204,14 +167,12 @@ public class SwitchGuardLambdaPrecedencePropertyTests
                select $"{a} {op} {b}";
     }
 
-    /// <summary>A unary negation.</summary>
     private static Gen<string> GenNegationGuard()
     {
         return from id in Gen.Elements(Identifiers)
                select $"!{id}";
     }
 
-    /// <summary>A member access (lives in the <c>Postfix</c> tier).</summary>
     private static Gen<string> GenMemberAccessGuard()
     {
         return from obj in Gen.Elements(Identifiers)
@@ -230,7 +191,7 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     private static Gen<string> GenGuard()
     {
         return Gen.OneOf(
-            // Bias toward the bare-identifier case (the regression target) by listing it twice.
+            // Listed twice to bias toward the bare-identifier case.
             GenBareIdentifierGuard(),
             GenBareIdentifierGuard(),
             GenComparisonGuard(),
@@ -258,8 +219,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 8: Switch-Arm Guard Never Captures a Trailing Lambda
-    //
-    // **Validates: Requirements 12.5**
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 200, Arbitrary = new[] { typeof(SwitchGuardLambdaPrecedencePropertyTests) })]
@@ -268,19 +227,15 @@ public class SwitchGuardLambdaPrecedencePropertyTests
         var cu = ParseOrFail(scenario.Source);
         var arm = SingleGuardedArm(cu);
 
-        // 1. The guard condition is a VoidCoalescing node (structurally cannot be a lambda).
+        // Condition is typed VoidCoalescingNode, so non-null is enough.
         var guard = arm.Guard!;
         var conditionIsVoidCoalescing = guard.Condition is not null;
 
-        // 2. No lambda node appears anywhere inside the guard subtree.
         var noLambdaInGuard = FindFirst<LambdaExpressionNode>(guard) is null;
 
-        // 3. The guard condition text matches the generated guard (the guard did not over- or under-read).
         var guardText = NormalizeWs(SpanText(scenario.Source, guard.Condition!.Span));
         var guardMatches = guardText == NormalizeWs(scenario.ExpectedGuard);
 
-        // 4. The arm's '=>' was claimed by the arm: Result is the post-'=>' expression we generated,
-        //    and it is the assignment-form expression (not a lambda).
         var resultText = NormalizeWs(SpanText(scenario.Source, arm.Result.Span));
         var resultMatches = resultText == NormalizeWs(scenario.ExpectedResult);
         var resultIsNotLambda = arm.Result is AssignmentFormExpressionNode;
@@ -308,9 +263,6 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     [Fact]
     public void Regression_BareIdentifierGuard_DoesNotSwallowTrailingLambda()
     {
-        // value switch { int n when predicate => n.ToString(), _ => "none" }
-        // The previously-broken case: with lambda in Primary, `predicate => n.ToString()`
-        // was parsed as a single-param lambda *inside* the guard, stranding the arm.
         var source = Wrap("int n when predicate => n.ToString(), _ => \"none\"");
         var cu = ParseOrFail(source);
         var arm = SingleGuardedArm(cu);
@@ -349,22 +301,14 @@ public class SwitchGuardLambdaPrecedencePropertyTests
     }
 }
 
-/// <summary>
-/// A generated switch-arm scenario carrying the full program source plus the expected
-/// guard and result fragments for the single guarded arm.
-/// </summary>
 public sealed class SwitchGuardScenario
 {
-    /// <summary>The complete, parseable Mist program containing the guarded switch arm.</summary>
     public string Source { get; }
 
-    /// <summary>The expected guard-condition text (what should appear before the arm's <c>=&gt;</c>).</summary>
     public string ExpectedGuard { get; }
 
-    /// <summary>The expected result text (what should appear after the arm's <c>=&gt;</c>).</summary>
     public string ExpectedResult { get; }
 
-    /// <summary>Human-readable description of the scenario.</summary>
     public string Description { get; }
 
     public SwitchGuardScenario(string source, string expectedGuard, string expectedResult, string description)

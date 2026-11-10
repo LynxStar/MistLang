@@ -13,8 +13,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// A <see cref="MethodGroupExpression"/> constrained to the one overload a function-typed position
 /// asks for.
 /// <para>
-/// An argument position reaches this TWICE, and the two halves are what make a group in an argument
-/// work at all. <see cref="Accepts"/> answers applicability while
+/// An argument position reaches this TWICE. <see cref="Accepts"/> answers applicability while
 /// <see cref="OverloadResolution.Select"/> is still choosing, and <see cref="Settle"/> performs the
 /// conversion once the choice is made. Neither half can stand alone: without the first the call has
 /// no reason to prefer the overload whose parameter the group fits, and without the second the group
@@ -33,13 +32,13 @@ internal static class MethodGroupConversion
     /// type, selected by the TARGET rather than by arguments since there are none.
     /// <para>
     /// Identity per position rather than assignability, matching how the CLR binds a delegate: a method
-    /// taking an <c>int</c> does not convert to a <c>func&lt;long, ...&gt;</c> even though the argument
-    /// would widen at a call. A GENERIC method takes the type arguments stated after its name, or else reads
-    /// them off the target's positions (<see cref="TypeArgumentInference.FromSignature"/>), and is then held
-    /// to the same identity; one the target leaves open is declined, and yields to a plain overload of the
-    /// same signature as it does at a call, unless arguments were stated, which only a method of that arity
-    /// can take. Two overloads the receiver's arguments make one
-    /// signature are ordered as a call orders them, by <see cref="OverloadResolution.MoreSpecificSignature"/>
+    /// taking an <c>int</c> does not convert to a function type taking a <c>long</c> even though the
+    /// argument would widen at a call. A GENERIC method takes the type arguments stated after its name, or
+    /// else reads them off the target's positions (<see cref="TypeArgumentInference.FromSignature"/>), and
+    /// is then held to the same identity; one the target leaves open is declined, and yields to a plain
+    /// overload of the same signature as it does at a call, unless arguments are stated, which only a
+    /// method of that arity can take. Two overloads the receiver's arguments make one signature are
+    /// ordered as a call orders them, by <see cref="OverloadResolution.MoreSpecificSignature"/>
     /// (method-overloading Requirement 3.12); a pair no position separates is ambiguous.
     /// </para>
     /// </summary>

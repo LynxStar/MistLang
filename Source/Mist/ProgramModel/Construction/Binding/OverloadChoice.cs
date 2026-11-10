@@ -23,14 +23,12 @@ internal sealed class OverloadChoice<T>
     public TypeSubstitution Substitution { get; init; } = TypeSubstitution.Empty;
 
     /// <summary>
-    /// The candidates that tied, empty unless the call is ambiguous. Each is applicable and none is
-    /// beaten by another, so choosing between them would be arbitrary.
+    /// Applicable candidates none of which beats another.
     /// </summary>
     public IReadOnlyList<T> Ambiguous { get; init; } = [];
 
     /// <summary>
-    /// The arity matches, empty unless every one of them failed applicability. Distinct from
-    /// <see cref="Ambiguous"/> in what it rests on: a tie is several positive results, this is none.
+    /// The arity matches, empty unless every one of them failed applicability.
     /// </summary>
     public IReadOnlyList<T> Unresolvable { get; init; } = [];
 

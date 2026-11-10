@@ -1,5 +1,4 @@
-// Feature: first-class-functions — Unit tests for the LambdaExpression grammar
-// and the lowest-precedence lambda model.
+// Feature: first-class-functions
 // **Validates: Requirements 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 5.1, 5.2, 8.1, 9.1, 12.5**
 
 using Mist.Common.Diagnostics;
@@ -10,24 +9,6 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying that the parser produces the expected lambda AST nodes
-/// for every lambda syntax form: single implicit param, parenthesized params
-/// (zero/one/many), typed and untyped params, expression and block bodies, and
-/// the <c>static</c>/<c>async</c> modifiers.
-///
-/// Lambda is recognized at the lowest-precedence <c>Expression</c> level (a peer
-/// of, but looser than, assignment). These tests assert that:
-/// <list type="bullet">
-/// <item>each lambda form surfaces as a <see cref="LambdaFormExpressionNode"/> at
-/// the <c>Expression</c> level wrapping the correct <see cref="LambdaExpressionNode"/>
-/// subtype;</item>
-/// <item><c>f = x =&gt; x + 1</c> parses as <c>f = (x =&gt; x + 1)</c> (the lambda is
-/// the assignment RHS) and <c>x =&gt; y =&gt; x + y</c> is right-associative;</item>
-/// <item>a switch-arm <c>when</c> guard never swallows the arm's trailing
-/// <c>=&gt;</c> into a lambda (the Requirement 12.5 regression).</item>
-/// </list>
-/// </summary>
 public class LambdaExpressionParserTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -35,10 +16,6 @@ public class LambdaExpressionParserTests
 
     // ─── Parse helpers ───────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Parses a source string and asserts no parse errors occurred.
-    /// Returns the <see cref="CompilationUnitNode"/> root.
-    /// </summary>
     private static CompilationUnitNode ParseOrFail(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -55,10 +32,6 @@ public class LambdaExpressionParserTests
         return Assert.IsType<CompilationUnitNode>(result.Root);
     }
 
-    /// <summary>
-    /// Recursively walks the syntax tree (via <see cref="SyntaxNode.Children"/>)
-    /// and returns the first node of type <typeparamref name="T"/>, or null.
-    /// </summary>
     private static T? FindFirst<T>(SyntaxNode root) where T : SyntaxNode
     {
         if(root is T match)
@@ -83,10 +56,6 @@ public class LambdaExpressionParserTests
         return null;
     }
 
-    /// <summary>
-    /// Parses <c>var f = {exprSource};</c> and returns the initializer
-    /// <see cref="ExpressionNode"/> — the top-level expression of the RHS.
-    /// </summary>
     private static ExpressionNode ParseVarInitializer(string exprSource)
     {
         var cu = ParseOrFail($"var f = {exprSource};");
@@ -96,10 +65,6 @@ public class LambdaExpressionParserTests
         return decl.Initializer;
     }
 
-    /// <summary>
-    /// Parses <c>{exprSource};</c> as a top-level expression statement and returns
-    /// the contained <see cref="ExpressionNode"/> (the statement's root expression).
-    /// </summary>
     private static ExpressionNode ParseExpressionStatement(string exprSource)
     {
         var cu = ParseOrFail($"{exprSource};");
@@ -108,11 +73,6 @@ public class LambdaExpressionParserTests
         return stmt.ExpressionStatement.Expression;
     }
 
-    /// <summary>
-    /// Parses a lambda-bearing expression, asserts it surfaces as a
-    /// <see cref="LambdaFormExpressionNode"/> at the <c>Expression</c> level, and
-    /// returns the wrapped <see cref="LambdaExpressionNode"/>.
-    /// </summary>
     private static LambdaExpressionNode ParseLambda(string lambdaExpr)
     {
         var expr = ParseVarInitializer(lambdaExpr);
@@ -123,8 +83,6 @@ public class LambdaExpressionParserTests
     // ═══════════════════════════════════════════════════════════════════════
     // Lambda forms — each surfaces as LambdaFormExpressionNode at Expression level
     // ═══════════════════════════════════════════════════════════════════════
-
-    // ─── Single implicit param, expression body: x => x + 1 ─────────────────
 
     [Fact]
     public void SingleImplicitParam_ExpressionBody_ParsesAsExpressionLambda()
@@ -137,8 +95,6 @@ public class LambdaExpressionParserTests
         Assert.Empty(exprLambda.Modifiers);
     }
 
-    // ─── Zero params, expression body: () => 42 ─────────────────────────────
-
     [Fact]
     public void ZeroParams_ExpressionBody_ParsesAsParenthesizedWithNoParams()
     {
@@ -148,8 +104,6 @@ public class LambdaExpressionParserTests
         var paramList = Assert.IsType<ParenthesizedLambdaParamsLambdaParameterListNode>(exprLambda.Params);
         Assert.Null(paramList.Params);
     }
-
-    // ─── Single parenthesized untyped param: (x) => x + 1 ───────────────────
 
     [Fact]
     public void ParenthesizedSingleUntypedParam_ParsesAsUntypedLambdaParam()
@@ -164,8 +118,6 @@ public class LambdaExpressionParserTests
         Assert.Equal("x", param.Name.Lexeme);
         Assert.Empty(paramList.Params.LambdaParams);
     }
-
-    // ─── Multiple untyped params: (x, y) => x + y ───────────────────────────
 
     [Fact]
     public void MultipleUntypedParams_ParsesAllParams()
@@ -184,8 +136,6 @@ public class LambdaExpressionParserTests
         Assert.Equal("y", second.Name.Lexeme);
     }
 
-    // ─── Single typed param: (int x) => x + 1 ───────────────────────────────
-
     [Fact]
     public void TypedParam_ParsesAsTypedLambdaParam()
     {
@@ -200,8 +150,6 @@ public class LambdaExpressionParserTests
         var single = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(param.Type.First);
         _ = Assert.IsType<IntTypePrimitiveTypeNode>(single.PrimitiveType);
     }
-
-    // ─── Multiple typed params: (int x, string y) => x ──────────────────────
 
     [Fact]
     public void MultipleTypedParams_ParsesAllTypedParams()
@@ -224,8 +172,6 @@ public class LambdaExpressionParserTests
         _ = Assert.IsType<StringTypePrimitiveTypeNode>(secondType.PrimitiveType);
     }
 
-    // ─── Block body, single implicit param: x => { return x + 1; } ──────────
-
     [Fact]
     public void SingleImplicitParam_BlockBody_ParsesAsBlockLambda()
     {
@@ -236,8 +182,6 @@ public class LambdaExpressionParserTests
         Assert.Equal("x", paramList.Name.Lexeme);
         Assert.NotEmpty(blockLambda.Body.Statements);
     }
-
-    // ─── Block body, parenthesized params: (x, y) => { return x + y; } ──────
 
     [Fact]
     public void ParenthesizedParams_BlockBody_ParsesAsBlockLambda()
@@ -250,8 +194,6 @@ public class LambdaExpressionParserTests
         Assert.NotEmpty(blockLambda.Body.Statements);
     }
 
-    // ─── static modifier: static x => x ─────────────────────────────────────
-
     [Fact]
     public void StaticModifier_ParsesAsStaticLambdaModifier()
     {
@@ -262,8 +204,6 @@ public class LambdaExpressionParserTests
         _ = Assert.IsType<StaticLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
     }
 
-    // ─── async modifier: async () => 42 ─────────────────────────────────────
-
     [Fact]
     public void AsyncModifier_ParsesAsAsyncLambdaModifier()
     {
@@ -273,8 +213,6 @@ public class LambdaExpressionParserTests
         _ = Assert.Single(exprLambda.Modifiers);
         _ = Assert.IsType<AsyncLambdaModifierLambdaModifierNode>(exprLambda.Modifiers[0]);
     }
-
-    // ─── static async combination: static async () => 42 ───────────────────
 
     [Fact]
     public void StaticAsyncModifiers_ParseInOrder()
@@ -291,61 +229,49 @@ public class LambdaExpressionParserTests
     // Precedence model: lambda is the lowest-precedence expression form
     // ═══════════════════════════════════════════════════════════════════════
 
-    // ─── f = x => x + 1   parses as   f = (x => x + 1) ──────────────────────
-
     [Fact]
     public void AssignmentRhs_IsTheLambda_NotTheOtherWayAround()
     {
-        // The whole statement is an assignment whose RHS is the lambda; lambda
-        // binds looser than `=`, so the parse is `f = (x => x + 1)`, never
-        // `(f = x) => x + 1`.
+        // Lambda binds looser than `=`, so the parse is `f = (x => x + 1)`, never `(f = x) => x + 1`.
         var expr = ParseExpressionStatement("f = x => x + 1");
 
         var assignmentForm = Assert.IsType<AssignmentFormExpressionNode>(expr);
         var assignment = assignmentForm.Assignment;
 
-        // It is genuinely an assignment (has the `=` operator).
         _ = Assert.NotNull(assignment.Group0?.Operator);
         Assert.Equal("=", (assignment.Group0?.Operator)!.Value.Lexeme);
 
-        // The assignment target is the identifier `f`.
         var target = FindFirst<IdentifierExpressionPrimaryNode>(assignment.Target);
         Assert.NotNull(target);
         Assert.Equal("f", target!.Name.Lexeme);
 
-        // The RHS value is the lambda itself.
         var rhsLambdaForm = Assert.IsType<LambdaFormExpressionNode>(assignment.Group0?.Value);
         var rhsLambda = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(rhsLambdaForm.Lambda);
         var rhsParams = Assert.IsType<SingleImplicitParamLambdaParameterListNode>(rhsLambda.Params);
         Assert.Equal("x", rhsParams.Name.Lexeme);
     }
 
-    // ─── x => y => x + y   parses right-associatively as x => (y => (x + y)) ─
-
     [Fact]
     public void NestedLambda_IsRightAssociative()
     {
         var expr = ParseExpressionStatement("x => y => x + y");
 
-        // Outer lambda: x => <body>
         var outerForm = Assert.IsType<LambdaFormExpressionNode>(expr);
         var outer = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(outerForm.Lambda);
         var outerParam = Assert.IsType<SingleImplicitParamLambdaParameterListNode>(outer.Params);
         Assert.Equal("x", outerParam.Name.Lexeme);
 
-        // The outer body is itself a lambda (right-associative nesting).
         var innerForm = Assert.IsType<LambdaFormExpressionNode>(outer.Body);
         var inner = Assert.IsType<ExpressionLambdaLambdaExpressionNode>(innerForm.Lambda);
         var innerParam = Assert.IsType<SingleImplicitParamLambdaParameterListNode>(inner.Params);
         Assert.Equal("y", innerParam.Name.Lexeme);
 
-        // The innermost body `x + y` is NOT a lambda.
         Assert.IsNotType<LambdaFormExpressionNode>(inner.Body);
         Assert.Null(FindFirst<LambdaExpressionNode>(inner.Body));
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Regression — switch-arm guard never captures the arm's trailing `=>`
+    // Switch-arm guard never captures the arm's trailing `=>`
     // **Validates: Requirements 12.5**
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -358,34 +284,28 @@ public class LambdaExpressionParserTests
         return suffix.Arms!;
     }
 
-    // ─── int n when predicate => n.ToString()  (the core regression) ────────
-
     [Fact]
     public void SwitchArm_IdentifierGuard_DoesNotCaptureTrailingLambda()
     {
         var arms = ParseSwitchArms("value switch { int n when predicate => n.ToString(), _ => \"none\" }");
 
-        // Exactly two well-formed arms.
         _ = Assert.Single(arms.SwitchArms); // first arm + 1 more = 2 total
         var firstArm = arms.SwitchArm;
         var secondArm = arms.SwitchArms[0];
 
-        // First arm: `int n` type pattern with a `when predicate` guard.
         var typePattern = FindFirst<TypePatternPrimaryPatternNode>(firstArm.Pattern);
         Assert.NotNull(typePattern);
         Assert.Equal("n", typePattern!.Name.Lexeme);
 
         Assert.NotNull(firstArm.Guard);
 
-        // The guard condition is the bare identifier `predicate` — NOT a lambda.
-        // (Condition is a VoidCoalescingNode, which structurally sits below the
-        // lambda alternative, so the `=>` is left for the arm.)
+        // Condition is a VoidCoalescingNode, which sits below the lambda alternative, so the
+        // `=>` is left for the arm.
         Assert.Null(FindFirst<LambdaExpressionNode>(firstArm.Guard!.Condition));
         var guardIdent = FindFirst<IdentifierExpressionPrimaryNode>(firstArm.Guard.Condition);
         Assert.NotNull(guardIdent);
         Assert.Equal("predicate", guardIdent!.Name.Lexeme);
 
-        // The first arm's result is `n.ToString()` — the `=>` belongs to the arm.
         Assert.Null(FindFirst<LambdaExpressionNode>(firstArm.Result));
         var resultCall = FindFirst<MethodCallSuffixPostfixSuffixNode>(firstArm.Result);
         Assert.NotNull(resultCall);
@@ -394,13 +314,10 @@ public class LambdaExpressionParserTests
         Assert.NotNull(resultTarget);
         Assert.Equal("n", resultTarget!.Name.Lexeme);
 
-        // Second arm: discard pattern, no guard, string-literal result.
         Assert.NotNull(FindFirst<DiscardPatternPrimaryPatternNode>(secondArm.Pattern));
         Assert.Null(secondArm.Guard);
         Assert.NotNull(FindFirst<StringLiteralExpressionPrimaryNode>(secondArm.Result));
     }
-
-    // ─── int n when n > 7 => n.ToString()  (relational guard, above the floor) ─
 
     [Fact]
     public void SwitchArm_RelationalGuard_ParsesGuardAndResultCorrectly()
@@ -413,18 +330,14 @@ public class LambdaExpressionParserTests
         Assert.NotNull(firstArm.Guard);
         Assert.Null(FindFirst<LambdaExpressionNode>(firstArm.Guard!.Condition));
 
-        // Guard is the comparison `n > 7`.
         var comparison = FindFirst<RelationalComparisonRelationalNode>(firstArm.Guard.Condition);
         Assert.NotNull(comparison);
         Assert.Equal(">", comparison!.Group0[^1].Operator.Lexeme);
 
-        // Result is `n.ToString()`.
         var resultCall = FindFirst<MethodCallSuffixPostfixSuffixNode>(firstArm.Result);
         Assert.NotNull(resultCall);
         Assert.Equal("ToString", resultCall!.Name.Lexeme);
     }
-
-    // ─── int n when isOdd(n) => n.ToString()  (invocation guard) ────────────
 
     [Fact]
     public void SwitchArm_InvocationGuard_ParsesGuardAndResultCorrectly()
@@ -437,20 +350,18 @@ public class LambdaExpressionParserTests
         Assert.NotNull(firstArm.Guard);
         Assert.Null(FindFirst<LambdaExpressionNode>(firstArm.Guard!.Condition));
 
-        // Guard is the invocation `isOdd(n)`.
         Assert.NotNull(FindFirst<InvocationSuffixPostfixSuffixNode>(firstArm.Guard.Condition));
         var guardTarget = FindFirst<IdentifierExpressionPrimaryNode>(firstArm.Guard.Condition);
         Assert.NotNull(guardTarget);
         Assert.Equal("isOdd", guardTarget!.Name.Lexeme);
 
-        // Result is `n.ToString()` — the `=>` is the arm separator.
         var resultCall = FindFirst<MethodCallSuffixPostfixSuffixNode>(firstArm.Result);
         Assert.NotNull(resultCall);
         Assert.Equal("ToString", resultCall!.Name.Lexeme);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Regression — non-lambda value positions must NOT parse as lambdas
+    // Non-lambda value positions must NOT parse as lambdas
     // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]

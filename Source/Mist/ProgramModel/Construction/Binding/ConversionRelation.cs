@@ -21,7 +21,7 @@ internal static class ConversionRelation
     /// <para>
     /// DO NOT DELETE in favour of the equivalent operators the stdlib declares. <see cref="IsWithin"/>
     /// has to hold without consulting an operator, so a numeric widening must be expressible as
-    /// containment; removing this fails four overload tests.
+    /// containment.
     /// </para>
     /// </summary>
     private static readonly Dictionary<string, string[]> NumericWidening = BuildNumericWidening();
@@ -261,7 +261,6 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// A named tuple replaced by the structural tuple it decorates, and anything else returned as it is.
     /// Applied at the ENTRY of both relations rather than as an arm of either, because element names
     /// reach the name this compares by: two declarations of <c>(int x, int y)</c> share one interned
     /// underlying tuple but are separate non-interned decorations, so comparing them as they arrive makes
@@ -273,10 +272,9 @@ internal static class ConversionRelation
     }
 
     /// <summary>
-    /// <c>MyList&lt;int&gt;</c> into <c>MyList&lt;unknown&gt;</c>. Covariance keyed on the TOP TYPE and on
-    /// nothing else: an argument position may only widen to <c>unknown</c>, never to another supertype,
-    /// so <c>MyList&lt;int&gt;</c> stays outside <c>MyList&lt;long&gt;</c> -- general covariance would be
-    /// unsound without a declared variance annotation, which Mist has no syntax for.
+    /// Covariance keyed on the TOP TYPE and on nothing else: an argument position may only widen to
+    /// <c>unknown</c>, never to another supertype -- general covariance would be unsound without a
+    /// declared variance annotation, which Mist has no syntax for.
     /// <para>
     /// A CLASS definition only. A struct generic widened this way would have to box to reach the
     /// <c>dynamic</c> its emission uses, losing the value semantics that made it a struct.
@@ -355,8 +353,8 @@ internal static class ConversionRelation
     /// APPLICABILITY IS NOT IDENTITY, which is why <see cref="IsIdentity"/> must keep excluding it.
     /// Unknown admits everything, so it discriminates nothing and cannot rank two candidates; but the
     /// question a parameter asks is whether the argument FITS, and for unknown the answer is always
-    /// yes. Excluding it there refused <c>Console.WriteLine(7)</c>, the most common call in the
-    /// language, which classic prints.
+    /// yes. Excluding it there would refuse <c>Console.WriteLine(7)</c>, the most common call in the
+    /// language.
     /// </para>
     /// <para>
     /// The exclusions are the things that are not values: void has one inhabitant and no

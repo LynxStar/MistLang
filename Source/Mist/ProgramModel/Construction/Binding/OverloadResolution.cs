@@ -8,10 +8,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Chooses which overload a call or an index selects, in three stages: filter by arity, keep the
-/// candidates every argument can reach, then take the best of those. Reporting a failed choice belongs
-/// to <see cref="OverloadFailure"/>; the applicability and betterness rules stay here, since they are
-/// what <see cref="Select"/> does rather than a separate concern it consults.
+/// Chooses which overload a call or an index selects: filter by arity, keep the candidates every
+/// argument can reach, then take the best of those. Reporting a failed choice belongs to
+/// <see cref="OverloadFailure"/>.
 /// <para>
 /// <see cref="ConversionRelation"/> is partial and documents the obligation that comes with it: it may
 /// narrow and rank, never refuse. That bars selection from reading an eliminated candidate as proof
@@ -273,9 +272,6 @@ internal static class OverloadResolution
         return applicants.ConvertAll(applicant => applicant.Method);
     }
 
-    /// <summary>
-    /// Null if any of the candidate's own type parameters went undetermined.
-    /// </summary>
     private static TypeSubstitution? Close<T>(
         T candidate,
         IReadOnlyList<Expression> arguments,
@@ -305,14 +301,11 @@ internal static class OverloadResolution
     }
 
     /// <summary>
-    /// The candidates no other candidate beats. One means a winner; several mean a tie.
-    /// <para>
     /// Every candidate is compared against every other rather than against a running winner, because
     /// betterness is a partial order: A can beat the incumbent without beating the candidate it never
     /// met. A running scan would leave beaten candidates in the reported tie -- one <c>int</c> against
     /// <c>decimal</c>, <c>float</c> and <c>double</c> would name all three, though <c>float</c> beats
     /// <c>double</c>.
-    /// </para>
     /// </summary>
     private static List<Applicant<T>> Maximal<T>(
         List<Applicant<T>> applicable, IReadOnlyList<Expression> arguments, TypeInterner interner, ILambdaTrials? lambdas)
@@ -368,8 +361,7 @@ internal static class OverloadResolution
     /// <summary>
     /// PASSING MODE IS PART OF APPLICABILITY, not decoration on top of it. A <c>ref</c> argument and a
     /// by-value one are different arguments even when their types agree, so a by-ref and a by-value
-    /// overload of one name are only distinguishable here. Without this both bound to the by-value
-    /// candidate, and a program calling either printed the by-value answer with no diagnostic.
+    /// overload of one name are only distinguishable here.
     /// <para>
     /// The modes must MATCH rather than merely be compatible: C# refuses a by-value argument to a
     /// <c>ref</c> parameter (CS1620) as firmly as the reverse, and Mist's own grammar makes the call
@@ -445,13 +437,6 @@ internal static class OverloadResolution
         return true;
     }
 
-    /// <summary>
-    /// Whether <paramref name="left"/> beats <paramref name="right"/>: no argument converts worse to
-    /// it, and at least one converts better. Both are already applicable, so this only orders them.
-    /// <para>
-    /// A tie no argument separates is settled by <see cref="BeatsOnSignature"/>.
-    /// </para>
-    /// </summary>
     private static bool IsBetter<T>(
         Applicant<T> left, Applicant<T> right, IReadOnlyList<Expression> arguments, TypeInterner interner, ILambdaTrials? lambdas)
         where T : class, IOverload
@@ -495,8 +480,8 @@ internal static class OverloadResolution
     /// ranking: without that gate one position's genericity would settle a tie in another, and
     /// `Take(short, int)` would beat a generic `Take(uint, T)` for a byte argument, though
     /// method-overloading Requirement 3.3 gives a signed and an unsigned target no preference. Refusing
-    /// the coinciding pair instead left neither callable, no cast telling them apart, since the cast's
-    /// own type is what they already share.
+    /// the coinciding pair instead would leave neither callable, no cast telling them apart, since the
+    /// cast's own type is what they already share.
     /// </para>
     /// </summary>
     private static bool BeatsOnSignature<T>(

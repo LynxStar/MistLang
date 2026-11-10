@@ -201,8 +201,7 @@ internal sealed class TypeSubstitution
     }
 
     /// <summary>
-    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>. Constructions,
-    /// unions, tuples, function types and a refinement's base are descended into.
+    /// An array needs no arm of its own, being a construction of <c>Standard.Array</c>.
     /// </summary>
     /// <param name="interner">
     /// Null from the emitter's struct flattening, which has none: the interner belongs to construction
@@ -499,11 +498,6 @@ internal sealed class TypeSubstitution
         return interner is null ? new LiftedType(lifted.Type, value) : interner.LiftPack(lifted.Type, value);
     }
 
-    /// <summary>
-    /// The result is substituted alongside the parameters, so an alias over a function type closes in
-    /// BOTH positions -- <c>type Transform&lt;TIn, TOut&gt; = func&lt;TIn, TOut&gt;</c> being the case
-    /// that needs it, where substituting only the parameters would leave the result open.
-    /// </summary>
     private IMistType ApplyToFunction(FunctionType function, TypeInterner? interner)
     {
         // A spread among the parameters splices, as it does in a pack slot and in a tuple. It gets
@@ -545,9 +539,8 @@ internal sealed class TypeSubstitution
     }
 
     /// <summary>
-    /// A tuple whose elements substituted, with a spread among them replaced by the elements of the
-    /// pack it names -- the same splice a pack slot gets, and for the same reason: `(TArgs...)` is
-    /// one element standing for however many the pack holds.
+    /// Splices a spread as <see cref="ApplyToPack"/> does: `(TArgs...)` is one element standing for
+    /// however many the pack holds.
     /// </summary>
     private IMistType ApplyToTuple(TupleType tuple, TypeInterner? interner)
     {

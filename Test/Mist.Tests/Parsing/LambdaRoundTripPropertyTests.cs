@@ -12,38 +12,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for <b>Property 6: Pretty-Print Round-Trip</b>.
-///
-/// <para><b>Validates: Requirements 13.7, 13.8</b></para>
-///
-/// <para>
-/// Asserts that the pretty-printer is idempotent for programs containing lambda expressions
-/// and <c>func&lt;...&gt;</c> type references. For any generated Mist source <c>S</c>:
-/// </para>
-/// <code>
-///   print(parse(print(parse(S)))) == print(parse(S))
-/// </code>
-///
-/// <para>
-/// The generator produces programs with lambdas in:
-/// </para>
-/// <list type="bullet">
-///   <item>Assignment RHS: <c>var f = x =&gt; x + 1;</c></item>
-///   <item>Block lambdas: <c>var f = (int x) =&gt; { return x + 1; };</c></item>
-///   <item>Call arguments: <c>list.ForEach(x =&gt; Console.WriteLine(x));</c></item>
-///   <item>Return statements: <c>return x =&gt; x * 2;</c></item>
-///   <item>Nested lambdas: <c>var f = x =&gt; y =&gt; x + y;</c></item>
-///   <item>Static/async modifiers: <c>var f = static x =&gt; x;</c></item>
-///   <item>Switch arms with guards: <c>value switch { int n when n &gt; 0 =&gt; n.ToString(), _ =&gt; "none" }</c></item>
-///   <item><c>func&lt;T1, T2, ..., TReturn&gt;</c> type references in variable declarations</item>
-/// </list>
-///
-/// <para>
-/// These tests are parse + pretty-print only and run fully in-process — no <c>dotnet</c>
-/// process is spawned.
-/// </para>
-/// </summary>
 public class LambdaRoundTripPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -58,10 +26,6 @@ public class LambdaRoundTripPropertyTests
 
     // ─── Parse + pretty-print helpers ────────────────────────────────────────
 
-    /// <summary>
-    /// Parses a Mist source string, asserting no parse errors, and returns the
-    /// <see cref="CompilationUnitNode"/> root.
-    /// </summary>
     private static CompilationUnitNode ParseOrFail(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -83,9 +47,6 @@ public class LambdaRoundTripPropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    /// <summary>
-    /// Performs one parse → pretty-print pass, returning the printed output.
-    /// </summary>
     private static string PrintOnce(string source)
     {
         var ast = ParseOrFail(source);
@@ -97,8 +58,6 @@ public class LambdaRoundTripPropertyTests
     //
     // For any generated program S containing lambdas and func types:
     //   print(parse(print(parse(S)))) == print(parse(S))
-    //
-    // **Validates: Requirements 13.7, 13.8**
     // ═══════════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(LambdaRoundTripPropertyTests) })]
@@ -137,15 +96,10 @@ public class LambdaRoundTripPropertyTests
     }
 }
 
-/// <summary>
-/// A generated Mist program scenario for the pretty-print round-trip property test.
-/// </summary>
 public sealed class RoundTripScenario
 {
-    /// <summary>The complete, parseable Mist source program.</summary>
     public string Source { get; }
 
-    /// <summary>Human-readable description of what the scenario exercises.</summary>
     public string Description { get; }
 
     public RoundTripScenario(string source, string description)
@@ -160,10 +114,6 @@ public sealed class RoundTripScenario
     }
 }
 
-/// <summary>
-/// FsCheck generator producing complete Mist programs that exercise lambda expressions
-/// and <c>func&lt;...&gt;</c> type references in various syntactic positions.
-/// </summary>
 public static class RoundTripGenerator
 {
     // ─── Building blocks ─────────────────────────────────────────────────────
@@ -191,7 +141,6 @@ public static class RoundTripGenerator
 
     // ─── Lambda generators ───────────────────────────────────────────────────
 
-    /// <summary>Generates a single-param expression lambda: <c>x =&gt; expr</c>.</summary>
     private static Gen<string> GenSingleParamExprLambda()
     {
         return from modifier in Gen.Elements(Modifiers)
@@ -200,7 +149,6 @@ public static class RoundTripGenerator
                select $"{modifier}{param} => {body}";
     }
 
-    /// <summary>Generates a parenthesized expression lambda: <c>(x, y) =&gt; expr</c>.</summary>
     private static Gen<string> GenParenExprLambda()
     {
         return from modifier in Gen.Elements(Modifiers)
@@ -214,7 +162,6 @@ public static class RoundTripGenerator
                select $"{modifier}{paramForm} => {body}";
     }
 
-    /// <summary>Generates a typed-param expression lambda: <c>(int x) =&gt; expr</c>.</summary>
     private static Gen<string> GenTypedParamExprLambda()
     {
         return from modifier in Gen.Elements(Modifiers)
@@ -231,7 +178,6 @@ public static class RoundTripGenerator
                select $"{modifier}{paramForm} => {body}";
     }
 
-    /// <summary>Generates a block-body lambda: <c>(int x) =&gt; { return expr; }</c>.</summary>
     private static Gen<string> GenBlockLambda()
     {
         return from modifier in Gen.Elements(Modifiers)
@@ -245,7 +191,6 @@ public static class RoundTripGenerator
                select $"{modifier}{paramForm} => {body}";
     }
 
-    /// <summary>Generates a nested lambda: <c>x =&gt; y =&gt; expr</c>.</summary>
     private static Gen<string> GenNestedLambda()
     {
         return from modifier in Gen.Elements(Modifiers)
@@ -255,7 +200,6 @@ public static class RoundTripGenerator
                select $"{modifier}{p1} => {p2} => {body}";
     }
 
-    /// <summary>Generates any lambda form.</summary>
     private static Gen<string> GenAnyLambda()
     {
         return Gen.OneOf(
@@ -268,7 +212,6 @@ public static class RoundTripGenerator
 
     // ─── func<...> type reference generators ─────────────────────────────────
 
-    /// <summary>Generates a <c>func&lt;T1, ..., TReturn&gt;</c> type reference.</summary>
     private static Gen<string> GenFuncTypeRef()
     {
         return Gen.Choose(1, 4).SelectMany(arity =>
@@ -278,15 +221,11 @@ public static class RoundTripGenerator
 
     // ─── Program-level scenario generators ───────────────────────────────────
 
-    /// <summary>
-    /// Wraps a method body in a complete Mist program with a class and method declaration.
-    /// </summary>
     private static string WrapInMethod(string body)
     {
         return $"namespace TestNs;\n\npublic class Program\n{{\n    public void Run()\n    {{\n        {body}\n    }}\n}}";
     }
 
-    /// <summary>Lambda in assignment RHS with inferred type: <c>var f = lambda;</c></summary>
     private static Gen<RoundTripScenario> GenAssignmentRhsScenario()
     {
         return from lambda in GenAnyLambda()
@@ -296,7 +235,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"assignment RHS: var {name} = {lambda}");
     }
 
-    /// <summary>Lambda in assignment RHS with func type: <c>func&lt;int, int&gt; f = lambda;</c></summary>
     private static Gen<RoundTripScenario> GenFuncTypedAssignmentScenario()
     {
         return from funcType in GenFuncTypeRef()
@@ -307,7 +245,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"func-typed assignment: {funcType} {name} = {lambda}");
     }
 
-    /// <summary>Lambda as a call argument: <c>g(lambda);</c></summary>
     private static Gen<RoundTripScenario> GenCallArgumentScenario()
     {
         return from lambda in GenAnyLambda()
@@ -317,7 +254,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"call argument: {fn}({lambda})");
     }
 
-    /// <summary>Lambda in a return statement: <c>return lambda;</c></summary>
     private static Gen<RoundTripScenario> GenReturnScenario()
     {
         return from lambda in GenAnyLambda()
@@ -326,7 +262,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"return: return {lambda}");
     }
 
-    /// <summary>Lambda in a nested lambda body: <c>var h = q =&gt; lambda;</c></summary>
     private static Gen<RoundTripScenario> GenNestedBodyScenario()
     {
         return from lambda in GenAnyLambda()
@@ -336,10 +271,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"nested body: var h = {outer} => {lambda}");
     }
 
-    /// <summary>
-    /// Switch expression with a guarded arm containing a lambda in the result position:
-    /// <c>var r = value switch { int n when guard =&gt; result, _ =&gt; lambda };</c>
-    /// </summary>
     private static Gen<RoundTripScenario> GenSwitchArmScenario()
     {
         return from guard in Gen.Elements(GuardExpressions)
@@ -350,9 +281,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"switch arm: when {guard} => {result}");
     }
 
-    /// <summary>
-    /// A <c>func&lt;...&gt;</c> type reference used as a method parameter type.
-    /// </summary>
     private static Gen<RoundTripScenario> GenFuncTypeParamScenario()
     {
         return from funcType in GenFuncTypeRef()
@@ -361,9 +289,6 @@ public static class RoundTripGenerator
                select new RoundTripScenario(source, $"func type param: {funcType} {paramName}");
     }
 
-    /// <summary>
-    /// Combines all scenario generators with equal weight.
-    /// </summary>
     public static Gen<RoundTripScenario> GenScenario()
     {
         return Gen.OneOf(

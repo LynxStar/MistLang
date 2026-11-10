@@ -1,6 +1,3 @@
-// Generators for Mist switch expression source strings.
-// Produces random but structurally valid programs containing switch expressions
-// for property-based testing.
 // Feature: switch-expressions, Property 1: Parse–Print–Parse Round Trip
 // **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.3, 3.4, 4.1–4.8, 11.1–11.6**
 
@@ -9,16 +6,10 @@ using FsCheck.Fluent;
 
 namespace Mist.Tests.Generators;
 
-/// <summary>
-/// Metadata about a generated switch expression source string for property-based testing.
-/// Carries the complete Mist program source text along with a human-readable description.
-/// </summary>
 public sealed class SwitchExpressionSourceScenario
 {
-    /// <summary>The complete Mist program source string containing a switch expression.</summary>
     public string Source { get; }
 
-    /// <summary>Human-readable description of the scenario kind.</summary>
     public string Description { get; }
 
     public SwitchExpressionSourceScenario(string source, string description)
@@ -33,26 +24,8 @@ public sealed class SwitchExpressionSourceScenario
     }
 }
 
-/// <summary>
-/// FsCheck generators for Mist programs containing switch expressions.
-/// Generates random valid switch expressions covering:
-/// <list type="bullet">
-///   <item>Scrutinee types: bool, int, string, type unions (int | string)</item>
-///   <item>Arm counts: 0–10</item>
-///   <item>Pattern types: constant, type, var, discard, property, relational, logical, list</item>
-///   <item>Guard presence/absence</item>
-///   <item>Trailing comma presence/absence</item>
-///   <item>Expression contexts: assignment RHS, method argument, tuple element</item>
-/// </list>
-/// Each generated program is a complete, compilable Mist source file with namespace,
-/// class, and method wrapping.
-/// </summary>
 public static class MistSwitchExpressionGenerator
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Name pools
-    // ═══════════════════════════════════════════════════════════════════════
-
     private static readonly string[] VarNames =
         ["x", "y", "z", "val", "item", "input", "data"];
 
@@ -65,29 +38,21 @@ public static class MistSwitchExpressionGenerator
     private static readonly string[] IntLiterals =
         ["0", "1", "2", "3", "42", "99", "100"];
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Pattern generators (produce source text fragments)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Generates a constant pattern for a bool scrutinee.</summary>
     private static Gen<string> GenBoolConstantPattern()
     {
         return Gen.Elements("true", "false");
     }
 
-    /// <summary>Generates a constant pattern for an int scrutinee.</summary>
     private static Gen<string> GenIntConstantPattern()
     {
         return Gen.Elements(IntLiterals);
     }
 
-    /// <summary>Generates a constant pattern for a string scrutinee.</summary>
     private static Gen<string> GenStringConstantPattern()
     {
         return Gen.Elements(StringLiterals);
     }
 
-    /// <summary>Generates a type pattern for a union scrutinee (int | string).</summary>
     private static Gen<string> GenUnionTypePattern()
     {
         return from bindName in Gen.Elements("n", "s", "a", "b")
@@ -95,19 +60,16 @@ public static class MistSwitchExpressionGenerator
                select $"{typeName} {bindName}";
     }
 
-    /// <summary>Generates a var pattern (catch-all that binds).</summary>
     private static Gen<string> GenVarPattern()
     {
         return Gen.Elements("v", "w", "q").Select(name => $"var {name}");
     }
 
-    /// <summary>Generates a discard pattern (var _ or bare _).</summary>
     private static Gen<string> GenDiscardPattern()
     {
         return Gen.Elements("var _", "_");
     }
 
-    /// <summary>Generates a relational pattern for an int scrutinee.</summary>
     private static Gen<string> GenRelationalPattern()
     {
         return from op in Gen.Elements("<", ">", "<=", ">=")
@@ -115,7 +77,6 @@ public static class MistSwitchExpressionGenerator
                select $"{op} {value}";
     }
 
-    /// <summary>Generates a logical (and) pattern for an int scrutinee.</summary>
     private static Gen<string> GenLogicalAndPattern()
     {
         return from lo in Gen.Choose(0, 49)
@@ -123,7 +84,6 @@ public static class MistSwitchExpressionGenerator
                select $">= {lo} and <= {hi}";
     }
 
-    /// <summary>Generates a property pattern for a string scrutinee.</summary>
     private static Gen<string> GenPropertyPattern()
     {
         return from propValue in Gen.Choose(0, 20)
@@ -131,26 +91,17 @@ public static class MistSwitchExpressionGenerator
                select "{ Length: " + op + propValue + " }";
     }
 
-    /// <summary>Generates a list pattern for an int array scrutinee.</summary>
     public static Gen<string> GenListPattern()
     {
         return from first in Gen.Choose(0, 5)
                select $"[{first}, ..]";
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Arm generators (pattern + optional guard + result expression)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Generates a result expression (string literal for simplicity).</summary>
     private static Gen<string> GenResultExpression()
     {
         return Gen.Elements(StringLiterals);
     }
 
-    /// <summary>
-    /// Generates a single switch arm source text for a bool scrutinee.
-    /// </summary>
     private static Gen<string> GenBoolArm()
     {
         return from pattern in GenBoolConstantPattern()
@@ -158,10 +109,6 @@ public static class MistSwitchExpressionGenerator
                select $"{pattern} => {result}";
     }
 
-    /// <summary>
-    /// Generates a single switch arm source text for an int scrutinee.
-    /// Includes constant, relational, logical, and type-with-guard patterns.
-    /// </summary>
     public static Gen<string> GenIntArm()
     {
         var constantArm = from pattern in GenIntConstantPattern()
@@ -185,10 +132,6 @@ public static class MistSwitchExpressionGenerator
         return Gen.OneOf(constantArm, relationalArm, logicalArm, typeArmWithGuard);
     }
 
-    /// <summary>
-    /// Generates a single switch arm source text for a string scrutinee.
-    /// Includes constant and property patterns.
-    /// </summary>
     public static Gen<string> GenStringArm()
     {
         var constantArm = from pattern in GenStringConstantPattern()
@@ -202,9 +145,6 @@ public static class MistSwitchExpressionGenerator
         return Gen.OneOf(constantArm, propertyArm);
     }
 
-    /// <summary>
-    /// Generates a single switch arm source text for a union (int | string) scrutinee.
-    /// </summary>
     public static Gen<string> GenUnionArm()
     {
         return from pattern in GenUnionTypePattern()
@@ -212,9 +152,6 @@ public static class MistSwitchExpressionGenerator
                select $"{pattern} => {result}";
     }
 
-    /// <summary>
-    /// Generates a catch-all arm (var _ or var x).
-    /// </summary>
     public static Gen<string> GenCatchAllArm()
     {
         return from pattern in Gen.Frequency((3, GenDiscardPattern()), (1, GenVarPattern()))
@@ -222,14 +159,6 @@ public static class MistSwitchExpressionGenerator
                select $"{pattern} => {result}";
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Switch expression generators (complete source scenarios)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a complete, exhaustive switch expression for a bool scrutinee.
-    /// Bool is exhaustive when both true and false are covered, or a catch-all is present.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenBoolSwitchExpression()
     {
         var exhaustiveByConstants = from trailingComma in Gen.Elements(true, false)
@@ -256,10 +185,7 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"bool switch: {varName}");
     }
 
-    /// <summary>
-    /// Generates a complete, exhaustive switch expression for an int scrutinee.
-    /// Int requires a catch-all for exhaustiveness.
-    /// </summary>
+    /// Int and string scrutinees are exhaustive only with a catch-all arm, so every arm list ends in one.
     public static Gen<SwitchExpressionSourceScenario> GenIntSwitchExpression()
     {
         return from varName in Gen.Elements(VarNames)
@@ -278,10 +204,6 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"int switch({armCount} arms): {varName}");
     }
 
-    /// <summary>
-    /// Generates a complete, exhaustive switch expression for a string scrutinee.
-    /// String requires a catch-all for exhaustiveness.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenStringSwitchExpression()
     {
         return from varName in Gen.Elements(VarNames)
@@ -300,20 +222,14 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"string switch({armCount} arms): {varName}");
     }
 
-    /// <summary>
-    /// Generates a complete, exhaustive switch expression for a type union (int | string) scrutinee.
-    /// Union is exhaustive when all constituent types are covered by type patterns, or a catch-all is present.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenUnionSwitchExpression()
     {
-        // Exhaustive by covering all types
         var exhaustiveByTypes = from result1 in GenResultExpression()
                                 from result2 in GenResultExpression()
                                 from trailingComma in Gen.Elements(true, false)
                                 let comma = trailingComma ? "," : ""
                                 select $"int n => {result1}, string s => {result2}{comma}";
 
-        // Exhaustive by catch-all
         var exhaustiveByCatchAll = from armCount in Gen.Choose(0, 2)
                                    from arms in Gen.ArrayOf(GenUnionArm(), armCount)
                                    from catchAll in GenCatchAllArm()
@@ -332,13 +248,6 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"union switch: {varName}");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Context generators (switch in different expression positions)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a switch expression used as a method argument.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenSwitchAsMethodArgument()
     {
         return from varName in Gen.Elements(VarNames)
@@ -356,9 +265,6 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"switch as argument: {varName}");
     }
 
-    /// <summary>
-    /// Generates a switch expression used as a tuple element.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenSwitchAsTupleElement()
     {
         return from varName in Gen.Elements(VarNames)
@@ -372,13 +278,6 @@ public static class MistSwitchExpressionGenerator
                select new SwitchExpressionSourceScenario(source, $"switch as tuple element: {varName}");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Combined generator
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a random switch expression source scenario covering all variants.
-    /// </summary>
     public static Gen<SwitchExpressionSourceScenario> GenSwitchExpressionSource()
     {
         return Gen.OneOf(
@@ -390,14 +289,7 @@ public static class MistSwitchExpressionGenerator
             GenSwitchAsTupleElement());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Program wrapping helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Wraps a body of statements in a complete Mist program with namespace, class, and Main method.
-    /// Optionally references a result variable to prevent unused-variable warnings.
-    /// </summary>
+    /// Reading resultVarToUse afterwards avoids an unused-variable warning.
     private static string WrapInProgram(string body, string? resultVarToUse = null)
     {
         var useStatement = resultVarToUse is not null
@@ -408,23 +300,12 @@ public static class MistSwitchExpressionGenerator
             + body + useStatement + "\n    }\n}";
     }
 
-    /// <summary>
-    /// Wraps a body in a program that includes <c>using Standard;</c> for Console access.
-    /// </summary>
     private static string WrapInProgramWithUsing(string body)
     {
         return "using Standard;\n\nnamespace TestNs;\n\npublic class Program\n{\n    public static void Main()\n    {\n    "
             + body + "\n    }\n}";
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // FsCheck Arbitrary registration
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// FsCheck Arbitrary for <see cref="SwitchExpressionSourceScenario"/>.
-    /// Register with <c>[Property(Arbitrary = new[] { typeof(MistSwitchExpressionGenerator) })]</c>.
-    /// </summary>
     public static Arbitrary<SwitchExpressionSourceScenario> ArbitrarySwitchExpressionSourceScenario()
     {
         return GenSwitchExpressionSource().ToArbitrary();

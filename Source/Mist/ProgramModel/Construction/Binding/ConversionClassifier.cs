@@ -20,9 +20,8 @@ internal enum ConversionKind
 /// selection needs a relation that narrows and ranks without refusing, and the kinds that relation
 /// declines are exactly the rules stated here.
 /// <para>
-/// A constructed type reaches the bases of its definition with its own arguments substituted in, so
-/// <c>Box&lt;int&gt;</c> is within <c>IBox&lt;int&gt;</c> and not within <c>IBox&lt;string&gt;</c>; there is no
-/// variance beyond the covariance to <c>unknown</c> the relation already states. A type parameter is
+/// A constructed type reaches the bases of its definition with its own arguments substituted in; there
+/// is no variance beyond the covariance to <c>unknown</c> the relation already states. A type parameter is
 /// within its own type constraints and nothing below them. A refinement is within its base, and the
 /// base reaches it only explicitly, its predicate being the refinement prover's to discharge rather than
 /// this classification's. A dependent value classifies as the type it is a value of. An enum is within

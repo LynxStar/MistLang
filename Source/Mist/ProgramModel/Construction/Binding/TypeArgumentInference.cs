@@ -6,10 +6,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
-/// <summary>
-/// What a call's arguments say about a generic method's own type parameters, read off by matching each
-/// declared parameter type against the argument standing in that slot.
-/// </summary>
 internal static class TypeArgumentInference
 {
     /// <summary>
@@ -427,10 +423,6 @@ internal static class TypeArgumentInference
         Match(declared, argument.Type, parameters, bounds);
     }
 
-    /// <summary>
-    /// The two constructions must share a definition, so an argument that reaches the declared type
-    /// only through one of its own bases infers nothing.
-    /// </summary>
     private static void Match(
         IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {
@@ -499,11 +491,6 @@ internal static class TypeArgumentInference
         }
     }
 
-    /// <summary>
-    /// A parameter the method does not declare is the receiver's to close, not this call's, so it is
-    /// passed over rather than refused -- including where the receiver was not constructed and so left
-    /// it open.
-    /// </summary>
     private static ConstructedType? Construction(IMistType actual, IMistType definition)
     {
         var pending = new Queue<IMistType>();
@@ -541,6 +528,11 @@ internal static class TypeArgumentInference
         return bounds;
     }
 
+    /// <summary>
+    /// A parameter the method does not declare is the receiver's to close, not this call's, so it is
+    /// passed over rather than refused -- including where the receiver was not constructed and so left
+    /// it open.
+    /// </summary>
     private static void Record(
         TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {

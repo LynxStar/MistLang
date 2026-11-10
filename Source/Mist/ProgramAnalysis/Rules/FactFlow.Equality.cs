@@ -50,7 +50,8 @@ internal sealed partial class FactFlow
             var a = left.Details.GetValueOrDefault(mine) ?? Knowledge.Unknown;
             var b = right.Details.GetValueOrDefault(theirs) ?? Knowledge.Unknown;
             if(!a.Values.Equals(b.Values) || !a.Bounds.SetEquals(b.Bounds) || !Equals(a.Length, b.Length) || !Equals(a.Slice, b.Slice)
-                || a.RefusedSlice != b.RefusedSlice || !Equals(a.Literal, b.Literal) || !Equals(a.IndexValue, b.IndexValue) || !Equals(a.Real, b.Real) || !a.Matches.SetEquals(b.Matches))
+                || a.RefusedSlice != b.RefusedSlice || !Equals(a.Literal, b.Literal) || !Equals(a.IndexValue, b.IndexValue) || !Equals(a.Real, b.Real) || !a.Matches.SetEquals(b.Matches)
+                || !a.Texts.SequenceEqual(b.Texts))
             {
                 return false;
             }

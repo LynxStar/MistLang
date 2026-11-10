@@ -397,7 +397,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 RefinementFindings.ReportLiteral(
                     context, value, considered[reported], DiagnosticSnapshot.Type(target), at,
-                    Requirement.IsAnonymous(target) ? onConstraint : null, literal, matchLimit);
+                    Requirement.IsAnonymous(target) ? onConstraint : null, literal, matchLimit, proof);
             }
             else if(Requirement.OfType(considered[reported]) is { } required)
             {

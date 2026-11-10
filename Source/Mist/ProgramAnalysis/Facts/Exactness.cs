@@ -25,21 +25,23 @@ internal static class Exactness
         return Chain.Prove(bag, [below], values, budget) is Proven && Chain.Prove(bag, [above], values, budget) is Proven;
     }
 
-    // A quotient is no whole-number term, so for a division the term is the dividend and the caller records `divisor * quotient
-    // == dividend`; halving is exact only while the quotient stays a normal number, so a dividend that might be tiny is refused.
+    // A quotient is no whole-number term, so for a division the term is the dividend and the caller records
+    // `divisor * quotient == dividend`; halving is exact only while the quotient stays a normal number, so a dividend that might be
+    // tiny is refused.
     private static bool Real(Expression operation, RealKind kind, Term term, Bag bag, Budget? budget)
     {
-        var binary = kind != RealKind.Decimal;
-        return operation switch
+        if(operation is UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } })
         {
-            UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } } => binary || Within(term, kind, bag, budget),
-            BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract, Operator: null or { Modifiers.IsIntrinsic: true } }
-                => !binary && Within(term, kind, bag, budget),
+            return true;
+        }
+
+        return kind != RealKind.Decimal && operation switch
+        {
             BinaryExpression { OperatorKind: BinaryOperatorKind.Multiply, Operator: null or { Modifiers.IsIntrinsic: true } } product
-                when(Constant(product.Left) ?? Constant(product.Right)) is { } factor
-                => (!binary || RealNumbers.IsPowerOfTwo(BigInteger.Abs(factor))) && Within(term, kind, bag, budget),
+                when(Constant(product.Left) ?? Constant(product.Right)) is { } factor && RealNumbers.IsPowerOfTwo(BigInteger.Abs(factor))
+                => Within(term, kind, bag, budget),
             BinaryExpression { OperatorKind: BinaryOperatorKind.Divide, Operator: null or { Modifiers.IsIntrinsic: true } } quotient
-                when binary && Constant(quotient.Right) is { } divisor && RealNumbers.IsPowerOfTwo(BigInteger.Abs(divisor))
+                when Constant(quotient.Right) is { } divisor && RealNumbers.IsPowerOfTwo(BigInteger.Abs(divisor))
                 => Within(term, kind, bag, budget) && Normal(term, BigInteger.Abs(divisor), kind, bag, budget),
             _ => false,
         };

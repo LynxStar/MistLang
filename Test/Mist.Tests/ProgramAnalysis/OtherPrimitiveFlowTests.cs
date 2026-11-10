@@ -1,10 +1,12 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -39,6 +41,94 @@ public sealed class OtherPrimitiveFlowTests
             HandBuiltRefinements.Evaluate(h.Call(half, h.Refine(h.Double, ComparisonKind.LessThanOrEqual, 500.0))));
 
         AssertAdmitted(bounded, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
+    [Fact]
+    public void ExhaustingTheProofOfARealContractIsReportedAsExhaustion()
+    {
+        var h = new HandBuiltRefinements();
+        var x = Parameter(h.Between(h.Double, 1.0, 1000.0), "x");
+        var half = HandBuiltRefinements.Local(h.Double, "half");
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Give(half, h.Binary(x, BinaryOperatorKind.Divide, h.Literal(2.0), h.Double)),
+            HandBuiltRefinements.Evaluate(h.Call(half, h.Refine(h.Double, ComparisonKind.LessThanOrEqual, 500.0))));
+
+        AssertAdmitted(false, h.Built.Analyze(new RefinementAnalyzer(new Budget(0)), body), refused: "MIST0485");
+    }
+
+    [Theory]
+    [InlineData(-1.0, false)]
+    [InlineData(0.0, true)]
+    public void ARefusedRealContractNamesItsFailingCase(double bound, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var x = Parameter(h.Refine(h.Double, ComparisonKind.GreaterThan, bound), "x");
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(h.Call(x, h.Refine(h.Double, ComparisonKind.GreaterThanOrEqual, 0.0))));
+
+        var findings = h.Built.Analyze(new RefinementAnalyzer(), body);
+
+        AssertAdmitted(admitted, findings);
+        if(!admitted)
+        {
+            Assert.True(findings[0].Message.Contains("(fails when x < 0)", StringComparison.Ordinal), findings[0].Message);
+        }
+    }
+
+    [Theory]
+    [InlineData("negate", 10, 11, "LessThanOrEqual", -10, true)]
+    [InlineData("negate", 10, 11, "LessThan", -11, false)]
+    [InlineData("add", 10, 11, "GreaterThan", 10, false)]
+    [InlineData("subtract", 9, 10, "LessThan", 10, false)]
+    [InlineData("multiply", 1, 2, "LessThan", 8, false)]
+    public void DecimalArithmeticOtherThanNegationIsNeverRecorded(string operation, int low, int high, string kind, int bound, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var real = h.Built.Type("Decimal");
+        var x = Parameter(h.Between(real, (decimal)low, (decimal)high), "x");
+        var y = HandBuiltRefinements.Local(real, "y");
+        var tiny = h.Literal(0.0000000000000000000000000001m, real);
+        var result = operation switch
+        {
+            "negate" => new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, x, real),
+            "add" => h.Binary(x, BinaryOperatorKind.Add, tiny, real),
+            "subtract" => h.Binary(x, BinaryOperatorKind.Subtract, tiny, real),
+            _ => h.Binary(x, BinaryOperatorKind.Multiply, h.Literal(3m, real), real),
+        };
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Give(y, result),
+            HandBuiltRefinements.Evaluate(h.Call(y, h.Refine(real, Enum.Parse<ComparisonKind>(kind), (decimal)bound))));
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
+    [Theory]
+    [InlineData("abc", "def", true)]
+    [InlineData("abc", "DEF", false)]
+    public void StringsJoinedFromLiteralsMeetARegexEveryLiteralMatches(string first, string second, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var flag = Parameter(h.Bool, "flag");
+        var s = HandBuiltRefinements.Local(h.String, "s");
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(s.Local, null),
+            new IfStatement(flag, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(s, h.Literal(first)))),
+                HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(s, h.Literal(second))))),
+            HandBuiltRefinements.Evaluate(h.Call(s, h.Regex("^[a-z]+$"))));
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
+    }
+
+    [Theory]
+    [InlineData("^[a-z]+$", true)]
+    [InlineData("^[a-z]*$", false)]
+    public void AStringJoinedFromALiteralAndANarrowedStringMeetsARegexBothProve(string tested, bool admitted)
+    {
+        var h = new HandBuiltRefinements();
+        var p = Parameter(h.String, "p");
+        var s = HandBuiltRefinements.Local(h.String, "s");
+        var test = new IsPatternExpression(HandBuiltModel.Node(), p, new RegexPattern(HandBuiltModel.Node(), h.String, tested), h.Bool);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Give(s, h.Literal("abc")),
+            HandBuiltRefinements.If(test, HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(s, p))),
+            HandBuiltRefinements.Evaluate(h.Call(s, h.Regex("^[a-z]+$"))));
+
+        AssertAdmitted(admitted, h.Built.Analyze(new RefinementAnalyzer(), body));
     }
 
     [Theory]

@@ -57,6 +57,12 @@ internal static class FailingCase
 
         foreach(var value in facts.Where(fact => fact.Term.Variables.Length == 1).Select(fact => fact.Term.Variables[0]).Distinct())
         {
+            if(value.IsReal)
+            {
+                shown.AddRange(facts.Where(fact => fact.Values is null && fact.Term.Variables is [var only] && only == value).Select(Bounded));
+                continue;
+            }
+
             var known = Chain.SingleValue(facts.Where(fact => fact.Term.Variables.Length == 1), value);
             if(Interval(value, known) is { Length: > 0 } interval)
             {
@@ -98,6 +104,7 @@ internal static class FailingCase
         return next.Any(fact => fact.Term.Variables switch
         {
             [] => false,
+            [var only] when only.IsReal => !untouched.Contains(fact),
             [var only] => Chain.SingleValue(untouched, only) is var known && !known.And(Chain.SingleValue([fact], only)).Equals(known),
             _ => !untouched.Contains(fact),
         });
@@ -105,8 +112,80 @@ internal static class FailingCase
 
     private static bool Typical(Fact fact)
     {
+        if(fact.Term.Variables is [{ IsReal: true } real])
+        {
+            return RealRequirement.OfType(real.Type) is { } declared && RealFacts.Within(declared, new Term(real)) is [var within] && within.Facts.Contains(fact);
+        }
+
         return fact.Term.Variables is [var only] && fact.Values is null && Declared(only) is var range
             && range.And(Chain.SingleValue([fact], only)).Equals(range);
+    }
+
+    private static string Bounded(Fact fact)
+    {
+        var value = fact.Term.Variables[0];
+        var multiplier = fact.Term.Multipliers[0];
+        var bound = new Rational(-fact.Term.Constant * multiplier.Sign, BigInteger.Abs(multiplier));
+        var relation = fact.Relation switch
+        {
+            Relation.Equal => "==",
+            Relation.LessThan => multiplier.Sign > 0 ? "<" : ">",
+            _ => multiplier.Sign > 0 ? "<=" : ">=",
+        };
+        if(RealRequirement.KindOf(value.Type) is RealKind.Single or RealKind.Double && relation is "<=" or ">=" && Binary(bound) is { } point)
+        {
+            var single = RealRequirement.KindOf(value.Type) == RealKind.Single;
+            var beyond = relation == "<=" ? single ? float.BitIncrement((float)point) : double.BitIncrement(point)
+                : single ? float.BitDecrement((float)point) : double.BitDecrement(point);
+            if(double.IsFinite(beyond) && Number(beyond, single).Length < Number(point, single).Length)
+            {
+                return $"{value.DisplayName} {relation[..1]} {Number(beyond, single)}";
+            }
+        }
+
+        return $"{value.DisplayName} {relation} {Shown(bound)}";
+    }
+
+    private static double? Binary(Rational bound)
+    {
+        var point = RealNumbers.IsPowerOfTwo(bound.Denominator) ? Math.ScaleB((double)bound.Numerator, -(int)(bound.Denominator.GetBitLength() - 1))
+            : (double)bound.Numerator / (double)bound.Denominator;
+        return double.IsFinite(point) && RealNumbers.Of(point) is { } exact && exact.Numerator * bound.Denominator == bound.Numerator * exact.Denominator ? point : null;
+    }
+
+    private static string Number(double point, bool single)
+    {
+        return point == 0 ? "0" : single ? ((float)point).ToString("R", CultureInfo.InvariantCulture) : point.ToString("R", CultureInfo.InvariantCulture);
+    }
+
+    private static string Shown(Rational bound)
+    {
+        if(Binary(bound) is { } point)
+        {
+            return Number(point, single: false);
+        }
+
+        var divisor = BigInteger.GreatestCommonDivisor(bound.Numerator, bound.Denominator);
+        var (numerator, denominator) = divisor.IsZero || divisor.IsOne ? (bound.Numerator, bound.Denominator) : (bound.Numerator / divisor, bound.Denominator / divisor);
+        if(denominator.IsOne)
+        {
+            return numerator.ToString(CultureInfo.InvariantCulture);
+        }
+
+        var places = 0;
+        var scale = BigInteger.One;
+        while(places < 28 && !(scale % denominator).IsZero)
+        {
+            (places, scale) = (places + 1, scale * 10);
+        }
+
+        if(!(scale % denominator).IsZero)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{numerator} / {denominator}");
+        }
+
+        var digits = BigInteger.Abs(numerator * (scale / denominator)).ToString(CultureInfo.InvariantCulture).PadLeft(places + 1, '0');
+        return $"{(numerator.Sign < 0 ? "-" : "")}{digits[..^places]}.{digits[^places..]}";
     }
 
     private static IntegralSet Declared(Value value)

@@ -232,10 +232,12 @@ current bag, `term >= min` and `term <= max`, under a budget of its own. Integra
 `+`, `-`, `*` by a constant and negation are exact when those hold. For `float`
 and `double`, negation is always exact, and `*` or `/` by a power of two is exact
 when the operand's magnitude is proven within the type's range scaled the same
-way; `+` and `-` are never recorded. For `decimal`, `+`, `-`, negation and `*` by
-a whole-number constant are exact when the result is proven within decimal's
-range; `/` is never recorded. Nothing else is exact. When the proof fails, the
-result value gets only its type's facts.
+way; `+` and `-` are never recorded. For `decimal`, only negation is exact: `+`,
+`-`, `*` and `/` are never recorded. A decimal carries its own count of decimal
+places, which no fact tracks, so a result proven within decimal's range can
+still round (`10m + 1e-28m` is `10m`), and aligning two operands' places can
+round one of them before the sum is formed. Nothing else is exact. When the
+proof fails, the result value gets only its type's facts.
 
 ## Contracts at proof sites (Requirements 1.2, 6.2)
 

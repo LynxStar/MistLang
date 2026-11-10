@@ -65,6 +65,43 @@ public sealed class OtherPrimitiveFactTests
         Assert.Equal(["x > y"], FailingCase.Spelled([new Comparison(Term(0, (x, -1), (y, 1)), Relation.LessThan)]));
     }
 
+    [Theory]
+    [InlineData("Double", 0, 1, "LessThan", "x < 0")]
+    [InlineData("Double", -5, 2, "LessThanOrEqual", "x <= 2.5")]
+    [InlineData("Double", 5, -2, "LessThan", "x > 2.5")]
+    [InlineData("Decimal", -1, 3, "LessThan", "x < 1 / 3")]
+    [InlineData("Decimal", -7, 4, "Equal", "x == 1.75")]
+    public void ASingleValueRealFactIsSpelledWithoutRounding(string type, int constant, int multiplier, string relation, string expected)
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Built.Type(type), "x", HandBuiltModel.Node());
+        var fact = new Comparison(Term(constant, (x, multiplier)), Enum.Parse<Relation>(relation));
+
+        Assert.Equal([expected], FailingCase.Spelled([fact]));
+        Assert.Equal($"fails when {expected}", FailingCase.Describe(new Refuted(new Alternative([fact]), false)));
+    }
+
+    [Fact]
+    public void ABinaryBoundNextToARoundNumberIsSpelledAgainstThatNumber()
+    {
+        var x = new Value(new HandBuiltRefinements().Double, "x", HandBuiltModel.Node());
+        var belowZero = RealFacts.Compare(new Term(x), ComparisonKind.LessThanOrEqual, RealNumbers.Of(-double.Epsilon)!.Value);
+        var aboveOne = RealFacts.Compare(new Term(x), ComparisonKind.GreaterThanOrEqual, RealNumbers.Of(double.BitIncrement(1.0))!.Value);
+
+        Assert.Equal(["x < 0", "x > 1"], FailingCase.Spelled([belowZero, aboveOne]));
+    }
+
+    [Fact]
+    public void ARealParametersOwnRefinementIsNotTheFailingCase()
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Refine(h.Double, ComparisonKind.GreaterThan, -1.0), "x", HandBuiltModel.Node());
+        var declared = Assert.Single(Assert.Single(RealFacts.Within(RealRequirement.OfType(x.Type)!, new Term(x))!).Facts);
+        var denied = RealFacts.Compare(new Term(x), ComparisonKind.LessThan, new Term(0));
+
+        Assert.Equal("fails when x < 0", FailingCase.Describe(new Refuted(new Alternative([declared, denied]), false)));
+    }
+
     [Fact]
     public void ARealFactsDenialKeepsTheBoundaryOnTheOtherSide()
     {
@@ -88,13 +125,14 @@ public sealed class OtherPrimitiveFactTests
     [InlineData("Single", "multiply-2", true, true)]
     [InlineData("Single", "multiply-2", false, false)]
     [InlineData("Decimal", "negate", true, true)]
-    [InlineData("Decimal", "negate", false, false)]
-    [InlineData("Decimal", "add", true, true)]
+    [InlineData("Decimal", "negate", false, true)]
+    [InlineData("Decimal", "add", true, false)]
     [InlineData("Decimal", "add", false, false)]
-    [InlineData("Decimal", "subtract", true, true)]
+    [InlineData("Decimal", "subtract", true, false)]
     [InlineData("Decimal", "subtract", false, false)]
-    [InlineData("Decimal", "multiply-3", true, true)]
+    [InlineData("Decimal", "multiply-3", true, false)]
     [InlineData("Decimal", "multiply-3", false, false)]
+    [InlineData("Decimal", "multiply-2", true, false)]
     [InlineData("Decimal", "divide-2", true, false)]
     public void EachRealOperationIsExactOnlyAsTheDesignLists(string type, string operation, bool bounded, bool exact)
     {
@@ -125,6 +163,30 @@ public sealed class OtherPrimitiveFactTests
         }
 
         Assert.Equal(exact, Exactness.Holds(expression, term, bag, Limit));
+    }
+
+    [Theory]
+    [InlineData("add")]
+    [InlineData("subtract")]
+    [InlineData("multiply")]
+    public void ADecimalResultProvenWithinRangeCanStillRoundSoItIsNotExact(string operation)
+    {
+        var h = new HandBuiltRefinements();
+        var real = h.Built.Type("Decimal");
+        var x = new Value(real, "x", HandBuiltModel.Node());
+        var local = HandBuiltRefinements.Local(real);
+        var operand = new Term(x);
+        var tiny = h.Literal(0.0000000000000000000000000001m, real);
+        var (expression, term) = operation switch
+        {
+            "add" => (h.Binary(local, BinaryOperatorKind.Add, tiny, real), operand),
+            "subtract" => (h.Binary(local, BinaryOperatorKind.Subtract, tiny, real), operand),
+            _ => (h.Binary(local, BinaryOperatorKind.Multiply, h.Literal(3m, real), real), operand.Scale(3)),
+        };
+        var bag = MakeBag(RealFacts.Compare(operand, ComparisonKind.GreaterThanOrEqual, new Term(1)),
+            RealFacts.Compare(operand, ComparisonKind.LessThanOrEqual, new Term(10)));
+
+        Assert.False(Exactness.Holds(expression, term, bag, Limit));
     }
 
     [Fact]

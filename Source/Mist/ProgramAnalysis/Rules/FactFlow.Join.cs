@@ -69,7 +69,20 @@ internal sealed partial class FactFlow
             left.Real is { } mine && right.Real is { } theirs && mine.Kind == theirs.Kind ? mine.Or(theirs) : null)
         {
             Matches = left.Matches.Intersect(right.Matches),
+            Texts = Texts(left, right),
         };
+    }
+
+    private static ImmutableArray<TextCase> Texts(Knowledge left, Knowledge right)
+    {
+        var cases = Cases(left).Concat(Cases(right)).Distinct().ToImmutableArray();
+        return cases.Length < 2 || cases.Length > Bag.AlternativeCap || cases.Any(known => known is { Literal: null, Matches.IsEmpty: true }) ? [] : cases;
+    }
+
+    private static IEnumerable<TextCase> Cases(Knowledge known)
+    {
+        return known.Texts.IsEmpty ? [new TextCase(known.Literal, known.Matches)]
+            : known.Texts.Select(either => new TextCase(either.Literal ?? known.Literal, either.Matches.Union(known.Matches)));
     }
 
     private static ImmutableDictionary<TKey, Term> Agreeing<TKey>(ImmutableDictionary<TKey, Term> left, ImmutableDictionary<TKey, Term> right)

@@ -85,27 +85,31 @@ internal static class RefinementFindings
     }
 
     public static void ReportUnreadable(
-        AnalysisContext context, Expression value, IMistType constituent, TypeValue target, Expression at, string? onConstraint)
+        AnalysisContext context, Expression value, IMistType constituent, TypeValue target, Expression at, string? onConstraint, Proof? proof = null)
     {
         var predicate = Describe(constituent);
 
-        if(onConstraint is not null)
+        if(proof is Exhausted)
         {
-            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint), Case(null));
+            context.Report(ProgramAnalysisDiagnostics.RefinementProofExhausted, at.Node, [value, at], new NameValue(predicate), new NameValue(Display(value)));
+        }
+        else if(onConstraint is not null)
+        {
+            context.Report(ProgramAnalysisDiagnostics.ConstraintUnproven, at.Node, [value, at], new NameValue(Display(value)), new NameValue(predicate), new NameValue(onConstraint), Case(proof));
         }
         else
         {
-            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate), Case(null));
+            context.Report(ProgramAnalysisDiagnostics.RefinementUnproven, at.Node, [value, at], DiagnosticSnapshot.Type(value.Type), target, new NameValue(predicate), Case(proof));
         }
     }
 
     public static void ReportLiteral(
         AnalysisContext context, Expression value, IMistType constituent, TypeValue target, Expression at, string? onConstraint,
-        LiteralValue? literal, TimeSpan matchLimit)
+        LiteralValue? literal, TimeSpan matchLimit, Proof? proof = null)
     {
         if(LiteralPredicates.Decide(constituent, literal, matchLimit) != false)
         {
-            ReportUnreadable(context, value, constituent, target, at, onConstraint);
+            ReportUnreadable(context, value, constituent, target, at, onConstraint, proof);
             return;
         }
 

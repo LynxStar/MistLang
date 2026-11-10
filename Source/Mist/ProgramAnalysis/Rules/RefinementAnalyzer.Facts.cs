@@ -218,7 +218,7 @@ internal sealed partial class RefinementAnalyzer
 
             var details = state.Details;
             return Matching.Proven(state.Bag, text, target, value => details.GetValueOrDefault(value)?.Literal,
-                value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit) ? new Proven() : null;
+                value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit, value => details.GetValueOrDefault(value)?.Texts ?? []) ? new Proven() : null;
         }
 
         // A member bound written through a local is read only when that local is the callee's own extension

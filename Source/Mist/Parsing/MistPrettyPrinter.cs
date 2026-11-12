@@ -6,15 +6,13 @@ using Storm.Runtime;
 namespace Mist.Parsing;
 
 /// <summary>
-/// Formats a Mist AST back into syntactically valid Mist source text.
-/// Operates on the AST only — no semantic model dependency.
-/// Guarantees idempotence: print(parse(print(ast))) == print(ast). (R12.4)
+/// Reads the AST alone, with no semantic model. Idempotent: print(parse(print(ast))) == print(ast) (R12.4).
 /// </summary>
 public sealed class MistPrettyPrinter
 {
     private readonly StringBuilder sb = new();
     private int indentLevel;
-    private const string IndentUnit = "    "; // 4 spaces per indent level
+    private const string IndentUnit = "    ";
     private readonly string? sourceText;
 
     private MistPrettyPrinter(string? sourceText = null)
@@ -22,9 +20,6 @@ public sealed class MistPrettyPrinter
         this.sourceText = sourceText;
     }
 
-    /// <summary>
-    /// Pretty-prints the given AST node to syntactically valid Mist source text.
-    /// </summary>
     public static string Print(SyntaxNode ast)
     {
         var printer = new MistPrettyPrinter();
@@ -33,9 +28,7 @@ public sealed class MistPrettyPrinter
     }
 
     /// <summary>
-    /// Pretty-prints the given AST node using the original source text to reconstruct
-    /// qualified names from span information. Use this overload for round-trip fidelity
-    /// when working with ASTs produced by the parser.
+    /// Takes qualified names verbatim from <paramref name="sourceText"/> by span, for an AST the parser produced.
     /// </summary>
     public static string Print(SyntaxNode ast, string sourceText)
     {
@@ -52,12 +45,9 @@ public sealed class MistPrettyPrinter
                 EmitCompilationUnit(cu);
                 break;
             default:
-                // For any other node type, attempt to emit it directly.
                 break;
         }
     }
-
-    // ─── Compilation Unit ────────────────────────────────────────────────
 
     private void EmitCompilationUnit(CompilationUnitNode cu)
     {
@@ -94,15 +84,11 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Using Declarations ──────────────────────────────────────────────
-
     private void EmitUsingDeclaration(UsingDeclarationNode usingDecl)
     {
         var name = ExtractQualifiedName(usingDecl.Name);
         AppendLine($"using {name};");
     }
-
-    // ─── Namespace Declarations ──────────────────────────────────────────
 
     private void EmitNamespaceDeclaration(NamespaceDeclarationNode ns)
     {
@@ -155,8 +141,6 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Type Alias Declarations ────────────────────────────────────────
-
     private void EmitTypeAliasDeclaration(TypeAliasDeclarationNode aliasDecl)
     {
         var modifiers = EmitModifiers(aliasDecl.Modifiers);
@@ -199,8 +183,6 @@ public sealed class MistPrettyPrinter
         return $"{type} {predicate}";
     }
 
-    // ─── Newtype Declarations ───────────────────────────────────────────
-
     private void EmitNewtypeDeclaration(NewtypeDeclarationNode newtypeDecl)
     {
         var modifiers = EmitModifiers(newtypeDecl.Modifiers);
@@ -209,8 +191,6 @@ public sealed class MistPrettyPrinter
         var sourceType = EmitTypeReference(newtypeDecl.SourceType);
         AppendLine($"{modifiers}type {name}{typeParams} = new {sourceType};");
     }
-
-    // ─── Type Declarations ───────────────────────────────────────────────
 
     private void EmitTypeDeclaration(TypeDeclarationNode typeDecl)
     {
@@ -271,8 +251,6 @@ public sealed class MistPrettyPrinter
             EmitMemberDeclaration(members[i]);
         }
     }
-
-    // ─── Member Declarations ─────────────────────────────────────────────
 
     private void EmitMemberDeclaration(MemberDeclarationNode memberDecl)
     {
@@ -402,8 +380,6 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    // ─── Property Declarations ──────────────────────────────────────────
-
     private void EmitPropertyDeclaration(PropertyDeclarationNode propertyDecl)
     {
         switch(propertyDecl)
@@ -423,7 +399,6 @@ public sealed class MistPrettyPrinter
         var type = EmitTypeReference(blockProp.Type);
         var name = blockProp.Name.Lexeme;
 
-        // Build accessor list.
         var accessorParts = new List<string>();
         foreach(var accessor in blockProp.Accessors)
         {
@@ -432,7 +407,6 @@ public sealed class MistPrettyPrinter
 
         var accessorBody = string.Join(" ", accessorParts);
 
-        // Emit initializer if present.
         if(blockProp.Initializer is not null)
         {
             var init = EmitExpression(blockProp.Initializer);
@@ -458,7 +432,6 @@ public sealed class MistPrettyPrinter
     {
         switch(accessor)
         {
-            // ── Get accessors ──
             case AutoGetAccessorAccessorDeclarationNode autoGet:
                 {
                     var mod = EmitAccessorPromise(autoGet.Promise) + EmitAccessorModifier(autoGet.AccessorModifier);
@@ -477,7 +450,6 @@ public sealed class MistPrettyPrinter
                     return $"{mod}get => {expr};";
                 }
 
-            // ── Set accessors ──
             case AutoSetAccessorAccessorDeclarationNode autoSet:
                 {
                     var mod = EmitAccessorPromise(autoSet.Promise) + EmitAccessorModifier(autoSet.AccessorModifier);
@@ -496,7 +468,6 @@ public sealed class MistPrettyPrinter
                     return $"{mod}set => {expr};";
                 }
 
-            // ── Init accessors ──
             case AutoInitAccessorAccessorDeclarationNode autoInit:
                 {
                     var mod = EmitAccessorPromise(autoInit.Promise) + EmitAccessorModifier(autoInit.AccessorModifier);
@@ -547,10 +518,6 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    /// <summary>
-    /// Emits a block body as an inline string for use in accessor declarations.
-    /// Produces "{ stmt1; stmt2; }" format.
-    /// </summary>
     private string EmitBlockBody(BlockNode block)
     {
         if(block.Statements.IsEmpty)
@@ -567,10 +534,6 @@ public sealed class MistPrettyPrinter
         return $"{{ {string.Join(" ", parts)} }}";
     }
 
-    /// <summary>
-    /// Emits a statement as an inline string (no indentation/newline).
-    /// Used for accessor block bodies that are emitted on a single line.
-    /// </summary>
     private string EmitStatementInline(StatementNode stmt)
     {
         switch(stmt)
@@ -626,8 +589,6 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Indexer Declarations ────────────────────────────────────────────
-
     private void EmitIndexerDeclaration(IndexerDeclarationNode indexerDecl)
     {
         var modifiers = EmitModifiers(indexerDecl.Modifiers);
@@ -637,7 +598,6 @@ public sealed class MistPrettyPrinter
 
         if(indexerDecl.Body is BlockIndexerBodyIndexerBodyNode blockBody)
         {
-            // Build accessor list.
             var accessorParts = new List<string>();
             foreach(var accessor in blockBody.Accessors)
             {
@@ -649,12 +609,9 @@ public sealed class MistPrettyPrinter
         }
         else
         {
-            // Intrinsic indexer — semicolon-terminated.
             AppendLine($"{modifiers}{type} this[{parameters}]{constraints};");
         }
     }
-
-    // ─── Operator Declarations ───────────────────────────────────────────
 
     private void EmitOperatorDeclaration(OperatorDeclarationNode opDecl)
     {
@@ -728,8 +685,6 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Default Block Declarations ─────────────────────────────────────
-
     private void EmitDefaultBlockDeclaration(DefaultBlockDeclarationNode defaultBlock)
     {
         if(defaultBlock.Entries.IsEmpty)
@@ -783,16 +738,13 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    // ─── Associated Type Slot Declarations ──────────────────────────────
-
     private void EmitAssociatedTypeSlotDeclaration(AssociatedTypeSlotDeclarationNode slotDecl)
     {
         var modifiers = EmitModifiers(slotDecl.Modifiers);
         var name = slotDecl.Name.Lexeme;
         var typeParams = EmitTypeParameterList(slotDecl.TypeParams);
 
-        // The constraint clause is a ?-group: Group0 is present only when a `: constraints`
-        // clause was written; its Constraints/SlotWhereConstraints hold the group fields.
+        // Group0 is the optional `: constraints` clause.
         if(slotDecl.Group0 is { } group && group.Constraints is not null)
         {
             var constraints = EmitConstraintList(group.Constraints);
@@ -804,8 +756,6 @@ public sealed class MistPrettyPrinter
             AppendLine($"{modifiers}type {name}{typeParams};");
         }
     }
-
-    // ─── Enum Declarations ──────────────────────────────────────────────
 
     private void EmitEnumDeclaration(EnumDeclarationNode enumDecl)
     {
@@ -878,15 +828,13 @@ public sealed class MistPrettyPrinter
         return $"{prefix}{name}";
     }
 
-    // ─── Extension Block Declarations ────────────────────────────────────
-
     private void EmitExtensionBlockDeclaration(ExtensionBlockDeclarationNode extDecl)
     {
         var typeParams = EmitTypeParameterList(extDecl.TypeParams);
         var receiverType = EmitTypeReference(extDecl.ReceiverType);
         var receiverName = extDecl.ReceiverName.Lexeme;
 
-        // Grammar: TypeParameterList? EXTENSION ( ... ) — type params precede the keyword
+        // The grammar puts type parameters before the `extension` keyword.
         var prefix = typeParams.Length > 0 ? $"{typeParams} " : "";
         AppendLine($"{prefix}extension({receiverType} {receiverName}) {{");
         indentLevel++;
@@ -918,8 +866,6 @@ public sealed class MistPrettyPrinter
         }
     }
 
-    // ─── Parameters and Arguments ────────────────────────────────────────
-
     private string EmitParameterList(ParameterListNode? paramList)
     {
         if(paramList is null)
@@ -945,8 +891,6 @@ public sealed class MistPrettyPrinter
 
     private string EmitParameter(ParameterNode param)
     {
-        // Variadics: leading `params` marks a value pack (`params TArgs args`) or a
-        // homogeneous value-level params array (`params string[] parts`).
         var prefix = param.ParamsModifier is not null ? "params " : "";
         if(param.Modifier is not null)
         {
@@ -1007,8 +951,6 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    // ─── Type References ─────────────────────────────────────────────────
-
     private string EmitElementTypeRef(ElementTypeRefNode elementTypeRef)
     {
         return elementTypeRef switch
@@ -1023,8 +965,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitTypeReference(TypeReferenceNode typeRef)
     {
-        // Union (non-empty PIPE-separated continuation list): emit constituents
-        // joined by " | ". A single (non-union) type ref delegates to EmitSingleTypeRef.
+        // A non-empty continuation list is a union.
         if(typeRef.SingleTypeRefs.Length > 0)
         {
             var parts = new List<string>
@@ -1056,8 +997,6 @@ public sealed class MistPrettyPrinter
             case UnknownSingleTypeRefSingleTypeRefNode:
                 return "unknown";
             case SpreadSingleTypeRefSingleTypeRefNode spreadRef:
-                // Variadics: a pack spread in type position, e.g. `TArgs...` in
-                // `Func<TArgs..., void>`, `public TArgs... Item;`, or `(TArgs...)`.
                 return $"{ExtractQualifiedName(spreadRef.Name)}...";
             case NestedGenericSingleTypeRefSingleTypeRefNode nestedRef:
                 {
@@ -1096,8 +1035,6 @@ public sealed class MistPrettyPrinter
                 }
             case FuncSingleTypeRefSingleTypeRefNode funcRef:
                 {
-                    // Emit the lowercase `func` keyword form with its type arguments
-                    // (e.g., func<int, string>). The last type argument is the return type.
                     var typeArgs = EmitTypeArgumentList(funcRef.TypeArgs);
                     return $"{PurePrefix(funcRef.Pure)}func{typeArgs}{EmitTypeSuffixes(funcRef.ArrayRank, funcRef.Optional)}";
                 }
@@ -1145,8 +1082,6 @@ public sealed class MistPrettyPrinter
             _ => "object",
         };
     }
-
-    // ─── Statements ──────────────────────────────────────────────────────
 
     private void EmitStatement(StatementNode stmt)
     {
@@ -1240,8 +1175,6 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    // ─── Context Statement Declarations ─────────────────────────────────
-
     private void EmitWithVarDeclarationStatement(WithVarDeclarationStatementNode withVarDecl)
     {
         var name = withVarDecl.Name.Lexeme;
@@ -1283,8 +1216,6 @@ public sealed class MistPrettyPrinter
         indentLevel--;
         AppendLine("}");
     }
-
-    // ─── With Clause Emission (Method Signatures) ───────────────────────
 
     private string EmitWithClauses(ImmutableArray<WithClauseNode> withClauses)
     {
@@ -1537,8 +1468,6 @@ public sealed class MistPrettyPrinter
         AppendLine("}");
     }
 
-    // ─── Expression Emission ─────────────────────────────────────────────
-
     private string EmitExpression(ExpressionNode expr)
     {
         return expr switch
@@ -1642,10 +1571,6 @@ public sealed class MistPrettyPrinter
         return target;
     }
 
-    /// <summary>
-    /// Returns the <see cref="VoidCoalescingNode"/> target of an assignment-RHS expression,
-    /// or <c>null</c> when the RHS is a lambda form (which has no assignment target).
-    /// </summary>
     private static VoidCoalescingNode? GetAssignmentValueTarget(ExpressionNode value)
     {
         return value.AsAssignmentOrNull()?.Target;
@@ -1707,8 +1632,7 @@ public sealed class MistPrettyPrinter
 
     private string EmitEquality(EqualityNode equality)
     {
-        // Equality is a flat n-ary *-group: reproduce every operator/operand in order
-        // (a == b == c is one node with Left=a, Group0=[{==,b},{==,c}]).
+        // A chain such as a == b == c is one node: Left, then each operator and operand in Group0.
         var result = EmitRelational(equality.Left);
 
         foreach(var group in equality.Group0)
@@ -1727,7 +1651,6 @@ public sealed class MistPrettyPrinter
         {
             case RelationalComparisonRelationalNode cmp:
                 {
-                    // Flat n-ary *-group: emit each comparison operator/operand in order.
                     var result = EmitAdditive(cmp.Left);
 
                     foreach(var group in cmp.Group0)
@@ -1754,8 +1677,6 @@ public sealed class MistPrettyPrinter
                 return "";
         }
     }
-
-    // ─── Pattern Emission ────────────────────────────────────────────────
 
     private string EmitPattern(PatternNode pattern)
     {
@@ -1973,8 +1894,6 @@ public sealed class MistPrettyPrinter
                 return EmitPattern(patternElement.Pattern);
             case SliceElementListPatternElementNode sliceElement:
                 {
-                    // Print `..` for a bare slice, or `.. <subpattern>` (single space after
-                    // `..`) for a carrying slice, reading from the sub-pattern.
                     if(sliceElement.Subpattern is not null)
                     {
                         return $".. {EmitPattern(sliceElement.Subpattern)}";
@@ -1989,8 +1908,6 @@ public sealed class MistPrettyPrinter
 
     private string EmitAdditive(AdditiveNode additive)
     {
-        // Flat n-ary *-group: emit each additive operator/operand in order so
-        // a + b + c reproduces all operands rather than collapsing to a + c.
         var result = EmitMultiplicative(additive.Left);
 
         foreach(var group in additive.Group0)
@@ -2005,7 +1922,6 @@ public sealed class MistPrettyPrinter
 
     private string EmitMultiplicative(MultiplicativeNode multiplicative)
     {
-        // Flat n-ary *-group: emit each multiplicative operator/operand in order.
         var result = EmitRange(multiplicative.Left);
 
         foreach(var group in multiplicative.Group0)
@@ -2026,10 +1942,6 @@ public sealed class MistPrettyPrinter
                 return EmitUnary(nonRange.Operand);
             case RangeExpressionRangeNode rangeExpr:
                 {
-                    // Range `start..end`: emit the present bounds via the unary emitter
-                    // with an absent bound rendered as nothing and no space around `..`,
-                    // so all four forms round-trip: `a..b`, `a..`, `..b`, `..`. A from-end
-                    // bound renders through EmitUnary as `^k`, so `1..^1` prints as `1..^1`.
                     var start = rangeExpr.Start is not null ? EmitUnary(rangeExpr.Start) : string.Empty;
                     var end = rangeExpr.End is not null ? EmitUnary(rangeExpr.End) : string.Empty;
                     return $"{start}..{end}";
@@ -2049,10 +1961,7 @@ public sealed class MistPrettyPrinter
             CastExpressionUnaryNode castExpr => $"({EmitTypeReference(castExpr.TargetType)}){EmitUnary(castExpr.Operand)}",
             LogicalNotUnaryNode logicalNot => $"!{EmitUnary(logicalNot.Operand)}",
             NegateUnaryNode negate => $"-{EmitUnary(negate.Operand)}",
-            // Index-from-end `^operand`: the `^` operator immediately followed by the
-            // operand with no space (Mist surface syntax, e.g. `^1`, `^count`). This is
-            // the pretty-printer form for round-tripping Mist source; it deliberately
-            // differs from the C# emitter, which parenthesizes the operand as `^(k)`.
+            // Mist source spells this without the parentheses the C# emitter adds, `^(k)`.
             FromEndExpressionUnaryNode fromEnd => $"^{EmitUnary(fromEnd.Operand)}",
             PostfixExpressionUnaryNode postfix => EmitPostfix(postfix.Primary),
             _ => "",
@@ -2106,7 +2015,6 @@ public sealed class MistPrettyPrinter
             case OptionalMethodCallSuffixPostfixSuffixNode optionalCall:
                 return $"{target}?.{optionalCall.Name.Lexeme}{EmitTypeArgumentList(optionalCall.TypeArgs)}({EmitArgumentList(optionalCall.Arguments)})";
             case SpreadSuffixPostfixSuffixNode:
-                // Variadics: value-side spread / zip operand, e.g. `args...`, `Item...`.
                 return $"{target}...";
             case SwitchExpressionSuffixPostfixSuffixNode switchExpr:
                 {
@@ -2177,8 +2085,6 @@ public sealed class MistPrettyPrinter
                 }
             case StackallocExpressionPrimaryNode stackallocExpr:
                 {
-                    // Mirror the array-creation case: stackalloc T[n] reprints with the
-                    // element type and bracketed size so parse→print→parse round-trips.
                     var type = EmitElementTypeRef(stackallocExpr.Type);
                     var size = EmitExpression(stackallocExpr.Size);
                     return $"stackalloc {type}[{size}]";
@@ -2272,8 +2178,6 @@ public sealed class MistPrettyPrinter
                 }
             case GenericInvocationExpressionPrimaryNode genInvoke:
                 {
-                    // Bare (unqualified) generic call with explicit type arguments, e.g.
-                    // `Describe<[int, string]>(1, "x")` or `TwoPacks<[int], [string]>()`.
                     var name = genInvoke.Name.Lexeme;
                     var typeArgs = EmitTypeArgumentList(genInvoke.TypeArgs);
                     var args = EmitArgumentList(genInvoke.Arguments);
@@ -2298,7 +2202,6 @@ public sealed class MistPrettyPrinter
                 return "default";
             case ArrayLiteralExpressionPrimaryNode arrayLiteral:
                 {
-                    // Prints [] when the element list is absent, which is the empty literal.
                     var elements = new List<string>();
                     foreach(var elem in arrayLiteral.GetElements())
                     {
@@ -2335,8 +2238,6 @@ public sealed class MistPrettyPrinter
         _ = sb.Append('"');
         return sb.ToString();
     }
-
-    // ─── Modifier Emission ───────────────────────────────────────────────
 
     private static string EmitModifiers(ImmutableArray<ModifierNode> modifiers)
     {
@@ -2398,12 +2299,6 @@ public sealed class MistPrettyPrinter
         return string.Join(" ", parts) + " ";
     }
 
-    // ─── Utilities ───────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Emits a base list (base types / abstract list) as a comma-separated string.
-    /// Each entry is a type name with optional type arguments.
-    /// </summary>
     private string EmitBaseList(BaseListNode baseList)
     {
         var parts = new List<string>
@@ -2418,11 +2313,6 @@ public sealed class MistPrettyPrinter
         return string.Join(", ", parts);
     }
 
-    /// <summary>
-    /// Emits a single base type reference (name with optional type arguments).
-    /// Variadics: a trailing <c>...</c> is emitted for the base-type-list pack spread
-    /// (<c>: TArgs...</c>), preserving the spread suffix so the form round-trips.
-    /// </summary>
     private string EmitBaseTypeRef(BaseTypeRefNode baseTypeRef)
     {
         var spread = baseTypeRef.Spread is not null ? "..." : "";
@@ -2435,10 +2325,6 @@ public sealed class MistPrettyPrinter
         return name + EmitTypeArgumentList(baseTypeRef.TypeArgs) + spread;
     }
 
-    /// <summary>
-    /// Emits a type parameter list (e.g., &lt;T, U&gt; or &lt;T, Size:int&gt;) or empty string if null.
-    /// Dependent type parameters are emitted as Name:Type with no spaces around the colon.
-    /// </summary>
     private string EmitTypeParameterList(TypeParameterListNode? typeParams)
     {
         if(typeParams is null)
@@ -2462,10 +2348,8 @@ public sealed class MistPrettyPrinter
     {
         return tp switch
         {
-            // Variadics: `params TArgs` (bracket-free pack sugar).
             ParamsPackTypeParameterTypeParameterNode pack =>
                 $"params {pack.Name.Lexeme}",
-            // Variadics: explicit pack domain `Type[]:TArgs` or `Type[N]:TArgs`.
             ExplicitPackTypeParameterTypeParameterNode explicitPack =>
                 $"{explicitPack.DomainName.Lexeme}{EmitArrayRankSuffix(explicitPack.ArrayRank)}:{explicitPack.Name.Lexeme}",
             DependentTypeParameterTypeParameterNode dep =>
@@ -2478,10 +2362,6 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    /// <summary>
-    /// Emits an array rank suffix: <c>[N]</c> for a sized rank or <c>[]</c> for an unsized rank.
-    /// Used by the explicit pack domain form (<c>Type[]:TArgs</c> / <c>Type[N]:TArgs</c>).
-    /// </summary>
     private static string EmitArrayRankSuffix(ArrayRankSuffixNode? rank)
     {
         return rank switch
@@ -2492,10 +2372,6 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    /// <summary>
-    /// Emits a type argument list (e.g., &lt;int, string&gt;, &lt;5&gt;, &lt;true&gt;) or empty string if null.
-    /// Handles all TypeArgument node variants including literal values for dependent type arguments.
-    /// </summary>
     private string EmitTypeArgumentList(TypeArgumentListNode? typeArgs)
     {
         if(typeArgs is null)
@@ -2515,9 +2391,6 @@ public sealed class MistPrettyPrinter
         return $"<{string.Join(", ", parts)}>";
     }
 
-    /// <summary>
-    /// Emits a single type argument node, handling all variants (literal values and type references).
-    /// </summary>
     private string EmitTypeArgument(TypeArgumentNode arg)
     {
         return arg switch
@@ -2535,9 +2408,6 @@ public sealed class MistPrettyPrinter
         };
     }
 
-    /// <summary>
-    /// Emits a bracketed pack type argument, e.g. <c>[int, string]</c> or the empty pack <c>[]</c>.
-    /// </summary>
     private string EmitBracketedPackTypeArgument(BracketedPackTypeArgumentTypeArgumentNode bracketed)
     {
         if(bracketed.PackElements is null)
@@ -2557,14 +2427,8 @@ public sealed class MistPrettyPrinter
         return $"[{string.Join(", ", parts)}]";
     }
 
-    /// <summary>
-    /// Extracts the qualified name from a QualifiedIdentifierNode.
-    /// When source text is available, uses the Span to extract the exact text.
-    /// Otherwise, reconstructs from the IDENTIFIER and IDENTIFIERs properties.
-    /// </summary>
     private string ExtractQualifiedName(QualifiedIdentifierNode qualifiedId)
     {
-        // Prefer extracting from source text via Span (handles dotted names correctly)
         if(sourceText is not null)
         {
             var span = qualifiedId.Span;
@@ -2574,7 +2438,7 @@ public sealed class MistPrettyPrinter
             }
         }
 
-        // Fall back to reconstructing from token properties (for hand-crafted ASTs)
+        // A hand-built AST has no source span to read.
         var first = qualifiedId.IDENTIFIER.Lexeme;
         if(string.IsNullOrEmpty(first))
         {
@@ -2586,7 +2450,6 @@ public sealed class MistPrettyPrinter
             return first;
         }
 
-        // Reconstruct the dotted name: first.second.third...
         var sb = new StringBuilder(first);
         foreach(var token in qualifiedId.IDENTIFIERs)
         {
@@ -2600,13 +2463,6 @@ public sealed class MistPrettyPrinter
         return sb.ToString();
     }
 
-    // ─── Constraint Clauses ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Emits where clauses preserving source order.
-    /// Returns a string like " where T : class where U : struct" or empty string if no constraints.
-    /// Handles both generic constraint clauses and adhoc refinement constraint clauses.
-    /// </summary>
     private string EmitConstraintClauses(ImmutableArray<WhereClauseNode> constraints)
     {
         if(constraints.IsDefaultOrEmpty)
@@ -2637,9 +2493,6 @@ public sealed class MistPrettyPrinter
         return sb.ToString();
     }
 
-    /// <summary>
-    /// Emits a constraint list as a comma-separated string of constraints.
-    /// </summary>
     private string EmitConstraintList(ConstraintListNode constraintList)
     {
         var parts = new List<string>
@@ -2654,9 +2507,6 @@ public sealed class MistPrettyPrinter
         return string.Join(", ", parts);
     }
 
-    /// <summary>
-    /// Emits a single constraint variant.
-    /// </summary>
     private string EmitConstraint(ConstraintNode constraint)
     {
         switch(constraint)
@@ -2699,8 +2549,6 @@ public sealed class MistPrettyPrinter
                 return "";
         }
     }
-
-    // ─── Property Initializer Emission ─────────────────────────────────
 
     private string EmitPropertyAssignmentList(PropertyInitializerBlockNode block)
     {

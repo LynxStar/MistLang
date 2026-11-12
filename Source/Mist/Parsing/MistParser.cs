@@ -7,22 +7,13 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Parsing;
 
-/// <summary>
-/// Wraps the Storm-generated parser behind the <see cref="IParser"/> interface,
-/// selecting the appropriate entry rule for Mist compilation units.
-/// </summary>
 public sealed class MistParser : IParser
 {
     public ParseResult Parse(TokenStream tokens, DiagnosticBag diagnostics)
     {
         diagnostics.Stage = PipelineStage.Parsing;
-        // Pre-process the token stream to reclassify keyword tokens as IDENTIFIER
-        // when they appear as segments in dotted qualified identifiers following
-        // `using` or `namespace`. This allows CLR namespaces containing keyword-
-        // like segments (e.g., "System.Runtime.in.Something") to parse correctly.
         var processedTokens = ReclassifyKeywordsInQualifiedNames(tokens.AllTokens);
 
-        // Bridge to Storm-generated parser.
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
         var stormTokenStream = new Storm.Runtime.TokenStream(
             new Storm.Runtime.SourceText(tokens.Source.Path, tokens.Source.Contents),
@@ -35,47 +26,24 @@ public sealed class MistParser : IParser
         }
         catch(NotImplementedException)
         {
-            // The Storm-generated parser is skeletal — parse methods are not yet implemented.
-            // This is expected during early development. Return null root gracefully.
             diagnostics.ReportTyped(ParserDiagnostics.ParseStub, new FileOnly(tokens.Source.Path));
         }
 
-        // Map Storm diagnostics to Mist diagnostics.
         foreach(var entry in stormDiagnostics.Entries)
         {
             diagnostics.ReportTyped(ParserDiagnostics.ParseError, StormEntryLocation.Of(tokens.Source, entry.FilePath, entry.Line, entry.Column), new TextValue(entry.Message));
         }
 
-        // The Storm-generated parser is a backtracking PEG parser: when the
-        // `stackalloc T[n]` alternative fails partway (e.g. the `[size]` is
-        // missing or empty), it truncates its own diagnostics and backtracks,
-        // leaving only a generic MIST0122. Requirements 3.4 and 3.5
-        // call for a specific recovery diagnostic identifying the missing or
-        // empty stackalloc size. We detect those shapes here with a focused
-        // token scan and emit MIST0124; parsing still
-        // continues (no node is produced for the malformed expression).
+        // The PEG parser backtracks out of a failed `stackalloc T[n]` alternative and keeps only a
+        // generic MIST0122, so a token scan reports the missing or empty size.
         DetectStackallocSizeErrors(tokens, diagnostics);
 
-        // The `interface` keyword was removed from the grammar (replaced by
-        // `abstract`). The lexer now produces IDENTIFIER for "interface". Scan
-        // for those identifiers and emit a helpful migration diagnostic.
         DetectRemovedInterfaceKeyword(tokens, diagnostics);
 
-        // The `trait` keyword was removed from the grammar. Use 'abstract' with
-        // nominal typing or a 'with' block for retroactive conformance instead.
         DetectRemovedTraitKeyword(tokens, diagnostics);
 
-        // Abstract types may declare default METHOD implementations (methods with
-        // bodies), but properties may NOT have default implementations. A property
-        // with a body inside an abstract type body fails to parse through the
-        // grammar; detect that shape with a focused token scan and emit a clear
-        // diagnostic (Requirement 13.3).
         DetectPropertyDefaultInAbstract(tokens, diagnostics);
 
-        // Validate that no declaration carries more than one access modifier.
-        // Mist has four standalone access levels and no combined levels (Req 2.6).
-        // This validation walks the parsed AST rather than scanning tokens because
-        // it relies on the semantic modifier list attached to each declaration node.
         if(root is not null)
         {
             AssignOrigin(root, new ParsedOrigin(tokens.Source));
@@ -84,9 +52,7 @@ public sealed class MistParser : IParser
 
         if(root is not null)
         {
-            // Completeness check: verify the parser consumed all default-channel tokens.
-            // The CompilationUnit rule does not consume the EOF sentinel, so we exclude it
-            // from the comparison — only flag genuinely unconsumed content tokens.
+            // The CompilationUnit rule leaves the EOF sentinel unconsumed, so it is not counted.
             var lastPos = Generated.MistParser.LastPosition;
             var defaultTokens = tokens.DefaultChannelTokens;
             var contentTokenCount = defaultTokens.Length > 0
@@ -109,12 +75,6 @@ public sealed class MistParser : IParser
             Diagnostics: ImmutableArray<Diagnostic>.Empty);
     }
 
-    /// <summary>
-    /// Walks the parsed AST and emits a <c>MIST0128</c> diagnostic
-    /// for every declaration whose modifier list contains more than one access modifier.
-    /// Uses <see cref="AccessModifierSyntax.CountAccessModifiers"/> as the single source of
-    /// truth for counting access modifiers (Requirement 2.6).
-    /// </summary>
     private static void ValidateAccessModifierCombinations(
         Storm.Runtime.SyntaxNode root,
         DiagnosticBag diagnostics)
@@ -144,20 +104,10 @@ public sealed class MistParser : IParser
     }
 
     /// <summary>
-    /// Scans the token stream for malformed <c>stackalloc</c> expressions that lack a
-    /// bracketed size (<c>stackalloc T</c>, Requirement 3.4) or use empty brackets
-    /// (<c>stackalloc T[]</c>, Requirement 3.5) and emits a
-    /// <c>MIST0124</c> recovery diagnostic for each.
+    /// An <c>ElementTypeRef</c> never contains a <c>[</c>, so the first bracket after the element type
+    /// is the size bracket: none is a missing size (Requirement 3.4) and <c>[]</c> an empty one
+    /// (Requirement 3.5).
     /// </summary>
-    /// <remarks>
-    /// The grammar's <c>StackallocExpression</c> alternative requires
-    /// <c>STACKALLOC ElementTypeRef LEFT_BRACKET Expression RIGHT_BRACKET</c>. An
-    /// <c>ElementTypeRef</c> never contains a <c>[</c> (array ranks are not part of it),
-    /// so the first bracket after the element type is always the size bracket. We skip
-    /// the element-type tokens (a primitive keyword, <c>unknown</c>, or a qualified
-    /// identifier with an optional generic argument list) and then inspect what follows:
-    /// no <c>[</c> means a missing size; <c>[]</c> means an empty size.
-    /// </remarks>
     private static void DetectStackallocSizeErrors(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
@@ -171,9 +121,7 @@ public sealed class MistParser : IParser
             var afterType = SkipElementType(defaultTokens, i + 1);
             if(afterType is null)
             {
-                // The token after `stackalloc` does not begin a recognizable element
-                // type (e.g. `stackalloc [3]`). That is a different malformed shape;
-                // leave it to the generic parser error rather than mis-attributing it.
+                // Not a size error, as in `stackalloc [3]`; the generic parse error reports it.
                 continue;
             }
 
@@ -183,7 +131,6 @@ public sealed class MistParser : IParser
 
             if(!hasOpenBracket)
             {
-                // Requirement 3.4: `stackalloc T` with no bracketed size.
                 AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
                 continue;
             }
@@ -193,7 +140,6 @@ public sealed class MistParser : IParser
 
             if(isEmptyBrackets)
             {
-                // Requirement 3.5: `stackalloc T[]` with empty brackets.
                 AddStackallocSizeDiagnostic(defaultTokens[i], tokens.Source, diagnostics);
             }
         }
@@ -213,15 +159,6 @@ public sealed class MistParser : IParser
         return point ? new SourcePoint(identity, token.Span.Start) : new SourceRange(identity, token.Span.Start, token.Span.Length);
     }
 
-    /// <summary>
-    /// Scans the token stream for IDENTIFIER tokens with lexeme <c>"interface"</c> and
-    /// emits a diagnostic directing the user to use <c>abstract</c> instead.
-    /// </summary>
-    /// <remarks>
-    /// Since the <c>INTERFACE</c> token was removed from <c>keywords.storm</c>, the
-    /// lexer produces a plain <c>IDENTIFIER</c> for the text "interface". This method
-    /// detects that usage and provides a clear migration message.
-    /// </remarks>
     private static void DetectRemovedInterfaceKeyword(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
@@ -237,16 +174,6 @@ public sealed class MistParser : IParser
         }
     }
 
-    /// <summary>
-    /// Scans the token stream for IDENTIFIER tokens with lexeme <c>"trait"</c> and
-    /// emits a diagnostic directing the user to use <c>abstract</c> with nominal typing
-    /// or a <c>with</c> block for retroactive conformance.
-    /// </summary>
-    /// <remarks>
-    /// Since the <c>TRAIT</c> token was removed from <c>keywords.storm</c>, the
-    /// lexer produces a plain <c>IDENTIFIER</c> for the text "trait". This method
-    /// detects that usage and provides a clear migration message.
-    /// </remarks>
     private static void DetectRemovedTraitKeyword(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
@@ -263,27 +190,9 @@ public sealed class MistParser : IParser
     }
 
     /// <summary>
-    /// Scans each abstract type body for property declarations that carry a body
-    /// (block accessors like <c>get { ... }</c>, expression accessors like
-    /// <c>get =&gt; ...;</c>, or an expression-bodied property like
-    /// <c>int Foo =&gt; 1;</c>) and emits a <c>MIST0127</c>
-    /// diagnostic. Only methods may have default implementations in an abstract
-    /// type; property slots must always be filled by the implementer
-    /// (Requirement 13.3).
+    /// Checks direct members only (Requirement 13.3); a nested abstract type is scanned from its own
+    /// <c>abstract</c> keyword.
     /// </summary>
-    /// <remarks>
-    /// A property with a body cannot be parsed by the <c>AbstractMemberDeclaration</c>
-    /// grammar rule (its accessors are semicolon-terminated slots, and the
-    /// default-method alternative requires a parameter list), so the failure would
-    /// otherwise surface only as a generic parse error. This focused scan recognizes
-    /// the shape and reports the precise cause.
-    ///
-    /// The scan operates strictly at the direct member level of each abstract body
-    /// (brace depth 1). Members of nested types (classes, structs, enums, nested
-    /// abstract types) live at deeper brace depths and are not flagged here — a
-    /// nested abstract type is scanned independently when its own <c>abstract</c>
-    /// keyword is encountered by the outer loop.
-    /// </remarks>
     private static void DetectPropertyDefaultInAbstract(TokenStream tokens, DiagnosticBag diagnostics)
     {
         var defaultTokens = tokens.DefaultChannelTokens;
@@ -299,9 +208,7 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            // Locate the abstract body's opening brace. Between `abstract` and the
-            // body, only `<...>` type params, `: BaseList`, and `where` clauses may
-            // appear — none of which use braces — so the first `{` is the body.
+            // Type parameters, a base list and where clauses use no braces, so the first `{` is the body.
             var open = i + 1;
             while(open < defaultTokens.Length
                 && defaultTokens[open].Kind != leftBraceKind
@@ -320,11 +227,6 @@ public sealed class MistParser : IParser
         }
     }
 
-    /// <summary>
-    /// Scans a single abstract type body (starting at its opening brace) for
-    /// property-with-body members at the direct member level, emitting a diagnostic
-    /// for each. See <see cref="DetectPropertyDefaultInAbstract"/> for the rationale.
-    /// </summary>
     private static void ScanAbstractBodyForPropertyDefaults(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int bodyOpenIndex,
@@ -339,9 +241,7 @@ public sealed class MistParser : IParser
 
         var depth = 0;
 
-        // Whether the current direct member (since the last member boundary) is a
-        // method or a nested type declaration — both of which legitimately introduce
-        // a brace at member level that is NOT a property accessor block.
+        // A method or nested type opens a member-level brace that is not an accessor block.
         var memberIsMethodOrType = false;
 
         for(var i = bodyOpenIndex; i < tokens.Length; i++)
@@ -353,7 +253,6 @@ public sealed class MistParser : IParser
                 if(depth == 1 && !memberIsMethodOrType
                     && AccessorBlockHasBody(tokens, i))
                 {
-                    // `Type Name { get { ... } }` or `Type Name { get => ...; }`.
                     AddPropertyDefaultDiagnostic(tokens[i], source, diagnostics);
                 }
 
@@ -366,12 +265,11 @@ public sealed class MistParser : IParser
                 depth--;
                 if(depth == 0)
                 {
-                    return; // End of this abstract body.
+                    return;
                 }
 
                 if(depth == 1)
                 {
-                    // Returned to member level after a method body / nested type.
                     memberIsMethodOrType = false;
                 }
 
@@ -395,19 +293,11 @@ public sealed class MistParser : IParser
             }
             else if(kind == semicolonKind)
             {
-                // Member boundary; the next member starts fresh.
                 memberIsMethodOrType = false;
             }
         }
     }
 
-    /// <summary>
-    /// Given the index of a property's opening brace, returns <c>true</c> if any
-    /// accessor inside carries a body — i.e. an inner <c>{</c> (block accessor) or
-    /// <c>=&gt;</c> (expression accessor) appears at the property's top level. A
-    /// slot-only block such as <c>{ get; set; }</c> contains neither and returns
-    /// <c>false</c>.
-    /// </summary>
     private static bool AccessorBlockHasBody(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int braceIndex)
@@ -425,7 +315,6 @@ public sealed class MistParser : IParser
             {
                 if(depth == 1)
                 {
-                    // An accessor opened its own block body: `get { ... }`.
                     return true;
                 }
 
@@ -436,12 +325,11 @@ public sealed class MistParser : IParser
                 depth--;
                 if(depth == 0)
                 {
-                    return false; // Reached the matching close with no bodied accessor.
+                    return false;
                 }
             }
             else if(kind == suchThatKind && depth == 1)
             {
-                // An accessor used an expression body: `get => ...;`.
                 return true;
             }
         }
@@ -465,11 +353,6 @@ public sealed class MistParser : IParser
         diagnostics.ReportTyped(ParserDiagnostics.AbstractPropertyDefault, TokenLocation(source, token, point: false));
     }
 
-    /// <summary>
-    /// Given the index of the first token after <c>stackalloc</c>, skips the tokens that
-    /// make up an <c>ElementTypeRef</c> and returns the index of the token immediately
-    /// following it, or <c>null</c> if no element type is recognized.
-    /// </summary>
     private static int? SkipElementType(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int start)
@@ -490,7 +373,6 @@ public sealed class MistParser : IParser
         {
             var pos = start + 1;
 
-            // QualifiedIdentifier: IDENTIFIER (DOT IDENTIFIER)*
             while(pos + 1 < tokens.Length
                 && tokens[pos].Kind == (int)Generated.TokenKind.DOT
                 && tokens[pos + 1].Kind == (int)Generated.TokenKind.IDENTIFIER)
@@ -498,7 +380,6 @@ public sealed class MistParser : IParser
                 pos += 2;
             }
 
-            // Optional TypeArgumentList: LESS_THAN ... GREATER_THAN (balanced).
             if(pos < tokens.Length && tokens[pos].Kind == (int)Generated.TokenKind.LESS_THAN)
             {
                 return SkipBalancedAngles(tokens, pos);
@@ -510,11 +391,6 @@ public sealed class MistParser : IParser
         return null;
     }
 
-    /// <summary>
-    /// Skips a balanced generic argument list starting at a <c>&lt;</c> token and returns the
-    /// index after the matching <c>&gt;</c>, or <c>null</c> if the angles are unbalanced or a
-    /// structural terminator is reached first.
-    /// </summary>
     private static int? SkipBalancedAngles(
         ImmutableArray<Storm.Runtime.Token> tokens,
         int openAngle)
@@ -540,7 +416,6 @@ public sealed class MistParser : IParser
                 or ((int)Generated.TokenKind.RIGHT_BRACE)
                 or ((int)Generated.TokenKind.EndOfFile))
             {
-                // Malformed type argument list; bail rather than guessing.
                 return null;
             }
         }
@@ -580,15 +455,9 @@ public sealed class MistParser : IParser
     }
 
     /// <summary>
-    /// Scans the token stream and reclassifies keyword tokens as IDENTIFIER when
-    /// they appear as namespace segments in using declarations or namespace declarations.
-    /// <para>
-    /// CLR namespaces may contain segments that coincide with Mist keywords (e.g.,
-    /// <c>using Some.Namespace.type.Foo;</c>). The DFA lexer produces keyword token
-    /// kinds for these, causing the PEG parser's <c>QualifiedIdentifier</c> rule
-    /// (which expects IDENTIFIER tokens) to fail. This pre-processing step fixes up
-    /// those tokens so parsing succeeds.
-    /// </para>
+    /// A CLR namespace segment can coincide with a Mist keyword, as in <c>using Some.Namespace.type.Foo;</c>.
+    /// The lexer emits a keyword token there, which <c>QualifiedIdentifier</c> rejects, so such segments
+    /// after <c>using</c> or <c>namespace</c> become IDENTIFIER.
     /// </summary>
     private static ImmutableArray<Storm.Runtime.Token> ReclassifyKeywordsInQualifiedNames(
         ImmutableArray<Storm.Runtime.Token> tokens)
@@ -598,11 +467,6 @@ public sealed class MistParser : IParser
         var namespaceKind = (int)Generated.TokenKind.NAMESPACE;
         var dotKind = (int)Generated.TokenKind.DOT;
 
-        // Quick scan: check if any reclassification is needed.
-        // A qualified identifier following USING or NAMESPACE is a sequence of
-        // identifier-like tokens separated by DOTs. A keyword token appearing
-        // after a DOT (or directly after USING/NAMESPACE) in such a position
-        // needs reclassification.
         var needsFixup = false;
         for(var i = 0; i < tokens.Length - 1; i++)
         {
@@ -612,7 +476,6 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            // Check segments: (DOT segment)* pattern after the first segment.
             var j = i + 1;
             while(j < tokens.Length)
             {
@@ -620,29 +483,26 @@ public sealed class MistParser : IParser
                 if(segKind == identifierKind)
                 {
                     j++;
-                    // Check for DOT after identifier.
                     if(j < tokens.Length && tokens[j].Kind == dotKind)
                     {
-                        j++; // skip DOT, continue to next segment
+                        j++;
                         continue;
                     }
 
-                    break; // end of qualified identifier
+                    break;
                 }
                 else if(segKind == dotKind)
                 {
-                    // DOT without preceding identifier — shouldn't happen normally
                     break;
                 }
                 else if(IsIdentifierLikeKeyword(segKind))
                 {
-                    // Found a keyword where we expect an identifier — fixup needed.
                     needsFixup = true;
                     break;
                 }
                 else
                 {
-                    break; // end of qualified identifier
+                    break;
                 }
             }
 
@@ -657,7 +517,6 @@ public sealed class MistParser : IParser
             return tokens;
         }
 
-        // Build a new token array with reclassified tokens.
         var builder = ImmutableArray.CreateBuilder<Storm.Runtime.Token>(tokens.Length);
         for(var i = 0; i < tokens.Length; i++)
         {
@@ -672,20 +531,16 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            // Reclassify keyword tokens in the qualified identifier that follows.
-            // The qualified identifier is: segment (DOT segment)* where segment is
-            // IDENTIFIER or a keyword that looks like an identifier.
             var j = i + 1;
             while(j < builder.Count)
             {
                 var tok = builder[j];
                 if(tok.Kind == identifierKind)
                 {
-                    j++; // valid segment, continue
+                    j++;
                 }
                 else if(IsIdentifierLikeKeyword(tok.Kind))
                 {
-                    // Reclassify this keyword token as IDENTIFIER.
                     builder[j] = new Storm.Runtime.Token(
                         identifierKind,
                         tok.Span,
@@ -697,11 +552,11 @@ public sealed class MistParser : IParser
                 }
                 else if(tok.Kind == dotKind)
                 {
-                    j++; // DOT separator, continue to next segment
+                    j++;
                 }
                 else
                 {
-                    break; // end of qualified identifier (semicolon, brace, etc.)
+                    break;
                 }
             }
         }
@@ -709,14 +564,8 @@ public sealed class MistParser : IParser
         return builder.MoveToImmutable();
     }
 
-    /// <summary>
-    /// Returns true if the given token kind is a keyword that could appear as a
-    /// namespace segment (i.e., it looks like an identifier but was lexed as a keyword).
-    /// </summary>
     private static bool IsIdentifierLikeKeyword(int kind)
     {
-        // All keyword token kinds that have identifier-like lexemes.
-        // Excludes punctuation, operators, and structural tokens.
         return kind is not ((int)Generated.TokenKind.IDENTIFIER)
             and not ((int)Generated.TokenKind.DOT)
             and not ((int)Generated.TokenKind.SEMICOLON)

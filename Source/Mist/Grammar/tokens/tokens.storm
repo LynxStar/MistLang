@@ -1,5 +1,4 @@
-// tokens.storm — All lexer tokens for the Mist grammar.
-// Import order determines token priority (first-match-wins).
+// Import order sets declaration priority, which decides between equal-length matches.
 
 import "keywords";
 import "operators";

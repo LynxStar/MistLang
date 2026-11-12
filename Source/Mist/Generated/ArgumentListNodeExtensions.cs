@@ -1,34 +1,19 @@
-// Backward-compatible extension methods for ArgumentListNode.
-// The grammar changed from:
-//   ArgumentList = Expression (COMMA Expression)*
-// to:
-//   ArgumentList = Argument (COMMA Argument)*
-//   Argument = REF expression:Expression as RefArgument | expression:Expression as ValueArgument
-//
-// These extensions provide the old Expression/Expressions accessors so existing
-// code can work with minimal changes until it is updated to handle ref arguments.
-
 using System.Collections.Immutable;
 
 namespace Mist.Generated;
 
 /// <summary>
-/// Extension methods on <see cref="ArgumentListNode"/> for backward compatibility
-/// with the old grammar structure where ArgumentList directly contained Expression nodes.
+/// Each <see cref="ArgumentNode"/> wraps its expression in a ref or value form; these unwrap it for call sites
+/// that read only the expression. <see cref="GetExpression"/> reads the first argument and
+/// <see cref="GetExpressions"/> the rest.
 /// </summary>
 public static class ArgumentListNodeExtensions
 {
-    /// <summary>
-    /// Gets the first argument's expression, unwrapping the <see cref="ArgumentNode"/> wrapper.
-    /// </summary>
     public static ExpressionNode GetExpression(this ArgumentListNode node)
     {
         return ExtractExpression(node.Argument);
     }
 
-    /// <summary>
-    /// Gets the remaining arguments' expressions, unwrapping each <see cref="ArgumentNode"/> wrapper.
-    /// </summary>
     public static ImmutableArray<ExpressionNode> GetExpressions(this ArgumentListNode node)
     {
         var builder = ImmutableArray.CreateBuilder<ExpressionNode>(node.Arguments.Length);
@@ -40,9 +25,6 @@ public static class ArgumentListNodeExtensions
         return builder.MoveToImmutable();
     }
 
-    /// <summary>
-    /// Gets all argument expressions (first + rest) as a flat list.
-    /// </summary>
     public static ImmutableArray<ExpressionNode> GetAllExpressions(this ArgumentListNode node)
     {
         var builder = ImmutableArray.CreateBuilder<ExpressionNode>(1 + node.Arguments.Length);
@@ -55,11 +37,6 @@ public static class ArgumentListNodeExtensions
         return builder.MoveToImmutable();
     }
 
-    /// <summary>
-    /// Extracts the <see cref="ExpressionNode"/> from an <see cref="ArgumentNode"/>,
-    /// regardless of whether it is a <see cref="RefArgumentArgumentNode"/> or
-    /// <see cref="ValueArgumentArgumentNode"/>.
-    /// </summary>
     public static ExpressionNode ExtractExpression(ArgumentNode arg)
     {
         return arg switch

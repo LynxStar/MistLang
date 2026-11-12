@@ -4,9 +4,6 @@ using Mist.Lexing.Contracts;
 
 namespace Mist.Parsing.Contracts;
 
-/// <summary>
-/// The result of parsing a single compilation unit.
-/// </summary>
 public sealed record ParseResult(
     Common.Source.SourceText Source,
     TokenStream Tokens,

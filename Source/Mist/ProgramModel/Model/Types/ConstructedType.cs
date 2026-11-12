@@ -4,15 +4,11 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A constructed (closed) generic type — a resolved type definition with concrete type arguments.
-/// Not registered in a namespace — constructed on-the-fly during type resolution.
-/// <para>
-/// A NESTED type reached through an instantiation of its enclosing generic is a construction too,
-/// of the nested definition with no arguments of its own and the instantiation as
-/// <see cref="Enclosing"/>: <c>Box&lt;int&gt;.Wrapper</c> is a different type from
-/// <c>Box&lt;string&gt;.Wrapper</c>, and its members are substituted through <c>Box&lt;int&gt;</c>. The
-/// only construction with no arguments is this one.
-/// </para>
+/// Not registered in a namespace; constructed during type resolution. A NESTED type reached through an
+/// instantiation of its enclosing generic is a construction too, of the nested definition with no
+/// arguments of its own and the instantiation as <see cref="Enclosing"/>, so it is a different type per
+/// instantiation and its members are substituted through that instantiation. That is the only
+/// construction with no arguments.
 /// </summary>
 internal sealed class ConstructedType : MistType, IConstructedType
 {
@@ -29,14 +25,8 @@ internal sealed class ConstructedType : MistType, IConstructedType
         Enclosing = enclosing;
     }
 
-    /// <summary>
-    /// The unparameterized type definition.
-    /// </summary>
     public IMistType Definition { get; }
 
-    /// <summary>
-    /// The resolved type arguments.
-    /// </summary>
     public IReadOnlyList<IMistType> TypeArguments { get; }
 
     public ConstructedType? Enclosing { get; }
@@ -48,10 +38,8 @@ internal sealed class ConstructedType : MistType, IConstructedType
     IConstructedType? IConstructedType.Enclosing => Enclosing;
 
     /// <summary>
-    /// The definition's name with the arguments in place of its arity marker, so
-    /// <c>Box&lt;&gt;</c> constructed with <c>int</c> is named <c>Box&lt;int&gt;</c>. Stripping is
-    /// required rather than cosmetic: the definition is REGISTERED under the arity-bearing name, so
-    /// interpolating it directly yields <c>Box&lt;&gt;&lt;int&gt;</c>.
+    /// Stripping the arity marker is required rather than cosmetic: the definition is REGISTERED under
+    /// the arity-bearing name, so interpolating it directly yields a second argument list.
     /// </summary>
     private static string BuildName(
         IMistType definition, IReadOnlyList<IMistType> typeArguments, ConstructedType? enclosing)
@@ -72,13 +60,9 @@ internal sealed class ConstructedType : MistType, IConstructedType
     }
 
     /// <summary>
-    /// Qualified by the definition's namespace, so <c>List&lt;int&gt;</c> constructed from two
-    /// different namespaces' <c>List&lt;&gt;</c> are distinguishable -- which matters where a
-    /// fully qualified name identifies a type, as it does when telling overloads apart.
-    /// <para>
-    /// A definition that is not a declared type has no namespace to contribute, which is only
-    /// reachable through a synthetic construction.
-    /// </para>
+    /// Qualified by the definition's namespace, so constructions of same-named definitions from two
+    /// namespaces stay distinct where a fully qualified name identifies a type, as when telling
+    /// overloads apart. Only a synthetic construction has a definition that is not a declared type.
     /// </summary>
     private static string Qualify(
         IMistType definition, IReadOnlyList<IMistType> typeArguments, ConstructedType? enclosing)

@@ -3,13 +3,9 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// An extension block: its own type parameters and the methods written inside it. No state, since an
-/// extension block has none, and not a boundary, since it is not a type.
-/// <para>
-/// A method's own type parameters are not here. They live in the <see cref="MethodScope"/> beneath
-/// this one, which is what distinguishes <c>extension&lt;T&gt;(Foo&lt;T&gt; self)</c> from a generic
-/// method inside a non-generic block.
-/// </para>
+/// Not a boundary, since an extension block is not a type. A method's own type parameters live in the
+/// <see cref="MethodScope"/> beneath this one, which is what distinguishes a generic block from a
+/// generic method inside a non-generic block.
 /// </summary>
 internal sealed class ExtensionScope(Scope? parent) : Scope(parent)
 {

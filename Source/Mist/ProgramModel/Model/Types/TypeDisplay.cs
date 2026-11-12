@@ -5,14 +5,9 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// Renders a type as Mist source spells it, for diagnostics.
-/// <para>
-/// Separate from <see cref="IMistType.Name"/>, which is a structural name built for identity and
-/// debugging: it reports a primitive by its Standard name and carries a generic definition's arity
-/// marker, so a constructed type names itself <c>Box&lt;&gt;&lt;int&gt;</c>. Neither is a string the
-/// user can find in their own file, and a diagnostic naming a type they never wrote sends them
-/// looking for it.
-/// </para>
+/// Renders a type as Mist source spells it, for diagnostics. <see cref="IMistType.Name"/> is a
+/// structural name built for identity: it reports a primitive by its Standard name and carries a
+/// generic definition's arity marker, so a diagnostic using it names a type the user never wrote.
 /// </summary>
 internal static class TypeDisplay
 {
@@ -24,10 +19,9 @@ internal static class TypeDisplay
     /// <summary>
     /// The types of one message, spelled as <see cref="Mist(IMistType)"/> spells them except where two
     /// distinct type parameters it shows share a name -- an enclosing method's <c>T</c> beside the callee's --
-    /// which are then named with their declaration, <c>T of method Api.Pick</c>, so the reader can tell them
-    /// apart. Where that still reads alike, as for two overloads' <c>T</c>, the declaration is spelled in full:
-    /// the method's parameter types, the type's namespace. Only the parameters actually shown count, so a
-    /// message with no such pair is unchanged.
+    /// which are then named with their declaration, <c>T of method Api.Pick</c>. Where that still reads
+    /// alike, as for two overloads' <c>T</c>, the declaration is spelled in full: the method's parameter
+    /// types, the type's namespace. Only the parameters actually shown count.
     /// </summary>
     public static IReadOnlyList<string> Distinguished(IReadOnlyList<IMistType> types)
     {
@@ -104,9 +98,8 @@ internal static class TypeDisplay
     }
 
     /// <summary>
-    /// The reserved alias a Standard type is written with, so a diagnostic about <c>int</c> says
-    /// <c>int</c> rather than <c>Int32</c>. Mirrors the alias table in
-    /// <c>ScopeResolver.ResolveReservedAlias</c>, which is the mapping in the other direction.
+    /// Mirrors the alias table in <c>ScopeResolver.ResolveReservedAlias</c>, the mapping in the other
+    /// direction.
     /// </summary>
     private static string Keyword(IMistType type)
     {

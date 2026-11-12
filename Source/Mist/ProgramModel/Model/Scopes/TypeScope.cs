@@ -3,18 +3,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// A type declaration. Answers for the type's members and the receiver they name as <c>this</c>.
-/// <para>
 /// A boundary: leaving it leaves the type behind, so instance members drop out of the request on the
 /// way out. That is what lets a nested type name the enclosing type's statics but not its state.
-/// </para>
 /// </summary>
 internal sealed class TypeScope(Scope? parent, MistType type) : Scope(parent)
 {
-    /// <summary>
-    /// Never null: a type scope is built by its own type, from inside that type's constructor, so
-    /// neither can exist without the other.
-    /// </summary>
     public MistType Type { get; } = type;
 
     internal override LookupResult Lookup(LookupRequest request)

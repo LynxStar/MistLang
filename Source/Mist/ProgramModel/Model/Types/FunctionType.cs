@@ -25,8 +25,7 @@ internal sealed class FunctionType : MistType, IFunctionType
     public bool IsPure { get; }
 
     /// <summary>
-    /// The parameter types followed by the result, which is the order source writes and the order the
-    /// interner keys on.
+    /// The order source writes and the order the interner keys on.
     /// </summary>
     public IReadOnlyList<IMistType> TypeArgumentsInSourceOrder()
     {

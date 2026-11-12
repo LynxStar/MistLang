@@ -6,13 +6,10 @@ namespace Mist.ProgramModel.Model.Scopes;
 internal sealed class MethodScope(Scope? parent) : MemberScope(parent)
 {
     /// <summary>
-    /// Whether the member is declared static.
-    /// <para>
     /// Settable because the scope must exist before the declaration is resolved -- the signature
     /// needs somewhere to put its type parameters -- while the modifiers only arrive from that same
     /// resolution. Nothing reads it in between: signature resolution looks up type references,
     /// which exclude members outright.
-    /// </para>
     /// </summary>
     public bool IsStatic { get; internal set; }
 

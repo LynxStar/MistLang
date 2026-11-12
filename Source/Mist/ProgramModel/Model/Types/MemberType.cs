@@ -9,8 +9,7 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// Intermediate base for types that participate in inheritance and have
-/// method/property declarations: classes, structs, and abstracts.
+/// Base of the types that inherit and declare members: classes, structs and abstracts.
 /// </summary>
 internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParameters, IMethodHost, IHasAttributes
 {
@@ -26,38 +25,21 @@ internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParamete
     }
 
     /// <summary>
-    /// The AST declaration node for this type. Stashed during Phase 1
-    /// so Phase 2 can access member declarations without re-walking.
-    /// Null for assembly-projected types (which have no source AST).
+    /// Kept from Phase 1 so Phase 2 reaches member declarations without re-walking. Null for an
+    /// assembly-projected type.
     /// </summary>
     internal TypeDeclarationNode? DeclarationNode { get; }
 
-    /// <summary>
-    /// The type parameters declared on this type. Empty for non-generic types.
-    /// Populated during Phase 1 when the type is registered.
-    /// </summary>
     public List<TypeParameter> TypeParametersList { get; } = [];
 
-    /// <summary>
-    /// The modifiers declared on this type.
-    /// </summary>
     public MemberModifiers Modifiers { get; internal set; }
 
-    /// <summary>
-    /// Whether this type is declared as readonly.
-    /// </summary>
     public bool IsReadonly => Modifiers.IsReadonly;
 
-    /// <summary>
-    /// The attributes applied to this type.
-    /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
     public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
 
-    /// <summary>
-    /// Abstracts that this type implements or refines.
-    /// </summary>
     public List<MistType> BaseAbstractTypes { get; } = [];
 
     public List<Method> MethodsList { get; } = [];
@@ -74,13 +56,9 @@ internal abstract class MemberType : DeclaredType, IMemberType, IHasTypeParamete
     public List<Operator> OperatorsList { get; } = [];
 
     /// <summary>
-    /// Every delegate declared on this type, regardless of which list it is stored in.
-    /// Constructors, operators, and cast operators all derive from <see cref="Method"/>,
-    /// but are kept in separate lists because different type kinds admit different
-    /// subsets of them. This walk restores the single view of them that the grammar's
-    /// <c>Delegate</c> trait describes, so consumers that treat all delegates alike
-    /// (body binding, emission) do not have to enumerate each list by hand.
-    /// Includes bodiless delegates: filter on <see cref="Method.Body"/> if that matters.
+    /// Constructors, operators and cast operators derive from <see cref="Method"/> but are kept in
+    /// separate lists because type kinds admit different subsets of them; this walk restores the single
+    /// view the grammar's <c>Delegate</c> trait describes. Includes bodiless delegates.
     /// </summary>
     internal virtual IEnumerable<Method> EnumerateDelegates()
     {

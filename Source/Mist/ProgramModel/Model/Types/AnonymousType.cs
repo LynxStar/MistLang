@@ -6,15 +6,13 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// The type of a <c>new { X = 1, Y = 2 }</c> literal: an ordered list of named members and nothing
-/// else. Interned on that shape, so two independently written literals of the same shape ARE one
-/// type -- which is what makes them assignable to each other, and is also exactly how C# identifies
-/// its own anonymous types, so the structural identity survives emission rather than being
-/// reconstructed there.
+/// The type of a <c>new { X = 1, Y = 2 }</c> literal. Interned on its ordered named members, so two
+/// independently written literals of the same shape ARE one type: that makes them assignable to each
+/// other, and it is how C# identifies its own anonymous types, so the identity survives emission.
 /// <para>
-/// ORDER IS PART OF THE SHAPE, because it is part of C#'s. Two literals differing only in the order
-/// they name the same members are two types in the emitted program, so they must be two here; a set
-/// would unify them and emission would then silently assign between unrelated C# types.
+/// ORDER IS PART OF THE SHAPE, because it is part of C#'s. Two literals differing only in member order
+/// are two types in the emitted program, so they must be two here; a set would unify them and emission
+/// would then silently assign between unrelated C# types.
 /// </para>
 /// </summary>
 internal sealed class AnonymousType : MistType

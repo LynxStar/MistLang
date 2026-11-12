@@ -6,14 +6,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// What a name means on a type, read from the type itself.
-/// <para>
-/// Two callers ask, differing only in what they already know. An unqualified name reaches a
-/// <see cref="TypeScope"/> mid-walk without knowing whether it is a local, a member, a type or a
-/// namespace, and continues outward if this answers nothing. A qualified <c>receiver.X</c> knows
-/// which type to ask and must not continue anywhere. The question itself is identical, so it lives
-/// here once.
-/// </para>
+/// Two callers ask the same question, differing only in what they already know. An unqualified name
+/// reaches a <see cref="TypeScope"/> mid-walk and continues outward if this answers nothing; a
+/// qualified <c>receiver.X</c> knows which type to ask and must not continue anywhere.
 /// </summary>
 internal static class TypeMemberLookup
 {
@@ -25,12 +20,9 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// Adds every match on the type and its bases to an existing set, for a caller weighing
-    /// candidates of its own alongside these.
-    /// <para>
-    /// The whole base graph is walked, never stopping early, because shadowing cannot be decided
-    /// until every depth has been seen -- see <see cref="CandidateSet"/>.
-    /// </para>
+    /// For a caller weighing candidates of its own alongside these. The whole base graph is walked,
+    /// never stopping early, because shadowing cannot be decided until every depth has been seen --
+    /// see <see cref="CandidateSet"/>.
     /// </summary>
     public static void Gather(MistType type, LookupRequest request, CandidateSet candidates)
     {
@@ -53,21 +45,12 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// Bases breadth-first, the concrete base before the declared abstracts. <paramref name="seen"/>
-    /// makes a diamond one visit rather than two, and stops a cycle from hanging the walk.
+    /// A CONSTRUCTED base is walked through its definition, where members are declared, and the
+    /// construction is recorded on the path for the caller to substitute through -- see
+    /// <see cref="FieldResult.BaseConstructions"/>.
     /// <para>
-    /// A CONSTRUCTED base is walked through its definition, since that is where members are declared,
-    /// and the construction is RECORDED on the path so a caller can substitute through it -- nothing
-    /// in this layer can apply it, substitution belonging to
-    /// <see cref="Construction.Binding.TypeSubstitution"/> in the layer above. The path accumulates
-    /// outward-to-inward, a base of a constructed base needing its ancestor's mapping as well as its
-    /// own before either means anything.
-    /// </para>
-    /// <para>
-    /// A TYPE PARAMETER's nominal constraints are bases of it in the only sense that matters here.
-    /// <c>where T : IOrderable</c> is the whole of what is known about a T, so it is exactly what a
-    /// member access on one may see -- and being all that is known, it is also the only thing that
-    /// could answer. A keyword or constructor constraint carries no members and contributes nothing.
+    /// A TYPE PARAMETER's nominal constraints are its bases: they are the whole of what is known about
+    /// it, so they are exactly what a member access on one may see.
     /// </para>
     /// </summary>
     private static void EnqueueBases(
@@ -141,9 +124,8 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// Nested types, and at depth 0 only, the type's own type parameters and abstract slots. A base's
-    /// type parameters are bound by its own declaration: in <c>class Derived&lt;T&gt; :
-    /// Base&lt;T&gt;</c> the <c>T</c> in scope is Derived's.
+    /// Type parameters and abstract slots come from depth 0 only: a base's type parameters are bound
+    /// by the base's own declaration, and the one in scope is the deriving type's.
     /// </summary>
     private static void AddTypeNames(
         MistType type, LookupRequest request, int depth, IReadOnlyList<ConstructedType> path, CandidateSet candidates)
@@ -186,10 +168,6 @@ internal static class TypeMemberLookup
         }
     }
 
-    /// <summary>
-    /// Fields and properties, plus the two kinds reached by the same syntax without being stored as
-    /// ordinary members: tuple elements and enum variants.
-    /// </summary>
     private static void AddState(
         MistType type,
         LookupRequest request,
@@ -327,8 +305,7 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// Declared fields for a concrete type; for a tuple, the synthesized element fields, which are
-    /// how <c>Item1</c> and a named element are reached.
+    /// A tuple's synthesized element fields are how <c>Item1</c> and a named element are reached.
     /// </summary>
     private static IReadOnlyList<Field> FieldsOf(MistType type)
     {
@@ -344,9 +321,8 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// The overloads declared at this depth, as a group. Constructors, operators and cast operators
-    /// are excluded by construction: they live in their own lists because they are not reached by
-    /// name.
+    /// Constructors, operators and cast operators are excluded by construction: they live in their own
+    /// lists because they are not reached by name.
     /// </summary>
     private static void AddMethods(
         MistType type,
@@ -395,9 +371,8 @@ internal static class TypeMemberLookup
     }
 
     /// <summary>
-    /// Private members are visible only on the type that declared them. Coarser than C#: internal
-    /// and protected are not distinguished, because the model has no assembly boundary to measure
-    /// internal against.
+    /// Coarser than C#: internal and protected are not distinguished, because the model has no
+    /// assembly boundary to measure internal against.
     /// </summary>
     private static bool IsVisible(Accessibility accessibility, int depth)
     {

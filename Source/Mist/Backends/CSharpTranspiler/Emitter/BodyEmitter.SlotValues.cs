@@ -14,8 +14,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// its own read, and a capture is its initializer written where the node that owns it consumes it. A
 /// method's inferred parameter is the one capture consumed away from its owner, so it is read back
 /// through the argument that carries it, and that argument is bound once when reading it twice would run
-/// it twice. The hidden argument comes first in the C# call, so the receiver and every argument written
-/// before the carrier are bound with it, in source order, or they would run after it.
+/// it twice. An extension block's own parameter is read through the receiver that closed it, as its
+/// length or its hidden field. The hidden argument comes first in the C# call, so the receiver and every
+/// argument written before the carrier are bound with it, in source order, or they would run after it.
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -187,8 +188,10 @@ internal static partial class BodyEmitter
         {
             hidden.Add(argument switch
             {
-                CapturedValue captured when !invocation.Captures.Contains(captured.Capture) => ReadThroughArgument(invocation, captured)
-                    ?? EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default"),
+                CapturedValue captured when !invocation.Captures.Contains(captured.Capture) => ReadThroughReceiver(invocation, slot)
+                    ?? ReadThroughArgument(invocation, captured)
+                    ?? RefuseNested(invocation, method, slot, captured),
+                UnknownType or UnknownValueType => ReadThroughReceiver(invocation, slot) ?? RefuseNested(invocation, method, slot, carried: null),
                 not null when SlotValue(argument, diagnostics) is { } value => value,
                 _ => EmissionDiagnostics.Fallback("slot value", $"{method.Name}.{slot.Name}", "default"),
             });
@@ -208,18 +211,9 @@ internal static partial class BodyEmitter
 
         var carriers = new List<Expression>();
 
-        foreach(var (_, argument) in RoutedCallSlots(typeArguments, parameters))
+        foreach(var (slot, argument) in RoutedCallSlots(typeArguments, parameters))
         {
-            if(argument is not CapturedValue captured)
-            {
-                continue;
-            }
-
-            var carrier = invocation.Captures.Contains(captured.Capture)
-                ? (captured.Capture.Initializer as MemberAccessExpression)?.Receiver
-                : CarryingArgument(invocation, captured)?.Argument;
-
-            if(carrier is not null && !carriers.Contains(carrier))
+            if(Carrier(invocation, slot, argument) is { } carrier && !carriers.Contains(carrier))
             {
                 carriers.Add(carrier);
             }
@@ -261,6 +255,11 @@ internal static partial class BodyEmitter
         return bindings;
     }
 
+    private static string? ReadThroughReceiver(InvocationExpression invocation, TypeParameter slot)
+    {
+        return ReceiverRead(invocation, slot) is var (receiver, member) ? $"{RenderAt(receiver, PostfixPrecedence, new DiagnosticBag())}.{member}" : null;
+    }
+
     private static string? ReadThroughArgument(InvocationExpression invocation, CapturedValue captured)
     {
         if(CarryingArgument(invocation, captured) is not var (argument, closing, slot))
@@ -296,6 +295,52 @@ internal static partial class BodyEmitter
         }
 
         return null;
+    }
+
+    private static string RefuseNested(InvocationExpression invocation, Method method, TypeParameter slot, CapturedValue? carried)
+    {
+        var nesting = method.ClosedBlock is { ResolvedReceiverType: { } receiverType } block && block.TypeParametersList.Contains(slot)
+            ? method.BlockClosing.Apply(receiverType, interner: null)
+            : carried is null ? null : (invocation.ParameterTypes ?? []).FirstOrDefault(type => Mentions(type, carried));
+
+        if(nesting is null)
+        {
+            return EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default");
+        }
+
+        EmissionDiagnostics.Refuse(BackendDiagnostics.InferredSlotNestedInArgument, new NameValue(method.Name), new NameValue(slot.Name), DiagnosticSnapshot.Type(nesting));
+        return "default";
+    }
+
+    private static bool Mentions(IMistType type, IMistType target)
+    {
+        var closed = TypeNameEmitter.Closed(type);
+
+        return ReferenceEquals(closed, target) || (Unaliased(closed) is ConstructedType constructed && constructed.TypeArguments.Any(argument => Mentions(argument, target)));
+    }
+
+    private static (Expression Receiver, string Member)? ReceiverRead(InvocationExpression invocation, TypeParameter slot)
+    {
+        if(invocation is not { Receiver: MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression }, Method: { Modifiers.IsStatic: false, ClosedBlock: { } block } }
+            || SlotRoutes.ReceiverSlot(block, slot) is not var (open, carried))
+        {
+            return null;
+        }
+
+        return LengthErasure.IsLengthIndexed(open) ? (receiver, "Length")
+            : SlotRoutes.IsValueRouted(carried) ? (receiver, SlotRoutes.Hidden(carried))
+            : null;
+    }
+
+    private static Expression? Carrier(InvocationExpression invocation, TypeParameter slot, IMistType? argument)
+    {
+        return argument switch
+        {
+            CapturedValue captured when invocation.Captures.Contains(captured.Capture) => (captured.Capture.Initializer as MemberAccessExpression)?.Receiver,
+            CapturedValue captured => ReceiverRead(invocation, slot)?.Receiver ?? CarryingArgument(invocation, captured)?.Argument,
+            UnknownType or UnknownValueType => ReceiverRead(invocation, slot)?.Receiver,
+            _ => null,
+        };
     }
 
     private static void EmitBoundCall(List<Expression> bindings, Action emit, CSharpWriter writer, DiagnosticBag diagnostics)

@@ -1,4 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -119,6 +121,34 @@ public sealed class SlotRouteDecisionTests
         Assert.Equal([answerParameter, slotParameter], fromSlot.OrderBy(parameter => parameter.Name));
         Assert.Equal([answerParameter, slotParameter], fromAnswer.OrderBy(parameter => parameter.Name));
         Assert.Equal([slotParameter], unlinked);
+    }
+
+    [Fact]
+    public void ABlockSlotFilledThroughTheReceiverIsReadFromTheCallAndRoutedWhenCapturedOrInferredFromUnknown()
+    {
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var n = slots.Dependent("N");
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "WrapperExtensions", ResolvedReceiverType = slots.Closed(wrapper, n) };
+        block.TypeParametersList.Add(n);
+        var size = new Method("Size", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(size);
+        var closed = ExtensionSpecialization.Close(size, block, [capture.Value], slots.Refinements.Built.Interner);
+        var receiver = HandBuiltRefinements.Local(slots.Closed(wrapper, capture.Value), "w");
+        var call = new InvocationExpression(HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Size", slots.Int, []), [], slots.Int, closed, []);
+        var plain = new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), len, [slots.Literal(3)]), [], slots.Int, len, []);
+
+        var (found, arguments) = Assert.NotNull(SlotRoutes.ClosedThroughReceiver(call));
+        var (open, carried) = Assert.NotNull(SlotRoutes.ReceiverSlot(block, n));
+
+        Assert.Same(block, found);
+        Assert.Same(capture.Value, Assert.Single(arguments));
+        Assert.Null(SlotRoutes.ClosedThroughReceiver(plain));
+        Assert.Same(wrapper, open.Definition);
+        Assert.Same(wrapper.TypeParametersList[0], carried);
+        Assert.Equal([n], SlotRoutes.Discover([(block, [capture.Value])], [], [block]));
+        Assert.Empty(SlotRoutes.Discover([(block, [UnknownType.Instance])], [], [block]));
+        Assert.Equal([n], SlotRoutes.Discover([(block, [UnknownType.Instance])], [], [block], inferredFromUnknown: [(block, 0)]));
+        Assert.Empty(SlotRoutes.Discover([(block, [slots.Literal(3)])], [], [block]));
     }
 
     private (Method Method, TypeParameter Parameter) Measure(string parameter)

@@ -20,8 +20,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// declaration's route is fixed by its uses, and a closing written in one file carries a value a type
 /// declared in another must hold. An abstract's method and each method answering it take one route,
 /// because C# matches an implementation to its interface member by signature and a hidden parameter
-/// on one side only would leave the member unimplemented. Array and the spans are left out:
-/// <see cref="LengthErasure"/> drops their slot and the CLR object holds the value already.
+/// on one side only would leave the member unimplemented. An extension block's own parameters are
+/// closed on a copy of the method at lookup rather than recorded with the call's type arguments, so
+/// each call is read for them. Array and the spans are left out: <see cref="LengthErasure"/> drops
+/// their slot and the CLR object holds the value already.
 /// </summary>
 internal sealed class SlotRoutes : IDisposable
 {
@@ -134,6 +136,7 @@ internal sealed class SlotRoutes : IDisposable
         }
 
         var reads = new List<TypeParameter>();
+        var inferred = new List<(IHasTypeParameters Definition, int Ordinal)>();
 
         foreach(var root in SourceBodies.Of(model))
         {
@@ -143,10 +146,59 @@ internal sealed class SlotRoutes : IDisposable
                 {
                     reads.Add(slot);
                 }
+
+                if(node is not InvocationExpression invocation || ClosedThroughReceiver(invocation) is not var (block, arguments))
+                {
+                    continue;
+                }
+
+                closings.Add((block, arguments));
+
+                for(var i = 0; i < arguments.Count; i++)
+                {
+                    if(arguments[i] is not (UnknownType or UnknownValueType))
+                    {
+                        continue;
+                    }
+
+                    inferred.Add((block, i));
+
+                    if(ReceiverSlot(block, block.TypeParametersList[i]) is var (_, carried))
+                    {
+                        reads.Add(carried);
+                    }
+                }
             }
         }
 
-        return Discover(closings, reads, Declarations(model), Answers(model));
+        return Discover(closings, reads, Declarations(model), Answers(model), inferred);
+    }
+
+    public static (ExtensionBlock Block, IReadOnlyList<IMistType> Arguments)? ClosedThroughReceiver(InvocationExpression invocation)
+    {
+        return invocation.Method is { ClosedBlock: { DeclarationNode: not null } block } method
+            ? (block, block.TypeParametersList.ConvertAll(parameter => method.BlockClosing.Apply(parameter, interner: null)))
+            : null;
+    }
+
+    public static (ConstructedType Receiver, TypeParameter Slot)? ReceiverSlot(ExtensionBlock block, TypeParameter parameter)
+    {
+        if(block.ResolvedReceiverType is not { } receiverType
+            || TypeNameEmitter.Closed(receiverType) is not ConstructedType receiver
+            || receiver.Definition is not IHasTypeParameters generic)
+        {
+            return null;
+        }
+
+        for(var i = 0; i < receiver.TypeArguments.Count && i < generic.TypeParametersList.Count; i++)
+        {
+            if(ReferenceEquals(receiver.TypeArguments[i], parameter))
+            {
+                return (receiver, generic.TypeParametersList[i]);
+            }
+        }
+
+        return null;
     }
 
     public static TypeParameter? ReadThroughUnknown(MemberAccessExpression access)
@@ -162,7 +214,8 @@ internal sealed class SlotRoutes : IDisposable
         IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> closings,
         IEnumerable<TypeParameter> readThroughUnknown,
         IEnumerable<IHasTypeParameters> declarations,
-        IEnumerable<(Method Slot, Method Answer)>? answers = null)
+        IEnumerable<(Method Slot, Method Answer)>? answers = null,
+        IEnumerable<(IHasTypeParameters Definition, int Ordinal)>? inferredFromUnknown = null)
     {
         var routed = new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance);
         var fills = closings.ToList();
@@ -183,6 +236,11 @@ internal sealed class SlotRoutes : IDisposable
                     _ = route(definition, i);
                 }
             }
+        }
+
+        foreach(var (definition, ordinal) in inferredFromUnknown ?? [])
+        {
+            _ = route(definition, ordinal);
         }
 
         foreach(var slot in readThroughUnknown)

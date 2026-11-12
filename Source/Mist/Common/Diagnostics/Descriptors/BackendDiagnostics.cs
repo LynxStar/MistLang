@@ -364,4 +364,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("member", SlotKind.Name), new Slot("earlier", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic InferredSlotNestedInArgument = new(
+        DiagnosticNumber.Mint("MIST0498"),
+        Title: "Inferred slot nested in an argument",
+        Template: "'{method}' cannot infer '{parameter}' from '{type}': the value is carried inside another type's argument, where the C# backend has no member to read it back from.",
+        Description: "A method's or an extension block's dependent parameter is inferred from a closing that sits inside another type's argument, such as the element type of a list, and that closing is filled somewhere with a value known only when the program runs. The backend reads such a value back through the receiver or the argument that carries it directly, as its hidden field or its length; a closing nested in another type's argument offers no such member, and a collection may hold no element to read. Pass the carrying value itself, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("method", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 }

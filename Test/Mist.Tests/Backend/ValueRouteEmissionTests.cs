@@ -2,6 +2,7 @@ using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -387,6 +388,103 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
+    public void ABlockWhoseOwnSlotIsValueRoutedTakesItAsAHiddenLeadingParameter()
+    {
+        var (block, n) = ArrayBlock();
+        var count = new Method("Count", slots.Int, [], default)
+        {
+            DeclaringBlock = block,
+            Scope = new Scope(null),
+            Body = HandBuiltModel.Block(new ReturnStatement(HandBuiltModel.Literal(slots.Int, 1L), slots.Int)),
+        };
+        block.MethodsList.Add(count);
+        using var routes = SlotRoutes.Enter([n]);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        var anyEmitted = false;
+
+        ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
+
+        Assert.Contains("public static int Count(this int[] self, int __N)", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("TN", writer.ToString(), StringComparison.Ordinal);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void AnExtensionCallReadsTheBlocksSlotThroughAnArrayReceiverBoundOnce()
+    {
+        var (block, n) = ArrayBlock();
+        var count = new Method("Count", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(count);
+        var pick = new Method("Pick", slots.ArrayOf(UnknownType.Instance), [], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        using var routes = SlotRoutes.Enter([n]);
+
+        Assert.Equal(
+            "(Pick() switch { var __e1 => Probe.ArrayExtensions.Count(__e1, __e1.Length) })",
+            Emit(Through(Call(pick, [], [], []), Closed(count, block, UnknownType.Instance), [], [], [])));
+        Assert.Equal(
+            "Probe.ArrayExtensions.Count(a, a.Length)",
+            Emit(Through(HandBuiltRefinements.Local(slots.ArrayOf(capture.Value), "a"), Closed(count, block, capture.Value), [], [], [])));
+    }
+
+    [Fact]
+    public void AnExtensionCallReadsTheBlocksSlotThroughAUserTypedReceiver()
+    {
+        var (block, n) = BoxBlock(slots.Closed(box, slots.Dependent("N")));
+        var size = new Method("Size", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(size);
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        using var routes = SlotRoutes.Enter([n, box.TypeParametersList[0]]);
+
+        Assert.Equal(
+            "Probe.BoxExtensions.Size(b, b.__N)",
+            Emit(Through(HandBuiltRefinements.Local(slots.Closed(box, capture.Value), "b"), Closed(size, block, capture.Value), [], [], [])));
+        Assert.Equal(
+            "Probe.BoxExtensions.Size(u, u.__N)",
+            Emit(Through(HandBuiltRefinements.Local(slots.Closed(box, UnknownType.Instance), "u"), Closed(size, block, UnknownType.Instance), [], [], [])));
+        Assert.Equal(
+            "Probe.BoxExtensions.Size(c, 5)",
+            Emit(Through(HandBuiltRefinements.Local(slots.Closed(box, slots.Literal(5)), "c"), Closed(size, block, slots.Literal(5)), [], [], [])));
+    }
+
+    [Fact]
+    public void AnInferredSlotNestedInAnArgumentsTypeIsRefused()
+    {
+        var list = ListType();
+        var m = slots.Dependent("M");
+        var cap = new Method("Cap", slots.Int, [new Parameter("boxes", slots.Closed(list, slots.Closed(box, m)))], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        cap.TypeParametersList.Add(m);
+        m.DeclaringMethod = cap;
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var boxes = slots.Closed(list, slots.Closed(box, capture.Value));
+        using var routes = SlotRoutes.Enter([m, box.TypeParametersList[0]]);
+
+        var refusal = Assert.Single(Refused(Call(cap, [capture.Value], [HandBuiltRefinements.Local(boxes, "boxes")], [boxes])));
+
+        Assert.Equal("MIST0498", refusal.Number.Value);
+        Assert.Contains("'Cap' cannot infer 'M' from 'List<Box<n>>'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnInferredBlockSlotNestedInTheReceiversTypeIsRefused()
+    {
+        var list = ListType();
+        var n = slots.Dependent("N");
+        var (block, _) = BoxBlock(slots.Closed(list, slots.Closed(box, n)), n);
+        var cap = new Method("Cap", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(cap);
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var boxes = slots.Closed(list, slots.Closed(box, capture.Value));
+        using var routes = SlotRoutes.Enter([n, box.TypeParametersList[0]]);
+
+        var refusal = Assert.Single(Refused(Through(HandBuiltRefinements.Local(boxes, "boxes"), Closed(cap, block, capture.Value), [], [], [])));
+
+        Assert.Equal("MIST0498", refusal.Number.Value);
+        Assert.Contains("'Cap' cannot infer 'N' from 'List<Box<n>>'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AValueRoutedTypeClosingAParameterizedConstructorConstraintIsRefused()
     {
         var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
@@ -554,6 +652,34 @@ public sealed class ValueRouteEmissionTests
 
         var refusal = Assert.Single(Refused(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Tested(nested, "items"))));
         Assert.Equal("MIST0013", refusal.Number.Value);
+    }
+
+    private (ExtensionBlock Block, TypeParameter N) ArrayBlock()
+    {
+        var n = slots.Dependent("N");
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "ArrayExtensions", ResolvedReceiverType = slots.ArrayOf(n) };
+        block.TypeParametersList.Add(n);
+        return (block, n);
+    }
+
+    private static (ExtensionBlock Block, TypeParameter N) BoxBlock(ConstructedType receiver, TypeParameter? n = null)
+    {
+        n ??= (TypeParameter)receiver.TypeArguments[0];
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "BoxExtensions", ResolvedReceiverType = receiver };
+        block.TypeParametersList.Add(n);
+        return (block, n);
+    }
+
+    private static ClassType ListType()
+    {
+        var list = HandBuiltModel.Class("List<>");
+        list.TypeParametersList.Add(new TypeParameter("T", 0, list.Scope, list));
+        return list;
+    }
+
+    private Method Closed(Method method, ExtensionBlock block, IMistType argument)
+    {
+        return ExtensionSpecialization.Close(method, block, [argument], slots.Refinements.Built.Interner);
     }
 
     private static (ExtensionBlock Block, ClassType Meter) MeterBlock()

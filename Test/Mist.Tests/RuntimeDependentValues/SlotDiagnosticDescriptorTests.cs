@@ -15,7 +15,7 @@ public sealed class SlotDiagnosticDescriptorTests
             BackendDiagnostics.StaticStorageOnValueRoute, BackendDiagnostics.TypeValueOfValueRoutedClosing,
             BackendDiagnostics.ValueRoutedAbstractAtTwoValues, BackendDiagnostics.RuntimeClosingTestUnderCombinator,
             BackendDiagnostics.ValueRoutedConstructorConstraintClosure, BackendDiagnostics.ZeroedStorageOfValueRoutedStruct,
-            BackendDiagnostics.CoincidingOverloads,
+            BackendDiagnostics.CoincidingOverloads, BackendDiagnostics.InferredSlotNestedInArgument,
         ];
         var retired = Assert.Single(DiagnosticRegistry.Index.Tombstones);
         var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)

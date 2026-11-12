@@ -9,6 +9,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -39,10 +40,11 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
     {
         var lifted = new LiftedReturns(context.GraphOf);
         var effects = new FieldEffects();
+        var sites = ClosingSites.Of(context);
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget, alternativeCap).Judge(
+            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget, alternativeCap, sites).Judge(
                 context.GraphOf(root), FactFlow.Nothing, root.Member switch
                 {
                     Method method => method.ParametersList,
@@ -90,15 +92,18 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
     }
 
     private sealed partial class Proving(
-        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget, int alternativeCap)
+        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget, int alternativeCap,
+        ClosingSites? sites = null)
     {
+        private readonly ClosingSites sites = sites ?? ClosingSites.None;
+
         public void Judge(FlowGraph graph, FactState entry, IReadOnlyList<Parameter>? parameters = null)
         {
             if(!NeedsFacts(graph))
             {
                 foreach(var nested in graph.Nested.Values)
                 {
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap, sites).Judge(nested, FactFlow.Nothing);
                 }
 
                 return;
@@ -111,10 +116,31 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
         private void Judge(FlowGraph graph, FactState state, FlowStep step)
         {
+            if(step is { Kind: FlowStepKind.Evaluate, Node: Expression met } && sites.TargetOf(met) is { } closing)
+            {
+                NeedClosing(state, met, closing);
+            }
+
             switch(step)
             {
+                case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Local: SlotCapture capture, Initializer: { } captured } }:
+                    Need(state, captured, capture.Type, captured, reading: Reading.ForClosing(sites.ClosingOf(capture)));
+                    break;
+
                 case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }:
                     Need(state, initializer, declaration.Local.Type, initializer);
+                    break;
+
+                case { Kind: FlowStepKind.Introduce, Node: ForEachStatement { ElementConversion: null } loop } when EnumerableElement.Of(loop.Collection.Type) is { } element:
+                    NeedClosing(state, element, loop.Variable.Type, loop.Collection.Node, [loop.Collection]);
+                    break;
+
+                case { Kind: FlowStepKind.Introduce, Node: TupleDeconstructionStatement deconstruction, Variable: { } introduced }:
+                    foreach(var (element, declared) in Deconstructed(deconstruction).Where(pair => ReferenceEquals(pair.Target, introduced)))
+                    {
+                        NeedClosing(state, element, declared.Type, deconstruction.Initializer.Node, [deconstruction.Initializer]);
+                    }
+
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
@@ -169,7 +195,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap, sites).Judge(nested, FactFlow.Nothing);
                     break;
             }
         }
@@ -349,12 +375,9 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 return;
             }
 
-            if(SlotIdentity.Judge(state, value, target) is { } unproven)
+            if(SlotIdentity.Judge(state, value, target, factReading, budget) is { } unproven)
             {
-                context.Report(
-                    ProgramAnalysisDiagnostics.ClosingNotProven, at.Node, [value],
-                    DiagnosticSnapshot.Type(unproven.Source), DiagnosticSnapshot.Type(unproven.Target),
-                    new NameValue(unproven.Left), new NameValue(unproven.Right), RefinementFindings.Case(null));
+                ReportClosing(unproven, at.Node, [value]);
                 return;
             }
 

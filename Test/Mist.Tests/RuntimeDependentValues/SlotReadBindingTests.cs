@@ -47,7 +47,8 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         var through = Assert.IsType<MemberAccessExpression>(statements[2].Initializer);
 
         Assert.Equal("Capacity", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(instance.Member).Type).Name);
-        Assert.Equal(4L, Assert.IsType<LiftedType>(instance.Type).Value);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, instance.Type.FullyQualifiedName);
+        Assert.Equal(4L, Assert.IsType<LiftedType>(Assert.IsType<ConstructedType>(instance.Receiver.Type).TypeArguments[0]).Value);
         Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, Assert.IsType<PropertyResult>(through.Member).Property.Type.FullyQualifiedName);
         Assert.Equal("Capacity", Assert.IsType<PropertyResult>(through.Member).Property.ProjectedParameter?.Name);
     }
@@ -61,7 +62,7 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
 
         Assert.Contains("its type 'int' is not a function type", Assert.Single(Errors(diagnostics, "MIST0363")).Message, StringComparison.Ordinal);
         Assert.StartsWith("'int' cannot be indexed", Assert.Single(Errors(diagnostics, "MIST0354")).Message, StringComparison.Ordinal);
-        Assert.StartsWith("'int' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
+        Assert.StartsWith("'Int32' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
         Assert.Equal(2, members.Count);
         Assert.Contains(members, message => message.StartsWith("'int' has no member named 'Nope'", StringComparison.Ordinal));
         Assert.Contains(members, message => message.StartsWith("'(int, int)' has no member named 'Nope'", StringComparison.Ordinal));

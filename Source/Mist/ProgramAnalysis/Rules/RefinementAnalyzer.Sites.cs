@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -12,10 +13,12 @@ internal sealed partial class RefinementAnalyzer
     private sealed partial class Proving
     {
         // Every site judged by Judge must participate here; nested bodies own independent entry facts.
-        private static bool NeedsFacts(FlowGraph graph)
+        private bool NeedsFacts(FlowGraph graph)
         {
-            return graph.Blocks.SelectMany(block => block.Steps).Any(step => step.Node switch
+            return graph.Blocks.SelectMany(block => block.Steps).Any(step => (step.Node is Expression met && sites.TargetOf(met) is { } target && SlotIdentity.Owes(met, target)) || step.Node switch
             {
+                ForEachStatement loop => loop.ElementConversion is null && SlotIdentity.Owes(EnumerableElement.Of(loop.Collection.Type), loop.Variable.Type),
+                TupleDeconstructionStatement deconstruction => Deconstructed(deconstruction).Any(pair => SlotIdentity.Owes(pair.Element, pair.Target.Type)),
                 LocalDeclarationStatement declaration => Refined(declaration.Local.Type) || SlotIdentity.Owes(declaration.Initializer, declaration.Local.Type),
                 AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type),
                 CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression,

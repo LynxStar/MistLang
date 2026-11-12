@@ -18,9 +18,9 @@ internal sealed partial class FactFlow
         return condition switch
         {
             BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: MemberAccessExpression { MemberName: "Length", Receiver: var sizedOne }, Right: var limit2 } sized
-                            when RangeKnowledge.IsLength((MemberAccessExpression)sized.Left) && Holder(sizedOne) is { } oneHolder && Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound => Sized(state, oneHolder, Requirement.Interval(sizedKind, sizedBound), holds),
+                            when SlotReads.IsLength((MemberAccessExpression)sized.Left) && Holder(sizedOne) is { } oneHolder && Comparison(sized.OperatorKind) is { } sizedKind && Requirement.Constant(limit2) is { } sizedBound => Sized(state, oneHolder, Requirement.Interval(sizedKind, sizedBound), holds),
             BinaryExpression { Operator: null or { Modifiers.IsIntrinsic: true }, Left: var limit3, Right: MemberAccessExpression { MemberName: "Length", Receiver: var sizedTwo } } sizedFlip
-                            when RangeKnowledge.IsLength((MemberAccessExpression)sizedFlip.Right) && Holder(sizedTwo) is { } twoHolder && Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound => Sized(state, twoHolder, Requirement.Interval(Mirrored(flipKind), flipBound), holds),
+                            when SlotReads.IsLength((MemberAccessExpression)sizedFlip.Right) && Holder(sizedTwo) is { } twoHolder && Comparison(sizedFlip.OperatorKind) is { } flipKind && Requirement.Constant(limit3) is { } flipBound => Sized(state, twoHolder, Requirement.Interval(Mirrored(flipKind), flipBound), holds),
             IsPatternExpression { Scrutinee: LocalReferenceExpression realSubject, Pattern: var realPattern }
                             when RealRequirement.KindOf(realSubject.Type) is { } realKind && RealRequirement.Of(realPattern, realKind) is { } realMatched
                             => RealKnowledge.Narrow(state, realSubject.Local, holds ? realMatched : realMatched.Not()),

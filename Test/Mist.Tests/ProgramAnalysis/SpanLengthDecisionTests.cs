@@ -23,27 +23,18 @@ public sealed class SpanLengthDecisionTests
     [InlineData("ReadOnlySpan<int, unknown>")]
     [InlineData("Array<int, unknown>")]
     [InlineData("int[]")]
-    public void AnErasedLength_HasTheDeclaredRuntimeDomainWithoutAKnownValue(string type)
+    public void AnErasedLength_IsTypedByTheSlotsDomainWithoutAKnownValue(string type)
     {
         var model = Build($"public static int Read({type} span) {{ int n = span.Length; return n; }}", out var nodes);
         var length = Assert.Single(nodes.OfType<MemberAccessExpression>(), access => access.MemberName == "Length");
         var parameter = Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(length.Member).Type);
-        var unknown = Assert.IsType<UnknownValueType>(length.Type);
 
-        Assert.Equal(
-            ConversionRelation.Unrefined(parameter.Domain!).FullyQualifiedName,
-            ConversionRelation.Unrefined(unknown.Domain).FullyQualifiedName);
-        Assert.Equal("Standard.Int32", ConversionRelation.Unrefined(unknown.Domain).FullyQualifiedName);
-
-        if(Assert.IsType<ConstructedType>(length.Receiver.Type).TypeArguments[1] is UnknownType)
-        {
-            Assert.Same(parameter.Domain, unknown.Domain);
-            Assert.Equal("ZeroOrPositiveInt", unknown.Domain.Name);
-            var requirement = Assert.IsType<Requirement>(Requirement.OfType(unknown.Domain));
-            Assert.True(requirement.Values.Contains(0));
-            Assert.False(requirement.Values.Contains(-1));
-        }
-
+        Assert.Same(parameter.Domain, length.Type);
+        Assert.Equal("Standard.Int32", ConversionRelation.Unrefined(length.Type).FullyQualifiedName);
+        Assert.Equal("ZeroOrPositiveInt", length.Type.Name);
+        var requirement = Assert.IsType<Requirement>(Requirement.OfType(length.Type));
+        Assert.True(requirement.Values.Contains(0));
+        Assert.False(requirement.Values.Contains(-1));
         Assert.Null(Requirement.Constant(length));
         Assert.Null(Lengths.Typed(length.Receiver.Type));
         Assert.Empty(Findings(model));
@@ -53,15 +44,15 @@ public sealed class SpanLengthDecisionTests
     [InlineData("Span<int, 3>")]
     [InlineData("ReadOnlySpan<int, 3>")]
     [InlineData("Array<int, 3>")]
-    public void AKnownLength_KeepsItsLiftedValueAndIndexSpecialization(string type)
+    public void AKnownLength_KeepsItsLiftedValueInTheReceiversTypeAndIndexSpecialization(string type)
     {
         var model = Build($"public static int Read({type} span) {{ var n = span.Length; return span[2]; }}", out var nodes);
         var length = Assert.Single(nodes.OfType<MemberAccessExpression>(), access => access.MemberName == "Length");
-        var lifted = Assert.IsType<LiftedType>(length.Type);
+        var lifted = Assert.IsType<LiftedType>(Assert.IsType<ConstructedType>(length.Receiver.Type).TypeArguments[1]);
         var element = Assert.Single(nodes.OfType<IndexExpression>());
 
         Assert.Equal(3L, lifted.Value);
-        Assert.Equal("Standard.Int32", lifted.Type.FullyQualifiedName);
+        Assert.Equal("ZeroOrPositiveInt", length.Type.Name);
         Assert.Equal(3L, Lengths.Exact(Lengths.Typed(length.Receiver.Type)));
         Assert.NotNull(element.ParameterType);
         Assert.Empty(Findings(model));
@@ -83,7 +74,7 @@ public sealed class SpanLengthDecisionTests
     {
         var model = Build($"public static int Read({type} span, int i) {{ {body} }}", out var nodes);
 
-        Assert.Contains(nodes, node => node is MemberAccessExpression { MemberName: "Length", Type: UnknownValueType });
+        Assert.Contains(nodes, node => node is MemberAccessExpression { MemberName: "Length", Type.Name: "ZeroOrPositiveInt" });
         Assert.NotEmpty(nodes.OfType<IndexExpression>());
         Assert.Empty(Findings(model));
     }

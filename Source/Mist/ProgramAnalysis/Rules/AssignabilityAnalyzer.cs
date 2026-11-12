@@ -56,13 +56,13 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     break;
 
                 case CoalesceExpression coalesce:
-                    CheckUnflowed(context, coalesce.Right, coalesce.Type);
+                    Check(context, coalesce.Right, coalesce.Type);
                     break;
 
                 case SwitchExpression switchExpression:
                     foreach(var arm in switchExpression.Arms)
                     {
-                        CheckUnflowed(context, arm.Result, switchExpression.Type);
+                        Check(context, arm.Result, switchExpression.Type);
                     }
 
                     break;
@@ -70,17 +70,17 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                 case ArrayLiteralExpression literal:
                     foreach(var element in literal.Elements)
                     {
-                        CheckUnflowed(context, element, literal.ElementType);
+                        Check(context, element, literal.ElementType);
                     }
 
                     break;
 
                 case LambdaExpression { Result: { } result } lambda when ResultTarget(lambda) is { } target:
-                    CheckUnflowed(context, result, target);
+                    Check(context, result, target);
                     break;
 
                 case ForEachStatement { ElementConversion: null } loop when EnumerableElement.Of(loop.Collection.Type) is { } element:
-                    Check(context, element, loop.Variable.Type, loop.Collection.Node, [loop.Collection], unflowed: true);
+                    Check(context, element, loop.Variable.Type, loop.Collection.Node, [loop.Collection]);
                     break;
 
                 case TupleDeconstructionStatement deconstruction:
@@ -88,7 +88,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     break;
 
                 case WithBlockStatement ambient when !ReferenceEquals(ambient.KeyType, ambient.Value.Type):
-                    CheckUnflowed(context, ambient.Value, ambient.KeyType);
+                    Check(context, ambient.Value, ambient.KeyType);
                     break;
 
                 case ImplicitConversionExpression conversion when Assignability.JudgeSelection(conversion.AmbiguousOperators.Count) is { } ambiguity:
@@ -139,7 +139,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
         {
             if(property.Initializer is { } initializer)
             {
-                CheckUnflowed(context, initializer, property.Type);
+                Check(context, initializer, property.Type);
             }
 
             CheckGetter(context, property.Getter, property.Type);
@@ -154,7 +154,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
         {
             if(field.Initializer is { } initializer)
             {
-                CheckUnflowed(context, initializer, field.Type);
+                Check(context, initializer, field.Type);
             }
         }
 
@@ -170,7 +170,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     {
         if(getter?.ExpressionBody is { } body)
         {
-            CheckUnflowed(context, body, type);
+            Check(context, body, type);
         }
     }
 
@@ -242,7 +242,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 
             Check(
                 context, elements[i], deconstruction.Targets[i].Type,
-                deconstruction.Initializer.Node, [deconstruction.Initializer], unflowed: true);
+                deconstruction.Initializer.Node, [deconstruction.Initializer]);
         }
     }
 
@@ -287,7 +287,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
     }
 
     private static void Check(
-        AnalysisContext context, IMistType from, IMistType to, SyntaxNode at, IReadOnlyList<Expression> about, bool unflowed = false)
+        AnalysisContext context, IMistType from, IMistType to, SyntaxNode at, IReadOnlyList<Expression> about)
     {
         var interner = context.Model.TypeInterner;
 
@@ -296,28 +296,5 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
         {
             context.Report(descriptor, at, about, DiagnosticSnapshot.Type(from), DiagnosticSnapshot.Type(to));
         }
-        else if(unflowed && SlotIdentity.Judge(FactState.Empty, from, to, through: null) is { } unproven)
-        {
-            ReportUnproven(context, unproven, at, about);
-        }
-    }
-
-    // A position the refinement flow has no step for meets a closing with no facts in hand, so only the same capture is one type there.
-    private static void CheckUnflowed(AnalysisContext context, Expression value, IMistType target)
-    {
-        Check(context, value, target);
-
-        if(SlotIdentity.Judge(FactState.Empty, value, target) is { } unproven)
-        {
-            ReportUnproven(context, unproven, value.Node, [value]);
-        }
-    }
-
-    private static void ReportUnproven(AnalysisContext context, UnprovenSlot unproven, SyntaxNode at, IReadOnlyList<Expression> about)
-    {
-        context.Report(
-            ProgramAnalysisDiagnostics.ClosingNotProven, at, about,
-            DiagnosticSnapshot.Type(unproven.Source), DiagnosticSnapshot.Type(unproven.Target),
-            new NameValue(unproven.Left), new NameValue(unproven.Right), new OptionalValue(SlotKind.Name, null));
     }
 }

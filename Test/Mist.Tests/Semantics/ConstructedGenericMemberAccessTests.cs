@@ -264,7 +264,8 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
         var access = InitializerOf<MemberAccessExpression>("var s = new Sized<7>(); var n = s.N;", Projections);
 
         Assert.Equal("N", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(access.Member).Type).Name);
-        Assert.Equal(7L, Assert.IsType<LiftedType>(access.Type).Value);
+        Assert.Equal("Standard.Int32", access.Type.FullyQualifiedName);
+        Assert.Equal(7L, Assert.IsType<LiftedType>(Assert.IsType<ConstructedType>(access.Receiver.Type).TypeArguments[0]).Value);
     }
 
     private static ConstructedType ReceiverTypeOf(InvocationExpression call)

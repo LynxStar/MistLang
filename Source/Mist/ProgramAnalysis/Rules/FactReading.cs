@@ -59,12 +59,25 @@ internal sealed class FactReading(LiftedReturns lifted)
             return constant;
         }
 
+        if(expression is MemberAccessExpression read && SlotReads.Parameter(read) is { } slot && SlotReads.Argument(read, slot) is { } argument
+            && argument is not (UnknownType or UnknownValueType) && SlotReads.Value(ref state, this, argument, null, slot) is { } closed)
+        {
+            var receiver = Read(ref state, read.Receiver);
+            if(receiver is { Constant.IsZero: true, Variables: [var owner] } && closed is { Constant.IsZero: true, Variables: [var held] } && closed.Multipliers[0].IsOne
+                && slot.DeclaringType is ClassType or StructType)
+            {
+                state = state with { Bindings = state.Bindings.Set(new MemberHolder(owner, slot), held) };
+            }
+
+            return closed;
+        }
+
         if(Holder(ref state, expression) is { } holder)
         {
             var stable = !state.Unseen.Contains(holder) && expression switch
             {
                 MemberAccessExpression access => (access.Receiver is ThisExpression && access.Member is FieldResult)
-                    || RangeKnowledge.IsLength(access) || (access.Member is { } member && StableMembers.IsStable(member)),
+                    || SlotReads.Member(access) is not null || (access.Member is { } member && StableMembers.IsStable(member)),
                 PropertyReferenceExpression property => StableMembers.IsStable(new PropertyResult(property.Property, property.Property.DeclaringType!, [])),
                 _ => true,
             };
@@ -86,7 +99,7 @@ internal sealed class FactReading(LiftedReturns lifted)
                 state = state with { Bindings = state.Bindings.Set(holder, value) };
             }
 
-            if(expression is MemberAccessExpression access2 && RangeKnowledge.IsLength(access2))
+            if(expression is MemberAccessExpression access2 && SlotReads.IsLength(access2))
             {
                 state = state with { Bag = AddValues(state.Bag, value, FactFlow.Length(state, access2.Receiver, lifted) ?? Admitted.AtLeast(0)) };
             }
@@ -167,9 +180,9 @@ internal sealed class FactReading(LiftedReturns lifted)
         if(expression is MemberAccessExpression { Receiver: not ThisExpression } access)
         {
             var receiver = Read(ref state, access.Receiver);
-            if(RangeKnowledge.IsLength(access) && receiver is { Constant.IsZero: true, Variables.Length: 1 })
+            if(SlotReads.Member(access) is { } slot && receiver is { Constant.IsZero: true, Variables.Length: 1 })
             {
-                return new MemberHolder(receiver.Variables[0], LengthMember(access.Receiver.Type));
+                return new MemberHolder(receiver.Variables[0], slot);
             }
         }
 
@@ -235,7 +248,7 @@ internal sealed class FactReading(LiftedReturns lifted)
 
         if(bound.Named is LocalVariable local)
         {
-            return Read(ref state, new LocalReferenceExpression(local.Parameter?.DeclarationNode!, local));
+            return Read(ref state, new LocalReferenceExpression(local is SlotCapture capture ? capture.Initializer.Node : local.Parameter?.DeclarationNode!, local));
         }
 
         if(bound.Named is Parameter parameter)

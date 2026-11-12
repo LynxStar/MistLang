@@ -8,12 +8,13 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// A dependent parameter read through a value, <c>ring.Capacity</c>: the value the receiver's type was
-/// closed with, typed by that argument as <c>arr.Length</c> is, met through the closing of the slot's
-/// declaring type that the receiver reaches with its own arguments applied along the lookup's path; a
-/// member named on the read answers through the slot's domain. A bare <c>unknown</c> in the slot
-/// carries no domain, so that read is typed by the slot's own contract instead. The one read with no
-/// answer is the slot of an abstract the receiver's type leaves <c>unknown</c>, because an object may
-/// implement that abstract at more than one value (runtime-dependent-values Requirement 11.2).
+/// closed with, met through the closing of the slot's declaring type that the receiver reaches with its
+/// own arguments applied along the lookup's path. The read is typed by the slot's contract whatever the
+/// closing holds, so <c>a.Length</c> is a <c>ZeroOrPositiveInt</c> and <c>ring.Capacity</c> an <c>int</c>
+/// where a type belongs; what the read holds is known through the receiver's type, which Stage 5 reads
+/// (runtime-dependent-values Requirement 7). The one read with no answer is the slot of an abstract the
+/// receiver's type leaves <c>unknown</c>, because an object may implement that abstract at more than one
+/// value (Requirement 11.2).
 /// </summary>
 internal static class InstanceSlotRead
 {
@@ -30,7 +31,7 @@ internal static class InstanceSlotRead
         }
 
         var argument = closing.TypeArguments[slot.Ordinal];
-        return argument is UnknownType ? Contract(slot) ?? argument : argument;
+        return argument is ErrorType ? argument : Contract(slot) ?? argument;
     }
 
     public static IMistType? Contract(TypeParameter slot)

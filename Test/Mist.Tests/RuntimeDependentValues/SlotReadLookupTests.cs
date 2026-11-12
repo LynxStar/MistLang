@@ -92,13 +92,15 @@ public sealed class SlotReadLookupTests
     }
 
     [Fact]
-    public void TheReadIsTypedByTheValueTheClosingHoldsInTheSlot()
+    public void TheReadIsTypedByTheSlotsContractWhateverTheClosingHolds()
     {
         var capacity = ring.TypeParametersList[0];
         var captured = slots.Capture(new LocalVariable("n", slots.Int)).Value;
 
-        Assert.Same(slots.Literal(4), InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, slots.Literal(4))));
-        Assert.Same(captured, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, captured)));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, slots.Literal(4))));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, captured)));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, new UnknownValueType(slots.Int))));
+        Assert.Same(ErrorType.Instance, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, ErrorType.Instance)));
         Assert.Null(InstanceSlotRead.TypeOf(capacity, null));
     }
 

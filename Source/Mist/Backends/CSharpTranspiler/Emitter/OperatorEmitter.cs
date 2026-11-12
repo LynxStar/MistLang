@@ -4,9 +4,8 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits a user-declared operator. The signature is built from <see cref="Operator.Symbol"/> rather than
-/// from the member's name, which is the CLR spelling (<c>op_Addition</c>) and not a C# identifier -- the
-/// same reason <see cref="CastOperatorEmitter"/> builds its own from the target type.
+/// The signature is built from <see cref="Operator.Symbol"/> rather than from the member's name, which
+/// is the CLR spelling (<c>op_Addition</c>) and not a C# identifier.
 /// </summary>
 internal static class OperatorEmitter
 {

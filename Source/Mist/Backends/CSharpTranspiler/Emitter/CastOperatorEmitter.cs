@@ -5,11 +5,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits a cast operator declaration. The signature is built from
-/// <see cref="CastOperator.IsImplicit"/> and <see cref="CastOperator.TargetType"/> rather than from
-/// the member's name, which encodes both but is not a C# identifier: a cast operator names itself
-/// <c>op_Implicit_{Target}</c> so that the two kinds and the several targets stay distinct in a list
-/// keyed by name.
+/// The signature is built from <see cref="CastOperator.IsImplicit"/> and
+/// <see cref="CastOperator.TargetType"/> rather than from the member's name, which encodes both
+/// (<c>op_Implicit_{Target}</c>) so that the kinds and targets stay distinct in a list keyed by name,
+/// but is not a C# identifier.
 /// </summary>
 internal static class CastOperatorEmitter
 {

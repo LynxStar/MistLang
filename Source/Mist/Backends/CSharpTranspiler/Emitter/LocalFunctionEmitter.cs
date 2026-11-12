@@ -6,9 +6,8 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits a local function as a C# local function where it was declared. Only <c>static</c> and
-/// <c>async</c> survive of its modifiers: an accessibility modifier is admitted by Mist and means
-/// nothing, since the function is visible exactly where a C# local function is.
+/// Only <c>static</c> and <c>async</c> survive of its modifiers: an accessibility modifier is admitted
+/// by Mist and means nothing, since the function is visible exactly where a C# local function is.
 /// </summary>
 internal static class LocalFunctionEmitter
 {

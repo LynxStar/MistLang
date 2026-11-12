@@ -5,9 +5,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// Emits the implicit conversions from a flattened struct to each of its ancestors. Flattening
-/// leaves the derived struct with no type relationship to what it absorbed, so the assignability
-/// Mist's inheritance implies has to be supplied explicitly.
+/// Flattening leaves the derived struct with no type relationship to what it absorbed, so the
+/// assignability Mist's inheritance implies has to be supplied explicitly.
 /// <para>
 /// A copy, not a reinterpretation. The offsets are not ours to rely on -- see
 /// <see cref="FlattenedStruct.Fields"/> -- and a conversion has to produce a value independent of

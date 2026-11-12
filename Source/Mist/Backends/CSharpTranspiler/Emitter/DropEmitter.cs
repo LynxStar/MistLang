@@ -4,9 +4,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// The <c>Drop</c> a container never declared, releasing each droppable field in declaration order.
-/// See <see cref="DropInsertion.SynthesizesDrop"/> for which types get one and why writing none is not
-/// the author declining.
+/// The <c>Drop</c> a container never declared. See <see cref="DropInsertion.SynthesizesDrop"/> for which
+/// types get one and why writing none is not the author declining.
 /// </summary>
 internal static class DropEmitter
 {

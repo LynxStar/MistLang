@@ -5,7 +5,7 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// A chain of <c>&amp;&amp;</c> or of <c>||</c> split into guards, a new guard starting at each link that needs
+/// A logical-and or logical-or chain split into guards, a new guard starting at each link that needs
 /// statements run ahead of it, so those statements run only once every link before them has decided the chain
 /// is not yet settled. The guards nest -- or, in a loop condition, break out one at a time -- rather than
 /// storing each link's value in a boolean, because a pattern variable an earlier link binds must still read as

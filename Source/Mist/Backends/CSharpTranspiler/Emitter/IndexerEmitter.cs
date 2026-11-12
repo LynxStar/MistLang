@@ -4,9 +4,6 @@ using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits an indexer declaration: <c>type this[params] { get; set; }</c>.
-/// </summary>
 internal static class IndexerEmitter
 {
     public static void Emit(

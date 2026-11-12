@@ -13,9 +13,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// enclosing block or the parameter list holds; C# refuses that (CS0136) whichever of the two comes
 /// first in the text, so the inner local is renamed apart once per body and every site that spells a
 /// local reads the map. Siblings keep their names, since C# allows one name in two blocks that do not
-/// contain each other. Hidden discard locals keep distinct names even with no map active. A local function's
-/// name is a local of the block that declares it and is renamed by the same rule; a type's method is
-/// never in the map.
+/// contain each other. A local function's name is a local of the block that declares it and is renamed
+/// by the same rule; a type's method is never in the map.
 /// </summary>
 internal static class LocalNames
 {

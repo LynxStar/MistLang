@@ -5,9 +5,6 @@ using Mist.Driver.Contracts;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Generates the .csproj file for the emitted C# project.
-/// </summary>
 internal static class ProjectFileEmitter
 {
     public static string Emit(CompilerOptions options, bool carriesEntryPoint, string? mainTypeName = null)

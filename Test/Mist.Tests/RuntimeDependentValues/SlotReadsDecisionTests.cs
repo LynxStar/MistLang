@@ -3,6 +3,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -170,5 +171,22 @@ public sealed class SlotReadsDecisionTests
         var tested = SlotReads.Tested(state, reading, HandBuiltRefinements.Read(some), slots.Closed(sized, slots.Literal(5)));
 
         Assert.Empty(tested.Bag.Common);
+    }
+
+    [Fact]
+    public void ASynthesizedReadIsTypedByTheSlotsDomainWhileItsWhereStaysAFactOnTheValue()
+    {
+        var bounded = HandBuiltSlots.Generic(HandBuiltModel.Class("Bounded<>"), "Capacity", slots.Int);
+        var limit = bounded.TypeParametersList[0];
+        limit.RefinementNode = HandBuiltModel.Node();
+        limit.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, HandBuiltModel.Literal(slots.Int, 1L));
+        var state = FactState.Empty;
+
+        var read = SlotReads.Read(HandBuiltRefinements.Local(slots.Closed(bounded, UnknownType.Instance), "b"), limit);
+        var value = Assert.Single(reading.Read(ref state, read).Variables);
+
+        Assert.Same(slots.Int, read.Type);
+        Assert.Same(limit, Assert.IsType<TypeResult>(read.Member).Type);
+        Assert.True(state.Bag.Intervals(value).Intervals.All(interval => interval.Low is { } low && low >= 1));
     }
 }

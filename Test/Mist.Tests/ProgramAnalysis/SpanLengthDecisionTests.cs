@@ -1,4 +1,4 @@
-// Tier 3: erased dependent lengths retain their runtime domain and reach the existing index prover.
+// Erased dependent lengths retain their runtime domain and reach the existing index prover.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
@@ -14,6 +14,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.ProgramAnalysis;
 
+[Trait("Tier", "3")]
 public sealed class SpanLengthDecisionTests
 {
     [Theory]

@@ -238,4 +238,28 @@ public sealed class SlotIdentityDecisionTests
         Assert.False(SlotIdentity.Owes(slots.Closed(ring, first.Value), slots.Closed(ring, UnknownType.Instance)));
         Assert.False(SlotIdentity.Owes(slots.Int, slots.Closed(ring, first.Value)));
     }
+
+    [Fact]
+    public void ANestedUnknownSlotIsNotReadThroughTheOuterValue()
+    {
+        var box = HandBuiltModel.Class("Box<>");
+        box.TypeParametersList.Add(new TypeParameter("T", 0, box.Scope, box));
+        var local = new LocalVariable("b", slots.Closed(box, slots.Closed(ring, UnknownType.Instance)));
+        var held = new Value(local.Type, "b", HandBuiltModel.Node());
+        var read = new Value(slots.Int, "b.Capacity", HandBuiltModel.Node());
+        var state = Bound() with { Bindings = Bound().Bindings.Set(local, held).Set(new MemberHolder(held, capacity), read) };
+        var claimed = Knowing(state, Equal(new Term(read), new Term(n)));
+
+        var unproven = SlotIdentity.Judge(claimed, HandBuiltRefinements.Read(local), slots.Closed(box, slots.Closed(ring, first.Value)), reading);
+
+        Assert.Equal(("unknown", "n"), (unproven?.Left, unproven?.Right));
+        Assert.Null(unproven?.Proof);
+        Assert.Null(SlotIdentity.Judge(claimed, HandBuiltRefinements.Read(local), slots.Closed(box, slots.Closed(ring, UnknownType.Instance)), reading));
+
+        var seven = SlotIdentity.Judge(Knowing(claimed, Equal(new Term(n), new Term(7))), HandBuiltRefinements.Read(local), slots.Closed(box, slots.Closed(ring, first.Value)), reading);
+
+        Assert.Equal(("unknown", "7"), (seven?.Left, seven?.Right));
+        Assert.Equal("Box<Ring<7>>", DiagnosticSnapshot.Type(seven!.Target).Spelling);
+        Assert.Null(SlotIdentity.Judge(claimed, HandBuiltRefinements.Local(slots.Closed(box, slots.Closed(ring, first.Value)), "c"), slots.Closed(box, slots.Closed(ring, first.Value)), reading));
+    }
 }

@@ -14,7 +14,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// <summary>
 /// What a dependent slot read through a value is, <c>a.Length</c> or <c>ring.Capacity</c>: the value the
 /// receiver's type was closed with, read from the receiver type's argument for that parameter and never
-/// from the type of the read, which is the slot's contract whatever the closing holds. A literal is its
+/// from the type of the read, which is the slot's domain whatever the closing holds; the slot's <c>where</c>
+/// is a fact on the value, never part of the type. A literal is its
 /// constant, a capture the value its local holds, a dependent parameter the value bound under it, and the
 /// <c>unknown</c> slot of a class or a struct the value under the member holder of the receiver, which
 /// an object keeps for life (runtime-dependent-values Requirement 7). The slot of an abstract is never
@@ -50,7 +51,12 @@ internal static class SlotReads
 
     public static MemberAccessExpression Read(Expression receiver, TypeParameter parameter)
     {
-        return new MemberAccessExpression(receiver.Node, receiver, parameter.Name, InstanceSlotRead.Contract(parameter) ?? receiver.Type, member: new TypeResult(parameter));
+        return new MemberAccessExpression(receiver.Node, receiver, parameter.Name, parameter.Domain ?? receiver.Type, member: new TypeResult(parameter));
+    }
+
+    public static IMistType? Contract(Expression expression)
+    {
+        return expression is MemberAccessExpression access && Parameter(access) is { } parameter ? InstanceSlotRead.Contract(parameter) : null;
     }
 
     public static IMistType? Argument(MemberAccessExpression access, TypeParameter parameter)

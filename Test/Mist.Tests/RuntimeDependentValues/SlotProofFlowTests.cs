@@ -254,7 +254,83 @@ public sealed class SlotProofFlowTests
         var refused = Assert.Single(Analyze(new ReturnStatement(slots.Create(longer), declared)));
 
         Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'N + 1' and 'N' are not proven identical", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("'int[N + 1]' is not proven to be 'int[N]': 'N + 1' and 'N' are not proven identical", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnArraySizedByTheDependentParameterIsAdmittedAtItsDeclarationAndALongerOneIsRefusedByName()
+    {
+        var size = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = slots.Refinements.Between(slots.Int, 0L, 1000L) };
+        var x = new LocalVariable("x", slots.ArrayOf(size));
+        var exact = new SlotCapture("N", slots.ZeroOrPositive, slots.Int, new TypeReferenceExpression(HandBuiltModel.Node(), size), 23);
+        var longer = new SlotCapture(
+            "N + 1", slots.ZeroOrPositive, slots.Int,
+            slots.Refinements.Binary(new TypeReferenceExpression(HandBuiltModel.Node(), size), BinaryOperatorKind.Add, slots.Refinements.Literal(1L), slots.Int), 24);
+
+        Assert.Empty(Analyze(new LocalDeclarationStatement(x, slots.Create(exact))));
+
+        var refused = Assert.Single(Analyze(new LocalDeclarationStatement(x, slots.Create(longer))));
+
+        Assert.Equal("MIST0486", refused.Number.Value);
+        Assert.Contains("'int[N + 1]' is not proven to be 'int[N]': 'N + 1' and 'N' are not proven identical", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnArraySizedByASourcesLengthAdmitsTheSourceItselfAndRefusesAnother()
+    {
+        var source = new LocalVariable("source", slots.ArrayOf(new UnknownValueType(slots.Int)));
+        var other = new LocalVariable("other", slots.ArrayOf(new UnknownValueType(slots.Int)));
+
+        LocalDeclarationStatement copied(LocalVariable from)
+        {
+            var sized = new SlotCapture("source.Length", slots.ZeroOrPositive, slots.Int, slots.Refinements.Length(HandBuiltRefinements.Read(source)), 41);
+            return HandBuiltSlots.Declare(new LocalVariable("c", slots.ArrayOf(sized.Value)), HandBuiltRefinements.Read(from), sized);
+        }
+
+        Assert.Empty(Analyze(copied(source)));
+
+        var refused = Assert.Single(Analyze(copied(other)));
+
+        Assert.Equal("MIST0486", refused.Number.Value);
+        Assert.Contains("'other.Length' and 'source.Length' are not proven identical", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AClassSlotIsProvenThroughAFreshReceiver()
+    {
+        NewExpression fresh(long size)
+        {
+            return new NewExpression(HandBuiltModel.Node(), slots.Closed(ring, slots.Literal(size)), [], null, [], null);
+        }
+
+        Expression tested(long size)
+        {
+            return Equal(new MemberAccessExpression(HandBuiltModel.Node(), fresh(size), "Capacity", slots.Int, member: new TypeResult(capacity)), HandBuiltRefinements.Read(n));
+        }
+
+        Assert.Empty(Analyze(HandBuiltRefinements.If(tested(4), RingOf(n, fresh(4), "r"))));
+
+        var refused = Assert.Single(Analyze(HandBuiltRefinements.If(tested(5), RingOf(n, fresh(4), "r"))));
+
+        Assert.Equal("MIST0486", refused.Number.Value);
+        Assert.Contains("'Ring<4>' is not proven to be 'Ring<5>': '4' and '5' are not proven identical (fails when n == 5)", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ANestedUnknownSlotIsNotProvenByTheOuterObjectsOwnRead()
+    {
+        var count = new TypeParameter("C", 1, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var cell = HandBuiltModel.Class("Cell<,>", slots.Closed(ring, count));
+        cell.TypeParametersList.AddRange([new TypeParameter("T", 0, cell.Scope, cell), count]);
+        var some = new LocalVariable("cell", slots.Closed(cell, slots.Closed(ring, UnknownType.Instance), slots.Literal(7)));
+        var claimed = slots.Capture(n, slots.Int);
+        var declared = HandBuiltSlots.Declare(
+            new LocalVariable("claimed", slots.Closed(cell, slots.Closed(ring, claimed.Value), slots.Literal(7))), HandBuiltRefinements.Read(some), claimed);
+
+        var refused = Assert.Single(Analyze(HandBuiltRefinements.If(Equal(Capacity(some), HandBuiltRefinements.Read(n)), declared)));
+
+        Assert.Equal("MIST0486", refused.Number.Value);
+        Assert.Contains("'Cell<Ring<unknown>, 7>' is not proven to be 'Cell<Ring<7>, 7>': 'unknown' and '7' are not proven identical", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]

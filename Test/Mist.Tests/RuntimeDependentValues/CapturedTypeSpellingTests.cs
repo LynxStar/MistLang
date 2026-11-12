@@ -77,4 +77,15 @@ public sealed class CapturedTypeSpellingTests
 
         Assert.Equal(closing.Name, DiagnosticSnapshot.Type(closing, closing.Name).Spelling);
     }
+
+    [Fact]
+    public void ADependentParameterInALengthSlotIsSpelledByItsName()
+    {
+        var size = slots.Dependent("N");
+        var sized = slots.ArrayOf(size);
+
+        Assert.Equal("int[N]", TypeDisplay.Mist(sized));
+        Assert.Equal("int[N]", DiagnosticSnapshot.Type(sized).Spelling);
+        Assert.Equal("int[]", TypeDisplay.Mist(slots.ArrayOf(new UnknownValueType(slots.Int))));
+    }
 }

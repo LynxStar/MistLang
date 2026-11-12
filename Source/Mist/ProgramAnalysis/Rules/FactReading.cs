@@ -87,8 +87,9 @@ internal sealed class FactReading(LiftedReturns lifted)
             }
 
             var parameter = (expression as LocalReferenceExpression)?.Local.Parameter;
+            var contract = SlotReads.Contract(expression) ?? expression.Type;
             var value = stable && parameter is not null && state.Bindings.Get(parameter) is { } supplied
-                ? supplied : Fresh(ref state, expression.Type, RefinementFindings.Display(expression), expression.Node);
+                ? supplied : Fresh(ref state, contract, RefinementFindings.Display(expression), expression.Node);
             if(parameter is not null && stable)
             {
                 state = state with { Bindings = state.Bindings.Set(parameter, value) };
@@ -109,7 +110,7 @@ internal sealed class FactReading(LiftedReturns lifted)
                 state = state with { Bag = AddValues(state.Bag, value, heldLift) };
             }
 
-            AddSymbols(ref state, value, expression.Type, (expression as MemberAccessExpression)?.Receiver);
+            AddSymbols(ref state, value, contract, (expression as MemberAccessExpression)?.Receiver);
             return new Term(value);
         }
 

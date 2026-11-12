@@ -18,7 +18,9 @@ internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string L
 /// as two terms through <see cref="SlotReads"/> and the chain is asked to rule out their difference, so
 /// <c>if(n == m)</c> proves <c>int[m]</c> to be an <c>int[n]</c> and the failing case names the program's
 /// own values. Without a reading in hand there are no facts, and only the same capture, literal or
-/// parameter is one value. A slot the target leaves <c>unknown</c> owes nothing.
+/// parameter is one value. A slot the target leaves <c>unknown</c> owes nothing. A pair nested inside a type
+/// argument has no value expression to read an <c>unknown</c> slot through: the outer value is not the inner
+/// object, so that pair is judged with no receiver and only the same value proves it.
 /// </summary>
 internal static class SlotIdentity
 {
@@ -44,13 +46,14 @@ internal static class SlotIdentity
 
             foreach(var pair in Pairs(reaching, closing))
             {
-                var proof = Prove(ref state, pair, written, reading, budget);
+                var via = pair.Nested ? null : written;
+                var proof = Prove(ref state, pair, via, reading, budget);
 
                 if(proof is not Proven)
                 {
                     unproven = new UnprovenSlot(
                         Spelled(state, source), Spelled(state, constituent),
-                        Shown(state, pair.Argument, pair.Parameter, written), Shown(state, pair.Slot, pair.Parameter, null), proof);
+                        Shown(state, pair.Argument, pair.Parameter, via), Shown(state, pair.Slot, pair.Parameter, null), proof);
                     break;
                 }
             }
@@ -114,7 +117,7 @@ internal static class SlotIdentity
         };
     }
 
-    private sealed record Pair(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read);
+    private sealed record Pair(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read, bool Nested = false);
 
     private static IEnumerable<Pair> Pairs(ConstructedType source, ConstructedType target)
     {
@@ -144,7 +147,7 @@ internal static class SlotIdentity
             {
                 foreach(var nested in Pairs(reaching, outer))
                 {
-                    yield return nested;
+                    yield return nested with { Nested = true };
                 }
             }
         }
@@ -171,8 +174,9 @@ internal static class SlotIdentity
         return type switch
         {
             CapturedValue captured when SlotReads.Known(state, captured) is { } known => new LiftedType(captured.Domain, Literal(captured.Domain, known)),
-            ConstructedType constructed when constructed.TypeArguments.Any(argument => argument is CapturedValue captured && SlotReads.Known(state, captured) is not null)
-                => new ConstructedType(constructed.Definition, [.. constructed.TypeArguments.Select(argument => Spelled(state, argument))], constructed.Enclosing),
+            ConstructedType constructed when constructed.TypeArguments.Select(argument => Spelled(state, argument)).ToList() is var arguments
+                && arguments.Where((argument, i) => !ReferenceEquals(argument, constructed.TypeArguments[i])).Any()
+                => new ConstructedType(constructed.Definition, arguments, constructed.Enclosing),
             _ => type,
         };
     }

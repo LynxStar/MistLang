@@ -21,6 +21,10 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         {
         }
 
+        public class Bounded<Capacity:int> where Capacity >= 1
+        {
+        }
+
         public abstract ISized<N:int>
         {
         }
@@ -129,5 +133,18 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         Assert.Same(Assert.Single(tested.Captures).Value, Assert.IsType<ConstructedType>(tested.TargetType).TypeArguments[0]);
         Assert.Same(Assert.Single(read.Captures).Value, Assert.IsType<ConstructedType>(Assert.IsType<TypeReferenceExpression>(read.Receiver).ReferencedType).TypeArguments[0]);
         _ = Assert.IsType<PropertyResult>(read.Member);
+    }
+
+    [Fact]
+    public void AReadOfASlotDeclaredWithAWhereIsTypedByTheDomainAlone()
+    {
+        var statements = BodyIn("var b = new Bounded<4>(); var c = b.Capacity; c = 0;")
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var read = Assert.IsType<MemberAccessExpression>(statements[1].Initializer);
+
+        Assert.Equal("Capacity", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(read.Member).Type).Name);
+        Assert.IsNotType<RefinedType>(read.Type);
+        Assert.IsNotType<RefinedType>(statements[1].Local.Type);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, statements[1].Local.Type.FullyQualifiedName);
     }
 }

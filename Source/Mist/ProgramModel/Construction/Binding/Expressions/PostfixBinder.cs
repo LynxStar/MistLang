@@ -270,7 +270,7 @@ internal static class PostfixBinder
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(values);
-            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, DiagnosticSnapshot.Type(first, first.Name), DiagnosticSnapshot.Type(other, other.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, DiagnosticSnapshot.Type(first), DiagnosticSnapshot.Type(other));
         }
 
         return common;

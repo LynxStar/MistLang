@@ -244,7 +244,7 @@ internal static class LiteralBinder
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(elements);
-            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, DiagnosticSnapshot.Type(first, first.Name), DiagnosticSnapshot.Type(other, other.Name));
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ArrayLiteralNoCommonElementType, node, null, DiagnosticSnapshot.Type(first), DiagnosticSnapshot.Type(other));
         }
 
         return common;

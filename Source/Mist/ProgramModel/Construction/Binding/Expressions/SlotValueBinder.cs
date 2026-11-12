@@ -37,10 +37,10 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
         return capture.Value;
     }
 
-    public static SlotCapture? CaptureLength(Expression size, WellKnownType definition, BuilderContext context)
+    public static SlotCapture? CaptureLength(Expression size, ExpressionNode written, WellKnownType definition, BuilderContext context)
     {
         return context.Resolver.LookupWellKnown(definition) is IHasTypeParameters { TypeParametersList: [_, { IsDependent: true } length] }
-            ? Capture(size, length, Written(size), context, converted: true)
+            ? Capture(size, length, Written(written), context, converted: true)
             : null;
     }
 
@@ -60,10 +60,8 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
             converted ? value : ImplicitConversions.At(value, contract, context.ProgramModel.TypeInterner), value.Node.Span.Start);
     }
 
-    private static string Written(Expression value)
+    private static string Written(ExpressionNode node)
     {
-        var node = value.Node;
-
         return node.Origin is ParsedOrigin { Source.Contents: var contents } && node.Span.End <= contents.Length
             ? contents[node.Span.Start..node.Span.End].Trim()
             : "length";

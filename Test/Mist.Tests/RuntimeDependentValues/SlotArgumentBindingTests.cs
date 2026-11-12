@@ -97,4 +97,40 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
         Assert.Equal("int[]", TypeDisplay.Mist(lambda.ReturnType));
         _ = Assert.IsType<UnknownValueType>(Assert.IsType<ConstructedType>(lambda.ReturnType).TypeArguments[1]);
     }
+
+    [Fact]
+    public void ACaptureIsNamedByItsWholeSizeExpressionAndNoCommonTypeNamesItAsWritten()
+    {
+        var model = StandardModelProbe.Build(
+            """
+            ZeroOrPositiveInt n = 4;
+            ZeroOrPositiveInt m = 5;
+            int[] source = [1, 2];
+            var read = new int[source.Length];
+            var called = new int[Sizes.Next()];
+            var stack = stackalloc int[source.Length];
+            var a = new int[n];
+            var c = new int[m];
+            var jag = [a, c];
+            var picked = n switch { 1 => a, _ => c };
+            """,
+            out var diagnostics,
+            extraTypes: """
+            public class Sizes
+            {
+                public static ZeroOrPositiveInt Next()
+                {
+                    return 3;
+                }
+            }
+            """);
+        var statements = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+
+        Assert.Equal("int[source.Length]", TypeDisplay.Mist(statements[3].Local.Type));
+        Assert.Equal("int[Sizes.Next()]", TypeDisplay.Mist(statements[4].Local.Type));
+        Assert.Equal("source.Length", Assert.Single(Assert.IsType<StackallocExpression>(statements[5].Initializer).Captures).Name);
+        Assert.Contains("('int[n]' and 'int[m]')", Assert.Single(Errors(diagnostics, "MIST0376")).Message, StringComparison.Ordinal);
+        Assert.Contains("('int[n]' and 'int[m]')", Assert.Single(Errors(diagnostics, "MIST0347")).Message, StringComparison.Ordinal);
+    }
 }

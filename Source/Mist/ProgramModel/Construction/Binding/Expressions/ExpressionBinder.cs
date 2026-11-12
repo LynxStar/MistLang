@@ -512,19 +512,19 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = SizeOf(node.Size, ctx, context);
-        var (length, captures) = LengthOf(size, WellKnownTypes.Array, context);
+        var (length, captures) = LengthOf(size, node.Size, WellKnownTypes.Array, context);
         var arrayType = context.Resolver.ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
         return new ArrayCreationExpression(node, elementType, size, arrayType) { Captures = captures };
     }
 
-    private static (IMistType? Length, IReadOnlyList<SlotCapture> Captures) LengthOf(Expression size, WellKnownType definition, BuilderContext context)
+    private static (IMistType? Length, IReadOnlyList<SlotCapture> Captures) LengthOf(Expression size, ExpressionNode written, WellKnownType definition, BuilderContext context)
     {
-        if(WrittenLength(size) is { } written)
+        if(WrittenLength(size) is { } stated)
         {
-            return (context.Resolver.LiftInt(written), []);
+            return (context.Resolver.LiftInt(stated), []);
         }
 
-        return SlotValueBinder.CaptureLength(size, definition, context) is { } capture ? (capture.Value, [capture]) : (null, []);
+        return SlotValueBinder.CaptureLength(size, written, definition, context) is { } capture ? (capture.Value, [capture]) : (null, []);
     }
 
     private static int? WrittenLength(Expression size)
@@ -559,7 +559,7 @@ internal static class ExpressionBinder
                 : WellKnownTypes.Span
                 ;
 
-        var (length, captures) = LengthOf(size, definition, context);
+        var (length, captures) = LengthOf(size, node.Size, definition, context);
 
         return new StackallocExpression(
             node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, length))

@@ -12,9 +12,27 @@ internal static class DiagnosticSnapshot
         return Type(type, TypeDisplay.Mist(type));
     }
 
+    /// <summary>
+    /// A type that holds a <see cref="CapturedValue"/> is spelled as written whatever spelling the caller
+    /// chose: a structural name interpolates the capture's own, which carries a position no reader wrote.
+    /// </summary>
     public static TypeValue Type(IMistType type, string spelling)
     {
-        return new TypeValue(TypeIdentity(type), spelling);
+        return new TypeValue(TypeIdentity(type), HoldsCapture(type) ? TypeDisplay.Mist(type) : spelling);
+    }
+
+    private static bool HoldsCapture(IMistType type)
+    {
+        return type switch
+        {
+            CapturedValue => true,
+            ConstructedType constructed => constructed.TypeArguments.Any(HoldsCapture)
+                || (constructed.Enclosing is { } enclosing && HoldsCapture(enclosing)),
+            UnionType union => union.Constituents.Any(HoldsCapture),
+            ITupleType tuple => tuple.ElementTypes.Any(HoldsCapture),
+            FunctionType function => function.ParameterTypes.Any(HoldsCapture) || HoldsCapture(function.ReturnType),
+            _ => false,
+        };
     }
 
     public static SymbolValue Symbol(IOverload member, string spelling)

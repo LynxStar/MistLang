@@ -56,12 +56,15 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
     public void ADiagnosticSpellsASlotReadByTheSlotsDomain()
     {
         var diagnostics = BuildRun(
-            "var n = 3; var ring = new Ring<n>(); var four = new Ring<4>(); var a = ring.Capacity(); var b = four.Capacity[0]; var (p, q) = ring.Capacity; var e = four.Capacity.Nope;");
+            "var n = 3; var ring = new Ring<n>(); var four = new Ring<4>(); var a = ring.Capacity(); var b = four.Capacity[0]; var (p, q) = ring.Capacity; var e = four.Capacity.Nope; var f = (ring.Capacity, 1).Nope;");
+        var members = Errors(diagnostics, "MIST0301").Select(diagnostic => diagnostic.Message).ToList();
 
         Assert.Contains("its type 'int' is not a function type", Assert.Single(Errors(diagnostics, "MIST0363")).Message, StringComparison.Ordinal);
         Assert.StartsWith("'int' cannot be indexed", Assert.Single(Errors(diagnostics, "MIST0354")).Message, StringComparison.Ordinal);
         Assert.StartsWith("'int' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
-        Assert.StartsWith("'int' has no member named 'Nope'", Assert.Single(Errors(diagnostics, "MIST0301")).Message, StringComparison.Ordinal);
+        Assert.Equal(2, members.Count);
+        Assert.Contains(members, message => message.StartsWith("'int' has no member named 'Nope'", StringComparison.Ordinal));
+        Assert.Contains(members, message => message.StartsWith("'(int, int)' has no member named 'Nope'", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -51,46 +51,71 @@ internal static class TypeDisplay
             : [.. types.Select(type => Render(type, parameter => labels.GetValueOrDefault(parameter)))];
     }
 
-    private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
+    /// <summary>
+    /// True when the type is, or holds outside a slot, a slot's argument: the type of a read of that
+    /// slot, which a program sees as the slot's domain. <c>string s = ring.Capacity;</c> is refused
+    /// for an <c>int</c>, not for the <c>4</c> or the <c>n</c> the ring was closed with, and so is
+    /// <c>(ring.Capacity, 1)</c> for an <c>(int, int)</c>. Inside a slot the argument is the value
+    /// itself, so <c>int[n]</c> and <c>Ring&lt;4&gt;</c> are spelled as written.
+    /// </summary>
+    public static bool HoldsSlotRead(IMistType type)
     {
         return type switch
         {
-            // A slot's argument standing alone is the type of a read of that slot, which a program
-            // sees as the slot's domain: `string s = ring.Capacity;` is refused for an `int`, not for
-            // the `4` or the `n` the ring was closed with. Inside a closing it is the value itself.
-            LiftedType { Value: not TypePackValue } lifted => Render(lifted.Type, spell),
-            CapturedValue captured => Render(captured.Domain, spell),
-            _ => Closing(type, spell),
+            LiftedType { Value: not TypePackValue } or CapturedValue or UnknownValueType => true,
+            ConstructedType constructed => constructed.TypeArguments.Where((argument, position) => !IsSlot(constructed, position) && HoldsSlotRead(argument)).Any()
+                || (constructed.Enclosing is { } enclosing && HoldsSlotRead(enclosing)),
+            UnionType union => union.Constituents.Any(HoldsSlotRead),
+            ITupleType tuple => tuple.ElementTypes.Any(HoldsSlotRead),
+            FunctionType function => function.ParameterTypes.Any(HoldsSlotRead) || HoldsSlotRead(function.ReturnType),
+            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => HoldsSlotRead(refined.BaseType),
+            _ => false,
         };
     }
 
-    private static string Closing(IMistType type, Func<TypeParameter, string?>? spell)
+    private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
     {
         string mist(IMistType inner)
         {
-            return Closing(inner, spell);
+            return Render(inner, spell);
         }
 
         return type switch
         {
+            LiftedType { Value: not TypePackValue } lifted => mist(lifted.Type),
+            CapturedValue captured => mist(captured.Domain),
+            UnknownValueType unknownValue => mist(unknownValue.Domain),
+
             // Before the general constructed case: an array is spelled with a rank suffix, not as
             // the Standard.Array<,> it is represented by, and its second argument is a length
             // rather than a type -- so the general case would render `int[]` as `Array<int, int>`.
             ConstructedType array when IsArray(array) => $"{mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}",
-            ConstructedType { Enclosing: { } enclosing } nested => $"{mist(enclosing)}.{Segment(nested, mist)}",
-            ConstructedType constructed => Segment(constructed, mist),
+            ConstructedType { Enclosing: { } enclosing } nested => $"{mist(enclosing)}.{Segment(nested, spell)}",
+            ConstructedType constructed => Segment(constructed, spell),
             UnionType union => string.Join(" | ", union.Constituents.Select(mist)),
             TupleType tuple => $"({string.Join(", ", tuple.ElementTypes.Select(mist))})",
             NamedTupleType named => $"({string.Join(", ", named.ElementTypes.Select(mist))})",
             FunctionType function => $"{(function.IsPure ? "pure " : string.Empty)}func<{string.Join(", ", function.TypeArgumentsInSourceOrder().Select(mist))}>",
-
-            // A dependent argument shows its domain, since its value is the thing not known.
-            UnknownValueType unknownValue => mist(unknownValue.Domain),
-            CapturedValue captured => captured.WrittenName,
             RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => mist(refined.BaseType),
             TypeParameter parameter when spell?.Invoke(parameter) is { } spelled => spelled,
             _ => MistType.StripArity(Keyword(type)),
         };
+    }
+
+    private static string Written(IMistType argument, Func<TypeParameter, string?>? spell)
+    {
+        return argument switch
+        {
+            LiftedType lifted => lifted.Name,
+            CapturedValue captured => captured.WrittenName,
+            _ => Render(argument, spell),
+        };
+    }
+
+    private static bool IsSlot(ConstructedType constructed, int position)
+    {
+        return constructed.Definition is IHasTypeParameters { TypeParametersList: var parameters }
+            && parameters.Find(parameter => parameter.Ordinal == position) is { IsDependent: true, IsPack: false };
     }
 
     private static string Declared(TypeParameter parameter, bool detailed)
@@ -151,13 +176,13 @@ internal static class TypeDisplay
         };
     }
 
-    private static string Segment(ConstructedType constructed, Func<IMistType, string> mist)
+    private static string Segment(ConstructedType constructed, Func<TypeParameter, string?>? spell)
     {
         var name = MistType.StripArity(constructed.Definition.Name);
 
         return constructed.TypeArguments.Count == 0
             ? name
-            : $"{name}<{string.Join(", ", constructed.TypeArguments.Select(mist))}>"
+            : $"{name}<{string.Join(", ", constructed.TypeArguments.Select((argument, position) => IsSlot(constructed, position) ? Written(argument, spell) : Render(argument, spell)))}>"
             ;
     }
 

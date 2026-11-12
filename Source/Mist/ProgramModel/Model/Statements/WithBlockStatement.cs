@@ -30,8 +30,7 @@ internal sealed class WithBlockStatement(
     public IMistType KeyType { get; } = keyType ?? value.Type;
 
     /// <summary>
-    /// The name the value was bound to, where one was written -- <c>with (var ms = ...)</c> and
-    /// <c>with var ms = ...;</c> both name it, and <c>with(expr)</c> does not.
+    /// Null for <c>with(expr)</c>, which names no value.
     /// </summary>
     public LocalVariable? Binding { get; } = binding;
 }

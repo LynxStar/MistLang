@@ -5,9 +5,6 @@ using Mist.ProgramModel.Model.Enums;
 
 namespace Mist.ProgramModel.Model.Members;
 
-/// <summary>
-/// A parameter of a method, constructor, indexer, or operator.
-/// </summary>
 internal sealed class Parameter(
     string name,
     IMistType type,
@@ -43,9 +40,6 @@ internal sealed class Parameter(
     /// </summary>
     public bool ClrDeclaresNullable { get; init; }
 
-    /// <summary>
-    /// The attributes applied to this parameter.
-    /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
     public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];

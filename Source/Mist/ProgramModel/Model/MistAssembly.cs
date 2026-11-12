@@ -6,9 +6,7 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// Concrete implementation of <see cref="IAssembly"/>. Created by the builder, one per
-/// distinct declaration boundary in the compilation, and handed to every type registered
-/// from that boundary.
+/// One per declaration boundary in the compilation, handed to every type registered from it.
 /// </summary>
 public sealed class MistAssembly(
     string name,
@@ -23,21 +21,13 @@ public sealed class MistAssembly(
     public string? ProjectPath { get; } = projectPath;
 
     /// <summary>
-    /// Every method of this assembly with the shape of an entry point, recorded during member
-    /// resolution as each is seen. Which of them the program starts at, if any, is not decided
-    /// here: that takes <see cref="EntryPointSetting"/> and the files holding top-level statements,
-    /// and belongs to whoever judges the finished model.
+    /// Every method with the shape of an entry point, recorded during member resolution. Choosing
+    /// among them takes <see cref="EntryPointSetting"/> and the files holding top-level statements,
+    /// and is left to whoever judges the finished model.
     /// <para>
-    /// Per assembly rather than per compilation, because that is the granularity the rule
-    /// actually has: a referenced project having its own <c>Main</c> is not an error, and
-    /// two in one project is a question for that project's manifest regardless of which project
-    /// it is.
-    /// </para>
-    /// <para>
-    /// Only <see cref="MistAssemblyKind.Self"/>, <see cref="MistAssemblyKind.Reference"/>
-    /// and <see cref="MistAssemblyKind.Standard"/> can acquire one; member resolution never
-    /// visits ambient or synthetic types. The shared ambient and synthetic singletons are
-    /// consequently never written, despite being process-wide.
+    /// Per assembly because a referenced project having its own <c>Main</c> is not an error. Member
+    /// resolution never visits ambient or synthetic types, so the process-wide <see cref="Ambient"/>
+    /// and <see cref="Synthetic"/> singletons are never written.
     /// </para>
     /// </summary>
     internal List<Method> EntryPoints { get; } = [];
@@ -49,8 +39,7 @@ public sealed class MistAssembly(
     public bool IsLibrary { get; init; }
 
     /// <summary>
-    /// The source files (compilation units) belonging to this assembly, in processing
-    /// order. Populated during Stage 4 as each file is processed.
+    /// In processing order.
     /// </summary>
     internal List<CompilationUnit> CompilationUnits { get; } = [];
 
@@ -73,21 +62,15 @@ public sealed class MistAssembly(
     IReadOnlyList<string> IAssembly.GlobalUsings => GlobalUsings;
 
     /// <summary>
-    /// The well-known name of the standard library assembly. It coincides with the
-    /// namespace every stdlib declaration lives in, but only coincidentally -- code that
-    /// tests a namespace should not reach for this constant.
+    /// Coincides with the namespace every stdlib declaration lives in, but code that tests a
+    /// namespace should not reach for this constant.
     /// </summary>
     public const string StandardName = "Standard";
 
     /// <summary>
-    /// The assembly every CLR-projected type belongs to. Ambient types come from many
-    /// physical assemblies and are pooled here because nothing currently distinguishes
-    /// between them; per-assembly ambient identity is the natural extension if a rule
-    /// ever needs it.
-    /// <para>
-    /// The bracketed name cannot collide with a real project or namespace. Nothing looks
-    /// assemblies up by name, so it exists only for diagnostics and <see cref="ToString"/>.
-    /// </para>
+    /// Every CLR-projected type belongs here: ambient types from many physical assemblies are pooled
+    /// because no rule distinguishes them. The bracketed name cannot collide with a real project or
+    /// namespace.
     /// </summary>
     public static readonly MistAssembly Ambient = new("<ambient>", MistAssemblyKind.Ambient);
 
@@ -98,9 +81,8 @@ public sealed class MistAssembly(
     public static readonly MistAssembly Synthetic = new("<synthetic>", MistAssemblyKind.Synthetic);
 
     /// <summary>
-    /// Whether this assembly's types are declared in Mist source, and so are the
-    /// compiler's to resolve members on and emit. False for CLR-projected and
-    /// compiler-constructed types, which have no Mist declaration to work from.
+    /// Whether this assembly's types have Mist declarations, and so are the compiler's to resolve
+    /// members on and emit.
     /// </summary>
     public bool HasMistSource => Kind is
         MistAssemblyKind.Self or

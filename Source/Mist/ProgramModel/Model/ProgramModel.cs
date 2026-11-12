@@ -8,8 +8,7 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// Concrete implementation of <see cref="IProgramModel"/>.
-/// Populated by the builder, then exposed as read-only through the interface.
+/// Populated by the builder; consumers read it through <see cref="IProgramModel"/>.
 /// </summary>
 // Suppressed: the class name matches the feature namespace by design.
 [SuppressMessage("Naming", "CA1724:Type names should not match namespaces", Justification = "Intentional - the class represents the concept that the namespace is named after")]
@@ -30,45 +29,25 @@ public sealed class ProgramModel : IProgramModel
         assemblies.Add(MistAssembly.Synthetic);
     }
 
-    /// <summary>
-    /// Every assembly participating in this compilation: the compiled project, each
-    /// referenced project, the standard library, and the ambient and synthetic buckets.
-    /// </summary>
     public IReadOnlyList<MistAssembly> Assemblies => assemblies;
 
-    /// <summary>
-    /// The assembly for the project being compiled, once <c>AssemblyRegistration</c> has
-    /// established it.
-    /// </summary>
     public MistAssembly? SelfAssembly { get; private set; }
 
     /// <summary>
-    /// The standard library assembly. Null for compilations that load no standard library,
-    /// which in practice means hand-assembled test compilations.
+    /// Null only for a compilation that loads no standard library: in practice, a hand-assembled test.
     /// </summary>
     public MistAssembly? StandardAssembly { get; private set; }
 
-    /// <summary>
-    /// All registered namespaces, keyed by fully qualified name.
-    /// </summary>
     public IReadOnlyDictionary<string, MistNamespace> Namespaces => namespaces;
 
-    /// <summary>
-    /// All registered types, keyed by fully qualified name.
-    /// This is the primary type registry for name resolution.
-    /// </summary>
     public IReadOnlyDictionary<string, IMistType> TypesByFQN => typesByFQN;
 
     /// <summary>
-    /// Interns synthetic types (unions, constructed types) so that structurally
-    /// identical type references share a single instance throughout the model's lifetime.
+    /// Interns synthetic types (unions, constructed types) so structurally identical references share
+    /// one instance.
     /// </summary>
     internal TypeInterner TypeInterner { get; } = new();
 
-    /// <summary>
-    /// Every type that closes a parameterized constructor constraint, collected as construction and
-    /// resolution encounter them.
-    /// </summary>
     internal ConstraintClosureRegistry ConstructorConstraintClosures { get; private set; } = new();
 
     internal VariadicUseRegistry VariadicUses { get; private set; } = new();
@@ -105,9 +84,6 @@ public sealed class ProgramModel : IProgramModel
         }
     }
 
-    /// <summary>
-    /// Retroactive conformance declarations collected during Phase 2c.
-    /// </summary>
     internal List<ConformanceDeclaration> ConformancesList { get; } = [];
 
     IReadOnlyDictionary<string, IMistType> IProgramModel.TypesByFQN => typesByFQN;
@@ -119,8 +95,7 @@ public sealed class ProgramModel : IProgramModel
     IAssembly? IProgramModel.SelfAssembly => SelfAssembly;
 
     /// <summary>
-    /// Establishes the assembly for the project being compiled. Called once, before any
-    /// type is registered.
+    /// Called once, before any type is registered.
     /// </summary>
     internal MistAssembly AddSelfAssembly(
         string name, ImmutableArray<string> globalUsings = default, string? entryPointSetting = null, bool isLibrary = false, string? projectPath = null)
@@ -135,8 +110,7 @@ public sealed class ProgramModel : IProgramModel
     }
 
     /// <summary>
-    /// Establishes the standard library assembly. Called once, before any type is
-    /// registered, and only for compilations that loaded the standard library.
+    /// Called once, before any type is registered.
     /// </summary>
     internal MistAssembly AddStandardAssembly()
     {
@@ -146,9 +120,8 @@ public sealed class ProgramModel : IProgramModel
     }
 
     /// <summary>
-    /// Records a referenced Mist project's assembly, keyed on the canonical
-    /// <c>mist.toml</c> path that identifies the project. Two projects sharing a display
-    /// name remain distinct assemblies.
+    /// Keyed on the canonical <c>mist.toml</c> path, so two projects sharing a display name remain
+    /// distinct assemblies.
     /// </summary>
     internal MistAssembly AddReferenceAssembly(
         string name,
@@ -172,10 +145,6 @@ public sealed class ProgramModel : IProgramModel
         return assembly;
     }
 
-    /// <summary>
-    /// Returns the assembly for a referenced project, or null when the compilation
-    /// declared no such reference.
-    /// </summary>
     internal MistAssembly? FindReferenceAssembly(string projectPath)
     {
         return referencesByProjectPath.TryGetValue(projectPath, out var assembly)
@@ -183,10 +152,6 @@ public sealed class ProgramModel : IProgramModel
             : null;
     }
 
-    /// <summary>
-    /// Gets an existing namespace or creates and registers a new one.
-    /// Multiple files may declare the same namespace, so this deduplicates.
-    /// </summary>
     public MistNamespace GetOrAddNamespace(string fullyQualifiedName)
     {
         if(namespaces.TryGetValue(fullyQualifiedName, out var existing))
@@ -199,10 +164,6 @@ public sealed class ProgramModel : IProgramModel
         return newNamespace;
     }
 
-    /// <summary>
-    /// Registers a type in the flat FQN dictionary. Returns false if a type
-    /// with the same FQN is already registered (duplicate).
-    /// </summary>
     internal bool RegisterType(IMistType type)
     {
         var fqn = type.FullyQualifiedName;
@@ -236,10 +197,6 @@ public sealed class ProgramModel : IProgramModel
         typesByFQN[replaced.FullyQualifiedName] = replacement;
     }
 
-    /// <summary>
-    /// A type by namespace and simple name, or null when that namespace holds no such type. An
-    /// empty namespace names the global one, where the simple name IS the fully qualified name.
-    /// </summary>
     internal IMistType? FindType(string namespaceName, string simpleName)
     {
         var fqn = string.IsNullOrEmpty(namespaceName)
@@ -254,13 +211,9 @@ public sealed class ProgramModel : IProgramModel
     }
 
     /// <summary>
-    /// One qualification step off a namespace: <c>namespaceName.memberName</c>. A namespace holds
-    /// only types and further namespaces, so those are the only two answers.
-    /// <para>
-    /// Answered here rather than by a scope because no scope chain is involved -- the namespace to
-    /// look in is already known, leaving nothing to resolve. No diagnostic either: the caller
-    /// decides whether an unresolved qualification is an error.
-    /// </para>
+    /// A namespace holds only types and further namespaces, so those are the only two answers.
+    /// Answered here rather than by a scope because the namespace to look in is already known, and
+    /// without a diagnostic because the caller decides whether an unresolved qualification is an error.
     /// </summary>
     internal LookupResult LookupQualified(string namespaceName, string memberName)
     {
@@ -280,13 +233,8 @@ public sealed class ProgramModel : IProgramModel
     }
 
     /// <summary>
-    /// Whether the name denotes a namespace. Registration records leaf namespaces only, so a name
-    /// also counts if it is a proper prefix of a registered one -- <c>A.B.C</c> is what makes
-    /// <c>A</c> and <c>A.B</c> namespaces.
-    /// <para>
-    /// Ambient namespaces are registered by the ambient projection, so the answer covers them only
-    /// once it has run.
-    /// </para>
+    /// Registration records leaf namespaces only, so a proper prefix of a registered name counts too.
+    /// Ambient namespaces count only once the ambient projection has registered them.
     /// </summary>
     internal bool IsKnownNamespace(string name)
     {

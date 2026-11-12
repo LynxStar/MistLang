@@ -4,10 +4,6 @@ using Mist.ProgramModel.Model.Enums;
 
 namespace Mist.ProgramModel.Model.Members;
 
-/// <summary>
-/// An operator declared on a type. Operators are methods with a synthesized
-/// name and an operator kind.
-/// </summary>
 internal sealed class Operator(
     OperatorKind kind,
     IMistType returnType,

@@ -5,16 +5,13 @@ namespace Mist.ProgramModel.Model;
 /// <summary>
 /// Which bodies drop a task, and which members each body calls, recorded as they are bound.
 /// <para>
-/// Recorded rather than searched for, for the reason the registries beside it are: half of these
-/// drops are INSERTED by the binder where a sync context calls a task-returning member, so they
-/// exist in no syntax tree and only the binder ever sees them. Sitting beside the constraint
-/// closures and the variadic uses, which exist for the same reason and are read by the same consumer.
+/// Recorded rather than searched for because half of these drops are INSERTED by the binder where a
+/// sync context calls a task-returning member, so they exist in no syntax tree.
 /// </para>
 /// <para>
 /// A fact about the program, not about any target: a task's Drop is a yield point, whatever spells
-/// it. What is DONE with it -- promoting a C# method to async so the drop can be a real await rather
-/// than a blocking get -- belongs to the backend and is no part of this. Another backend may block
-/// instead and would read the same facts.
+/// it. Promoting a C# method to async so the drop is a real await belongs to the backend; another
+/// backend may block instead.
 /// </para>
 /// </summary>
 internal sealed class TaskDropRegistry

@@ -7,15 +7,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// A local variable or parameter introduced within a body. Holds the resolved
-/// type of the binding.
+/// A local or parameter introduced within a body.
 /// </summary>
-/// <remarks>
-/// Body-binding skeleton: ownership tier and readonly-status will be added when the corresponding
-/// binding features land. Ref-ness is recorded already, but only so the backend can REFUSE it --
-/// a binding whose alias is dropped computes a wrong answer silently, which is worth catching
-/// before the aliasing itself is built.
-/// </remarks>
 internal sealed class LocalVariable(string name, IMistType type)
 {
     public string Name { get; } = name;
@@ -47,10 +40,9 @@ internal sealed class LocalVariable(string name, IMistType type)
 
     /// <summary>
     /// The binding took its type from a value that already failed and was reported, so a complaint about
-    /// a use of it would be the same mistake again. Recorded by the binder, where the value is in hand,
-    /// and POSITIVE rather than marking the unfinished case instead: a binding site that never sets it
-    /// leaves a second complaint, where one that forgot to mark an unfinished
-    /// value would silence a construct nothing has reported.
+    /// a use of it would repeat that mistake. POSITIVE rather than marking the unfinished case: a site
+    /// that never sets it leaves a second complaint, where one that forgot to mark an unfinished value
+    /// would silence a construct nothing has reported.
     /// </summary>
     public bool IsFailed { get; init; }
 

@@ -2,10 +2,6 @@ using Mist.ProgramModel.Model.Expressions;
 
 namespace Mist.ProgramModel.Model.Statements;
 
-/// <summary>
-/// An if/else statement. The else branch is optional and can be either a block
-/// or another <see cref="IfStatement"/> (for else-if chains).
-/// </summary>
 internal sealed class IfStatement(
     Expression condition,
     Block thenBranch,
@@ -17,8 +13,7 @@ internal sealed class IfStatement(
     public Block ThenBranch { get; } = thenBranch;
 
     /// <summary>
-    /// The else branch: either a <see cref="Block"/> (terminal else) or another
-    /// <see cref="IfStatement"/> (else-if chain). Null if no else clause.
+    /// A <see cref="Block"/>, or another <see cref="IfStatement"/> for an else-if chain.
     /// </summary>
     public Statement? ElseBranch { get; } = elseBranch;
 

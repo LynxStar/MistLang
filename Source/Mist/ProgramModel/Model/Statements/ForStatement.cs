@@ -2,9 +2,6 @@ using Mist.ProgramModel.Model.Expressions;
 
 namespace Mist.ProgramModel.Model.Statements;
 
-/// <summary>
-/// A for loop: <c>for (initializer; condition; iterator) { body }</c>.
-/// </summary>
 internal sealed class ForStatement(
     Statement? initializer,
     Expression? condition,

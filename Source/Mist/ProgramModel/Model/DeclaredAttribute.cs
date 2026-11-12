@@ -4,16 +4,13 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// An attribute WRITTEN IN MIST SOURCE, resolved to its type with its arguments bound.
+/// An attribute written in Mist source, resolved to its type with its arguments bound.
 /// <para>
-/// SEPARATE FROM <see cref="AttributeData"/>, WHICH IS THE SAME CONCEPT READ BACK FROM COMPILED
-/// METADATA, and the split is forced rather than chosen. A metadata argument is already a value, so
-/// <see cref="AttributeData"/> spells one <c>object?</c>; a declared argument is an expression that
-/// has never been evaluated, and evaluating it here would mean writing a constant folder that
-/// duplicates what the emitter can already print. Holding it as an <see cref="Expression"/> instead
-/// buys unary minus, enum member access and type literals for nothing. That choice is what makes the
-/// two irreconcilable: <see cref="Expression"/> is internal and <see cref="AttributeData"/> is a
-/// public contract, so no one type can carry both payloads.
+/// Separate from <see cref="AttributeData"/>, the same concept read back from compiled metadata,
+/// because the payloads cannot share a type. A metadata argument is already a value; a declared one
+/// stays an unevaluated <see cref="Expression"/>, which buys unary minus, enum member access and type
+/// literals without a constant folder, and <see cref="Expression"/> is internal where
+/// <see cref="AttributeData"/> is a public contract.
 /// </para>
 /// <para>
 /// Never both on one declaration: a member is projected from an assembly or declared in source, and

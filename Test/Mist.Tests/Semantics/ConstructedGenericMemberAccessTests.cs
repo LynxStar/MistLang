@@ -259,11 +259,12 @@ public sealed class ConstructedGenericMemberAccessTests : ProgramModelProbe
 
     [Fact]
     [Trait("Tier", "3")]
-    public void ADependentValueIsNotAnInstanceMember()
+    public void ADependentValueIsReadThroughAnInstanceAsTheParameterItself()
     {
-        var diagnostics = BuildRun("var s = new Sized<7>(); var n = s.N;", Projections);
+        var access = InitializerOf<MemberAccessExpression>("var s = new Sized<7>(); var n = s.N;", Projections);
 
-        Assert.Contains("'Sized<7>' has no member named 'N'", Assert.Single(Errors(diagnostics, "MIST0301")).Message, StringComparison.Ordinal);
+        Assert.Equal("N", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(access.Member).Type).Name);
+        Assert.Equal(7L, Assert.IsType<LiftedType>(access.Type).Value);
     }
 
     private static ConstructedType ReceiverTypeOf(InvocationExpression call)

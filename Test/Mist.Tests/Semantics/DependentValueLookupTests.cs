@@ -9,9 +9,10 @@ namespace Mist.Tests.Semantics;
 
 /// <summary>
 /// The public static property a dependent parameter projects its value through, as member lookup finds it
-/// on hand-built types: by qualification on the type or anything deriving from it, never on an instance,
-/// and never in place of the parameter itself inside the declaring type's own body. An ordinary parameter
-/// projects nothing, and an intrinsic type keeps answering its parameter's name as its target does.
+/// on hand-built types: by qualification on the type or anything deriving from it, and never in place of
+/// the parameter itself inside the declaring type's own body or through an instance, which reads the
+/// parameter. An ordinary parameter projects nothing, and an intrinsic type keeps answering its parameter's
+/// name as its target does.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class DependentValueLookupTests
@@ -38,11 +39,11 @@ public sealed class DependentValueLookupTests
     }
 
     [Fact]
-    public void AnInstanceReadFindsNothing()
+    public void AnInstanceReadFindsTheParameterItself()
     {
-        var (box, _) = Declare("Box");
+        var (box, size) = Declare("Box");
 
-        _ = Assert.IsType<NotFoundResult>(Qualified(box, "N", MemberVisibility.InstanceOnly));
+        Assert.Same(size, Assert.IsType<TypeResult>(Qualified(box, "N", MemberVisibility.InstanceOnly)).Type);
     }
 
     [Fact]

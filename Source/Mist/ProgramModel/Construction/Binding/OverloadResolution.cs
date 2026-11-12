@@ -46,7 +46,9 @@ internal static class OverloadResolution
         IReadOnlyDictionary<T, IReadOnlyList<ConstructedType>>? paths = null,
         ILambdaTrials? lambdas = null,
         IContextualExpressionTrials? contextual = null,
-        Func<IMistType, IMistType>? constructTask = null)
+        Func<IMistType, IMistType>? constructTask = null,
+        Func<IOverload, IReadOnlyList<IMistType>?>? statedFor = null,
+        ISlotInference? slots = null)
         where T : class, IOverload
     {
         var receiverSubstitution = TypeSubstitution.ForReceiver(receiver);
@@ -97,7 +99,8 @@ internal static class OverloadResolution
 
         foreach(var candidate in byArity)
         {
-            var substitution = Close(candidate, arguments, substitutionFor(candidate), typeArguments, interner, lambdas, constructTask, out var conflict);
+            var substitution = Close(
+                candidate, arguments, substitutionFor(candidate), statedFor?.Invoke(candidate) ?? typeArguments, interner, lambdas, constructTask, slots, out var conflict);
 
             if(substitution is null)
             {
@@ -280,6 +283,7 @@ internal static class OverloadResolution
         TypeInterner interner,
         ILambdaTrials? lambdas,
         Func<IMistType, IMistType>? constructTask,
+        ISlotInference? slots,
         out TypeArgumentConflict? conflict)
         where T : class, IOverload
     {
@@ -291,7 +295,7 @@ internal static class OverloadResolution
         }
 
         var own = typeArguments is null
-            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, lambdas, out conflict, constructTask))
+            ? TypeSubstitution.ForMethod(candidate, TypeArgumentInference.Infer(candidate, arguments, receiver, interner, lambdas, out conflict, constructTask, slots))
             : TypeSubstitution.ForMethod(candidate, typeArguments)
             ;
 

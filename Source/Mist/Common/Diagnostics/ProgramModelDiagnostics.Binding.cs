@@ -501,4 +501,24 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic SlotReadThroughUnknown = new(
+        DiagnosticNumber.Mint("MIST0489"),
+        Title: "Slot read through unknown",
+        Template: "'{parameter}' cannot be read through '{receiver}': an object may implement '{abstract}' at more than one value. Test it with an 'is' pattern instead.",
+        Description: "A dependent parameter of an abstract is read through a value whose type closes that slot with 'unknown'. An object is exactly one closing of its own class or struct, but it may implement an abstract at several values of a slot, so the read has no single answer. Test the value against a closing with an 'is' pattern and read the slot through the binding it introduces.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("receiver", SlotKind.Type), new Slot("abstract", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic SlotNotInferable = new(
+        DiagnosticNumber.Mint("MIST0490"),
+        Title: "Slot not inferable",
+        Template: "'{parameter}' cannot be inferred from an argument of type '{type}'. State it between angle brackets.",
+        Description: "A method's dependent parameter is inferred from the value an argument carries in its slot, but the argument's type is an abstract closed with 'unknown', whose slot has no single value to read. Pass the value between angle brackets at the call, or pass a value whose type names the slot.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 }

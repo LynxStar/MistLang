@@ -2,6 +2,7 @@ using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -74,6 +75,26 @@ public sealed class SlotIdentityDecisionTests
 
         Assert.Null(Judge(FactState.Empty, slots.Closed(wide, first.Value), slots.Closed(ring, first.Value)));
         Assert.NotNull(Judge(FactState.Empty, slots.Closed(wide, first.Value), slots.Closed(ring, second.Value)));
+    }
+
+    [Fact]
+    public void ASlotThatFailedToResolveOwesNothing()
+    {
+        Assert.Null(Judge(FactState.Empty, slots.Closed(ring, first.Value), slots.Closed(ring, ErrorType.Instance)));
+        Assert.Null(Judge(FactState.Empty, slots.Closed(ring, ErrorType.Instance), slots.Closed(ring, first.Value)));
+    }
+
+    [Fact]
+    public void AnUnknownSlotIsOneValueWithACaptureThatReadsThatVerySlot()
+    {
+        var a = HandBuiltRefinements.Local(slots.ArrayOf(new UnknownValueType(slots.Int)), "a");
+        var other = HandBuiltRefinements.Local(slots.ArrayOf(new UnknownValueType(slots.Int)), "other");
+        var read = new MemberAccessExpression(HandBuiltModel.Node(), a, "Length", slots.Int, member: new TypeResult(slots.Array.TypeParametersList[1]));
+        var inferred = new SlotCapture("a.Length", slots.Int, slots.Int, read, 7);
+
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, a, slots.ArrayOf(inferred.Value)));
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, new ImplicitConversionExpression(HandBuiltModel.Node(), a, a.Type, []), slots.ArrayOf(inferred.Value)));
+        Assert.Equal(("other.Length", "a.Length"), SlotIdentity.Judge(FactState.Empty, other, slots.ArrayOf(inferred.Value)) is { } unproven ? (unproven.Left, unproven.Right) : (null, null));
     }
 
     [Fact]

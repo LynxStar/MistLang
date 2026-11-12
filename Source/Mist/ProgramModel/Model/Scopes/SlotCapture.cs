@@ -39,6 +39,10 @@ internal sealed class SlotCapture : LocalVariable
             ArrayCreationExpression array => array.Captures,
             StackallocExpression stack => stack.Captures,
             TypeTestPattern test => test.Captures,
+            InvocationExpression invocation => invocation.Captures,
+            MemberAccessExpression access => access.Captures,
+            CastExpression cast => cast.Captures,
+            AsExpression conversion => conversion.Captures,
             _ => [],
         };
     }

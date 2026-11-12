@@ -458,6 +458,8 @@ internal static class TextFreezeTable
         ["ProgramModelDiagnostics.NewtypeCloneInvalid"] = "'arg0' cannot clone 'arg1', whose member 'arg2' does not hold for 'arg0'.",
         ["ProgramModelDiagnostics.NewtypeSourceNotSupported"] = "A newtype over 'arg0' is not supported: a newtype clones a class or a struct declared in Mist.",
         ["ProgramModelDiagnostics.SlotValueOutsideBody"] = "A type written here cannot name the value 'arg0'. Declare a dependent parameter and pass 'arg0' between angle brackets.",
+        ["ProgramModelDiagnostics.SlotReadThroughUnknown"] = "'arg0' cannot be read through 'arg1': an object may implement 'arg2' at more than one value. Test it with an 'is' pattern instead.",
+        ["ProgramModelDiagnostics.SlotNotInferable"] = "'arg0' cannot be inferred from an argument of type 'arg1'. State it between angle brackets.",
         ["ProgramModelDiagnostics.PatternTypeNotAConstituent"] = "'arg0' is not one of the types 'arg1' can hold, so this pattern can never match.",
         ["ProgramModelDiagnostics.SwitchExpressionNeedsAnArm"] = "A switch expression must declare at least one arm, because its type comes from what its arms produce.",
         ["ProgramModelDiagnostics.SwitchArmsNoCommonType"] = "The arms of the switch expression have no common type ('arg0' and 'arg1'). Annotate the target with the type you want.",

@@ -270,7 +270,8 @@ internal static class ArgumentBinder
         BuilderContext context,
         ConstructedType? receiverConstructed = null,
         IReadOnlyDictionary<Method, IReadOnlyList<ConstructedType>>? paths = null,
-        IReadOnlyList<IMistType>? typeArguments = null)
+        IReadOnlyList<IMistType>? typeArguments = null,
+        Func<IOverload, IReadOnlyList<IMistType>?>? statedFor = null)
         where T : Method
     {
         var count = argumentList?.GetAllExpressions().Length ?? 0;
@@ -279,9 +280,9 @@ internal static class ArgumentBinder
         var substitution = TypeSubstitution.ForPath(
             receiverConstructed, sole is not null && paths is { } reached ? reached.GetValueOrDefault(sole) : null, interner);
 
-        if(sole is not null && typeArguments is not null)
+        if(sole is not null && (statedFor?.Invoke(sole) ?? typeArguments) is { } stated)
         {
-            substitution = substitution.Extend(TypeSubstitution.ForMethod(sole, typeArguments));
+            substitution = substitution.Extend(TypeSubstitution.ForMethod(sole, stated));
         }
 
         var targets = sole is null ? null : Targets(sole.ParametersList, argumentList, substitution, interner);

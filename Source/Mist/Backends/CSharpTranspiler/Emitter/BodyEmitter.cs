@@ -2776,6 +2776,12 @@ internal static partial class BodyEmitter
             return;
         }
 
+        if(InstanceSlotReads.Through(memberAccess) is var (closing, slot))
+        {
+            EmitSlotRead(memberAccess, closing, slot, writer, diagnostics);
+            return;
+        }
+
         if(IntrinsicCalls.RespellsProperty(memberAccess.MemberName, memberAccess.Receiver.Type))
         {
             writer.Append(IntrinsicCalls.RewriteProperty(RenderAt(memberAccess.Receiver, PostfixPrecedence, diagnostics)));
@@ -2818,6 +2824,29 @@ internal static partial class BodyEmitter
         writer.Append(memberAccess.IsConditional ? "?." : ".");
         writer.Append(CalleeName(memberName ?? memberAccess.MemberName, typeArguments.Arguments, typeArguments.Parameters));
         writer.Append(EmitTypeArguments(typeArguments.Arguments, typeArguments.Parameters));
+    }
+
+    private static void EmitSlotRead(
+        MemberAccessExpression memberAccess, ConstructedType closing, TypeParameter slot, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        if(slot.Ordinal < closing.TypeArguments.Count && closing.TypeArguments[slot.Ordinal] is UnknownType or UnknownValueType)
+        {
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.SlotValueNotEmitted, memberAccess.Node, null,
+                new EnumValue("read"), new NameValue($"{TypeDisplay.Mist(closing)}.{slot.Name}"), new NameValue("unknown"));
+            writer.Append("default!");
+            return;
+        }
+
+        var read = $"{TypeNameEmitter.Emit(closing)}.{IdentifierSpelling.Of(memberAccess.MemberName)}";
+
+        if(InstanceSlotReads.IsPlainRead(memberAccess.Receiver))
+        {
+            writer.Append(read);
+            return;
+        }
+
+        writer.Append($"({RenderAt(memberAccess.Receiver, PostfixPrecedence, diagnostics)} switch {{ _ => {read} }})");
     }
 
     /// <summary>

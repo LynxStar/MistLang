@@ -28,7 +28,7 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
             value = PostfixBinder.BindMemberAccess(name, value, segment.Lexeme, ctx, context);
         }
 
-        if(Capture(value, slot, QualifiedNameHelper.Build(name), context) is not { } capture)
+        if(Capture(value, slot, QualifiedNameHelper.Build(name), context.ProgramModel.TypeInterner) is not { } capture)
         {
             return ErrorType.Instance;
         }
@@ -40,11 +40,11 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
     public static SlotCapture? CaptureLength(Expression size, ExpressionNode written, WellKnownType definition, BuilderContext context)
     {
         return context.Resolver.LookupWellKnown(definition) is IHasTypeParameters { TypeParametersList: [_, { IsDependent: true } length] }
-            ? Capture(size, length, Written(written), context, converted: true)
+            ? Capture(size, length, Written(written, "length"), context.ProgramModel.TypeInterner, converted: true)
             : null;
     }
 
-    private static SlotCapture? Capture(Expression value, TypeParameter slot, string writtenName, BuilderContext context, bool converted = false)
+    public static SlotCapture? Capture(Expression value, TypeParameter slot, string writtenName, TypeInterner interner, bool converted = false)
     {
         if(value.Type is ErrorType || PriorFailure.Of(value) || slot.Domain is not { } domain)
         {
@@ -57,13 +57,13 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
 
         return new SlotCapture(
             writtenName, contract, ConversionRelation.Unrefined(domain),
-            converted ? value : ImplicitConversions.At(value, contract, context.ProgramModel.TypeInterner), value.Node.Span.Start);
+            converted ? value : ImplicitConversions.At(value, contract, interner), value.Node.Span.Start);
     }
 
-    private static string Written(ExpressionNode node)
+    public static string Written(Storm.Runtime.SyntaxNode node, string otherwise)
     {
         return node.Origin is ParsedOrigin { Source.Contents: var contents } && node.Span.End <= contents.Length
             ? contents[node.Span.Start..node.Span.End].Trim()
-            : "length";
+            : otherwise;
     }
 }

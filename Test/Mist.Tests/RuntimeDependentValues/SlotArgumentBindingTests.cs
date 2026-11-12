@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -96,6 +97,37 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
         Assert.Equal("int[n]", TypeDisplay.Mist(statements[1].Local.Type));
         Assert.Equal("int[]", TypeDisplay.Mist(lambda.ReturnType));
         _ = Assert.IsType<UnknownValueType>(Assert.IsType<ConstructedType>(lambda.ReturnType).TypeArguments[1]);
+    }
+
+    [Fact]
+    public void AnInferredParameterOverAnUnknownLengthReadsTheArgumentsSlotIntoACaptureOnTheCall()
+    {
+        var model = StandardModelProbe.Build(
+            """
+            int[] a = [1, 2, 3];
+            var n = Api.Len(a);
+            """,
+            out var diagnostics,
+            extraTypes: """
+            public class Api
+            {
+                public static int Len<N:ZeroOrPositiveInt>(Array<int, N> a)
+                {
+                    return 0;
+                }
+            }
+            """);
+        var statements = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var call = Assert.IsType<InvocationExpression>(statements[1].Initializer);
+        var capture = Assert.Single(call.Captures);
+        var read = Assert.IsType<MemberAccessExpression>(capture.Initializer);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == Mist.Common.Diagnostics.DiagnosticSeverity.Error);
+        Assert.Equal("a.Length", capture.Name);
+        Assert.Equal("a", Assert.IsType<LocalReferenceExpression>(read.Receiver).Local.Name);
+        Assert.Equal("Length", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(read.Member).Type).Name);
+        Assert.Same(capture.Value, Assert.IsType<ConstructedType>(call.ParameterTypes![0]).TypeArguments[1]);
     }
 
     [Fact]

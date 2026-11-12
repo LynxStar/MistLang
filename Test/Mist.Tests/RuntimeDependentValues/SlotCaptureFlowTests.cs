@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.Tests.Helpers;
 
@@ -21,9 +22,19 @@ public sealed class SlotCaptureFlowTests
         var test = new TypeTestPattern(HandBuiltModel.Node(), source.Type, null) { Captures = [written] };
         var creation = slots.Create(written);
 
+        var callee = HandBuiltRefinements.Local(slots.Int, "callee");
+        var call = new InvocationExpression(HandBuiltModel.Node(), callee, [source], slots.Int, null, null) { Captures = [written] };
+        var cast = new CastExpression(HandBuiltModel.Node(), source, source.Type, [], source.Type) { Captures = [written] };
+        var tested = new AsExpression(HandBuiltModel.Node(), source, source.Type, AsConversionKind.Identity, null, source.Type) { Captures = [written] };
+        var read = new MemberAccessExpression(HandBuiltModel.Node(), callee, "Capacity", slots.Int) { Captures = [written] };
+
         Assert.Equal([written.Initializer, source], BodyWalker.ChildrenOf(declaration));
         Assert.Equal([written.Initializer], BodyWalker.ChildrenOf(test));
         Assert.Equal([written.Initializer], BodyWalker.ChildrenOf(creation));
+        Assert.Equal([written.Initializer, callee, source], BodyWalker.ChildrenOf(call));
+        Assert.Equal([written.Initializer, source], BodyWalker.ChildrenOf(cast));
+        Assert.Equal([written.Initializer, source], BodyWalker.ChildrenOf(tested));
+        Assert.Equal([written.Initializer, callee], BodyWalker.ChildrenOf(read));
     }
 
     [Fact]

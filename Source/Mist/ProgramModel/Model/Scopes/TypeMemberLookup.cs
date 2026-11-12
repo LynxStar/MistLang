@@ -143,7 +143,10 @@ internal static class TypeMemberLookup
     /// <summary>
     /// Nested types, and at depth 0 only, the type's own type parameters and abstract slots. A base's
     /// type parameters are bound by its own declaration: in <c>class Derived&lt;T&gt; :
-    /// Base&lt;T&gt;</c> the <c>T</c> in scope is Derived's.
+    /// Base&lt;T&gt;</c> the <c>T</c> in scope is Derived's. The one name a base's parameter answers at
+    /// any depth is a dependent parameter read through an instance, <c>ring.Capacity</c>, which is the
+    /// value the instance's type was closed with and so is met through the construction on the path, as
+    /// the static read <see cref="AddValueProperties"/> offers is.
     /// </summary>
     private static void AddTypeNames(
         MistType type, LookupRequest request, int depth, IReadOnlyList<ConstructedType> path, CandidateSet candidates)
@@ -156,22 +159,33 @@ internal static class TypeMemberLookup
             }
         }
 
-        if(depth != 0)
-        {
-            return;
-        }
-
         // A clone's body is its source's syntax, naming the source's parameters, which CloneScope answers;
         // the clone's own are named only by its newtype declaration.
-        if(type is IHasTypeParameters generic and not ConcreteType { CloneSource: not null } && !ProjectsInstead(type, request))
+        if(type is IHasTypeParameters generic and not ConcreteType { CloneSource: not null })
         {
+            var lexical = depth == 0 && !ProjectsInstead(type, request);
+
             foreach(var typeParameter in generic.TypeParametersList)
             {
-                if(typeParameter.Name == request.Name)
+                if(typeParameter.Name != request.Name)
+                {
+                    continue;
+                }
+
+                if(lexical)
                 {
                     candidates.Add(new TypeResult(typeParameter), depth);
                 }
+                else if(IsSlotRead(typeParameter, request))
+                {
+                    candidates.Add(new TypeResult(typeParameter, path), depth);
+                }
             }
+        }
+
+        if(depth != 0)
+        {
+            return;
         }
 
         if(type is AbstractType abstractType)
@@ -308,6 +322,11 @@ internal static class TypeMemberLookup
         return request.IsQualified
             && request.Visibility != MemberVisibility.None
             && type is MemberType { Modifiers.IsIntrinsic: false };
+    }
+
+    private static bool IsSlotRead(TypeParameter parameter, LookupRequest request)
+    {
+        return request.IsQualified && request.Permits(isStatic: false) && parameter is { IsDependent: true, IsPack: false };
     }
 
     private static PackElementType? ProjectedElement(IMistType declared, string stem, string requested)

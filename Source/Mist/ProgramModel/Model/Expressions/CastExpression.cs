@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
@@ -56,4 +57,6 @@ internal sealed class CastExpression(
     public IMistType? ParameterType => CalledParameter ?? LookupParameterType;
 
     private IMistType? CalledParameter { get; } = bestOperators is [var called] ? called.Parameter : null;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 }

@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -36,6 +37,8 @@ internal sealed class AsExpression(
     public IMistType? Constituent { get; } = constituent;
 
     public override IMistType Type { get; } = resultType;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 }
 
 internal enum AsConversionKind

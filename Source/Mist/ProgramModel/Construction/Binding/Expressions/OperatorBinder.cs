@@ -161,7 +161,8 @@ internal static class OperatorBinder
             operand = BindAdditive(node.Left, ctx, context);
         }
 
-        var target = context.Resolver.Resolve(node.TargetType, ctx.Scope);
+        var values = new SlotValueBinder(ctx, context);
+        var target = context.Resolver.Resolve(node.TargetType, ctx.Scope, values);
 
         if(operand.Type is ErrorType || target is ErrorType)
         {
@@ -187,7 +188,7 @@ internal static class OperatorBinder
                 context.ProgramModel.TypeInterner)
             ;
 
-        return new AsExpression(node, operand, target, classified, constituent, resultType);
+        return new AsExpression(node, operand, target, classified, constituent, resultType) { Captures = values.Captures };
     }
 
     /// <summary>
@@ -408,7 +409,8 @@ internal static class OperatorBinder
                         operand = BindUnary(cast.Operand, ctx, context);
                     }
 
-                    var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope);
+                    var values = new SlotValueBinder(ctx, context);
+                    var targetType = context.Resolver.Resolve(cast.TargetType, ctx.Scope, values);
 
                     if(LiteralBinder.AsRegexLiteral(operand, targetType) is { } pattern)
                     {
@@ -426,7 +428,10 @@ internal static class OperatorBinder
 
                     return new CastExpression(
                         node, operand, targetType, called,
-                        called is [var selected] ? selected.Result : CastResultType(operand.Type, targetType, context));
+                        called is [var selected] ? selected.Result : CastResultType(operand.Type, targetType, context))
+                    {
+                        Captures = values.Captures,
+                    };
                 }
 
             default:

@@ -25,10 +25,30 @@ internal sealed partial class ScopeResolver
         return ResolveWithFailure(() => WithSlotValues(values, () => Resolve(node, scope)));
     }
 
+    public IMistType Resolve(TypeReferenceNode node, Scope scope, ISlotValueBinder values)
+    {
+        return WithSlotValues(values, () => Resolve(node, scope));
+    }
+
     public IReadOnlyList<IMistType> ResolveTypeArguments(
         TypeArgumentListNode syntax, Scope scope, IMistType definition, ISlotValueBinder values)
     {
         return WithSlotValues(values, () => ResolveTypeArguments(syntax, scope, definition));
+    }
+
+    /// <summary>
+    /// The arguments a method's stated list resolves to for one candidate, which alone says whether a
+    /// position is a dependent slot that reads a value.
+    /// </summary>
+    public IReadOnlyList<IMistType> ResolveTypeArguments(
+        TypeArgumentListNode syntax, Scope scope, IReadOnlyList<TypeParameter> parameters, ISlotValueBinder values)
+    {
+        return WithSlotValues(values, () => ResolveArguments(ArgumentNodes(syntax), scope, parameters));
+    }
+
+    public static bool HasSlot(IReadOnlyList<TypeParameter> parameters, int written)
+    {
+        return Enumerable.Range(0, written).Any(position => SlotAt(parameters, written, position) is { IsDependent: true, IsPack: false });
     }
 
     private T WithSlotValues<T>(ISlotValueBinder? values, Func<T> resolve)

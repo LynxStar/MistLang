@@ -3,6 +3,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -12,9 +13,10 @@ internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string L
 /// <summary>
 /// Whether a value's type and the type it meets are one type where they differ only in the values of
 /// dependent slots, which <see cref="ConversionClassifier.AgreesUpToProof"/> admits and leaves to be
-/// proven here. Only two slots that hold one value are proven: the same capture, or two captures the
-/// flow bound to one value because each read the same unchanged holder. A slot the target leaves
-/// <c>unknown</c> owes nothing.
+/// proven here. Only two slots that hold one value are proven: the same capture, two captures the
+/// flow bound to one value because each read the same unchanged holder, or the <c>unknown</c> slot of
+/// the value against a capture that was made by reading that very value's slot, which inference does
+/// for an argument. A slot the target leaves <c>unknown</c> owes nothing.
 /// </summary>
 internal static class SlotIdentity
 {
@@ -35,7 +37,7 @@ internal static class SlotIdentity
             }
 
             var unproven = Pairs(reaching, closing)
-                .Where(pair => !Proven(state, pair.Argument, pair.Slot))
+                .Where(pair => !Proven(state, pair.Argument, pair.Slot, through))
                 .Select(pair => new UnprovenSlot(source, constituent, Shown(pair.Argument, pair.Parameter, through), Shown(pair.Slot, pair.Parameter, null)))
                 .FirstOrDefault();
 
@@ -57,8 +59,15 @@ internal static class SlotIdentity
                 && Reaching(Written(value).Type, closing, []) is { } reaching && Pairs(reaching, closing).Any());
     }
 
-    private static bool Proven(FactState state, IMistType argument, IMistType slot)
+    private static bool Proven(FactState state, IMistType argument, IMistType slot, Expression? through)
     {
+        if(argument is UnknownType or UnknownValueType)
+        {
+            return through is not null
+                && slot is CapturedValue { Capture.Initializer: MemberAccessExpression { Member: TypeResult, Receiver: var read } }
+                && ReferenceEquals(Written(read), Written(through));
+        }
+
         return argument is CapturedValue left && slot is CapturedValue right
             && (ReferenceEquals(left.Capture, right.Capture)
                 || (state.Bindings.Get(left.Capture) is { } mine && ReferenceEquals(mine, state.Bindings.Get(right.Capture))));
@@ -71,7 +80,7 @@ internal static class SlotIdentity
             var argument = source.TypeArguments[i];
             var slot = target.TypeArguments[i];
 
-            if(ReferenceEquals(argument, slot))
+            if(ReferenceEquals(argument, slot) || argument is ErrorType || slot is ErrorType)
             {
                 continue;
             }

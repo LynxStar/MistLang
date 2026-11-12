@@ -3,6 +3,7 @@ using Mist.Generated;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -111,7 +112,7 @@ internal static class PostfixBinder
         {
             return StatedMethodArguments.Bind(
                 new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
-                node.TypeArgs, name, node, ctx, context);
+                node.TypeArgs, name, node, ctx, context, ownsCaptures: false);
         }
 
         var definition = context.Resolver.ResolveGenericDefinition(name, 1 + node.TypeArgs.TypeArguments.Length, ctx.Scope, node);
@@ -137,7 +138,7 @@ internal static class PostfixBinder
         {
             case GenericMethodGroupSuffixPostfixSuffixNode stated:
                 return StatedMethodArguments.Bind(
-                    BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context);
+                    BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context, ownsCaptures: false);
 
             case InvocationSuffixPostfixSuffixNode invocation:
                 return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context);
@@ -283,32 +284,45 @@ internal static class PostfixBinder
         IReadOnlyList<IMistType>? typeArguments,
         BindingContext ctx,
         BuilderContext context,
-        bool isImplicit = false)
+        bool isImplicit = false,
+        IReadOnlyList<SlotCapture>? captures = null)
     {
         var group = receiver as MethodGroupExpression ?? Callability.ExtensionMethods(receiver, ctx, context);
 
         if(group is null)
         {
-            return BindFunctionInvocation(node, receiver, arguments, ctx, context);
+            return BindFunctionInvocation(node, receiver, arguments, ctx, context, captures ?? []);
         }
 
         if(group.Candidates.Count > 0 && group.Candidates.All(LocalFunctionBinder.IsRejected))
         {
             var retained = ArgumentBinder.Bind(arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths);
+            group.SettleStated(null);
             return new ErrorExpression(node, [receiver, .. retained]);
         }
 
+        var statedFor = group.StatedPerCandidate is null ? null : (Func<IOverload, IReadOnlyList<IMistType>?>)(candidate => group.StatedArgumentsFor((Method)candidate));
         var bound = ArgumentBinder.Bind(
-            arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths, typeArguments);
+            arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths, typeArguments, statedFor);
         var interner = context.ProgramModel.TypeInterner;
+        var slots = new SlotInference(interner);
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,
             ArgumentBinder.RefFlags(arguments), group.Paths, new LambdaTrials(ctx, context, group.Candidates.Any(ClrCatch.Is)), new ContextualExpressionTrials(ctx, context),
-            context.Resolver.ConstructTask);
+            context.Resolver.ConstructTask, statedFor, slots);
+
+        group.SettleStated(choice.Selected);
 
         if(choice.Selected is not { } selected)
         {
+            if(choice.Uninferred.Count > 0 && slots.RefusedFor(choice.Uninferred[0]) is { } refused)
+            {
+                context.Diagnostics.ReportAtNodeTyped(
+                    ProgramModelDiagnostics.SlotNotInferable, node, null, new NameValue(refused.Parameter.Name), DiagnosticSnapshot.Type(refused.Type));
+                return new ErrorExpression(node, [receiver, .. bound]);
+            }
+
             return OverloadFailure.Retain(
                 choice, group.Candidates, bound,
                 $"method '{group.MemberName}'", node, context.Diagnostics, [receiver, .. bound],
@@ -366,6 +380,7 @@ internal static class PostfixBinder
         {
             IsImplicit = isImplicit,
             ContextTypes = ContextBinding.TypesOf(selected, type => choice.Substitution.Apply(type, interner)),
+            Captures = [.. captures ?? [], .. group.StatedCapturesFor(selected), .. slots.CapturesOf(selected)],
         };
 
         return TaskResult.IsDrop(selected) ? invocation : AutoDrop(invocation, ctx, context);
@@ -431,7 +446,8 @@ internal static class PostfixBinder
         Expression receiver,
         ArgumentListNode? arguments,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        IReadOnlyList<SlotCapture> captures)
     {
         if(DelegateShape.Of(receiver.Type) is not { } function)
         {
@@ -439,7 +455,7 @@ internal static class PostfixBinder
 
             return Callability.Refuses(receiver, node, context)
                 ? new ErrorExpression(node, [receiver, .. untargeted])
-                : new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null);
+                : new InvocationExpression(node, receiver, untargeted, receiver.Type, null, parameterTypes: null) { Captures = captures };
         }
 
         var bound = ArgumentBinder.BindTargeted(arguments, function.ParameterTypes, ctx, context);
@@ -464,6 +480,7 @@ internal static class PostfixBinder
             new InvocationExpression(node, receiver, converted, returnType, null, function.ParameterTypes)
             {
                 InvokeMethod = invoke,
+                Captures = captures,
             }, ctx, context);
     }
 
@@ -553,6 +570,24 @@ internal static class PostfixBinder
         if(HiddenOn(constructed, found, ctx.AccessAt(node), node, context))
         {
             return new MemberAccessExpression(node, receiver, memberName, ErrorType.Instance, member: found, isFailed: true);
+        }
+
+        if(receiver is not TypeReferenceExpression && InstanceSlotRead.Parameter(found) is { } slot)
+        {
+            var closing = InstanceSlotRead.Closing((TypeResult)found, constructed, context.ProgramModel.TypeInterner);
+
+            if(InstanceSlotRead.ThroughUnknown(slot, closing) is { } through)
+            {
+                context.Diagnostics.ReportAtNodeTyped(
+                    ProgramModelDiagnostics.SlotReadThroughUnknown, node, null,
+                    new NameValue(slot.Name), DiagnosticSnapshot.Type(receiver.Type), DiagnosticSnapshot.Type(through.Definition));
+                return new MemberAccessExpression(node, receiver, memberName, ErrorType.Instance, member: found, isFailed: true);
+            }
+
+            if(InstanceSlotRead.TypeOf(slot, closing) is { } read)
+            {
+                return new MemberAccessExpression(node, receiver, memberName, read, member: found);
+            }
         }
 
         // C# has no extension property, so this access is not one in the output: it becomes a call

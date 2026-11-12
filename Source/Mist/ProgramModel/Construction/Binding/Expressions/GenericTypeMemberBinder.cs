@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Expressions;
@@ -12,22 +13,49 @@ internal static class GenericTypeMemberBinder
     internal static Expression BindMemberAccess(
         GenericTypeMemberAccessExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        return BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context);
+        var (member, captures) = BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context);
+
+        return member is MemberAccessExpression access && captures.Count > 0
+            ? new MemberAccessExpression(access.Node, access.Receiver, access.MemberName, access.Type, access.TypeArguments, access.IsConditional, access.Member, access.IsFailed)
+            {
+                Captures = captures,
+            }
+            : Owned(member, captures, node, context);
     }
 
     internal static Expression BindMethodCall(
         GenericTypeMethodCallExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
+        var (member, captures) = BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context);
+        var stated = StatedMethodArguments.Bind(member, node.MethodTypeArgs, node.Member.Lexeme, node, ctx, context);
+
         return PostfixBinder.BindInvocation(
             node,
-            BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context),
+            stated,
             node.Arguments,
-            context.Resolver.ResolveTypeArguments(node.MethodTypeArgs, ctx.Scope),
+            (stated as MethodGroupExpression)?.StatedTypeArguments,
             ctx,
-            context);
+            context,
+            captures: captures);
     }
 
-    private static Expression BindMemberAccess(
+    /// <summary>
+    /// A capture belongs to the node that reads it. A member access and a call own theirs; anything else
+    /// reached through the closing, a nested type among them, cannot, and the value's name is refused as
+    /// it is outside a body.
+    /// </summary>
+    private static Expression Owned(Expression member, IReadOnlyList<SlotCapture> captures, SyntaxNode node, BuilderContext context)
+    {
+        if(captures.Count > 0 && member is not ErrorExpression)
+        {
+            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SlotValueOutsideBody, node, null, new NameValue(captures[0].Name));
+            return new ErrorExpression(node);
+        }
+
+        return member;
+    }
+
+    private static (Expression Member, IReadOnlyList<SlotCapture> Captures) BindMemberAccess(
         SyntaxNode node, QualifiedIdentifierNode typeNameNode, TypeArgumentListNode stated,
         string memberName, BindingContext ctx, BuilderContext context)
     {
@@ -37,11 +65,12 @@ internal static class GenericTypeMemberBinder
 
         if(definition is ErrorType)
         {
-            return new ErrorExpression(node);
+            return (new ErrorExpression(node), []);
         }
 
+        var values = new SlotValueBinder(ctx, context);
         var typeArgs = context.Resolver.BindPack(
-            definition, context.Resolver.ResolveTypeArguments(stated, ctx.Scope, definition), node);
+            definition, context.Resolver.ResolveTypeArguments(stated, ctx.Scope, definition, values), node);
         var enclosing = context.Resolver.InheritedEnclosing(definition, ctx.Scope);
         context.ProgramModel.ConstructorConstraintClosures.RecordStampableType(definition, typeArgs, node, enclosing, ctx.Scope);
         var type = definition is TypeAlias alias
@@ -52,10 +81,13 @@ internal static class GenericTypeMemberBinder
         if(definition is TypeAlias declared
             && declared.TypeParametersList.Find(parameter => parameter.ValueProperty?.Name == memberName) is { ValueProperty: { } projected })
         {
-            return new MemberAccessExpression(
-                node, receiver, projected.Name, projected.Type, member: new PropertyResult(projected, declared, [new ConstructedType(declared, typeArgs)]));
+            return (new MemberAccessExpression(
+                node, receiver, projected.Name, projected.Type, member: new PropertyResult(projected, declared, [new ConstructedType(declared, typeArgs)]))
+            {
+                Captures = values.Captures,
+            }, []);
         }
 
-        return PostfixBinder.BindMemberAccess(node, receiver, memberName, ctx, context);
+        return (PostfixBinder.BindMemberAccess(node, receiver, memberName, ctx, context), values.Captures);
     }
 }

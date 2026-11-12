@@ -105,7 +105,7 @@ internal static class MethodGroupConversion
         }
 
         var closed = group.Candidates
-            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedTypeArguments, parameterTypes, returnType, substitutionOf(candidate), interner, constructTask)))
+            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedArgumentsFor(candidate), parameterTypes, returnType, substitutionOf(candidate), interner, constructTask)))
             .Where(candidate => candidate.Substitution is not null)
             .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
 

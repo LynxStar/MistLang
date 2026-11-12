@@ -107,12 +107,20 @@ internal static class MemberResolution
 
     // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
     // predicate says which VALUES the type admits, never which members they answer to. An alias
-    // named in expression position, `Task.Yield()`, is likewise its aliased type's.
+    // named in expression position, `Task.Yield()`, is likewise its aliased type's, and a slot's
+    // value, which a read such as `arr.Length` is typed by, is its domain's.
     private static IMistType Answering(IMistType type)
     {
         var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
 
-        return unaliased is RefinedType refined ? refined.BaseType : unaliased;
+        return unaliased switch
+        {
+            RefinedType refined => refined.BaseType,
+            LiftedType lifted => lifted.Type,
+            UnknownValueType unknown => unknown.Domain,
+            CapturedValue captured => captured.Domain,
+            _ => unaliased,
+        };
     }
 
     internal readonly record struct StorageLookup(IMistType? Type, LookupResult Found)

@@ -1,5 +1,7 @@
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Storm.Runtime;
 
@@ -71,6 +73,56 @@ internal sealed class MethodGroupExpression : Expression
     public bool IsConditional { get; }
 
     public IReadOnlyList<IMistType>? StatedTypeArguments { get; init; }
+
+    /// <summary>
+    /// The stated arguments as each candidate with a dependent slot resolved them, a name there being a
+    /// value for that candidate where <see cref="StatedTypeArguments"/> read it as a type, with the
+    /// reports of that resolution withheld until the call has chosen, so one written list resolved
+    /// several ways is reported once. Null when no candidate has such a slot. <see cref="StatedShared"/>
+    /// says whether <see cref="StatedTypeArguments"/> was resolved for the candidates without one and
+    /// reported as it went; otherwise it is the first candidate's own list, kept for its count.
+    /// </summary>
+    public IReadOnlyDictionary<Method, StatedResolution>? StatedPerCandidate { get; init; }
+
+    public bool StatedShared { get; init; }
+
+    public IReadOnlyList<IMistType>? StatedArgumentsFor(Method candidate)
+    {
+        return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Arguments : StatedTypeArguments;
+    }
+
+    public IReadOnlyList<SlotCapture> StatedCapturesFor(Method candidate)
+    {
+        return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Captures : [];
+    }
+
+    public void SettleStated(Method? selected)
+    {
+        if(StatedPerCandidate is null)
+        {
+            return;
+        }
+
+        var spoken = StatedShared;
+
+        foreach(var (candidate, resolved) in StatedPerCandidate)
+        {
+            if(resolved.Withheld is not { Decided: false } withheld)
+            {
+                continue;
+            }
+
+            if(selected is null ? !spoken : ReferenceEquals(candidate, selected))
+            {
+                withheld.Commit();
+                spoken = true;
+            }
+            else
+            {
+                withheld.Discard();
+            }
+        }
+    }
 
     public override IMistType Type { get; } = MethodGroupType.Instance;
 }

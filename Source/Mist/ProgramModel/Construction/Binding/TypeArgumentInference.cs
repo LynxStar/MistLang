@@ -18,13 +18,14 @@ internal static class TypeArgumentInference
         TypeInterner interner,
         ILambdaTrials? lambdas,
         out TypeArgumentConflict? conflict,
-        Func<IMistType, IMistType>? constructTask = null)
+        Func<IMistType, IMistType>? constructTask = null,
+        ISlotInference? reads = null)
     {
         var bounds = NewBounds(method.TypeParametersList.Count);
 
         if(ValuePack.FlattenedSlot(method.ParametersList) is { } flattened)
         {
-            InferAcrossPack(method, arguments, receiver, interner, bounds, flattened);
+            InferAcrossPack(method, arguments, receiver, interner, bounds, flattened, reads);
             var pending = Enumerable.Range(0, Math.Min(flattened, arguments.Count))
                 .Where(i => arguments[i] is UnboundLambdaExpression or MethodGroupExpression).ToList();
             var blockedPack = InferFromCallables(method, arguments, pending, receiver, interner, lambdas, constructTask, bounds);
@@ -49,7 +50,7 @@ internal static class TypeArgumentInference
                 continue;
             }
 
-            MatchArgument(declared, arguments[i], method.TypeParametersList, bounds);
+            MatchArgument(declared, arguments[i], method.TypeParametersList, bounds, Reading(reads, method, arguments[i]));
         }
 
         var blocked = InferFromCallables(method, arguments, callables, receiver, interner, lambdas, constructTask, bounds);
@@ -339,7 +340,8 @@ internal static class TypeArgumentInference
         TypeSubstitution receiver,
         TypeInterner interner,
         List<IMistType>[] bounds,
-        int flattened)
+        int flattened,
+        ISlotInference? slots)
     {
         var parameters = method.ParametersList;
         var trailing = parameters.Count - flattened - 1;
@@ -347,7 +349,7 @@ internal static class TypeArgumentInference
         for(var i = 0; i < flattened && i < arguments.Count; i++)
         {
             MatchArgument(receiver.Apply(parameters[i].Type, interner), arguments[i],
-                method.TypeParametersList, bounds);
+                method.TypeParametersList, bounds, Reading(slots, method, arguments[i]));
         }
 
         for(var i = 0; i < trailing; i++)
@@ -355,7 +357,7 @@ internal static class TypeArgumentInference
             var parameter = parameters[parameters.Count - 1 - i];
             var argument = arguments[arguments.Count - 1 - i];
             MatchArgument(receiver.Apply(parameter.Type, interner), argument,
-                method.TypeParametersList, bounds);
+                method.TypeParametersList, bounds, Reading(slots, method, argument));
         }
 
         if(ValuePack.PackParameterOf(parameters[flattened]) is not { } pack)
@@ -413,21 +415,42 @@ internal static class TypeArgumentInference
     // the optional is peeled; reading a general union's constituents is a wider question the caller
     // settles by stating the argument (type-argument-inference Requirement 3).
     private static void MatchArgument(
-        IMistType declared, Expression argument, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
+        IMistType declared, Expression argument, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds, SlotReading? reading = null)
     {
         if(argument is VoidLiteralExpression or UnboundContextualExpression)
         {
             return;
         }
 
-        Match(declared, argument.Type, parameters, bounds);
+        Match(declared, argument.Type, parameters, bounds, reading);
     }
 
+    private static SlotReading? Reading(ISlotInference? slots, IOverload method, Expression argument)
+    {
+        return slots is null ? null : new SlotReading(slots, method, argument, null, -1);
+    }
+
+    /// <summary>
+    /// The argument an unknown slot is read from, carried one level down into its type's own arguments
+    /// and no further: a slot nested deeper, <c>List&lt;int[]&gt;</c>, has no value the argument can read.
+    /// </summary>
+    private sealed record SlotReading(ISlotInference Slots, IOverload Method, Expression Argument, ConstructedType? Closing, int Ordinal);
+
     private static void Match(
-        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
+        IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds, SlotReading? reading = null)
     {
         if(declared is TypeParameter parameter)
         {
+            if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Closing: { } closing })
+            {
+                if(Slot(parameter, parameters) < 0 || reading.Slots.Unknown(reading.Method, parameter, reading.Argument, closing, reading.Ordinal) is not { } read)
+                {
+                    return;
+                }
+
+                actual = read;
+            }
+
             Record(parameter, actual, parameters, bounds);
             return;
         }
@@ -437,7 +460,7 @@ internal static class TypeArgumentInference
         // about which type argument to learn.
         if(declared is RefinedType refined)
         {
-            Match(refined.BaseType, actual, parameters, bounds);
+            Match(refined.BaseType, actual, parameters, bounds, reading);
             return;
         }
 
@@ -447,7 +470,7 @@ internal static class TypeArgumentInference
 
             if(!OptionalUnion.IsVoid(given))
             {
-                Match(present, given, parameters, bounds);
+                Match(present, given, parameters, bounds, reading);
             }
 
             return;
@@ -487,7 +510,9 @@ internal static class TypeArgumentInference
 
         for(var i = 0; i < declaredConstructed.TypeArguments.Count; i++)
         {
-            Match(declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, bounds);
+            Match(
+                declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, bounds,
+                reading is { Closing: null } top ? top with { Closing = actualConstructed, Ordinal = i } : null);
         }
     }
 
@@ -531,13 +556,15 @@ internal static class TypeArgumentInference
     /// <summary>
     /// A parameter the method does not declare is the receiver's to close, not this call's, so it is
     /// passed over rather than refused -- including where the receiver was not constructed and so left
-    /// it open.
+    /// it open. A dependent parameter keeps its first bound: the arguments after it are ordinary
+    /// arguments against the closed parameter type, proven identical by Stage 5 rather than merged here
+    /// (runtime-dependent-values Requirement 8.4).
     /// </summary>
     private static void Record(
         TypeParameter parameter, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds)
     {
         var slot = Slot(parameter, parameters);
-        if(slot < 0)
+        if(slot < 0 || (parameter is { IsDependent: true, IsPack: false } && bounds[slot].Count > 0))
         {
             return;
         }

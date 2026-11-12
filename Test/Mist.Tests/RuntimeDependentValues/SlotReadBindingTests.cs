@@ -1,0 +1,99 @@
+using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
+
+namespace Mist.Tests.RuntimeDependentValues;
+
+[Trait("Tier", "3")]
+public sealed class SlotReadBindingTests : ProgramModelProbe
+{
+    public SlotReadBindingTests()
+        : base("MistSlotReads_")
+    {
+    }
+
+    protected override string Fixtures { get; } = """
+        public class Ring<Capacity:int>
+        {
+        }
+
+        public abstract ISized<N:int>
+        {
+        }
+
+        public class Both : ISized<1>, ISized<2>
+        {
+        }
+
+        public class Api
+        {
+            public static Ring<N> Zeroes<N:int>() { return new Ring<N>(); }
+        }
+        """;
+
+    protected override string Preamble { get; } = "";
+
+    [Fact]
+    public void AnInstanceReadBindsAsASlotReadAndTheReadThroughTheTypeIsUnchanged()
+    {
+        var statements = BodyIn("var ring = new Ring<4>(); var c = ring.Capacity; var s = Ring<4>.Capacity;")
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var instance = Assert.IsType<MemberAccessExpression>(statements[1].Initializer);
+        var through = Assert.IsType<MemberAccessExpression>(statements[2].Initializer);
+
+        Assert.Equal("Capacity", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(instance.Member).Type).Name);
+        Assert.Equal(4L, Assert.IsType<LiftedType>(instance.Type).Value);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, Assert.IsType<PropertyResult>(through.Member).Property.Type.FullyQualifiedName);
+        Assert.Equal("Capacity", Assert.IsType<PropertyResult>(through.Member).Property.ProjectedParameter?.Name);
+    }
+
+    [Fact]
+    public void TheSlotOfAnAbstractIsRefusedThroughUnknownAndTwoClosingsOfOneAbstractBuild()
+    {
+        var both = BuildRun("var both = new Both(); ISized<1> one = both; var n = one.N;");
+        var some = BuildRun("ISized<unknown> some = new Both(); var n = some.N;");
+
+        Assert.DoesNotContain(both, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.StartsWith("'N' cannot be read through 'ISized<unknown>'", Assert.Single(Errors(some, "MIST0489")).Message, StringComparison.Ordinal);
+        Assert.Empty(Errors(some, "MIST0301"));
+    }
+
+    [Fact]
+    public void AStatedArgumentIsACaptureOnTheCallAndTheResultTypeSharesIt()
+    {
+        var declaration = DeclarationIn("var count = 3; var z = Api.Zeroes<count>();", "");
+        var call = Assert.IsType<InvocationExpression>(declaration.Initializer);
+        var capture = Assert.Single(call.Captures);
+
+        Assert.Equal("count", Assert.IsType<LocalReferenceExpression>(capture.Initializer).Local.Name);
+        Assert.Same(capture.Value, Assert.IsType<ConstructedType>(declaration.Local.Type).TypeArguments[0]);
+        Assert.Same(capture.Value, Assert.IsType<MemberAccessExpression>(call.Receiver).TypeArguments[0]);
+    }
+
+    [Fact]
+    public void ASignatureTypeNamingARegularParameterIsRefused()
+    {
+        var diagnostics = BuildRun("var x = 1;", "public class Bad { public static Ring<n> Make(int n) { return new Ring<4>(); } }");
+
+        Assert.Contains("cannot name the value 'n'", Assert.Single(Errors(diagnostics, "MIST0487")).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACastAnAsAndAReadThroughAClosingOwnTheirCaptures()
+    {
+        var statements = BodyIn("var n = 4; Ring<4> four = new Ring<4>(); unknown thing = four; var cast = (Ring<n>)four; var tested = thing as Ring<n>; var read = Ring<n>.Capacity;")
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var cast = Assert.IsType<CastExpression>(statements[3].Initializer);
+        var tested = Assert.IsType<AsExpression>(statements[4].Initializer);
+        var read = Assert.IsType<MemberAccessExpression>(statements[5].Initializer);
+
+        Assert.Same(Assert.Single(cast.Captures).Value, Assert.IsType<ConstructedType>(cast.TargetType).TypeArguments[0]);
+        Assert.Same(Assert.Single(tested.Captures).Value, Assert.IsType<ConstructedType>(tested.TargetType).TypeArguments[0]);
+        Assert.Same(Assert.Single(read.Captures).Value, Assert.IsType<ConstructedType>(Assert.IsType<TypeReferenceExpression>(read.Receiver).ReferencedType).TypeArguments[0]);
+        _ = Assert.IsType<PropertyResult>(read.Member);
+    }
+}

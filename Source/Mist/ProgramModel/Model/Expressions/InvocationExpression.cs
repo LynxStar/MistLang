@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -64,6 +65,13 @@ internal sealed class InvocationExpression(
     /// context inserts on a task-returning call, which an explicit <c>await</c> or <c>async</c> undoes.
     /// </summary>
     public bool IsImplicit { get; init; }
+
+    /// <summary>
+    /// The values the call's stated dependent arguments were closed with, and the slot reads an inferred
+    /// dependent parameter took from an argument whose type left the slot unknown, declared before the
+    /// arguments are evaluated.
+    /// </summary>
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     public override IMistType Type { get; } = type;
 }

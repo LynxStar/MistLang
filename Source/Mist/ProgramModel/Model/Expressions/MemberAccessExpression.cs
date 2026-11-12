@@ -59,4 +59,6 @@ internal sealed class MemberAccessExpression(
     /// said would swallow the only diagnostic an unknown receiver gets.
     /// </summary>
     public bool IsFailed { get; } = isFailed;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 }

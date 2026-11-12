@@ -8,13 +8,17 @@ public sealed class SlotDiagnosticDescriptorTests
     [Fact]
     public void TheSlotDiagnosticsTookTheLowestNumbersAboveEveryOneIssuedBeforeThem()
     {
-        MistDiagnostic[] minted = [ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, BackendDiagnostics.SlotValueNotEmitted];
+        MistDiagnostic[] minted =
+        [
+            ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, BackendDiagnostics.SlotValueNotEmitted,
+            ProgramModelDiagnostics.SlotReadThroughUnknown, ProgramModelDiagnostics.SlotNotInferable,
+        ];
         var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)
             .Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
             .Where(number => string.CompareOrdinal(number, minted[0].Number.Value) < 0)
             .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal([$"MIST{issued + 1:D4}", $"MIST{issued + 2:D4}", $"MIST{issued + 3:D4}"], minted.Select(descriptor => descriptor.Number.Value));
+        Assert.Equal(Enumerable.Range(1, minted.Length).Select(offset => $"MIST{issued + offset:D4}"), minted.Select(descriptor => descriptor.Number.Value));
     }
 
     [Fact]

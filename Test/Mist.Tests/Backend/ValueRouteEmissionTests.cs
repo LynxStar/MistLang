@@ -348,6 +348,45 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
+    public void AnExtensionCallBindsTheReceiverAndTheArgumentCarryingItsSlotOnce()
+    {
+        var (block, meter) = MeterBlock();
+        var n = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var len = new Method("Len", slots.Int, [new Parameter("a", slots.ArrayOf(n))], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        len.TypeParametersList.Add(n);
+        n.DeclaringMethod = len;
+        block.MethodsList.Add(len);
+        var pick = new Method("Pick", meter, [], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        using var routes = SlotRoutes.Enter([n]);
+        var plain = slots.Create(slots.Capture(new LocalVariable("n", slots.Int)));
+        var length = ((ConstructedType)plain.Type).TypeArguments[1];
+
+        Assert.Equal(
+            "((Pick(), new int[n]) switch { (var __e1, var __e2) => Probe.MeterExtensions.Len(__e1, __e2.Length, __e2) })",
+            Emit(Through(Call(pick, [], [], []), len, [length], [plain], [plain.Type])));
+        Assert.Equal(
+            "Probe.MeterExtensions.Len(m, a.Length, a)",
+            Emit(Through(HandBuiltRefinements.Local(meter, "m"), len, [length], [HandBuiltRefinements.Local(plain.Type, "a")], [plain.Type])));
+    }
+
+    [Fact]
+    public void AnExtensionCallWithNoArgumentsSeparatesTheReceiverFromItsHiddenSlot()
+    {
+        var (block, meter) = MeterBlock();
+        var n = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var scaled = new Method("Scaled", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        scaled.TypeParametersList.Add(n);
+        n.DeclaringMethod = scaled;
+        block.MethodsList.Add(scaled);
+        var stated = slots.Capture(new LocalVariable("n", slots.Int));
+        using var routes = SlotRoutes.Enter([n]);
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(meter, "m"), "Scaled", slots.Int, [stated.Value]);
+        var call = new InvocationExpression(HandBuiltModel.Node(), access, [], slots.Int, scaled, []) { Captures = [stated] };
+
+        Assert.Equal("Probe.MeterExtensions.Scaled(m, n)", Emit(call));
+    }
+
+    [Fact]
     public void AValueRoutedTypeClosingAParameterizedConstructorConstraintIsRefused()
     {
         var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
@@ -399,6 +438,55 @@ public sealed class ValueRouteEmissionTests
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST0497", refusal.Number.Value);
         Assert.Contains(routed ? "coincide with 'Name(Ring<3>)': the two differ only in 'Capacity'" : "coincide with 'Name(int[3])': the two differ only in 'Length'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnOverloadCoincidingThroughAHiddenSlotParameterIsRefused()
+    {
+        var program = new ClassType("Program", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode());
+        var n = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var len = new Method("Len", slots.Int, [new Parameter("a", slots.ArrayOf(n))], new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = program,
+            Scope = program.Scope,
+            DeclarationNode = new BodyTypeTypeDeclarationNode(),
+        };
+        len.TypeParametersList.Add(n);
+        n.DeclaringMethod = len;
+        var plain = new Method("Len", slots.Int, [new Parameter("k", slots.Int), new Parameter("a", slots.ArrayOf(UnknownType.Instance))], new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = program,
+            Scope = program.Scope,
+            DeclarationNode = new BodyTypeTypeDeclarationNode(),
+        };
+        program.MethodsList.AddRange([len, plain]);
+        using var routes = SlotRoutes.Enter([n]);
+        var diagnostics = new DiagnosticBag();
+
+        ValueRouteEmitter.Report(program, diagnostics);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0497", refusal.Number.Value);
+        Assert.Contains("coincide with 'Len<N>(int[])': the two differ only in 'N' of 'int[]'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnOverloadCoincidingThroughASlotErasedInsideAnotherTypesArgumentIsRefused()
+    {
+        var program = new ClassType("Program", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode());
+        var holder = HandBuiltModel.Class("Holder<>");
+        holder.TypeParametersList.Add(new TypeParameter("T", 0, holder.Scope, holder));
+        var three = new Method("Name", slots.Int, [new Parameter("r", slots.Closed(holder, slots.Closed(ring, slots.Literal(3))))], default) { DeclaringType = program, Scope = program.Scope, DeclarationNode = new BodyTypeTypeDeclarationNode() };
+        var four = new Method("Name", slots.Int, [new Parameter("r", slots.Closed(holder, slots.Closed(ring, slots.Literal(4))))], default) { DeclaringType = program, Scope = program.Scope, DeclarationNode = new BodyTypeTypeDeclarationNode() };
+        program.MethodsList.AddRange([three, four]);
+        using var routes = SlotRoutes.Enter([capacity]);
+        var diagnostics = new DiagnosticBag();
+
+        ValueRouteEmitter.Report(program, diagnostics);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0497", refusal.Number.Value);
+        Assert.Contains("coincide with 'Name(Holder<Ring<3>>)': the two differ only in 'Capacity' of 'Ring<3>'", refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -466,6 +554,14 @@ public sealed class ValueRouteEmissionTests
 
         var refusal = Assert.Single(Refused(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Tested(nested, "items"))));
         Assert.Equal("MIST0013", refusal.Number.Value);
+    }
+
+    private static (ExtensionBlock Block, ClassType Meter) MeterBlock()
+    {
+        var meter = HandBuiltModel.Class("Meter");
+        meter.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "MeterExtensions", ResolvedReceiverType = meter };
+        return (block, meter);
     }
 
     private (Method Len, TypeParameter N) Len()

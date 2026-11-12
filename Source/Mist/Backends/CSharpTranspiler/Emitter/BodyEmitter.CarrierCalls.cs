@@ -19,15 +19,9 @@ internal static partial class BodyEmitter
             {
                 writer.Append("!");
             }
-
-            if(HasArguments(call.Arguments, call.Method.ParametersList)
-                || DefaultWitnesses.MethodArguments(call.Method, callee.TypeArguments, callee.Receiver.Type, call.ContextTypes).Count > 0)
-            {
-                writer.Append(", ");
-            }
         }
 
-        EmitWitnesses(call, writer, diagnostics);
+        EmitWitnesses(call, writer, diagnostics, afterReceiver: !call.Method.Modifiers.IsStatic);
         EmitArguments(call.Arguments, call.Method.ParametersList, call.ParameterTypes, writer, diagnostics, call.Method);
         writer.Append(")");
     }

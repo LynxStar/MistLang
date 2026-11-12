@@ -484,7 +484,7 @@ internal static partial class BodyEmitter
     }
 
     private static void EmitWitnesses(
-        InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
+        InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics, bool afterReceiver = false)
     {
         var typeArguments = invocation.Receiver switch
         {
@@ -501,33 +501,29 @@ internal static partial class BodyEmitter
         var receiverType = invocation.Receiver is MemberAccessExpression reached ? reached.Receiver.Type : method.DeclaringType;
         var witnesses = DefaultWitnesses.MethodArguments(method, typeArguments, receiverType, invocation.ContextTypes);
         var slots = CallSlotArguments(invocation, diagnostics);
+        var separator = afterReceiver ? ", " : "";
 
         if(slots.Count > 0)
         {
-            writer.Append(string.Join(", ", slots));
+            writer.Append(separator + string.Join(", ", slots));
+            separator = ", ";
+        }
 
-            if(witnesses.Count > 0 || HasArguments(invocation.Arguments, invocation.Parameters))
+        if(witnesses.Count > 0)
+        {
+            foreach(var missing in witnesses.Where(witness => witness is null))
             {
-                writer.Append(", ");
+                EmissionDiagnostics.Report(diagnostics, "default constraint witness", method.Name, invocation.Node);
             }
-        }
 
-        if(witnesses.Count == 0)
-        {
-            return;
+            writer.Append(separator + string.Join(", ", witnesses.Select(
+                witness => witness ?? "/* unsupported: default constraint */")));
+            separator = ", ";
         }
-
-        foreach(var missing in witnesses.Where(witness => witness is null))
-        {
-            EmissionDiagnostics.Report(diagnostics, "default constraint witness", method.Name, invocation.Node);
-        }
-
-        writer.Append(string.Join(", ", witnesses.Select(
-            witness => witness ?? "/* unsupported: default constraint */")));
 
         if(HasArguments(invocation.Arguments, invocation.Parameters))
         {
-            writer.Append(", ");
+            writer.Append(separator);
         }
     }
 
@@ -1188,6 +1184,12 @@ internal static partial class BodyEmitter
 
             case InvocationExpression { Receiver: MemberAccessExpression { IsConditional: false } extended } extension
                 when ExtensionCalls.Carrier(extension.Method) is { } carrier:
+                if(SlotBindings(extension) is { Count: > 0 } carried)
+                {
+                    EmitBoundCall(carried, () => EmitCarrierCall(extension, extended, carrier, writer, diagnostics), writer, diagnostics);
+                    break;
+                }
+
                 EmitCarrierCall(extension, extended, carrier, writer, diagnostics);
                 break;
 

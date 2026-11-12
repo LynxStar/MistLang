@@ -3,9 +3,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
 
-/// <summary>
-/// An array creation expression (<c>new T[size]</c>).
-/// </summary>
 internal sealed class ArrayCreationExpression(
     SyntaxNode node,
     IMistType elementType,

@@ -5,8 +5,7 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// A member access expression (<c>receiver.memberName</c>). The <see cref="Type"/>
-/// is the type of the accessed member (field type, property type, or method return type).
+/// <see cref="Type"/> is the accessed member's type, a method's being its return type.
 /// </summary>
 internal sealed class MemberAccessExpression(
     SyntaxNode node,
@@ -18,9 +17,6 @@ internal sealed class MemberAccessExpression(
     LookupResult? member = null,
     bool isFailed = false) : Expression(node)
 {
-    /// <summary>
-    /// The expression whose member is being accessed.
-    /// </summary>
     public Expression Receiver { get; } = receiver;
 
     /// <summary>
@@ -29,9 +25,6 @@ internal sealed class MemberAccessExpression(
     /// </summary>
     public bool IsConditional { get; } = isConditional;
 
-    /// <summary>
-    /// The name of the member being accessed.
-    /// </summary>
     public string MemberName { get; } = memberName;
 
     /// <summary>

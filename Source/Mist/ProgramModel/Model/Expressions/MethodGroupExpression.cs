@@ -52,8 +52,7 @@ internal sealed class MethodGroupExpression : Expression
     public IReadOnlyList<Method> Candidates { get; }
 
     /// <summary>
-    /// The receiver's constructed type, when it had one. Selection needs it to substitute -- see
-    /// <c>OverloadResolution.ParameterType</c>.
+    /// Selection needs it to substitute -- see <c>OverloadResolution.ParameterType</c>.
     /// </summary>
     public ConstructedType? ReceiverConstructed { get; }
 

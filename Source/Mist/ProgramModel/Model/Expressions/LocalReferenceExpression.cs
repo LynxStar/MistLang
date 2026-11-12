@@ -10,9 +10,6 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// </summary>
 internal sealed class LocalReferenceExpression(SyntaxNode node, LocalVariable local, IMistType? narrowed = null) : Expression(node)
 {
-    /// <summary>
-    /// The local variable or parameter being referenced.
-    /// </summary>
     public LocalVariable Local { get; } = local;
 
     public override IMistType Type { get; } = narrowed ?? local.Type;

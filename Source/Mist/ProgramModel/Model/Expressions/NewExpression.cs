@@ -5,9 +5,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
 
-/// <summary>
-/// A <c>new T(...)</c> object creation. The constructed type is the expression's type.
-/// </summary>
 internal sealed class NewExpression(
     SyntaxNode node,
     IMistType type,

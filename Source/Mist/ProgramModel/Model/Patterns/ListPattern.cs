@@ -10,9 +10,8 @@ namespace Mist.ProgramModel.Model.Patterns;
 /// slice's is the slice type -- two different types within one pattern, which is what separates this
 /// from <see cref="TuplePattern"/>.
 /// <para>
-/// Keeps no binding of its own for <see cref="PropertyPattern"/>'s reason: the grammar spells no
-/// trailing name here at all, so every binder a list pattern contributes lives on an element, the slice
-/// included.
+/// Keeps no binding of its own: the grammar spells no trailing name here at all, so every binder a list
+/// pattern contributes lives on an element, the slice included.
 /// </para>
 /// </summary>
 internal sealed class ListPattern(

@@ -4,10 +4,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
 
-/// <summary>
-/// An invocation expression: calling a method, delegate, or func value.
-/// The <see cref="Type"/> is the return type of the call.
-/// </summary>
 internal sealed class InvocationExpression(
     SyntaxNode node,
     Expression receiver,
@@ -21,9 +17,6 @@ internal sealed class InvocationExpression(
     /// </summary>
     public Expression Receiver { get; } = receiver;
 
-    /// <summary>
-    /// The bound argument expressions, in source order.
-    /// </summary>
     public IReadOnlyList<Expression> Arguments { get; } = arguments;
 
     /// <summary>

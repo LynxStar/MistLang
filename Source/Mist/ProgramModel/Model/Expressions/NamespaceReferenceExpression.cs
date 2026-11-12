@@ -5,8 +5,7 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// An expression that resolved to a namespace (e.g., <c>Simpliest</c> in
-/// <c>Simpliest.Program.RunDemo()</c>). Only ever valid as the receiver of a further
+/// An expression that resolved to a namespace. Only ever valid as the receiver of a further
 /// qualification, which the postfix binder folds away; a namespace reference should
 /// never survive into a finished expression tree.
 /// <para>

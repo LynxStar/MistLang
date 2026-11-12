@@ -44,10 +44,14 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
             public int Pos(int a, int x) { return a; }
             public static int Neg<N:int>(int x) where N <= -1 { return N; }
             public static int Neg(int a, int x) { return a; }
-            public int Spread<params Ts>(int x) { return 1; }
+            public int Spread<params Ts>(string x) { return 1; }
             public int Spread<N:int>(int x) { return 2; }
-            public static int Fan<params Ts>(int x) { return 1; }
+            public static int Fan<params Ts>(string x) { return 1; }
             public static int Fan<N:int>(int x) { return 2; }
+            public int Wide<N:int>(int x) { return N + x; }
+            public int Wide<params Ts>(string x) { return 0; }
+            public static int Broad<N:int>(int x) { return N + x; }
+            public static int Broad<params Ts>(string x) { return 0; }
         }
         """;
 
@@ -148,7 +152,7 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
     [Fact]
     public void ASpreadBesideASlottedOverloadFillsOnlyAPackSlot()
     {
-        var calls = Calls("var a = m.Spread<Ts...>(1); var b = Meter.Fan<Ts...>(1);", out var diagnostics, "Run<params Ts>(int p)");
+        var calls = Calls("var a = m.Spread<Ts...>(s); var b = Meter.Fan<Ts...>(s);", out var diagnostics, "Run<params Ts>(int p)");
 
         Assert.Empty(Errors(diagnostics));
         Assert.All(calls, call => Assert.True(call.Method!.TypeParametersList[0].IsPack));
@@ -183,6 +187,32 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
 
         Assert.Equal(["MIST0487 n", "MIST0487 n"], Errors(diagnostics).Select(error => $"{error.Number.Value} {error.Message.Split('\'')[1]}"));
         Assert.All(bound.OfType<InvocationExpression>(), call => Assert.Empty(call.Captures));
+    }
+
+    [Fact]
+    public void AStatedValueBindsTheSlottedOverloadBesideAPackOverload()
+    {
+        var calls = Calls("var a = m.Wide<n>(1); var b = Meter.Broad<n>(1); var c = m.Wide<int>(s); var d = Meter.Broad<int>(s);", out var diagnostics);
+
+        Assert.Empty(Errors(diagnostics));
+        Assert.Equal("n", CaptureOf(calls[0]).Name);
+        Assert.Equal("n", CaptureOf(calls[1]).Name);
+        Assert.All(calls[2..], call => Assert.True(call.Method!.TypeParametersList[0].IsPack));
+        Assert.All(calls[2..], call => Assert.Empty(call.Captures));
+    }
+
+    [Fact]
+    public void BesideAPackOverloadANameThatIsNeitherIsReportedOnceAndAValueNoneTakesNotAsAType()
+    {
+        var bound = Initializers(
+            "var a = m.Wide<zzz>(1); var b = Meter.Broad<yyy>(1); var c = m.Wide<n>(1, 2); var d = Meter.Broad<n>(1, 2); var e = m.Wide<n>(s); var f = Meter.Broad<n>(s);",
+            out var diagnostics);
+
+        Assert.Equal(
+            ["MIST0298 zzz", "MIST0298 yyy", "MIST0385", "MIST0385"],
+            Errors(diagnostics).Select(error => error.Number.Value == "MIST0298" ? $"{error.Number.Value} {error.Message.Split('\'')[1]}" : error.Number.Value));
+        Assert.All(bound[2..4], expression => Assert.IsType<ErrorExpression>(expression));
+        Assert.All(bound[4..], expression => Assert.True(Assert.IsType<InvocationExpression>(expression).Method!.TypeParametersList[0].IsDependent));
     }
 
     private List<InvocationExpression> Calls(string statements, out ImmutableArray<Diagnostic> diagnostics, string signature = "Run(int p)")

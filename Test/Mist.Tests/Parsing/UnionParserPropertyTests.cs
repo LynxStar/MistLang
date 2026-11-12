@@ -12,9 +12,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a generated union type parsing scenario with N constituents.
-/// </summary>
 public sealed class UnionParseScenario
 {
     public ImmutableArray<string> Constituents { get; }
@@ -30,29 +27,16 @@ public sealed class UnionParseScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for union type parsing correctness.
-///
-/// Property 2: For any valid union type source string composed of N constituent type
-/// references separated by |, parsing SHALL produce a union TypeReferenceNode (one with
-/// non-empty SingleTypeRefs) whose constituent list has exactly N elements in source
-/// order, with array rank binding tighter than |.
-/// </summary>
 public class UnionParserPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    // ─── Known types for generation ─────────────────────────────────────────
-
     /// <summary>
-    /// Valid primitive type names that the parser recognizes as SingleTypeRef constituents.
     /// Includes both plain types and array types (array rank binds tighter than |).
     /// </summary>
     private static readonly string[] KnownTypes =
         ["int", "string", "bool", "float", "double", "int[]", "string[]"];
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     public static Arbitrary<UnionParseScenario> ArbitraryUnionParseScenario()
     {
@@ -63,8 +47,6 @@ public class UnionParserPropertyTests
 
         return gen.ToArbitrary();
     }
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -107,9 +89,6 @@ public class UnionParserPropertyTests
         return constituents;
     }
 
-    /// <summary>
-    /// Extracts the type name string from a SingleTypeRefNode for source order verification.
-    /// </summary>
     private static string GetTypeName(SingleTypeRefNode node)
     {
         if(node is PrimitiveSingleTypeRefSingleTypeRefNode prim)
@@ -134,14 +113,6 @@ public class UnionParserPropertyTests
         };
     }
 
-    // ─── Property Tests ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 2a: A union type with N constituents produces a union TypeReferenceNode
-    /// with exactly N elements.
-    ///
-    /// **Validates: Requirements 2.2, 2.3, 2.4, 3.1, 3.2**
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(UnionParserPropertyTests) })]
     public bool UnionType_HasExactlyNConstituents(UnionParseScenario scenario)
     {
@@ -153,12 +124,6 @@ public class UnionParserPropertyTests
         return constituents.Count == scenario.Constituents.Length;
     }
 
-    /// <summary>
-    /// Property 2b: The constituents of the parsed union TypeReferenceNode are in source order —
-    /// the i-th constituent in the AST corresponds to the i-th type in the source string.
-    ///
-    /// **Validates: Requirements 3.3, 3.4, 3.5**
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(UnionParserPropertyTests) })]
     public bool UnionType_ConstituentsAreInSourceOrder(UnionParseScenario scenario)
     {

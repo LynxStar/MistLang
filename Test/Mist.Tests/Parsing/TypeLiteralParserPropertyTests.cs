@@ -10,19 +10,10 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for type literal parsing.
-/// Validates that primitive type keywords in expression position produce
-/// TypeLiteralExpression AST nodes containing the corresponding PrimitiveTypeRef.
-///
-/// **Validates: Requirements 1.2, 2.2, 2.3, 2.4, 2.5**
-/// </summary>
 public class TypeLiteralParserPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Primitive type keyword set ──────────────────────────────────────
 
     private static readonly string[] PrimitiveTypeKeywords =
     [
@@ -31,9 +22,6 @@ public class TypeLiteralParserPropertyTests
         "bool", "char", "string"
     ];
 
-    /// <summary>
-    /// Maps a primitive type keyword to the expected PrimitiveTypeNode subclass type.
-    /// </summary>
     private static readonly Dictionary<string, Type> KeywordToNodeType = new()
     {
         ["int"] = typeof(IntTypePrimitiveTypeNode),
@@ -52,11 +40,6 @@ public class TypeLiteralParserPropertyTests
         ["string"] = typeof(StringTypePrimitiveTypeNode),
     };
 
-    // ─── Test input model ────────────────────────────────────────────────
-
-    /// <summary>
-    /// Represents a test case: a primitive type keyword placed in a specific expression position.
-    /// </summary>
 #pragma warning disable CA1034
     public record TypeLiteralTestCase(string Keyword, string PositionLabel, string Source)
     {
@@ -66,8 +49,6 @@ public class TypeLiteralParserPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── Expression position source builders ─────────────────────────────
 
     private static string BuildVarInitializer(string keyword)
     {
@@ -99,12 +80,6 @@ public class TypeLiteralParserPropertyTests
         ("assignment RHS", BuildAssignmentRhs),
     ];
 
-    // ─── FsCheck Arbitrary ───────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates random TypeLiteralTestCase values by combining a random primitive
-    /// type keyword with a random expression position.
-    /// </summary>
     public static Arbitrary<TypeLiteralTestCase> ArbitraryTypeLiteralTestCase()
     {
         var gen =
@@ -116,8 +91,6 @@ public class TypeLiteralParserPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static CompilationUnitNode? ParseSource(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -127,9 +100,6 @@ public class TypeLiteralParserPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Recursively finds all TypeLiteralExpressionPrimaryNode instances in the AST.
-    /// </summary>
     private static List<TypeLiteralExpressionPrimaryNode> FindTypeLiterals(Storm.Runtime.SyntaxNode node)
     {
         var results = new List<TypeLiteralExpressionPrimaryNode>();
@@ -167,10 +137,6 @@ public class TypeLiteralParserPropertyTests
     //             TypeLiteralExpression
     //
     // **Validates: Requirements 1.2, 2.2, 2.3, 2.4, 2.5**
-    //
-    // For any primitive type keyword in any expression position, the parser
-    // SHALL produce a TypeLiteralExpression AST node containing the
-    // corresponding PrimitiveTypeRef.
     // ═════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -181,22 +147,18 @@ public class TypeLiteralParserPropertyTests
     {
         var root = ParseSource(testCase.Source);
 
-        // Parser must produce a non-null root
         if(root is null)
         {
             return false;
         }
 
-        // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
-        // There should be at least one TypeLiteralExpression
         if(typeLiterals.Count == 0)
         {
             return false;
         }
 
-        // Find the type literal that matches our keyword's expected PrimitiveTypeNode
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
@@ -208,7 +170,6 @@ public class TypeLiteralParserPropertyTests
             return false;
         }
 
-        // Verify the TypeRef is a PrimitiveTypeRef with the correct PrimitiveTypeNode
         var typeRef = matchingLiteral.TypeRef.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         return typeRef is not null && typeRef.PrimitiveType.GetType() == expectedNodeType;
     }
@@ -218,17 +179,8 @@ public class TypeLiteralParserPropertyTests
     //             array rank
     //
     // **Validates: Requirements 1.4**
-    //
-    // For any valid base type followed by [] in expression position, the
-    // parser SHALL produce a TypeLiteralExpression AST node whose
-    // TypeReference has the array rank set.
     // ═════════════════════════════════════════════════════════════════════
 
-    // ─── Array test input model ──────────────────────────────────────────
-
-    /// <summary>
-    /// Represents a test case: a primitive type keyword followed by [] placed in a specific expression position.
-    /// </summary>
 #pragma warning disable CA1034
     public record ArrayTypeLiteralTestCase(string Keyword, string PositionLabel, string Source)
     {
@@ -238,8 +190,6 @@ public class TypeLiteralParserPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── Array expression position source builders ───────────────────────
 
     private static string BuildArrayVarInitializer(string keyword)
     {
@@ -269,12 +219,6 @@ public class TypeLiteralParserPropertyTests
         ("assignment RHS", BuildArrayAssignmentRhs),
     ];
 
-    // ─── FsCheck Arbitrary for array type literals ───────────────────────
-
-    /// <summary>
-    /// Generates random ArrayTypeLiteralTestCase values by combining a random primitive
-    /// type keyword with [] and a random expression position.
-    /// </summary>
     public static Arbitrary<ArrayTypeLiteralTestCase> ArbitraryArrayTypeLiteralTestCase()
     {
         var gen =
@@ -294,22 +238,18 @@ public class TypeLiteralParserPropertyTests
     {
         var root = ParseSource(testCase.Source);
 
-        // Parser must produce a non-null root
         if(root is null)
         {
             return false;
         }
 
-        // Find TypeLiteralExpression nodes in the AST
         var typeLiterals = FindTypeLiterals(root);
 
-        // There should be at least one TypeLiteralExpression
         if(typeLiterals.Count == 0)
         {
             return false;
         }
 
-        // Find the type literal that matches our keyword's expected PrimitiveTypeNode AND has array rank
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
@@ -317,7 +257,6 @@ public class TypeLiteralParserPropertyTests
             primitiveRef.PrimitiveType.GetType() == expectedNodeType &&
             primitiveRef.ArrayRank is not null);
 
-        // The matching literal must exist and have ArrayRank set
         return matchingLiteral is not null;
     }
 
@@ -326,17 +265,8 @@ public class TypeLiteralParserPropertyTests
     //             grammar
     //
     // **Validates: Requirements 1.5**
-    //
-    // For any type name in annotation position (parameter type, field type,
-    // return type, typed variable declaration), the parser SHALL produce a
-    // TypeReference node, NOT a TypeLiteralExpression.
     // ═════════════════════════════════════════════════════════════════════
 
-    // ─── Annotation position test input model ────────────────────────────
-
-    /// <summary>
-    /// Represents a test case: a primitive type keyword placed in a type annotation position.
-    /// </summary>
 #pragma warning disable CA1034
     public record TypeAnnotationTestCase(string Keyword, string PositionLabel, string Source)
     {
@@ -346,8 +276,6 @@ public class TypeLiteralParserPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── Annotation position source builders ─────────────────────────────
 
     private static string BuildParameterType(string keyword)
     {
@@ -377,12 +305,6 @@ public class TypeLiteralParserPropertyTests
         ("typed variable declaration", BuildTypedVarDecl),
     ];
 
-    // ─── FsCheck Arbitrary for annotation position tests ─────────────────
-
-    /// <summary>
-    /// Generates random TypeAnnotationTestCase values by combining a random primitive
-    /// type keyword with a random type annotation position.
-    /// </summary>
     public static Arbitrary<TypeAnnotationTestCase> ArbitraryTypeAnnotationTestCase()
     {
         var gen =
@@ -402,25 +324,19 @@ public class TypeLiteralParserPropertyTests
     {
         var root = ParseSource(testCase.Source);
 
-        // Parser must produce a non-null root
         if(root is null)
         {
             return false;
         }
 
-        // The AST should NOT contain any TypeLiteralExpression for the type
-        // in annotation position. The type keyword should be parsed as a
-        // TypeReference within the declaration node, not as a TypeLiteralExpression.
         var typeLiterals = FindTypeLiterals(root);
 
-        // Find any TypeLiteralExpression that matches our keyword's PrimitiveTypeNode
         var expectedNodeType = KeywordToNodeType[testCase.Keyword];
 
         var matchingLiteral = typeLiterals.FirstOrDefault(tl =>
             tl.TypeRef.First is PrimitiveSingleTypeRefSingleTypeRefNode primitiveRef &&
             primitiveRef.PrimitiveType.GetType() == expectedNodeType);
 
-        // There should be NO TypeLiteralExpression for the keyword in annotation position
         return matchingLiteral is null;
     }
 }

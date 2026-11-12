@@ -1,6 +1,3 @@
-// Generators for Mist AST nodes (expressions, statements, members).
-// Used by property-based tests to produce random but structurally valid AST fragments.
-
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
@@ -8,12 +5,7 @@ using Mist.Generated;
 
 namespace Mist.Tests.Generators;
 
-/// <summary>
-/// FsCheck generators for Mist AST nodes: expressions, statements, and member declarations.
-/// All generated ASTs are structurally valid (they respect the grammar rules) but are not
-/// necessarily well-typed — use <see cref="MistProgramGenerator"/> for well-typed or
-/// ill-typed complete programs.
-/// </summary>
+/// Output is grammatical but not necessarily well-typed; <see cref="MistProgramGenerator"/> builds deliberately well- or ill-typed programs.
 public static class MistAstGenerator
 {
     private static Storm.Runtime.Token Tok(string lexeme)
@@ -21,11 +13,6 @@ public static class MistAstGenerator
         return MistTypeGenerator.MakeToken(lexeme);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Expression generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Wraps a PrimaryNode into a full ExpressionNode through the precedence chain.</summary>
     public static ExpressionNode WrapPrimary(PrimaryNode primary)
     {
         var postfix = new PostfixNode
@@ -44,7 +31,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Extracts the UnaryNode from an ExpressionNode for reuse in compound expressions.</summary>
     public static UnaryNode ExtractUnary(ExpressionNode expr)
     {
         var logOr = expr.AsAssignment().Target.Left;
@@ -59,9 +45,6 @@ public static class MistAstGenerator
         return multiplicative.Left.UnwrapRange()!;
     }
 
-    // ─── Literal expressions ─────────────────────────────────────────────
-
-    /// <summary>Generates an integer literal expression with a random non-negative value.</summary>
     public static Gen<ExpressionNode> GenIntLiteral()
     {
         return Gen.Choose(0, 1000).Select(n =>
@@ -71,7 +54,6 @@ public static class MistAstGenerator
             }));
     }
 
-    /// <summary>Generates a bool literal expression.</summary>
     public static Gen<ExpressionNode> GenBoolLiteral()
     {
         return Gen.Elements(true, false).Select(b =>
@@ -80,7 +62,6 @@ public static class MistAstGenerator
                 : new FalseLiteralExpressionPrimaryNode()));
     }
 
-    /// <summary>Generates a string literal expression.</summary>
     public static Gen<ExpressionNode> GenStringLiteral()
     {
         return Gen.Elements("\"hello\"", "\"world\"", "\"test\"", "\"\"").Select(s =>
@@ -90,7 +71,6 @@ public static class MistAstGenerator
             }));
     }
 
-    /// <summary>Generates a char literal expression.</summary>
     public static Gen<ExpressionNode> GenCharLiteral()
     {
         return Gen.Elements("'a'", "'b'", "'z'", "'0'").Select(c =>
@@ -100,7 +80,6 @@ public static class MistAstGenerator
             }));
     }
 
-    /// <summary>Generates a float literal expression.</summary>
     public static Gen<ExpressionNode> GenFloatLiteral()
     {
         return Gen.Elements("1.0", "3.14", "0.5", "99.9").Select(f =>
@@ -110,21 +89,16 @@ public static class MistAstGenerator
             }));
     }
 
-    /// <summary>Generates an identifier expression referencing a given name.</summary>
     public static ExpressionNode MakeIdentifierExpr(string name)
     {
         return WrapPrimary(new IdentifierExpressionPrimaryNode { Name = Tok(name) });
     }
 
-    /// <summary>Generates a random identifier expression from a pool of names.</summary>
     public static Gen<ExpressionNode> GenIdentifierExpr()
     {
         return Gen.Elements("x", "y", "z", "a", "b").Select(MakeIdentifierExpr);
     }
 
-    // ─── Compound expressions ────────────────────────────────────────────
-
-    /// <summary>Creates an additive expression: left op right.</summary>
     public static ExpressionNode MakeAdditive(ExpressionNode left, ExpressionNode right, string op = "+")
     {
         var leftUnary = ExtractUnary(left);
@@ -140,7 +114,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a multiplicative expression: left op right.</summary>
     public static ExpressionNode MakeMultiplicative(ExpressionNode left, ExpressionNode right, string op = "*")
     {
         var leftUnary = ExtractUnary(left);
@@ -155,7 +128,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a relational expression: left op right.</summary>
     public static ExpressionNode MakeRelational(ExpressionNode left, ExpressionNode right, string op = "<")
     {
         var leftUnary = ExtractUnary(left);
@@ -172,7 +144,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a logical AND expression: left && right.</summary>
     public static ExpressionNode MakeLogicalAnd(ExpressionNode left, ExpressionNode right)
     {
         var leftUnary = ExtractUnary(left);
@@ -191,7 +162,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a logical OR expression: left || right.</summary>
     public static ExpressionNode MakeLogicalOr(ExpressionNode left, ExpressionNode right)
     {
         var leftUnary = ExtractUnary(left);
@@ -211,7 +181,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a logical NOT expression: !operand.</summary>
     public static ExpressionNode MakeLogicalNot(ExpressionNode operand)
     {
         var innerUnary = ExtractUnary(operand);
@@ -226,7 +195,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    /// <summary>Creates a negate expression: -operand.</summary>
     public static ExpressionNode MakeNegate(ExpressionNode operand)
     {
         var innerUnary = ExtractUnary(operand);
@@ -241,13 +209,6 @@ public static class MistAstGenerator
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
 
-    // ─── Depth-bounded expression generator ──────────────────────────────
-
-    /// <summary>
-    /// Generates a random expression with bounded depth.
-    /// At depth 0, only literals are produced. At higher depths, compound expressions
-    /// (binary ops, unary ops) may be generated.
-    /// </summary>
     public static Gen<ExpressionNode> GenExpression(int depth = 2)
     {
         if(depth <= 0)
@@ -283,11 +244,6 @@ public static class MistAstGenerator
         return Gen.OneOf(leaf, additive, multiplicative, relational, logicalAnd, logicalNot);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Statement generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Creates a typed variable declaration statement.</summary>
     public static StatementNode MakeVarDecl(TypeReferenceNode type, string name, ExpressionNode initializer)
     {
         return new VariableDeclarationStatementStatementNode
@@ -301,7 +257,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>Creates an int variable declaration: int name = value;</summary>
     public static StatementNode MakeIntVarDecl(string name, string value = "0")
     {
         return MakeVarDecl(
@@ -310,7 +265,6 @@ public static class MistAstGenerator
             WrapPrimary(new IntegerLiteralExpressionPrimaryNode { IntegerLiteral = Tok(value) }));
     }
 
-    /// <summary>Creates a bool variable declaration: bool name = value;</summary>
     public static StatementNode MakeBoolVarDecl(string name, bool value = true)
     {
         PrimaryNode primary = value
@@ -322,7 +276,6 @@ public static class MistAstGenerator
             WrapPrimary(primary));
     }
 
-    /// <summary>Creates a string variable declaration: string name = value;</summary>
     public static StatementNode MakeStringVarDecl(string name, string value = "\"hello\"")
     {
         return MakeVarDecl(
@@ -331,7 +284,6 @@ public static class MistAstGenerator
             WrapPrimary(new StringLiteralExpressionPrimaryNode { StringLiteral = Tok(value) }));
     }
 
-    /// <summary>Creates an expression statement.</summary>
     public static StatementNode MakeExpressionStatement(ExpressionNode expr)
     {
         return new ExpressionStatementStatementNode
@@ -340,7 +292,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>Creates a return statement with an optional value.</summary>
     public static StatementNode MakeReturnStatement(ExpressionNode? value = null)
     {
         return new ReturnStatementStatementNode
@@ -349,7 +300,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>Creates an if statement with a bool condition and a then-branch block.</summary>
     public static StatementNode MakeIfStatement(ExpressionNode condition, ImmutableArray<StatementNode> thenBody)
     {
         return new IfStatementStatementNode
@@ -362,7 +312,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>Creates a while statement with a bool condition and a body block.</summary>
     public static StatementNode MakeWhileStatement(ExpressionNode condition, ImmutableArray<StatementNode> body)
     {
         return new WhileStatementStatementNode
@@ -375,11 +324,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>
-    /// Generates a random statement with bounded depth.
-    /// At depth 0, only simple statements (var decl, return, expression) are produced.
-    /// At higher depths, control flow statements (if, while) may be generated.
-    /// </summary>
     public static Gen<StatementNode> GenStatement(int depth = 1)
     {
         var varNames = new[] { "v0", "v1", "v2", "v3", "v4" };
@@ -418,11 +362,6 @@ public static class MistAstGenerator
         return Gen.OneOf(intVarDecl, boolVarDecl, stringVarDecl, exprStmt, ifStmt, whileStmt);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Member declaration generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Creates a method declaration node.</summary>
     public static MethodDeclarationNode MakeMethod(
         string name,
         TypeReferenceNode returnType,
@@ -440,7 +379,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>Creates a field declaration node.</summary>
     public static FieldDeclarationNode MakeField(
         string name,
         TypeReferenceNode type,
@@ -454,9 +392,6 @@ public static class MistAstGenerator
         };
     }
 
-    /// <summary>
-    /// Generates a random method declaration with a void return type and simple body.
-    /// </summary>
     public static Gen<MethodDeclarationNode> GenMethodDeclaration()
     {
         var methodNames = new[] { "DoWork", "Process", "Calculate", "Execute", "Run" };
@@ -470,9 +405,6 @@ public static class MistAstGenerator
                    ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()));
     }
 
-    /// <summary>
-    /// Generates a random class declaration with a few members.
-    /// </summary>
     public static Gen<TypeBodyDeclarationNode> GenClassDeclaration()
     {
         var classNames = new[] { "Foo", "Bar", "Baz", "Widget", "Helper" };

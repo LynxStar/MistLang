@@ -3,6 +3,7 @@ using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -86,6 +87,19 @@ public sealed class DependentDomainDecisionTests
     public void ABoolOrACharFillsASlotOfItsOwnKind(string domain, object value)
     {
         Assert.Null(RefinementAnalyzer.DomainFinding(Dependent(domain), Lifted(value)));
+    }
+
+    [Fact]
+    public void ACaptureThatReadsASlotFillsTheSlotByTheTypeOfItsRead()
+    {
+        var slots = new HandBuiltSlots();
+        var domain = Dependent("Int32");
+        var receiver = HandBuiltRefinements.Local(slots.ArrayOf(new UnknownValueType(slots.Int)), "a");
+        var typed = new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Length", slots.Int, member: new TypeResult(slots.Array.TypeParametersList[1]));
+        var untyped = new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Length", UnknownType.Instance, member: new TypeResult(slots.Array.TypeParametersList[1]));
+
+        Assert.Null(RefinementAnalyzer.DomainFinding(domain, new SlotCapture("a.Length", slots.Int, slots.Int, typed, 1).Value));
+        Assert.Equal(NotAssignable, RefinementAnalyzer.DomainFinding(domain, new SlotCapture("a.Length", slots.Int, slots.Int, untyped, 2).Value)?.Number.Value);
     }
 
     [Fact]

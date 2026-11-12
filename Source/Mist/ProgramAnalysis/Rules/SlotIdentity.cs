@@ -1,3 +1,4 @@
+using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -15,8 +16,9 @@ internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string L
 /// dependent slots, which <see cref="ConversionClassifier.AgreesUpToProof"/> admits and leaves to be
 /// proven here. Only two slots that hold one value are proven: the same capture, two captures the
 /// flow bound to one value because each read the same unchanged holder, or the <c>unknown</c> slot of
-/// the value against a capture that was made by reading that very value's slot, which inference does
-/// for an argument. A slot the target leaves <c>unknown</c> owes nothing.
+/// the value against a capture that reads that slot, either of this very expression, which inference
+/// makes for an argument, or of the same unchanged holder, which the flow shows by binding the
+/// holder's slot and the capture to one value. A slot the target leaves <c>unknown</c> owes nothing.
 /// </summary>
 internal static class SlotIdentity
 {
@@ -37,7 +39,7 @@ internal static class SlotIdentity
             }
 
             var unproven = Pairs(reaching, closing)
-                .Where(pair => !Proven(state, pair.Argument, pair.Slot, through))
+                .Where(pair => !Proven(state, pair.Argument, pair.Slot, pair.Read, through))
                 .Select(pair => new UnprovenSlot(source, constituent, Shown(pair.Argument, pair.Parameter, through), Shown(pair.Slot, pair.Parameter, null)))
                 .FirstOrDefault();
 
@@ -59,13 +61,22 @@ internal static class SlotIdentity
                 && Reaching(Written(value).Type, closing, []) is { } reaching && Pairs(reaching, closing).Any());
     }
 
-    private static bool Proven(FactState state, IMistType argument, IMistType slot, Expression? through)
+    private static bool Proven(FactState state, IMistType argument, IMistType slot, TypeParameter? read, Expression? through)
     {
         if(argument is UnknownType or UnknownValueType)
         {
-            return through is not null
-                && slot is CapturedValue { Capture.Initializer: MemberAccessExpression { Member: TypeResult, Receiver: var read } }
-                && ReferenceEquals(Written(read), Written(through));
+            if(through is null || slot is not CapturedValue { Capture: var capture and { Initializer: MemberAccessExpression { Member: TypeResult, Receiver: var source } } })
+            {
+                return false;
+            }
+
+            var written = Written(through);
+            return ReferenceEquals(Written(source), written)
+                || (read is not null
+                    && Terms.Holder(written, state.Bindings) is { } holder
+                    && state.Bindings.Get(holder) is { } value
+                    && state.Bindings.Get(new MemberHolder(value, read)) is { } held
+                    && ReferenceEquals(held, state.Bindings.Get(capture)));
         }
 
         return argument is CapturedValue left && slot is CapturedValue right
@@ -73,7 +84,7 @@ internal static class SlotIdentity
                 || (state.Bindings.Get(left.Capture) is { } mine && ReferenceEquals(mine, state.Bindings.Get(right.Capture))));
     }
 
-    private static IEnumerable<(IMistType Argument, IMistType Slot, TypeParameter Parameter)> Pairs(ConstructedType source, ConstructedType target)
+    private static IEnumerable<(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read)> Pairs(ConstructedType source, ConstructedType target)
     {
         for(var i = 0; i < source.TypeArguments.Count && i < target.TypeArguments.Count; i++)
         {
@@ -89,7 +100,11 @@ internal static class SlotIdentity
             {
                 if(slot is not (UnknownType or UnknownValueType))
                 {
-                    yield return (argument, slot, ((IHasTypeParameters)target.Definition).TypeParametersList.First(parameter => parameter.Ordinal == i));
+                    var ordinal = i;
+                    yield return (
+                        argument, slot,
+                        ((IHasTypeParameters)target.Definition).TypeParametersList.First(parameter => parameter.Ordinal == ordinal),
+                        (source.Definition as IHasTypeParameters)?.TypeParametersList.Find(parameter => parameter.Ordinal == ordinal));
                 }
             }
             else if(Plain(argument) is ConstructedType inner && Plain(slot) is ConstructedType outer && SameDefinition(inner, outer))

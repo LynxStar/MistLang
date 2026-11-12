@@ -46,14 +46,10 @@ internal sealed class SlotValueBinder(BindingContext ctx, BuilderContext context
 
     public static SlotCapture? Capture(Expression value, TypeParameter slot, string writtenName, TypeInterner interner, bool converted = false)
     {
-        if(value.Type is ErrorType || PriorFailure.Of(value) || slot.Domain is not { } domain)
+        if(value.Type is ErrorType || PriorFailure.Of(value) || slot.Domain is not { } domain || InstanceSlotRead.Contract(slot) is not { } contract)
         {
             return null;
         }
-
-        var contract = slot is { RefinementNode: { } predicateNode, Refinement: { } predicate }
-            ? new RefinedType(domain, predicateNode) { Predicate = predicate }
-            : (IMistType)domain;
 
         return new SlotCapture(
             writtenName, contract, ConversionRelation.Unrefined(domain),

@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
@@ -20,17 +21,24 @@ internal interface ISlotInference
 /// the object carries, so the parameter binds a capture on the invocation whose initializer reads it:
 /// <c>Len(a)</c> over an <c>int[]</c> binds <c>a.Length</c>. Through an abstract the read has no single
 /// answer, so nothing binds and the call is told to state the parameter. Kept per candidate, since
-/// inference runs for each and only the selected one's captures are owned.
+/// inference runs for each and only the selected one's captures are owned. The capture is named from
+/// the argument as written, which a bound postfix argument no longer spans: its node is the last suffix.
 /// </summary>
-internal sealed class SlotInference(TypeInterner interner) : ISlotInference
+internal sealed class SlotInference(TypeInterner interner, IReadOnlyList<ExpressionNode> written) : ISlotInference
 {
     private readonly Dictionary<IOverload, List<SlotCapture>> captures = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<IOverload, (TypeParameter Parameter, IMistType Type)> refused = new(ReferenceEqualityComparer.Instance);
 
+    public SlotInference(TypeInterner interner)
+        : this(interner, [])
+    {
+    }
+
     public IMistType? Unknown(IOverload candidate, TypeParameter parameter, Expression argument, ConstructedType closing, int ordinal)
     {
         if(closing.Definition is not IHasTypeParameters declaring
-            || declaring.TypeParametersList.Find(slot => slot.Ordinal == ordinal) is not { IsDependent: true, Domain: not null } slot)
+            || declaring.TypeParametersList.Find(slot => slot.Ordinal == ordinal) is not { IsDependent: true, Domain: not null } slot
+            || InstanceSlotRead.TypeOf(slot, closing) is not { } type)
         {
             return null;
         }
@@ -41,10 +49,10 @@ internal sealed class SlotInference(TypeInterner interner) : ISlotInference
             return null;
         }
 
-        var read = new MemberAccessExpression(argument.Node, argument, slot.Name, closing.TypeArguments[ordinal], member: new TypeResult(slot));
-        var written = $"{SlotValueBinder.Written(argument.Node, "argument")}.{slot.Name}";
+        var read = new MemberAccessExpression(argument.Node, argument, slot.Name, type, member: new TypeResult(slot));
+        var spelled = $"{SlotValueBinder.Written(Spanning(argument), "argument")}.{slot.Name}";
 
-        if(SlotValueBinder.Capture(read, parameter, written, interner) is not { } capture)
+        if(SlotValueBinder.Capture(read, parameter, spelled, interner) is not { } capture)
         {
             return null;
         }
@@ -67,5 +75,12 @@ internal sealed class SlotInference(TypeInterner interner) : ISlotInference
     public (TypeParameter Parameter, IMistType Type)? RefusedFor(IOverload candidate)
     {
         return refused.TryGetValue(candidate, out var failure) ? failure : null;
+    }
+
+    private Storm.Runtime.SyntaxNode Spanning(Expression argument)
+    {
+        var span = argument.Node.Span;
+
+        return written.FirstOrDefault(node => node.Span.Start <= span.Start && span.End <= node.Span.End) ?? argument.Node;
     }
 }

@@ -443,7 +443,8 @@ internal static class TypeArgumentInference
         {
             if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Closing: { } closing })
             {
-                if(Slot(parameter, parameters) < 0 || reading.Slots.Unknown(reading.Method, parameter, reading.Argument, closing, reading.Ordinal) is not { } read)
+                var slot = Slot(parameter, parameters);
+                if(slot < 0 || bounds[slot].Count > 0 || reading.Slots.Unknown(reading.Method, parameter, reading.Argument, closing, reading.Ordinal) is not { } read)
                 {
                     return;
                 }

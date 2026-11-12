@@ -72,6 +72,42 @@ public sealed class SlotInferenceDecisionTests
     }
 
     [Fact]
+    public void TheUnknownSlotOfAClassWithNoValueDomainIsReadThroughTheSlotsContract()
+    {
+        var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
+        var size = new Method("Size", slots.Int, [new Parameter("r", slots.Closed(ring, n))], default) { Scope = new Scope(null) };
+        size.TypeParametersList.Add(n);
+        var r = HandBuiltRefinements.Local(slots.Closed(ring, UnknownType.Instance), "r");
+
+        var (inferred, inference, conflict) = Infer(size, r);
+
+        Assert.Null(conflict);
+        var bound = Assert.IsType<CapturedValue>(inferred[0]);
+        var read = Assert.IsType<MemberAccessExpression>(bound.Capture.Initializer);
+        Assert.Same(r, read.Receiver);
+        Assert.Same(ring.TypeParametersList[0], Assert.IsType<TypeResult>(read.Member).Type);
+        Assert.Same(slots.Int, read.Type);
+        Assert.Same(slots.Int, bound.Capture.Type);
+        Assert.Null(inference.RefusedFor(size));
+    }
+
+    [Fact]
+    public void TheSecondArgumentWithAnUnknownSlotMakesNoCaptureOfItsOwn()
+    {
+        var blit = new Method("Blit", slots.Int, [new Parameter("source", slots.ArrayOf(n)), new Parameter("target", slots.ArrayOf(n))], default) { Scope = new Scope(null) };
+        blit.TypeParametersList.Add(n);
+        var a = HandBuiltRefinements.Local(slots.ArrayOf(new UnknownValueType(slots.Int)), "a");
+        var b = HandBuiltRefinements.Local(slots.ArrayOf(new UnknownValueType(slots.Int)), "b");
+
+        var (inferred, inference, conflict) = Infer(blit, a, b);
+
+        Assert.Null(conflict);
+        var capture = Assert.Single(inference.CapturesOf(blit));
+        Assert.Same(capture.Value, inferred[0]);
+        Assert.Same(a, Assert.IsType<MemberAccessExpression>(capture.Initializer).Receiver);
+    }
+
+    [Fact]
     public void TheUnknownSlotOfAnAbstractBindsNothingAndIsRefused()
     {
         var some = HandBuiltRefinements.Local(slots.Closed(sized, new UnknownValueType(slots.Int)), "some");

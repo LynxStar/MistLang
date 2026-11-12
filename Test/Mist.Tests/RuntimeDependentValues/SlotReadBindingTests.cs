@@ -32,6 +32,7 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         public class Api
         {
             public static Ring<N> Zeroes<N:int>() { return new Ring<N>(); }
+            public static int Size<N:int>(Ring<N> r) { return 0; }
         }
         """;
 
@@ -72,6 +73,23 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         Assert.Equal("count", Assert.IsType<LocalReferenceExpression>(capture.Initializer).Local.Name);
         Assert.Same(capture.Value, Assert.IsType<ConstructedType>(declaration.Local.Type).TypeArguments[0]);
         Assert.Same(capture.Value, Assert.IsType<MemberAccessExpression>(call.Receiver).TypeArguments[0]);
+    }
+
+    [Fact]
+    public void AnInferredParameterOverAClassClosedWithUnknownReadsTheSlotThroughItsDomain()
+    {
+        var model = BuildModel("Ring<unknown> r = new Ring<4>(); var s = Api.Size(r);", "", "", out var diagnostics);
+        var statements = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var call = Assert.IsType<InvocationExpression>(statements[1].Initializer);
+        var capture = Assert.Single(call.Captures);
+        var read = Assert.IsType<MemberAccessExpression>(capture.Initializer);
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Equal("r.Capacity", capture.Name);
+        Assert.Equal("r", Assert.IsType<LocalReferenceExpression>(read.Receiver).Local.Name);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, read.Type.FullyQualifiedName);
+        Assert.Same(capture.Value, Assert.IsType<ConstructedType>(call.ParameterTypes![0]).TypeArguments[0]);
     }
 
     [Fact]

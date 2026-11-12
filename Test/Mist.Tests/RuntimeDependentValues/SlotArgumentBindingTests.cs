@@ -106,6 +106,7 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
             """
             int[] a = [1, 2, 3];
             var n = Api.Len(a);
+            var m = Api.Len(Api.Make());
             """,
             out var diagnostics,
             extraTypes: """
@@ -115,6 +116,11 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
                 {
                     return 0;
                 }
+
+                public static int[] Make()
+                {
+                    return [1];
+                }
             }
             """);
         var statements = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!
@@ -122,12 +128,15 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
         var call = Assert.IsType<InvocationExpression>(statements[1].Initializer);
         var capture = Assert.Single(call.Captures);
         var read = Assert.IsType<MemberAccessExpression>(capture.Initializer);
+        var made = Assert.Single(Assert.IsType<InvocationExpression>(statements[2].Initializer).Captures);
 
         Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == Mist.Common.Diagnostics.DiagnosticSeverity.Error);
         Assert.Equal("a.Length", capture.Name);
         Assert.Equal("a", Assert.IsType<LocalReferenceExpression>(read.Receiver).Local.Name);
         Assert.Equal("Length", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(read.Member).Type).Name);
         Assert.Same(capture.Value, Assert.IsType<ConstructedType>(call.ParameterTypes![0]).TypeArguments[1]);
+        Assert.Equal("Api.Make().Length", made.Name);
+        _ = Assert.IsType<InvocationExpression>(Assert.IsType<MemberAccessExpression>(made.Initializer).Receiver);
     }
 
     [Fact]

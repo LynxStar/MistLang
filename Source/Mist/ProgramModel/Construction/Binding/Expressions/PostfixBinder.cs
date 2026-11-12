@@ -305,7 +305,7 @@ internal static class PostfixBinder
         var bound = ArgumentBinder.Bind(
             arguments, group.Candidates, ctx, context, group.ReceiverConstructed, group.Paths, typeArguments, statedFor);
         var interner = context.ProgramModel.TypeInterner;
-        var slots = new SlotInference(interner);
+        var slots = new SlotInference(interner, arguments?.GetAllExpressions() ?? []);
 
         var choice = OverloadResolution.Select(
             group.Candidates, bound, group.ReceiverConstructed, typeArguments, interner,

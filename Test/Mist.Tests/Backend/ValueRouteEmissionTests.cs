@@ -754,12 +754,12 @@ public sealed class ValueRouteEmissionTests
         var outOf = new CastOperator(slots.Int, new Parameter("m", closing), isImplicit: false, new MemberModifiers { IsStatic = true, Accessibility = Accessibility.Public })
         {
             DeclaringType = ring,
-            Body = HandBuiltModel.Block(Read()),
+            Body = HandBuiltModel.Block(read()),
         };
         var into = new CastOperator(closing, new Parameter("v", slots.Int), isImplicit: true, new MemberModifiers { IsStatic = true, Accessibility = Accessibility.Public })
         {
             DeclaringType = ring,
-            Body = HandBuiltModel.Block(Read()),
+            Body = HandBuiltModel.Block(read()),
         };
         var writer = new CSharpWriter();
         var kept = new DiagnosticBag();
@@ -775,7 +775,7 @@ public sealed class ValueRouteEmissionTests
         Assert.Equal("MIST0499", refusal.Number.Value);
         Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the conversion from 'int', whose operand does not carry it", refusal.Message, StringComparison.Ordinal);
 
-        ReturnStatement Read()
+        ReturnStatement read()
         {
             return new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), slots.Int);
         }

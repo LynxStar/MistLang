@@ -1,7 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
-using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 

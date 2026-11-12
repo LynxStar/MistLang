@@ -2,7 +2,6 @@ using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
-using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;

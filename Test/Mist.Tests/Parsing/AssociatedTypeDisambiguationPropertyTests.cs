@@ -9,19 +9,12 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario for disambiguation between associated type slots
-/// (using ':') and concrete type aliases (using '=').
-/// </summary>
 public sealed class DisambiguationTypeScenario
 {
-    /// <summary>The type name used in both forms.</summary>
     public string TypeName { get; }
 
-    /// <summary>The constraint used in the ':' form (e.g., "IFoo").</summary>
     public string Constraint { get; }
 
-    /// <summary>The type expression used in the '=' form (e.g., "int").</summary>
     public string TypeExpr { get; }
 
     public DisambiguationTypeScenario(string typeName, string constraint, string typeExpr)
@@ -37,23 +30,10 @@ public sealed class DisambiguationTypeScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for parser disambiguation between abstract type slots
-/// and concrete type aliases.
-///
-/// Property 2: For any valid type name and constraint list, a declaration
-/// <c>type Name : ConstraintList;</c> in an abstract body SHALL parse as an
-/// <c>AssociatedTypeSlotDeclarationNode</c>, while a declaration
-/// <c>type Name = TypeExpr;</c> in the same position (top-level, since type aliases
-/// are top-level items) SHALL parse as a <c>TypeAliasDeclarationNode</c>.
-/// The two forms SHALL never produce the same node type.
-/// </summary>
 public class AssociatedTypeDisambiguationPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     private static readonly string[] ValidTypeNames =
         ["Enumerator", "Element", "Output", "Key", "Value", "Item", "Result", "State", "Node", "Entry"];
@@ -78,8 +58,6 @@ public class AssociatedTypeDisambiguationPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Parsing helpers ────────────────────────────────────────────────────
-
     private static CompilationUnitNode? ParseSource(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -99,25 +77,16 @@ public class AssociatedTypeDisambiguationPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Builds source for an associated type slot declaration inside an abstract body.
-    /// </summary>
     private static string BuildAssociatedTypeSlotSource(string name, string constraint)
     {
         return $"abstract ITest {{ type {name} : {constraint}; }}";
     }
 
-    /// <summary>
-    /// Builds source for a concrete type alias declaration (top-level).
-    /// </summary>
     private static string BuildTypeAliasSource(string name, string typeExpr)
     {
         return $"type {name} = {typeExpr};";
     }
 
-    /// <summary>
-    /// Extracts the first member declaration from a parsed abstract body.
-    /// </summary>
     private static MemberDeclarationNode? ExtractAbstractMember(CompilationUnitNode cu)
     {
         if(cu.Items.FirstOrDefault() is not TypeItemTopLevelItemNode typeItem)
@@ -133,9 +102,6 @@ public class AssociatedTypeDisambiguationPropertyTests
         return typeBody.Members.FirstOrDefault();
     }
 
-    /// <summary>
-    /// Extracts the TypeAliasDeclarationNode from a parsed top-level type alias.
-    /// </summary>
     private static TypeAliasDeclarationNode? ExtractTypeAlias(CompilationUnitNode cu)
     {
         if(cu.Items.FirstOrDefault() is TypeItemTopLevelItemNode { TypeDeclaration: TypeAliasTypeTypeDeclarationNode aliasType })
@@ -145,16 +111,6 @@ public class AssociatedTypeDisambiguationPropertyTests
 
         return null;
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2a: type Name : Constraint; in abstract produces
-    //              AssociatedTypeSlotDeclarationNode
-    //
-    // For any valid type name and constraint, parsing `type Name : Constraint;`
-    // inside an abstract body SHALL produce an
-    // AssociatedTypeMemberMemberDeclarationNode containing
-    // an AssociatedTypeSlotDeclarationNode.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -182,14 +138,6 @@ public class AssociatedTypeDisambiguationPropertyTests
             .Label($"Expected AssociatedTypeMemberMemberDeclarationNode but got {member.GetType().Name} for: {source}");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2b: type Name = TypeExpr; produces TypeAliasDeclarationNode
-    //
-    // For any valid type name and type expression, parsing `type Name = TypeExpr;`
-    // SHALL produce a TypeAliasDeclarationNode (via TypeItemTopLevelItemNode
-    // wrapping TypeAliasTypeTypeDeclarationNode).
-    // ═════════════════════════════════════════════════════════════════════════
-
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(AssociatedTypeDisambiguationPropertyTests) })]
@@ -210,32 +158,10 @@ public class AssociatedTypeDisambiguationPropertyTests
             .Label($"Expected TypeAliasDeclarationNode but did not find one in: {source}");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2c: The two forms never produce the same node type
-    //
-    // For any valid type name, parsing `type Name : Constraint;` in an abstract
-    // and `type Name = TypeExpr;` at the top level SHALL produce different
-    // underlying declaration node types (AssociatedTypeSlotDeclarationNode vs
-    // TypeAliasDeclarationNode).
-    // ═════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Builds source for an unconstrained associated type slot declaration inside an abstract body.
-    /// </summary>
     private static string BuildUnconstrainedAssociatedTypeSlotSource(string name)
     {
         return $"abstract ITest {{ type {name}; }}";
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2d: type Name; in abstract produces
-    //              AssociatedTypeMemberMemberDeclarationNode with null constraints
-    //
-    // For any valid type name, parsing `type Name;` (unconstrained slot)
-    // inside an abstract body SHALL produce an
-    // AssociatedTypeMemberMemberDeclarationNode containing
-    // an AssociatedTypeSlotDeclarationNode with null Constraints.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -301,7 +227,6 @@ public class AssociatedTypeDisambiguationPropertyTests
             return false.ToProperty().Label($"Could not extract type alias from: {aliasSource}");
         }
 
-        // Extract the inner declaration node from the abstract member
         if(member is not AssociatedTypeMemberMemberDeclarationNode slotMember)
         {
             return false.ToProperty().Label($"Abstract member is not an associated type slot: {member.GetType().Name}");

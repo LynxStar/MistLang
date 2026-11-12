@@ -1,19 +1,4 @@
 // Bugfix: parser-type-argument-backtracking — Property 2: Preservation
-//
-// Observation-first preservation baseline. These tests encode the parser
-// behavior for type references so that the grammar restructure
-// (TypeReference → first:SingleTypeRef (PIPE rest:SingleTypeRef)*) is verified
-// to preserve the same AST information content.
-//
-// After the grammar restructure, TypeReferenceNode is FLAT: it exposes
-// First (the first/only constituent, a SingleTypeRefNode) and SingleTypeRefs
-// (the PIPE-separated continuations). A union is detected via
-// SingleTypeRefs.Length > 0. The single-constituent variants are the
-// SingleTypeRefNode variants (Primitive/Void/Unknown/Named/Tuple/Parenthesized).
-//
-// Process-spawning policy: parsing is performed IN-PROCESS via MistLexer +
-// MistParser only. No external process is spawned.
-//
 // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10**
 
 using FsCheck;
@@ -26,8 +11,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-// ─── Scenario types ─────────────────────────────────────────────────────────
-
 /// <summary>
 /// The category of type reference a scenario exercises. Each kind maps to a
 /// distinct shape of the flat <see cref="TypeReferenceNode"/> (a union, or one
@@ -35,37 +18,23 @@ namespace Mist.Tests.Parsing;
 /// </summary>
 public enum TypeRefKind
 {
-    /// <summary><c>int | string</c> → a union TypeReferenceNode (SingleTypeRefs non-empty).</summary>
     Union,
 
-    /// <summary><c>List&lt;int&gt;</c> → <see cref="NamedSingleTypeRefSingleTypeRefNode"/>.</summary>
     Named,
 
-    /// <summary><c>int</c>, <c>int[]</c> → <see cref="PrimitiveSingleTypeRefSingleTypeRefNode"/>.</summary>
     Primitive,
 
-    /// <summary><c>(int, string)</c> → <see cref="TupleSingleTypeRefSingleTypeRefNode"/>.</summary>
     Tuple,
 
-    /// <summary><c>void</c> → <see cref="VoidSingleTypeRefSingleTypeRefNode"/>.</summary>
     Void,
 
-    /// <summary><c>unknown</c> → <see cref="UnknownSingleTypeRefSingleTypeRefNode"/>.</summary>
     Unknown,
 }
 
-/// <summary>
-/// A single preservation scenario: a type annotation written in source, the
-/// expected AST variant it produces, and the structural metadata the
-/// produced node must match (constituent / type-argument / element count, and
-/// whether an array rank suffix is present).
-/// </summary>
 public sealed class TypeRefScenario
 {
-    /// <summary>The type annotation as written in Mist source (e.g. "int | string").</summary>
     public string Annotation { get; }
 
-    /// <summary>Which <see cref="TypeReferenceNode"/> shape this should produce.</summary>
     public TypeRefKind Kind { get; }
 
     /// <summary>
@@ -76,7 +45,6 @@ public sealed class TypeRefScenario
     /// </summary>
     public int ExpectedCount { get; }
 
-    /// <summary>For <see cref="TypeRefKind.Primitive"/>: whether an array rank suffix is expected.</summary>
     public bool ExpectArrayRank { get; }
 
     public TypeRefScenario(string annotation, TypeRefKind kind, int expectedCount = 0, bool expectArrayRank = false)
@@ -93,34 +61,10 @@ public sealed class TypeRefScenario
     }
 }
 
-// ─── Property Tests ─────────────────────────────────────────────────────────
-
-/// <summary>
-/// Preservation property tests for type reference parsing. They observe and
-/// lock in the parser behavior:
-///
-/// - <c>int | string</c> → union type AST with 2 constituents
-/// - <c>List&lt;int&gt;</c> → named type with 1 type argument
-/// - <c>int[]</c> → primitive type with array rank 1
-/// - <c>(int, string)</c> → tuple type with 2 elements
-/// - <c>void</c> → void type ref node
-/// - <c>unknown</c> → unknown type ref node
-/// - <c>(int | string)[]</c> → parenthesized type with inner union and array rank
-///
-/// Property: for all valid type reference inputs, the parser produces a correct
-/// AST node matching the expected structure (per the Preservation Requirements
-/// in design.md).
-///
-/// **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10**
-/// </summary>
 public sealed class TypeReferencePreservationPropertyTests
 {
-    // ─── Shared infrastructure ───────────────────────────────────────────
-
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-
-    // ─── Parsing helpers ────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -143,10 +87,6 @@ public sealed class TypeReferencePreservationPropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    /// <summary>
-    /// Wraps a type annotation in a local variable declaration inside a class
-    /// method, parses it, and returns the variable's <see cref="TypeReferenceNode"/>.
-    /// </summary>
     private static TypeReferenceNode GetVariableTypeRef(string typeAnnotation)
     {
         var source = $"class T {{ public void M() {{ {typeAnnotation} x = default; }} }}";
@@ -161,21 +101,16 @@ public sealed class TypeReferencePreservationPropertyTests
         return varDecl.Type;
     }
 
-    // ─── Structural-count helpers ───────────────────────────────────────
-
-    /// <summary>True iff the type reference is a union (has PIPE-separated continuations).</summary>
     private static bool IsUnion(TypeReferenceNode typeRef)
     {
         return typeRef.SingleTypeRefs.Length > 0;
     }
 
-    /// <summary>Number of union constituents: First plus the PIPE-separated rest.</summary>
     private static int UnionConstituentCount(TypeReferenceNode typeRef)
     {
         return 1 + typeRef.SingleTypeRefs.Length;
     }
 
-    /// <summary>Number of type arguments: first plus the comma-separated rest, or 0 if none.</summary>
     private static int TypeArgumentCount(NamedSingleTypeRefSingleTypeRefNode named)
     {
         return named.TypeArgs is null ? 0 : 1 + named.TypeArgs.TypeArguments.Length;
@@ -187,13 +122,6 @@ public sealed class TypeReferencePreservationPropertyTests
         return 2 + tuple.TupleTypeElements.Length;
     }
 
-    // ─── Scenario evaluation ────────────────────────────────────────────
-
-    /// <summary>
-    /// Parses the scenario annotation and verifies the produced AST node matches
-    /// the expected variant and structural metadata. Returns a success flag plus
-    /// a human-readable detail string for failure labeling.
-    /// </summary>
     private static (bool Ok, string Detail) Evaluate(TypeRefScenario scenario)
     {
         TypeReferenceNode typeRef;
@@ -261,8 +189,6 @@ public sealed class TypeReferencePreservationPropertyTests
         }
     }
 
-    // ─── Arbitrary registration ─────────────────────────────────────────
-
     private static readonly TypeRefScenario[] UnionScenarios =
     [
         new("int | string", TypeRefKind.Union, expectedCount: 2),
@@ -318,9 +244,6 @@ public sealed class TypeReferencePreservationPropertyTests
     // ═══════════════════════════════════════════════════════════════════════
     // Property 2: Preservation — Type Reference Parsing Semantic Equivalence
     //
-    // For all valid type reference inputs, the parser produces a correct AST
-    // node matching the expected structure.
-    //
     // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -332,8 +255,6 @@ public sealed class TypeReferencePreservationPropertyTests
             .Label($"Scenario: {scenario}")
             .Label($"Detail: {detail}");
     }
-
-    // ─── Observation unit tests (the seven baseline cases) ───────────────
 
     [Fact]
     public void IntOrString_ProducesUnionWithTwoConstituents()
@@ -396,15 +317,12 @@ public sealed class TypeReferencePreservationPropertyTests
         constituents.AddRange(typeRef.SingleTypeRefs);
         Assert.Equal(2, constituents.Count);
 
-        // First constituent: (int | string)[] — a ParenthesizedTypeRef with array rank.
         var parenRef = Assert.IsType<ParenthesizedTypeRefSingleTypeRefNode>(constituents[0]);
         Assert.NotNull(parenRef.ArrayRank);
 
-        // Inner type is itself a union: int | string with 2 constituents.
         Assert.NotEmpty(parenRef.Inner.SingleTypeRefs);
         Assert.Equal(2, UnionConstituentCount(parenRef.Inner));
 
-        // Second constituent: bool.
         var boolRef = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(constituents[1]);
         _ = Assert.IsType<BoolTypePrimitiveTypeNode>(boolRef.PrimitiveType);
     }

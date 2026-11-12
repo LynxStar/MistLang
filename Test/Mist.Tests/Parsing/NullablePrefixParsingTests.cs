@@ -6,10 +6,8 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Tests that the parser correctly handles rules starting with nullable
-/// prefixes (ZeroOrMore, Optional). Validates the fix for the bug where
-/// FIRST set computation returned empty sets for rules referenced via
-/// stale IR shells, causing ZeroOrMore loops to produce empty lists.
+/// Rules beginning with a nullable prefix (ZeroOrMore, Optional) need a non-empty FIRST set,
+/// or a ZeroOrMore loop over them matches nothing and yields an empty list.
 /// </summary>
 public class NullablePrefixParsingTests
 {
@@ -149,11 +147,9 @@ public class Program
         Assert.Equal("C", classDecl.Name.Lexeme);
         Assert.Equal(2, classDecl.Members.Length);
 
-        // First member: field
         var field = classDecl.Members[0] as FieldMemberMemberDeclarationNode;
         Assert.NotNull(field);
 
-        // Second member: constructor
         var ctor = classDecl.Members[1] as ConstructorMemberMemberDeclarationNode;
         Assert.NotNull(ctor);
         Assert.Equal("C", ctor!.Constructor.Name.Lexeme);
@@ -203,7 +199,6 @@ public class Program
     [Fact]
     public void PointMistSample_ParsesWithNonEmptyNamespaceBody()
     {
-        // Full Point.mist sample with namespace, multiple fields, constructor with 2 params, and methods
         var source = @"namespace Geometry;
 public class Point
 {

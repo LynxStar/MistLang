@@ -6,23 +6,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests for default method implementation parsing inside abstract types
-/// (Phase 3, task 3.1).
-///
-/// Validates that:
-/// <list type="bullet">
-///   <item>A method WITHOUT a body (semicolon-terminated) is classified as a slot
-///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="CallableNoBodyCallableBodyNode"/>).</item>
-///   <item>A method WITH a braced body is classified as a default implementation
-///   (<see cref="MethodMemberMemberDeclarationNode"/> with <see cref="CallableBlockBodyCallableBodyNode"/>).</item>
-///   <item>Slots and defaults may be freely mixed in any order.</item>
-///   <item>A property with a body inside an abstract type produces the
-///   <c>MIST0127</c> diagnostic.</item>
-/// </list>
-///
-/// **Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5**
-/// </summary>
 public class AbstractDefaultMethodParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -89,7 +72,6 @@ public class AbstractDefaultMethodParsingTests
         var member = Assert.Single(typeBody.Members);
         var methodMember = Assert.IsType<MethodMemberMemberDeclarationNode>(member);
         Assert.Equal("Greet", methodMember.Method.Name.Lexeme);
-        // The captured method retains its block body.
         _ = Assert.IsType<CallableBlockBodyCallableBodyNode>(methodMember.Method.Body);
     }
 
@@ -252,8 +234,6 @@ public class AbstractDefaultMethodParsingTests
     [Fact]
     public void NestedAbstractPropertyWithBody_IsFlagged()
     {
-        // A property-with-body directly inside a NESTED abstract type is still
-        // subject to the rule and reported.
         var source = """
             abstract IOuter
             {

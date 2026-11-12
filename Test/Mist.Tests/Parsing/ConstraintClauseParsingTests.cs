@@ -6,10 +6,6 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Unit tests for constraint clause parsing.
-/// Validates that the parser produces correct AST nodes for each constraint variant,
-/// handles multiple constraints and where clauses, and works across all declaration types.
-///
 /// Requirements: 1.9, 1.10, 9.2
 /// </summary>
 public class ConstraintClauseParsingTests
@@ -88,7 +84,6 @@ public class ConstraintClauseParsingTests
         return aliasType.TypeAliasDeclaration;
     }
 
-    /// <summary>Gets all constraints from a GenericConstraintClauseWhereClauseNode as a flat list.</summary>
     private static List<ConstraintNode> GetConstraints(GenericConstraintClauseWhereClauseNode clause)
     {
         var list = new List<ConstraintNode> { clause.Constraints.Constraint };
@@ -96,17 +91,12 @@ public class ConstraintClauseParsingTests
         return list;
     }
 
-    /// <summary>Casts a WhereClauseNode to GenericConstraintClauseWhereClauseNode for test assertions.</summary>
     private static GenericConstraintClauseWhereClauseNode AsGenericConstraint(WhereClauseNode node)
     {
         var generic = node as GenericConstraintClauseWhereClauseNode;
         Assert.NotNull(generic);
         return generic!;
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Single constraint clause with each constraint variant
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ClassConstraint_ParsesCorrectly()
@@ -173,7 +163,6 @@ public class ConstraintClauseParsingTests
         var ctorConstraint = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.NotNull(ctorConstraint.ParamTypes);
 
-        // Single parameter type: int
         var paramTypes = ctorConstraint.ParamTypes!;
         Assert.Empty(paramTypes.TypeReferences); // Only the first TypeReference, no additional ones
         var firstType = paramTypes.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
@@ -194,7 +183,6 @@ public class ConstraintClauseParsingTests
         var ctorConstraint = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.NotNull(ctorConstraint.ParamTypes);
 
-        // Two parameter types: int, string
         var paramTypes = ctorConstraint.ParamTypes!;
         _ = Assert.Single(paramTypes.TypeReferences); // One additional type beyond the first
 
@@ -225,10 +213,6 @@ public class ConstraintClauseParsingTests
         Assert.NotNull(namedType);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Multiple constraints in a single clause
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void MultipleConstraints_InSingleClause_ParsesCorrectly()
     {
@@ -246,10 +230,6 @@ public class ConstraintClauseParsingTests
         _ = Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
         _ = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[2]);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Multiple where clauses on a single declaration
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void MultipleWhereClauses_ParsesCorrectly()
@@ -270,10 +250,6 @@ public class ConstraintClauseParsingTests
         _ = Assert.Single(vConstraints);
         _ = Assert.IsType<StructConstraintConstraintNode>(vConstraints[0]);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Constraint clauses on each declaration type
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ClassDeclaration_WithConstraints_ParsesCorrectly()
@@ -351,10 +327,6 @@ public class ConstraintClauseParsingTests
         _ = Assert.IsType<StructConstraintConstraintNode>(constraints[0]);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Backward compatibility: declarations without constraints still parse
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ClassDeclaration_WithoutConstraints_ParsesCorrectly()
     {
@@ -415,10 +387,6 @@ public class ConstraintClauseParsingTests
         Assert.Empty(alias.Constraints);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Constructor constraints at any position in the constraint list
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ConstructorConstraint_AtBeginning_ParsesCorrectly()
     {
@@ -461,10 +429,6 @@ public class ConstraintClauseParsingTests
         _ = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[2]);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Parameterized constructor constraints with multiple params
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ParameterizedConstructorConstraint_ThreeParams_ParsesCorrectly()
     {
@@ -477,7 +441,6 @@ public class ConstraintClauseParsingTests
         var ctorConstraint = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.NotNull(ctorConstraint.ParamTypes);
 
-        // Three parameter types: int, int, string
         var paramTypes = ctorConstraint.ParamTypes!;
         Assert.Equal(2, paramTypes.TypeReferences.Length); // 2 additional beyond the first
 
@@ -504,28 +467,21 @@ public class ConstraintClauseParsingTests
         var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         Assert.Equal(3, constraints.Count);
 
-        // First: new()
         var ctor1 = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[0]);
         Assert.Null(ctor1.ParamTypes);
 
-        // Second: new(int)
         var ctor2 = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[1]);
         Assert.NotNull(ctor2.ParamTypes);
         var ctor2Type = ctor2.ParamTypes!.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(ctor2Type);
         _ = Assert.IsType<IntTypePrimitiveTypeNode>(ctor2Type!.PrimitiveType);
 
-        // Third: new(bool)
         var ctor3 = Assert.IsType<ConstructorConstraintConstraintNode>(constraints[2]);
         Assert.NotNull(ctor3.ParamTypes);
         var ctor3Type = ctor3.ParamTypes!.TypeReference.First as PrimitiveSingleTypeRefSingleTypeRefNode;
         Assert.NotNull(ctor3Type);
         _ = Assert.IsType<BoolTypePrimitiveTypeNode>(ctor3Type!.PrimitiveType);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Constraints in any order are accepted
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ConstraintsInAnyOrder_NewFirst_ParsesCorrectly()
@@ -554,10 +510,6 @@ public class ConstraintClauseParsingTests
         _ = Assert.IsType<TypeConstraintConstraintNode>(constraints[1]);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Class with base clause and constraints
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ClassWithBaseClause_AndConstraints_ParsesCorrectly()
     {
@@ -565,13 +517,11 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var classDecl = GetClassDeclaration(cu);
 
-        // Has constraints
         _ = Assert.Single(classDecl.Constraints);
         Assert.Equal("T", AsGenericConstraint(classDecl.Constraints[0]).Name.Lexeme);
         var constraints = GetConstraints(AsGenericConstraint(classDecl.Constraints[0]));
         _ = Assert.IsType<ClassConstraintConstraintNode>(constraints[0]);
 
-        // Verify the class name and type params are correct (base clause was parsed)
         Assert.Equal("Derived", classDecl.Name.Lexeme);
         Assert.NotNull(classDecl.TypeParams);
     }
@@ -583,11 +533,9 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var structDecl = GetStructDeclaration(cu);
 
-        // Has constraints
         _ = Assert.Single(structDecl.Constraints);
         Assert.Equal("T", AsGenericConstraint(structDecl.Constraints[0]).Name.Lexeme);
 
-        // Verify the struct name and type params are correct (abstract list was parsed)
         Assert.Equal("Wrapper", structDecl.Name.Lexeme);
         Assert.NotNull(structDecl.TypeParams);
     }
@@ -599,11 +547,9 @@ public class ConstraintClauseParsingTests
         var cu = ParseWithoutErrors(source);
         var abstractDecl = GetAbstractDeclaration(cu);
 
-        // Has constraints
         _ = Assert.Single(abstractDecl.Constraints);
         Assert.Equal("T", AsGenericConstraint(abstractDecl.Constraints[0]).Name.Lexeme);
 
-        // Verify the abstract name and type params are correct (base abstracts were parsed)
         Assert.Equal("IRepository", abstractDecl.Name.Lexeme);
         Assert.NotNull(abstractDecl.TypeParams);
     }

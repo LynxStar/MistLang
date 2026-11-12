@@ -11,29 +11,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for dependent type parameter parse–print round trip.
-///
-/// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6,
-/// 3.1, 3.2, 3.3, 3.4, 3.5, 3.6**
-///
-/// For any valid Mist AST containing dependent type parameter declarations and/or
-/// dependent type arguments, pretty-printing the AST to source text and then parsing
-/// that source text back and pretty-printing again SHALL produce identical output.
-/// </summary>
 public class DependentTypeRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Token helper ────────────────────────────────────────────────────
-
     private static Storm.Runtime.Token Tok(string lexeme)
     {
         return MistTypeGenerator.MakeToken(lexeme);
     }
-
-    // ─── Test data model ─────────────────────────────────────────────────
 
 #pragma warning disable CA1034
     public record DependentTypeRoundTripTestCase(
@@ -47,14 +33,7 @@ public class DependentTypeRoundTripPropertyTests
     }
 #pragma warning restore CA1034
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Dependent type AST node generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// The allowed primitive types for dependent type parameters.
-    /// Excludes float, double, decimal, and string.
-    /// </summary>
+    /// <summary>Dependent type parameters exclude float, double, decimal and string.</summary>
     private static readonly PrimitiveTypeNode[] DependentPrimitiveTypeNodes =
     [
         new IntTypePrimitiveTypeNode(),
@@ -76,16 +55,11 @@ public class DependentTypeRoundTripPropertyTests
     private static readonly string[] AbstractNames = ["ISized", "ICapacity", "IBounded", "IFixed"];
     private static readonly string[] FieldNames = ["data", "items", "buffer", "storage"];
 
-    // ─── Dependent PrimitiveType generator ───────────────────────────────
-
     private static Gen<PrimitiveTypeNode> GenDependentPrimitiveType()
     {
         return Gen.Elements(DependentPrimitiveTypeNodes);
     }
 
-    // ─── TypeParameter generators ────────────────────────────────────────
-
-    /// <summary>Generates a dependent type parameter (e.g., Size:int).</summary>
     private static Gen<TypeParameterNode> GenDependentTypeParameter()
     {
         return from name in Gen.Elements(ParamNames)
@@ -97,7 +71,6 @@ public class DependentTypeRoundTripPropertyTests
                };
     }
 
-    /// <summary>Generates a regular type parameter (e.g., T).</summary>
     private static Gen<TypeParameterNode> GenRegularTypeParameter()
     {
         return Gen.Elements(TypeParamNames)
@@ -107,18 +80,12 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>
-    /// Generates a TypeParameterListNode with at least one dependent type parameter.
-    /// May include a mix of regular and dependent parameters.
-    /// </summary>
     private static Gen<TypeParameterListNode> GenDependentTypeParameterList()
     {
-        // Strategy: generate 1-3 parameters, ensuring at least one is dependent
         return Gen.Choose(1, 3).SelectMany(count =>
         {
             if(count == 1)
             {
-                // Single dependent parameter
                 return GenDependentTypeParameter().Select(dep =>
                     new TypeParameterListNode
                     {
@@ -127,7 +94,6 @@ public class DependentTypeRoundTripPropertyTests
                     });
             }
 
-            // Multiple parameters: first is dependent, rest are mixed
             var restGen = Gen.ArrayOf(
                 Gen.OneOf(GenDependentTypeParameter(), GenRegularTypeParameter()),
                 count - 1);
@@ -142,10 +108,6 @@ public class DependentTypeRoundTripPropertyTests
         });
     }
 
-    /// <summary>
-    /// Generates a mixed TypeParameterListNode where the first parameter is regular
-    /// and subsequent ones include at least one dependent.
-    /// </summary>
     private static Gen<TypeParameterListNode> GenMixedTypeParameterList()
     {
         return from regular in GenRegularTypeParameter()
@@ -164,9 +126,6 @@ public class DependentTypeRoundTripPropertyTests
                };
     }
 
-    // ─── TypeArgument generators ─────────────────────────────────────────
-
-    /// <summary>Generates an integer literal type argument (e.g., 5, 42, 100).</summary>
     private static Gen<TypeArgumentNode> GenIntegerLiteralTypeArgument()
     {
         return Gen.Elements("1", "5", "10", "42", "100", "255", "1024")
@@ -176,7 +135,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates a negated integer type argument (e.g., -1, -100).</summary>
     private static Gen<TypeArgumentNode> GenNegatedIntegerTypeArgument()
     {
         return Gen.Elements("1", "5", "10", "42", "100")
@@ -186,7 +144,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates a hex literal type argument (e.g., 0xFF, 0x1A).</summary>
     private static Gen<TypeArgumentNode> GenHexLiteralTypeArgument()
     {
         return Gen.Elements("0xFF", "0x1A", "0x00", "0xDEAD")
@@ -196,7 +153,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates a binary literal type argument (e.g., 0b1010, 0b0001).</summary>
     private static Gen<TypeArgumentNode> GenBinaryLiteralTypeArgument()
     {
         return Gen.Elements("0b1010", "0b0001", "0b1111", "0b0000")
@@ -206,7 +162,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates a boolean literal type argument (true or false).</summary>
     private static Gen<TypeArgumentNode> GenBooleanLiteralTypeArgument()
     {
         return Gen.Elements(
@@ -214,7 +169,6 @@ public class DependentTypeRoundTripPropertyTests
             (TypeArgumentNode)new FalseLiteralTypeArgumentTypeArgumentNode());
     }
 
-    /// <summary>Generates a char literal type argument (e.g., 'x', 'A').</summary>
     private static Gen<TypeArgumentNode> GenCharLiteralTypeArgument()
     {
         return Gen.Elements("'x'", "'A'", "'z'", "'0'", "'\\n'")
@@ -224,7 +178,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates a type reference type argument (e.g., int, string, MyType).</summary>
     private static Gen<TypeArgumentNode> GenTypeReferenceTypeArgument()
     {
         return MistTypeGenerator.GenPrimitiveTypeRef()
@@ -234,7 +187,6 @@ public class DependentTypeRoundTripPropertyTests
             });
     }
 
-    /// <summary>Generates any dependent value type argument (not a type reference).</summary>
     private static Gen<TypeArgumentNode> GenDependentValueTypeArgument()
     {
         return Gen.OneOf(
@@ -246,10 +198,6 @@ public class DependentTypeRoundTripPropertyTests
             GenCharLiteralTypeArgument());
     }
 
-    /// <summary>
-    /// Generates a TypeArgumentListNode with at least one dependent value argument.
-    /// May include a mix of type references and dependent values.
-    /// </summary>
     private static Gen<TypeArgumentListNode> GenDependentTypeArgumentList()
     {
         return Gen.Choose(1, 3).SelectMany(count =>
@@ -264,7 +212,6 @@ public class DependentTypeRoundTripPropertyTests
                     });
             }
 
-            // Multiple arguments: first is a dependent value, rest are mixed
             var restGen = Gen.ArrayOf(
                 Gen.OneOf(GenDependentValueTypeArgument(), GenTypeReferenceTypeArgument()),
                 count - 1);
@@ -279,10 +226,6 @@ public class DependentTypeRoundTripPropertyTests
         });
     }
 
-    /// <summary>
-    /// Generates a TypeArgumentListNode with a type reference first, then dependent values.
-    /// Represents usage like Bar&lt;string, true&gt;.
-    /// </summary>
     private static Gen<TypeArgumentListNode> GenMixedTypeArgumentList()
     {
         return from typeArg in GenTypeReferenceTypeArgument()
@@ -301,13 +244,6 @@ public class DependentTypeRoundTripPropertyTests
                };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test case generators — class declarations with dependent type params
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a class with dependent type parameters (e.g., class FixedBuffer&lt;Size:int&gt; { }).
-    /// </summary>
     private static Gen<DependentTypeRoundTripTestCase> GenDependentClassTestCase()
     {
         return from className in Gen.Elements(ClassNames)
@@ -339,9 +275,6 @@ public class DependentTypeRoundTripPropertyTests
         return new DependentTypeRoundTripTestCase($"class {className}<...dependent...>", cu);
     }
 
-    /// <summary>
-    /// Generates a struct with dependent type parameters.
-    /// </summary>
     private static Gen<DependentTypeRoundTripTestCase> GenDependentStructTestCase()
     {
         return from structName in Gen.Elements(StructNames)
@@ -370,9 +303,6 @@ public class DependentTypeRoundTripPropertyTests
         return new DependentTypeRoundTripTestCase($"struct {structName}<...dependent...>", cu);
     }
 
-    /// <summary>
-    /// Generates an abstract type with dependent type parameters.
-    /// </summary>
     private static Gen<DependentTypeRoundTripTestCase> GenDependentAbstractTestCase()
     {
         return from abstractName in Gen.Elements(AbstractNames)
@@ -401,14 +331,6 @@ public class DependentTypeRoundTripPropertyTests
         return new DependentTypeRoundTripTestCase($"abstract {abstractName}<...dependent...>", cu);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test case generators — usages with dependent type arguments
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a class with a field whose type uses dependent type arguments
-    /// (e.g., class Foo { FixedBuffer&lt;5&gt; data; }).
-    /// </summary>
     private static Gen<DependentTypeRoundTripTestCase> GenDependentTypeArgumentUsageTestCase()
     {
         return from className in Gen.Elements(ClassNames)
@@ -424,7 +346,6 @@ public class DependentTypeRoundTripPropertyTests
         TypeArgumentListNode typeArgs,
         string fieldName)
     {
-        // Build a NamedTypeRef with type arguments: Buffer<5>
         var fieldType = new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
@@ -463,10 +384,6 @@ public class DependentTypeRoundTripPropertyTests
             $"class {className} with field {fieldTypeName}<...dep args...>", cu);
     }
 
-    /// <summary>
-    /// Generates a class with dependent type parameters AND a field using dependent type arguments.
-    /// This tests both declaration and usage in the same compilation unit.
-    /// </summary>
     private static Gen<DependentTypeRoundTripTestCase> GenCombinedDeclAndUsageTestCase()
     {
         return from declClassName in Gen.Elements(ClassNames)
@@ -486,7 +403,6 @@ public class DependentTypeRoundTripPropertyTests
         TypeArgumentListNode typeArgs,
         string fieldName)
     {
-        // Declaration: class FixedBuffer<Size:int> { }
         var declClass = new TypeBodyDeclarationNode
         {
             Keyword = new ClassKeywordTypeKeywordNode(),
@@ -495,7 +411,6 @@ public class DependentTypeRoundTripPropertyTests
             Members = ImmutableArray<MemberDeclarationNode>.Empty,
         };
 
-        // Usage: class Client { FixedBuffer<5> data; }
         var fieldType = new TypeReferenceNode
         {
             First = new NamedSingleTypeRefSingleTypeRefNode
@@ -535,8 +450,6 @@ public class DependentTypeRoundTripPropertyTests
             $"class {declClassName}<...dep...> + class {usageClassName} using it", cu);
     }
 
-    // ─── Field member generator ──────────────────────────────────────────
-
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenFieldMembers(int count)
     {
         if(count == 0)
@@ -560,10 +473,6 @@ public class DependentTypeRoundTripPropertyTests
             .Select(members => members.ToImmutableArray());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Combined test case generator
-    // ═══════════════════════════════════════════════════════════════════════
-
     private static Gen<DependentTypeRoundTripTestCase> GenTestCase()
     {
         return Gen.OneOf(
@@ -574,22 +483,14 @@ public class DependentTypeRoundTripPropertyTests
             GenCombinedDeclAndUsageTestCase());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<DependentTypeRoundTripTestCase> ArbitraryDependentTypeRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Parse–Print Round Trip
-    //
     // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3,
     // 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6**
-    //
-    // For any valid Mist AST containing dependent type parameter declarations
-    // and/or dependent type arguments, pretty-printing → parsing → pretty-printing
-    // SHALL produce identical output.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -597,14 +498,12 @@ public class DependentTypeRoundTripPropertyTests
         Arbitrary = new[] { typeof(DependentTypeRoundTripPropertyTests) })]
     public Property RoundTrip_PrintParsePrintPreservesDependentTypeSyntax(DependentTypeRoundTripTestCase testCase)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -625,10 +524,8 @@ public class DependentTypeRoundTripPropertyTests
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed, printed1);
 
-        // Step 4: Compare the two printed outputs — they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

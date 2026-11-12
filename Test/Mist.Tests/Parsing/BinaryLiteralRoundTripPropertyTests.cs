@@ -11,22 +11,10 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for pretty printer round-trip with numeric literals.
-///
-/// Property 5: Pretty printer round-trip for numeric literals.
-/// For any valid Mist source text containing numeric literals (binary, hex, integer,
-/// or float, with or without digit separators), parsing the source then printing the AST
-/// then parsing again then printing again SHALL produce identical output on both prints.
-///
-/// **Validates: Requirements 5.2, 8.13**
-/// </summary>
 public class BinaryLiteralRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Suffix Constants ────────────────────────────────────────────────
 
     private static readonly string[] IntSuffixes =
         ["", "l", "L", "u", "U", "UL", "ul", "Ul", "uL", "Lu", "lU", "LU", "lu"];
@@ -36,8 +24,6 @@ public class BinaryLiteralRoundTripPropertyTests
 
     private static readonly string[] FloatSuffixesWithEmpty =
         ["", "f", "F", "d", "D", "m", "M"];
-
-    // ─── Shared Digit Group Generators ───────────────────────────────────
 
     private static Gen<string> GenDecimalDigitGroup()
     {
@@ -74,11 +60,6 @@ public class BinaryLiteralRoundTripPropertyTests
             select string.Concat(groups.Select(g => "_" + g));
     }
 
-    // ─── Literal Generators ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a valid binary literal (with or without separators).
-    /// </summary>
     private static Gen<string> GenBinaryLiteral()
     {
         return
@@ -89,9 +70,6 @@ public class BinaryLiteralRoundTripPropertyTests
             select prefix + firstGroup + separatorGroups + suffix;
     }
 
-    /// <summary>
-    /// Generates a valid hex literal (with or without separators).
-    /// </summary>
     private static Gen<string> GenHexLiteral()
     {
         return
@@ -103,7 +81,6 @@ public class BinaryLiteralRoundTripPropertyTests
     }
 
     /// <summary>
-    /// Generates a valid integer literal (with or without separators).
     /// Starts with 1-9 to avoid matching hex/binary prefixes.
     /// </summary>
     private static Gen<string> GenIntegerLiteral()
@@ -117,9 +94,6 @@ public class BinaryLiteralRoundTripPropertyTests
             select firstDigit + string.Concat(restDigits) + separatorGroups + suffix;
     }
 
-    /// <summary>
-    /// Generates a valid float literal in dot form (with or without separators).
-    /// </summary>
     private static Gen<string> GenFloatDotLiteral()
     {
         return
@@ -134,9 +108,6 @@ public class BinaryLiteralRoundTripPropertyTests
                    + "." + fracFirstGroup + fracSepGroups + suffix;
     }
 
-    /// <summary>
-    /// Generates a valid float literal in suffix-only form (with or without separators).
-    /// </summary>
     private static Gen<string> GenFloatSuffixLiteral()
     {
         return
@@ -148,9 +119,6 @@ public class BinaryLiteralRoundTripPropertyTests
             select firstDigit + string.Concat(restDigits) + separatorGroups + suffix;
     }
 
-    /// <summary>
-    /// Generates any valid numeric literal (binary, hex, integer, or float).
-    /// </summary>
     private static Gen<string> GenNumericLiteral()
     {
         return Gen.OneOf(
@@ -161,11 +129,6 @@ public class BinaryLiteralRoundTripPropertyTests
             GenFloatSuffixLiteral());
     }
 
-    // ─── Test Scenario ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// A complete Mist program containing a numeric literal as a variable initializer.
-    /// </summary>
 #pragma warning disable CA1034
     public record NumericLiteralRoundTripScenario(string Source, string Literal)
     {
@@ -176,9 +139,6 @@ public class BinaryLiteralRoundTripPropertyTests
     }
 #pragma warning restore CA1034
 
-    /// <summary>
-    /// Wraps a numeric literal in a minimal valid Mist program.
-    /// </summary>
     public static Arbitrary<NumericLiteralRoundTripScenario> ArbitraryNumericLiteralRoundTripScenario()
     {
         var gen =
@@ -189,11 +149,6 @@ public class BinaryLiteralRoundTripPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Helpers ────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Parses a Mist source string and returns the compilation unit and any errors.
-    /// </summary>
     private static (CompilationUnitNode? Root, List<Diagnostic> Errors) ParseSource(string source)
     {
         var sourceText = new SourceText("test.mist", source);
@@ -208,25 +163,12 @@ public class BinaryLiteralRoundTripPropertyTests
         return (result.Root as CompilationUnitNode, errors);
     }
 
-    // ─── Property 5 ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 5: Pretty printer round-trip for numeric literals.
-    ///
-    /// For any valid Mist source containing a numeric literal (binary, hex, integer,
-    /// or float, with or without digit separators):
-    ///   parse(source) → print(ast, source) → parse(printed1) → print(ast2, printed1)
-    ///   ⇒ printed1 == printed2
-    ///
-    /// **Validates: Requirements 5.2, 8.13**
-    /// </summary>
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(BinaryLiteralRoundTripPropertyTests) })]
     public Property NumericLiteral_RoundTrip_PrintParsePrintIsIdempotent(
         NumericLiteralRoundTripScenario scenario)
     {
-        // Step 1: Parse the generated source
         var (root1, errors1) = ParseSource(scenario.Source);
 
         if(errors1.Count > 0)
@@ -241,7 +183,6 @@ public class BinaryLiteralRoundTripPropertyTests
                 .Label($"Initial parse root was null.\nSource:\n{scenario.Source}");
         }
 
-        // Step 2: Pretty-print the parsed AST (with source text for span-based name extraction)
         var printed1 = MistPrettyPrinter.Print(root1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
@@ -250,7 +191,6 @@ public class BinaryLiteralRoundTripPropertyTests
                 .Label($"printed1 was empty.\nSource:\n{scenario.Source}");
         }
 
-        // Step 3: Parse the pretty-printed output
         var (root2, errors2) = ParseSource(printed1);
 
         if(errors2.Count > 0)
@@ -265,10 +205,8 @@ public class BinaryLiteralRoundTripPropertyTests
                 .Label($"Re-parsed root was null.\nPrinted:\n{printed1}");
         }
 
-        // Step 4: Pretty-print the re-parsed AST (with printed1 as source text)
         var printed2 = MistPrettyPrinter.Print(root2, printed1);
 
-        // Step 5: The two printed outputs must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nLiteral: {scenario.Literal}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

@@ -9,10 +9,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario for disambiguation: an identifier name and
-/// an integer expression used inside brackets.
-/// </summary>
 public sealed class DisambiguationScenario
 {
     public string Name { get; }
@@ -30,21 +26,10 @@ public sealed class DisambiguationScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for expression-position disambiguation.
-///
-/// Property 3: For any identifier `name` and expression `expr`,
-/// parsing `name[expr]` SHALL produce a Postfix node with an IndexSuffix
-/// (not an ArrayLiteralExpression), while parsing `var x = [expr]` SHALL
-/// produce a variable declaration whose initializer contains an
-/// ArrayLiteralExpressionPrimaryNode.
-/// </summary>
 public class ArrayLiteralDisambiguationPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     private static readonly string[] ValidIdentifiers =
         ["arr", "x", "data", "items", "list", "values", "nums", "result", "buf", "vec"];
@@ -58,8 +43,6 @@ public class ArrayLiteralDisambiguationPropertyTests
 
         return gen.ToArbitrary();
     }
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode? ParseSource(string source)
     {
@@ -81,25 +64,18 @@ public class ArrayLiteralDisambiguationPropertyTests
     }
 
     /// <summary>
-    /// Builds source for index access: `name[expr]` after a primary expression.
-    /// We declare the array first so `name` is a valid identifier to index into.
+    /// Declares `name` first so it is a valid identifier to index into.
     /// </summary>
     private static string BuildIndexAccessSource(string name, int expr)
     {
         return $"class Test {{ void Run() {{ var {name} = [1, 2, 3]; var y = {name}[{expr}]; }} }}";
     }
 
-    /// <summary>
-    /// Builds source for array literal in expression position: `var x = [expr]`.
-    /// </summary>
     private static string BuildArrayLiteralSource(int expr)
     {
         return $"class Test {{ void Run() {{ var x = [{expr}]; }} }}";
     }
 
-    /// <summary>
-    /// Finds the PostfixNode in an expression tree.
-    /// </summary>
     private static PostfixNode? FindPostfixNode(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -138,9 +114,6 @@ public class ArrayLiteralDisambiguationPropertyTests
         return null;
     }
 
-    /// <summary>
-    /// Unwraps a simple expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -179,9 +152,6 @@ public class ArrayLiteralDisambiguationPropertyTests
         return null;
     }
 
-    /// <summary>
-    /// Extracts the initializer expression from the second variable declaration statement.
-    /// </summary>
     private static ExpressionNode? ExtractSecondVarInitializer(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -200,7 +170,6 @@ public class ArrayLiteralDisambiguationPropertyTests
             return null;
         }
 
-        // Second statement (index 1): var y = name[expr];
         if(block.Statements.Length < 2)
         {
             return null;
@@ -219,9 +188,6 @@ public class ArrayLiteralDisambiguationPropertyTests
         return varDecl.Initializer;
     }
 
-    /// <summary>
-    /// Extracts the ArrayLiteralExpressionPrimaryNode from the first variable declaration.
-    /// </summary>
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteralFromFirstVar(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -256,10 +222,6 @@ public class ArrayLiteralDisambiguationPropertyTests
 
     // ═════════════════════════════════════════════════════════════════════════
     // Property 3a: name[expr] produces IndexSuffix (not ArrayLiteralExpression)
-    //
-    // For any identifier `name` and integer expression `expr`, parsing
-    // `name[expr]` after a primary expression SHALL produce a PostfixNode
-    // with an IndexSuffixPostfixSuffixNode.
     // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
@@ -281,7 +243,6 @@ public class ArrayLiteralDisambiguationPropertyTests
             return false.ToProperty().Label($"Could not extract second var initializer from: {source}");
         }
 
-        // Find the PostfixNode — it should have an IndexSuffix
         var postfix = FindPostfixNode(initializer);
         if(postfix is null)
         {
@@ -302,10 +263,6 @@ public class ArrayLiteralDisambiguationPropertyTests
 
     // ═════════════════════════════════════════════════════════════════════════
     // Property 3b: var x = [expr] produces ArrayLiteralExpressionPrimaryNode
-    //
-    // For any integer expression `expr`, parsing `var x = [expr]` SHALL
-    // produce a variable declaration whose initializer contains an
-    // ArrayLiteralExpressionPrimaryNode.
     // ═════════════════════════════════════════════════════════════════════════
 
     [Property(

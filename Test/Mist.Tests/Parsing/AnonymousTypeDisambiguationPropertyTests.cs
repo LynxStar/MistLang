@@ -10,10 +10,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a source string containing an anonymous type expression that should
-/// parse as <see cref="AnonymousTypeExpressionPrimaryNode"/>.
-/// </summary>
 public sealed class AnonymousContentSource
 {
     public string Source { get; }
@@ -31,10 +27,6 @@ public sealed class AnonymousContentSource
     }
 }
 
-/// <summary>
-/// Represents a source string containing a target-typed new expression with empty
-/// braces that should parse as <see cref="TargetTypedNewExpressionNoArgsPrimaryNode"/>.
-/// </summary>
 public sealed class NonAnonymousContentSource
 {
     public string Source { get; }
@@ -52,24 +44,10 @@ public sealed class NonAnonymousContentSource
     }
 }
 
-/// <summary>
-/// Property-based tests for grammar disambiguation between anonymous type expressions
-/// and target-typed new expressions with no arguments.
-///
-/// Property 7: For any source of the form <c>new { content }</c> where content matches
-/// one or more <c>IDENTIFIER EQUAL Expression</c> or valid projection forms, the parser
-/// SHALL produce an <see cref="AnonymousTypeExpressionPrimaryNode"/>.
-///
-/// Property 8: For any source of the form <c>new { content }</c> where content does NOT
-/// match anonymous property syntax (empty braces), the parser SHALL produce a
-/// <see cref="TargetTypedNewExpressionNoArgsPrimaryNode"/>.
-/// </summary>
 public class AnonymousTypeDisambiguationPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode? ParseSource(string source)
     {
@@ -90,9 +68,6 @@ public class AnonymousTypeDisambiguationPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Extracts the primary node from the first variable declaration initializer.
-    /// </summary>
     private static PrimaryNode? ExtractPrimaryFromFirstVar(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -140,9 +115,6 @@ public class AnonymousTypeDisambiguationPropertyTests
         return UnwrapToPrimary(initializer);
     }
 
-    /// <summary>
-    /// Unwraps an expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -181,15 +153,6 @@ public class AnonymousTypeDisambiguationPropertyTests
         return null;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 7: Disambiguation — anonymous content produces
-    //             AnonymousTypeExpressionPrimaryNode
-    //
-    // For any source of the form `new { content }` where content matches one
-    // or more `IDENTIFIER EQUAL Expression` or valid projection forms, the
-    // parser SHALL produce an AnonymousTypeExpressionPrimaryNode.
-    // ═════════════════════════════════════════════════════════════════════════
-
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(AnonymousTypeDisambiguationGenerator) })]
@@ -214,18 +177,6 @@ public class AnonymousTypeDisambiguationPropertyTests
             .ToProperty()
             .Label($"Expected AnonymousTypeExpressionPrimaryNode but got {primary.GetType().Name} for: {scenario}");
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 8: Non-anonymous content falls through to target-typed new
-    //
-    // For any source of the form `new { }` (empty braces — no content matching
-    // anonymous property syntax), the parser SHALL produce a
-    // TargetTypedNewExpressionNoArgsPrimaryNode.
-    //
-    // NOTE: With the current grammar, AnonymousPropertyList requires at least
-    // one property. Empty braces are the only case at the grammar level that
-    // falls through to TargetTypedNewExpressionNoArgs.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -253,11 +204,6 @@ public class AnonymousTypeDisambiguationPropertyTests
     }
 }
 
-// ─── Generator ──────────────────────────────────────────────────────────────
-
-/// <summary>
-/// Generates source strings for disambiguation property tests.
-/// </summary>
 public static class AnonymousTypeDisambiguationGenerator
 {
     private static readonly string[] Identifiers =
@@ -285,11 +231,6 @@ public static class AnonymousTypeDisambiguationGenerator
         return $"class Test {{ void Run() {{ {typeName} x = {expression}; }} }}";
     }
 
-    // ─── Anonymous content generators (Property 7) ──────────────────────
-
-    /// <summary>
-    /// Generates explicit assignment forms: <c>new { Name = expr }</c>
-    /// </summary>
     private static Gen<AnonymousContentSource> GenExplicitAssignment()
     {
         return from propCount in Gen.Choose(1, 3)
@@ -304,9 +245,6 @@ public static class AnonymousTypeDisambiguationGenerator
                    $"Explicit: new {{ {content} }}");
     }
 
-    /// <summary>
-    /// Generates simple identifier projection forms: <c>new { variable }</c>
-    /// </summary>
     private static Gen<AnonymousContentSource> GenIdentifierProjection()
     {
         return from count in Gen.Choose(1, 3)
@@ -319,9 +257,6 @@ public static class AnonymousTypeDisambiguationGenerator
                    $"Projection: new {{ {content} }}");
     }
 
-    /// <summary>
-    /// Generates member access projection forms: <c>new { obj.Member }</c>
-    /// </summary>
     private static Gen<AnonymousContentSource> GenMemberAccessProjection()
     {
         return from count in Gen.Choose(1, 2)
@@ -334,10 +269,6 @@ public static class AnonymousTypeDisambiguationGenerator
                    $"MemberProjection: new {{ {content} }}");
     }
 
-    /// <summary>
-    /// Generates mixed forms combining explicit assignments and projections:
-    /// <c>new { Name = expr, variable }</c>
-    /// </summary>
     private static Gen<AnonymousContentSource> GenMixedForm()
     {
         return from nameIdx in Gen.Choose(0, Identifiers.Length - 1)
@@ -351,9 +282,6 @@ public static class AnonymousTypeDisambiguationGenerator
                    $"Mixed: new {{ {content} }}");
     }
 
-    /// <summary>
-    /// Generates explicit assignment with trailing comma: <c>new { Name = expr, }</c>
-    /// </summary>
     private static Gen<AnonymousContentSource> GenTrailingComma()
     {
         return from nameIdx in Gen.Choose(0, Identifiers.Length - 1)
@@ -364,13 +292,8 @@ public static class AnonymousTypeDisambiguationGenerator
                    $"TrailingComma: new {{ {content} }}");
     }
 
-    // ─── Non-anonymous content generators (Property 8) ──────────────────
-
-    /// <summary>
-    /// Generates empty brace forms: <c>new { }</c>
-    /// These fall through to TargetTypedNewExpressionNoArgs because
-    /// AnonymousPropertyList requires at least one property.
-    /// </summary>
+    // AnonymousPropertyList requires at least one property, so empty braces are the only
+    // `new { }` form that falls through to TargetTypedNewExpressionNoArgs.
     private static Gen<NonAnonymousContentSource> GenEmptyBraces()
     {
         return from typeIdx in Gen.Choose(0, TypeNames.Length - 1)
@@ -378,8 +301,6 @@ public static class AnonymousTypeDisambiguationGenerator
                    WrapInTypedMethod(TypeNames[typeIdx], "new { }"),
                    $"EmptyBraces: {TypeNames[typeIdx]} x = new {{ }}");
     }
-
-    // ─── Arbitrary instances ────────────────────────────────────────────
 
     public static Arbitrary<AnonymousContentSource> ArbitraryAnonymousContentSource()
     {

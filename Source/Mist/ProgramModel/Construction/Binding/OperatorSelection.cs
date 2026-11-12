@@ -19,15 +19,13 @@ internal sealed record OperatorChoice(IMistType? Type, ClosedOperator? Selected,
 }
 
 /// <summary>
-/// Which declared operator an operator expression calls, chosen as a call chooses its overload
-/// (standard-library Requirement 6.3). The candidates are the operators each operand's type and its base chain
-/// declare, closed through the construction each was found on and the base clauses walked to reach it, so a
-/// generic owner's operator takes that owner's type arguments; one declaration found through both operands on
-/// one construction is one candidate, not a tie with itself. Applicability and ranking are the method rules,
-/// but an integer constant reaches a narrower integral parameter only of a declared operator (method-overloading
-/// Requirement 3.7), not of an intrinsic one: that is the target's own arithmetic, which promotes the constant
-/// with its type, so a byte plus 1 stays Int32's sum rather than Byte's. Several left unbeaten are a tie for
-/// the operator rule to report, never a choice.
+/// Chosen as a call chooses its overload (standard-library Requirement 6.3). Candidates are closed through
+/// the construction each was found on and the base clauses walked to reach it; one declaration found through
+/// both operands on one construction is one candidate, not a tie with itself. An integer constant reaches a
+/// narrower integral parameter only of a declared operator (method-overloading Requirement 3.7), not of an
+/// intrinsic one: that is the target's own arithmetic, which promotes the constant with its type, so a byte
+/// plus 1 stays Int32's sum rather than Byte's. Several left unbeaten are a tie for the operator rule to
+/// report, never a choice.
 /// </summary>
 internal static class OperatorSelection
 {
@@ -54,8 +52,7 @@ internal static class OperatorSelection
         // operand's payload type, never through the payload type standing alone: a numeric type cannot
         // carry a working generic Result operator, so Standard declares the concrete ones on the payload,
         // and surfacing them for a bare numeric operand (or a newtype over it) would make an ordinary
-        // `n % 2` ambiguous against the intrinsic operator. The payload path admits them; the operand's
-        // own numeric chain does not. User declarations on either operand retain ordinary lookup.
+        // `n % 2` ambiguous against the intrinsic operator. User declarations keep ordinary lookup.
         if(ResultTypes.Of(operand) is { Success: { } payload })
         {
             foreach(var inherited in OperatorsOf(payload, kind, arity, interner, admitComposition: true))

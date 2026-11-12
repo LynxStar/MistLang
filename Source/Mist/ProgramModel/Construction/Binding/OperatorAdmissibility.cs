@@ -7,16 +7,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Which type a binary operator produces over two operand types, or null where no operator admits them.
 /// One home for the binder, which types the expression by it, and the operator rule, which reports by
-/// it, so the two cannot disagree about what the language allows. Numeric operands promote as C#
-/// promotes them; a string on either side of <c>+</c> concatenates; a declared operator on either
-/// operand's type answers for itself, projected CLR operators included; bool takes the logical pair
-/// and every equality; a string, a char, a variant of one enum, an anonymous shape, and an intrinsic
-/// or projected type against itself take equality, the last because its equality is the CLR's to
-/// define and Roslyn's to judge, where a Mist class has none unless it declares one. An indeterminate
-/// operand -- a type parameter, an error, a skipped projection -- admits anything, since nothing can
-/// be said of it here. Unknown admits NOTHING, which is the unknown-type spec's rule, and a union
+/// it, so the two cannot disagree about what the language allows. An intrinsic or projected type takes
+/// equality against itself because its equality is the CLR's to define and Roslyn's to judge, where a
+/// Mist class has none unless it declares one. An indeterminate operand admits anything, since nothing
+/// can be said of it here. Unknown admits NOTHING, which is the unknown-type spec's rule, and a union
 /// admits nothing either, its constituents being what an operator would have to agree on.
 /// </summary>
 internal static class OperatorAdmissibility

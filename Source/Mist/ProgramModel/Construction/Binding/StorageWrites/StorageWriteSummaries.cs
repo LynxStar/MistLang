@@ -23,8 +23,7 @@ internal sealed class StorageWriteSummaries
     private bool computing;
 
     /// <summary>
-    /// Records that <paramref name="member"/>'s bodies now hold their final trees, so the trial can
-    /// read them instead of binding again.
+    /// The trial reads a complete member's final trees instead of binding it again.
     /// </summary>
     public void MarkComplete(object member)
     {
@@ -62,8 +61,7 @@ internal sealed class StorageWriteSummaries
     }
 
     /// <summary>
-    /// What a member with no body to read may write: every parameter its inputs are typed by. An
-    /// <c>out</c> parameter carries nothing in, so it is left out; a setter's value is an input of its
+    /// An <c>out</c> parameter carries nothing in, so it is left out; a setter's value is an input of its
     /// own.
     /// </summary>
     public static HashSet<TypeParameter> FromSignature(object member, StorageAccess side)

@@ -11,7 +11,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// <para>
 /// THE DECISION IS SPLIT ACROSS TWO PHASES BECAUSE NEITHER HALF KNOWS BOTH FACTS. Projection knows
 /// the member came from the CLR but not what <c>T</c> will be, and cannot wrap a parameter there
-/// without making <c>List&lt;int&gt;</c>'s element optional too. Substitution knows what <c>T</c>
+/// without making an <c>int</c> list's element optional too. Substitution knows what <c>T</c>
 /// became but not where the member came from. <see cref="MemberModifiers.IsClrProjected"/> carries
 /// the first fact to the second place.
 /// </para>

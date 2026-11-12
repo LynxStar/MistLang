@@ -5,12 +5,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Which type parameters a type mentions, and whether a type is closed with <c>unknown</c>, both read
-/// structurally. A bare member type is its own instantiation -- <c>this</c> inside <c>Box</c> is a
-/// <c>Box</c> of its own parameter -- so it mentions the parameters of its declaration and of every
-/// type enclosing it. An array's unknown LENGTH is a value of known domain, never the top type, so a
-/// dependent position bound to <c>unknown</c> does not close a type with it; the same distinction keeps
-/// every array field out of the storage ban.
+/// A bare member type is its own instantiation -- <c>this</c> inside <c>Box</c> is a <c>Box</c> of its own
+/// parameter -- so it mentions the parameters of its declaration and of every type enclosing it. An
+/// array's unknown LENGTH is a value of known domain, never the top type, so a dependent position bound
+/// to <c>unknown</c> does not close a type with it; the same distinction keeps every array field out of
+/// the storage ban.
 /// </summary>
 internal static class TypeParameterOccurrences
 {

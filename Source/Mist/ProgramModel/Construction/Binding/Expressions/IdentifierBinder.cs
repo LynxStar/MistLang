@@ -8,10 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
-/// Resolves identifier expressions. Every kind a bare name can denote -- local, parameter,
-/// type parameter, nested type, enclosing-type member, inherited member, type, namespace --
-/// comes back from the one scope-chain lookup, so this binder only has to map the resolved
-/// symbol onto a bound node. It does not search anywhere the lookup does not.
+/// Every kind a bare name can denote comes back from the one scope-chain lookup, so this binder only
+/// maps the resolved symbol onto a bound node and searches nowhere the lookup does not.
 /// </summary>
 internal static class IdentifierBinder
 {
@@ -43,10 +41,9 @@ internal static class IdentifierBinder
             NamespaceResult ns => new NamespaceReferenceExpression(node, ns.NamespaceName),
             AmbiguousResult ambiguous => ReportAmbiguous(node, name, ambiguous, context),
 
-            // Matched on its own rather than folded into the fallthrough below, which still covers
-            // results the binder cannot represent yet -- an enum variant named bare, among them.
-            // Those are the compiler being unfinished and must stay silent; this one is the program
-            // being wrong.
+            // Not folded into the fallthrough, which covers results the binder cannot represent yet,
+            // such as a bare enum variant: those are the compiler being unfinished and stay silent;
+            // this one is the program being wrong.
             NotFoundResult => ReportUnresolved(node, name, ctx, context),
 
             _ => new UnresolvedExpression(node),

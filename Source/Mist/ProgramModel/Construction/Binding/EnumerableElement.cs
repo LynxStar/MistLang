@@ -9,19 +9,13 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal readonly record struct EnumerationMembers(Method? GetEnumerator, Method? MoveNext, Property? Current);
 
 /// <summary>
-/// What a <c>foreach</c> hands out one of, resolved from the collection's type.
-/// <para>
-/// Read from the ENUMERABLE CONFORMANCE rather than from a conventionally named <c>GetEnumerator</c>,
-/// so the element type is whatever <c>Standard.IEnumerable</c> was closed with and a type that merely
-/// happens to have a method of that name is not mistaken for a sequence. An array answers separately,
-/// being a construction of <c>Standard.Array</c> rather than a declared conformance.
-/// </para>
+/// The element is read from the ENUMERABLE CONFORMANCE rather than from a conventionally named
+/// <c>GetEnumerator</c>, so it is whatever <c>Standard.IEnumerable</c> was closed with and a type that
+/// merely has a method of that name is not mistaken for a sequence. An array answers separately, being a
+/// construction of <c>Standard.Array</c> rather than a declared conformance.
 /// </summary>
 internal static class EnumerableElement
 {
-    /// <summary>
-    /// The element type <paramref name="collection"/> yields, or null when it is not a sequence.
-    /// </summary>
     public static IMistType? Of(IMistType collection)
     {
         if(Argument(collection, WellKnownTypes.Array) is { } element)
@@ -79,12 +73,10 @@ internal static class EnumerableElement
     }
 
     /// <summary>
-    /// Walks the conformance graph outward, carrying the substitution each step contributes so a
-    /// generic sequence closed at its use site yields the closed element -- <c>MyList&lt;int&gt;</c>
-    /// declaring <c>: IEnumerable&lt;T&gt;</c> answers int rather than T. Each step's arguments are
-    /// closed through the substitution so far, since a projected <c>List&lt;int&gt;</c> reaches
-    /// <c>IEnumerable</c> only through <c>IList</c> and <c>ICollection</c>, each naming the previous
-    /// one's parameter, and a binding that stops one step short answers with that parameter.
+    /// Carries the substitution each conformance step contributes, so a generic sequence closed at its
+    /// use site yields the closed element rather than its parameter. Each step's arguments are closed
+    /// through the substitution so far, since a projected list reaches <c>IEnumerable</c> only through
+    /// <c>IList</c> and <c>ICollection</c>, each naming the previous one's parameter.
     /// </summary>
     private static IMistType? Search(IMistType type, TypeSubstitution substitution, int depth)
     {
@@ -154,8 +146,7 @@ internal static class EnumerableElement
     }
 
     /// <summary>
-    /// The first type argument of <paramref name="type"/> when it is a construction of
-    /// <paramref name="definition"/>, which both well-known sequence types put the element in.
+    /// Both well-known sequence types put the element in their first type argument.
     /// </summary>
     private static IMistType? Argument(IMistType type, WellKnownType definition)
     {

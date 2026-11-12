@@ -12,8 +12,7 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// must still reach the message it has not had. A value built ON a failed one is the same one mistake,
 /// and stays in the model as what it is so that the rest of it is still analysed; a local is the value it
 /// was bound from, through <see cref="Model.LocalVariable.IsFailed"/>, and a refused member access is
-/// itself one, through <see cref="MemberAccessExpression.IsFailed"/> -- which the binder records
-/// because only it knows whether the refusal was spoken.
+/// itself one, through <see cref="MemberAccessExpression.IsFailed"/>.
 /// </para>
 /// </summary>
 internal static class PriorFailure

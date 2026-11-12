@@ -13,10 +13,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// (<see cref="Admitted"/>) the refinement engine already reasons in, supplied BEFORE the expression is
 /// typed because proof-sensitive arithmetic fixes the type at binding and Stage 5 cannot retype a
 /// finished model. A fact is only sound for a local whose value cannot change after the fact is
-/// established, so facts are recorded and read only for a local that is never written in the callable:
-/// a once-evaluated operand whose declaration or a guard pins its value. A local that any assignment,
-/// loop step, nested write or <c>ref</c> alias could move carries no proof, which keeps a stale fact
-/// from surviving a branch join, a backedge or a nested store onto the operand the division sees.
+/// established, so facts are recorded and read only for a local that no assignment, loop step, nested
+/// write or <c>ref</c> alias in the callable could move, which keeps a stale fact from surviving a branch
+/// join, a backedge or a nested store.
 /// </summary>
 internal static class OperandFacts
 {

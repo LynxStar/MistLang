@@ -5,10 +5,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// The two optional typing moves. Lifting FLATTENS: a result that already contains void
-/// stays as it is, so one level of absence is all an expression can carry -- and un-lifting
-/// removes exactly that level. Both lean on the interner's normalization, which is what
-/// collapses a single surviving constituent back to the bare type.
+/// Lifting FLATTENS: a result that already contains void stays as it is, so one level of absence
+/// is all an expression can carry -- and un-lifting removes exactly that level. Both lean on the
+/// interner's normalization, which is what collapses a single surviving constituent back to the
+/// bare type.
 /// </summary>
 internal static class OptionalLifting
 {

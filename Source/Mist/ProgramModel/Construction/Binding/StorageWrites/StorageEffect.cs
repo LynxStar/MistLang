@@ -3,8 +3,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding.StorageWrites;
 
 /// <summary>
-/// A call from one member's body into another's classification: the callee, the direction it is reached
-/// in, and what the site binds the callee's type parameters to, in terms of the caller's.
+/// A call from one member's body into another's classification. The substitution binds the callee's type
+/// parameters in terms of the caller's.
 /// </summary>
 internal readonly record struct StorageEdge(object Callee, StorageAccess Side, TypeSubstitution Substitution);
 

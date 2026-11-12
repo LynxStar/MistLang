@@ -9,10 +9,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
-/// Binds <c>a[x]</c>, which yields an element or a sub-sequence depending on what <c>x</c> IS, so the
-/// receiver alone cannot type it -- <c>numbers[1]</c> and <c>numbers[1..3]</c> differ in result type.
-/// An element access into a receiver that declares indexers selects one by the index, as a call selects
-/// a method by its arguments, and is refused as a call is when none or several could take it. A range
+/// <c>a[x]</c> yields an element or a sub-sequence depending on what <c>x</c> IS, so the receiver alone
+/// cannot type it. An element access into a receiver that declares indexers selects one by the index, as
+/// a call selects a method by its arguments, and is refused as a call is when none or several could take
+/// it. A range
 /// into a countable user type selects its Range indexer the same way and, failing one, reaches its
 /// Slice(int, int) as C#'s implicit range support does, which is what lets the emitted access stay
 /// <c>receiver[range]</c>.

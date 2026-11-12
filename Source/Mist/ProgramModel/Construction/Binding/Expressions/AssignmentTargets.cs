@@ -34,8 +34,7 @@ internal static class AssignmentTargets
     }
 
     /// <summary>
-    /// The access that the suffix at <paramref name="suffixIndex"/> writes through, which is how a postfix
-    /// increment names its target from inside the chain it ends.
+    /// How a postfix increment names its target from inside the chain it ends.
     /// </summary>
     public static SyntaxNode? AccessNodeBefore(PostfixNode postfix, int suffixIndex)
     {

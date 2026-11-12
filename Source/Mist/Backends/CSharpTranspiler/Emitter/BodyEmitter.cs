@@ -1223,7 +1223,6 @@ internal static partial class BodyEmitter
                 EmitMemberAccess(memberAccess, (memberAccess.TypeArguments, null), writer, diagnostics);
                 break;
 
-
             // Named on the carrier rather than written as dot-notation, which is what the extension
             // METHOD case relies on. That is not available here: `get_IsEmpty` is a name the user
             // never wrote, so C#'s own extension lookup has nothing to find.
@@ -2546,6 +2545,7 @@ internal static partial class BodyEmitter
 
         IReadOnlyList<string> shape = [];
         var compared = property.TypeTest is { } tested && RuntimeSlots(tested.NarrowedType).Count > 0;
+        TypeTestPattern? mergedTest = null;
 
         if(property.TypeTest is { Refinement: null, TestsAbsence: false, Binding: null, NarrowedType: not RefinedType } merged
             && (compared || ErasedShape.Members(merged.NarrowedType) is { Count: > 0 }))
@@ -2553,6 +2553,7 @@ internal static partial class BodyEmitter
             ReportUnstatedElements(merged.NarrowedType, merged.Node, diagnostics);
             writer.Append($"{TypeNameEmitter.EmitAsPatternType(merged.NarrowedType)} ");
             shape = ErasedShape.Members(merged.NarrowedType);
+            mergedTest = merged;
         }
         else if(property.TypeTest is { } typeTest)
         {
@@ -2576,20 +2577,25 @@ internal static partial class BodyEmitter
             writer.Append(" }");
         }
 
-        var bound = property.Binding is { } whole ? LocalNames.Of(whole) : compared ? TemporaryName() : null;
+        var bound = property.Binding is { } whole ? LocalNames.Of(whole) : mergedTest is not null && compared ? TemporaryName() : null;
 
         if(bound is not null)
         {
             writer.Append($" {bound}");
         }
 
-        if(compared && hoisted is null)
+        if(mergedTest is null || !compared)
         {
-            RefuseCombinedRuntimeTest(property.TypeTest!.NarrowedType, property.Node, diagnostics);
+            return;
         }
-        else if(compared && property.TypeTest is { Binding: null } whole2)
+
+        if(hoisted is null)
         {
-            hoisted!.AddRange(RuntimeComparisons(whole2.NarrowedType, bound!, diagnostics).Select(test => new HoistedTest(test)));
+            RefuseCombinedRuntimeTest(mergedTest.NarrowedType, property.Node, diagnostics);
+        }
+        else
+        {
+            hoisted.AddRange(RuntimeComparisons(mergedTest.NarrowedType, bound!, diagnostics).Select(test => new HoistedTest(test)));
         }
     }
 
@@ -2671,17 +2677,22 @@ internal static partial class BodyEmitter
             return;
         }
 
-        if(Unconsumed(newExpression).Any())
+        if(!ReferenceEquals(discarding, newExpression) && Unconsumed(newExpression).ToList() is { Count: > 0 } unconsumed)
         {
-            var unconsumed = Unconsumed(newExpression).ToList();
-            var scratch = new CSharpWriter();
-            EmitNew(new NewExpression(
-                newExpression.Node, newExpression.Type, newExpression.Arguments, newExpression.Constructor, newExpression.Initializer, newExpression.ParameterTypes)
+            var enclosing = discarding;
+            discarding = newExpression;
+
+            try
             {
-                ContextTypes = newExpression.ContextTypes,
-                Captures = [.. newExpression.Captures.Where(capture => !unconsumed.Contains(capture))],
-            }, scratch, diagnostics);
-            writer.Append(WrapDiscarded(unconsumed, scratch.ToString(), diagnostics));
+                var scratch = new CSharpWriter();
+                EmitNew(newExpression, scratch, diagnostics);
+                writer.Append(WrapDiscarded(unconsumed, scratch.ToString(), diagnostics));
+            }
+            finally
+            {
+                discarding = enclosing;
+            }
+
             return;
         }
 
@@ -3135,15 +3146,14 @@ internal static partial class BodyEmitter
         }
 
         var spelled = typeArguments
-            .Where((_, ordinal) => parameters is null || ordinal >= parameters.Count || !SlotRoutes.IsValueRouted(parameters[ordinal]))
-            .Select((argument, ordinal) =>
-            parameters is not null
-                && ordinal < parameters.Count
-                && argument is LiftedType lifted
-                && parameters[ordinal].Domain is { } domain
+            .Select((argument, ordinal) => (Argument: argument, Parameter: parameters is not null && ordinal < parameters.Count ? parameters[ordinal] : null))
+            .Where(slot => slot.Parameter is null || !SlotRoutes.IsValueRouted(slot.Parameter))
+            .Select(slot =>
+            slot.Argument is LiftedType lifted
+                && slot.Parameter?.Domain is { } domain
                 && DependentCarrierNames.Carrier(domain, lifted) is { } carrier
                     ? carrier
-                    : TypeNameEmitter.Emit(argument));
+                    : TypeNameEmitter.Emit(slot.Argument));
 
         var fillers = parameters is null
             ? []

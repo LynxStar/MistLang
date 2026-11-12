@@ -18,6 +18,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static partial class BodyEmitter
 {
+    [ThreadStatic]
+    private static NewExpression? discarding;
+
     internal static string? SlotValue(IMistType argument, DiagnosticBag? diagnostics)
     {
         return TypeNameEmitter.Closed(argument) switch

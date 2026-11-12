@@ -1,4 +1,4 @@
-// Feature: structured-concurrency — Example-based parsing tests for async/await
+// Feature: structured-concurrency
 // **Validates: Requirements 12.4, 12.5, 12.6**
 
 using Mist.Common.Diagnostics;
@@ -9,12 +9,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Example-based tests verifying that async modifier, async functor, and await
-/// expressions parse correctly and produce the expected AST structure.
-/// Uses the parse → pretty-print approach to verify structure.
-/// No process spawning — all operations are in-process.
-/// </summary>
 public class AsyncParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -41,8 +35,6 @@ public class AsyncParsingTests
         var cu = ParseOrFail(source);
         return MistPrettyPrinter.Print(cu, source);
     }
-
-    // ─── AsyncModifier on method declarations ────────────────────────────
 
     [Fact]
     public void AsyncModifier_OnInstanceMethod_ParsesCorrectly()
@@ -101,8 +93,6 @@ public class AsyncParsingTests
         Assert.Equal(printed1, printed2);
     }
 
-    // ─── AsyncExpression on invocations ──────────────────────────────────
-
     [Fact]
     public void AsyncExpression_OnMethodCall_ParsesCorrectly()
     {
@@ -134,14 +124,12 @@ public class AsyncParsingTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // Navigate to the variable declaration's initializer expression
         var varDecl = block!.Statements[0] as VariableDeclarationStatementStatementNode;
         Assert.NotNull(varDecl);
 
         var inferred = varDecl!.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
         Assert.NotNull(inferred);
 
-        // The expression's assignment → target chain should contain an AsyncExpressionUnaryNode
         var assignment = inferred!.Initializer.AsAssignment();
         var unary = GetUnaryFromAssignment(assignment);
         _ = Assert.IsType<AsyncExpressionUnaryNode>(unary);
@@ -160,8 +148,6 @@ public class AsyncParsingTests
 
         Assert.Equal(printed1, printed2);
     }
-
-    // ─── AwaitExpression on expressions ──────────────────────────────────
 
     [Fact]
     public void AwaitExpression_OnIdentifier_ParsesCorrectly()
@@ -219,38 +205,29 @@ public class AsyncParsingTests
         Assert.Equal(printed1, printed2);
     }
 
-    // ─── Precedence tests ────────────────────────────────────────────────
-
     [Fact]
     public void Precedence_AsyncBindsTighterThanBinaryPlus()
     {
-        // async foo() + 1 should parse as (async foo()) + 1
         const string source = "class C { public void M() { var x = async foo() + 1; } }";
 
         var printed = PrettyPrint(source);
 
-        // The pretty-printer should show "async foo() + 1" where async binds to foo()
-        // and the + is a binary operation at a higher level
         Assert.Contains("async foo() + 1", printed);
     }
 
     [Fact]
     public void Precedence_AwaitBindsTighterThanBinaryPlus()
     {
-        // await x + y should parse as (await x) + y
         const string source = "class C { public void M() { var z = await x + y; } }";
 
         var printed = PrettyPrint(source);
 
-        // The pretty-printer should show "await x + y" where await binds to x
-        // and the + is a binary operation at a higher level
         Assert.Contains("await x + y", printed);
     }
 
     [Fact]
     public void Precedence_AsyncFoo_PlusBinaryOp_ParsesAsAsyncBindingToInvocation()
     {
-        // Verify the AST structure: the additive node's left side contains the async expression
         const string source = "class C { public void M() { var x = async foo() + 1; } }";
         var cu = ParseOrFail(source);
 
@@ -265,25 +242,19 @@ public class AsyncParsingTests
         var inferred = varDecl!.VariableDeclaration as InferredVariableDeclarationVariableDeclarationStatementNode;
         Assert.NotNull(inferred);
 
-        // Navigate through the expression tree:
-        // Expression → Assignment → LogicalOr → LogicalAnd → Equality → Relational → Additive
-        // The Additive should have a Left (containing async foo()) and a Right (containing 1)
         var assignment = inferred!.Initializer.AsAssignment();
         var additive = GetAdditiveFromAssignment(assignment);
         Assert.NotNull(additive);
 
-        // The left side of the additive should contain the async expression
         var leftUnary = GetUnaryFromAdditiveLeft(additive!);
         _ = Assert.IsType<AsyncExpressionUnaryNode>(leftUnary);
 
-        // The right side should exist (the + 1 part)
         Assert.NotNull(additive.Group0[^1].Right);
     }
 
     [Fact]
     public void Precedence_AwaitX_PlusBinaryOp_ParsesAsAwaitBindingToIdentifier()
     {
-        // Verify the AST structure: the additive node's left side contains the await expression
         const string source = "class C { public void M() { var z = await x + y; } }";
         var cu = ParseOrFail(source);
 
@@ -302,20 +273,12 @@ public class AsyncParsingTests
         var additive = GetAdditiveFromAssignment(assignment);
         Assert.NotNull(additive);
 
-        // The left side of the additive should contain the await expression
         var leftUnary = GetUnaryFromAdditiveLeft(additive!);
         _ = Assert.IsType<AwaitExpressionUnaryNode>(leftUnary);
 
-        // The right side should exist (the + y part)
         Assert.NotNull(additive.Group0[^1].Right);
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Navigates from an AssignmentNode down to the Unary node at the leaf.
-    /// Follows: Assignment → LogicalOr → LogicalAnd → Equality → Relational → Additive → Multiplicative → Unary
-    /// </summary>
     private static UnaryNode? GetUnaryFromAssignment(AssignmentNode assignment)
     {
         var additive = GetAdditiveFromAssignment(assignment);
@@ -341,10 +304,6 @@ public class AsyncParsingTests
         return relational.Left;
     }
 
-    /// <summary>
-    /// Gets the Unary node from the left side of an AdditiveNode.
-    /// Path: Additive.Left (MultiplicativeNode) → Multiplicative.Left (UnaryNode)
-    /// </summary>
     private static UnaryNode? GetUnaryFromAdditiveLeft(AdditiveNode additive)
     {
         var multiplicative = additive.Left;

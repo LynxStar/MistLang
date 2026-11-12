@@ -5,13 +5,7 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Verifies that the parser correctly handles the readonly modifier on local
-/// variable declarations across all four VariableDeclarationStatement alternatives,
-/// and that the existing readonly block syntax still parses without regression.
-///
 /// Requirements: 1.1–1.7, 7.1–7.3
-/// </summary>
 public class ReadonlyLocalParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -33,8 +27,6 @@ public class ReadonlyLocalParsingTests
         return method.Body.GetBlock()!.Statements[0];
     }
 
-    // ─── Requirement 1.5: readonly var x = 7; → InferredVariableDeclaration ───
-
     [Fact]
     public void ReadonlyVar_ParsesAsInferredVariableDeclaration_WithReadonlyModifier()
     {
@@ -50,8 +42,6 @@ public class ReadonlyLocalParsingTests
         Assert.Equal("x", inferred.Name.Lexeme);
     }
 
-    // ─── Requirement 1.2: readonly int x = 7; → TypedVariableDeclaration ───
-
     [Fact]
     public void ReadonlyTyped_ParsesAsTypedVariableDeclaration_WithReadonlyModifier()
     {
@@ -66,8 +56,6 @@ public class ReadonlyLocalParsingTests
         _ = Assert.NotNull(typed.ReadonlyModifier);
         Assert.Equal("x", typed.Name.Lexeme);
     }
-
-    // ─── Requirement 1.3: readonly var (a, b) = (1, 2); → VarTupleDeconstruction ───
 
     [Fact]
     public void ReadonlyVarTuple_ParsesAsVarTupleDeconstruction_WithReadonlyModifier()
@@ -86,8 +74,6 @@ public class ReadonlyLocalParsingTests
         Assert.Equal("b", varTuple.RestNames[0].Lexeme);
     }
 
-    // ─── Requirement 1.4: readonly (int a, string b) = (1, "hi"); → TypedTupleDeconstruction ───
-
     [Fact]
     public void ReadonlyTypedTuple_ParsesAsTypedTupleDeconstruction_WithReadonlyModifier()
     {
@@ -103,8 +89,6 @@ public class ReadonlyLocalParsingTests
         Assert.Equal("a", typedTuple.First.Name.Lexeme);
         Assert.Equal("b", typedTuple.Rest.Name.Lexeme);
     }
-
-    // ─── Requirement 1.5: readonly owned var x = expr; → readonly + ownership ───
 
     [Fact]
     public void ReadonlyOwned_ParsesWithBothModifierAndOwnership()
@@ -122,8 +106,6 @@ public class ReadonlyLocalParsingTests
         Assert.Equal("x", inferred.Name.Lexeme);
     }
 
-    // ─── Requirement 7.1–7.3: readonly { } block still parses (no regression) ───
-
     [Fact]
     public void ReadonlyBlock_StillParsesCorrectly_NoRegression()
     {
@@ -136,8 +118,6 @@ public class ReadonlyLocalParsingTests
         Assert.NotNull(stmt.ReadonlyBlock.Body);
         _ = Assert.Single(stmt.ReadonlyBlock.Body.Statements);
     }
-
-    // ─── Additional: non-readonly declarations still work ───
 
     [Fact]
     public void NonReadonlyVar_HasNullReadonlyModifier()

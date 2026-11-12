@@ -81,7 +81,8 @@ internal sealed class MethodGroupExpression : Expression
     /// reported once: the chosen candidate's, or with none chosen, the first slotted resolution's
     /// unless some resolution took the list cleanly. Null when no candidate has such a slot.
     /// <see cref="StatedShared"/> says whether <see cref="StatedTypeArguments"/> was resolved for a pack
-    /// candidate and reported as it went; otherwise it is the first candidate's own list, kept for its count.
+    /// candidate or a spread and reported as it went; otherwise it is the first candidate's own list, kept
+    /// for its count.
     /// </summary>
     public IReadOnlyDictionary<Method, StatedResolution>? StatedPerCandidate { get; init; }
 

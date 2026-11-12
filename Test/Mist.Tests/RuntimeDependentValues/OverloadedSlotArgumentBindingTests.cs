@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
@@ -21,6 +22,10 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
     protected override string Preamble { get; } = "";
 
     private const string Meter = """
+        public class Box<N:int>
+        {
+        }
+
         public class Meter
         {
             public int Foo<N:int>(int x) { return N + x; }
@@ -39,6 +44,10 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
             public int Pos(int a, int x) { return a; }
             public static int Neg<N:int>(int x) where N <= -1 { return N; }
             public static int Neg(int a, int x) { return a; }
+            public int Spread<params Ts>(int x) { return 1; }
+            public int Spread<N:int>(int x) { return 2; }
+            public static int Fan<params Ts>(int x) { return 1; }
+            public static int Fan<N:int>(int x) { return 2; }
         }
         """;
 
@@ -136,12 +145,52 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
         Assert.Empty(calls[3].Captures);
     }
 
-    private List<InvocationExpression> Calls(string statements, out ImmutableArray<Diagnostic> diagnostics)
+    [Fact]
+    public void ASpreadBesideASlottedOverloadFillsOnlyAPackSlot()
     {
-        return [.. Initializers(statements, out diagnostics).Select(Assert.IsType<InvocationExpression>)];
+        var calls = Calls("var a = m.Spread<Ts...>(1); var b = Meter.Fan<Ts...>(1);", out var diagnostics, "Run<params Ts>(int p)");
+
+        Assert.Empty(Errors(diagnostics));
+        Assert.All(calls, call => Assert.True(call.Method!.TypeParametersList[0].IsPack));
+        Assert.All(calls, call => Assert.Empty(call.Captures));
     }
 
-    private List<Expression> Initializers(string statements, out ImmutableArray<Diagnostic> diagnostics)
+    [Fact]
+    public void ASpreadInAFixedSlotBesideASlottedOverloadIsRefusedAsWithoutIt()
+    {
+        var bound = Initializers("var a = m.Pick<Ts...>(1); var b = Meter.Choose<Ts...>(1);", out var diagnostics, "Run<params Ts>(int p)");
+
+        Assert.Equal(
+            ["MIST0421 Pick", "MIST0421 Choose"],
+            Errors(diagnostics).Select(error => $"{error.Number.Value} {error.Message.Split('\'')[3]}"));
+        Assert.All(bound, expression => Assert.True(PriorFailure.Of(expression)));
+    }
+
+    [Fact]
+    public void AnOrdinarySlotBesideASlottedOverloadReadsANestedLiteralAsAType()
+    {
+        var calls = Calls("var a = m.Pick<Box<3>>(q); var b = Meter.Choose<Box<3>>(q);", out var diagnostics, "Run(int p, Box<3> q)");
+
+        Assert.Empty(Errors(diagnostics));
+        Assert.All(calls, call => Assert.False(call.Method!.TypeParametersList[0].IsDependent));
+        Assert.All(calls, call => Assert.Empty(call.Captures));
+    }
+
+    [Fact]
+    public void AnOrdinarySlotBesideASlottedOverloadRefusesANestedValueAsWithoutIt()
+    {
+        var bound = Initializers("var a = m.Pick<Box<n>>(q); var b = Meter.Choose<Box<n>>(q);", out var diagnostics, "Run(int p, Box<3> q)");
+
+        Assert.Equal(["MIST0487 n", "MIST0487 n"], Errors(diagnostics).Select(error => $"{error.Number.Value} {error.Message.Split('\'')[1]}"));
+        Assert.All(bound.OfType<InvocationExpression>(), call => Assert.Empty(call.Captures));
+    }
+
+    private List<InvocationExpression> Calls(string statements, out ImmutableArray<Diagnostic> diagnostics, string signature = "Run(int p)")
+    {
+        return [.. Initializers(statements, out diagnostics, signature).Select(Assert.IsType<InvocationExpression>)];
+    }
+
+    private List<Expression> Initializers(string statements, out ImmutableArray<Diagnostic> diagnostics, string signature = "Run(int p)")
     {
         var model = Build(
             $$"""
@@ -151,7 +200,7 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
 
             public class Probe
             {
-                public static void Run(int p)
+                public static void {{signature}}
                 {
                     var n = 3;
                     var s = "s";

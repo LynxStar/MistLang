@@ -38,6 +38,7 @@ internal static class StatedMethodArguments
 
         var arguments = perCandidate is null
             || candidates.Any(candidate => !perCandidate.ContainsKey(candidate) && PackBinding.AbsorbingSlot(candidate.TypeParametersList) is not null)
+            || perCandidate.Values.Any(resolved => resolved.Arguments.Any(argument => argument is SpreadType))
             ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
             : null;
         var shape = arguments ?? perCandidate!.Values.First().Arguments;
@@ -118,8 +119,9 @@ internal static class StatedMethodArguments
     /// <summary>
     /// Only a candidate says whether a written position is a dependent slot, so a list is resolved once
     /// per distinct shape of slots and shared by the candidates of that shape, with each resolution's
-    /// reports withheld for the call to settle once it has chosen. Only a call owns the captures, so a
-    /// group named as a value reads no slot and takes the shared resolution alone.
+    /// reports withheld for the call to settle once it has chosen. A candidate without a slot reads it
+    /// as the shared resolution does, with no value binder. Only a call owns the captures, so a group
+    /// named as a value reads no slot and takes the shared resolution alone.
     /// </summary>
     private static Dictionary<Method, StatedResolution>? ResolvePerCandidate(
         IReadOnlyList<Method> candidates, TypeArgumentListNode stated, int written, BindingContext ctx, BuilderContext context)
@@ -150,11 +152,12 @@ internal static class StatedMethodArguments
 
             if(shape.Resolution is null)
             {
-                var values = new SlotValueBinder(ctx, context);
+                var values = slotted(candidate) ? new SlotValueBinder(ctx, context) : null;
                 IReadOnlyList<IMistType> arguments = [];
-                var withheld = context.Diagnostics.Withhold(
-                    () => arguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope, candidate.TypeParametersList, values));
-                shape = (slots, new StatedResolution(arguments, values.Captures, withheld));
+                var withheld = context.Diagnostics.Withhold(() => arguments = values is null
+                    ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
+                    : context.Resolver.ResolveTypeArguments(stated, ctx.Scope, candidate.TypeParametersList, values));
+                shape = (slots, new StatedResolution(arguments, values?.Captures ?? [], withheld));
                 shapes.Add(shape);
             }
 

@@ -627,7 +627,7 @@ internal static partial class BodyEmitter
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        foreach(var discarded in Discarded(localDecl.Captures))
+        foreach(var discarded in Discarded(localDecl.Captures.Where(capture => !ConsumesCapture(localDecl.Initializer, capture))))
         {
             writer.WriteLine($"_ = {Render(discarded, diagnostics)};");
         }
@@ -1415,12 +1415,14 @@ internal static partial class BodyEmitter
                 break;
 
             case ArrayCreationExpression arrayCreation:
+                RefuseZeroedStorage(arrayCreation.ElementType, "an array", arrayCreation.Node, diagnostics);
                 writer.Append($"new {TypeNameEmitter.Emit(arrayCreation.ElementType)}[");
                 EmitExpression(arrayCreation.Size, writer, diagnostics);
                 writer.Append("]");
                 break;
 
             case StackallocExpression allocation:
+                RefuseZeroedStorage(allocation.ElementType, "a stack allocation", allocation.Node, diagnostics);
                 writer.Append($"stackalloc {TypeNameEmitter.Emit(allocation.ElementType)}[");
                 EmitExpression(allocation.Size, writer, diagnostics);
                 writer.Append("]");

@@ -10,6 +10,7 @@ using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -239,6 +240,168 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
+    public void ABoundArgumentRunsAfterTheReceiverAndEveryArgumentWrittenBeforeIt()
+    {
+        var meter = HandBuiltModel.Class("Meter");
+        var n = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var len = new Method("Len", slots.Int, [new Parameter("tag", slots.Int), new Parameter("a", slots.ArrayOf(n))], new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = meter,
+            Scope = meter.Scope,
+        };
+        len.TypeParametersList.Add(n);
+        n.DeclaringMethod = len;
+        var pick = new Method("Pick", meter, [], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        var say = new Method("Say", slots.Int, [], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        using var routes = SlotRoutes.Enter([n]);
+        var plain = slots.Create(slots.Capture(new LocalVariable("n", slots.Int)));
+        var length = ((ConstructedType)plain.Type).TypeArguments[1];
+        var tag = HandBuiltRefinements.Local(slots.Int, "tag");
+
+        Assert.Equal(
+            "((Pick(), Say(), new int[n]) switch { (var __e1, var __e2, var __e3) => __e1.Len(__e3.Length, __e2, __e3) })",
+            Emit(Through(Call(pick, [], [], []), len, [length], [Call(say, [], [], []), plain], [slots.Int, plain.Type])));
+        Assert.Equal(
+            "((Pick(), new int[n]) switch { (var __e1, var __e2) => __e1.Len(__e2.Length, tag, __e2) })",
+            Emit(Through(Call(pick, [], [], []), len, [length], [tag, plain], [slots.Int, plain.Type])));
+        Assert.Equal(
+            "(new int[n] switch { var __e1 => m.Len(__e1.Length, tag, __e1) })",
+            Emit(Through(HandBuiltRefinements.Local(meter, "m"), len, [length], [tag, plain], [slots.Int, plain.Type])));
+    }
+
+    [Fact]
+    public void ADefaultThatConsumesTheDeclarationsCaptureLeavesNoDiscardedRead()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var count = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(UnknownType.Instance, "p"), "Count", slots.Int);
+        var capture = new SlotCapture("p.Count", slots.Int, slots.Int, count, 9);
+        var closing = slots.Closed(ring, capture.Value);
+        var defaulted = HandBuiltSlots.Declare(new LocalVariable("r", closing), new DefaultExpression(HandBuiltModel.Node(), closing), capture);
+        var copied = HandBuiltSlots.Declare(new LocalVariable("r", closing), HandBuiltRefinements.Local(closing, "other"), capture);
+
+        Assert.Equal(["Probe.Ring r = Probe.Ring.__CreateDefault(p.Count);"], Statements(defaulted));
+        Assert.Equal(["_ = p.Count;", "Probe.Ring r = other;"], Statements(copied));
+    }
+
+    [Fact]
+    public void AStructOverAValueRoutedAncestorAnswersTheAncestorsSlotFromItsOwn()
+    {
+        var cell = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
+        cell.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var wide = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Wide<>"), "M", slots.Int);
+        wide.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        wide.BaseType = slots.Closed(cell, wide.TypeParametersList[0]);
+        using var routes = SlotRoutes.Enter([cell.TypeParametersList[0], wide.TypeParametersList[0]]);
+
+        var lines = TypeBody(wide);
+
+        Assert.Contains("public readonly int __M;", lines);
+        Assert.Contains("public int __N => __M;", lines);
+        Assert.Contains("public Wide(int __M)", lines);
+        Assert.Contains("return Probe.Cell.__FromParts(value.__M, default);", lines);
+        Assert.DoesNotContain(lines, line => line.Contains(": base(", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AValueRoutedClosingPassedForAConstructorConstrainedParameterIsRefused()
+    {
+        var t = new TypeParameter("T", 0, new Scope(null), null);
+        t.ConstraintsList.Add(new ConstructorConstraint([]));
+        var again = new Method("Again", t, [new Parameter("seed", t)], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        again.TypeParametersList.Add(t);
+        t.DeclaringMethod = again;
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var closing = slots.Closed(ring, capture.Value);
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var refusal = Assert.Single(Refused(Call(again, [closing], [HandBuiltRefinements.Local(closing, "seed")], [closing])));
+        Assert.Equal("MIST0495", refusal.Number.Value);
+        Assert.Contains("'Ring<n>' cannot close the constructor constraint 'new()'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnExtensionMethodTakesItsSlotAsAHiddenLeadingParameter()
+    {
+        var meter = HandBuiltModel.Class("Meter");
+        meter.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), null) { CarrierName = "MeterExtensions", ResolvedReceiverType = meter };
+        var n = new TypeParameter("N", 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var len = new Method("Len", slots.Int, [new Parameter("a", slots.ArrayOf(n))], default)
+        {
+            DeclaringBlock = block,
+            Scope = new Scope(null),
+            Body = HandBuiltModel.Block(new ReturnStatement(HandBuiltModel.Literal(slots.Int, 1L), slots.Int)),
+        };
+        len.TypeParametersList.Add(n);
+        n.DeclaringMethod = len;
+        block.MethodsList.Add(len);
+        using var routes = SlotRoutes.Enter([n]);
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        var anyEmitted = false;
+
+        ExtensionBlockEmitter.Emit(block, writer, diagnostics, ref anyEmitted);
+
+        Assert.Contains("public static int Len(this Meter self, int __N, int[] a)", writer.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("TN", writer.ToString(), StringComparison.Ordinal);
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Fact]
+    public void AValueRoutedTypeClosingAParameterizedConstructorConstraintIsRefused()
+    {
+        var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
+        using var routes = SlotRoutes.Enter([counter.TypeParametersList[0]]);
+        var diagnostics = new DiagnosticBag();
+
+        var kept = ValueRouteEmitter.ClosableConstraints(counter, [new ConstructorWitness([slots.Int], [slots.Int], [slots.Int])], diagnostics);
+
+        Assert.Empty(kept);
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0495", refusal.Number.Value);
+        Assert.Contains("'Counter' cannot close the constructor constraint 'new(int)'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnArrayOrAStackAllocationOfAValueRoutedStructIsRefused()
+    {
+        var cell = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
+        using var routes = SlotRoutes.Enter([cell.TypeParametersList[0]]);
+        var element = slots.Closed(cell, slots.Literal(7));
+        var size = HandBuiltModel.Literal(slots.Int, 2L);
+
+        var array = Assert.Single(Refused(new ArrayCreationExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)))));
+        var allocation = Assert.Single(Refused(new StackallocExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)))));
+        Assert.Equal("MIST0496", array.Number.Value);
+        Assert.Equal("MIST0496", allocation.Number.Value);
+        Assert.Contains("'Cell<7>' cannot be the element of an array", array.Message, StringComparison.Ordinal);
+        Assert.Contains("'Cell<7>' cannot be the element of a stack allocation", allocation.Message, StringComparison.Ordinal);
+        Assert.Empty(Refused(new ArrayCreationExpression(HandBuiltModel.Node(), slots.Closed(ring, slots.Literal(7)), size, slots.Closed(slots.Array, slots.Closed(ring, slots.Literal(7)), slots.Literal(2)))));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void OverloadsWhoseEmittedParametersCoincideAreRefusedAtTheLaterOne(bool routed)
+    {
+        var program = new ClassType("Program", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode());
+        var first = routed ? slots.Closed(ring, slots.Literal(3)) : slots.ArrayOf(slots.Literal(3));
+        var second = routed ? slots.Closed(ring, slots.Literal(4)) : slots.ArrayOf(slots.Literal(4));
+        var three = new Method("Name", slots.Int, [new Parameter("r", first)], default) { DeclaringType = program, Scope = program.Scope, DeclarationNode = new BodyTypeTypeDeclarationNode() };
+        var four = new Method("Name", slots.Int, [new Parameter("r", second)], default) { DeclaringType = program, Scope = program.Scope, DeclarationNode = new BodyTypeTypeDeclarationNode() };
+        var other = new Method("Other", slots.Int, [new Parameter("r", second)], default) { DeclaringType = program, Scope = program.Scope, DeclarationNode = new BodyTypeTypeDeclarationNode() };
+        program.MethodsList.AddRange([three, four, other]);
+        using var routes = SlotRoutes.Enter(routed ? [capacity] : []);
+        var diagnostics = new DiagnosticBag();
+
+        ValueRouteEmitter.Report(program, diagnostics);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0497", refusal.Number.Value);
+        Assert.Contains(routed ? "coincide with 'Name(Ring<3>)': the two differ only in 'Capacity'" : "coincide with 'Name(int[3])': the two differ only in 'Length'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StaticStorageInAValueRoutedTypeIsRefused()
     {
         var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
@@ -333,6 +496,23 @@ public sealed class ValueRouteEmissionTests
     {
         var fill = HandBuiltRefinements.Local(UnknownType.Instance, "fill");
         return new NewExpression(HandBuiltModel.Node(), slots.ArrayOf(length), [fill], null, [], null);
+    }
+
+    private static InvocationExpression Through(
+        Expression receiver, Method method, IReadOnlyList<IMistType> typeArguments, IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType> parameterTypes)
+    {
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), receiver, method.Name, method.ReturnType, typeArguments);
+        return new InvocationExpression(HandBuiltModel.Node(), access, arguments, method.ReturnType, method, parameterTypes);
+    }
+
+    private static List<string> Statements(Statement statement)
+    {
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        BodyEmitter.ResetTemporaries();
+        BodyEmitter.EmitStatement(statement, writer, diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        return [.. writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())];
     }
 
     private static InvocationExpression Call(

@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -146,6 +147,14 @@ internal static class ConstructorWitnesses
         string? witnessReceiver = null)
     {
         var key = $"{product.FullyQualifiedName}({string.Join(",", signature.Select(type => type.FullyQualifiedName))})";
+
+        if(SlotRoutes.ValueRouted(product) is [var routed, ..])
+        {
+            EmissionDiagnostics.Refuse(
+                BackendDiagnostics.ValueRoutedConstructorConstraintClosure,
+                DiagnosticSnapshot.Type(product), new NameValue(routed.Name), new SequenceValue(SlotKind.Type, [.. signature.Select(DiagnosticSnapshot.Type)]));
+            return "default!";
+        }
 
         if(!visiting.Add(key))
         {

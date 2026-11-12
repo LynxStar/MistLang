@@ -105,6 +105,31 @@ public sealed class SlotRouteDecisionTests
         Assert.Empty(routed);
     }
 
+    [Fact]
+    public void AnAbstractsMethodAndTheMethodAnsweringItTakeOneRoute()
+    {
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var (slot, slotParameter) = Measure("N");
+        var (answer, answerParameter) = Measure("K");
+
+        var fromSlot = SlotRoutes.Discover([(slot, [capture.Value])], [], [slot, answer], [(slot, answer)]);
+        var fromAnswer = SlotRoutes.Discover([(answer, [capture.Value])], [], [slot, answer], [(slot, answer)]);
+        var unlinked = SlotRoutes.Discover([(slot, [capture.Value])], [], [slot, answer]);
+
+        Assert.Equal([answerParameter, slotParameter], fromSlot.OrderBy(parameter => parameter.Name));
+        Assert.Equal([answerParameter, slotParameter], fromAnswer.OrderBy(parameter => parameter.Name));
+        Assert.Equal([slotParameter], unlinked);
+    }
+
+    private (Method Method, TypeParameter Parameter) Measure(string parameter)
+    {
+        var declared = new TypeParameter(parameter, 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };
+        var method = new Method("Measure", slots.Int, [], default) { Scope = new Scope(null) };
+        method.TypeParametersList.Add(declared);
+        declared.DeclaringMethod = method;
+        return (method, declared);
+    }
+
     private static MemberAccessExpression Read(ConstructedType receiverType, TypeParameter slot)
     {
         var receiver = HandBuiltRefinements.Local(receiverType, "b");

@@ -334,4 +334,34 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic ValueRoutedConstructorConstraintClosure = new(
+        DiagnosticNumber.Mint("MIST0495"),
+        Title: "Value-routed type closes constructor constraint",
+        Template: "'{type}' cannot close the constructor constraint 'new({signature})': its dependent parameter '{parameter}' is carried in each instance as a hidden constructor argument, which neither the C# constraint nor the factory the backend synthesizes for it can supply.",
+        Description: "A constructor constraint is lowered to C#'s own 'new()' constraint, which requires a public parameterless constructor, and to a synthesized interface whose static factory constructs the closing type from the constraint's parameters alone. A type whose dependent parameter is closed somewhere with a runtime value takes that value as a hidden leading argument of every constructor, so it has no parameterless constructor and the factory has no value to pass. Close the constraint with a type whose parameters are all carried in the C# type, or construct the instance yourself and pass it; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("signature", SlotKind.Sequence, SlotKind.Type)]);
+
+    public static readonly MistDiagnostic ZeroedStorageOfValueRoutedStruct = new(
+        DiagnosticNumber.Mint("MIST0496"),
+        Title: "Zeroed storage of a value-routed struct",
+        Template: "'{type}' cannot be the element of {storage}: its dependent parameter '{parameter}' is carried in each instance, and the elements start from zero with no value in them.",
+        Description: "An array creation or a stack allocation starts every element from the CLR zero. A struct whose dependent parameter is closed somewhere with a runtime value keeps that parameter's value in a hidden field of each instance, so a zeroed element reads the slot as zero whatever its type says. Build the elements one by one with an array literal or a generated array, or close the struct only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("storage", SlotKind.Enum), new Slot("parameter", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic CoincidingOverloads = new(
+        DiagnosticNumber.Mint("MIST0497"),
+        Title: "Overloads coincide in emitted C#",
+        Template: "'{member}' is declared again with C# parameters that coincide with '{earlier}': the two differ only in '{parameter}' of '{type}', which the C# backend does not carry in the type.",
+        Description: "Two overloads of one name differ in Mist by a slot value that the C# backend erases from the type, a length or a dependent parameter closed somewhere with a runtime value, so their emitted parameter lists are the same and C# refuses the second. Give the overloads different names or different parameter types, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("member", SlotKind.Name), new Slot("earlier", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 }

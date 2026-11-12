@@ -27,7 +27,7 @@ internal static class DefaultEmitter
         var routed = SlotRoutes.ValueRouted(type);
         var hidden = SlotRoutes.HiddenNames(routed).ToList();
         var hiddenParameters = SlotRoutes.HiddenParameters(routed).ToList();
-        var baseValues = type.BaseType is ConstructedType baseClosing ? BodyEmitter.SlotValues(baseClosing, diagnostics) : [];
+        var baseValues = type is ClassType && type.BaseType is ConstructedType baseClosing ? BodyEmitter.SlotValues(baseClosing, diagnostics) : [];
         var chain = DefaultSynthesis.ChainsToBaseSentinel(type)
             ? $" : base({string.Join(", ", baseValues.Concat(DefaultSynthesis.BaseWitnesses(type).Prepend(sentinel ? "marker" : marker)))})"
             : baseValues.Count > 0 ? $" : base({string.Join(", ", baseValues)})" : "";

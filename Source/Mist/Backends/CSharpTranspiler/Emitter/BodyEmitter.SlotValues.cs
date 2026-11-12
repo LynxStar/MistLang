@@ -14,7 +14,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// its own read, and a capture is its initializer written where the node that owns it consumes it. A
 /// method's inferred parameter is the one capture consumed away from its owner, so it is read back
 /// through the argument that carries it, and that argument is bound once when reading it twice would run
-/// it twice.
+/// it twice. The hidden argument comes first in the C# call, so the receiver and every argument written
+/// before the carrier are bound with it, in source order, or they would run after it.
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -48,7 +49,7 @@ internal static partial class BodyEmitter
                 : null;
     }
 
-    internal static List<string> SlotValues(IMistType? closing, DiagnosticBag? diagnostics)
+    internal static List<string> SlotValues(IMistType? closing, DiagnosticBag? diagnostics, string? receiver = null)
     {
         var values = new List<string>();
 
@@ -60,8 +61,13 @@ internal static partial class BodyEmitter
         foreach(var slot in SlotRoutes.ValueRouted(constructed.Definition))
         {
             var argument = slot.Ordinal < constructed.TypeArguments.Count ? constructed.TypeArguments[slot.Ordinal] : null;
-            values.Add(argument is null ? EmissionDiagnostics.Fallback("slot value", slot.Name, "default") : SlotValue(argument, diagnostics)
-                ?? EmissionDiagnostics.Fallback("slot value", $"{TypeDisplay.Mist(constructed)}.{slot.Name}", "default"));
+            values.Add(argument switch
+            {
+                null => EmissionDiagnostics.Fallback("slot value", slot.Name, "default"),
+                _ when receiver is not null && TypeNameEmitter.Closed(argument) is TypeParameter carried && SlotRoutes.IsValueRouted(carried)
+                    => $"{receiver}.{SlotRoutes.Hidden(carried)}",
+                _ => SlotValue(argument, diagnostics) ?? EmissionDiagnostics.Fallback("slot value", $"{TypeDisplay.Mist(constructed)}.{slot.Name}", "default"),
+            });
         }
 
         return values;
@@ -103,6 +109,17 @@ internal static partial class BodyEmitter
             $"{bound}.{SlotRoutes.Hidden(runtime.Slot)} == {SlotValue(runtime.Argument, diagnostics)}");
     }
 
+    private static void RefuseZeroedStorage(IMistType element, string storage, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
+    {
+        if(Unaliased(TypeNameEmitter.Closed(element)) is ConstructedType { Definition: StructType } constructed
+            && SlotRoutes.ValueRouted(constructed.Definition) is [var slot, ..])
+        {
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.ZeroedStorageOfValueRoutedStruct, node, null,
+                DiagnosticSnapshot.Type(constructed), new EnumValue(storage), new NameValue(slot.Name));
+        }
+    }
+
     private static void RefuseCombinedRuntimeTest(IMistType tested, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
     {
         if(RuntimeSlots(tested) is [var (slot, _), ..])
@@ -112,22 +129,42 @@ internal static partial class BodyEmitter
         }
     }
 
-    private static (IReadOnlyList<IMistType> Arguments, Method? Method) CallTypeArguments(InvocationExpression invocation)
+    private static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter> Parameters, Method Method)? CallTypeArguments(
+        InvocationExpression invocation)
     {
-        return invocation.Receiver switch
+        if(invocation.Method is not { } method)
         {
-            MemberAccessExpression access => (access.TypeArguments, invocation.Method),
-            MethodReferenceExpression reference => (reference.TypeArguments, invocation.Method),
-            _ => ([], invocation.Method),
+            return null;
+        }
+
+        var written = invocation.Receiver switch
+        {
+            MemberAccessExpression access => access.TypeArguments,
+            MethodReferenceExpression reference => reference.TypeArguments,
+            _ => [],
         };
+        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(method, written);
+
+        return (arguments, parameters ?? method.TypeParametersList, method);
+    }
+
+    private static IEnumerable<(TypeParameter Slot, IMistType? Argument)> RoutedCallSlots(
+        IReadOnlyList<IMistType> arguments, IReadOnlyList<TypeParameter> parameters)
+    {
+        for(var i = 0; i < parameters.Count; i++)
+        {
+            if(SlotRoutes.IsValueRouted(parameters[i]))
+            {
+                yield return (parameters[i], i < arguments.Count ? TypeNameEmitter.Closed(arguments[i]) : null);
+            }
+        }
     }
 
     internal static List<string> CallSlotArguments(InvocationExpression invocation, DiagnosticBag diagnostics)
     {
         var hidden = new List<string>();
-        var (typeArguments, method) = CallTypeArguments(invocation);
 
-        if(method is null)
+        if(CallTypeArguments(invocation) is not var (typeArguments, parameters, method))
         {
             return hidden;
         }
@@ -146,10 +183,8 @@ internal static partial class BodyEmitter
                 : SlotValues(closing, diagnostics));
         }
 
-        foreach(var slot in SlotRoutes.ValueRouted(method.TypeParametersList))
+        foreach(var (slot, argument) in RoutedCallSlots(typeArguments, parameters))
         {
-            var argument = slot.Ordinal < typeArguments.Count ? TypeNameEmitter.Closed(typeArguments[slot.Ordinal]) : null;
-
             hidden.Add(argument switch
             {
                 CapturedValue captured when !invocation.Captures.Contains(captured.Capture) => ReadThroughArgument(invocation, captured)
@@ -165,16 +200,17 @@ internal static partial class BodyEmitter
     internal static List<Expression> SlotBindings(InvocationExpression invocation)
     {
         var bindings = new List<Expression>();
-        var (typeArguments, method) = CallTypeArguments(invocation);
 
-        if(method is null)
+        if(CallTypeArguments(invocation) is not var (typeArguments, parameters, method))
         {
             return bindings;
         }
 
-        foreach(var slot in SlotRoutes.ValueRouted(method.TypeParametersList))
+        var carriers = new List<Expression>();
+
+        foreach(var (_, argument) in RoutedCallSlots(typeArguments, parameters))
         {
-            if(slot.Ordinal >= typeArguments.Count || TypeNameEmitter.Closed(typeArguments[slot.Ordinal]) is not CapturedValue captured)
+            if(argument is not CapturedValue captured)
             {
                 continue;
             }
@@ -183,7 +219,40 @@ internal static partial class BodyEmitter
                 ? (captured.Capture.Initializer as MemberAccessExpression)?.Receiver
                 : CarryingArgument(invocation, captured)?.Argument;
 
-            if(carrier is not null && !IsPlainRead(carrier) && !bindings.Contains(carrier))
+            if(carrier is not null && !carriers.Contains(carrier))
+            {
+                carriers.Add(carrier);
+            }
+        }
+
+        if(carriers.Count == 0)
+        {
+            return bindings;
+        }
+
+        if(invocation.Receiver is MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression }
+            && !method.Modifiers.IsStatic
+            && !IsPlainRead(receiver))
+        {
+            bindings.Add(receiver);
+        }
+
+        var last = carriers.Max(carrier => invocation.Arguments.ToList().FindIndex(argument => ReferenceEquals(argument, carrier)));
+
+        for(var i = 0; i <= last; i++)
+        {
+            var argument = invocation.Arguments[i];
+            var byReference = invocation.Parameters is { } declared && i < declared.Count && ArgumentKeywords.For(declared[i]).Length > 0;
+
+            if(!IsPlainRead(argument) && !byReference && !bindings.Contains(argument))
+            {
+                bindings.Add(argument);
+            }
+        }
+
+        foreach(var carrier in carriers)
+        {
+            if(!IsPlainRead(carrier) && !bindings.Contains(carrier))
             {
                 bindings.Add(carrier);
             }
@@ -268,6 +337,18 @@ internal static partial class BodyEmitter
     private static List<Expression> Discarded(IEnumerable<SlotCapture> captures)
     {
         return [.. captures.Select(capture => capture.Initializer).Where(initializer => !IsPlainRead(initializer))];
+    }
+
+    private static bool ConsumesCapture(Expression? initializer, SlotCapture capture)
+    {
+        var inner = initializer is ImplicitConversionExpression conversion ? conversion.Operand : initializer;
+
+        return inner is DefaultExpression defaulted
+            && Unaliased(TypeNameEmitter.Closed(defaulted.Type)) is ConstructedType constructed
+            && SlotRoutes.ValueRouted(constructed.Definition).Any(slot =>
+                slot.Ordinal < constructed.TypeArguments.Count
+                && constructed.TypeArguments[slot.Ordinal] is CapturedValue captured
+                && ReferenceEquals(captured.Capture, capture));
     }
 
     private static string WrapDiscarded(IEnumerable<SlotCapture> captures, string inner, DiagnosticBag diagnostics)

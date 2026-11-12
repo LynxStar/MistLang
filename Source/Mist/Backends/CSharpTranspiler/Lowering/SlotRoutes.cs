@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -17,8 +18,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// parameter is forwarded into it, its slot is read through <c>unknown</c>, or another dependent
 /// parameter of its declaration is value-routed. Whole-program rather than per declaration because a
 /// declaration's route is fixed by its uses, and a closing written in one file carries a value a type
-/// declared in another must hold. Array and the spans are left out: <see cref="LengthErasure"/> drops
-/// their slot and the CLR object holds the value already.
+/// declared in another must hold. An abstract's method and each method answering it take one route,
+/// because C# matches an implementation to its interface member by signature and a hidden parameter
+/// on one side only would leave the member unimplemented. Array and the spans are left out:
+/// <see cref="LengthErasure"/> drops their slot and the CLR object holds the value already.
 /// </summary>
 internal sealed class SlotRoutes : IDisposable
 {
@@ -143,7 +146,7 @@ internal sealed class SlotRoutes : IDisposable
             }
         }
 
-        return Discover(closings, reads, Declarations(model));
+        return Discover(closings, reads, Declarations(model), Answers(model));
     }
 
     public static TypeParameter? ReadThroughUnknown(MemberAccessExpression access)
@@ -158,10 +161,12 @@ internal sealed class SlotRoutes : IDisposable
     public static HashSet<TypeParameter> Discover(
         IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> closings,
         IEnumerable<TypeParameter> readThroughUnknown,
-        IEnumerable<IHasTypeParameters> declarations)
+        IEnumerable<IHasTypeParameters> declarations,
+        IEnumerable<(Method Slot, Method Answer)>? answers = null)
     {
         var routed = new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance);
         var fills = closings.ToList();
+        var answered = answers?.ToList() ?? [];
         var siblings = declarations.Concat(fills.Select(fill => fill.Definition)).Distinct(ReferenceEqualityComparer.Instance).Cast<IHasTypeParameters>().ToList();
 
         bool route(IHasTypeParameters definition, int ordinal)
@@ -215,9 +220,62 @@ internal sealed class SlotRoutes : IDisposable
                     }
                 }
             }
+
+            foreach(var (slot, answer) in answered)
+            {
+                for(var i = 0; i < slot.TypeParametersList.Count && i < answer.TypeParametersList.Count; i++)
+                {
+                    if(routed.Contains(slot.TypeParametersList[i]))
+                    {
+                        changed |= route(answer, i);
+                    }
+
+                    if(routed.Contains(answer.TypeParametersList[i]))
+                    {
+                        changed |= route(slot, i);
+                    }
+                }
+            }
         }
 
         return routed;
+    }
+
+    public static IEnumerable<(Method Slot, Method Answer)> Answers(ProgramModelClass model)
+    {
+        var interner = model.TypeInterner;
+
+        foreach(var type in model.TypesByFQN.Values)
+        {
+            if(type is not ConcreteType { DeclarationNode: not null } concrete)
+            {
+                continue;
+            }
+
+            List<ConformanceAnalyzer.Filler>? fillers = null;
+            var reached = ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, interner, concrete)
+                .Select(each => (each.Abstract, each.Substitution, Mappings: (ConformanceDeclaration?)null))
+                .Concat(concrete.ConformancesList.SelectMany(conformance => ConformanceAnalyzer.Reached([conformance.AbstractType], interner, concrete)
+                    .Select(each => (each.Abstract, each.Substitution, Mappings: (ConformanceDeclaration?)conformance))));
+
+            foreach(var (abstractType, substitution, mappings) in reached)
+            {
+                foreach(var slot in abstractType.MethodsList)
+                {
+                    if(slot.Modifiers.IsStatic || !slot.TypeParametersList.Exists(parameter => parameter.IsDependent))
+                    {
+                        continue;
+                    }
+
+                    fillers ??= ConformanceAnalyzer.Fillers(concrete).ToList();
+
+                    if(ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner) is { } answer)
+                    {
+                        yield return (slot, answer.Member);
+                    }
+                }
+            }
+        }
     }
 
     private static bool Routable(IHasTypeParameters definition, TypeParameter parameter)

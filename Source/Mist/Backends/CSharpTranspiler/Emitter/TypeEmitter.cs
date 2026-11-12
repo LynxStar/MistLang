@@ -103,7 +103,7 @@ internal static class TypeEmitter
         DiagnosticBag diagnostics)
     {
         using var emission = EmissionDiagnostics.Enter(diagnostics, type.DeclarationNode);
-        var closedConstraints = closures.For(type);
+        var closedConstraints = ValueRouteEmitter.ClosableConstraints(type, closures.For(type), diagnostics);
 
         if(type.DeclaringType is null)
         {

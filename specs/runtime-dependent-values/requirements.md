@@ -118,7 +118,7 @@ A slot states what it admits through its domain and its `where` clause:
 `where N >= 1`. This requirement follows from Requirement 1 and from
 [adhoc-refinement-constraints](../adhoc-refinement-constraints/requirements.md)
 Requirement 5, which already refuses a forwarded parameter whose own constraint
-does not prove the slot's. It was not decided separately.
+does not prove the slot's. The owner confirmed it on 2026-11-12.
 
 1. A runtime argument SHALL be proven against the slot's contract where the
    type is written, under flow-sensitive-refinement-inference Requirement 1, as
@@ -144,8 +144,22 @@ void Build(int n)
 
 Programs that compile today change under this requirement: a creation sized by
 a plain `int` is accepted today, and a negative size fails when the program
-runs. All eight runtime-sized creations in the samples are sized by a plain
-`int`.
+runs.
+
+Four samples held such creations. They are migrated with the owner's approval,
+the one exception this spec takes to `samples/AGENTS.md` Rule 1, and their
+output is the same.
+
+- `samples/Attributes`: `LookupTable`'s constructor takes a
+  `ZeroOrPositiveInt`. The code blocks that mirror it in
+  [attribute-projection](../attribute-projection/requirements.md) and
+  [attributes-and-test-command](../attributes-and-test-command/requirements.md)
+  read the same.
+- `samples/SizedSequencePatterns`: `Produce`, `DescribeSpan` and
+  `DescribeReadOnly` take a `ZeroOrPositiveInt`.
+- `samples/NamedAllocationElements` and `samples/StampableTypes`:
+  `NextAllocationSize` and `NextSize` return a `ZeroOrPositiveInt` from behind
+  `if(size >= 0)`.
 
 ## Requirement 5 What is written in a slot
 

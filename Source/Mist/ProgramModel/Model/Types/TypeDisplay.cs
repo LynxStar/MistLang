@@ -18,7 +18,7 @@ internal static class TypeDisplay
 {
     public static string Mist(IMistType type)
     {
-        return Render(type, spell: null);
+        return Render(Read(type), spell: null);
     }
 
     /// <summary>
@@ -32,7 +32,7 @@ internal static class TypeDisplay
     public static IReadOnlyList<string> Distinguished(IReadOnlyList<IMistType> types)
     {
         var shown = new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance);
-        var plain = types.Select(type => Render(type, parameter =>
+        var plain = types.Select(type => Render(Read(type), parameter =>
         {
             _ = shown.Add(parameter);
             return null;
@@ -48,29 +48,41 @@ internal static class TypeDisplay
 
         return labels.Count == 0
             ? plain
-            : [.. types.Select(type => Render(type, parameter => labels.GetValueOrDefault(parameter)))];
+            : [.. types.Select(type => Render(Read(type), parameter => labels.GetValueOrDefault(parameter)))];
     }
 
     /// <summary>
-    /// True when the type is, or holds outside a slot, a slot's argument: the type of a read of that
-    /// slot, which a program sees as the slot's domain. <c>string s = ring.Capacity;</c> is refused
-    /// for an <c>int</c>, not for the <c>4</c> or the <c>n</c> the ring was closed with, and so is
-    /// <c>(ring.Capacity, 1)</c> for an <c>(int, int)</c>. Inside a slot the argument is the value
-    /// itself, so <c>int[n]</c> and <c>Ring&lt;4&gt;</c> are spelled as written.
+    /// True when the type is a slot's argument standing alone, or holds a capture or <c>unknown</c>
+    /// outside a slot: the type of a read of that slot, which a program sees as the slot's domain.
+    /// <c>string s = ring.Capacity;</c> is refused for an <c>int</c>, not for the <c>4</c> or the
+    /// <c>n</c> the ring was closed with, and so is <c>(ring.Capacity, 1)</c> for an <c>(int, int)</c>.
+    /// Inside a slot the argument is the value itself, so <c>int[n]</c> and <c>Ring&lt;4&gt;</c> are
+    /// spelled as written; so is a literal inside any other type, since <c>Box&lt;4&gt;</c> is a type
+    /// the source writes itself and the same model type as a read inferred into that position.
     /// </summary>
     public static bool HoldsSlotRead(IMistType type)
     {
+        return type is LiftedType { Value: not TypePackValue } || HoldsValue(type);
+    }
+
+    private static bool HoldsValue(IMistType type)
+    {
         return type switch
         {
-            LiftedType { Value: not TypePackValue } or CapturedValue or UnknownValueType => true,
-            ConstructedType constructed => constructed.TypeArguments.Where((argument, position) => !IsSlot(constructed, position) && HoldsSlotRead(argument)).Any()
-                || (constructed.Enclosing is { } enclosing && HoldsSlotRead(enclosing)),
-            UnionType union => union.Constituents.Any(HoldsSlotRead),
-            ITupleType tuple => tuple.ElementTypes.Any(HoldsSlotRead),
-            FunctionType function => function.ParameterTypes.Any(HoldsSlotRead) || HoldsSlotRead(function.ReturnType),
-            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => HoldsSlotRead(refined.BaseType),
+            CapturedValue or UnknownValueType => true,
+            ConstructedType constructed => constructed.TypeArguments.Where((argument, position) => !IsSlot(constructed, position) && HoldsValue(argument)).Any()
+                || (constructed.Enclosing is { } enclosing && HoldsValue(enclosing)),
+            UnionType union => union.Constituents.Any(HoldsValue),
+            ITupleType tuple => tuple.ElementTypes.Any(HoldsValue),
+            FunctionType function => function.ParameterTypes.Any(HoldsValue) || HoldsValue(function.ReturnType),
+            RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => HoldsValue(refined.BaseType),
             _ => false,
         };
+    }
+
+    private static IMistType Read(IMistType type)
+    {
+        return type is LiftedType { Value: not TypePackValue } lifted ? lifted.Type : type;
     }
 
     private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
@@ -82,7 +94,7 @@ internal static class TypeDisplay
 
         return type switch
         {
-            LiftedType { Value: not TypePackValue } lifted => mist(lifted.Type),
+            LiftedType { Value: not TypePackValue } lifted => lifted.Name,
             CapturedValue captured => mist(captured.Domain),
             UnknownValueType unknownValue => mist(unknownValue.Domain),
 

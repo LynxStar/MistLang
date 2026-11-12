@@ -46,7 +46,7 @@ internal static class PropertyEmitter
             writer.Write("}");
         }
 
-        if(storage is null && property.Initializer is { } initializer && (property.Modifiers.IsStatic || !DefaultWitnesses.Deferred(initializer)))
+        if(storage is null && property.Initializer is { } initializer && (property.Modifiers.IsStatic || !DefaultWitnesses.Deferred(initializer, property.DeclaringType)))
         {
             writer.Append(" = ");
             hosted = StatementHost.Emit(initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);
@@ -63,7 +63,7 @@ internal static class PropertyEmitter
         var isStatic = property.Modifiers.IsStatic;
         var modifiers = isStatic ? "private static " : property.DeclaringType is { IsReadonly: true } ? "private readonly " : "private ";
 
-        if(property.Initializer is null || (!isStatic && DefaultWitnesses.Deferred(property.Initializer)))
+        if(property.Initializer is null || (!isStatic && DefaultWitnesses.Deferred(property.Initializer, property.DeclaringType)))
         {
             writer.WriteLine($"{modifiers}{typeName} {name};");
             return null;

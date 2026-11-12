@@ -102,6 +102,7 @@ internal static class ValueRouteEmitter
         using(writer.Block())
         {
             EmitAssignments(type, writer);
+            DefaultWitnesses.EmitInitializers(type, writer, diagnostics);
         }
     }
 

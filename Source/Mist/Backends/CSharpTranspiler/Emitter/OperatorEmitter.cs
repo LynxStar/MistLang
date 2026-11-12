@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 
@@ -18,6 +19,7 @@ internal static class OperatorEmitter
             return;
         }
 
+        using var reach = SlotReach.OfOperator(op);
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);
         var returnType = MethodEmitter.EmitReturnType(op);
         var parameters = ParameterEmitter.Emit(op.ParametersList, diagnostics);

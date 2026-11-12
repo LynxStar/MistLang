@@ -20,7 +20,9 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// The value route over hand-built declarations (runtime-dependent-values design, <em>The value
 /// route</em>): where a slot's value lives once it leaves the C# type parameter list, how a read, a
-/// test and a call reach it, and the four shapes the backend refuses rather than miscompiles.
+/// test and a call reach it, the shapes the backend refuses rather than miscompiles, and the places a
+/// bare read of a slot lands where no hidden member carries it: an operator, a nested type, an attribute
+/// argument and a restated default.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ValueRouteEmissionTests
@@ -721,6 +723,157 @@ public sealed class ValueRouteEmissionTests
 
         var refusal = Assert.Single(Refused(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Tested(nested, "items"))));
         Assert.Equal("MIST0013", refusal.Number.Value);
+    }
+
+    [Fact]
+    public void AnOperatorReadsTheOwnersSlotFromTheOperandThatCarriesIt()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var closing = slots.Closed(ring, capacity);
+        var plus = new Operator(OperatorKind.Plus, slots.Int, [new Parameter("a", closing), new Parameter("b", closing)], new MemberModifiers { IsStatic = true, Accessibility = Accessibility.Public })
+        {
+            DeclaringType = ring,
+            Body = HandBuiltModel.Block(new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), slots.Int)),
+        };
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+
+        OperatorEmitter.Emit(plus, writer, diagnostics);
+
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        var lines = Lines(writer);
+        Assert.Contains("public static int operator +(Probe.Ring a, Probe.Ring b)", lines);
+        Assert.Contains("return a.__Capacity;", lines);
+    }
+
+    [Fact]
+    public void AConversionReadsTheOwnersSlotFromItsOperandAndOneWhoseOperandDoesNotCarryItIsRefused()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var closing = slots.Closed(ring, capacity);
+        var outOf = new CastOperator(slots.Int, new Parameter("m", closing), isImplicit: false, new MemberModifiers { IsStatic = true, Accessibility = Accessibility.Public })
+        {
+            DeclaringType = ring,
+            Body = HandBuiltModel.Block(Read()),
+        };
+        var into = new CastOperator(closing, new Parameter("v", slots.Int), isImplicit: true, new MemberModifiers { IsStatic = true, Accessibility = Accessibility.Public })
+        {
+            DeclaringType = ring,
+            Body = HandBuiltModel.Block(Read()),
+        };
+        var writer = new CSharpWriter();
+        var kept = new DiagnosticBag();
+        var refused = new DiagnosticBag();
+
+        CastOperatorEmitter.Emit(outOf, writer, kept);
+        CastOperatorEmitter.Emit(into, new CSharpWriter(), refused);
+
+        Assert.False(kept.HasErrors, string.Join("\n", kept.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        Assert.Contains("public static explicit operator int(Probe.Ring m)", Lines(writer));
+        Assert.Contains("return m.__Capacity;", Lines(writer));
+        var refusal = Assert.Single(refused.ToImmutableArray());
+        Assert.Equal("MIST0499", refusal.Number.Value);
+        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the conversion from 'int', whose operand does not carry it", refusal.Message, StringComparison.Ordinal);
+
+        ReturnStatement Read()
+        {
+            return new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), slots.Int);
+        }
+    }
+
+    [Fact]
+    public void ANestedTypeReadingItsEnclosingTypesSlotIsRefusedAndItsNameDropsTheSlot()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var inner = new ClassType("Inner", "Probe", new Scope(ring.Scope), ring, new BodyTypeTypeDeclarationNode())
+        {
+            Modifiers = new MemberModifiers { Accessibility = Accessibility.Public },
+        };
+        inner.MethodsList.Add(new Method("Get", slots.Int, [], new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = inner,
+            Body = HandBuiltModel.Block(new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), slots.Int)),
+        });
+        var diagnostics = new DiagnosticBag();
+
+        TypeEmitter.EmitTypeBody(inner, ConstraintClosureMap.Build(slots.Refinements.Built.Model, diagnostics), slots.Refinements.Built.Model.VariadicUses, new CSharpWriter(), diagnostics);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refusal.Number.Value);
+        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the nested type 'Inner'", refusal.Message, StringComparison.Ordinal);
+        var pair = (ClassType)HandBuiltSlots.Generic(new ClassType("Pair<>", "Probe", new Scope(ring.Scope), ring, new BodyTypeTypeDeclarationNode()), "M", slots.Int);
+        Assert.StartsWith("Probe.Ring.Pair<", TypeNameEmitter.Emit(slots.Closed(pair, slots.Literal(2))), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnAttributeArgumentReadingAValueRoutedSlotIsRefused()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var attribute = new DeclaredAttribute(HandBuiltModel.Class("Marker"), [new TypeReferenceExpression(HandBuiltModel.Node(), capacity)], []);
+        var diagnostics = new DiagnosticBag();
+
+        AttributeEmitter.EmitLines([attribute], new CSharpWriter(), diagnostics);
+
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refusal.Number.Value);
+        Assert.Contains("cannot be read in an attribute argument, which is a constant", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnInstanceInitializerOfAValueRoutedTypeRunsInTheConstructorAfterTheHiddenFieldIsSet()
+    {
+        var counter = (ClassType)HandBuiltSlots.Generic(HandBuiltModel.Class("Counter<>"), "N", slots.Int);
+        counter.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        TypeParameterDomainResolver.ProjectValues(counter);
+        var n = counter.TypeParametersList[0];
+        counter.FieldsList.Add(new Field("Cap", slots.Int, OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = counter,
+            Initializer = new TypeReferenceExpression(HandBuiltModel.Node(), n),
+        });
+        counter.PropertiesList.Add(new Property("Twice", slots.Int, new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = counter,
+            Getter = new PropertyAccessor { IsAuto = true },
+            Initializer = new TypeReferenceExpression(HandBuiltModel.Node(), n),
+        });
+        using var routes = SlotRoutes.Enter([n]);
+
+        var lines = TypeBody(counter);
+
+        Assert.Contains("public int Cap;", lines);
+        Assert.Contains("public int Twice { get; }", lines);
+        var set = lines.IndexOf("this.__N = __N;");
+        var cap = lines.IndexOf("this.Cap = __N;");
+        var twice = lines.IndexOf("this.Twice = __N;");
+        Assert.True(set >= 0 && set < cap && cap < twice, string.Join("\n", lines));
+    }
+
+    [Fact]
+    public void ARestatedDefaultReadsTheAbstractsSlotAsTheImplementingTypesClosingSuppliesIt()
+    {
+        var (sized, n) = Sized();
+        sized.MethodsList.Add(new Method("Twice", slots.Int, [], new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = sized,
+            Body = HandBuiltModel.Block(new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), n), slots.Int)),
+        });
+        var tiny = HandBuiltModel.Class("Tiny");
+        tiny.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        tiny.BaseAbstractTypes.Add(slots.Closed(sized, slots.Literal(8)));
+        var flex = (ClassType)HandBuiltSlots.Generic(HandBuiltModel.Class("Flex<>"), "M", slots.Int);
+        flex.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        flex.BaseAbstractTypes.Add(slots.Closed(sized, flex.TypeParametersList[0]));
+        using var routes = SlotRoutes.Enter([n, flex.TypeParametersList[0]]);
+
+        Assert.Contains("return __N;", TypeBody(sized));
+        Assert.Contains("return 8;", TypeBody(tiny));
+        Assert.Contains("return __M;", TypeBody(flex));
+    }
+
+    private static List<string> Lines(CSharpWriter writer)
+    {
+        return [.. writer.ToString().Split('\n').Select(line => line.Trim())];
     }
 
     private (ExtensionBlock Block, TypeParameter N) ArrayBlock()

@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
@@ -28,6 +29,7 @@ internal static class CastOperatorEmitter
             return;
         }
 
+        using var reach = SlotReach.OfOperator(castOperator);
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var nullableCopy = castOperator.CopiesClone && TypeNameEmitter.IsReferenceKind(castOperator.TargetType);

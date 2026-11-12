@@ -103,6 +103,7 @@ internal static class TypeEmitter
         DiagnosticBag diagnostics)
     {
         using var emission = EmissionDiagnostics.Enter(diagnostics, type.DeclarationNode);
+        using var reach = SlotReach.OfNested(type);
         var closedConstraints = ValueRouteEmitter.ClosableConstraints(type, closures.For(type), diagnostics);
 
         if(type.DeclaringType is null)
@@ -356,6 +357,7 @@ internal static class TypeEmitter
             foreach(var inherited in restated)
             {
                 using var through = Substituting(inherited.Path);
+                using var answering = SlotReach.OfRestated(inherited.Method, inherited.Path, diagnostics);
                 SeparateMember(writer, ref anyEmitted);
                 EmitRestatedDefault(inherited.Method, writer, diagnostics, owner: type);
             }

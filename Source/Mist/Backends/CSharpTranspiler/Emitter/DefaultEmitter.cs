@@ -63,7 +63,7 @@ internal static class DefaultEmitter
         {
             ValueRouteEmitter.EmitAssignments(type, writer);
             DefaultWitnesses.EmitAssignments(type, writer);
-            EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
+            EmitAssignments(type, DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
 
         SeparateMember(writer, ref anyEmitted);
@@ -136,12 +136,14 @@ internal static class DefaultEmitter
             ValueRouteEmitter.EmitAssignments(type, writer);
             DefaultWitnesses.EmitAssignments(type, writer);
             using var witnessing = DefaultWitnesses.Witnessing(type);
-            EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
+            EmitAssignments(type, DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
     }
 
-    private static void EmitAssignments(List<DefaultAssignment> assignments, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static void EmitAssignments(ConcreteType type, List<DefaultAssignment> assignments, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var within = BodyEmitter.Within(type);
+
         foreach(var assignment in assignments)
         {
             var (slot, value, binding) = assignment;
@@ -156,7 +158,7 @@ internal static class DefaultEmitter
             // FieldEmitter and PropertyEmitter write the initializer onto the declaration, and C# runs
             // initializers in every constructor that does not chain to another -- this one included -- so
             // the slot already holds it here, and assigning it again would run the initializer twice.
-            if(value is not null && ReferenceEquals(value, slot.Initializer) && !DefaultWitnesses.Deferred(value))
+            if(value is not null && ReferenceEquals(value, slot.Initializer) && !DefaultWitnesses.Deferred(value, DefaultWitnesses.Declaring(slot)))
             {
                 continue;
             }

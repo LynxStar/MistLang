@@ -1600,7 +1600,7 @@ internal static partial class BodyEmitter
 
 
             case TypeLiteralExpression typeLiteral:
-                if(SlotRoutes.ValueRouted(TypeNameEmitter.Closed(typeLiteral.ReferencedType)) is [var routed, ..])
+                if(RoutedTypeValue(TypeNameEmitter.Closed(typeLiteral.ReferencedType)) is { } routed)
                 {
                     diagnostics.ReportAtNodeTyped(
                         BackendDiagnostics.TypeValueOfValueRoutedClosing, typeLiteral.Node, null,

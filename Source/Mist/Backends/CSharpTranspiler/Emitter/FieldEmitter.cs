@@ -53,7 +53,7 @@ internal static class FieldEmitter
             modifiers, emitReadonly: modifiers.IsReadonly || inReadonlyType);
         var typeName = TypeNameEmitter.Emit(type);
 
-        if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer)))
+        if(field.Initializer is null || (!modifiers.IsStatic && DefaultWitnesses.Deferred(field.Initializer, field.DeclaringType)))
         {
             // AllowNull admits CLR-zero storage without an initializer that can reset earlier static writes.
             if(field.Initializer is null && field.DeclaringType is ClassType

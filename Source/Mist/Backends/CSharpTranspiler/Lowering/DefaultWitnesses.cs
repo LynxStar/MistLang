@@ -148,6 +148,16 @@ internal static class DefaultWitnesses
         return arguments;
     }
 
+    /// <summary>
+    /// Every instance initializer of a value-routed type, whatever it reads: C# refuses an initializer that
+    /// names an instance member, and the hidden slot field is one, so they run in the constructors after it
+    /// is set (<see cref="EmitInitializers"/>). An ordinary type keeps its initializers where they stand.
+    /// </summary>
+    public static bool Deferred(Expression expression, MemberType? declaring)
+    {
+        return SlotRoutes.ValueRouted(declaring).Count > 0 || Deferred(expression);
+    }
+
     public static bool Deferred(Expression expression)
     {
         return BodyWalker.DescendantsAndSelf(expression).OfType<Expression>().Any(node => node switch
@@ -166,13 +176,15 @@ internal static class DefaultWitnesses
 
     public static void EmitInitializers(ConcreteType declaration, CSharpWriter writer, Common.Diagnostics.DiagnosticBag diagnostics)
     {
+        using var within = BodyEmitter.Within(declaration);
+
         foreach(var assignment in DefaultSynthesis.FlattenedAssignments(declaration))
         {
             using var through = TypeEmitter.Substituting(assignment.Path);
 
             var slot = BackingStorage.Slot(assignment.Storage);
 
-            if(assignment.Storage.Initializer is { } initializer && Deferred(initializer))
+            if(assignment.Storage.Initializer is { } initializer && Deferred(initializer, Declaring(assignment.Storage)))
             {
                 BodyEmitter.EmitSequenced(initializer, $"this.{slot} = ", writer, diagnostics);
             }
@@ -191,6 +203,11 @@ internal static class DefaultWitnesses
                 writer.WriteLine($"this.{slot} = default({TypeEmitter.EmitTypeName(declaration)}).{slot}!;");
             }
         }
+    }
+
+    public static MemberType? Declaring(InstanceStorage storage)
+    {
+        return storage.Field?.DeclaringType ?? storage.Property?.DeclaringType;
     }
 
     public static void EmitStorage(ConcreteType declaration, CSharpWriter writer)

@@ -66,6 +66,7 @@ internal static class CarriedOperator
 
     public static void Emit(Operator op, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var reach = SlotReach.OfOperator(op);
         writer.WriteLine($"public static {MethodEmitter.EmitSignature(op, diagnostics, Name(op))}");
         using(writer.Block())
         {

@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
 
@@ -48,6 +49,7 @@ internal static class AttributeEmitter
 
     private static void Render(DeclaredAttribute attribute, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var reach = SlotReach.OfAttributeArgument();
         writer.Append(TypeNameEmitter.Emit(attribute.AttributeType));
 
         if(attribute.PositionalArguments.Count == 0 && attribute.NamedArguments.Count == 0)

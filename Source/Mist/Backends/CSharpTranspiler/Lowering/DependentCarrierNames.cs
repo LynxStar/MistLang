@@ -60,7 +60,7 @@ internal static class DependentCarrierNames
 
         if(SlotRoutes.IsValueRouted(parameter))
         {
-            return SlotRoutes.Hidden(parameter);
+            return SlotReach.Read(parameter);
         }
 
         return DependentDomains.Primitive(domain) is { } primitive && DependentDomains.KindOf(primitive) == DependentKind.Integral

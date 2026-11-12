@@ -546,9 +546,10 @@ internal static class TypeNameEmitter
     /// </summary>
     private static string Qualified(DeclaredType type)
     {
-        var segment = type is MemberType { TypeParametersList.Count: > 0 } generic
-            ? $"{IdentifierSpelling.Of(MistType.StripArity(generic.Name))}<{string.Join(", ", generic.TypeParametersList.Select(p => IdentifierSpelling.Of(p.Name)))}>"
-            : IdentifierSpelling.Of(type.Name);
+        var carried = type is MemberType generic ? generic.TypeParametersList.Where(parameter => !SlotRoutes.IsValueRouted(parameter)).ToList() : [];
+        var segment = carried.Count > 0
+            ? $"{IdentifierSpelling.Of(MistType.StripArity(type.Name))}<{string.Join(", ", carried.Select(p => IdentifierSpelling.Of(p.Name)))}>"
+            : IdentifierSpelling.Of(MistType.StripArity(type.Name));
 
         if(type.DeclaringType is DeclaredType declaring)
         {

@@ -374,4 +374,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("method", SlotKind.Name), new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic ValueRoutedSlotOutOfReach = new(
+        DiagnosticNumber.Mint("MIST0499"),
+        Title: "Value-routed slot read out of reach",
+        Template: "'{parameter}' of '{owner}' cannot be read in {site}: it is closed somewhere with a value known only when the program runs, which the C# backend carries in each instance and in a hidden parameter of the owner's own members, and neither reaches here.",
+        Description: "A dependent parameter closed somewhere with a runtime value leaves the C# type, and its value lives in a hidden field of each instance and in a hidden leading parameter of the owner's constructors, static members and methods. A C# operator or conversion takes no hidden parameter, so it reads the value from an operand whose type carries the slot, and a conversion into the type from one that does not carry it has no operand to read. A type nested in the owner is not an instance of it, and an attribute argument is a constant. Read the value through an operand or an instance, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("owner", SlotKind.Name), new Slot("site", SlotKind.Enum)]);
 }

@@ -19,12 +19,35 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// length or its hidden field. The hidden argument comes first in the C# call, so the receiver and every
 /// argument written before the carrier are bound with it, in source order, or they would run after it. A
 /// method group has no argument yet, so its lambda reads each slot from the delegate's parameter that
-/// carries it, or from the receiver bound when the group was formed.
+/// carries it, or from the receiver bound when the group was formed. A value-routed type's deferred
+/// initializers run with the type as the enclosing one, so a static call they make finds its owner's
+/// closing; an ordinary type's run as they always have, with none.
 /// </summary>
 internal static partial class BodyEmitter
 {
     [ThreadStatic]
     private static NewExpression? discarding;
+
+    internal static IDisposable? Within(MemberType type)
+    {
+        return SlotRoutes.ValueRouted(type).Count > 0 ? new Enclosing(type) : null;
+    }
+
+    private sealed class Enclosing : IDisposable
+    {
+        private readonly IMistType? previous;
+
+        public Enclosing(MemberType type)
+        {
+            previous = enclosingType;
+            enclosingType = type;
+        }
+
+        public void Dispose()
+        {
+            enclosingType = previous;
+        }
+    }
 
     internal static string? SlotValue(IMistType argument, DiagnosticBag? diagnostics)
     {
@@ -75,6 +98,13 @@ internal static partial class BodyEmitter
         }
 
         return values;
+    }
+
+    private static TypeParameter? RoutedTypeValue(IMistType type)
+    {
+        return type is TypeParameter parameter
+            ? SlotRoutes.IsValueRouted(parameter) ? parameter : null
+            : SlotRoutes.ValueRouted(type) is [var routed, ..] ? routed : null;
     }
 
     internal static List<(TypeParameter Slot, IMistType Argument)> RuntimeSlots(IMistType tested)
@@ -244,7 +274,7 @@ internal static partial class BodyEmitter
         };
 
         hidden.AddRange(closing is null
-            ? SlotRoutes.ValueRouted(owner).Select(slot => EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
+            ? SlotRoutes.ValueRouted(owner).Select(slot => DependentCarrierNames.ValueRead(slot) ?? EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
             : SlotValues(closing, diagnostics));
 
         return hidden;
@@ -355,8 +385,20 @@ internal static partial class BodyEmitter
     private static string? ReadThroughDelegateArgument(Method method, TypeParameter slot, IReadOnlyList<string> arguments)
     {
         return CarryingParameter(method, slot) is var (ordinal, closing, carried) && ordinal < arguments.Count
-            ? $"{arguments[ordinal]}.{(LengthErasure.IsLengthIndexed(closing) ? "Length" : SlotRoutes.Hidden(carried))}"
+            ? $"{arguments[ordinal]}.{CarriedMember(closing, carried)}"
             : null;
+    }
+
+    internal static string? OperandRead(Method method, TypeParameter slot)
+    {
+        return CarryingParameter(method, slot) is var (ordinal, closing, carried)
+            ? $"{IdentifierSpelling.Of(method.ParametersList[ordinal].Name)}.{CarriedMember(closing, carried)}"
+            : null;
+    }
+
+    private static string CarriedMember(ConstructedType closing, TypeParameter carried)
+    {
+        return LengthErasure.IsLengthIndexed(closing) ? "Length" : SlotRoutes.Hidden(carried);
     }
 
     private static (int Ordinal, ConstructedType Closing, TypeParameter Carried)? CarryingParameter(Method method, TypeParameter slot)

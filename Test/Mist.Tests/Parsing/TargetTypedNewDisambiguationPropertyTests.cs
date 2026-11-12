@@ -9,11 +9,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario for parsing disambiguation of new expressions.
-/// Includes a type name and an argument list to generate both fully-typed
-/// and target-typed new expressions.
-/// </summary>
 public sealed class NewDisambiguationScenario
 {
     public string TypeName { get; }
@@ -31,20 +26,10 @@ public sealed class NewDisambiguationScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for parsing disambiguation between fully-typed and target-typed new.
-///
-/// Property 2: For any valid type name and argument list, parsing <c>new TypeName(args)</c>
-/// SHALL always produce an <see cref="ObjectCreationExpressionPrimaryNode"/>, never a
-/// <see cref="TargetTypedNewExpressionPrimaryNode"/>. The target-typed alternative is only
-/// selected when no type name is present between <c>new</c> and <c>(</c>.
-/// </summary>
 public class TargetTypedNewDisambiguationPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     private static readonly string[] ValidTypeNames =
         ["Point", "Config", "Settings", "Options", "Data", "State", "Node", "Item", "Result", "Value"];
@@ -63,8 +48,6 @@ public class TargetTypedNewDisambiguationPropertyTests
 
         return gen.ToArbitrary();
     }
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode? ParseSource(string source)
     {
@@ -85,35 +68,23 @@ public class TargetTypedNewDisambiguationPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Builds source for a fully-typed new expression: <c>new TypeName(args)</c>.
-    /// </summary>
     private static string BuildFullyTypedNewSource(NewDisambiguationScenario scenario)
     {
         var args = string.Join(", ", scenario.Arguments);
         return $"class Test {{ void Run() {{ var x = new {scenario.TypeName}({args}); }} }}";
     }
 
-    /// <summary>
-    /// Builds source for a target-typed new expression: <c>new(args)</c>.
-    /// </summary>
     private static string BuildTargetTypedNewSource(NewDisambiguationScenario scenario)
     {
         var args = string.Join(", ", scenario.Arguments);
         return $"class Test {{ void Run() {{ {scenario.TypeName} x = new({args}); }} }}";
     }
 
-    /// <summary>
-    /// Builds source for a target-typed new with no args and property initializer: <c>new {{ ... }}</c>.
-    /// </summary>
     private static string BuildTargetTypedNewNoArgsSource(NewDisambiguationScenario scenario)
     {
         return $"class Test {{ void Run() {{ {scenario.TypeName} x = new {{ Name = 1 }}; }} }}";
     }
 
-    /// <summary>
-    /// Extracts the primary node from the first variable declaration initializer.
-    /// </summary>
     private static PrimaryNode? ExtractPrimaryFromFirstVar(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -161,9 +132,6 @@ public class TargetTypedNewDisambiguationPropertyTests
         return UnwrapToPrimary(initializer);
     }
 
-    /// <summary>
-    /// Unwraps an expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -202,14 +170,6 @@ public class TargetTypedNewDisambiguationPropertyTests
         return null;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2a: new TypeName(args) always produces ObjectCreationExpressionPrimaryNode
-    //
-    // For any valid type name and argument list, parsing `new TypeName(args)`
-    // SHALL always produce an ObjectCreationExpressionPrimaryNode, never a
-    // TargetTypedNewExpressionPrimaryNode.
-    // ═════════════════════════════════════════════════════════════════════════
-
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(TargetTypedNewDisambiguationPropertyTests) })]
@@ -235,13 +195,6 @@ public class TargetTypedNewDisambiguationPropertyTests
             .ToProperty()
             .Label($"Expected ObjectCreationExpressionPrimaryNode but got {primary.GetType().Name} for: {source}");
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2b: new(args) always produces TargetTypedNewExpressionPrimaryNode
-    //
-    // For any argument list, parsing `new(args)` (with no type name between
-    // `new` and `(`) SHALL always produce a TargetTypedNewExpressionPrimaryNode.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -269,15 +222,8 @@ public class TargetTypedNewDisambiguationPropertyTests
             .Label($"Expected TargetTypedNewExpressionPrimaryNode but got {primary.GetType().Name} for: {source}");
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2c: new { Name = expr } now produces AnonymousTypeExpressionPrimaryNode
-    //
-    // After anonymous types were added to the grammar (ordered before
-    // TargetTypedNewExpressionNoArgs), parsing `new { Name = 1 }` SHALL
-    // produce an AnonymousTypeExpressionPrimaryNode because the content
-    // matches AnonymousPropertyList.
-    // ═════════════════════════════════════════════════════════════════════════
-
+    // The grammar orders AnonymousTypeExpression before TargetTypedNewExpressionNoArgs, so
+    // `new { Name = 1 }` matches AnonymousPropertyList and is an anonymous type.
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(TargetTypedNewDisambiguationPropertyTests) })]

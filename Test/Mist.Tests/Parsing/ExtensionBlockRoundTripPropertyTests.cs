@@ -1,15 +1,5 @@
 // Feature: extension-methods, Property 1: Extension Block Round-Trip
-//
 // **Validates: Requirements 2.7, 4.4, 5.6, 6.7**
-//
-// For any valid extension block AST (including generic extensions, mixed
-// static/instance members, various receiver types, and multiple blocks in one
-// file), pretty-printing the AST and then parsing the resulting source text
-// SHALL produce an AST that, when pretty-printed again, yields identical
-// source text.
-//
-// All work runs in-process — no `dotnet` process is spawned per iteration
-// (in keeping with the workspace test-process-spawning policy).
 
 using FsCheck;
 using FsCheck.Fluent;
@@ -20,21 +10,10 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for extension block round-trip.
-///
-/// **Validates: Requirements 2.7, 4.4, 5.6, 6.7**
-///
-/// For any valid extension block AST (generic, non-generic, mixed static/instance,
-/// various receiver types, multiple blocks), pretty-printing → parsing →
-/// pretty-printing SHALL produce identical output.
-/// </summary>
 public class ExtensionBlockRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Scenario model ──────────────────────────────────────────────────
 
 #pragma warning disable CA1034
     public record ExtensionBlockScenario(
@@ -47,8 +26,6 @@ public class ExtensionBlockRoundTripPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── Building blocks for source generation ───────────────────────────
 
     private static readonly string[] ReceiverTypes =
     [
@@ -105,8 +82,6 @@ public class ExtensionBlockRoundTripPropertyTests
         "bool",
         "double",
     ];
-
-    // ─── Member generators ───────────────────────────────────────────────
 
     private static Gen<string> GenInstanceMethod()
     {
@@ -177,9 +152,6 @@ public class ExtensionBlockRoundTripPropertyTests
             GenBlockProperty());
     }
 
-    // ─── Extension block generators ──────────────────────────────────────
-
-    /// <summary>Non-generic extension block with primitive/named receiver.</summary>
     private static Gen<ExtensionBlockScenario> GenNonGenericExtensionBlock()
     {
         return from receiverType in Gen.OneOf(
@@ -195,10 +167,8 @@ public class ExtensionBlockRoundTripPropertyTests
                    source);
     }
 
-    /// <summary>Generic extension block with generic receiver type.</summary>
     private static Gen<ExtensionBlockScenario> GenGenericExtensionBlock()
     {
-        // Pick a generic receiver pattern and matching type params
         var genSingleTypeParam = from receiver in Gen.Elements("List<T>", "Optional<T>")
                                  from receiverName in Gen.Elements(ReceiverNames)
                                  from memberCount in Gen.Choose(1, 3)
@@ -221,7 +191,6 @@ public class ExtensionBlockRoundTripPropertyTests
         return Gen.OneOf(genSingleTypeParam, genTwoTypeParams);
     }
 
-    /// <summary>Extension block with mixed static and instance members.</summary>
     private static Gen<ExtensionBlockScenario> GenMixedStaticInstanceBlock()
     {
         return from receiverType in Gen.Elements(ReceiverTypes)
@@ -236,7 +205,6 @@ public class ExtensionBlockRoundTripPropertyTests
                    source);
     }
 
-    /// <summary>Multiple extension blocks in one file.</summary>
     private static Gen<ExtensionBlockScenario> GenMultipleExtensionBlocks()
     {
         return from type1 in Gen.Elements(ReceiverTypes)
@@ -254,7 +222,6 @@ public class ExtensionBlockRoundTripPropertyTests
                    source);
     }
 
-    /// <summary>Extension block with array receiver type.</summary>
     private static Gen<ExtensionBlockScenario> GenArrayReceiverBlock()
     {
         return from elemType in Gen.Elements("int", "string", "bool")
@@ -266,8 +233,6 @@ public class ExtensionBlockRoundTripPropertyTests
                    source);
     }
 
-    // ─── Combined scenario generator ─────────────────────────────────────
-
     private static Gen<ExtensionBlockScenario> GenScenario()
     {
         return Gen.OneOf(
@@ -278,23 +243,10 @@ public class ExtensionBlockRoundTripPropertyTests
             GenArrayReceiverBlock());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<ExtensionBlockScenario> ArbitraryExtensionBlockScenario()
     {
         return GenScenario().ToArbitrary();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Extension Block Round-Trip
-    //
-    // **Validates: Requirements 2.7, 4.4, 5.6, 6.7**
-    //
-    // For any valid extension block AST (generic, non-generic, mixed
-    // static/instance, various receiver types, multiple blocks),
-    // pretty-printing → parsing → pretty-printing SHALL produce identical
-    // output.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -303,7 +255,6 @@ public class ExtensionBlockRoundTripPropertyTests
     {
         var source = scenario.Source;
 
-        // Parse₁
         var sourceText1 = new Mist.Common.Source.SourceText("test.mist", source);
         var bag1 = new DiagnosticBag();
         var tokens1 = Lexer.Lex(sourceText1, bag1);
@@ -324,21 +275,18 @@ public class ExtensionBlockRoundTripPropertyTests
             return false.ToProperty().Label($"First-parse root was null for {scenario}\nSource:\n{source}");
         }
 
-        // Print₁
         var printed1 = MistPrettyPrinter.Print(ast1, source);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label($"printed1 was empty for {scenario}");
         }
 
-        // Sanity: the printed output must contain the `extension` keyword
         if(!printed1.Contains("extension"))
         {
             return false.ToProperty()
                 .Label($"printed1 lost the `extension` keyword for {scenario}\nSource:\n{source}\nPrinted:\n{printed1}");
         }
 
-        // Parse₂
         var sourceText2 = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag2 = new DiagnosticBag();
         var tokens2 = Lexer.Lex(sourceText2, bag2);
@@ -359,10 +307,8 @@ public class ExtensionBlockRoundTripPropertyTests
             return false.ToProperty().Label($"Reparse root was null for {scenario}\nPrinted:\n{printed1}");
         }
 
-        // Print₂
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Assert: Print₁ == Print₂
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch for {scenario}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

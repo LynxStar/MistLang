@@ -12,29 +12,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for type alias parsing correctness.
-///
-/// **Validates: Requirements 2.1, 2.2, 2.3**
-///
-/// For any valid type alias source string (simple, generic with 1–5 type parameters,
-/// or with union target types of 2–5 constituents), parsing the source SHALL produce
-/// a TypeAliasDeclarationNode whose Name, TypeParams, and Type fields correctly
-/// reflect the input.
-/// </summary>
 public class TypeAliasParserPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    // ─── FsCheck Arbitrary registration ─────────────────────────────────────
-
     public static Arbitrary<TypeAliasSourceScenario> ArbitraryTypeAliasSourceScenario()
     {
         return MistTypeAliasGenerator.ArbitraryTypeAliasSourceScenario();
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -87,28 +73,14 @@ public class TypeAliasParserPropertyTests
         return names;
     }
 
-    // ─── Property Test ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 1: Parsing produces correct AST structure.
-    ///
-    /// For any valid type alias source string, parsing SHALL produce a
-    /// TypeAliasDeclarationNode whose Name.Lexeme matches the expected alias name,
-    /// TypeParams is null when TypeParameterCount == 0 (otherwise has the correct count),
-    /// and type parameter names match the expected names.
-    ///
-    /// **Validates: Requirements 2.1, 2.2, 2.3**
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(TypeAliasParserPropertyTests) })]
     public Property Parsing_TypeAlias_ProducesCorrectAstStructure(TypeAliasSourceScenario scenario)
     {
         var cu = ParseOrFail(scenario.Source);
         var aliasDecl = ExtractTypeAlias(cu);
 
-        // Verify alias name matches
         var nameMatches = aliasDecl.Name.Lexeme == scenario.AliasName;
 
-        // Verify type parameters
         bool typeParamsCorrect;
         if(scenario.TypeParameterCount == 0)
         {
@@ -128,7 +100,6 @@ public class TypeAliasParserPropertyTests
             }
         }
 
-        // Verify type reference is not null (it was parsed)
         var typeRefPresent = aliasDecl.Type is not null;
 
         return (nameMatches && typeParamsCorrect && typeRefPresent).ToProperty()

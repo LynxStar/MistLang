@@ -8,23 +8,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying the parser produces the correct AST node kinds and modifiers
-/// for every variadic surface form:
-/// <list type="bullet">
-///   <item>type-parameter packs — the <c>params TArgs</c>, <c>Type[]:TArgs</c>, and
-///     <c>Type[N]:TArgs</c> spellings;</item>
-///   <item>the postfix spread suffix <c>...</c> in type-argument, member-declaration,
-///     base-type, tuple-type, and argument positions;</item>
-///   <item>value-side <c>params</c> — a value pack (<c>params TArgs args</c>) and a
-///     homogeneous value-level array (<c>params string[] parts</c>);</item>
-///   <item>flat (<c>Foo&lt;int, string&gt;</c>) versus bracketed
-///     (<c>Foo&lt;[int, string]&gt;</c> and empty <c>Foo&lt;[]&gt;</c>) type-argument lists;</item>
-///   <item>the more-than-one-<c>params</c> case, which parses WITHOUT a parse error
-///     (the at-most-one check is deferred to the program model).</item>
-/// </list>
-/// All parsing runs entirely in-process with zero external process spawns.
-/// </summary>
 public class VariadicsGrammarParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -38,7 +21,6 @@ public class VariadicsGrammarParsingTests
         return Parser.Parse(tokens, bag);
     }
 
-    /// <summary>Parses the source and asserts there are no error-severity diagnostics.</summary>
     private static CompilationUnitNode ParseOrFail(string source)
     {
         var result = ParseSource(source);
@@ -49,8 +31,6 @@ public class VariadicsGrammarParsingTests
             $"Unexpected parse errors:\n  {string.Join("\n  ", errors.Select(e => e.Message))}\nSource:\n{source}");
         return Assert.IsType<CompilationUnitNode>(result.Root);
     }
-
-    // ─── Navigation helpers ──────────────────────────────────────────────
 
     private static TypeBodyDeclarationNode GetTypeBody(CompilationUnitNode cu, int index = 0)
     {
@@ -79,7 +59,6 @@ public class VariadicsGrammarParsingTests
         return member.Field;
     }
 
-    /// <summary>Depth-first search for the first node of type <typeparamref name="T"/>.</summary>
     private static T? FindNode<T>(Storm.Runtime.SyntaxNode root) where T : Storm.Runtime.SyntaxNode
     {
         if(root is T target)
@@ -104,11 +83,6 @@ public class VariadicsGrammarParsingTests
         return null;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.1 — `params TArgs` and `Type[]:TArgs` are both valid
-    // type-parameter productions (interchangeable spellings of one pack).
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ParamsPack_TypeParameter_ProducesParamsPackNode()
     {
@@ -129,10 +103,6 @@ public class VariadicsGrammarParsingTests
         _ = Assert.IsType<UnsizedArrayRankArrayRankSuffixNode>(pack.ArrayRank);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.2 — the fixed-size domain annotation `Type[N]:TArgs`.
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ExplicitFixedSizePack_TypeParameter_ProducesExplicitPackNodeWithSizedRank()
     {
@@ -144,12 +114,6 @@ public class VariadicsGrammarParsingTests
         var sized = Assert.IsType<SizedArrayRankArrayRankSuffixNode>(pack.ArrayRank);
         Assert.Equal("2", sized.Size.Lexeme);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.3 — the postfix spread suffix `...` is accepted in
-    // type-argument lists, member-declaration type positions, base-type lists,
-    // tuple-type element lists, and argument lists.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void Spread_InTypeArgumentList_ProducesSpreadSingleTypeRef()
@@ -206,12 +170,6 @@ public class VariadicsGrammarParsingTests
         Assert.NotNull(spreadSuffix);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.4 — a leading `params` modifier on a value parameter is a
-    // valid production whether the declared type is a pack type parameter
-    // (`params TArgs args`) or an array type (`params string[] parts`).
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void ValuePack_Parameter_SetsParamsModifierWithPackType()
     {
@@ -241,13 +199,6 @@ public class VariadicsGrammarParsingTests
         Assert.Equal("parts", param.Name.Lexeme);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirements 1.5 & 1.6 — a `params` inside a type-parameter list parses as
-    // a Type_Parameter_Pack, while a `params` inside a value-parameter list parses
-    // as a value-side params parameter. The two are disambiguated by position, so
-    // a method may carry both at once (`M<params TArgs>(params TArgs args)`).
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void MethodLevelPack_And_ValuePack_AreDisambiguatedByPosition()
     {
@@ -255,22 +206,13 @@ public class VariadicsGrammarParsingTests
 
         var method = GetFirstMethod(cu);
 
-        // The `params` inside `<...>` is a type-parameter pack.
         Assert.NotNull(method.TypeParams);
         var typePack = Assert.IsType<ParamsPackTypeParameterTypeParameterNode>(method.TypeParams!.TypeParameter);
         Assert.Equal("TArgs", typePack.Name.Lexeme);
 
-        // The `params` inside the value-parameter list is a value-side params parameter.
         Assert.NotNull(method.Parameters);
         _ = Assert.NotNull(method.Parameters!.Parameter.ParamsModifier);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.7 — a flat type-argument list (`Foo<int, string>`) parses
-    // through the existing type-argument-list rule into flat type-argument nodes,
-    // while a bracketed pack (`Foo<[int, string]>` / `Foo<[]>`) parses into a
-    // BracketedPackTypeArgument node. Neither form is normalized into the other.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void FlatTypeArgumentList_ProducesFlatTypeReferenceArguments()
@@ -280,7 +222,6 @@ public class VariadicsGrammarParsingTests
         var named = Assert.IsType<NamedSingleTypeRefSingleTypeRefNode>(GetFirstField(cu).Type.First);
         Assert.NotNull(named.TypeArgs);
 
-        // First argument `int` is a flat type reference — NOT a bracketed pack.
         _ = Assert.IsType<TypeReferenceTypeArgumentTypeArgumentNode>(named.TypeArgs!.TypeArgument);
 
         // Second argument `string` is also a flat type reference.
@@ -313,13 +254,7 @@ public class VariadicsGrammarParsingTests
         Assert.Null(bracketed.PackElements);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 1.8 — more than one `params` in a single type-parameter or
-    // value-parameter list parses WITHOUT a parse-error diagnostic; each `params`
-    // is parsed as a valid pack declaration and the at-most-one check (MIST0404)
-    // is left to the program model.
-    // ═══════════════════════════════════════════════════════════════════════
-
+    // The at-most-one `params` check (MIST0404) belongs to the program model, not the parser.
     [Fact]
     public void MultipleParams_InTypeParameterList_ParsesWithoutParseError()
     {

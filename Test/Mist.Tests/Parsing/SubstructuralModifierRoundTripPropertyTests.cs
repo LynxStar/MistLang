@@ -13,31 +13,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for substructural-modifier round-trip parsing.
-///
-/// Feature: drop-semantics, Property 21: Parsing round-trip
-/// **Validates: Requirements 1.1, 1.2**
-///
-/// For any valid type declaration containing an <c>affine</c>, <c>linear</c>, or
-/// <c>relevant</c> modifier (optionally combined with <c>public</c>/<c>static</c>),
-/// parsing then printing the AST SHALL preserve the modifier in the output.
-///
-/// Runs fully in-process (lex/parse only) and spawns 0 external processes.
-/// </summary>
 public class SubstructuralModifierRoundTripPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<SubstructuralModifierSourceScenario> ArbitrarySubstructuralModifierSourceScenario()
     {
         return MistSubstructuralModifierGenerator.GenSubstructuralTypeDeclaration().ToArbitrary();
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -60,23 +44,11 @@ public class SubstructuralModifierRoundTripPropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 21: Parsing round-trip for substructural modifiers
-    //
-    // **Validates: Requirements 1.1, 1.2**
-    //
-    // For any valid type declaration with a substructural modifier, parsing then
-    // printing the AST preserves that modifier in the printed output, and the
-    // print/parse/print cycle is idempotent.
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SubstructuralModifierRoundTripPropertyTests) })]
     public Property RoundTrip_SubstructuralModifierPreserved(SubstructuralModifierSourceScenario scenario)
     {
-        // Step 1: Parse the generated source.
         var ast1 = ParseOrFail(scenario.Source);
 
-        // Step 2: Pretty-print AST1 → printed1.
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
@@ -84,7 +56,6 @@ public class SubstructuralModifierRoundTripPropertyTests
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // The substructural modifier must appear as a standalone keyword in the output.
         var modifierPreserved = ContainsKeyword(printed1, scenario.Modifier);
 
         return modifierPreserved.ToProperty()
@@ -108,8 +79,6 @@ public class SubstructuralModifierRoundTripPropertyTests
         return (printed1 == printed2).ToProperty()
             .Label($"Round-trip mismatch.\nSource:\n{scenario.Source}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }
-
-    // ─── Example-based sanity checks ──────────────────────────────────────
 
     [Theory]
     [InlineData("affine", "class")]
@@ -139,7 +108,6 @@ public class SubstructuralModifierRoundTripPropertyTests
         var ast = ParseOrFail(source);
         var printed = MistPrettyPrinter.Print(ast, source);
 
-        // Every whitespace-separated modifier keyword in the header must survive.
         foreach(var keyword in header.Split(' ').Where(w => w is "public" or "static" or "affine" or "linear" or "relevant"))
         {
             Assert.True(ContainsKeyword(printed, keyword),
@@ -147,11 +115,7 @@ public class SubstructuralModifierRoundTripPropertyTests
         }
     }
 
-    /// <summary>
-    /// Returns true when <paramref name="keyword"/> appears in <paramref name="text"/>
-    /// as a standalone word (bounded by non-identifier characters), avoiding false
-    /// positives from substrings inside type names.
-    /// </summary>
+    /// <summary>Matches whole words only, so a keyword inside a type name is not a false positive.</summary>
     private static bool ContainsKeyword(string text, string keyword)
     {
         var index = 0;

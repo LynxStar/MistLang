@@ -7,16 +7,10 @@ using Mist.Parsing.Contracts;
 namespace Mist.Tests.Parsing;
 
 /// <summary>
-/// Verifies the round-trip property for top-level statements:
-/// parse → pretty-print → parse → pretty-print produces identical output.
-///
 /// Structural AST equivalence is asserted by comparing the two printed outputs.
 /// Because the pretty printer is deterministic and one-to-one on structure,
 /// equality of printed outputs is a strong proxy for structural equivalence.
-///
-/// All work runs in-process — no external process is spawned.
-///
-/// **Validates: Requirement 8.2**
+/// **Validates: Requirements 8.1, 8.2**
 /// </summary>
 public class TopLevelStatementRoundTripTests
 {
@@ -40,49 +34,35 @@ public class TopLevelStatementRoundTripTests
         return cu;
     }
 
-    /// <summary>
-    /// Asserts the full round-trip: source → AST₁ → print₁ → AST₂ → print₂,
-    /// verifying print₁ == print₂ (structural equivalence) and that both ASTs
-    /// contain the expected number of StatementItemTopLevelItemNode entries.
-    /// </summary>
     private static void AssertRoundTripPreserved(string source, int expectedStatementCount)
     {
-        // Step 1: Parse the original source
         var ast1 = ParseOrFail(source);
 
-        // Verify AST₁ contains top-level statements
         var stmtItems1 = ast1.Items
             .OfType<StatementItemTopLevelItemNode>()
             .ToList();
         Assert.Equal(expectedStatementCount, stmtItems1.Count);
 
-        // Step 2: Pretty-print AST₁ → print₁
         var printed1 = MistPrettyPrinter.Print(ast1, source);
         Assert.False(string.IsNullOrWhiteSpace(printed1),
             $"Pretty printer produced empty output for source:\n{source}");
 
-        // Step 3: Parse print₁ → AST₂
         var ast2 = ParseOrFail(printed1);
 
-        // Verify AST₂ also contains the same number of top-level statements
         var stmtItems2 = ast2.Items
             .OfType<StatementItemTopLevelItemNode>()
             .ToList();
         Assert.Equal(expectedStatementCount, stmtItems2.Count);
 
-        // Verify same total item count (statements + declarations)
         Assert.Equal(ast1.Items.Length, ast2.Items.Length);
 
-        // Verify same item types in same order
         for(var i = 0; i < ast1.Items.Length; i++)
         {
             Assert.Equal(ast1.Items[i].GetType(), ast2.Items[i].GetType());
         }
 
-        // Step 4: Pretty-print AST₂ → print₂
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Step 5: Assert print₁ == print₂ (idempotence / structural equivalence)
         Assert.Equal(printed1, printed2);
     }
 
@@ -178,7 +158,6 @@ public class TopLevelStatementRoundTripTests
             }
             """;
 
-        // 2 statements + 1 type declaration = 3 items total, but only 2 are statements
         AssertRoundTripPreserved(source, expectedStatementCount: 2);
     }
 
@@ -200,13 +179,6 @@ public class TopLevelStatementRoundTripTests
         AssertRoundTripPreserved(source, expectedStatementCount: 5);
     }
 
-    /// <summary>
-    /// Verifies that top-level statements are printed at column 0 — no leading
-    /// whitespace/indentation — confirming they are NOT indented as if inside a
-    /// class or method body.
-    ///
-    /// **Validates: Requirement 8.1**
-    /// </summary>
     [Fact]
     public void PrettyPrint_TopLevelStatements_HaveNoIndentation()
     {
@@ -219,7 +191,6 @@ public class TopLevelStatementRoundTripTests
         var ast = ParseOrFail(source);
         var printed = MistPrettyPrinter.Print(ast, source);
 
-        // Every non-empty line should start at column 0 (no leading whitespace)
         var lines = printed.Split('\n')
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
@@ -232,12 +203,6 @@ public class TopLevelStatementRoundTripTests
         }
     }
 
-    /// <summary>
-    /// Verifies that nested statements within top-level control flow ARE indented
-    /// (only the top-level statements themselves start at column 0).
-    ///
-    /// **Validates: Requirement 8.1**
-    /// </summary>
     [Fact]
     public void PrettyPrint_NestedStatements_AreIndented()
     {
@@ -254,10 +219,8 @@ public class TopLevelStatementRoundTripTests
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToList();
 
-        // The "if" line should start at column 0
         Assert.StartsWith("if", lines[0]);
 
-        // The nested "var x = 1;" line should be indented
         var nestedLine = lines.First(l => l.Contains("var x"));
         Assert.True(char.IsWhiteSpace(nestedLine[0]),
             $"Nested statement should be indented but was: \"{nestedLine}\"");

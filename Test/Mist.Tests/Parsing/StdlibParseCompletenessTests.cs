@@ -8,12 +8,7 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Task 4 checkpoint: verifies that Array.mist and Span.mist parse completely
-/// with zero MIST0123 diagnostics.
-///
 /// Validates: Requirements 4.1, 4.2
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class StdlibParseCompletenessTests
 {

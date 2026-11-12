@@ -7,10 +7,6 @@ using Xunit.Abstractions;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Measures lexer + parser time for types with increasing numbers of type parameters.
-/// Detects exponential parsing behavior in TypeArgumentList / TypeParameterList handling.
-/// </summary>
 public sealed class TypeArgumentParsingPerformanceTest
 {
     private readonly ITestOutputHelper output;
@@ -62,8 +58,8 @@ public sealed class TypeArgumentParsingPerformanceTest
             previousMs = elapsedMs;
         }
 
-        // If we bailed before N=16, there's a serious exponential issue.
-        // A healthy parser should handle 20 type params in well under 1 second.
+        // A healthy parser handles 20 type parameters in well under a second; the bail-out only
+        // catches exponential growth.
         if(bailedAt >= 0)
         {
             Assert.Fail(
@@ -74,17 +70,6 @@ public sealed class TypeArgumentParsingPerformanceTest
         output.WriteLine("\nCompleted all 0..20 within timeout.");
     }
 
-    /// <summary>
-    /// Tests parsing performance with arity-overloaded Func types and type aliases
-    /// referencing them (the Action pattern). This reproduces the scenario where
-    /// defining 16 Func variants + 16 Action type aliases caused exponential slowdown.
-    ///
-    /// ROOT CAUSE: TypeReference tries UnionTypeRef first, which parses a full
-    /// SingleTypeRef (including nested TypeArgumentLists), then fails when no PIPE
-    /// follows and backtracks the entire parse. The non-union alternatives then
-    /// re-parse the same content from scratch. This doubles the work per type argument,
-    /// compounding to ~3.5x exponential growth per additional type parameter.
-    /// </summary>
     [Fact]
     public void FuncActionArityOverloads_ShouldNotGrowExponentially()
     {
@@ -137,10 +122,6 @@ public sealed class TypeArgumentParsingPerformanceTest
         output.WriteLine("\nCompleted all 0..16 within timeout.");
     }
 
-    /// <summary>
-    /// Generates a minimal Mist program with a class that has N type parameters
-    /// and a field using that class with N type arguments.
-    /// </summary>
     private static string GenerateClassWithNTypeParams(int n)
     {
         if(n == 0)
@@ -154,26 +135,12 @@ public sealed class TypeArgumentParsingPerformanceTest
         return $"namespace Test;\nclass Foo<{typeParams}> {{\n    public int Value;\n}}\nclass Program {{\n    public Foo<{typeArgs}> field;\n}}\n";
     }
 
-    /// <summary>
-    /// Generates a source file with N Func arity overloads (intrinsic classes)
-    /// and N corresponding Action type aliases. This mirrors the first-class
-    /// functions pattern:
-    ///   intrinsic class Func&lt;TResult&gt; { }
-    ///   intrinsic class Func&lt;T1, TResult&gt; { }
-    ///   ...
-    ///   type Action = Func&lt;void&gt;;
-    ///   type Action&lt;T1&gt; = Func&lt;T1, void&gt;;
-    ///   ...
-    /// At N=0, generates just the base Func&lt;TResult&gt; and Action alias.
-    /// At N=k, generates Func with 0..k input params and matching Action aliases.
-    /// </summary>
     private static string GenerateFuncActionSource(int n)
     {
         var sb = new System.Text.StringBuilder();
         _ = sb.AppendLine("namespace Standard;");
         _ = sb.AppendLine();
 
-        // Generate Func<TResult>, Func<T1, TResult>, ..., Func<T1..Tn, TResult>
         for(var i = 0; i <= n; i++)
         {
             if(i == 0)
@@ -189,7 +156,6 @@ public sealed class TypeArgumentParsingPerformanceTest
 
         _ = sb.AppendLine();
 
-        // Generate type Action = Func<void>, type Action<T1> = Func<T1, void>, ...
         for(var i = 0; i <= n; i++)
         {
             if(i == 0)

@@ -1,6 +1,3 @@
-// Tier 1 (Unit): the parser alone. A `func<...>` type reference carries an array rank and an optional
-// suffix of its own, wherever a type is written, and the parenthesized spelling keeps the parse it had.
-
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.Parsing;

@@ -9,10 +9,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying that the pretty printer reproduces `func<...>` type references using the
-/// lowercase keyword form. Uses in-process MistParser and MistPrettyPrinter — no process spawning.
-/// </summary>
 public class FuncTypeRefPrettyPrinterTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -40,8 +36,6 @@ public class FuncTypeRefPrettyPrinterTests
         return MistPrettyPrinter.Print(cu, source);
     }
 
-    // ─── Requirement 13.1: func<int, string> emits the lowercase keyword form ─
-
     [Fact]
     public void FuncType_AsParameterType_PrettyPrintsLowercaseKeyword()
     {
@@ -56,8 +50,6 @@ public class FuncTypeRefPrettyPrinterTests
 
         Assert.Contains("func<int, string>", printed);
     }
-
-    // ─── Requirement 13.1: func<void> (zero-parameter) emits correctly ────────
 
     [Fact]
     public void FuncType_ZeroParameter_PrettyPrintsLowercaseKeyword()
@@ -74,8 +66,6 @@ public class FuncTypeRefPrettyPrinterTests
         Assert.Contains("func<void>", printed);
     }
 
-    // ─── Requirement 13.1: func<int, void> emits correctly ───────────────────
-
     [Fact]
     public void FuncType_VoidReturn_PrettyPrintsLowercaseKeyword()
     {
@@ -90,8 +80,6 @@ public class FuncTypeRefPrettyPrinterTests
 
         Assert.Contains("func<int, void>", printed);
     }
-
-    // ─── Requirement 13.1: nested func type emits correctly ──────────────────
 
     [Fact]
     public void FuncType_Nested_PrettyPrintsLowercaseKeyword()
@@ -108,8 +96,6 @@ public class FuncTypeRefPrettyPrinterTests
         Assert.Contains("func<int, func<int, int>>", printed);
     }
 
-    // ─── Requirement 13.1: func type as a union member emits correctly ───────
-
     [Fact]
     public void FuncType_AsUnionMember_PrettyPrintsLowercaseKeyword()
     {
@@ -124,8 +110,6 @@ public class FuncTypeRefPrettyPrinterTests
 
         Assert.Contains("func<int, bool> | string", printed);
     }
-
-    // ─── Requirement 13.7: round-trip stability for func type references ─────
 
     [Fact]
     public void FuncType_RoundTripIsStable()

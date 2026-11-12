@@ -12,28 +12,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for newtype declaration parsing correctness.
-///
-/// **Validates: Requirements 1.1**
-///
-/// For any valid identifier and valid type reference, parsing
-/// <c>type {id} = new {typeRef};</c> SHALL produce a NewtypeDeclaration AST node
-/// whose Name lexeme equals the identifier and whose SourceType matches the type reference.
-/// </summary>
 public class NewtypeParserPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    // ─── FsCheck Arbitrary registration ─────────────────────────────────────
-
     public static Arbitrary<NewtypeSourceScenario> ArbitraryNewtypeSourceScenario()
     {
         return MistNewtypeGenerator.ArbitraryNewtypeSourceScenario();
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -114,27 +101,14 @@ public class NewtypeParserPropertyTests
         };
     }
 
-    // ─── Property Test ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 1: Parsing produces correct AST structure.
-    ///
-    /// For any valid identifier and valid type reference, parsing
-    /// <c>type {id} = new {typeRef};</c> SHALL produce a NewtypeDeclaration AST node
-    /// whose Name lexeme equals the identifier and whose SourceType matches the type reference.
-    ///
-    /// **Validates: Requirements 1.1**
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NewtypeParserPropertyTests) })]
     public Property Parsing_Newtype_ProducesCorrectAstStructure(NewtypeSourceScenario scenario)
     {
         var cu = ParseOrFail(scenario.Source);
         var newtypeDecl = ExtractNewtypeDeclaration(cu);
 
-        // Verify newtype name matches
         var nameMatches = newtypeDecl.Name.Lexeme == scenario.NewtypeName;
 
-        // Verify source type matches
         var sourceTypeText = ExtractTypeReferenceText(newtypeDecl.SourceType, scenario.Source);
         var sourceTypeMatches = sourceTypeText == scenario.SourceTypeText;
 

@@ -1,4 +1,5 @@
 // Feature: generics-type-arguments, Property 1: Generic syntax round-trip
+// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -11,33 +12,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for generic syntax round-trip.
-///
-/// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4,
-/// 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6,
-/// 5.7, 5.8, 5.9, 5.10**
-///
-/// For any valid Mist AST containing generic declarations (classes, structs, abstract types,
-/// and methods with type parameter lists), type references with type argument lists
-/// (including nested generics), object creation expressions with type arguments, method
-/// invocations with type arguments, and generic inheritance/abstract type clauses,
-/// pretty-printing the AST and then parsing the result and pretty-printing again
-/// SHALL produce identical output.
-/// </summary>
 public class GenericRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // --- Token helper ----
-
     private static Storm.Runtime.Token Tok(string lexeme)
     {
         return MistTypeGenerator.MakeToken(lexeme);
     }
-
-    // --- Test data model ---
 
 #pragma warning disable CA1034
     public record GenericRoundTripTestCase(
@@ -51,10 +34,6 @@ public class GenericRoundTripPropertyTests
     }
 #pragma warning restore CA1034
 
-    // ===================================================================
-    // Generic AST node generators
-    // ===================================================================
-
     private static readonly string[] TypeParamNames = ["T", "U", "V", "W"];
     private static readonly string[] ClassNames = ["Box", "Pair", "Container", "Wrapper"];
     private static readonly string[] StructNames = ["ValueHolder", "Entry", "Cell"];
@@ -62,9 +41,6 @@ public class GenericRoundTripPropertyTests
     private static readonly string[] MethodNames = ["Identity", "Transform", "Convert"];
     private static readonly string[] FieldNames = ["value", "item", "data"];
 
-    // --- TypeParameterList generator ---
-
-    /// <summary>Generates a TypeParameterListNode with 1-4 type parameters.</summary>
     public static Gen<TypeParameterListNode> GenTypeParameterList()
     {
         return Gen.Choose(1, 4).SelectMany(count =>
@@ -83,9 +59,6 @@ public class GenericRoundTripPropertyTests
         });
     }
 
-    // --- TypeArgumentList generator (primitive types only) ---
-
-    /// <summary>Generates a TypeArgumentListNode with 1-4 primitive type arguments.</summary>
     public static Gen<TypeArgumentListNode> GenTypeArgumentList()
     {
         return Gen.Choose(1, 3).SelectMany(count => Gen.ArrayOf(MistTypeGenerator.GenPrimitiveTypeRef(), count)
@@ -95,8 +68,6 @@ public class GenericRoundTripPropertyTests
                     TypeArguments = args.Skip(1).Select(t => (TypeArgumentNode)new TypeReferenceTypeArgumentTypeArgumentNode { Type = t }).ToImmutableArray(),
                 }));
     }
-
-    // --- BaseList with type arguments generator ---
 
     private static Gen<BaseListNode> GenBaseList()
     {
@@ -138,8 +109,6 @@ public class GenericRoundTripPropertyTests
         };
     }
 
-    // --- Generic class declaration generator ---
-
     private static Gen<TypeBodyDeclarationNode> GenGenericClassDecl()
     {
         return from name in Gen.Elements(ClassNames)
@@ -176,8 +145,6 @@ public class GenericRoundTripPropertyTests
         return classDecl;
     }
 
-    // --- Generic struct declaration generator ---
-
     private static Gen<TypeBodyDeclarationNode> GenGenericStructDecl()
     {
         return from name in Gen.Elements(StructNames)
@@ -212,8 +179,6 @@ public class GenericRoundTripPropertyTests
 
         return structDecl;
     }
-
-    // --- Generic abstract type declaration generator ---
 
     private static Gen<TypeBodyDeclarationNode> GenGenericAbstractDecl()
     {
@@ -250,8 +215,6 @@ public class GenericRoundTripPropertyTests
         return abstractDecl;
     }
 
-    // --- Generic method declaration generator ---
-
     private static Gen<MethodDeclarationNode> GenGenericMethodDecl()
     {
         return from methodName in Gen.Elements(MethodNames)
@@ -280,8 +243,6 @@ public class GenericRoundTripPropertyTests
                };
     }
 
-    // --- Abstract type method declaration generator ---
-
     private static Gen<MethodDeclarationNode> GenGenericAbstractMethodDecl()
     {
         return from methodName in Gen.Elements(MethodNames)
@@ -299,8 +260,6 @@ public class GenericRoundTripPropertyTests
                    Body = new CallableNoBodyCallableBodyNode(),
                };
     }
-
-    // --- Member list generators ---
 
     private static Gen<ImmutableArray<MemberDeclarationNode>> GenMemberList(int count)
     {
@@ -347,9 +306,6 @@ public class GenericRoundTripPropertyTests
             .Select(members => members.ToImmutableArray());
     }
 
-    // --- Expression generators with type arguments ---
-
-    /// <summary>Generates a method call with type arguments: target.Method&lt;int&gt;()</summary>
     private static Gen<ExpressionNode> GenGenericMethodCall()
     {
         return from targetName in Gen.Elements("obj", "self", "item")
@@ -383,10 +339,6 @@ public class GenericRoundTripPropertyTests
         var assign = new AssignmentNode { Target = new VoidCoalescingNode { Left = logOr } };
         return new AssignmentFormExpressionNode { Assignment = assign };
     }
-
-    // ===================================================================
-    // Test case generators
-    // ===================================================================
 
     private static Gen<GenericRoundTripTestCase> GenGenericClassTestCase()
     {
@@ -430,10 +382,6 @@ public class GenericRoundTripPropertyTests
         });
     }
 
-    /// <summary>
-    /// Generates a class containing a method with generic method call expressions
-    /// using type arguments (e.g., obj.Get&lt;int&gt;()).
-    /// </summary>
     private static Gen<GenericRoundTripTestCase> GenGenericMethodCallTestCase()
     {
         return from className in Gen.Elements(ClassNames)
@@ -485,37 +433,22 @@ public class GenericRoundTripPropertyTests
             GenGenericMethodCallTestCase());
     }
 
-    // --- Arbitrary registration ---
-
     public static Arbitrary<GenericRoundTripTestCase> ArbitraryGenericRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
-
-    // ===================================================================
-    // Property 1: Generic syntax round-trip
-    //
-    // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2,
-    // 2.3, 2.4, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2,
-    // 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10**
-    //
-    // For any valid Mist AST containing generic declarations and type arguments,
-    // pretty-printing -> parsing -> pretty-printing SHALL produce identical output.
-    // ===================================================================
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(GenericRoundTripPropertyTests) })]
     public Property RoundTrip_PrintParsePrintPreservesGenericSyntax(GenericRoundTripTestCase testCase)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -536,10 +469,8 @@ public class GenericRoundTripPropertyTests
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);
 
-        // Step 4: Compare the two printed outputs --- they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

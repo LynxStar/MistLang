@@ -189,6 +189,15 @@ what the read is, from the receiver type's argument for that parameter:
   `MemberHolder(receiver, parameter)`, as `Length` has today
   (`FactReading.cs:165-191`).
 
+The type of a slot read is the slot's domain: `a.Length` is an `int` whatever
+the array is closed with. What the read holds is known through `SlotReads`,
+from the receiver's type, never through the type of the read. Today the read
+is typed by the slot's argument, a literal or `unknown`, and the index prover
+and `SpanLengthDecisionTests` take the length from there. Typing it by a
+capture as well put a value where a type belongs: `[a.Length]` became an array
+of `n`, and `Id(a.Length)` bound `T` to a value (MIST-1357). Stage 3 moves the
+prover onto `SlotReads` and types the read by its domain.
+
 The second and third cases are the change. Today a length whose type names a
 parameter or nothing gets a fresh value that knows only `>= 0`, and nothing
 links it to the parameter (`FactReading.cs:89-92`). With them the read is the
@@ -406,7 +415,9 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    in a signature.
 3. Stage 5: `SlotIdentity` over the chain, `SlotReads`, the facts a test adds,
    a contract that names a sibling slot, and the places stage 1 refuses
-   outright moved onto the chain where the flow has a step for them.
+   outright moved onto the chain where the flow has a step for them. With
+   `SlotReads` in place, a slot read is typed by its domain, which closes
+   MIST-1357.
 4. The backend: `SlotRoutes`, the value route, `ArrayLowering`, the four
    refusals. The first three "wrong afterwards" rows of the proposal are
    closed here and each gets its test.

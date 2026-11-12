@@ -31,7 +31,13 @@ internal static class StatedMethodArguments
         var written = 1 + stated.TypeArguments.Length;
         var candidates = group.Candidates;
         var perCandidate = ownsCaptures ? ResolvePerCandidate(candidates, stated, written, ctx, context) : null;
-        var arguments = perCandidate is null || candidates.Any(candidate => !perCandidate.ContainsKey(candidate))
+        if(perCandidate is not null)
+        {
+            candidates = Taking(candidates, perCandidate);
+        }
+
+        var arguments = perCandidate is null
+            || candidates.Any(candidate => !perCandidate.ContainsKey(candidate) && PackBinding.AbsorbingSlot(candidate.TypeParametersList) is not null)
             ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
             : null;
         var shape = arguments ?? perCandidate!.Values.First().Arguments;
@@ -74,6 +80,42 @@ internal static class StatedMethodArguments
     }
 
     /// <summary>
+    /// A candidate reads the stated list by the kind of its own slots, so one that reads a type where it
+    /// has a dependent slot, a value where it has an ordinary one, or a name that is neither does not
+    /// take the list while another does, and leaves the call with its reports. With none taking it the
+    /// group is kept whole, so a single declaration is refused as it is without an overload.
+    /// </summary>
+    private static IReadOnlyList<Method> Taking(IReadOnlyList<Method> candidates, Dictionary<Method, StatedResolution> perCandidate)
+    {
+        bool judged(Method candidate)
+        {
+            return perCandidate.ContainsKey(candidate) && PackBinding.AbsorbingSlot(candidate.TypeParametersList) is null;
+        }
+
+        bool takes(Method candidate)
+        {
+            return candidate.TypeParametersList.Zip(perCandidate[candidate].Arguments).All(pair => pair.Second is not ErrorType
+                && pair.First.IsDependent == (pair.Second is CapturedValue or LiftedType or UnknownValueType or TypeParameter { IsDependent: true }));
+        }
+
+        var refusing = candidates.Where(candidate => judged(candidate) && !takes(candidate)).ToList();
+        if(refusing.Count == 0 || !candidates.Any(candidate => judged(candidate) && takes(candidate)))
+        {
+            return candidates;
+        }
+
+        foreach(var candidate in refusing)
+        {
+            if(perCandidate.Remove(candidate, out var resolved) && resolved.Withheld is { Decided: false } withheld)
+            {
+                withheld.Discard();
+            }
+        }
+
+        return [.. candidates.Except(refusing)];
+    }
+
+    /// <summary>
     /// Only a candidate says whether a written position is a dependent slot, so a list is resolved once
     /// per distinct shape of slots and shared by the candidates of that shape, with each resolution's
     /// reports withheld for the call to settle once it has chosen. Only a call owns the captures, so a
@@ -82,12 +124,23 @@ internal static class StatedMethodArguments
     private static Dictionary<Method, StatedResolution>? ResolvePerCandidate(
         IReadOnlyList<Method> candidates, TypeArgumentListNode stated, int written, BindingContext ctx, BuilderContext context)
     {
-        Dictionary<Method, StatedResolution>? resolved = null;
+        bool slotted(Method candidate)
+        {
+            return candidate.TypeParametersList.Count == written && ScopeResolver.HasSlot(candidate.TypeParametersList, written);
+        }
+
+        if(!candidates.Any(slotted))
+        {
+            return null;
+        }
+
+        var resolved = new Dictionary<Method, StatedResolution>(ReferenceEqualityComparer.Instance);
         var shapes = new List<(TypeParameter?[] Slots, StatedResolution Resolution)>();
 
-        foreach(var candidate in candidates)
+        foreach(var candidate in candidates.OrderBy(candidate => !slotted(candidate)))
         {
-            if(candidate.TypeParametersList.Count != written || !ScopeResolver.HasSlot(candidate.TypeParametersList, written))
+            if(candidate.TypeParametersList.Count != written
+                || (!slotted(candidate) && PackBinding.AbsorbingSlot(candidate.TypeParametersList) is not null))
             {
                 continue;
             }
@@ -105,7 +158,6 @@ internal static class StatedMethodArguments
                 shapes.Add(shape);
             }
 
-            resolved ??= new Dictionary<Method, StatedResolution>(ReferenceEqualityComparer.Instance);
             resolved[candidate] = shape.Resolution;
         }
 

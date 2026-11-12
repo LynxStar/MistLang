@@ -75,12 +75,13 @@ internal sealed class MethodGroupExpression : Expression
     public IReadOnlyList<IMistType>? StatedTypeArguments { get; init; }
 
     /// <summary>
-    /// The stated arguments as each candidate with a dependent slot resolved them, a name there being a
-    /// value for that candidate where <see cref="StatedTypeArguments"/> read it as a type, with the
-    /// reports of that resolution withheld until the call has chosen, so one written list resolved
-    /// several ways is reported once. Null when no candidate has such a slot. <see cref="StatedShared"/>
-    /// says whether <see cref="StatedTypeArguments"/> was resolved for the candidates without one and
-    /// reported as it went; otherwise it is the first candidate's own list, kept for its count.
+    /// The stated arguments as each candidate of the written count resolved them, a name being a value
+    /// where that candidate has a dependent slot and a type where it does not, with the reports of that
+    /// resolution withheld until the call has chosen, so one written list resolved several ways is
+    /// reported once: the chosen candidate's, or with none chosen, the first slotted resolution's
+    /// unless some resolution took the list cleanly. Null when no candidate has such a slot.
+    /// <see cref="StatedShared"/> says whether <see cref="StatedTypeArguments"/> was resolved for a pack
+    /// candidate and reported as it went; otherwise it is the first candidate's own list, kept for its count.
     /// </summary>
     public IReadOnlyDictionary<Method, StatedResolution>? StatedPerCandidate { get; init; }
 
@@ -103,19 +104,21 @@ internal sealed class MethodGroupExpression : Expression
             return;
         }
 
-        var spoken = StatedShared;
+        var resolutions = StatedPerCandidate.Values.Distinct(ReferenceEqualityComparer.Instance).Cast<StatedResolution>().ToList();
+        var kept = selected is not null
+            ? StatedPerCandidate.GetValueOrDefault(selected)
+            : StatedShared || resolutions.Exists(resolution => resolution.Withheld is { Occurrences.IsEmpty: true }) ? null : resolutions[0];
 
-        foreach(var (candidate, resolved) in StatedPerCandidate)
+        foreach(var resolution in resolutions)
         {
-            if(resolved.Withheld is not { Decided: false } withheld)
+            if(resolution.Withheld is not { Decided: false } withheld)
             {
                 continue;
             }
 
-            if(selected is null ? !spoken : ReferenceEquals(candidate, selected))
+            if(ReferenceEquals(resolution, kept))
             {
                 withheld.Commit();
-                spoken = true;
             }
             else
             {

@@ -146,6 +146,15 @@ terms and asks `Chain.Prove` to rule out their difference:
 - the `unknown` slot of a class or struct is the slot read through the value
   expression, under the next section.
 
+Assignability judges a conversion in more places than `Proving.Judge` visits: a
+switch arm, the right of `??`, an array literal element, an expression-bodied
+lambda's result, a `foreach` element, a deconstruction target, a `with` value,
+a field or property initializer, and a getter's expression body. The
+classifier's third test would admit a pair there that nothing proves. At each
+of those places the assignability rule refuses any slot pair that is not the
+same capture, with `ClosingNotProven`. Stage 3 moves a place onto the chain
+where the flow graph has a step for it, and a place with none keeps refusing.
+
 A capture whose initializer is a plain read of a holder is bound to that
 holder's current `Value`, not to a fresh value with an equality fact. Two
 captures of one unchanged variable are then the same value with no proof, and
@@ -383,8 +392,9 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
 1. The model and the binder's core: `SlotCapture`, `CapturedValue`, resolution
    by slot for a local declaration, `new` and a pattern's type, `new T[e]`, the
    classifier's third test, and Requirement 1.6. `SlotIdentity` lands in its
-   strictest form, proving only two slots that hold one value, so nothing
-   unproven is admitted before stage 3. The capture's contract is proven from
+   strictest form, proving only two slots that hold one value, and the places
+   no proof site covers refuse a pair outright, so nothing unproven is
+   admitted before stage 3. The capture's contract is proven from
    this stage on, because the capture is a local and the existing site judges
    it: `new T[n]` owes `n >= 0`, the eight creations in the samples that size by
    a plain `int` change here, and Mist programs inside tests that do the same
@@ -395,7 +405,8 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    inferred method arguments, and the refusal of a value's name outside a body
    in a signature.
 3. Stage 5: `SlotIdentity` over the chain, `SlotReads`, the facts a test adds,
-   and a contract that names a sibling slot.
+   a contract that names a sibling slot, and the places stage 1 refuses
+   outright moved onto the chain where the flow has a step for them.
 4. The backend: `SlotRoutes`, the value route, `ArrayLowering`, the four
    refusals. The first three "wrong afterwards" rows of the proposal are
    closed here and each gets its test.

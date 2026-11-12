@@ -370,22 +370,8 @@ internal static class TypeNameEmitter
         return expanded;
     }
 
-    internal static void RefuseCaptured(IEnumerable<IMistType> arguments, string subject, string operation)
-    {
-        if(arguments.OfType<CapturedValue>().FirstOrDefault() is { } captured)
-        {
-            EmissionDiagnostics.Refuse(
-                BackendDiagnostics.SlotValueNotEmitted, new EnumValue(operation), new NameValue(subject), new NameValue(captured.WrittenName));
-        }
-    }
-
     private static string EmitConstructed(ConstructedType constructed)
     {
-        if(!LengthErasure.IsLengthIndexed(constructed))
-        {
-            RefuseCaptured(constructed.TypeArguments, TypeDisplay.Mist(constructed), "spell");
-        }
-
         if(SlotLift.Erased(constructed) is { } erased)
         {
             return Emit(erased);
@@ -443,10 +429,35 @@ internal static class TypeNameEmitter
         }
 
         var baseName = IdentifierSpelling.Of(MistType.StripArity(constructed.Definition.Name));
-        var args = string.Join(", ", constructed.TypeArguments.Select(
-            (argument, ordinal) => EmitArgument(constructed.Definition, ordinal, argument)));
+        var args = Spelled(constructed);
 
-        return Qualify(constructed.Definition, $"{baseName}<{args}>");
+        return Qualify(constructed.Definition, args.Count == 0 ? baseName : $"{baseName}<{string.Join(", ", args)}>");
+    }
+
+    /// <summary>
+    /// The C# type arguments of a construction: every argument but those of value-routed slots, which
+    /// the instance or the call carries instead (<see cref="SlotRoutes"/>).
+    /// </summary>
+    private static List<string> Spelled(ConstructedType constructed)
+    {
+        var spelled = new List<string>();
+
+        for(var ordinal = 0; ordinal < constructed.TypeArguments.Count; ordinal++)
+        {
+            if(!IsValueRouted(constructed.Definition, ordinal))
+            {
+                spelled.Add(EmitArgument(constructed.Definition, ordinal, constructed.TypeArguments[ordinal]));
+            }
+        }
+
+        return spelled;
+    }
+
+    private static bool IsValueRouted(IMistType definition, int ordinal)
+    {
+        return definition is IHasTypeParameters generic
+            && ordinal < generic.TypeParametersList.Count
+            && SlotRoutes.IsValueRouted(generic.TypeParametersList[ordinal]);
     }
 
     private static string Qualify(IMistType definition, string name)
@@ -482,16 +493,9 @@ internal static class TypeNameEmitter
         }
 
         var segment = IdentifierSpelling.Of(MistType.StripArity(nested.Definition.Name));
+        var args = Spelled(nested);
 
-        if(nested.TypeArguments.Count == 0)
-        {
-            return $"{outer}.{segment}";
-        }
-
-        var args = string.Join(", ", nested.TypeArguments.Select(
-            (argument, ordinal) => EmitArgument(nested.Definition, ordinal, argument)));
-
-        return $"{outer}.{segment}<{args}>";
+        return args.Count == 0 ? $"{outer}.{segment}" : $"{outer}.{segment}<{string.Join(", ", args)}>";
     }
 
     /// <summary>
@@ -517,7 +521,7 @@ internal static class TypeNameEmitter
         return type switch
         {
             UnknownType => true,
-            ConstructedType constructed => constructed.TypeArguments.Any(ContainsUnknown),
+            ConstructedType constructed => constructed.TypeArguments.Where((_, ordinal) => !IsValueRouted(constructed.Definition, ordinal)).Any(ContainsUnknown),
             UnionType union => union.Constituents.Any(ContainsUnknown),
             ITupleType tuple => tuple.ElementTypes.Any(ContainsUnknown),
             FunctionType function =>

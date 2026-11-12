@@ -38,20 +38,22 @@ internal static class ArrayLowering
     }
 
     /// <summary>
-    /// The element type and length of a generated array construction, or null when this is not one.
+    /// The element type and length of a generated array construction, or null when this is not one. The
+    /// length is whatever the slot holds, rendered by <paramref name="value"/> as a read through a closing is.
     /// </summary>
-    public static (string Element, long Length)? Generated(IMistType type, int argumentCount)
+    public static (string Element, string Length)? Generated(IMistType type, int argumentCount, Func<IMistType, string?> value)
     {
         if(argumentCount != 1
             || type is not ConstructedType constructed
             || constructed.Definition.FullyQualifiedName != WellKnownTypes.Array.FullyQualifiedName
-            || constructed.TypeArguments is not [{ } element, LiftedType { Value: long length }])
+            || constructed.TypeArguments is not [{ } element, { } length]
+            || value(length) is not { } rendered)
         {
             return null;
         }
 
         used = true;
-        return (TypeNameEmitter.Emit(element), length);
+        return (TypeNameEmitter.Emit(element), rendered);
     }
 
     public static bool Generates(Constructor constructor)

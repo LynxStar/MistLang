@@ -27,6 +27,11 @@ internal static class ErasedShape
             case ConstructedType constructed when LengthErasure.ErasedLength(constructed) is { } length:
                 return [$"Length: {length.ToString(CultureInfo.InvariantCulture)}"];
 
+            case ConstructedType constructed when SlotRoutes.ValueRouted(constructed.Definition) is { Count: > 0 } routed:
+                return [.. routed
+                    .Where(slot => slot.Ordinal < constructed.TypeArguments.Count && constructed.TypeArguments[slot.Ordinal] is LiftedType)
+                    .Select(slot => $"{SlotRoutes.Hidden(slot)}: {DependentCarrierNames.Literal(((LiftedType)constructed.TypeArguments[slot.Ordinal]).Value)}")];
+
             case ITupleType tuple:
                 var elements = TypeNameEmitter.Expand(tuple.ElementTypes);
                 var members = new List<string>();
@@ -67,24 +72,35 @@ internal static class ErasedShape
                 Subpattern(constructed.TypeArguments[0]) is null
                     ? UnstatedElements(constructed.TypeArguments[0])
                     : constructed,
+            ConstructedType constructed when constructed.TypeArguments.Any(Routed) => constructed,
             ITupleType tuple => TypeNameEmitter.Expand(tuple.ElementTypes)
-                .Select(UnstatedElements)
+                .Select(element => RuntimeRouted(element) ? tuple : UnstatedElements(element))
                 .FirstOrDefault(found => found is not null),
             UnionType union when OptionalUnion.InnerType(union) is { } inner => UnstatedElements(inner),
             _ => null,
         };
     }
 
-    public static CapturedValue? Captured(IMistType type)
+    /// <summary>
+    /// Whether a value-routed closing sits anywhere in <paramref name="type"/>: a test against a type
+    /// that holds one as an argument could check nothing of the slot, which only the instance carries.
+    /// </summary>
+    private static bool Routed(IMistType type)
     {
         return Unwrapped(type) switch
         {
-            CapturedValue captured => captured,
-            ConstructedType constructed => constructed.TypeArguments.Select(Captured).FirstOrDefault(found => found is not null),
-            ITupleType tuple => tuple.ElementTypes.Select(Captured).FirstOrDefault(found => found is not null),
-            UnionType union => union.Constituents.Select(Captured).FirstOrDefault(found => found is not null),
-            _ => null,
+            ConstructedType constructed => SlotRoutes.ValueRouted(constructed.Definition).Count > 0 || constructed.TypeArguments.Any(Routed),
+            ITupleType tuple => tuple.ElementTypes.Any(Routed),
+            UnionType union => union.Constituents.Any(Routed),
+            _ => false,
         };
+    }
+
+    private static bool RuntimeRouted(IMistType type)
+    {
+        return Unwrapped(type) is ConstructedType constructed
+            && SlotRoutes.ValueRouted(constructed.Definition).Any(slot =>
+                slot.Ordinal < constructed.TypeArguments.Count && constructed.TypeArguments[slot.Ordinal] is CapturedValue or TypeParameter);
     }
 
     private static string? Subpattern(IMistType type)

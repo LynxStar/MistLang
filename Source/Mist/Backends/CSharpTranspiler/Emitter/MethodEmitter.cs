@@ -97,11 +97,13 @@ internal static class MethodEmitter
             name = renamed;
         }
 
-        var spelled = declared.Select(DependentCarrierNames.Parameter)
+        var spelled = declared.Where(parameter => !SlotRoutes.IsValueRouted(parameter)).Select(DependentCarrierNames.Parameter)
             .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))
             .ToList();
         var typeParams = spelled.Count > 0 ? $"<{string.Join(", ", spelled)}>" : "";
-        var parts = DefaultWitnesses.StaticParameters(method).Select(DefaultConstraintWitness.Parameter).ToList();
+        var parts = SlotRoutes.HiddenParameters(method is { Modifiers.IsStatic: true, DeclaringType: MemberType declaring } ? SlotRoutes.ValueRouted(declaring) : [])
+            .Concat(SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(declared)))
+            .Concat(DefaultWitnesses.StaticParameters(method).Select(DefaultConstraintWitness.Parameter)).ToList();
         parts.AddRange(DefaultConstraintWitness.Parameters(declared));
         parts.AddRange(method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
             ? ConstructorWitnesses.Parameters(ConstructorWitnesses.Stored(owner)) : []);
@@ -132,7 +134,7 @@ internal static class MethodEmitter
     internal static string ForwardingTypeArguments(Method slot, Method? answer = null)
     {
         var declared = Declared(slot);
-        var parameters = declared.Select(DependentCarrierNames.Parameter)
+        var parameters = declared.Where(parameter => !SlotRoutes.IsValueRouted(parameter)).Select(DependentCarrierNames.Parameter)
             .Concat(SlotLift.Synthesized(answer is null ? declared : Declared(answer)).Select(slot => slot.Name)).ToList();
 
         return parameters.Count > 0 ? $"<{string.Join(", ", parameters)}>" : "";
@@ -151,7 +153,7 @@ internal static class MethodEmitter
         var declared = Declared(slot);
         var answering = answer is null ? declared : Declared(answer);
         closing ??= TypeSubstitution.ForParameters(declared, [.. answering]);
-        var arguments = new List<string>();
+        var arguments = SlotRoutes.HiddenNames(SlotRoutes.ValueRouted(declared)).ToList();
 
         for(var i = 0; i < declared.Count && i < answering.Count; i++)
         {

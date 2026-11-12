@@ -160,6 +160,7 @@ internal static class TypeEmitter
         AttributeEmitter.EmitLines(type.DeclaredAttributesList, writer, diagnostics);
 
         SlotLift.ReportUnboundedParameterized(type, diagnostics);
+        ValueRouteEmitter.Report(type, diagnostics);
 
         writer.WriteLine(
             $"{accessibility}{sealedModifier}{readonlyModifier}{refModifier}{typeKeyword} {typeName}{EmitBaseList(type, closedConstraints)}");
@@ -200,6 +201,8 @@ internal static class TypeEmitter
                 }
             }
 
+            anyEmitted |= ValueRouteEmitter.EmitMembers(type, writer, diagnostics);
+
             foreach(var parameter in Parameters(type))
             {
                 if(DependentCarrierNames.ValueProperty(parameter) is { } projection)
@@ -225,6 +228,12 @@ internal static class TypeEmitter
             {
                 SeparateMember(writer, ref anyEmitted);
                 ConstructorEmitter.Emit(constructor, type, writer, diagnostics, initNames);
+            }
+
+            if(concrete is not null && ValueRouteEmitter.NeedsConstructor(concrete))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                ValueRouteEmitter.EmitConstructor(concrete, writer, diagnostics);
             }
 
             foreach(var ancestor in flattened?.Ancestors ?? [])
@@ -406,9 +415,10 @@ internal static class TypeEmitter
         var members = StructAncestorFactory.Members(flattened);
         var defaults = DefaultWitnesses.Stored(type);
         var constructors = ConstructorWitnesses.Stored(type);
-        var parameters = string.Join(", ", defaults.Select(DefaultConstraintWitness.Parameter)
+        var routed = SlotRoutes.ValueRouted(type);
+        var parameters = string.Join(", ", SlotRoutes.HiddenParameters(routed).Concat(defaults.Select(DefaultConstraintWitness.Parameter))
             .Concat(ConstructorWitnesses.Parameters(constructors)).Append(StructAncestorFactory.Parameters(members)));
-        var arguments = string.Join(", ", defaults.Select(DefaultConstraintWitness.Name)
+        var arguments = string.Join(", ", SlotRoutes.HiddenNames(routed).Concat(defaults.Select(DefaultConstraintWitness.Name))
             .Concat(ConstructorWitnesses.Names(constructors)).Append(StructAncestorFactory.Arguments(members)));
         var name = StructAncestorFactory.Name(flattened);
 
@@ -416,6 +426,7 @@ internal static class TypeEmitter
         writer.WriteLine($"private {CleanName(type)}({parameters})");
         using(writer.Block())
         {
+            ValueRouteEmitter.EmitAssignments(type, writer);
             DefaultWitnesses.EmitAssignments(type, writer);
             for(var i = 0; i < members.Length; i++)
             {
@@ -599,8 +610,9 @@ internal static class TypeEmitter
         var declared = Monomorph.InScope() is { } monomorph && monomorph.Owns(type.TypeParametersList)
             ? monomorph.Parameters(type.TypeParametersList)
             : IsSpecializing(type) ? [] : type.TypeParametersList;
+        var carried = declared.Where(parameter => !SlotRoutes.IsValueRouted(parameter)).ToList();
 
-        return lifted.Count == 0 ? declared : [.. declared, .. lifted];
+        return lifted.Count == 0 ? carried : [.. carried, .. lifted];
     }
 
     /// <summary>

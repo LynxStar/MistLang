@@ -64,7 +64,7 @@ internal static class DefaultSynthesis
 
     private static string Factory(IMistType type, List<string> witnesses)
     {
-        return $"{TypeNameEmitter.Emit(type)}.{FactoryName}({string.Join(", ", witnesses)})";
+        return $"{TypeNameEmitter.Emit(type)}.{FactoryName}({string.Join(", ", BodyEmitter.SlotValues(type as ConstructedType, diagnostics: null).Concat(witnesses))})";
     }
 
     public static string? StorageZero(IMistType type)

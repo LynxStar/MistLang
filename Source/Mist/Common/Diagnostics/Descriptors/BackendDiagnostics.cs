@@ -295,13 +295,43 @@ public static class BackendDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("kind", SlotKind.Enum), new Slot("detail", SlotKind.Name)]);
 
-    public static readonly MistDiagnostic SlotValueNotEmitted = new(
-        DiagnosticNumber.Mint("MIST0488"),
-        Title: "Runtime slot value not emitted",
-        Template: "The C# backend cannot {operation} '{subject}' yet: it is closed with '{value}', a value known only when the program runs.",
-        Description: "A dependent slot was closed with a value known only when the program runs. The C# backend carries such a value only in the type of an Array, a Span or a ReadOnlySpan, whose CLR objects hold their length. It has no carrier yet for another type or for a method's own slot, and cannot yet test a value against such a closing or generate an array of one. Close the slot with a literal, or leave it 'unknown'; the limit is the backend's, not the language's.",
+    public static readonly MistDiagnostic StaticStorageOnValueRoute = new(
+        DiagnosticNumber.Mint("MIST0491"),
+        Title: "Static storage in a value-routed type",
+        Template: "'{member}' is static storage of '{type}', whose dependent parameter '{parameter}' is closed with a value known only when the program runs. The C# backend carries that value in each instance and has no storage keyed by it yet.",
+        Description: "A type with a dependent parameter is closed somewhere with a runtime value, so the backend carries the parameter's value in the instance rather than in the C# type, and a static field or property of the type has no closing to belong to. Each closing owns its own static storage (runtime-dependent-values Requirement 10), which needs a table keyed by the slot's value that the backend does not emit yet. Move the storage onto an instance, or close the type only with literals; the limit is the backend's, not the language's.",
         Category: DiagnosticCategory.Bck,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("operation", SlotKind.Enum), new Slot("subject", SlotKind.Name), new Slot("value", SlotKind.Name)]);
+        Slots: [new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic TypeValueOfValueRoutedClosing = new(
+        DiagnosticNumber.Mint("MIST0492"),
+        Title: "Type value of a value-routed closing",
+        Template: "'{type}' cannot be taken as a type value: its dependent parameter '{parameter}' is carried in each instance rather than in the C# type, so a CLR Type cannot hold the value.",
+        Description: "A closing of a type whose dependent parameter is closed somewhere with a runtime value was used as a value of type Type. The backend carries such a parameter in the instance and the C# type no longer names it, so the CLR Type of the closing would stand for every value of the slot at once. Take the type value of a closing whose parameters are all carried in the C# type, or compare instances through their slot reads instead; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic ValueRoutedAbstractAtTwoValues = new(
+        DiagnosticNumber.Mint("MIST0493"),
+        Title: "Value-routed abstract implemented at two values",
+        Template: "'{type}' implements '{abstract}' at two values of '{parameter}', which the C# backend carries in one instance member because a closing of '{abstract}' is written somewhere with a value known only when the program runs.",
+        Description: "An abstract with a dependent parameter is closed somewhere with a runtime value, so the backend answers that parameter through one hidden instance member of each implementing type rather than through the C# interface's type arguments. A type that implements the abstract at two values of the slot would need two answers from one member. Implement the abstract at one value, or close it only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("abstract", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic RuntimeClosingTestUnderCombinator = new(
+        DiagnosticNumber.Mint("MIST0494"),
+        Title: "Runtime closing test under combinator",
+        Template: "A value cannot be tested against '{type}' under 'not' or 'or' yet: the comparison of '{parameter}' with a value known only when the program runs has no place in such a C# pattern.",
+        Description: "A type test against a closing whose dependent slot holds a runtime value compares the instance's slot with that value beside the C# pattern, as a guard the enclosing 'is' or switch arm carries. Under a negated or disjoint pattern there is no binding to compare through and no guard to carry it. Write the test on its own, or test against a closing whose slots are literals; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
 }

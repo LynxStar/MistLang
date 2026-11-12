@@ -86,16 +86,18 @@ internal static partial class BodyEmitter
         }
 
         var tested = TestedType(asExpression.TargetType, asExpression.Node, diagnostics);
+        var bound = $"__as{asExpression.Node.Span.Start}";
+        var compared = RuntimeComparisons(asExpression.TargetType, bound, diagnostics);
 
         if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType))
-            && ErasedShape.Members(asExpression.TargetType).Count == 0)
+            && ErasedShape.Members(asExpression.TargetType).Count == 0
+            && compared.Count == 0)
         {
             writer.Append($" as {target})");
             return;
         }
 
-        var bound = $"__as{asExpression.Node.Span.Start}";
-        writer.Append($" is {tested} {bound} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
+        writer.Append($" is {tested} {bound}{string.Concat(compared.Select(test => $" && {test}"))} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
     }
 
     internal static void EmitCoerced(

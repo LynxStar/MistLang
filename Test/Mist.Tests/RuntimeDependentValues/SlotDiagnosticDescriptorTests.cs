@@ -10,15 +10,21 @@ public sealed class SlotDiagnosticDescriptorTests
     {
         MistDiagnostic[] minted =
         [
-            ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, BackendDiagnostics.SlotValueNotEmitted,
+            ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, null!,
             ProgramModelDiagnostics.SlotReadThroughUnknown, ProgramModelDiagnostics.SlotNotInferable,
+            BackendDiagnostics.StaticStorageOnValueRoute, BackendDiagnostics.TypeValueOfValueRoutedClosing,
+            BackendDiagnostics.ValueRoutedAbstractAtTwoValues, BackendDiagnostics.RuntimeClosingTestUnderCombinator,
         ];
+        var retired = Assert.Single(DiagnosticRegistry.Index.Tombstones);
         var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)
             .Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
             .Where(number => string.CompareOrdinal(number, minted[0].Number.Value) < 0)
             .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal(Enumerable.Range(1, minted.Length).Select(offset => $"MIST{issued + offset:D4}"), minted.Select(descriptor => descriptor.Number.Value));
+        Assert.Equal("MIST0488", retired.Number.Value);
+        Assert.Equal(
+            Enumerable.Range(1, minted.Length).Select(offset => $"MIST{issued + offset:D4}"),
+            minted.Select(descriptor => descriptor?.Number.Value ?? retired.Number.Value));
     }
 
     [Fact]

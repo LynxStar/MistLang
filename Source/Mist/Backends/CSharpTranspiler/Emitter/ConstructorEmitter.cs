@@ -42,7 +42,9 @@ internal static class ConstructorEmitter
         var concrete = declaringType as ConcreteType;
         var witnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : DefaultWitnesses.Stored(concrete);
         var constructionWitnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : ConstructorWitnesses.Stored(concrete);
-        var parts = witnesses.Select(DefaultConstraintWitness.Parameter).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
+        var routed = constructor.Modifiers.IsStatic || concrete is null ? [] : SlotRoutes.ValueRouted(concrete);
+        var parts = SlotRoutes.HiddenParameters(routed)
+            .Concat(witnesses.Select(DefaultConstraintWitness.Parameter)).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
         parts.AddRange(ContextKeyWitnesses.Parameters(constructor));
         using var contextScope = ContextKeyWitnesses.Entering(constructor);
 
@@ -53,10 +55,11 @@ internal static class ConstructorEmitter
 
         if((witnesses.Count > 0 || constructionWitnesses.Count > 0) && concrete is not null)
         {
-            var supplied = DefaultWitnesses.CompatibilityArguments(concrete, factory: false);
+            var supplied = SlotRoutes.HiddenNames(routed).Concat(DefaultWitnesses.CompatibilityArguments(concrete, factory: false)).ToList();
             supplied.AddRange(ContextKeyWitnesses.Erased(constructor));
             supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + IdentifierSpelling.Of(parameter.Name)));
-            writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({parameters}) : this({string.Join(", ", supplied)})");
+            var compatible = string.Join(", ", SlotRoutes.HiddenParameters(routed).Append(parameters).Where(part => part.Length > 0));
+            writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({compatible}) : this({string.Join(", ", supplied)})");
             using(writer.Block())
             {
             }
@@ -84,6 +87,9 @@ internal static class ConstructorEmitter
             forwarded?.AddRange(constructor.ChainedConstructor is { } reached
                 ? ContextKeyWitnesses.Arguments(reached, ContextBinding.TypesOf(reached, key => throughBase.Apply(key, interner: null)))
                 : []);
+            forwarded?.InsertRange(0, constructor.ChainKind == ConstructorChainKind.This
+                ? SlotRoutes.HiddenNames(routed)
+                : BodyEmitter.SlotValues(targetType as ConstructedType, diagnostics));
 
             if(forwarded is { Count: > 0 })
             {
@@ -154,6 +160,7 @@ internal static class ConstructorEmitter
         {
             if(concrete is not null && !constructor.Modifiers.IsStatic && constructor.ChainKind != ConstructorChainKind.This)
             {
+                ValueRouteEmitter.EmitAssignments(concrete, writer);
                 DefaultWitnesses.EmitAssignments(concrete, writer);
                 DefaultWitnesses.EmitInitializers(concrete, writer, diagnostics);
             }
@@ -181,7 +188,7 @@ internal static class ConstructorEmitter
     /// would pass too little: the base's witnesses, and the empty tuple that a value-pack parameter
     /// closed to no elements still receives, C# having no convention that packs nothing into it.
     /// </summary>
-    private static void EmitImplicitChain(ConcreteType derived, MistType baseType, CSharpWriter writer, DiagnosticBag diagnostics)
+    internal static void EmitImplicitChain(ConcreteType derived, MistType baseType, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var reached = ImplicitChains.Of(derived) as Constructor;
         var closing = TypeSubstitution.ForReceiver(baseType as ConstructedType);
@@ -192,6 +199,7 @@ internal static class ConstructorEmitter
             ? []
             : ContextKeyWitnesses.Arguments(reached, ContextBinding.TypesOf(reached, key => closing.Apply(key, interner: null))));
         var packs = reached?.ParametersList is [{ IsFlattened: true, Type: TupleType or NamedTupleType }];
+        forwarded.InsertRange(0, BodyEmitter.SlotValues(baseType as ConstructedType, diagnostics));
 
         if(forwarded.Count == 0 && !packs)
         {

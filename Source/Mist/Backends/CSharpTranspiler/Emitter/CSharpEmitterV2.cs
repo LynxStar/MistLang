@@ -132,6 +132,7 @@ internal sealed class CSharpEmitterV2
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
+        using var routes = SlotRoutes.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 

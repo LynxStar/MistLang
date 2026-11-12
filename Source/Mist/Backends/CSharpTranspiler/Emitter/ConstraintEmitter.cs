@@ -42,6 +42,11 @@ internal static class ConstraintEmitter
 
         foreach(var parameter in constrained)
         {
+            if(SlotRoutes.IsValueRouted(parameter))
+            {
+                continue;
+            }
+
             // An override inherits its constraints and C# refuses any restated but class or struct (CS0460);
             // that a fill promises no more than its slot is NativeSlotFills' to decide.
             var parts = overriding

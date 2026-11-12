@@ -500,6 +500,17 @@ internal static partial class BodyEmitter
 
         var receiverType = invocation.Receiver is MemberAccessExpression reached ? reached.Receiver.Type : method.DeclaringType;
         var witnesses = DefaultWitnesses.MethodArguments(method, typeArguments, receiverType, invocation.ContextTypes);
+        var slots = CallSlotArguments(invocation, diagnostics);
+
+        if(slots.Count > 0)
+        {
+            writer.Append(string.Join(", ", slots));
+
+            if(witnesses.Count > 0 || HasArguments(invocation.Arguments, invocation.Parameters))
+            {
+                writer.Append(", ");
+            }
+        }
 
         if(witnesses.Count == 0)
         {
@@ -616,6 +627,11 @@ internal static partial class BodyEmitter
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        foreach(var discarded in Discarded(localDecl.Captures))
+        {
+            writer.WriteLine($"_ = {Render(discarded, diagnostics)};");
+        }
+
         using var hoisted = EmitHoisted(localDecl.Initializer, writer, diagnostics);
         var local = localDecl.Local;
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
@@ -1194,41 +1210,19 @@ internal static partial class BodyEmitter
                     break;
                 }
 
-                LifetimeLowering.Capture(invocation);
-
-                // The member access is emitted from HERE when it carries type arguments, because
-                // only the invocation knows which overload they fill -- and a dependent slot is
-                // spelled by its carrier rather than by its domain.
-                if(invocation.Receiver is MemberAccessExpression hiddenCallee
-                    && (HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)
-                        ?? NativeDefaultCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)) is { } baseType)
+                if(SlotBindings(invocation) is { Count: > 0 } bindings)
                 {
-                    EmitMemberAccess(hiddenCallee,
-                        ExtensionBlockEmitter.CallTypeArguments(invocation.Method, hiddenCallee.TypeArguments),
-                        writer, diagnostics, CollidingName(invocation.Method, baseType), baseType,
-                        invocation.Method?.Modifiers.IsStatic == true);
-                }
-                else if(invocation.Receiver is MemberAccessExpression callee
-                    && (callee.TypeArguments is { Count: > 0 } || CollidingName(invocation.Method, callee.Receiver.Type) is not null))
-                {
-                    EmitMemberAccess(
-                        callee, ExtensionBlockEmitter.CallTypeArguments(invocation.Method, callee.TypeArguments), writer, diagnostics,
-                        CollidingName(invocation.Method, callee.Receiver.Type));
-                }
-                else
-                {
-                    EmitSubExpression(invocation.Receiver, PostfixPrecedence, writer, diagnostics);
+                    EmitBoundCall(bindings, () => EmitCall(invocation, writer, diagnostics), writer, diagnostics);
+                    break;
                 }
 
-                writer.Append("(");
-                EmitWitnesses(invocation, writer, diagnostics);
-                EmitArguments(invocation.Arguments, invocation.Parameters, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
-                writer.Append(")");
+                EmitCall(invocation, writer, diagnostics);
                 break;
 
             case MemberAccessExpression memberAccess:
                 EmitMemberAccess(memberAccess, (memberAccess.TypeArguments, null), writer, diagnostics);
                 break;
+
 
             // Named on the carrier rather than written as dot-notation, which is what the extension
             // METHOD case relies on. That is not available here: `get_IsEmpty` is a name the user
@@ -1346,7 +1340,8 @@ internal static partial class BodyEmitter
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
                 // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
-                writer.Append($"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))");
+                writer.Append(WrapDiscarded(cast.Captures,
+                    $"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))", diagnostics));
                 break;
 
             case ImplicitConversionExpression conversion:
@@ -1568,7 +1563,8 @@ internal static partial class BodyEmitter
                     ?? FieldReceiver.Of(fieldRef.Field) + IdentifierSpelling.Of(fieldRef.Field.Name));
                 break;
             case PropertyReferenceExpression projected when ProjectedValueAccess.Declaring(projected) is { } declaring:
-                writer.Append($"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(projected.Property.Name)}");
+                writer.Append(ProjectedValue(declaring, projected.Property.ProjectedParameter, diagnostics)
+                    ?? $"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(projected.Property.Name)}");
                 break;
 
             case PropertyReferenceExpression propertyRef:
@@ -1601,6 +1597,13 @@ internal static partial class BodyEmitter
 
 
             case TypeLiteralExpression typeLiteral:
+                if(SlotRoutes.ValueRouted(TypeNameEmitter.Closed(typeLiteral.ReferencedType)) is [var routed, ..])
+                {
+                    diagnostics.ReportAtNodeTyped(
+                        BackendDiagnostics.TypeValueOfValueRoutedClosing, typeLiteral.Node, null,
+                        DiagnosticSnapshot.Type(typeLiteral.ReferencedType), new NameValue(routed.Name));
+                }
+
                 writer.Append($"typeof({TypeNameEmitter.EmitUnannotated(typeLiteral.ReferencedType)})");
                 break;
 
@@ -1656,6 +1659,40 @@ internal static partial class BodyEmitter
         return type.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName
             ? "\"\""
             : $"default({TypeNameEmitter.Emit(type)})";
+    }
+
+    private static void EmitCall(InvocationExpression invocation, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        LifetimeLowering.Capture(invocation);
+
+        // The member access is emitted from HERE when it carries type arguments, because
+        // only the invocation knows which overload they fill -- and a dependent slot is
+        // spelled by its carrier rather than by its domain.
+        if(invocation.Receiver is MemberAccessExpression hiddenCallee
+            && (HiddenBaseCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)
+                ?? NativeDefaultCall.ReceiverType(hiddenCallee.Receiver.Type, invocation.Method)) is { } baseType)
+        {
+            EmitMemberAccess(hiddenCallee,
+                ExtensionBlockEmitter.CallTypeArguments(invocation.Method, hiddenCallee.TypeArguments),
+                writer, diagnostics, CollidingName(invocation.Method, baseType), baseType,
+                invocation.Method?.Modifiers.IsStatic == true);
+        }
+        else if(invocation.Receiver is MemberAccessExpression callee
+            && (callee.TypeArguments is { Count: > 0 } || CollidingName(invocation.Method, callee.Receiver.Type) is not null))
+        {
+            EmitMemberAccess(
+                callee, ExtensionBlockEmitter.CallTypeArguments(invocation.Method, callee.TypeArguments), writer, diagnostics,
+                CollidingName(invocation.Method, callee.Receiver.Type));
+        }
+        else
+        {
+            EmitSubExpression(invocation.Receiver, PostfixPrecedence, writer, diagnostics);
+        }
+
+        writer.Append("(");
+        EmitWitnesses(invocation, writer, diagnostics);
+        EmitArguments(invocation.Arguments, invocation.Parameters, invocation.ParameterTypes, writer, diagnostics, invocation.Method);
+        writer.Append(")");
     }
 
     private static void EmitAnonymousObject(
@@ -2327,6 +2364,20 @@ internal static partial class BodyEmitter
 
         writer.Append(TestedType(typeTest.NarrowedType, typeTest.Node, diagnostics));
 
+        // A runtime slot is compared beside the pattern through the binding, so a test that binds
+        // nothing binds a temporary for the comparison's sake.
+        var compared = RuntimeSlots(typeTest.NarrowedType).Count > 0;
+        var bound = typeTest.Binding is { } binding ? LocalNames.Of(binding) : compared ? TemporaryName() : null;
+
+        if(compared && hoisted is null)
+        {
+            RefuseCombinedRuntimeTest(typeTest.NarrowedType, typeTest.Node, diagnostics);
+        }
+        else if(compared)
+        {
+            hoisted!.AddRange(RuntimeComparisons(typeTest.NarrowedType, bound!, diagnostics).Select(test => new HoistedTest(test)));
+        }
+
         if(typeTest.Refinement is { } predicate)
         {
             writer.Append(" and ");
@@ -2336,29 +2387,22 @@ internal static partial class BodyEmitter
             // here would leave the type test alone -- true of every value of the base type.
             EmitPattern(predicate, ConjunctionPrecedence, hoisted, writer, diagnostics);
 
-            if(typeTest.Binding is { } bound)
+            if(bound is not null)
             {
-                writer.Append($" and var {LocalNames.Of(bound)}");
+                writer.Append($" and var {bound}");
             }
 
             return;
         }
 
-        if(typeTest.Binding is { } tested)
+        if(bound is not null)
         {
-            writer.Append($" {LocalNames.Of(tested)}");
+            writer.Append($" {bound}");
         }
     }
 
     private static string TestedType(IMistType type, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
     {
-        if(ErasedShape.Captured(type) is { } captured)
-        {
-            diagnostics.ReportAtNodeTyped(
-                BackendDiagnostics.SlotValueNotEmitted, node, null,
-                new EnumValue("test a value against"), new NameValue(TypeDisplay.Mist(type)), new NameValue(captured.WrittenName));
-        }
-
         ReportUnstatedElements(type, node, diagnostics);
         return ErasedShape.Tested(type);
     }
@@ -2501,13 +2545,14 @@ internal static partial class BodyEmitter
         }
 
         IReadOnlyList<string> shape = [];
+        var compared = property.TypeTest is { } tested && RuntimeSlots(tested.NarrowedType).Count > 0;
 
         if(property.TypeTest is { Refinement: null, TestsAbsence: false, Binding: null, NarrowedType: not RefinedType } merged
-            && ErasedShape.Members(merged.NarrowedType) is { Count: > 0 } members)
+            && (compared || ErasedShape.Members(merged.NarrowedType) is { Count: > 0 }))
         {
             ReportUnstatedElements(merged.NarrowedType, merged.Node, diagnostics);
             writer.Append($"{TypeNameEmitter.EmitAsPatternType(merged.NarrowedType)} ");
-            shape = members;
+            shape = ErasedShape.Members(merged.NarrowedType);
         }
         else if(property.TypeTest is { } typeTest)
         {
@@ -2531,9 +2576,20 @@ internal static partial class BodyEmitter
             writer.Append(" }");
         }
 
-        if(property.Binding is { } whole)
+        var bound = property.Binding is { } whole ? LocalNames.Of(whole) : compared ? TemporaryName() : null;
+
+        if(bound is not null)
         {
-            writer.Append($" {LocalNames.Of(whole)}");
+            writer.Append($" {bound}");
+        }
+
+        if(compared && hoisted is null)
+        {
+            RefuseCombinedRuntimeTest(property.TypeTest!.NarrowedType, property.Node, diagnostics);
+        }
+        else if(compared && property.TypeTest is { Binding: null } whole2)
+        {
+            hoisted!.AddRange(RuntimeComparisons(whole2.NarrowedType, bound!, diagnostics).Select(test => new HoistedTest(test)));
         }
     }
 
@@ -2607,7 +2663,7 @@ internal static partial class BodyEmitter
     {
         // A type-parameter construction uses its supplied factory; native static initialization
         // retains the CLR constructor contract when no instance or method witness is available.
-        if(ArrayLowering.Generated(newExpression.Type, newExpression.Arguments.Count) is { } generated)
+        if(ArrayLowering.Generated(newExpression.Type, newExpression.Arguments.Count, length => SlotValue(length, diagnostics)) is { } generated)
         {
             writer.Append(
                 $"MistArray.Generate<{generated.Element}>({generated.Length}, "
@@ -2615,12 +2671,17 @@ internal static partial class BodyEmitter
             return;
         }
 
-        if(newExpression.Constructor is { } generator && ArrayLowering.Generates(generator) && ErasedShape.Captured(newExpression.Type) is { } captured)
+        if(Unconsumed(newExpression).Any())
         {
-            diagnostics.ReportAtNodeTyped(
-                BackendDiagnostics.SlotValueNotEmitted, newExpression.Node, null,
-                new EnumValue("construct"), new NameValue(TypeDisplay.Mist(newExpression.Type)), new NameValue(captured.WrittenName));
-            writer.Append("default!");
+            var unconsumed = Unconsumed(newExpression).ToList();
+            var scratch = new CSharpWriter();
+            EmitNew(new NewExpression(
+                newExpression.Node, newExpression.Type, newExpression.Arguments, newExpression.Constructor, newExpression.Initializer, newExpression.ParameterTypes)
+            {
+                ContextTypes = newExpression.ContextTypes,
+                Captures = [.. newExpression.Captures.Where(capture => !unconsumed.Contains(capture))],
+            }, scratch, diagnostics);
+            writer.Append(WrapDiscarded(unconsumed, scratch.ToString(), diagnostics));
             return;
         }
 
@@ -2666,6 +2727,9 @@ internal static partial class BodyEmitter
         var declaration = ProgramModel.Construction.Defaultability.DeclarationOf(newExpression.Type);
         var witnesses = declaration is null ? [] : DefaultWitnesses.ConstructionArguments(declaration, newExpression.Type);
         witnesses?.AddRange(newExpression.Constructor is { } entered ? ContextKeyWitnesses.Arguments(entered, newExpression.ContextTypes) : []);
+        witnesses?.InsertRange(0, constructionFactory is null && newExpression.Type is not TypeParameter
+            ? SlotValues(Unaliased(TypeNameEmitter.Closed(newExpression.Type)), diagnostics)
+            : []);
 
         if(witnesses is { Count: > 0 })
         {
@@ -2764,7 +2828,8 @@ internal static partial class BodyEmitter
             return;
         }
 
-        if(ProjectedValueAccess.Supplied(memberAccess) is { } supplied && DependentCarrierNames.ValueOf(supplied, memberAccess.Type) is { } value)
+        if(ProjectedValueAccess.Supplied(memberAccess) is { } supplied
+            && (DependentCarrierNames.ValueOf(supplied, memberAccess.Type) ?? SlotValue(supplied, diagnostics)) is { } value)
         {
             writer.Append(value);
             return;
@@ -2772,7 +2837,8 @@ internal static partial class BodyEmitter
 
         if(ProjectedValueAccess.Declaring(memberAccess) is { } declaring)
         {
-            writer.Append($"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(memberAccess.MemberName)}");
+            writer.Append(ProjectedValue(declaring, memberAccess.Member, diagnostics)
+                ?? $"{TypeNameEmitter.Emit(declaring)}.{IdentifierSpelling.Of(memberAccess.MemberName)}");
             return;
         }
 
@@ -2829,12 +2895,17 @@ internal static partial class BodyEmitter
     private static void EmitSlotRead(
         MemberAccessExpression memberAccess, ConstructedType closing, TypeParameter slot, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(SlotRoutes.IsValueRouted(slot))
+        {
+            EmitSubExpression(memberAccess.Receiver, PostfixPrecedence, writer, diagnostics);
+            writer.Append(memberAccess.IsConditional ? "?." : ".");
+            writer.Append(SlotRoutes.Hidden(slot));
+            return;
+        }
+
         if(slot.Ordinal < closing.TypeArguments.Count && closing.TypeArguments[slot.Ordinal] is UnknownType or UnknownValueType)
         {
-            diagnostics.ReportAtNodeTyped(
-                BackendDiagnostics.SlotValueNotEmitted, memberAccess.Node, null,
-                new EnumValue("read"), new NameValue($"{TypeDisplay.Mist(closing)}.{slot.Name}"), new NameValue("unknown"));
-            writer.Append("default!");
+            writer.Append(EmissionDiagnostics.Fallback("slot read", $"{TypeDisplay.Mist(closing)}.{slot.Name}", "default!"));
             return;
         }
 
@@ -3054,8 +3125,6 @@ internal static partial class BodyEmitter
             return "";
         }
 
-        TypeNameEmitter.RefuseCaptured(typeArguments, parameters?.FirstOrDefault()?.DeclaringMethod?.Name ?? "a method", "call");
-
         // A pack argument is not written: the specialization already fixed the width, and its
         // elements stand where the pack did.
         var closed = typeArguments.Select(TypeNameEmitter.Closed).ToList();
@@ -3065,7 +3134,9 @@ internal static partial class BodyEmitter
             return MonomorphReference.SpecializedArguments(closed, parameters!, TypeNameEmitter.Emit);
         }
 
-        var spelled = typeArguments.Select((argument, ordinal) =>
+        var spelled = typeArguments
+            .Where((_, ordinal) => parameters is null || ordinal >= parameters.Count || !SlotRoutes.IsValueRouted(parameters[ordinal]))
+            .Select((argument, ordinal) =>
             parameters is not null
                 && ordinal < parameters.Count
                 && argument is LiftedType lifted
@@ -3077,8 +3148,9 @@ internal static partial class BodyEmitter
         var fillers = parameters is null
             ? []
             : SlotLift.Fillers(typeArguments, parameters).Select(TypeNameEmitter.Emit);
+        var written = spelled.Concat(fillers).ToList();
 
-        return $"<{string.Join(", ", spelled.Concat(fillers))}>";
+        return written.Count == 0 ? "" : $"<{string.Join(", ", written)}>";
     }
 
     internal static string EmitLiteral(LiteralExpression literal)

@@ -58,6 +58,11 @@ internal static class DependentCarrierNames
             return null;
         }
 
+        if(SlotRoutes.IsValueRouted(parameter))
+        {
+            return SlotRoutes.Hidden(parameter);
+        }
+
         return DependentDomains.Primitive(domain) is { } primitive && DependentDomains.KindOf(primitive) == DependentKind.Integral
             ? $"(({Keyword(domain)}){Parameter(parameter)}.Value)"
             : $"{Parameter(parameter)}.Value";

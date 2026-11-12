@@ -24,20 +24,24 @@ internal static class DefaultEmitter
         // The marker argument is TYPED rather than a bare `default`, which converts to every
         // one-parameter constructor and so leaves the call ambiguous on any type declaring one.
         var marker = $"default({DefaultSynthesis.MarkerType})";
+        var routed = SlotRoutes.ValueRouted(type);
+        var hidden = SlotRoutes.HiddenNames(routed).ToList();
+        var hiddenParameters = SlotRoutes.HiddenParameters(routed).ToList();
+        var baseValues = type.BaseType is ConstructedType baseClosing ? BodyEmitter.SlotValues(baseClosing, diagnostics) : [];
         var chain = DefaultSynthesis.ChainsToBaseSentinel(type)
-            ? $" : base({string.Join(", ", DefaultSynthesis.BaseWitnesses(type).Prepend(sentinel ? "marker" : marker))})"
-            : "";
+            ? $" : base({string.Join(", ", baseValues.Concat(DefaultSynthesis.BaseWitnesses(type).Prepend(sentinel ? "marker" : marker)))})"
+            : baseValues.Count > 0 ? $" : base({string.Join(", ", baseValues)})" : "";
 
         if(sentinel && !DefaultSynthesis.NeedsSentinel(type))
         {
             SeparateMember(writer, ref anyEmitted);
-            writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.CompatibilityArguments(type, factory: true).Prepend(marker))})");
+            writer.WriteLine($"public {name}({string.Join(", ", hiddenParameters)}) : this({string.Join(", ", hidden.Concat(DefaultWitnesses.CompatibilityArguments(type, factory: true).Prepend(marker)))})");
             using(writer.Block())
             {
             }
 
             SeparateMember(writer, ref anyEmitted);
-            writer.WriteLine($"public {name}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))}) : this({string.Join(", ", witnesses.Prepend(marker))})");
+            writer.WriteLine($"public {name}({string.Join(", ", hiddenParameters.Concat(DefaultWitnesses.FactoryParameters(type)))}) : this({string.Join(", ", hidden.Concat(witnesses.Prepend(marker)))})");
             using(writer.Block())
             {
             }
@@ -47,26 +51,27 @@ internal static class DefaultEmitter
 
         if(sentinel)
         {
-            var parameters = DefaultWitnesses.FactoryParameters(type).Prepend($"{DefaultSynthesis.MarkerType} marker");
+            var parameters = hiddenParameters.Concat(DefaultWitnesses.FactoryParameters(type).Prepend($"{DefaultSynthesis.MarkerType} marker"));
             writer.WriteLine($"{DefaultSynthesis.SentinelAccessibility(type)} {name}({string.Join(", ", parameters)}){chain}");
         }
         else
         {
-            writer.WriteLine($"public {name}(){chain}");
+            writer.WriteLine($"public {name}({string.Join(", ", hiddenParameters)}){chain}");
         }
 
         using(writer.Block())
         {
+            ValueRouteEmitter.EmitAssignments(type, writer);
             DefaultWitnesses.EmitAssignments(type, writer);
             EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);
         }
 
         SeparateMember(writer, ref anyEmitted);
         var hiding = HidesInheritedFactory(type) ? "new " : "";
-        writer.WriteLine($"public {hiding}static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", DefaultWitnesses.FactoryParameters(type))})");
+        writer.WriteLine($"public {hiding}static {self} {DefaultSynthesis.FactoryName}({string.Join(", ", hiddenParameters.Concat(DefaultWitnesses.FactoryParameters(type)))})");
         using(writer.Block())
         {
-            var arguments = sentinel ? string.Join(", ", witnesses.Prepend(marker)) : "";
+            var arguments = string.Join(", ", hidden.Concat(sentinel ? witnesses.Prepend(marker) : []));
             writer.WriteLine($"return new {self}({arguments});");
         }
     }
@@ -116,9 +121,10 @@ internal static class DefaultEmitter
     public static void EmitImplicitConstruction(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
         var name = TypeEmitter.CleanName(type);
-        var parameters = DefaultWitnesses.FactoryParameters(type);
+        var routed = SlotRoutes.ValueRouted(type);
+        var parameters = SlotRoutes.HiddenParameters(routed).Concat(DefaultWitnesses.FactoryParameters(type)).ToList();
         SeparateMember(writer, ref anyEmitted);
-        writer.WriteLine($"public {name}() : this({string.Join(", ", DefaultWitnesses.CompatibilityArguments(type, factory: true))})");
+        writer.WriteLine($"public {name}({string.Join(", ", SlotRoutes.HiddenParameters(routed))}) : this({string.Join(", ", SlotRoutes.HiddenNames(routed).Concat(DefaultWitnesses.CompatibilityArguments(type, factory: true)))})");
         using(writer.Block())
         {
         }
@@ -127,6 +133,7 @@ internal static class DefaultEmitter
         writer.WriteLine($"public {name}({string.Join(", ", parameters)})");
         using(writer.Block())
         {
+            ValueRouteEmitter.EmitAssignments(type, writer);
             DefaultWitnesses.EmitAssignments(type, writer);
             using var witnessing = DefaultWitnesses.Witnessing(type);
             EmitAssignments(DefaultSynthesis.FlattenedAssignments(type), writer, diagnostics);

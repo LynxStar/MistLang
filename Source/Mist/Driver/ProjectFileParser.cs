@@ -7,24 +7,18 @@ using Tomlyn.Model;
 
 namespace Mist.Driver;
 
-/// <summary>
-/// Reads and validates a <c>mist.toml</c> project file, producing a
-/// <see cref="ProjectConfiguration"/> or reporting diagnostics.
-/// </summary>
 public static partial class ProjectFileParser
 {
     public const string FileName = "mist.toml";
     public const int MaxNameLength = 128;
 
     /// <summary>
-    /// Maximum length, after trimming, of a framework name declared in the
-    /// <c>[framework_references]</c> table.
+    /// Applies to the trimmed name.
     /// </summary>
     public const int MaxFrameworkReferenceNameLength = 256;
 
     /// <summary>
-    /// Property names that are managed by the compiler and emitted in the hardcoded
-    /// PropertyGroup. Users may override them, but a warning is emitted.
+    /// Already set by the compiler's generated PropertyGroup; a user override is allowed, with a warning.
     /// </summary>
     private static readonly HashSet<string> CompilerManagedProperties = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -42,10 +36,6 @@ public static partial class ProjectFileParser
     [GeneratedRegex(@"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")]
     private static partial Regex ValidNamespacePattern();
 
-    /// <summary>
-    /// Parses the <c>mist.toml</c> file from the given project folder.
-    /// Returns <c>null</c> and populates diagnostics on any error.
-    /// </summary>
     public static ProjectConfiguration? Parse(string projectFolder, DiagnosticBag diagnostics)
     {
         return Parse(projectFolder, diagnostics, root: false);
@@ -66,14 +56,12 @@ public static partial class ProjectFileParser
     {
         var filePath = Path.Combine(projectFolder, FileName);
 
-        // 1. File existence check
         if(!File.Exists(filePath))
         {
             diagnostics.ReportTyped(DriverDiagnostics.ProjectFileNotFound, new FileOnly(filePath), new PathValue(filePath));
             return null;
         }
 
-        // 2. File read with I/O error handling
         string content;
         try
         {
@@ -85,7 +73,6 @@ public static partial class ProjectFileParser
             return null;
         }
 
-        // 3. TOML parsing
         TomlTable model;
         try
         {
@@ -107,7 +94,6 @@ public static partial class ProjectFileParser
             diagnostics.Operation.Policy = diagnostics.Operation.Overrides.Apply(policy);
         }
 
-        // 4. name field presence check
         if(!model.TryGetValue("name", out var nameObj) || nameObj is not string)
         {
             diagnostics.ReportTyped(DriverDiagnostics.ProjectMissingName, new FileOnly(filePath), new PathValue(filePath));
@@ -116,14 +102,12 @@ public static partial class ProjectFileParser
 
         var name = (string)nameObj;
 
-        // 5. name non-empty/non-whitespace check
         if(string.IsNullOrWhiteSpace(name))
         {
             diagnostics.ReportTyped(DriverDiagnostics.ProjectEmptyName, new FileOnly(filePath), new PathValue(filePath));
             return null;
         }
 
-        // 6. name character validation
         if(!ValidNamePattern().IsMatch(name))
         {
             var invalidChars = name
@@ -135,25 +119,21 @@ public static partial class ProjectFileParser
             return null;
         }
 
-        // 7. name length check
         if(name.Length > MaxNameLength)
         {
             diagnostics.ReportTyped(DriverDiagnostics.ProjectNameTooLong, new FileOnly(filePath), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(name.Length));
             return null;
         }
 
-        // 8. namespace_root field (optional)
         string namespaceRoot;
         if(model.TryGetValue("namespace_root", out var nsRootObj) && nsRootObj is string nsRootStr)
         {
-            // 8a. non-empty/non-whitespace check
             if(string.IsNullOrWhiteSpace(nsRootStr))
             {
                 diagnostics.ReportTyped(DriverDiagnostics.ProjectEmptyNamespaceRoot, new FileOnly(filePath), new PathValue(filePath));
                 return null;
             }
 
-            // 8b. character validation (same regex as name)
             if(!ValidNamePattern().IsMatch(nsRootStr))
             {
                 var invalidChars = nsRootStr
@@ -169,11 +149,9 @@ public static partial class ProjectFileParser
         }
         else
         {
-            // 8c. default to name when namespace_root is absent
             namespaceRoot = name;
         }
 
-        // 8.5. entry_point field (optional)
         string? entryPoint = null;
         if(model.TryGetValue("entry_point", out var epObj) && epObj is string epStr)
         {
@@ -186,7 +164,6 @@ public static partial class ProjectFileParser
             entryPoint = epStr;
         }
 
-        // 9. Read [references] table (optional)
         var references = ImmutableArray.CreateBuilder<ProjectReference>();
 
         if(model.TryGetValue("references", out var refsObj))
@@ -199,7 +176,6 @@ public static partial class ProjectFileParser
 
             foreach(var (refName, refValue) in refsTable)
             {
-                // 9a. Validate reference key name (empty → pattern → length)
                 if(string.IsNullOrWhiteSpace(refName))
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceEmptyName, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
@@ -218,14 +194,12 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                // 9b. Validate reference value is a table
                 if(refValue is not TomlTable refEntry)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceInvalidFormat, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
                     return null;
                 }
 
-                // 9c. Extract and validate 'path' field
                 if(!refEntry.TryGetValue("path", out var pathObj) || pathObj is not string rawPath)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.ProjectReferenceMissingPath, new FileOnly(filePath), new NameValue(refName), new PathValue(filePath));
@@ -238,10 +212,9 @@ public static partial class ProjectFileParser
                     return null;
                 }
 
-                // 9d. Normalize path (unchanged logic)
                 var normalizedPath = Path.IsPathRooted(rawPath) ? Path.GetFullPath(rawPath) : Path.GetFullPath(Path.Combine(projectFolder, rawPath));
 
-                // 9e. Classify: a directory or a missing path is left for the resolver to judge
+                // A directory or a missing path is left for the resolver to judge.
                 if(ReferenceTo(refName, normalizedPath) is not { } reference)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.ReferenceUnsupportedPath, new FileOnly(filePath), new NameValue(refName), new PathValue(normalizedPath));
@@ -252,7 +225,6 @@ public static partial class ProjectFileParser
             }
         }
 
-        // 10. Read [global_usings] section (optional)
         var globalUsings = ImmutableArray<string>.Empty;
 
         if(model.TryGetValue("global_usings", out var guObj))
@@ -315,7 +287,6 @@ public static partial class ProjectFileParser
             globalUsings = builder.ToImmutable();
         }
 
-        // 11. Read [packages] table (optional)
         var packages = ImmutableArray<NuGetPackageReference>.Empty;
 
         if(model.TryGetValue("packages", out var pkgsObj))
@@ -330,7 +301,6 @@ public static partial class ProjectFileParser
 
             foreach(var (pkgName, pkgValue) in pkgsTable)
             {
-                // 11a. Validate package name: pattern check
                 if(!ValidNamePattern().IsMatch(pkgName))
                 {
                     var invalidChars = pkgName
@@ -342,14 +312,12 @@ public static partial class ProjectFileParser
                     continue;
                 }
 
-                // 11b. Validate package name: length check
                 if(pkgName.Length > MaxNameLength)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.PackageNameTooLong, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(pkgName.Length));
                     continue;
                 }
 
-                // 11c. Validate version value: must be a non-empty string
                 if(pkgValue is not string versionStr)
                 {
                     diagnostics.ReportTyped(DriverDiagnostics.PackageInvalidVersion, new FileOnly(filePath), new NameValue(pkgName), new PathValue(filePath));
@@ -368,7 +336,6 @@ public static partial class ProjectFileParser
             packages = pkgBuilder.ToImmutable();
         }
 
-        // 12. Read target_framework field (optional string), defaulting to net10.0
         var targetFramework = "net10.0";
         if(model.TryGetValue("target_framework", out var tfObj)
             && tfObj is string tfStr
@@ -377,15 +344,13 @@ public static partial class ProjectFileParser
             targetFramework = tfStr.Trim();
         }
 
-        // 13. Read [framework_references] table (optional)
         var frameworkReferences = ImmutableArray<FrameworkReference>.Empty;
 
         if(model.TryGetValue("framework_references", out var fwrefsObj))
         {
             if(fwrefsObj is not TomlTable fwrefsTable)
             {
-                // Present but not a table → emit diagnostic, produce empty list,
-                // and continue (do not abort the parse).
+                // Deliberately not fatal: the parse continues with no framework references.
                 diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceTableExpected, new FileOnly(filePath), new PathValue(filePath));
             }
             else
@@ -397,34 +362,29 @@ public static partial class ProjectFileParser
                 {
                     var fwName = rawFwName.Trim();
 
-                    // 13a. Validate framework name: empty/whitespace after trim
                     if(fwName.Length == 0)
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceInvalidName, new FileOnly(filePath), new NameValue(rawFwName), new PathValue(filePath));
                         continue;
                     }
 
-                    // 13b. Validate framework name: length check (after trim)
                     if(fwName.Length > MaxFrameworkReferenceNameLength)
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceNameTooLong, new FileOnly(filePath), new NameValue(fwName), new PathValue(filePath), new QuantityValue(MaxFrameworkReferenceNameLength), new QuantityValue(fwName.Length));
                         continue;
                     }
 
-                    // 13c. Validate value: must be a TOML boolean
                     if(fwValue is not bool enabled)
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.FrameworkReferenceInvalidValue, new FileOnly(filePath), new NameValue(fwName), new PathValue(filePath));
                         continue;
                     }
 
-                    // 13d. false → exclude from the list.
                     if(!enabled)
                     {
                         continue;
                     }
 
-                    // 13e. true → include exactly once (dedupe by trimmed name).
                     if(seenFrameworks.Add(fwName))
                     {
                         fwrefBuilder.Add(new FrameworkReference(fwName));
@@ -435,7 +395,6 @@ public static partial class ProjectFileParser
             }
         }
 
-        // 14. Read [csproj_properties] table (optional)
         var csprojProperties = ImmutableArray<CsprojProperty>.Empty;
 
         if(model.TryGetValue("csproj_properties", out var csprojPropsObj))
@@ -450,14 +409,12 @@ public static partial class ProjectFileParser
 
                 foreach(var (rawKey, propValue) in csprojPropsTable)
                 {
-                    // 14a. Validate key: empty/whitespace
                     if(string.IsNullOrWhiteSpace(rawKey))
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyEmptyKey, new FileOnly(filePath), new PathValue(filePath));
                         continue;
                     }
 
-                    // 14b. Validate key: character pattern
                     if(!ValidNamePattern().IsMatch(rawKey))
                     {
                         var invalidChars = rawKey
@@ -469,28 +426,24 @@ public static partial class ProjectFileParser
                         continue;
                     }
 
-                    // 14c. Validate key: length check
                     if(rawKey.Length > MaxNameLength)
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyKeyTooLong, new FileOnly(filePath), new NameValue(rawKey[..32] + "..."), new PathValue(filePath), new QuantityValue(MaxNameLength), new QuantityValue(rawKey.Length));
                         continue;
                     }
 
-                    // 14d. Validate value: must be a string
                     if(propValue is not string valueStr)
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyInvalidValue, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
                         continue;
                     }
 
-                    // 14e. Validate value: non-empty/non-whitespace
                     if(string.IsNullOrWhiteSpace(valueStr))
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyEmptyValue, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
                         continue;
                     }
 
-                    // 14f. Warn if key shadows a compiler-managed property
                     if(CompilerManagedProperties.Contains(rawKey))
                     {
                         diagnostics.ReportTyped(DriverDiagnostics.CsprojPropertyManagedOverride, new FileOnly(filePath), new NameValue(rawKey), new PathValue(filePath));
@@ -503,7 +456,6 @@ public static partial class ProjectFileParser
             }
         }
 
-        // 15. Read output_type field (optional string), defaulting to Executable
         var outputType = ProjectOutputType.Executable;
 
         if(model.TryGetValue("output_type", out var outputTypeObj))

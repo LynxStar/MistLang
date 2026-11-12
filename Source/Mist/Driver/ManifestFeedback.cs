@@ -5,8 +5,7 @@ namespace Mist.Driver;
 
 /// <summary>
 /// The project file's diagnostics as <c>mist inspect</c> and <c>mist restore</c> show them, before anything is
-/// resolved: each one once, warnings included, whether or not a configuration came back. The result says whether an
-/// error stops the command, as one stops a build.
+/// resolved and whether or not a configuration came back; an error stops the command as it stops a build.
 /// </summary>
 public static class ManifestFeedback
 {

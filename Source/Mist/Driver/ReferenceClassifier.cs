@@ -4,8 +4,8 @@ using Mist.Driver.Contracts;
 namespace Mist.Driver;
 
 /// <summary>
-/// Decides what a <c>[references]</c> path names from its final segment or, for a directory, from the
-/// names of the directory's own files. It never touches the file system: the caller lists the directory.
+/// Classifies a <c>[references]</c> path by name only. It never touches the file system: the caller
+/// lists the directory.
 /// </summary>
 public static class ReferenceClassifier
 {

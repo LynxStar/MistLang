@@ -8,32 +8,17 @@ using NuGet.Versioning;
 namespace Mist.Driver;
 
 /// <summary>
-/// Resolves NuGet package references to assembly file paths by delegating to
-/// <c>dotnet restore</c> and parsing the resulting <c>project.assets.json</c>.
-/// This approach inherits the SDK's certificate trust, TFM fallback, runtime-
-/// package skipping, and transitive dependency resolution automatically.
+/// Delegates to <c>dotnet restore</c> and reads <c>project.assets.json</c>, inheriting the SDK's
+/// certificate trust, TFM fallback, runtime-package skipping and transitive resolution.
 /// </summary>
 public static class PackageResolver
 {
     /// <summary>
-    /// The standard NuGet global packages folder (~/.nuget/packages/), read only for an assets file that names
-    /// neither its package folders nor its restore packages path.
+    /// Read only for an assets file that names neither its package folders nor its restore packages path.
     /// </summary>
     private static readonly string DefaultPackagesFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
 
-    /// <summary>
-    /// Resolves all package references to assembly paths by generating a temporary
-    /// .csproj, running <c>dotnet restore</c>, and parsing <c>project.assets.json</c>.
-    /// </summary>
-    /// <param name="packages">The declared package references from mist.toml.</param>
-    /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
-    /// <param name="diagnostics">Diagnostic bag for reporting errors.</param>
-    /// <returns>
-    /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
-    /// paths, a per-declared-package summary, and the count of declared packages
-    /// that failed to resolve.
-    /// </returns>
     public static PackageResolutionResult ResolvePackages(
         ImmutableArray<NuGetPackageReference> packages,
         string targetFramework,
@@ -42,18 +27,9 @@ public static class PackageResolver
         return ResolvePackages(packages, default, targetFramework, diagnostics);
     }
 
-    /// <summary>
-    /// Resolves all package references to assembly paths, deduplicating against
-    /// assemblies already provided by the specified shared framework references.
-    /// </summary>
-    /// <param name="packages">The declared package references from mist.toml.</param>
     /// <param name="frameworkReferences">
-    /// Shared framework references (e.g., Microsoft.AspNetCore.App) whose assemblies
-    /// should be excluded from the package resolution output to prevent duplicate
-    /// assembly loading in MetadataLoadContext.
+    /// Shared frameworks whose assemblies are left out of the result, so MetadataLoadContext never loads one twice.
     /// </param>
-    /// <param name="targetFramework">The project's target framework (e.g., "net10.0").</param>
-    /// <param name="diagnostics">Diagnostic bag for reporting errors.</param>
     /// <param name="beforeRestore">
     /// Called once the diagnostics known without a feed are in <paramref name="diagnostics"/>, so a caller can
     /// show them before a restore that may run for seconds.
@@ -62,11 +38,6 @@ public static class PackageResolver
     /// The target runtime identifier whose fallback order selects each package's runtime assets; <see langword="null"/>
     /// selects none.
     /// </param>
-    /// <returns>
-    /// A <see cref="PackageResolutionResult"/> carrying the flattened assembly
-    /// paths (excluding framework-provided assemblies), a per-declared-package
-    /// summary, and the count of declared packages that failed to resolve.
-    /// </returns>
     public static PackageResolutionResult ResolvePackages(
         ImmutableArray<NuGetPackageReference> packages,
         ImmutableArray<FrameworkReference> frameworkReferences,
@@ -129,7 +100,6 @@ public static class PackageResolver
         Func<string, string, (int ExitCode, string Stdout, string Stderr)> restore,
         string? runtimeIdentifier)
     {
-        // Generate a temporary .csproj and run dotnet restore
         var tempDir = Path.Combine(Path.GetTempPath(), $"mist-restore-{Guid.NewGuid():N}");
 
         try
@@ -149,7 +119,6 @@ public static class PackageResolver
                 return NuGetRestoreFailure.Report(packages, restoreStdout, restoreStderr, diagnostics);
             }
 
-            // Parse project.assets.json to extract resolved assembly paths
             var assetsPath = Path.Combine(tempDir, "obj", "project.assets.json");
             if(!File.Exists(assetsPath))
             {
@@ -173,7 +142,6 @@ public static class PackageResolver
         }
         finally
         {
-            // Clean up temp directory
             try
             {
                 if(Directory.Exists(tempDir))
@@ -188,9 +156,6 @@ public static class PackageResolver
         }
     }
 
-    /// <summary>
-    /// Generates a minimal .csproj file with the declared package references.
-    /// </summary>
     private static string GenerateCsproj(
         string directory,
         ImmutableArray<NuGetPackageReference> packages,
@@ -201,7 +166,6 @@ public static class PackageResolver
         _ = sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
         _ = sb.AppendLine("  <PropertyGroup>");
         _ = sb.AppendLine($"    <TargetFramework>{targetFramework}</TargetFramework>");
-        // Suppress all warnings and informational output from the restore
         _ = sb.AppendLine("    <NoWarn>$(NoWarn);NU1701;NU1603</NoWarn>");
         _ = sb.AppendLine("  </PropertyGroup>");
 
@@ -231,11 +195,6 @@ public static class PackageResolver
         return csprojPath;
     }
 
-    /// <summary>
-    /// Parses <c>project.assets.json</c> to extract resolved assembly paths for
-    /// the target framework. Deduplicates against assemblies provided by referenced
-    /// shared frameworks to prevent duplicate assembly loading.
-    /// </summary>
     private static PackageResolutionResult ParseAssetsFile(
         string assetsPath,
         ImmutableArray<NuGetPackageReference> declaredPackages,
@@ -265,10 +224,8 @@ public static class PackageResolver
             var resolvedInfos = ImmutableArray.CreateBuilder<ResolvedPackageInfo>();
             var failureCount = priorFailureCount;
 
-            // Build set of framework-provided assembly names for deduplication (issue 3).
             var frameworkAssemblyNames = BuildFrameworkAssemblySet(doc, targetFramework);
 
-            // Track which declared packages we successfully resolved
             var declaredPackageSet = new Dictionary<string, NuGetPackageReference>(
                 StringComparer.OrdinalIgnoreCase);
             foreach(var pkg in declaredPackages)
@@ -279,7 +236,6 @@ public static class PackageResolver
             var resolvedDeclaredPackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var packageFolders = PackageAssets.PackageFolders(doc.RootElement, DefaultPackagesFolder);
 
-            // Parse the "targets" section to get resolved libraries and their assemblies.
             var targetEntry = PackageAssets.Target(doc.RootElement, targetFramework);
 
             if(targetEntry.HasValue)
@@ -296,7 +252,6 @@ public static class PackageResolver
                     var packageName = parts[0];
                     var packageVersion = parts[1];
 
-                    // Skip if this is a "project" type (not a package)
                     if(library.Value.TryGetProperty("type", out var typeElement)
                         && typeElement.GetString() == "project")
                     {
@@ -305,7 +260,6 @@ public static class PackageResolver
 
                     var packageDirectory = PackageAssets.PackageDirectory(doc.RootElement, packageFolders, library.Name);
 
-                    // Extract compile-time assemblies from "compile" property
                     string? selectedTfm = null;
                     var packageAssemblies = ImmutableArray.CreateBuilder<string>();
 
@@ -315,13 +269,12 @@ public static class PackageResolver
                         {
                             var assemblyRelPath = assembly.Name;
 
-                            // Skip placeholder "_._" entries (runtime-provided packages)
+                            // "_._" is a placeholder for an asset the runtime provides.
                             if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
                             {
                                 continue;
                             }
 
-                            // Extract TFM from path (e.g., "lib/net8.0/Assembly.dll")
                             var pathParts = assemblyRelPath.Split('/');
                             if(pathParts.Length >= 3 && pathParts[0] == "lib")
                             {
@@ -331,7 +284,6 @@ public static class PackageResolver
                             var assemblyName = Path.GetFileNameWithoutExtension(
                                 Path.GetFileName(assemblyRelPath));
 
-                            // Deduplicate against framework-provided assemblies (issue 3)
                             if(frameworkAssemblyNames.Contains(assemblyName))
                             {
                                 continue;
@@ -348,8 +300,7 @@ public static class PackageResolver
                         }
                     }
 
-                    // Also check "runtime" assemblies as fallback (some packages
-                    // only specify runtime, not compile)
+                    // Some packages list runtime assemblies and no compile ones.
                     if(packageAssemblies.Count == 0
                         && library.Value.TryGetProperty("runtime", out var runtimeSection))
                     {
@@ -389,7 +340,6 @@ public static class PackageResolver
 
                     assemblyPaths.AddRange(packageAssemblies);
 
-                    // Record info for declared (direct) packages
                     if(declaredPackageSet.ContainsKey(packageName))
                     {
                         _ = resolvedDeclaredPackages.Add(packageName);
@@ -402,7 +352,6 @@ public static class PackageResolver
                 }
             }
 
-            // Check for declared packages that didn't appear in the assets file
             foreach(var pkg in declaredPackages)
             {
                 if(!resolvedDeclaredPackages.Contains(pkg.Name))
@@ -449,19 +398,12 @@ public static class PackageResolver
         }
     }
 
-    /// <summary>
-    /// Builds a set of assembly names that are provided by the referenced shared
-    /// frameworks. Uses the "frameworkAssemblies" section of project.assets.json
-    /// when available, falling back to the "frameworkReferences" in the target's
-    /// libraries.
-    /// </summary>
     private static HashSet<string> BuildFrameworkAssemblySet(
         JsonDocument doc,
         string targetFramework)
     {
         var frameworkAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Try "project" → "frameworks" → tfm → "frameworkAssemblies" in assets file
         if(doc.RootElement.TryGetProperty("project", out var project)
             && project.TryGetProperty("frameworks", out var frameworks))
         {
@@ -477,8 +419,7 @@ public static class PackageResolver
             }
         }
 
-        // Also scan the targets for libraries with type "package" that have only
-        // "_._" compile entries — these are runtime-provided and should be excluded
+        // A package whose compile entries are all "_._" is runtime-provided.
         if(doc.RootElement.TryGetProperty("targets", out var targets))
         {
             foreach(var target in targets.EnumerateObject())
@@ -508,16 +449,12 @@ public static class PackageResolver
                         }
                     }
 
-                    // If all compile entries are "_._" placeholders, this package
-                    // is runtime-provided. Add its name to the exclusion set.
                     if(hasAny && allPlaceholders)
                     {
                         var libParts = library.Name.Split('/');
                         if(libParts.Length == 2)
                         {
-                            // The package name itself (not assembly name) is what
-                            // we track here — but typically the assembly name matches
-                            // the package name for System.* packages.
+                            // The package name stands in for its assembly name, which matches for System.* packages.
                             _ = frameworkAssemblies.Add(libParts[0]);
                         }
                     }

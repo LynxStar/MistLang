@@ -3,10 +3,6 @@ using Mist.Common.Diagnostics;
 
 namespace Mist.Driver.Contracts;
 
-/// <summary>
-/// Bundles everything that the stages before Stage 4 produce and the pipeline needs to
-/// execute Stages 4-6 (program model, analysis, emit).
-/// </summary>
 public sealed record PipelineInput(
     MistCompilation Compilation,
     ImmutableArray<string> ResolvedAssemblyPaths,

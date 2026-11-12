@@ -4,11 +4,9 @@ using Mist.Lexing.Contracts;
 namespace Mist.Driver;
 
 /// <summary>
-/// The standard library's token streams and syntax trees, lexed and parsed once and reused by
-/// every later compile. An entry is recorded only when it holds one of each for every stdlib unit:
-/// the lexer and parser are injected per driver while <see cref="Shared"/> serves every driver in
-/// the process. Cached trees follow the loader's stable unit order, so a short entry would
-/// attach a tree to the wrong source on every compile that followed it.
+/// An entry is recorded only when it covers every stdlib unit: the lexer and parser are injected per driver
+/// while <see cref="Shared"/> serves every driver in the process, and cached trees follow the loader's unit
+/// order, so a short entry would attach a tree to the wrong source on every later compile.
 /// </summary>
 internal sealed class StdlibParseCache
 {

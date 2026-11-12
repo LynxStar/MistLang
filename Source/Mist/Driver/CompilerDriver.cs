@@ -83,7 +83,6 @@ public sealed class CompilerDriver : ICompilerDriver
         var runtimeIdentifier = TargetRuntime.Select(
             options.Platform, RuntimeInformation.RuntimeIdentifier, RuntimeInformation.OSArchitecture, options.RuntimeIdentifier);
 
-        // Stage 1: Loading
         var loadResult = LoadCompilationUnits(options, runtimeIdentifier, allDiagnostics);
         if(loadResult is null)
         {
@@ -93,7 +92,6 @@ public sealed class CompilerDriver : ICompilerDriver
         var compilation = loadResult.Compilation;
         options = ProjectDependencyUnion.Apply(options, loadResult.ReferencedConfigurations);
 
-        // Stage 1.5: Package Resolution (runs only when deps are declared)
         var resolutionDiagnostics = new ResolutionDiagnostics(allDiagnostics.ToImmutableArray().Length, resolutionListener, operation);
         var (packagePaths, packages) = ResolvePackages(options, resolutionDiagnostics, runtimeIdentifier);
         var resolvedAssemblyPaths = WithExternalAssemblies(packagePaths.AddRange(options.AssemblyPaths), loadResult);
@@ -105,10 +103,8 @@ public sealed class CompilerDriver : ICompilerDriver
             return resolutionDiagnostics.JoinInto(new CompilerResult(false, null, allDiagnostics.ToImmutableArray()));
         }
 
-        // Stage 2: Lexing
         var lexResult = Lex(compilation, allDiagnostics);
 
-        // Stage 3: Parsing
         compilation = Parse(
             compilation,
             lexResult.TokenStreams,
@@ -116,7 +112,6 @@ public sealed class CompilerDriver : ICompilerDriver
             lexResult.CachedStdlib,
             allDiagnostics);
 
-        // Dispatch to the compilation pipeline (Stages 4-6).
         var pipelineInput = new PipelineInput(
             compilation, resolvedAssemblyPaths,
             options, allDiagnostics, resolutionDiagnostics.Reported,
@@ -126,10 +121,6 @@ public sealed class CompilerDriver : ICompilerDriver
         return resolutionDiagnostics.JoinInto(pipeline.Execute(pipelineInput));
     }
 
-    /// <summary>
-    /// Result of Stage 1 (Loading): the combined compilation and the configurations of the
-    /// projects it references.
-    /// </summary>
     private sealed record LoadResult(
         MistCompilation Compilation,
         ImmutableArray<ProjectConfiguration> ReferencedConfigurations,
@@ -149,11 +140,6 @@ public sealed class CompilerDriver : ICompilerDriver
             .Where(path => !composedNames.Contains(Path.GetFileNameWithoutExtension(path)) && paths.Add(path)));
     }
 
-    /// <summary>
-    /// Stage 1 – Loading: reads user source files, stdlib, and project
-    /// references, combining them into a single <see cref="MistCompilation"/>.
-    /// Returns <c>null</c> when a fatal error prevents compilation from proceeding.
-    /// </summary>
     private LoadResult? LoadCompilationUnits(
         CompilerOptions options,
         string runtimeIdentifier,
@@ -216,15 +202,14 @@ public sealed class CompilerDriver : ICompilerDriver
         CompilerOptions options,
         DiagnosticBag allDiagnostics)
     {
-        // Step 1a: Read the manifest and resolve its references, building every referenced C# project
-        // before any source is read (csharp-and-assembly-references Requirement 4.1).
+        // Every referenced C# project is built before any source is read (csharp-and-assembly-references
+        // Requirement 4.1).
         var manifest = ReadManifest(options, allDiagnostics);
         if(manifest is null)
         {
             return null;
         }
 
-        // Step 1b: Load source files into CompilationUnits
         var userUnits = ImmutableArray.CreateBuilder<CompilationUnit>();
         foreach(var path in options.SourcePaths)
         {
@@ -240,13 +225,8 @@ public sealed class CompilerDriver : ICompilerDriver
             }
         }
 
-        // Step 1c: Load Standard Library sources and prepend them to the
-        // user units (design § 8). The loader reads every *.mist file under
-        // AppContext.BaseDirectory/Standard and returns them as
-        // CompilationUnits with IsStdlib=true. If the loader emits any
-        // MIST0031 error, the compilation cannot proceed because
-        // primitive keyword resolution (Stage 4) and operator overload
-        // resolution depend on stdlib types being present.
+        // Stdlib units precede the user's (design § 8). A stdlib error stops the build because Stage 4 resolves
+        // primitive keywords and operator overloads against stdlib types.
         var stdlibBag = new DiagnosticBag(allDiagnostics.Operation);
         var stdlibUnits = StdlibLoader.LoadFor(stdlibBag);
 
@@ -260,7 +240,6 @@ public sealed class CompilerDriver : ICompilerDriver
             return null;
         }
 
-        // Step 1d: Load the referenced projects' source files
         var resolved = manifest.References.Projects;
         var refUnitBuilder = ImmutableArray.CreateBuilder<CompilationUnit>();
         var refProjectBuilder = ImmutableArray.CreateBuilder<MistProject>(resolved.Length);
@@ -304,8 +283,7 @@ public sealed class CompilerDriver : ICompilerDriver
             }
         }
 
-        // Step 1e: Combine units
-        // Order: stdlib → referenced project units (deepest first) → user units
+        // Referenced project units arrive deepest first.
         var combinedUnits = ImmutableArray.CreateBuilder<CompilationUnit>(
             stdlibUnits.Length + refUnitBuilder.Count + userUnits.Count);
         combinedUnits.AddRange(stdlibUnits);
@@ -328,9 +306,8 @@ public sealed class CompilerDriver : ICompilerDriver
     }
 
     /// <summary>
-    /// The root manifest's global usings and its resolved references, or <c>null</c> when either fails.
-    /// Many test scenarios and CLI invocations supply a ProjectFolder without a mist.toml; those fall
-    /// back to <see cref="CompilerOptions.GlobalUsings"/> and resolve no references.
+    /// Null when the manifest or its references fail. Tests and CLI invocations often supply a project folder
+    /// without a <c>mist.toml</c>.
     /// </summary>
     private static ManifestLoad? ReadManifest(CompilerOptions options, DiagnosticBag allDiagnostics)
     {
@@ -393,27 +370,16 @@ public sealed class CompilerDriver : ICompilerDriver
         ];
     }
 
-    /// <summary>
-    /// Result of Stage 2 (Lexing): the token streams for each successfully
-    /// lexed unit, any stdlib tokens awaiting cache write, and the cached
-    /// stdlib tuple (if present) for Stage 3 to consume.
-    /// </summary>
     private sealed record LexResult(
         Dictionary<CompilationUnit, TokenStream> TokenStreams,
         ImmutableArray<TokenStream>.Builder? StdlibTokensForCache,
         StdlibParseCache.Entry? CachedStdlib);
 
-    /// <summary>
-    /// Stage 2 – Lexing: tokenizes each compilation unit, skipping stdlib
-    /// units when the cache is populated. Reports progress and returns the
-    /// token streams plus cache metadata for Stage 3.
-    /// </summary>
     private LexResult Lex(MistCompilation compilation, DiagnosticBag allDiagnostics)
     {
         var lexingStopwatch = Stopwatch.StartNew();
         progressReporter.ReportStageStart("2", "Lexing");
 
-        // Try to retrieve cached stdlib lex/parse results.
         var cachedStdlib = stdlibParseCache.TryGet(compilation.Units.Count(u => u.IsStdlib));
 
         var tokenStreams = new Dictionary<CompilationUnit, TokenStream>();
@@ -425,7 +391,6 @@ public sealed class CompilerDriver : ICompilerDriver
         {
             if(unit.IsStdlib && cachedStdlib is not null)
             {
-                // Stdlib tokens are already cached; skip lexing.
                 continue;
             }
 
@@ -463,10 +428,6 @@ public sealed class CompilerDriver : ICompilerDriver
         return new LexResult(tokenStreams, stdlibTokensForCache, cachedStdlib);
     }
 
-    /// <summary>
-    /// Stage 3 – Parsing: parses each unit's token stream, collects diagnostics,
-    /// and writes the stdlib cache if this is the first successful compile.
-    /// </summary>
     internal MistCompilation Parse(
         MistCompilation compilation,
         Dictionary<CompilationUnit, TokenStream> tokenStreams,
@@ -527,7 +488,6 @@ public sealed class CompilerDriver : ICompilerDriver
             }
         }
 
-        // Populate the stdlib cache if this is the first successful compile.
         if(stdlibTokensForCache is not null && stdlibAstsForCache is not null)
         {
             stdlibParseCache.Offer(
@@ -546,12 +506,6 @@ public sealed class CompilerDriver : ICompilerDriver
         return compilation with { Units = units.MoveToImmutable() };
     }
 
-    /// <summary>
-    /// Stage 1.5 – Package Resolution: resolves NuGet packages and framework
-    /// references, returning the merged set of assembly paths. Returns an empty
-    /// array when no packages or framework references are declared.
-    /// On resolution failure: continues with whatever resolved successfully.
-    /// </summary>
     private (ImmutableArray<string> AssemblyPaths, PackageResolutionResult Packages) ResolvePackages(
         CompilerOptions options, ResolutionDiagnostics resolutionDiagnostics, string runtimeIdentifier)
     {
@@ -570,18 +524,15 @@ public sealed class CompilerDriver : ICompilerDriver
             progressReporter.ReportStageStart("1.5", "Package Resolution");
         }
 
-        // Resolve NuGet packages (passes framework references for deduplication
-        // against framework-provided assemblies to prevent duplicate loading)
+        // The framework references let a package assembly the framework already provides be skipped.
         var packageResult = PackageResolver.ResolvePackages(
             options.Packages, options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported,
             resolutionDiagnostics.Deliver, runtimeIdentifier);
 
-        // Resolve framework references
         var frameworkResult = FrameworkReferenceResolver.Resolve(
             options.FrameworkReferences, options.TargetFramework, resolutionDiagnostics.Reported);
         resolutionDiagnostics.Deliver();
 
-        // Merge assembly paths (union, dedupe by path)
         var mergedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach(var path in packageResult.AssemblyPaths)
         {
@@ -597,24 +548,20 @@ public sealed class CompilerDriver : ICompilerDriver
 
         resolutionStopwatch.Stop();
 
-        // Verbose output: emit detail lines and summary
         if(options.VerboseResolution)
         {
             var details = new List<string>();
 
-            // Per-package detail lines
             foreach(var pkg in packageResult.Resolved)
             {
                 details.Add($"Restored {pkg.Name} {pkg.Version} ({pkg.SelectedTfm})");
             }
 
-            // Per-framework detail lines
             foreach(var fw in frameworkResult.Resolved)
             {
                 details.Add($"Resolved {fw.Name} {fw.Version}");
             }
 
-            // Zero-assemblies notes for packages with AssemblyCount == 0
             foreach(var pkg in packageResult.Resolved)
             {
                 if(pkg.AssemblyCount == 0)
@@ -623,10 +570,8 @@ public sealed class CompilerDriver : ICompilerDriver
                 }
             }
 
-            // Elapsed ms
             details.Add($"{(int)resolutionStopwatch.Elapsed.TotalMilliseconds} ms");
 
-            // Summary line with success/failure counts
             var successCount = packageResult.Resolved.Length + frameworkResult.Resolved.Length;
             var failureCountTotal = packageResult.FailureCount + frameworkResult.FailureCount;
             details.Add($"{successCount} succeeded, {failureCountTotal} failed");
@@ -634,8 +579,7 @@ public sealed class CompilerDriver : ICompilerDriver
             progressReporter.ReportStageComplete("1.5", resolutionStopwatch.Elapsed, details);
         }
 
-        // On resolution failure: continue the build with whatever resolved
-        // successfully (Req 2.6, 5.8). Do NOT abort.
+        // A resolution failure continues with whatever resolved (Req 2.6, 5.8).
         return (resolvedAssemblyPaths, packageResult);
     }
 }

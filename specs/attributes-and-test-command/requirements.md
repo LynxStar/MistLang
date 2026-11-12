@@ -323,7 +323,7 @@ public class LookupTable
 {
     int[] data;
 
-    LookupTable(int size)
+    LookupTable(ZeroOrPositiveInt size)
     {
         this.data = new int[size];
     }

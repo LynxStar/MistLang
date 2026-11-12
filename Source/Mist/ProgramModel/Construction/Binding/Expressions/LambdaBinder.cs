@@ -157,12 +157,13 @@ internal static class LambdaBinder
             ctx.ReturnType = enclosingReturn;
         }
 
+        var produced = CaptureScope.Leaving(result.Type, result, context.ProgramModel.TypeInterner);
         var declared = returnType
-            ?? (isAsync ? context.Resolver.ConstructTask(result.Type) : result.Type);
+            ?? (isAsync ? context.Resolver.ConstructTask(produced) : produced);
 
         if(returnType is null && HasUnboundPropagation(result))
         {
-            return BindExpressionBodied(node, body, parameters, isStatic, isAsync, promises, declared, result.Type, unionArm, isGeneralUnion, ctx, context);
+            return BindExpressionBodied(node, body, parameters, isStatic, isAsync, promises, declared, produced, unionArm, isGeneralUnion, ctx, context);
         }
 
         var functionType = FunctionTypeOf(parameters, declared, promises, context);
@@ -270,6 +271,7 @@ internal static class LambdaBinder
         }
 
         var common = CommonTypeInference.Infer(values, context.Resolver.LookupWellKnown, context.ProgramModel.TypeInterner);
+        common = common is null ? null : CaptureScope.Leaving(common, body, context.ProgramModel.TypeInterner);
         if(common is null)
         {
             var (first, other) = CommonTypeInference.Disagreement(values);

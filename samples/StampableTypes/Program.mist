@@ -91,10 +91,16 @@ public class Program
         return StackItem<T>(item);
     }
 
-    private static int NextSize()
+    private static ZeroOrPositiveInt NextSize()
     {
         sizeCalls = sizeCalls + 1;
-        return sizeCalls + 1;
+        var size = sizeCalls + 1;
+        if(size >= 0)
+        {
+            return size;
+        }
+
+        return 0;
     }
 
     public static void Main(string[] args)

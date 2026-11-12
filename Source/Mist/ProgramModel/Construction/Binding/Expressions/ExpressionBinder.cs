@@ -267,6 +267,7 @@ internal static class ExpressionBinder
         // reference, so the lookup here bypasses ScopeResolver.ResolveNamed and its alias
         // expansion; a constructible alias (`new IntBox(42)`) must therefore expand here.
         IMistType type;
+        var values = new SlotValueBinder(ctx, context);
         if(typeArgList is not null)
         {
             var arity = 1 + typeArgList.TypeArguments.Length;
@@ -277,7 +278,7 @@ internal static class ExpressionBinder
             }
 
             var typeArgs = context.Resolver.BindPack(
-                definition, context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope, definition), node);
+                definition, context.Resolver.ResolveTypeArguments(typeArgList, ctx.Scope, definition, values), node);
 
             if(definition is TypeAlias alias)
             {
@@ -319,7 +320,7 @@ internal static class ExpressionBinder
             return new ErrorExpression(node);
         }
 
-        return BindConstruction(node, type, argumentList, initializer, ctx, context);
+        return BindConstruction(node, type, argumentList, initializer, ctx, context, values.Captures);
     }
 
     private static Expression BindTargetTypedNew(
@@ -356,7 +357,8 @@ internal static class ExpressionBinder
         ArgumentListNode? argumentList,
         PropertyInitializerBlockNode? initializer,
         BindingContext ctx,
-        BuilderContext context)
+        BuilderContext context,
+        IReadOnlyList<SlotCapture>? captures = null)
     {
         var (settled, choice) = BindConstructorCall(type, argumentList, node, ctx, context);
 
@@ -379,6 +381,7 @@ internal static class ExpressionBinder
             parameterTypes)
         {
             ContextTypes = ContextBinding.TypesOf(choice.Selected, contextType => choice.Substitution.Apply(contextType, interner)),
+            Captures = captures ?? [],
         };
 
         return choice.FailureExpression is { } failure
@@ -509,9 +512,19 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = SizeOf(node.Size, ctx, context);
-        var length = WrittenLength(size);
-        var arrayType = context.Resolver.ConstructArray(elementType, length);
-        return new ArrayCreationExpression(node, elementType, size, arrayType);
+        var (length, captures) = LengthOf(size, WellKnownTypes.Array, context);
+        var arrayType = context.Resolver.ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
+        return new ArrayCreationExpression(node, elementType, size, arrayType) { Captures = captures };
+    }
+
+    private static (IMistType? Length, IReadOnlyList<SlotCapture> Captures) LengthOf(Expression size, WellKnownType definition, BuilderContext context)
+    {
+        if(WrittenLength(size) is { } written)
+        {
+            return (context.Resolver.LiftInt(written), []);
+        }
+
+        return SlotValueBinder.CaptureLength(size, definition, context) is { } capture ? (capture.Value, [capture]) : (null, []);
     }
 
     private static int? WrittenLength(Expression size)
@@ -537,7 +550,6 @@ internal static class ExpressionBinder
     {
         var elementType = ResolveElementType(node.Type, ctx, context);
         var size = SizeOf(node.Size, ctx, context);
-        var length = WrittenLength(size);
 
         // Read off the DEFINITION rather than the target's own name, which carries its arguments and so
         // never equals the bare declaration's.
@@ -547,8 +559,11 @@ internal static class ExpressionBinder
                 : WellKnownTypes.Span
                 ;
 
+        var (length, captures) = LengthOf(size, definition, context);
+
         return new StackallocExpression(
-            node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, length));
+            node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, length))
+        { Captures = captures };
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)

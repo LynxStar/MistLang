@@ -349,6 +349,15 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 return;
             }
 
+            if(SlotIdentity.Judge(state, value, target) is { } unproven)
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.ClosingNotProven, at.Node, [value],
+                    DiagnosticSnapshot.Type(unproven.Source), DiagnosticSnapshot.Type(unproven.Target),
+                    new NameValue(unproven.Left), new NameValue(unproven.Right), RefinementFindings.Case(null));
+                return;
+            }
+
             var considered = Considered(target, value.Type, value);
 
             if(considered.Count == 0)

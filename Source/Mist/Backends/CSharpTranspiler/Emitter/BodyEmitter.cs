@@ -2352,6 +2352,13 @@ internal static partial class BodyEmitter
 
     private static string TestedType(IMistType type, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
     {
+        if(ErasedShape.Captured(type) is { } captured)
+        {
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.SlotValueNotEmitted, node, null,
+                new EnumValue("test a value against"), new NameValue(TypeDisplay.Mist(type)), new NameValue(captured.WrittenName));
+        }
+
         ReportUnstatedElements(type, node, diagnostics);
         return ErasedShape.Tested(type);
     }
@@ -2605,6 +2612,15 @@ internal static partial class BodyEmitter
             writer.Append(
                 $"MistArray.Generate<{generated.Element}>({generated.Length}, "
                 + $"{Render(newExpression.Arguments[0], diagnostics)})");
+            return;
+        }
+
+        if(newExpression.Constructor is { } generator && ArrayLowering.Generates(generator) && ErasedShape.Captured(newExpression.Type) is { } captured)
+        {
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.SlotValueNotEmitted, newExpression.Node, null,
+                new EnumValue("construct"), new NameValue(TypeDisplay.Mist(newExpression.Type)), new NameValue(captured.WrittenName));
+            writer.Append("default!");
             return;
         }
 
@@ -3008,6 +3024,8 @@ internal static partial class BodyEmitter
         {
             return "";
         }
+
+        TypeNameEmitter.RefuseCaptured(typeArguments, parameters?.FirstOrDefault()?.DeclaringMethod?.Name ?? "a method", "call");
 
         // A pack argument is not written: the specialization already fixed the width, and its
         // elements stand where the pack did.

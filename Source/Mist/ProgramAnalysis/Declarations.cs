@@ -60,6 +60,7 @@ internal static class Declarations
             RefinedType refined => [refined.BaseType],
             LiftedType lifted => [lifted.Type],
             UnknownValueType value => [value.Domain],
+            CapturedValue captured => [captured.Domain],
             _ => [],
         };
     }

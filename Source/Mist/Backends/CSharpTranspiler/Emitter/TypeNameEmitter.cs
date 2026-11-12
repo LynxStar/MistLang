@@ -99,6 +99,7 @@ internal static class TypeNameEmitter
             ConstructedType constructed => EmitConstructed(constructed),
             LiftedType lifted => Emit(lifted.Type),
             UnknownValueType unknownValue => Emit(unknownValue.Domain),
+            CapturedValue captured => Emit(captured.Domain),
             UnionType union => EmitUnion(union),
             NamedTupleType named => EmitTuple(named.ElementTypes, keying ? null : named.ElementNames),
             TupleType tuple => EmitTuple(tuple.ElementTypes, elementNames: null),
@@ -369,8 +370,22 @@ internal static class TypeNameEmitter
         return expanded;
     }
 
+    internal static void RefuseCaptured(IEnumerable<IMistType> arguments, string subject, string operation)
+    {
+        if(arguments.OfType<CapturedValue>().FirstOrDefault() is { } captured)
+        {
+            EmissionDiagnostics.Refuse(
+                BackendDiagnostics.SlotValueNotEmitted, new EnumValue(operation), new NameValue(subject), new NameValue(captured.WrittenName));
+        }
+    }
+
     private static string EmitConstructed(ConstructedType constructed)
     {
+        if(!LengthErasure.IsLengthIndexed(constructed))
+        {
+            RefuseCaptured(constructed.TypeArguments, TypeDisplay.Mist(constructed), "spell");
+        }
+
         if(SlotLift.Erased(constructed) is { } erased)
         {
             return Emit(erased);

@@ -141,7 +141,8 @@ internal static partial class PatternBinder
         {
             case TypePatternPrimaryPatternNode typePattern:
                 {
-                    var resolution = context.Resolver.ResolveWithFailure(typePattern.Type, ctx.Scope);
+                    var values = new SlotValueBinder(ctx, context);
+                    var resolution = context.Resolver.ResolveWithFailure(typePattern.Type, ctx.Scope, values);
                     var tested = CloneConversionBody.Tested(resolution.Type, scrutineeType, ctx.Scope);
                     var failed = scrutineeFailed || resolution.IsFailed;
 
@@ -152,7 +153,7 @@ internal static partial class PatternBinder
                     }
 
                     var binding = Declare(node, typePattern.Name, tested, bindingsPermitted, ctx, context, failed, NarrowedPack(scrutineeType, tested));
-                    return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed);
+                    return BindTypeTest(node, tested, binding, scrutineeType, ctx, context, failed, values.Captures);
                 }
 
             case BareTypePatternPrimaryPatternNode bareType:
@@ -315,9 +316,11 @@ internal static partial class PatternBinder
         IMistType scrutineeType,
         BindingContext ctx,
         BuilderContext context,
-        bool isFailed = false)
+        bool isFailed = false,
+        IReadOnlyList<SlotCapture>? captures = null)
     {
         var refinement = ComposeRefinement(tested, node, refined => BindRefinement(refined, ctx, context));
+        captures ??= [];
 
         if(scrutineeType is not UnionType union || OptionalUnion.IsOptional(union))
         {
@@ -325,17 +328,18 @@ internal static partial class PatternBinder
             {
                 TestsAbsence = OptionalUnion.IsOptional(scrutineeType) && OptionalUnion.IsVoid(tested),
                 IsFailed = isFailed,
+                Captures = captures,
             };
         }
 
         if(MatchConstituent(union, tested) is { } constituent)
         {
-            return new TypeTestPattern(node, tested, binding, constituent, refinement) { IsFailed = isFailed };
+            return new TypeTestPattern(node, tested, binding, constituent, refinement) { IsFailed = isFailed, Captures = captures };
         }
 
         context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.PatternTypeNotAConstituent, node, null, DiagnosticSnapshot.Type(tested, tested.Name), DiagnosticSnapshot.Type(union, union.Name));
 
-        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { IsFailed = true };
+        return new TypeTestPattern(node, ErrorType.Instance, binding, constituent: null) { IsFailed = true, Captures = captures };
     }
 
     private static Pattern? BindTuplePattern(

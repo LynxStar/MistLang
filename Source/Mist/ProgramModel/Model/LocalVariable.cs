@@ -16,7 +16,7 @@ namespace Mist.ProgramModel.Model;
 /// a binding whose alias is dropped computes a wrong answer silently, which is worth catching
 /// before the aliasing itself is built.
 /// </remarks>
-internal sealed class LocalVariable(string name, IMistType type)
+internal class LocalVariable(string name, IMistType type)
 {
     public string Name { get; } = name;
 

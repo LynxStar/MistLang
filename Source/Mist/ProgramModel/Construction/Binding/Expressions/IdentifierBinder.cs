@@ -17,8 +17,11 @@ internal static class IdentifierBinder
 {
     internal static Expression BindIdentifier(IdentifierExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        var name = node.Name.Lexeme;
+        return BindName(node, node.Name.Lexeme, ctx, context);
+    }
 
+    internal static Expression BindName(Storm.Runtime.SyntaxNode node, string name, BindingContext ctx, BuilderContext context)
+    {
         // An expression position admits every kind of member, so the request starts wide; the
         // scopes narrow it themselves on the way out of a static member or a nested type.
         var result = ctx.Scope.Lookup(new LookupRequest(name, MemberVisibility.InstanceAndStatic, node));
@@ -60,7 +63,7 @@ internal static class IdentifierBinder
         return path.Count == 0 ? null : TypeSubstitution.ForPath(receiver: null, path, interner).Apply(declared, interner);
     }
 
-    private static Expression ReportUnresolved(IdentifierExpressionPrimaryNode node, string name, BindingContext ctx, BuilderContext context)
+    private static Expression ReportUnresolved(Storm.Runtime.SyntaxNode node, string name, BindingContext ctx, BuilderContext context)
     {
         ProjectedWithholding.Report(context.Diagnostics, ProgramModelDiagnostics.UnresolvedIdentifier, node,
             ProjectedWithholding.Frames(ctx.Scope, name), new NameValue(name));
@@ -71,7 +74,7 @@ internal static class IdentifierBinder
     }
 
     private static Expression ReportAmbiguous(
-        IdentifierExpressionPrimaryNode node, string name, AmbiguousResult ambiguous, BuilderContext context)
+        Storm.Runtime.SyntaxNode node, string name, AmbiguousResult ambiguous, BuilderContext context)
     {
         context.Diagnostics.ReportAtNodeTyped(
             ProgramModelDiagnostics.AmbiguousIdentifier, node, null, new NameValue(name), MemberResolution.Describe(ambiguous));

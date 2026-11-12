@@ -36,6 +36,8 @@ internal sealed class NewExpression(
 
     public IReadOnlyList<ObjectInitializerAssignment> Initializer { get; } = initializer;
 
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
+
     public override IMistType Type { get; } = type;
 }
 

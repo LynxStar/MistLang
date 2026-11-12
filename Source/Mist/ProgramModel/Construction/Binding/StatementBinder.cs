@@ -257,10 +257,7 @@ internal static class StatementBinder
     {
         return statement.VariableDeclaration switch
         {
-            TypedVariableDeclarationVariableDeclarationStatementNode typed => BindLocalDeclaration(
-                                typed, typed.Name, typed.Initializer,
-                                context.Resolver.ResolveWithFailure(typed.Type, ctx.Scope),
-                                typed.OwnershipSpecifier, typed.ReadonlyModifier is not null, ctx, context),
+            TypedVariableDeclarationVariableDeclarationStatementNode typed => BindTypedDeclaration(typed, ctx, context),
             InferredVariableDeclarationVariableDeclarationStatementNode inferred => BindLocalDeclaration(
                                 inferred, inferred.Name, inferred.Initializer, null,
                                 inferred.OwnershipSpecifier, inferred.ReadonlyModifier is not null, ctx, context),
@@ -270,9 +267,20 @@ internal static class StatementBinder
         };
     }
 
+    private static LocalDeclarationStatement BindTypedDeclaration(
+        TypedVariableDeclarationVariableDeclarationStatementNode typed, BindingContext ctx, BuilderContext context)
+    {
+        var values = new SlotValueBinder(ctx, context);
+        var declared = context.Resolver.ResolveWithFailure(typed.Type, ctx.Scope, values);
+
+        return BindLocalDeclaration(
+            typed, typed.Name, typed.Initializer, declared, typed.OwnershipSpecifier, typed.ReadonlyModifier is not null, ctx, context, values.Captures);
+    }
+
     private static LocalDeclarationStatement BindLocalDeclaration(
         StormSyntaxNode node, StormToken name, ExpressionNode? initializerNode, TypeResolution? declared,
-        OwnershipSpecifierNode? specifier, bool hasReadonlyModifier, BindingContext ctx, BuilderContext context)
+        OwnershipSpecifierNode? specifier, bool hasReadonlyModifier, BindingContext ctx, BuilderContext context,
+        IReadOnlyList<SlotCapture>? captures = null)
     {
         Expression? initializer = null;
         if(initializerNode is not null)
@@ -305,7 +313,10 @@ internal static class StatementBinder
             OperandFacts.Declared(ctx, body, local, initializer);
         }
 
-        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer, local.IsRef));
+        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer, local.IsRef))
+        {
+            Captures = captures ?? [],
+        };
     }
 
     /// <summary>

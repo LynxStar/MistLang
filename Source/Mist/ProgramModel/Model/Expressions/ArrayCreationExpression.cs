@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -15,6 +16,8 @@ internal sealed class ArrayCreationExpression(
     public IMistType ElementType { get; } = elementType;
 
     public Expression Size { get; } = size;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     public override IMistType Type { get; } = type;
 }

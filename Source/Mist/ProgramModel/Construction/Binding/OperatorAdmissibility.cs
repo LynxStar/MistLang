@@ -163,6 +163,7 @@ internal static class OperatorAdmissibility
             TypeAlias { AliasedType: { } aliased } => Underlying(aliased),
             LiftedType lifted => Underlying(lifted.Type),
             UnknownValueType value => Underlying(value.Domain),
+            CapturedValue captured => Underlying(captured.Domain),
             _ => type,
         };
     }

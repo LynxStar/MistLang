@@ -75,6 +75,7 @@ internal static class UnionCarrierNames
                 => $"Pack_{pack.Elements.Length}_" + string.Join("_", pack.Elements.Select(spelled)),
             LiftedType lifted => DependentCarrierNames.Carrier(lifted.Value) ?? spelled(lifted.Type),
             UnknownValueType unknownValue => spelled(unknownValue.Domain),
+            CapturedValue captured => spelled(captured.Domain),
             UnionType union => "Choice_" + string.Join("_", union.Constituents.Select(part => ConstituentName(part, union))),
             ITupleType tuple => $"Tuple_{tuple.ElementTypes.Count}_" + string.Join("_", tuple.ElementTypes.Select(spelled)),
             IFunctionType function

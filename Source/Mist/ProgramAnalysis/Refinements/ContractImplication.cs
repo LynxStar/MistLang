@@ -61,8 +61,8 @@ internal static class ContractImplication
 
         if(!HasRefinement(source) && !HasRefinement(target))
         {
-            return source is not TypeParameter and not UnknownType and not UnknownValueType
-                && target is not TypeParameter and not UnknownType and not UnknownValueType
+            return source is not TypeParameter and not UnknownType and not UnknownValueType and not CapturedValue
+                && target is not TypeParameter and not UnknownType and not UnknownValueType and not CapturedValue
                 && ConversionClassifier.Classify(source, target) is ConversionKind.Identity or ConversionKind.Implicit;
         }
 

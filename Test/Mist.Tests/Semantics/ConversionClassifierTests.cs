@@ -150,7 +150,7 @@ public sealed class ConversionClassifierTests : ProgramModelProbe
     [InlineData("l", "level", "None")]
     [InlineData("lit", "arr", "Implicit")]
     [InlineData("two", "arr", "Implicit")]
-    [InlineData("arr", "lit", "None")]
+    [InlineData("arr", "lit", "Implicit")]
     [InlineData("lit", "two", "Identity")]
     [InlineData("two", "three", "None")]
     public void TheClassificationBetweenTwoLocalsIsTheStatedOne(string from, string to, string expected)

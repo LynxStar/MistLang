@@ -566,6 +566,7 @@ internal static class InvariantCulture
             RefinedType refined => Unwrap(refined.BaseType),
             LiftedType lifted => Unwrap(lifted.Type),
             UnknownValueType unknownValue => Unwrap(unknownValue.Domain),
+            CapturedValue captured => Unwrap(captured.Domain),
             _ => type,
         };
     }

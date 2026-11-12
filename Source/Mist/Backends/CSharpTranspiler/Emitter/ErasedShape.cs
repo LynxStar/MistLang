@@ -75,6 +75,18 @@ internal static class ErasedShape
         };
     }
 
+    public static CapturedValue? Captured(IMistType type)
+    {
+        return Unwrapped(type) switch
+        {
+            CapturedValue captured => captured,
+            ConstructedType constructed => constructed.TypeArguments.Select(Captured).FirstOrDefault(found => found is not null),
+            ITupleType tuple => tuple.ElementTypes.Select(Captured).FirstOrDefault(found => found is not null),
+            UnionType union => union.Constituents.Select(Captured).FirstOrDefault(found => found is not null),
+            _ => null,
+        };
+    }
+
     private static string? Subpattern(IMistType type)
     {
         if(Unwrapped(type) is UnionType union && OptionalUnion.InnerType(union) is { } inner)

@@ -491,4 +491,14 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic SlotValueOutsideBody = new(
+        DiagnosticNumber.Mint("MIST0487"),
+        Title: "Slot value outside a body",
+        Template: "A type written here cannot name the value '{name}'. Declare a dependent parameter and pass '{name}' between angle brackets.",
+        Description: "A dependent slot takes a value's name only where a type is written in a body, which is where the value is read. A field type, a signature, a base clause, an alias target and a constraint take a literal or a dependent parameter in scope. Declare a dependent parameter on the enclosing declaration and close the type with it.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("name", SlotKind.Name)]);
 }

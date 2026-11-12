@@ -1,6 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -20,9 +21,14 @@ internal sealed partial class RefinementAnalyzer
         {
             context.Report(
                 finding, at, [],
-                new OptionalValue(SlotKind.Type, argument is LiftedType ? null : DiagnosticSnapshot.Type(argument)),
-                new OptionalValue(SlotKind.Name, argument is LiftedType lifted ? new NameValue(DependentDomains.Spell(lifted.Value)) : null),
-                ArgumentDomain(context, argument),
+                new OptionalValue(SlotKind.Type, argument is LiftedType or CapturedValue ? null : DiagnosticSnapshot.Type(argument)),
+                new OptionalValue(SlotKind.Name, argument switch
+                {
+                    LiftedType lifted => new NameValue(DependentDomains.Spell(lifted.Value)),
+                    CapturedValue captured => new NameValue(captured.WrittenName),
+                    _ => null,
+                }),
+                argument is CapturedValue runtime ? DiagnosticSnapshot.Type(runtime.Capture.Initializer.Type) : ArgumentDomain(context, argument),
                 new NameValue(parameter.Name), DiagnosticSnapshot.Type(parameter.Domain!));
         }
         else if(finding == ProgramAnalysisDiagnostics.DependentForwardNotConvertible && argument is TypeParameter { Domain: { } from } source)
@@ -99,6 +105,8 @@ internal sealed partial class RefinementAnalyzer
         return argument switch
         {
             ErrorType or UnknownType or UnknownValueType => null,
+            CapturedValue captured => DependentDomains.Forwards(OperatorAdmissibility.Underlying(captured.Capture.Initializer.Type), domain)
+                ? null : ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
             LiftedType lifted => DependentDomains.Holds(domain, lifted.Value) ? null : ProgramAnalysisDiagnostics.DependentArgumentNotAssignable,
             TypeParameter { IsDependent: true, IsPack: false, Domain: null } => null,
             TypeParameter { IsDependent: true, IsPack: false, Domain: { } from }

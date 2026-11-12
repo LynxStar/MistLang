@@ -63,7 +63,7 @@ internal static class Indexability
 
         if(receiverType is ConstructedType { TypeArguments.Count: 2 } spanLike && SpanKind(spanLike.Definition) is { } kind)
         {
-            return context.Resolver.ConstructLengthIndexed(kind, spanLike.TypeArguments[0], null);
+            return context.Resolver.ConstructLengthIndexed(kind, spanLike.TypeArguments[0], length: null);
         }
 
         return receiverType.FullyQualifiedName == WellKnownTypes.String.FullyQualifiedName

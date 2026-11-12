@@ -294,4 +294,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("kind", SlotKind.Enum), new Slot("detail", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic SlotValueNotEmitted = new(
+        DiagnosticNumber.Mint("MIST0488"),
+        Title: "Runtime slot value not emitted",
+        Template: "The C# backend cannot {operation} '{subject}' yet: it is closed with '{value}', a value known only when the program runs.",
+        Description: "A dependent slot was closed with a value known only when the program runs. The C# backend carries such a value only in the type of an Array, a Span or a ReadOnlySpan, whose CLR objects hold their length. It has no carrier yet for another type or for a method's own slot, and cannot yet test a value against such a closing or generate an array of one. Close the slot with a literal, or leave it 'unknown'; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("operation", SlotKind.Enum), new Slot("subject", SlotKind.Name), new Slot("value", SlotKind.Name)]);
 }

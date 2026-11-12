@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Statements;
 
@@ -16,4 +17,6 @@ internal sealed class LocalDeclarationStatement(LocalVariable local, Expression?
     /// The resolved initializer expression, or null for an uninitialized declaration.
     /// </summary>
     public Expression? Initializer { get; } = initializer;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 }

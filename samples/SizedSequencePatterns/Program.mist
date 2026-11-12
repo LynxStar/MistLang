@@ -28,7 +28,7 @@ public class Program
 {
     private static int produced = 0;
 
-    private static unknown Produce(int length)
+    private static unknown Produce(ZeroOrPositiveInt length)
     {
         produced = produced + 1;
         return (new int[length], "x");
@@ -50,7 +50,7 @@ public class Program
         };
     }
 
-    private static string DescribeSpan(int length)
+    private static string DescribeSpan(ZeroOrPositiveInt length)
     {
         Span<int> span = stackalloc int[length];
         return span switch
@@ -61,7 +61,7 @@ public class Program
         };
     }
 
-    private static string DescribeReadOnly(int length)
+    private static string DescribeReadOnly(ZeroOrPositiveInt length)
     {
         ReadOnlySpan<int> span = stackalloc int[length];
         if(span is ReadOnlySpan<int, 3> three)

@@ -73,6 +73,7 @@ internal static class TypeDisplay
 
             // A dependent argument shows its domain, since its value is the thing not known.
             UnknownValueType unknownValue => mist(unknownValue.Domain),
+            CapturedValue captured => captured.WrittenName,
             RefinedType refined when refined.IsAnonymous || refined.IsSubstituted => mist(refined.BaseType),
             TypeParameter parameter when spell?.Invoke(parameter) is { } spelled => spelled,
             _ => MistType.StripArity(Keyword(type)),
@@ -160,6 +161,11 @@ internal static class TypeDisplay
     /// </summary>
     private static string Rank(IMistType length)
     {
-        return length is LiftedType lifted ? $"[{lifted.Name}]" : "[]";
+        return length switch
+        {
+            LiftedType lifted => $"[{lifted.Name}]",
+            CapturedValue captured => $"[{captured.WrittenName}]",
+            _ => "[]",
+        };
     }
 }

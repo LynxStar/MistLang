@@ -32,7 +32,7 @@ internal static class OptionalUnion
         var definition = type is ConstructedType constructed ? constructed.Definition : type;
 
         return ContainsVoid(type)
-            || type is UnknownType or UnknownValueType or TypeParameter or ErrorType or NotProjectedType
+            || type is UnknownType or UnknownValueType or CapturedValue or TypeParameter or ErrorType or NotProjectedType
             || definition is DeclaredType { Assembly.HasMistSource: false };
     }
 

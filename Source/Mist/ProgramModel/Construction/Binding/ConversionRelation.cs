@@ -336,6 +336,7 @@ internal static class ConversionRelation
             or ErrorType
             or UnknownType
             or UnknownValueType
+            or CapturedValue
             or NotProjectedType
             or LiftedType
             or RefinedType

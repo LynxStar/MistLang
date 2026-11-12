@@ -132,7 +132,8 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
     [Theory]
     [InlineData("new")]
     [InlineData("stackalloc")]
-    public void AComputedSizeRemainsAnInvocationWithAnUnknownLength(string allocationKind)
+    [Trait("Tier", "3")]
+    public void AComputedSizeRemainsAnInvocationAndClosesTheLength(string allocationKind)
     {
         var model = Build(Source($"var actual = {allocationKind} PairAlias<int>[Size()];"), out var diagnostics);
 
@@ -151,8 +152,9 @@ public sealed class NamedAllocationElementTypeTests : ProgramModelProbe
         Assert.Equal("Size", invocation.Method.Name);
         Assert.Empty(invocation.Arguments);
         Assert.Same(model.TypesByFQN["Standard.Int32"], invocation.Type);
-        var length = Assert.IsType<UnknownValueType>(Assert.IsType<ConstructedType>(allocation.Type).TypeArguments[1]);
+        var length = Assert.IsType<CapturedValue>(Assert.IsType<ConstructedType>(allocation.Type).TypeArguments[1]);
         Assert.Same(model.TypesByFQN["Standard.Int32"], length.Domain);
+        Assert.Same(size, length.Capture.Initializer);
     }
 
     [Theory]

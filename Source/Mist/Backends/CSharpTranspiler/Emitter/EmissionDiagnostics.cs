@@ -26,6 +26,19 @@ internal static class EmissionDiagnostics
         return comment;
     }
 
+    public static void Refuse(MistDiagnostic refusal, params SlotValue[] arguments)
+    {
+        if(current is { Node: { } node } scope)
+        {
+            scope.Diagnostics.ReportAtNodeTyped(refusal, node, null, arguments);
+        }
+        else if(current is { } rootless)
+        {
+            rootless.Diagnostics.Admit(DiagnosticFactory.Create(
+                refusal, new OriginResolution(new Absent(AbsenceReason.SyntheticWithoutRoot), []), PipelineStage.Backend, [.. arguments]));
+        }
+    }
+
     public static void Report(DiagnosticBag diagnostics, string kind, string detail, SyntaxNode? node = null)
     {
         node ??= current?.Node;

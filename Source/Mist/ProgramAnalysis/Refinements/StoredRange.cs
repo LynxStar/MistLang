@@ -106,6 +106,7 @@ internal sealed record RangeBound(Admitted Values, object? Symbol, bool FromEnd)
                 RefinedType refined => refined.BaseType,
                 LiftedType lifted => lifted.Type,
                 UnknownValueType unknown => unknown.Domain,
+                CapturedValue captured => captured.Domain,
                 TypeParameter { IsDependent: true, Domain: { } dependent } => dependent,
                 _ => null,
             };

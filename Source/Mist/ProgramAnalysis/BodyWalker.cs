@@ -98,7 +98,7 @@ internal static class BodyWalker
         add<MethodGroupExpression>(e => [e.Receiver]);
         add<MethodReferenceExpression>(_ => []);
         add<NamespaceReferenceExpression>(_ => []);
-        add<NewExpression>(e => [.. e.Arguments, .. e.Initializer]);
+        add<NewExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), .. e.Arguments, .. e.Initializer]);
         add<ObjectInitializerAssignment>(a => [a.Value]);
         add<PropertyReferenceExpression>(_ => []);
         add<RangeExpression>(e => [e.Start, e.End]);
@@ -126,7 +126,7 @@ internal static class BodyWalker
         add<ForEachStatement>(s => [s.Collection, s.ElementConversion, s.Body]);
         add<ForStatement>(s => [s.Initializer, s.Condition, s.Iterator, s.Body]);
         add<IfStatement>(s => [s.Condition, s.ThenBranch, s.ElseBranch]);
-        add<LocalDeclarationStatement>(s => [s.Initializer]);
+        add<LocalDeclarationStatement>(s => [.. s.Captures.Select(capture => capture.Initializer), s.Initializer]);
         add<LocalFunctionStatement>(s => [s.Body]);
         add<ReturnStatement>(s => [s.Value]);
         add<TupleDeconstructionStatement>(s => [s.Initializer, .. s.ElementConversions]);
@@ -145,7 +145,7 @@ internal static class BodyWalker
         add<PropertySubpattern>(s => [s.Pattern]);
         add<RegexPattern>(_ => []);
         add<TuplePattern>(p => [.. p.Elements]);
-        add<TypeTestPattern>(_ => []);
+        add<TypeTestPattern>(p => [.. p.Captures.Select(capture => capture.Initializer)]);
 
         return table;
     }

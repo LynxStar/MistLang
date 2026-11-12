@@ -1,6 +1,7 @@
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -81,6 +82,8 @@ internal sealed class FlowGraphBuilder
                 return Expression(expressionStatement.Expression, current);
 
             case LocalDeclarationStatement declaration:
+                current = Captured(declaration, current);
+
                 if(declaration.Initializer is { } initializer)
                 {
                     current = Expression(initializer, current);
@@ -286,7 +289,7 @@ internal sealed class FlowGraphBuilder
 
             case TypeTestPattern test:
                 {
-                    var (matched, unmatched) = Split(current);
+                    var (matched, unmatched) = Split(Captured(test, current));
 
                     if(test.Refinement is { } refinement)
                     {
@@ -456,15 +459,32 @@ internal sealed class FlowGraphBuilder
                 break;
 
             default:
+                var captures = SlotCapture.Of(expression);
+                current = Captured(expression, current);
+
                 foreach(var child in BodyWalker.ChildrenOf(expression))
                 {
-                    current = Child(child, current);
+                    if(!captures.Any(capture => ReferenceEquals(capture.Initializer, child)))
+                    {
+                        current = Child(child, current);
+                    }
                 }
 
                 break;
         }
 
         current.Steps.Add(new FlowStep(FlowStepKind.Evaluate, expression, IsStorageReceiver: isStorageReceiver));
+        return current;
+    }
+
+    private FlowBlock Captured(object owner, FlowBlock current)
+    {
+        foreach(var capture in SlotCapture.Of(owner))
+        {
+            current = Expression(capture.Initializer, current);
+            current.Steps.Add(new FlowStep(FlowStepKind.Declare, capture.Declaration, capture));
+        }
+
         return current;
     }
 

@@ -143,7 +143,11 @@ internal static class AmbientProviderTestHelper
         {
             type.TypeParametersList.Add(new TypeParameter(elementName, 0, type.Scope, type));
             type.TypeParametersList.Add(
-                new TypeParameter("Length", 1, type.Scope, type) { IsDependent = true });
+                new TypeParameter("Length", 1, type.Scope, type)
+                {
+                    IsDependent = true,
+                    Domain = (MistType)programModel.TypesByFQN[WellKnownTypes.Int32.FullyQualifiedName],
+                });
             register(type);
         }
 

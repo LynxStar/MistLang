@@ -41,7 +41,7 @@ internal static class Comparability
 
     public static bool IsIndeterminate(IMistType type)
     {
-        return type is TypeParameter or UnknownType or UnknownValueType or ErrorType or NotProjectedType or LiftedType or SpreadType
+        return type is TypeParameter or UnknownType or UnknownValueType or CapturedValue or ErrorType or NotProjectedType or LiftedType or SpreadType
             || (type is ITupleType tuple && tuple.ElementTypes.Any(element => element is SpreadType));
     }
 

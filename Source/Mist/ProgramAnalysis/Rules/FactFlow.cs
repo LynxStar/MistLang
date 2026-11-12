@@ -8,6 +8,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -121,9 +122,10 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var known = expression is not null ? KnowledgeOf(state, expression, local.Type) : Knowledge.Unknown;
         var trusted = matched || term is null || AssignmentHolds(ref state, local.Type, term);
         var supplied = expression is null && local.Parameter is { } parameter ? state.Bindings.Get(parameter) : null;
-        var value = supplied ?? Shared(local.Type, expression, term) ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
+        var shared = Shared(local.Type, expression, term) ?? Held(local, expression, term);
+        var value = supplied ?? shared ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
         state = state with { Bindings = state.Bindings.Set(local, value) };
-        if(term is not null && Shared(local.Type, expression, term) is null)
+        if(term is not null && shared is null)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };
         }
@@ -253,6 +255,19 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         }
 
         return expression is LocalReferenceExpression or FieldReferenceExpression or MemberAccessExpression
+            && term is { Constant.IsZero: true, Variables.Length: 1 } && term.Multipliers[0].IsOne
+            ? term.Variables[0] : null;
+    }
+
+    // A capture that reads a holder IS that holder's value, so two captures of one unchanged variable are one value with no fact to prove it by.
+    private static Value? Held(LocalVariable local, Expression? expression, Term? term)
+    {
+        while(expression is ImplicitConversionExpression conversion)
+        {
+            expression = conversion.Operand;
+        }
+
+        return local is SlotCapture && expression is LocalReferenceExpression or FieldReferenceExpression or PropertyReferenceExpression or MemberAccessExpression or TypeReferenceExpression
             && term is { Constant.IsZero: true, Variables.Length: 1 } && term.Multipliers[0].IsOne
             ? term.Variables[0] : null;
     }

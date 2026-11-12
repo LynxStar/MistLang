@@ -616,7 +616,11 @@ internal sealed partial class ScopeResolver
     {
         if(alias.AliasedType is null)
         {
-            AliasCompleter?.Invoke(alias);
+            _ = WithSlotValues(null, () =>
+            {
+                AliasCompleter?.Invoke(alias);
+                return alias;
+            });
         }
 
         if(alias.IsFailed)
@@ -756,7 +760,7 @@ internal sealed partial class ScopeResolver
     /// constrained by refinements over int, such as <c>ZeroOrPositiveInt</c> — so the
     /// lifted type does not vary with the literal's spelling.
     /// </summary>
-    private IMistType LiftInt(long value)
+    public IMistType LiftInt(long value)
     {
         return context.ProgramModel.TypeInterner.LiftLiteral(LookupWellKnown(WellKnownTypes.Int32), value);
     }
@@ -902,14 +906,14 @@ internal sealed partial class ScopeResolver
     /// </summary>
     public IMistType ConstructArray(IMistType elementType, int? length)
     {
-        return ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
+        return ConstructLengthIndexed(WellKnownTypes.Array, elementType, length is { } known ? LiftInt(known) : null);
     }
 
     /// <summary>
     /// The same construction for any of the length-indexed Standard types, the spans included: they
     /// differ in where the memory lives and not in how the length is carried.
     /// </summary>
-    public IMistType ConstructLengthIndexed(WellKnownType definition, IMistType elementType, int? length)
+    public IMistType ConstructLengthIndexed(WellKnownType definition, IMistType elementType, IMistType? length)
     {
         var arrayDefinition = LookupWellKnown(definition);
         if(arrayDefinition is ErrorType)
@@ -925,10 +929,8 @@ internal sealed partial class ScopeResolver
         // reason LiftInt lifts as int -- a length inhabits a refinement over int -- and it is
         // hardcoded here rather than read off the Length parameter because
         // TypeParameter.Domain is not populated yet.
-        var lengthArgument = length is { } known
-            ? LiftInt(known)
-            : context.ProgramModel.TypeInterner.GetOrCreateUnknownValue(LookupWellKnown(WellKnownTypes.Int32))
-            ;
+        var lengthArgument = length
+            ?? context.ProgramModel.TypeInterner.GetOrCreateUnknownValue(LookupWellKnown(WellKnownTypes.Int32));
 
         return context.ProgramModel.TypeInterner.GetOrCreateConstructedType(arrayDefinition, new IMistType[] { elementType, lengthArgument });
     }

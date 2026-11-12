@@ -11,14 +11,28 @@ internal sealed partial class ScopeResolver
 {
     public IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode syntax, Scope scope, IMistType definition)
     {
-        var arguments = ResolveTypeArguments(syntax, scope).ToList();
-        if(definition is not IHasTypeParameters generic)
+        var nodes = new[] { syntax.TypeArgument }.Concat(syntax.TypeArguments).ToList();
+        var parameters = (definition as IHasTypeParameters)?.TypeParametersList;
+        var arguments = new List<IMistType>(nodes.Count);
+
+        for(var i = 0; i < nodes.Count; i++)
+        {
+            if(parameters is not null && SlotAt(parameters, nodes.Count, i) is { IsDependent: true, IsPack: false } slot
+                && SlotValue(nodes[i], slot, scope) is { } value)
+            {
+                arguments.Add(value);
+            }
+            else
+            {
+                ResolveTypeArgument(nodes[i], scope, arguments);
+            }
+        }
+
+        if(parameters is null)
         {
             return arguments;
         }
 
-        var parameters = generic.TypeParametersList;
-        var nodes = new[] { syntax.TypeArgument }.Concat(syntax.TypeArguments).ToList();
         for(var i = 0; i < arguments.Count; i++)
         {
             if(arguments[i] is not SpreadType spread)

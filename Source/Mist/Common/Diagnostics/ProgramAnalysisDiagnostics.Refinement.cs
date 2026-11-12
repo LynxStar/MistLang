@@ -191,4 +191,14 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("predicate", SlotKind.Name), new Slot("value", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic ClosingNotProven = new(
+        DiagnosticNumber.Mint("MIST0486"),
+        Title: "Closing not proven",
+        Template: "'{source}' is not proven to be '{target}': '{left}' and '{right}' are not proven identical{case}.",
+        Description: "The value's type and the type it meets differ only in the values of dependent slots, and nothing on this path proves the two values identical. Close both types with the same value, or declare the variable with the type that admits every value of the slot.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("left", SlotKind.Name), new Slot("right", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 }

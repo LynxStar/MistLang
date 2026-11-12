@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Patterns;
@@ -36,6 +37,8 @@ internal sealed class TypeTestPattern(
     /// its own, and an optional having no value of type Void for a type test to find.
     /// </summary>
     public bool TestsAbsence { get; init; }
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     public override IMistType NarrowedType { get; } = testedType;
 

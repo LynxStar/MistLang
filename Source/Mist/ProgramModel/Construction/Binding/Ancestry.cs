@@ -130,6 +130,7 @@ internal static class Ancestry
             RefinedType refined => Unwrap(refined.BaseType),
             LiftedType lifted => Unwrap(lifted.Type),
             UnknownValueType value => Unwrap(value.Domain),
+            CapturedValue captured => Unwrap(captured.Domain),
             _ => type,
         };
     }

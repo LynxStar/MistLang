@@ -48,10 +48,16 @@ public class Program
         Console.WriteLine("=== Named Allocation Elements Done ===");
     }
 
-    private static int NextAllocationSize()
+    private static ZeroOrPositiveInt NextAllocationSize()
     {
         allocationSizeCalls = allocationSizeCalls + 1;
-        return allocationSizeCalls + 1;
+        var size = allocationSizeCalls + 1;
+        if(size >= 0)
+        {
+            return size;
+        }
+
+        return 0;
     }
 
     public static void Main(string[] args)

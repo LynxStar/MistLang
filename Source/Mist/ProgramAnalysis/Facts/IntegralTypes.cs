@@ -34,6 +34,11 @@ internal static class IntegralTypes
             return Range(unknown.Domain);
         }
 
+        if(type is CapturedValue captured)
+        {
+            return Range(captured.Domain);
+        }
+
         if(type is TypeParameter { IsDependent: true, Domain: { } domain })
         {
             return Range(domain);

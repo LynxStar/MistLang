@@ -109,6 +109,7 @@ internal static class ConversionClassifier
             TypeAlias { AliasedType: { } aliased } => Normalize(aliased),
             LiftedType lifted => Normalize(lifted.Type),
             UnknownValueType value => Normalize(value.Domain),
+            CapturedValue captured => Normalize(captured.Domain),
             _ => type,
         };
     }
@@ -125,7 +126,7 @@ internal static class ConversionClassifier
 
     private static bool Within(IMistType from, IMistType to, HashSet<string> visited)
     {
-        if(ConversionRelation.IsWithin(from, to) || AgreesUpToUnknownValues(from, to) || CrossesDelegateShape(from, to))
+        if(ConversionRelation.IsWithin(from, to) || AgreesUpToUnknownValues(from, to) || AgreesUpToProof(from, to) || CrossesDelegateShape(from, to))
         {
             return true;
         }
@@ -192,9 +193,70 @@ internal static class ConversionClassifier
         return true;
     }
 
+    /// <summary>
+    /// Two closings of one definition that differ only where Stage 5 can still prove them one type: a
+    /// dependent slot whose two values are not both literals. Admitted here and proven by
+    /// <c>SlotIdentity</c>, because the binder sees no facts. An abstract closed with <c>unknown</c> reaches
+    /// no named value: an object may implement it at several, so its slot has no single value to prove.
+    /// </summary>
+    public static bool AgreesUpToProof(IMistType from, IMistType to)
+    {
+        if(from is not ConstructedType source
+            || to is not ConstructedType target
+            || !Same(source.Definition, target.Definition)
+            || source.TypeArguments.Count != target.TypeArguments.Count)
+        {
+            return false;
+        }
+
+        for(var i = 0; i < source.TypeArguments.Count; i++)
+        {
+            var argument = source.TypeArguments[i];
+            var slot = target.TypeArguments[i];
+
+            if(!Same(argument, slot)
+                && !ErasesDependentValue(argument, slot, target.Definition, i)
+                && !AgreesUpToUnknownValues(argument, slot)
+                && !AgreesUpToProof(argument, slot)
+                && !OwesProof(argument, slot, target.Definition, i))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static bool OwesProof(IMistType argument, IMistType slot, IMistType definition, int ordinal)
+    {
+        if(definition is not IHasTypeParameters declared
+            || !declared.TypeParametersList.Exists(parameter => parameter.Ordinal == ordinal && parameter is { IsDependent: true, IsPack: false })
+            || (argument is LiftedType && slot is LiftedType))
+        {
+            return false;
+        }
+
+        if(argument is UnknownType or UnknownValueType)
+        {
+            return definition is ClassType or StructType && IsNamedValue(slot);
+        }
+
+        return IsRuntimeValue(argument) || IsRuntimeValue(slot);
+    }
+
+    private static bool IsRuntimeValue(IMistType value)
+    {
+        return value is CapturedValue or TypeParameter { IsDependent: true, IsPack: false };
+    }
+
+    private static bool IsNamedValue(IMistType value)
+    {
+        return value is LiftedType { Value: not TypePackValue } || IsRuntimeValue(value);
+    }
+
     private static bool ErasesDependentValue(IMistType argument, IMistType slot, IMistType definition, int ordinal)
     {
-        if(argument is not (LiftedType or UnknownValueType))
+        if(argument is not (LiftedType or UnknownValueType or CapturedValue))
         {
             return false;
         }

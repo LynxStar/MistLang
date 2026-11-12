@@ -50,7 +50,8 @@ public sealed class StackallocLengthInferenceTests : ProgramModelProbe
     [Theory]
     [InlineData("var", "Standard.Span<,>")]
     [InlineData("Standard.ReadOnlySpan<int, unknown>", "Standard.ReadOnlySpan<,>")]
-    public void ComputedSizesRetainTheirInvocationAndUnknownIntegerLength(string target, string family)
+    [Trait("Tier", "3")]
+    public void ComputedSizesRetainTheirInvocationAndCloseTheLength(string target, string family)
     {
         var model = Build(Source($"{target} actual = stackalloc int[Size()];"), out var diagnostics);
 
@@ -58,11 +59,12 @@ public sealed class StackallocLengthInferenceTests : ProgramModelProbe
 
         var allocation = Assert.IsType<StackallocExpression>(Assert.Single(Declarations(model)).Initializer);
         var result = Assert.IsType<ConstructedType>(allocation.Type);
-        var length = Assert.IsType<UnknownValueType>(result.TypeArguments[1]);
+        var length = Assert.IsType<CapturedValue>(result.TypeArguments[1]);
         var invocation = Assert.IsType<InvocationExpression>(allocation.Size);
 
         Assert.Equal(family, result.Definition.FullyQualifiedName);
         Assert.Same(model.TypesByFQN["Standard.Int32"], length.Domain);
+        Assert.Same(invocation, Assert.Single(allocation.Captures).Initializer);
         Assert.NotNull(invocation.Method);
         Assert.Equal("Size", invocation.Method.Name);
         Assert.Empty(invocation.Arguments);
@@ -71,7 +73,8 @@ public sealed class StackallocLengthInferenceTests : ProgramModelProbe
     [Theory]
     [InlineData("-1")]
     [InlineData("2147483648")]
-    public void NonLiteralAndOversizedLengthsRemainUnknownRatherThanTruncating(string size)
+    [Trait("Tier", "3")]
+    public void NegativeAndOversizedLengthsCloseTheLengthAsValuesRatherThanTruncating(string size)
     {
         var model = Build(Source($"var actual = stackalloc int[{size}];"), out var diagnostics);
 
@@ -79,9 +82,10 @@ public sealed class StackallocLengthInferenceTests : ProgramModelProbe
 
         var allocation = Assert.IsType<StackallocExpression>(Assert.Single(Declarations(model)).Initializer);
         var result = Assert.IsType<ConstructedType>(allocation.Type);
-        var length = Assert.IsType<UnknownValueType>(result.TypeArguments[1]);
+        var length = Assert.IsType<CapturedValue>(result.TypeArguments[1]);
 
         Assert.Same(model.TypesByFQN["Standard.Int32"], length.Domain);
+        Assert.Same(allocation.Size, length.Capture.Initializer);
     }
 
     private static LocalDeclarationStatement[] Declarations(ProgramModelClass model)

@@ -10,18 +10,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction;
 
-/// <summary>
-/// Builds an <see cref="IProgramModel"/> from parsed ASTs and compilation metadata.
-/// </summary>
 public sealed class ProgramModelBuilder
 {
-    /// <summary>
-    /// Constructs an <see cref="IProgramModel"/> from the parsed ASTs and compilation metadata.
-    /// </summary>
-    /// <param name="compilation">The compilation containing units with metadata.</param>
-    /// <param name="diagnostics">Diagnostic bag to report construction errors.</param>
-    /// <param name="ambientProvider">Provider for resolving CLR types from loaded assemblies.</param>
-    /// <returns>The built program model, or null on fatal failure.</returns>
     public static IProgramModel? Build(
         MistCompilation compilation,
         CompilerOptions options,
@@ -61,21 +51,19 @@ public sealed class ProgramModelBuilder
                 project.OutputType == ProjectOutputType.Library);
         }
 
-        // Validate that all assembly names are unique across the compilation.
         ValidateUniqueAssemblyNames(programModel, diagnostics);
 
         var context = new BuilderContext(programModel, diagnostics, ambientProvider);
         var unitBuilder = new CompilationUnitBuilder(context);
 
-        // Process each compilation unit.
+        // Phase 1.
         foreach(var unit in compilation.Units)
         {
             _ = unitBuilder.Build(unit);
         }
 
-        // Phase 1b: Eagerly build and register all ambient types.
-        // Standard Library shells are now registered, so the provider can resolve
-        // well-known type aliases. All ambient types become visible for Phase 2.
+        // Phase 1b: after the units, so the Standard Library shells exist for the provider to resolve
+        // well-known type aliases against.
         ambientProvider.BuildAndRegister(programModel);
 
         UsingValidation.Run(context);
@@ -163,7 +151,7 @@ public sealed class ProgramModelBuilder
         var extensionBuilder = new ExtensionBuilder(context, context.Resolver);
         extensionBuilder.BuildAll();
 
-        // Phase 2c: Resolve retroactive conformance declarations (with blocks).
+        // Phase 2c.
         var conformanceBuilder = new ConformanceBuilder(context, context.Resolver);
         conformanceBuilder.BuildAll();
         StandardErrorAdaptation.Register(programModel.FindQualifiedType("Standard.ExceptionError") as ConcreteType);

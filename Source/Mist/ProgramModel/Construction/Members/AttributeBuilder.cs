@@ -12,20 +12,15 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
-/// Resolves the attribute lists on a declaration into <see cref="DeclaredAttribute"/> instances.
 /// <para>
 /// BRACKET GROUPING IS DELIBERATELY NOT PRESERVED. <c>[A, B]</c> and <c>[A][B]</c> apply the same two
-/// attributes, so a model that told them apart would be recording how the author typed rather than
-/// what they meant, and emission would then be reproducing a source file instead of stating a
-/// program.
+/// attributes, so the model records what the author meant, not how they typed it.
 /// </para>
 /// <para>
 /// THE SUFFIX CONVENTION IS A FILTER, NOT A FALLBACK. <c>[Range(0, 100)]</c> must reach
-/// <c>RangeAttribute</c> even though <c>Range</c> also resolves -- to the slicing struct, which is
-/// not an attribute class at all. Trying the written name first and stopping at the first hit binds
-/// that struct, and the mistake survives emission unseen: the name goes out as written and C#, which
-/// does apply the filter, then binds the attribute the author meant. Only the model is wrong, and
-/// nothing downstream would ever say so.
+/// <c>RangeAttribute</c> even though <c>Range</c> also resolves, to the slicing struct. Stopping at the
+/// first hit binds that struct unseen: C# applies the filter to the emitted name and binds the
+/// attribute the author meant, so only the model is wrong and nothing downstream says so.
 /// </para>
 /// </summary>
 internal sealed class AttributeBuilder(BuilderContext context)

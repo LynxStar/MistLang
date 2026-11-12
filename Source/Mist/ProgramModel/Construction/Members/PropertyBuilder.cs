@@ -9,10 +9,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves property declarations into <see cref="Property"/> instances.
-/// A single code path handles both concrete and abstract contexts.
-/// </summary>
 internal sealed class PropertyBuilder
 {
     private readonly BuilderContext context;
@@ -26,9 +22,6 @@ internal sealed class PropertyBuilder
         this.accessorBuilder = accessorBuilder;
     }
 
-    /// <summary>
-    /// Resolves a property declaration on any member-bearing type.
-    /// </summary>
     public void Resolve(PropertyDeclarationNode propertyDecl, IMethodHost host)
     {
         switch(propertyDecl)
@@ -61,8 +54,6 @@ internal sealed class PropertyBuilder
         {
             IntrinsicMemberValidation.Validate(host.IsIntrinsic, host.Name, modifiers.Accessibility == Accessibility.Public, exprProp, context.Diagnostics);
 
-            // An expression-bodied property supplies a getter body, so it can never
-            // be a valid intrinsic (backend-provided) property.
             context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.IntrinsicMemberCannotHaveBody, exprProp, null, new NameValue(name));
         }
 
@@ -111,9 +102,6 @@ internal sealed class PropertyBuilder
                 context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.ExtensionPropertyCannotHaveAutoAccessor, accessor, null, new NameValue(name));
             }
 
-            // An intrinsic property is backend-provided: every accessor must be an
-            // auto accessor (get; / set; / init;). A block or expression body means
-            // the developer supplied an implementation, which is not allowed.
             if(modifiers.IsIntrinsic && accessor is not (
                 AutoGetAccessorAccessorDeclarationNode or
                 AutoSetAccessorAccessorDeclarationNode or

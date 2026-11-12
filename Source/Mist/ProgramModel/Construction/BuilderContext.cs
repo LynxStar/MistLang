@@ -9,9 +9,6 @@ using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction;
 
-/// <summary>
-/// Shared compilation-wide state passed to all program model builders.
-/// </summary>
 internal sealed class BuilderContext
 {
     private readonly ProgramScope programScope;
@@ -59,10 +56,6 @@ internal sealed class BuilderContext
 
     public IAmbientTypeProvider AmbientProvider { get; }
 
-    /// <summary>
-    /// The shared scope resolver for this compilation. Resolves names and AST type
-    /// syntax into types, variables, or other symbols via scope-based lookup.
-    /// </summary>
     public ScopeResolver Resolver { get; }
 
     public AttributeBuilder Attributes { get; }
@@ -70,20 +63,11 @@ internal sealed class BuilderContext
     public StorageWriteSummaries StorageWrites { get; } = new();
 
     /// <summary>
-    /// Using directives collected during Phase 1, judged by <see cref="UsingValidation"/> once every
-    /// namespace they could name is registered.
+    /// Collected in Phase 1 and judged by <see cref="UsingValidation"/>.
     /// </summary>
     public List<PendingUsing> PendingUsings { get; } = [];
 
-    /// <summary>
-    /// Extension block AST nodes collected during Phase 1.
-    /// Processed in Phase 2 after all types are registered.
-    /// </summary>
     public List<PendingExtension> PendingExtensions { get; } = [];
 
-    /// <summary>
-    /// With-declaration AST nodes collected during Phase 1.
-    /// Processed in Phase 2c after all types and extensions are resolved.
-    /// </summary>
     public List<PendingConformance> PendingConformances { get; } = [];
 }

@@ -6,10 +6,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
-/// The <c>pure</c> token written before a type reference, applied after the reference resolves: the
-/// resolved type is re-interned as the pure function type of the same shape, so <c>pure func</c>,
-/// <c>pure Func</c>, <c>pure Action</c> and <c>pure Step</c> over an alias all reach one type. What is
-/// not a function type is reported and left as it resolved.
+/// The <c>pure</c> token before a type reference, applied after the reference resolves so that
+/// <c>pure func</c>, <c>pure Func</c>, <c>pure Action</c> and <c>pure Step</c> over an alias all reach
+/// one type.
 /// </summary>
 internal static class PureFunctionReference
 {

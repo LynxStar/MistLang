@@ -8,10 +8,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves constructor declarations into <see cref="Constructor"/> instances.
-/// Constructors are methods whose return type is the declaring type.
-/// </summary>
 internal sealed class ConstructorBuilder
 {
     private readonly BuilderContext context;
@@ -25,9 +21,6 @@ internal sealed class ConstructorBuilder
         this.constraintResolver = constraintResolver;
     }
 
-    /// <summary>
-    /// Resolves a constructor declaration on a concrete type.
-    /// </summary>
     public void Resolve(ConstructorDeclarationNode ctorDecl, ConcreteType concreteType)
     {
         // A constructor needs a member scope of its own for the same reason a method does: it
@@ -66,8 +59,8 @@ internal sealed class ConstructorBuilder
     }
 
     /// <summary>
-    /// Maps the chain syntax to its kind. The arguments are left for Phase 3, since they
-    /// reference the constructor's own parameters.
+    /// The chain's arguments are left for Phase 3, since they reference the constructor's own
+    /// parameters.
     /// </summary>
     private static ConstructorChainKind ResolveChainKind(ConstructorChainNode? chain)
     {

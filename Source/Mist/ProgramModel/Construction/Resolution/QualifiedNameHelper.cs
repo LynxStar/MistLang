@@ -2,15 +2,8 @@ using Mist.Generated;
 
 namespace Mist.ProgramModel.Construction.Resolution;
 
-/// <summary>
-/// Shared utility for building dot-separated qualified names from AST nodes.
-/// </summary>
 internal static class QualifiedNameHelper
 {
-    /// <summary>
-    /// Builds a qualified name from a <see cref="QualifiedIdentifierNode"/> by joining
-    /// its identifier tokens with dots.
-    /// </summary>
     public static string Build(QualifiedIdentifierNode qualifiedId)
     {
         if(qualifiedId.IDENTIFIERs.IsDefaultOrEmpty)

@@ -9,10 +9,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves operator declarations into <see cref="Operator"/> instances
-/// and adds them to the owning member type.
-/// </summary>
 internal sealed class OperatorBuilder
 {
     private readonly BuilderContext context;
@@ -26,9 +22,6 @@ internal sealed class OperatorBuilder
         this.delegateResolver = delegateResolver;
     }
 
-    /// <summary>
-    /// Resolves an operator declaration and adds it to the member type.
-    /// </summary>
     public void Resolve(OperatorDeclarationNode opDecl, MemberType memberType)
     {
         if(memberType is ConcreteType { CloneSource: not null } && ReturnsResult(opDecl)

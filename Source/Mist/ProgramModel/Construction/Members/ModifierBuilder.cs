@@ -9,20 +9,11 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
-/// Resolves an AST modifier list into a <see cref="MemberModifiers"/> value with
-/// scope-based default accessibility already applied. This is the single point of
-/// truth for mapping parsed modifiers to the program model — all member builders
-/// delegate here to avoid drift.
+/// The one mapping from parsed modifiers to <see cref="MemberModifiers"/>; every member builder
+/// delegates here so the mapping cannot drift.
 /// </summary>
 internal static class ModifierBuilder
 {
-    /// <summary>
-    /// Builds a <see cref="MemberModifiers"/> from a node that implements
-    /// <see cref="IHasModifiersNode"/>. Applies the scope-based default accessibility
-    /// when no explicit access modifier is present. The node itself is used as the
-    /// diagnostic location. Reports diagnostics for universally-invalid combinations
-    /// (e.g. multiple substructural disciplines).
-    /// </summary>
     public static MemberModifiers Build<TNode>(TNode node, DiagnosticBag diagnostics, MistType? declaringType)
         where TNode : SyntaxNode, IHasModifiersNode
     {
@@ -248,15 +239,9 @@ internal static class ModifierBuilder
     }
 
     /// <summary>
-    /// The accessibility a declaration takes when it names none.
-    /// <para>
-    /// A CONSTRUCTOR IS PUBLIC, WHERE EVERY OTHER MEMBER OF A CLASS OR STRUCT IS PRIVATE. Mist parts
-    /// from C# here, and the two are not reconcilable by scope: the enclosing type is the same, so
-    /// only the declaration kind separates them. Branching on the node rather than on the resolved
-    /// modifiers is what makes it decidable at all -- <see cref="MemberModifiers"/> records the
-    /// answer, not whether the author supplied one, so by the time Build returns, a defaulted
-    /// private and a written private are the same value.
-    /// </para>
+    /// A CONSTRUCTOR DEFAULTS TO PUBLIC, WHERE EVERY OTHER MEMBER OF A CLASS OR STRUCT IS PRIVATE, a
+    /// departure from C#. The enclosing type is the same, so only the node separates them:
+    /// <see cref="MemberModifiers"/> records the answer, not whether the author supplied one.
     /// </summary>
     private static Accessibility DefaultAccessibility(SyntaxNode node, MistType? declaringType)
     {
@@ -266,14 +251,7 @@ internal static class ModifierBuilder
     }
 
     /// <summary>
-    /// Returns the scope-kind default accessibility for a declaration based on
-    /// its declaring (enclosing) type. This mirrors the C# defaults:
-    /// <list type="bullet">
-    ///   <item>Top-level (no declaring type) → <see cref="Accessibility.Internal"/></item>
-    ///   <item>Inside a class or struct → <see cref="Accessibility.Private"/></item>
-    ///   <item>Inside an interface (abstract) or enum → <see cref="Accessibility.Public"/></item>
-    /// </list>
-    /// Nested types inside a class/struct default to <see cref="Accessibility.Private"/>.
+    /// Mirrors C#'s defaults by enclosing type.
     /// </summary>
     internal static Accessibility GetScopeDefault(MistType? declaringType)
     {
@@ -287,10 +265,6 @@ internal static class ModifierBuilder
         };
     }
 
-    /// <summary>
-    /// Reports diagnostics for modifier combinations that are universally invalid
-    /// regardless of declaration context.
-    /// </summary>
     private static void ValidateUniversalConflicts(
         DiagnosticBag diagnostics,
         SyntaxNode locationNode,
@@ -302,9 +276,6 @@ internal static class ModifierBuilder
         }
     }
 
-    /// <summary>
-    /// Returns true if more than one substructural discipline modifier is present.
-    /// </summary>
     private static bool HasMultipleDisciplines(ImmutableArray<ModifierNode> modifiers)
     {
         var count = 0;

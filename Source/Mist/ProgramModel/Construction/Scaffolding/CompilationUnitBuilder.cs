@@ -8,11 +8,6 @@ using ModelCompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
-/// <summary>
-/// Processes compilation units (files) by creating the file scope and delegating
-/// to specialized builders. One instance is created per compilation and reused
-/// across all files.
-/// </summary>
 internal sealed class CompilationUnitBuilder
 {
     private readonly BuilderContext context;
@@ -45,16 +40,15 @@ internal sealed class CompilationUnitBuilder
         var assembly = ResolveAssembly(unit);
         var fileScope = new FileScope(context.ScopeFor(assembly), context.ProgramModel, context.Diagnostics);
 
-        // Validate namespaces and populate the file's usings.
         var fileNamespace = namespaceBuilder.Build(fileScope, ast, sourceText, namespaceRoot, projectFolder);
         if(fileNamespace is null)
         {
             return null;
         }
 
-        // Register type declarations. Extension blocks are stashed rather than built here, so the
-        // count is read first and everything appended below belongs to this unit -- the type walk
-        // has no unit of its own to record.
+        // Extension blocks are stashed rather than built here, so the count is read first and
+        // everything appended below belongs to this unit -- the type walk has no unit of its own to
+        // record.
         var firstExtension = context.PendingExtensions.Count;
         var result = typeBuilder.Build(fileScope, fileNamespace, ast, assembly);
 
@@ -115,10 +109,6 @@ internal sealed class CompilationUnitBuilder
                 + $"'{unit.OriginProjectPath}', which is absent from the compilation's project list.");
     }
 
-    /// <summary>
-    /// Computes the directory of the source file relative to the project root.
-    /// Returns empty string for files at the root.
-    /// </summary>
     private static string ComputeRelativePath(string? sourcePath, string? projectFolder)
     {
         if(string.IsNullOrEmpty(sourcePath) || string.IsNullOrEmpty(projectFolder))

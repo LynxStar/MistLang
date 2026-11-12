@@ -11,10 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves parameter lists from AST nodes into <see cref="Parameter"/> instances.
-/// Shared by indexers, methods, constructors, and operators.
-/// </summary>
 internal sealed class ParameterBuilder
 {
     private readonly ScopeResolver scopeResolver;

@@ -22,10 +22,6 @@ internal static class PackBinding
             && index >= slot && index < argumentCount - (parameters.Count - slot - 1);
     }
 
-    /// <summary>
-    /// The index of the slot that absorbs the middle, or null when this declaration has none and
-    /// the ordinary one-for-one rule applies.
-    /// </summary>
     public static int? AbsorbingSlot(IReadOnlyList<TypeParameter> parameters)
     {
         for(var i = 0; i < parameters.Count; i++)
@@ -39,11 +35,6 @@ internal static class PackBinding
         return null;
     }
 
-    /// <summary>
-    /// The declared slots filled from a flat argument list, with the absorbing slot holding the
-    /// arguments the fixed ones did not claim. Null when there are too few to fill the fixed slots,
-    /// which the caller reports as MIST0411.
-    /// </summary>
     public static IReadOnlyList<IMistType>? Bind(
         IReadOnlyList<TypeParameter> parameters,
         IReadOnlyList<IMistType> arguments,

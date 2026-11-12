@@ -7,10 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves indexer declarations into <see cref="Indexer"/> instances.
-/// A single code path handles both concrete and abstract contexts.
-/// </summary>
 internal sealed class IndexerBuilder
 {
     private readonly BuilderContext context;
@@ -30,9 +26,6 @@ internal sealed class IndexerBuilder
         this.constraintResolver = constraintResolver;
     }
 
-    /// <summary>
-    /// Resolves an indexer declaration on any member-bearing type.
-    /// </summary>
     public void Resolve(IndexerDeclarationNode indexerDecl, MemberType memberType)
     {
         var type = scopeResolver.Resolve(indexerDecl.Type, memberType.Scope);
@@ -54,8 +47,6 @@ internal sealed class IndexerBuilder
             IntrinsicMemberValidation.Validate(typeIsIntrinsic, memberType.Name, modifiers.Accessibility == Accessibility.Public, indexerDecl, context.Diagnostics);
         }
 
-        // Auto-accessors (get; / set;) are valid on indexers only in abstract
-        // types or intrinsic indexers — not on regular concrete types.
         var allowAutoAccessors = isAbstract || modifiers.IsIntrinsic;
 
         var site = new AccessorSite("indexer", modifiers, memberType, isAbstract);

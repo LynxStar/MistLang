@@ -5,12 +5,6 @@ using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Construction.Scaffolding;
 
-/// <summary>
-/// Validates namespace declarations, determines the file namespace, registers
-/// namespaces in the program model, and populates a file scope with the resolved
-/// namespace and imports. One instance is created per compilation and reused
-/// across all files.
-/// </summary>
 internal sealed class NamespaceBuilder
 {
     private readonly BuilderContext context;
@@ -21,9 +15,8 @@ internal sealed class NamespaceBuilder
     }
 
     /// <summary>
-    /// Validates the file's namespace declarations, registers the namespaces it declares, and
-    /// populates the file scope's usings. Returns the namespace the file's TOP-LEVEL items belong
-    /// to, or null when validation failed and the scope should not be used.
+    /// Returns the namespace the file's TOP-LEVEL items belong to, or null when validation failed
+    /// and the scope should not be used.
     /// <para>
     /// The returned namespace is not recorded on the scope. It becomes a
     /// <see cref="NamespaceScope"/> beneath it, and only if the file turns out to have top-level
@@ -45,17 +38,6 @@ internal sealed class NamespaceBuilder
         return fileNamespace;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Namespace Validation
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Validates namespace declarations within a compilation unit:
-    /// - MIST0301: duplicate file-scoped namespaces.
-    /// - MIST0302: mixed file-scoped and block namespaces.
-    /// - MIST0305: file-scoped namespace inside a block namespace.
-    /// Returns true if any errors were found.
-    /// </summary>
     private bool ValidateNamespaceDeclarations(CompilationUnitNode ast)
     {
         var hasErrors = false;
@@ -106,10 +88,6 @@ internal sealed class NamespaceBuilder
         return hasErrors;
     }
 
-    /// <summary>
-    /// Recursively checks namespace bodies for file-scoped namespace declarations
-    /// inside block namespaces (MIST0305).
-    /// </summary>
     private void CheckForFileScopedInsideBlock(NamespaceDeclarationNode nsDecl)
     {
         var bodyItems = GetNamespaceBody(nsDecl);
@@ -134,14 +112,6 @@ internal sealed class NamespaceBuilder
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Namespace Determination
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Determines the file's effective namespace. If the file declares a file-scoped
-    /// namespace, that is used. Otherwise, the namespace is inferred from the file path.
-    /// </summary>
     private string DetermineFileNamespace(
         CompilationUnitNode ast,
         SourceText sourceText,
@@ -160,10 +130,6 @@ internal sealed class NamespaceBuilder
         return ComputeInferredNamespace(sourceText, namespaceRoot, projectFolder);
     }
 
-    /// <summary>
-    /// Computes the inferred namespace for a source file based on its location
-    /// relative to the project folder.
-    /// </summary>
     private static string ComputeInferredNamespace(SourceText sourceText, string namespaceRoot, string projectFolder)
     {
         var filePath = sourceText.Path;
@@ -190,16 +156,11 @@ internal sealed class NamespaceBuilder
         return $"{namespaceRoot}.{segments}";
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Namespace Registration
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
     /// Registers the namespaces the file DECLARES. The file's own namespace is deliberately not
     /// among them: a file whose declarations all sit inside blocks does not bring its inferred
-    /// namespace into existence, and registering one unconditionally is what used to make it.
-    /// Declaring a type registers its namespace, so a file that does have top-level items still
-    /// gets one.
+    /// namespace into existence. Declaring a type registers its namespace, so a file that does have
+    /// top-level items still gets one.
     /// </summary>
     private void RegisterNamespaces(CompilationUnitNode ast, string fileNamespace)
     {
@@ -237,13 +198,6 @@ internal sealed class NamespaceBuilder
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Import Population
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Populates the file scope with using declarations from the AST.
-    /// </summary>
     private void PopulateImports(CompilationUnitNode ast, SourceText sourceText, FileScope fileScope)
     {
         var directives = ast.Usings.Concat(
@@ -256,10 +210,6 @@ internal sealed class NamespaceBuilder
             context.PendingUsings.Add(new PendingUsing(directive, usingName));
         }
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
 
     private string ExtractNamespaceName(NamespaceDeclarationNode namespaceNode, SourceText sourceText)
     {

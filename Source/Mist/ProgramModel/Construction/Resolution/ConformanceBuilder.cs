@@ -12,9 +12,8 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Construction.Resolution;
 
 /// <summary>
-/// Phase 2c builder for retroactive conformance declarations (with blocks).
-/// Processes all stashed <see cref="PendingConformance"/> entries after types
-/// and extensions have been fully resolved.
+/// Phase 2c builder for retroactive conformance (with blocks), run after types and extensions are
+/// resolved.
 /// </summary>
 internal sealed class ConformanceBuilder
 {
@@ -27,9 +26,6 @@ internal sealed class ConformanceBuilder
         this.scopeResolver = scopeResolver;
     }
 
-    /// <summary>
-    /// Resolves all stashed with-declarations into <see cref="ConformanceDeclaration"/> instances.
-    /// </summary>
     public void BuildAll()
     {
         foreach(var pending in context.PendingConformances)
@@ -42,10 +38,8 @@ internal sealed class ConformanceBuilder
     {
         var decl = pending.Declaration;
 
-        // Resolve the conforming type.
         var conformingType = scopeResolver.ResolveNamedType(decl.TypeName.Lexeme, pending.Scope, decl);
 
-        // Resolve the abstract type, accounting for arity if type args are present.
         var abstractName = decl.AbstractName.Lexeme;
         IMistType abstractType;
 

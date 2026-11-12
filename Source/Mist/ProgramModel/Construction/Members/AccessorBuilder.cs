@@ -8,10 +8,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Shared accessor construction and validation logic used by both
-/// <see cref="PropertyBuilder"/> and <see cref="IndexerBuilder"/>.
-/// </summary>
 internal sealed class AccessorBuilder
 {
     private readonly BuilderContext context;

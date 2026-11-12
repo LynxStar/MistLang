@@ -14,10 +14,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramModel.Construction.Members;
 
 /// <summary>
-/// Resolves the shared portions of any delegate (callable) declaration and
-/// runs the standard intrinsic-or-body validation. This is the single point
-/// of truth for resolving modifiers, parameters, body, and validating the
-/// intrinsic/body contract.
+/// The one place every callable's modifiers, parameters and body are resolved and the
+/// intrinsic-or-body contract is checked.
 /// </summary>
 internal sealed class DelegateResolver
 {
@@ -32,10 +30,6 @@ internal sealed class DelegateResolver
         this.scopeResolver = scopeResolver;
     }
 
-    /// <summary>
-    /// Resolves the 4 common pieces from any <see cref="IDelegateNode"/> and
-    /// validates the intrinsic-or-body contract.
-    /// </summary>
     public ResolvedDelegate ResolveDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IDelegateNode
     {
@@ -49,10 +43,6 @@ internal sealed class DelegateResolver
         return new ResolvedDelegate(modifiers, parameters, body);
     }
 
-    /// <summary>
-    /// Resolves the 6 pieces from a <see cref="IFullDelegateNode"/>: the base delegate
-    /// plus context bindings and optional this-tier declaration from with clauses.
-    /// </summary>
     public ResolvedFullDelegate ResolveFullDelegate<TNode>(TNode node, Scope scope, IMethodHost host, string memberName)
         where TNode : SyntaxNode, IFullDelegateNode
     {
@@ -62,14 +52,6 @@ internal sealed class DelegateResolver
         return new ResolvedFullDelegate(baseDelegate, contextBindings, thisTier);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // With Clause Resolution
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Resolves all with clauses on a full delegate into context bindings and
-    /// an optional this-tier declaration.
-    /// </summary>
     private (List<ContextBinding> contextBindings, ThisTier? thisTier) ResolveWithClauses(
         ImmutableArray<WithClauseNode> withClauses,
         Scope scope)
@@ -103,9 +85,6 @@ internal sealed class DelegateResolver
         return (contextBindings, thisTier);
     }
 
-    /// <summary>
-    /// Maps an <see cref="OwnershipSpecifierNode"/> to the corresponding <see cref="ThisTier"/>.
-    /// </summary>
     private static ThisTier MapOwnershipSpecifierToThisTier(OwnershipSpecifierNode specifier)
     {
         return specifier switch
@@ -117,10 +96,6 @@ internal sealed class DelegateResolver
             _ => throw new InvalidOperationException($"Unrecognized ownership specifier node: {specifier.GetType().Name}")
         };
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Validation
-    // ═══════════════════════════════════════════════════════════════════════
 
     private static Block? ResolveBody(CallableBodyNode bodyNode)
     {

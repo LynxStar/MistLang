@@ -7,10 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Members;
 
-/// <summary>
-/// Resolves cast operator declarations into <see cref="CastOperator"/> instances
-/// and adds them to the owning concrete type.
-/// </summary>
 internal sealed class CastOperatorBuilder
 {
     private readonly BuilderContext context;
@@ -24,9 +20,6 @@ internal sealed class CastOperatorBuilder
         this.delegateResolver = delegateResolver;
     }
 
-    /// <summary>
-    /// Resolves a cast operator declaration and adds it to the concrete type.
-    /// </summary>
     public void Resolve(CastOperatorDeclarationNode castOpDecl, ConcreteType typeDef)
     {
         var castScope = new MethodScope(typeDef.Scope);

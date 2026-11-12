@@ -8,10 +8,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
-/// <summary>
-/// Handles postfix expressions: binds the primary target, then folds each
-/// suffix (member access, invocation, method call) onto the result.
-/// </summary>
 internal static class PostfixBinder
 {
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
@@ -78,9 +74,8 @@ internal static class PostfixBinder
 
     /// <summary>
     /// A call that states its type arguments on an UNQUALIFIED name, which the grammar makes a
-    /// primary rather than a postfix suffix -- <c>Describe&lt;[int, string]&gt;(...)</c> is one node
-    /// where <c>x.Describe&lt;...&gt;(...)</c> is a receiver plus a suffix. The same group, the same
-    /// arguments and the same selection either way; only the shape reaching the binder differs.
+    /// primary rather than a postfix suffix. The same group, the same arguments and the same
+    /// selection as the qualified form; only the shape reaching the binder differs.
     /// </summary>
     internal static Expression BindGenericInvocation(
         GenericInvocationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
@@ -232,10 +227,9 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Binds one arm inside a scope of its own, so the bindings its pattern introduces reach that arm's
-    /// guard and result and nothing else -- not a sibling arm, and not the expression around the switch.
-    /// The same ordering <see cref="StatementBinder"/> uses for a branch: the scope exists before the
-    /// pattern binds into it.
+    /// A scope of its own, so the bindings the pattern introduces reach this arm's guard and result and
+    /// nothing else. As for a <see cref="StatementBinder"/> branch, the scope exists before the pattern
+    /// binds into it.
     /// </summary>
     private static SwitchArm? BindArm(
         SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed, bool ownsPayload)
@@ -282,10 +276,6 @@ internal static class PostfixBinder
         return common;
     }
 
-    /// <summary>
-    /// Binds a call, selecting the overload its arguments pick out. The arguments are bound first
-    /// because selection reads their types.
-    /// </summary>
     internal static Expression BindInvocation(
         Storm.Runtime.SyntaxNode node,
         Expression receiver,
@@ -607,9 +597,8 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// Resolves one qualification step off a namespace receiver. A namespace can only
-    /// contain types and further namespaces, so the result collapses the receiver
-    /// rather than nesting onto it.
+    /// A namespace can only contain types and further namespaces, so the result collapses the
+    /// receiver rather than nesting onto it.
     /// </summary>
     private static Expression BindQualifiedName(
         Storm.Runtime.SyntaxNode node, NamespaceReferenceExpression namespaceRef, string memberName, BindingContext ctx, BuilderContext context)
@@ -688,8 +677,8 @@ internal static class PostfixBinder
     }
 
     /// <summary>
-    /// The type a resolved member contributes to the expression. No method-group arm, because a
-    /// group has no single type to contribute and is intercepted before this is reached.
+    /// No method-group arm: a group has no single type to contribute and is intercepted before this
+    /// is reached.
     /// </summary>
     private static IMistType MemberTypeOf(LookupResult found)
     {

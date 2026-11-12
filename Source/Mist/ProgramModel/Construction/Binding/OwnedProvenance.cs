@@ -11,18 +11,16 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// <summary>
 /// Where an owned position gets its value, and what to do when the source does not already own one.
 /// An owned binding promises an INDEPENDENT value, so a source that something else still holds has to
-/// be copied -- otherwise the two names alias and mutating either is visible through the other, which
-/// is the whole of what owning is meant to rule out. An owned field read through a shared holder is the
-/// same promise seen from the other side (owned-fields Requirement 2.3): the holder cannot give the
-/// field away, so what it hands out is a copy.
+/// be copied -- otherwise the two names alias and mutating either is visible through the other. An
+/// owned field read through a shared holder is the same promise seen from the other side (owned-fields
+/// Requirement 2.3): the holder cannot give the field away, so what it hands out is a copy.
 /// </summary>
 internal static class OwnedProvenance
 {
     /// <summary>
-    /// The expression to bind at a position of the given tier: the source itself where it already owns
-    /// its value or the position only lends, and a clone of it otherwise. A type with no <c>Clone</c>
-    /// is left alone -- whether owning it is legal at all is a judgement on a finished model, and
-    /// refusing here would turn a rule about provenance into one about which types may be owned.
+    /// A type with no <c>Clone</c> is left alone -- whether owning it is legal at all is a judgement on a
+    /// finished model, and refusing here would turn a rule about provenance into one about which types
+    /// may be owned.
     /// </summary>
     public static Expression At(OwnershipKind target, Expression source, bool byReference = false)
     {
@@ -37,10 +35,6 @@ internal static class OwnedProvenance
             ;
     }
 
-    /// <summary>
-    /// The arguments of a call, each read against the tier its parameter declares. An owned parameter
-    /// is the same promise an owned binding makes, made across a call instead of into a name.
-    /// </summary>
     public static IReadOnlyList<Expression> AtParameters(
         IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
@@ -107,9 +101,7 @@ internal static class OwnedProvenance
     }
 
     /// <summary>
-    /// Whether the source hands over a value nothing else holds. A construction is fresh, a clone is
-    /// fresh by definition, a member declaring an owned return says so, and a binding declared owned
-    /// carries it. Everything else is a value someone else may still be reading.
+    /// Whether the source hands over a value nothing else may still be reading.
     /// </summary>
     private static bool Owns(Expression source)
     {
@@ -117,9 +109,8 @@ internal static class OwnedProvenance
         {
             NewExpression or CloneExpression or ArrayCreationExpression => true,
 
-            // An EXPLICIT clone is owned provenance. Without this a written `x.Clone()` assigned to an
-            // owned binding is cloned again, which classic does and which copies twice to reach a
-            // value the first copy already produced.
+            // An EXPLICIT clone is owned provenance, so a written `x.Clone()` assigned to an owned
+            // binding is not copied a second time.
             InvocationExpression { Method.Name: "Clone", Method.ParametersList.Count: 0 } => true,
 
             // BOTH SPELLINGS, because `owned` on a return reaches the model two ways. The Modifier rule
@@ -276,11 +267,9 @@ internal static class OwnedProvenance
     {
         var definition = type is ConstructedType constructed ? constructed.Definition : type;
 
-        // AN INTRINSIC TYPE IS NOT CLONED, which is the deliberate decision the capability asked for
-        // rather than an omission. Standard's String declares a Clone so it can satisfy the abstract,
-        // but the member is the target's and the CLR's returns object; more to the point a copy of an
-        // immutable value is indistinguishable from the value, so the clone buys no independence and
-        // the aliasing it would prevent cannot be observed.
+        // AN INTRINSIC TYPE IS NOT CLONED, deliberately. Standard's String declares a Clone so it can
+        // satisfy the abstract, but the member is the target's and the CLR's returns object; and a copy
+        // of an immutable value is indistinguishable from the value, so the clone buys no independence.
         return definition is not ConcreteType { IsIntrinsic: true }
             && (definition as MemberType)?.MethodsList.Exists(
                 method => method.Name == "Clone" && method.ParametersList.Count == 0) == true

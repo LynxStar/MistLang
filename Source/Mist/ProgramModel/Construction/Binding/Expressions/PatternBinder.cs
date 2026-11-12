@@ -407,16 +407,13 @@ internal static partial class PatternBinder
     }
 
     /// <summary>
-    /// <c>[p, .. q, r]</c>, whose two element kinds scrutinee different types -- see
-    /// <see cref="ListPattern"/>. The minimum length matching requires is NOT computed here: C# derives
-    /// it from the pattern's own shape, so stating it again would be a second authority on the same
-    /// fact.
+    /// The minimum length matching requires is NOT computed here: C# derives it from the pattern's own
+    /// shape, so stating it again would be a second authority on the same fact.
     /// <para>
     /// An <c>unknown</c> scrutinee is REFUSED where a tuple pattern would type-test it, and the
     /// asymmetry is C#'s rather than a gap here. A tuple pattern can name the ValueTuple ahead of
-    /// itself, but <c>[...]</c> is the only spelling C# has for a list pattern and it requires a
-    /// countable scrutinee at compile time -- so there is no type to name first, and the test would
-    /// have to become <c>is int[] and [...]</c>, a second emission shape.
+    /// itself, but a C# list pattern requires a countable scrutinee at compile time, so there is no
+    /// type to name first without a second emission shape.
     /// </para>
     /// </summary>
     private static Pattern? BindListPattern(

@@ -11,14 +11,12 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Entry point for Phase 3 body binding. Sets up the scope (parameter aliases)
-/// and delegates to <see cref="StatementBinder"/> for the actual statement resolution.
+/// Entry point for Phase 3 body binding.
 /// </summary>
 internal static class BodyBinder
 {
     /// <summary>
-    /// Binds a delegate (method, constructor, operator, cast operator): seeds the
-    /// scope with parameter aliases, then binds the body.
+    /// Binds a method, constructor, operator or cast operator body.
     /// </summary>
     public static void BindDelegate(Method method, BuilderContext context)
     {
@@ -70,9 +68,6 @@ internal static class BodyBinder
             context);
     }
 
-    /// <summary>
-    /// Binds the argument expressions of a <c>: this(...)</c> or <c>: base(...)</c> chain.
-    /// </summary>
     private static void BindChainArguments(Constructor constructor, ConstructorChainNode chain, BodyScope scope, BuilderContext context)
     {
         var argumentList = chain switch
@@ -223,8 +218,6 @@ internal static class BodyBinder
 
         var bindingCtx = new BindingContext(scope, returnType: null) { EnclosingProperty = owningProperty };
 
-        // A getter's expression IS the value, so the property's type targets it. A setter's is a
-        // side effect whose type nothing constrains.
         if(targetType is null)
         {
             return ExpressionBinder.BindExpression(expressionNode, bindingCtx, context);
@@ -253,16 +246,10 @@ internal static class BodyBinder
 
     /// <summary>
     /// Binds a block nested inside a body, under a scope of its own but everything else inherited.
-    /// <para>
-    /// Takes the enclosing context rather than its parts, so that whatever
-    /// <see cref="BindingContext"/> comes to carry is inherited by construction. Forwarding field by
-    /// field is what let <c>field</c> resolve at the top of a setter and fail one <c>if</c> deeper.
-    /// </para>
     /// </summary>
     /// <param name="returnType">
-    /// What a <c>return</c> in this block returns, where that differs from the enclosing member's --
-    /// a lambda body being the case, since its returns answer to the lambda and not to the method
-    /// around it. Null inherits the enclosing one.
+    /// What a <c>return</c> in this block answers to where that differs from the enclosing member's,
+    /// as in a lambda body. Null inherits the enclosing one.
     /// </param>
     public static void BindNestedBlock(
         Block block,
@@ -308,9 +295,8 @@ internal static class BodyBinder
     /// the list knows what does.
     /// <para>
     /// SHARED WITH THE TAIL IT PRODUCES, which is the whole reason it is one method. The tail is
-    /// itself a statement list and may declare a `with` of its own; binding it through a plainer loop
-    /// left every declaration after the first unrecognised, so its name resolved nowhere and only the
-    /// FIRST of a run of them worked.
+    /// itself a statement list and may declare a `with` of its own, which a plainer loop would leave
+    /// unrecognised.
     /// </para>
     /// </summary>
     private static List<Statement> BindList(

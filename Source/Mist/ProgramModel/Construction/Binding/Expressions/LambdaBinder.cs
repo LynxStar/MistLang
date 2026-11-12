@@ -13,9 +13,9 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
-/// Binds lambda expressions. The target type says what the parameters are and what the result should be,
-/// and inference supplies whatever it does not -- so a lambda in a typed slot need not restate the slot,
-/// and one in an untyped slot must state enough to stand on its own.
+/// The target type says what the parameters are and what the result should be, and inference supplies
+/// whatever it does not -- so a lambda in a typed slot need not restate the slot, and one in an untyped
+/// slot must state enough to stand on its own.
 /// </summary>
 internal static class LambdaBinder
 {

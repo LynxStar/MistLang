@@ -197,10 +197,9 @@ internal static class MemberResolution
     /// <see cref="NotFoundResult"/> is a refusal already spoken for on a type that answers members and
     /// a silence on one that does not.
     /// <para>
-    /// Suppressed when the type is itself unresolved, because a type that already failed has already
-    /// been reported on: every access through it would otherwise add a second error saying so -- one
-    /// mistake, a cascade of complaints. An unknown receiver is silent here for the opposite reason --
-    /// nothing has said anything yet, and refusing it is Stage 5's.
+    /// Suppressed when the type is itself unresolved, because that failure is already reported and every
+    /// access through it would otherwise repeat it. An unknown receiver is silent here for the opposite
+    /// reason -- nothing has said anything yet, and refusing it is Stage 5's.
     /// </para>
     /// </summary>
     private static bool Report(

@@ -9,9 +9,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits a constructor declaration: modifiers, name, parameters, chain, and body.
-/// </summary>
 internal static class ConstructorEmitter
 {
     /// <param name="structInitNames">
@@ -68,8 +65,7 @@ internal static class ConstructorEmitter
         }
 
         // The name comes from the declaring type rather than the constructor, so it matches
-        // whatever the type was emitted as -- bare, because a C# constructor carries no type
-        // parameters even when its type declares them. See TypeEmitter.CleanName.
+        // whatever the type was emitted as.
         AttributeEmitter.EmitLines(constructor.DeclaredAttributesList, writer, diagnostics);
         writer.Write($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({string.Join(", ", parts)})");
 
@@ -171,8 +167,8 @@ internal static class ConstructorEmitter
             if(constructor.Body is not null)
             {
                 // Through the same entry a method's body takes: a constructor carries `with` clauses
-                // and owned parameters like any other callable, and emitting its block directly is
-                // what left both silently undone.
+                // and owned parameters like any other callable, and emitting its block directly would
+                // leave both silently undone.
                 BodyEmitter.EmitMethodBody(constructor, constructor.Body, writer, diagnostics, owner: declaringType);
             }
         }

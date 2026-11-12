@@ -11,10 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
-/// <summary>
-/// Entry point for expression binding. Unwraps the assignment layer and dispatches
-/// to the precedence chain, ultimately reaching a primary expression.
-/// </summary>
 internal static class ExpressionBinder
 {
     public static Expression BindExpression(ExpressionNode expression, BindingContext ctx, BuilderContext context)
@@ -184,9 +180,6 @@ internal static class ExpressionBinder
             node, referenced, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
     }
 
-    /// <summary>
-    /// Binds a bare <c>default</c>, whose type is the one the position expects.
-    /// </summary>
     private static Expression BindBareDefault(
         DefaultLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
@@ -217,14 +210,12 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// Binds <c>this</c>. The grammar admits it in any expression position, so both invalid
-    /// placements are rejected here rather than left for the C# backend -- but neither is checked
-    /// for: the receiver is RESOLVED, like any other name, and the two failures are just the two
-    /// ways that resolution can come back. A static member answers that it has no instance; a
-    /// chain with no type in it at all runs out and answers nothing. A type scope answers with its
-    /// definition, which a value never has as its type; <see cref="SelfConstruction"/> is what a value
-    /// of a generic declaration's own body has. A receiver already typed by the scope that supplied
-    /// it, as a clone body's is, is kept.
+    /// The grammar admits <c>this</c> in any expression position, so both invalid placements are
+    /// rejected here rather than left for the C# backend -- but neither is checked for: the receiver is
+    /// RESOLVED like any other name, and a static member and a chain with no type in it are the two ways
+    /// that resolution fails. A type scope answers with its definition, which a value never has as its
+    /// type, so <see cref="SelfConstruction"/> stands in; a receiver the scope already typed, as a clone
+    /// body's is, is kept.
     /// </summary>
     private static Expression BindThis(ThisExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
@@ -246,9 +237,6 @@ internal static class ExpressionBinder
         }
     }
 
-    /// <summary>
-    /// Binds <c>new T(...)</c>, generic or not, selecting the constructor its arguments pick out.
-    /// </summary>
     private static Expression BindObjectCreation(ObjectCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
         return BindNamedCreation(node, node.Type, node.TypeArgs, node.Arguments, node.Initializer, ctx, context);
@@ -334,9 +322,6 @@ internal static class ExpressionBinder
         return BindConstruction(node, type, argumentList, initializer, ctx, context);
     }
 
-    /// <summary>
-    /// Binds <c>new(...)</c> and <c>new { }</c>, which name no type and take the one the position expects.
-    /// </summary>
     private static Expression BindTargetTypedNew(
         Storm.Runtime.SyntaxNode node,
         ArgumentListNode? arguments,
@@ -401,10 +386,6 @@ internal static class ExpressionBinder
             : creation;
     }
 
-    /// <summary>
-    /// A constructed type unwrapped to the definition its members are declared on, and anything else
-    /// returned as it is.
-    /// </summary>
     private static IMistType Definition(IMistType type)
     {
         return (type as ConstructedType)?.Definition ?? type;
@@ -455,14 +436,8 @@ internal static class ExpressionBinder
     }
 
     /// <summary>
-    /// The constructor the arguments select, with the substitution its signature has to be read
-    /// through. Nothing selected and no diagnostic when the type is not a concrete one to declare
-    /// any, because a construction that reaches none is already being reported elsewhere; a concrete
-    /// type declaring no instance constructor selects through <see cref="ImplicitConstruction"/>.
-    /// <para>
-    /// A constructed type is unwrapped to reach the definition its constructors are declared on, and
-    /// passed on as the source of the arguments to substitute in.
-    /// </para>
+    /// Nothing selected and no diagnostic when the type is not a concrete one to declare any, because a
+    /// construction that reaches none is already being reported elsewhere.
     /// </summary>
     private static OverloadChoice<Constructor> SelectConstructor(
         IMistType type,

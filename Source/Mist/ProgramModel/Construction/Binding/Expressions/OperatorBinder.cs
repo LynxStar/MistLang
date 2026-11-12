@@ -11,11 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
-/// <summary>
-/// Walks the precedence chain from VoidCoalescing down to Unary.
-/// Each level binds its operator into a <see cref="BinaryExpression"/> when present,
-/// or passes through to the next level when bare.
-/// </summary>
 internal static class OperatorBinder
 {
     internal static Expression BindVoidCoalescing(VoidCoalescingNode node, BindingContext ctx, BuilderContext context)
@@ -60,7 +55,6 @@ internal static class OperatorBinder
             return left;
         }
 
-        // Left-associative: fold repeated operands.
         foreach(var operand in node.LogicalAnds)
         {
             var right = BindLogicalAnd(operand, ctx, context);
@@ -92,7 +86,6 @@ internal static class OperatorBinder
     {
         var left = BindRelational(node.Left, ctx, context);
 
-        // Left-associative: fold each (operator, operand) pair, retaining all operands.
         foreach(var group in node.Group0)
         {
             var op = MapOperator(group.Operator.Lexeme);
@@ -305,9 +298,9 @@ internal static class OperatorBinder
 
             case NegateUnaryNode negate:
                 {
-                    // A minus in front of an integer literal makes a negative number, whose type C# decides and
-                    // classic keeps by spelling the literal for C# to read: int.MinValue and long.MinValue have
-                    // no literal of their own, and an unsuffixed literal too large for int negates to a long.
+                    // A minus in front of an integer literal makes a negative number whose type C# decides:
+                    // int.MinValue and long.MinValue have no literal of their own, and an unsuffixed literal
+                    // too large for int negates to a long.
                     if(negate.Operand is PostfixExpressionUnaryNode { Primary: { Target: IntegerLiteralExpressionPrimaryNode literal, Suffix.IsEmpty: true } }
                         && IntegerLiterals.ReadNegated(literal.IntegerLiteral.Lexeme) is (var boundary, var wellKnown))
                     {
@@ -378,9 +371,6 @@ internal static class OperatorBinder
                         ;
                 }
 
-            // The operand is bound with no target: `await` says what to do with a task, and a position
-            // expecting the RESULT would otherwise push that result down as the operand's target,
-            // which is the one type the operand is not.
             case AwaitExpressionUnaryNode await:
                 {
                     var operand = Suppressed(await.Operand, ctx, context);
@@ -474,16 +464,6 @@ internal static class OperatorBinder
     }
 
     /// <summary>
-    /// An operand of <c>await</c> or of the <c>async</c> functor: bound with no target, since both say
-    /// what to do with a TASK and a position expecting the result would push that result down as the
-    /// operand's own target, which is the one type it is not.
-    /// <para>
-    /// An auto-drop the sync context inserted is then UNDONE rather than stacked. Both operators ask
-    /// for the task, so `await f()` drops what f produces rather than the value already unwrapped from
-    /// it, and `async f()` yields that task rather than lifting the unwrapped value back into a new one.
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// The block is an ASYNC context of its own: it produces the task, so a call inside it yields a
     /// task rather than being awaited, exactly as inside an async method.
     /// </summary>
@@ -518,6 +498,16 @@ internal static class OperatorBinder
             node, body, context.Resolver.ConstructTask(kind, produced), isValueTask);
     }
 
+    /// <summary>
+    /// An operand of <c>await</c> or of the <c>async</c> functor: bound with no target, since both say
+    /// what to do with a TASK and a position expecting the result would push that result down as the
+    /// operand's own target, which is the one type it is not.
+    /// <para>
+    /// An auto-drop the sync context inserted is then UNDONE rather than stacked. Both operators ask
+    /// for the task, so `await f()` drops what f produces rather than the value already unwrapped from
+    /// it, and `async f()` yields that task rather than lifting the unwrapped value back into a new one.
+    /// </para>
+    /// </summary>
     private static Expression Suppressed(UnaryNode operandNode, BindingContext ctx, BuilderContext context)
     {
         Expression operand;
@@ -698,14 +688,10 @@ internal static class OperatorBinder
             ">=" => BinaryOperatorKind.GreaterThanOrEqual,
             "&&" => BinaryOperatorKind.LogicalAnd,
             "||" => BinaryOperatorKind.LogicalOr,
-            _ => BinaryOperatorKind.Add, // fallback
+            _ => BinaryOperatorKind.Add,
         };
     }
 
-    /// <summary>
-    /// Determines whether a precedence-chain node has no operator applied. Shared with
-    /// <see cref="PatternBinder"/>, whose or/and levels repeat their operands the same way.
-    /// </summary>
     internal static bool IsBare<T>(ImmutableArray<T> repeatedOperands)
     {
         return repeatedOperands.IsDefaultOrEmpty;

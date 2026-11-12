@@ -11,11 +11,9 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
-/// Binds an argument list. The single place every call-shaped construct goes through:
-/// invocations and method calls, object creation, and constructor chains. Keeping them
-/// on one path means argument-level concerns -- propagating a target type from the
-/// selected overload's parameters, and honouring <c>ref</c> arguments, the latter of which
-/// is not handled yet -- are added once rather than per call site.
+/// The single path every call-shaped construct takes -- invocations and method calls, object
+/// creation, and constructor chains -- so argument-level concerns are added once rather than per
+/// call site.
 /// </summary>
 internal static class ArgumentBinder
 {
@@ -25,10 +23,6 @@ internal static class ArgumentBinder
     /// depending on the keyword in front of it -- and because only overload SELECTION needs it.
     /// Emission reads the keyword back off the parameter that was chosen, so nothing downstream of
     /// the choice has to carry this.
-    /// <para>
-    /// Empty when there is no argument list, which reads as "no argument is ref" for the zero
-    /// arguments there are.
-    /// </para>
     /// </summary>
     internal static IReadOnlyList<bool> RefFlags(ArgumentListNode? argumentList)
     {
@@ -51,9 +45,7 @@ internal static class ArgumentBinder
     }
 
     /// <summary>
-    /// Binds each argument in <paramref name="argumentList"/> in order, or returns an
-    /// empty list when the construct has no argument list at all (as in <c>f()</c>). Nothing targets
-    /// the slots, for a caller with no candidates to read parameters off.
+    /// Nothing targets the slots, for a caller with no candidates to read parameters off.
     /// </summary>
     internal static IReadOnlyList<Expression> Bind(
         ArgumentListNode? argumentList, BindingContext ctx, BuilderContext context)
@@ -232,7 +224,7 @@ internal static class ArgumentBinder
 
     /// <summary>
     /// The pack a type stands for, whether written as the tuple a value pack has or as a bare
-    /// spread, or null for anything else.
+    /// spread.
     /// </summary>
     private static TypeParameter? Pack(IMistType type)
     {
@@ -264,11 +256,10 @@ internal static class ArgumentBinder
     }
 
     /// <summary>
-    /// Binds each argument with the corresponding parameter type as its target, where
-    /// <paramref name="candidates"/> holds exactly one member of the right arity. The target is
-    /// substituted against <paramref name="receiverConstructed"/> and any <paramref name="typeArguments"/>
-    /// the call states, so an argument to <c>new Result&lt;void&gt;(...)</c> sees Void, not T -- target-typed
-    /// forms such as the void literal, and a lambda's parameters, read the slot's CLOSED type. A
+    /// Each argument targets its parameter's type where <paramref name="candidates"/> holds exactly one
+    /// member of the right arity. The target is substituted against <paramref name="receiverConstructed"/>
+    /// and any <paramref name="typeArguments"/> the call states, so target-typed forms such as the void
+    /// literal, and a lambda's parameters, read the slot's CLOSED type. A
     /// homogeneous params slot targets what it collects with its ELEMENT type: every argument once the
     /// count says the call is in expanded form, and a lambda always, since a lambda is never the array.
     /// </summary>

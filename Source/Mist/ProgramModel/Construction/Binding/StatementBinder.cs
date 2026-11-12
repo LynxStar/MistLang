@@ -15,10 +15,6 @@ using StormToken = Storm.Runtime.Token;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
-/// <summary>
-/// Resolves AST statement nodes into the model's <see cref="Statement"/> hierarchy.
-/// All methods are static; shared dependencies are accessed via <see cref="BuilderContext"/>.
-/// </summary>
 internal static class StatementBinder
 {
     public static Statement BindStatement(StatementNode statement, BindingContext ctx, BuilderContext context)
@@ -146,10 +142,6 @@ internal static class StatementBinder
         };
     }
 
-    /// <summary>
-    /// A <c>with</c> whose value is NAMED. The name is declared in the body's own scope, so it is
-    /// visible exactly where the value is alive and nowhere after.
-    /// </summary>
     /// <summary>
     /// The four declaration forms of <c>with</c>, which differ only in whether a name is bound and
     /// whether the key type is written. A null <paramref name="name"/> is the discard and push forms,
@@ -488,9 +480,8 @@ internal static class StatementBinder
     /// Binds a condition into the scope of the body it guards, which is built BEFORE it rather than
     /// after. That ordering is what a pattern's binding needs: declared as the condition binds, it
     /// reaches the rest of the condition and the guarded block, and nothing else -- not the else
-    /// branch, not the statements following. Binding the condition in the enclosing scope and
-    /// grafting the variable onto the block afterwards is the scheme that makes
-    /// <c>x is Foo f &amp;&amp; f.Bar</c> impossible to express.
+    /// branch, not the statements following. Grafting the variable onto the block after binding the
+    /// condition in the enclosing scope would hide it from the rest of its own condition.
     /// </summary>
     private static Expression BindConditionInto(
         ExpressionNode node, BodyScope scope, BindingContext ctx, BuilderContext context)
@@ -510,7 +501,6 @@ internal static class StatementBinder
 
     private static ForStatement BindFor(ForStatementNode node, BindingContext ctx, BuilderContext context)
     {
-        // The for loop gets its own scope so the initializer variable is contained.
         var forScope = new BodyScope(ctx.Scope);
         var previousScope = ctx.Scope;
         ctx.Scope = forScope;

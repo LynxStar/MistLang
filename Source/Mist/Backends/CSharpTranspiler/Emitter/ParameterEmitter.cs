@@ -4,9 +4,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits a parameter list as it appears between the parentheses of a declaration.
-/// </summary>
 internal static class ParameterEmitter
 {
     /// <param name="spell">

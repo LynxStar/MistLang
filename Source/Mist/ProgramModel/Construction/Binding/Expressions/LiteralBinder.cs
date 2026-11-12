@@ -9,9 +9,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
-/// <summary>
-/// Binds literal expressions (integer, string, bool, float, char, hex, array).
-/// </summary>
 internal static class LiteralBinder
 {
     internal static Expression BindIntegerLiteral(SyntaxNode node, string lexeme, BuilderContext context)
@@ -77,7 +74,6 @@ internal static class LiteralBinder
     internal static Expression BindStringLiteral(
         SyntaxNode node, string lexeme, BuilderContext context, IMistType? targetType = null)
     {
-        // Strip surrounding quotes to get the string value.
         var value = lexeme.Length >= 2 ? lexeme[1..^1] : lexeme;
 
         // The shorthand: a quoted pattern where a regex is expected IS a regex literal, and binding
@@ -126,10 +122,10 @@ internal static class LiteralBinder
     }
 
     /// <summary>
-    /// Binds a tuple literal (<c>(42, "text")</c>, <c>(x: 3, y: 4)</c>). Each element binds against the
-    /// corresponding element of the target tuple, so an element flows into an <c>unknown</c> slot or
-    /// widens numerically exactly as it would in an assignment. A target of another arity supplies no
-    /// element target at all, since it says nothing about what any one element should be.
+    /// Each element binds against the corresponding element of the target tuple, so an element flows
+    /// into an <c>unknown</c> slot or widens numerically exactly as it would in an assignment. A target
+    /// of another arity supplies no element target at all, since it says nothing about what any one
+    /// element should be.
     /// </summary>
     internal static Expression BindTupleLiteral(
         TupleLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
@@ -174,13 +170,9 @@ internal static class LiteralBinder
     }
 
     /// <summary>
-    /// Binds an array literal, empty (<c>[]</c>) or not (<c>[a, b, c]</c>).
-    /// <para>
-    /// The element type comes from the target type when the surrounding construct
-    /// supplies an array type (<c>int[] x = [1, 2];</c>), and otherwise from the common
-    /// type of the elements (<c>var x = [1, 2];</c>). An empty literal has no elements to
-    /// infer from, which is why it is the only form that requires a target type.
-    /// </para>
+    /// The element type comes from an array target type, and otherwise from the common type of the
+    /// elements. An empty literal has no elements to infer from, which is why it is the only form that
+    /// requires a target type.
     /// </summary>
     internal static Expression BindArrayLiteral(ArrayLiteralExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
@@ -230,16 +222,10 @@ internal static class LiteralBinder
             return new ErrorExpression(node);
         }
 
-        // A literal's length is statically known: it is the element count.
         var arrayType = context.Resolver.ConstructArray(elementType, elements.Count);
         return new ArrayLiteralExpression(node, elementType, elements, arrayType) { IsTargetTyped = targetElementType is not null };
     }
 
-    /// <summary>
-    /// The element type of <paramref name="type"/> when it is an array, otherwise null.
-    /// Used to turn an array target type into the element target its elements bind
-    /// against, and to supply the element type for <c>[]</c>, which has none of its own.
-    /// </summary>
     private static IMistType? ArrayElementType(IMistType? type)
     {
         if(type is ConstructedType constructed

@@ -16,10 +16,6 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// </summary>
 internal static class ValuePack
 {
-    /// <summary>
-    /// The index of the parameter a flat argument list collapses into, or null when every parameter
-    /// takes exactly one argument.
-    /// </summary>
     public static int? FlattenedSlot(IReadOnlyList<Parameter> parameters)
     {
         for(var i = 0; i < parameters.Count; i++)
@@ -34,9 +30,9 @@ internal static class ValuePack
     }
 
     /// <summary>
-    /// Whether this many arguments can fill these parameters. Exactly one each, unless one of them
-    /// absorbs -- in which case the fixed ones are a floor and anything above it is the pack's -- or
-    /// the call stops short of parameters with native defaults, all of them trailing.
+    /// Exactly one argument each, unless one parameter absorbs -- in which case the fixed ones are a
+    /// floor and anything above it is the pack's -- or the call stops short of parameters with native
+    /// defaults, all of them trailing.
     /// </summary>
     public static bool AcceptsCount(IReadOnlyList<Parameter> parameters, int argumentCount)
     {
@@ -106,9 +102,6 @@ internal static class ValuePack
         return index >= argumentCount - trailing ? parameters.Count - (argumentCount - index) : flattened;
     }
 
-    /// <summary>
-    /// The argument types the flattened slot absorbs, in order.
-    /// </summary>
     public static IReadOnlyList<IMistType> Absorbed(
         IReadOnlyList<Parameter> parameters, IReadOnlyList<IMistType> argumentTypes, int flattened)
     {

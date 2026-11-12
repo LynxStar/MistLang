@@ -43,8 +43,7 @@ internal static class MemberBinder
 
     /// <summary>
     /// Extension block bodies, which the walks above structurally cannot reach: they range over
-    /// TYPES, and a block is not one. Without this a body binds to nothing at all -- a member could
-    /// name an identifier that does not exist and the file still compiled clean.
+    /// TYPES, and a block is not one.
     /// <para>
     /// Source blocks only. An ambient block is projected from assembly metadata and has no body to
     /// bind, which is exactly what a null declaration node means.
@@ -120,9 +119,9 @@ internal static class MemberBinder
     }
 
     /// <summary>
-    /// Binds a default block's overrides against the type of the field each names. An entry naming no
-    /// declared field is left unbound rather than reported: whether a default block may name something
-    /// the type does not declare is a rule about a finished model, and nothing here refuses one.
+    /// An entry naming no declared field is left unbound rather than reported: whether a default
+    /// block may name something the type does not declare is a rule about a finished model, and
+    /// nothing here refuses one.
     /// </summary>
     private static void BindDefaultBlock(ConcreteType concreteType, BuilderContext context)
     {

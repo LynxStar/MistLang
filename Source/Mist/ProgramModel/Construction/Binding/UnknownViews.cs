@@ -29,9 +29,6 @@ internal static class UnknownViews
         return Ancestry.Unwrap(receiverType) is ConstructedType constructed && TypeParameterOccurrences.BearsUnknown(constructed);
     }
 
-    /// <summary>
-    /// The first written parameter the receiver binds to an argument bearing <c>unknown</c>, or null.
-    /// </summary>
     public static TypeParameter? HiddenBy(
         IEnumerable<TypeParameter> writes, TypeSubstitution substitution, TypeInterner? interner)
     {
@@ -47,9 +44,7 @@ internal static class UnknownViews
     }
 
     /// <summary>
-    /// The group without its hidden overloads, or null when nothing survives, with the first hidden
-    /// member for the diagnostic. Readers of the same name stay selectable, so a hidden writer costs the
-    /// program only itself.
+    /// Readers of the same name stay selectable, so a hidden writer costs the program only itself.
     /// </summary>
     public static MethodGroupResult? Filter(
         MethodGroupResult group, ConstructedType receiver, BuilderContext context, out HiddenMember? hidden)

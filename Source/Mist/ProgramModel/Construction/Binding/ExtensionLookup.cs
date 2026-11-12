@@ -9,12 +9,9 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// What an extension block offers a receiver, with call-site visibility and receiver specificity.
-/// <para>
 /// VISIBILITY IS A PROPERTY OF THE CALL SITE, not of the program. A block is reachable only from a
 /// file that is in its namespace or imports it, so the same receiver answers differently in two
 /// files and the scope chain of the USE is what decides.
-/// </para>
 /// </summary>
 internal static class ExtensionLookup
 {
@@ -205,7 +202,6 @@ internal static class ExtensionLookup
     }
 
     /// <summary>
-    /// Whether a block declared for <paramref name="blockReceiver"/> applies to an actual receiver.
     /// <c>unknown</c> accepts everything, which is what makes a universal extension universal, and
     /// is also why it must lose every ranking it takes part in.
     /// </summary>
@@ -220,8 +216,7 @@ internal static class ExtensionLookup
 
     /// <summary>
     /// The type arguments that make a GENERIC block's receiver the actual one, or null where it has
-    /// none or they cannot be read off. <c>Count()</c> on an <c>int[]</c> reaches
-    /// <c>TSource[]</c>, and nothing but the receiver says what TSource is -- an extension's
+    /// none or they cannot be read off. Only the receiver can say what they are: an extension's own
     /// arguments are bound after the member is found, so they cannot help.
     /// </summary>
     private static IReadOnlyList<IMistType>? Closed(
@@ -247,8 +242,8 @@ internal static class ExtensionLookup
     }
 
     /// <summary>
-    /// The receiver and everything it IS, with its own type arguments carried down: an
-    /// <c>int[]</c> reaches <c>IEnumerable&lt;int&gt;</c>, not <c>IEnumerable&lt;TValue&gt;</c>.
+    /// The receiver and everything it IS, with its own type arguments carried down in place of the
+    /// parameters each base is declared over.
     /// </summary>
     private static List<IMistType> Reachable(IMistType receiver, TypeInterner interner)
     {

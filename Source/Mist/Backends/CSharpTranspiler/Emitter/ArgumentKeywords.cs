@@ -20,13 +20,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 internal static class ArgumentKeywords
 {
     /// <summary>
-    /// One arm per direction, with no inference left to do here. Deciding what a parameter IS
-    /// belongs to whatever built it -- the projector reading CLR metadata, or the builder reading
-    /// Mist source -- because only they can see the evidence. A genuine <c>in</c> and an
-    /// <c>[In] ref</c> reach this function as the same modifier flags and need opposite keywords, so
-    /// any rule written here from the flags alone is wrong for one of them whichever way it goes.
-    /// That is what an earlier version of this file did, and it was right only because a
-    /// misclassification upstream happened to cancel it out.
+    /// No inference here. Deciding what a parameter IS belongs to whatever built it -- the
+    /// projector reading CLR metadata, or the builder reading Mist source -- because only they can
+    /// see the evidence. A genuine <c>in</c> and an <c>[In] ref</c> reach this function as the same
+    /// modifier flags and need opposite keywords, so any rule written here from the flags alone is
+    /// wrong for one of them whichever way it goes.
     /// </summary>
     public static string For(Parameter parameter)
     {

@@ -5,11 +5,6 @@ using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits one accessor of a property or an indexer. Shared by both for the same reason
-/// <see cref="ProgramModel.Construction.Members.AccessorBuilder"/> builds for both: an accessor is
-/// the same construct either side of the member it hangs off.
-/// </summary>
 internal static class AccessorEmitter
 {
     /// <param name="isSetter">
@@ -61,9 +56,6 @@ internal static class AccessorEmitter
         writer.WriteLine($"{header};");
     }
 
-    /// <summary>
-    /// A bodiless accessor as one token, for a caller placing it inline rather than on its own line.
-    /// </summary>
     public static string EmitBodiless(PropertyAccessor accessor, bool isSetter)
     {
         return $"{Header(accessor, isSetter, isReadonly: false)};";
@@ -74,9 +66,6 @@ internal static class AccessorEmitter
         writer.WriteLine($"{Header(accessor, isSetter, isReadonly)} => {(isSetter ? $"{storage} = value" : storage)};");
     }
 
-    /// <summary>
-    /// Whether this accessor emits as a bare <c>get;</c> with nothing to indent under it.
-    /// </summary>
     public static bool IsBodiless(PropertyAccessor? accessor)
     {
         return accessor is null or { Body: null, ExpressionBody: null };

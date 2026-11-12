@@ -8,8 +8,7 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Mutable state passed through the body-binding recursion. Carries the current
-/// lexical scope and the target type propagated from the surrounding construct.
+/// Mutable state passed through the body-binding recursion.
 /// </summary>
 internal sealed class BindingContext
 {
@@ -20,10 +19,6 @@ internal sealed class BindingContext
     /// </summary>
     public BodyScope Scope { get; set; }
 
-    /// <summary>
-    /// The enclosing member's declared return type, used as the target for
-    /// <c>return</c> values. Null for void methods.
-    /// </summary>
     public IMistType? ReturnType { get; set; }
 
     public bool ReturnTypeIsFailed { get; set; }
@@ -35,10 +30,6 @@ internal sealed class BindingContext
     /// </summary>
     public IMistType? ExitCodeType { get; set; }
 
-    /// <summary>
-    /// The type the current expression is expected to produce, or null when
-    /// there is no target.
-    /// </summary>
     public IMistType? TargetType { get; set; }
 
     public bool TargetTypeIsFailed { get; private set; }
@@ -147,9 +138,7 @@ internal sealed class BindingContext
 
     /// <summary>
     /// A nested block's context: a scope of its own, everything else inherited. Copying happens HERE
-    /// rather than at each call site so that a field added to this class is inherited by construction
-    /// -- the callers used to list the fields themselves, which made every addition a silent omission
-    /// waiting at whichever site was not updated.
+    /// rather than at each call site so that a field added to this class is inherited by construction.
     /// </summary>
     public BindingContext(BodyScope scope, IMistType? returnType, BindingContext enclosing)
         : this(scope, returnType ?? enclosing.ReturnType)
@@ -166,11 +155,6 @@ internal sealed class BindingContext
         InLambda = enclosing.InLambda;
     }
 
-    /// <summary>
-    /// Sets <see cref="TargetType"/> for the duration of a <c>using</c> block,
-    /// restoring the previous value on dispose. Prevents forgetting to restore
-    /// and scopes the target type visually to exactly where it applies.
-    /// </summary>
     public TargetTypeScope PushTargetType(IMistType? type, bool isFailed = false)
     {
         return new TargetTypeScope(this, type, isFailed);
@@ -181,10 +165,6 @@ internal sealed class BindingContext
         return new MethodGroupSettlementScope(this, settled);
     }
 
-    /// <summary>
-    /// RAII guard that restores <see cref="TargetType"/> to its
-    /// previous value on dispose. Struct to avoid allocation.
-    /// </summary>
     internal struct TargetTypeScope : IDisposable
     {
         private readonly BindingContext ctx;

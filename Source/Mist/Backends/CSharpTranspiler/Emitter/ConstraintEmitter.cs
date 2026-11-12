@@ -6,8 +6,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// The <c>where</c> clauses of a generic declaration, one line per constrained parameter, indented
-/// under the declaration they qualify.
+/// The <c>where</c> clauses of a generic declaration.
 /// <para>
 /// C# FIXES THE ORDER WITHIN A CLAUSE -- <c>class</c>, <c>struct</c> or <c>unmanaged</c> first, then the types, then
 /// <c>new()</c> -- and rejects any other, so the parts are collected into three buckets rather than

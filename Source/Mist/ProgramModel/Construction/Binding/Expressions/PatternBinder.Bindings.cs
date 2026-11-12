@@ -11,10 +11,9 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 internal static partial class PatternBinder
 {
     /// <summary>
-    /// Declares a pattern's binding, or answers null where the pattern keeps nothing. The grammar puts
-    /// the discard in the SAME slot as a name (<c>name:(IDENTIFIER | DISCARD)</c>), so <c>int _</c>
-    /// arrives as a type pattern carrying a discard token, never as a discard pattern, and the token's
-    /// kind is the only thing separating the two readings.
+    /// The grammar puts the discard in the SAME slot as a name, so <c>int _</c> arrives as a type
+    /// pattern carrying a discard token, never as a discard pattern, and the token's kind is the only
+    /// thing separating the two readings.
     /// </summary>
     private static LocalVariable? Declare(
         SyntaxNode node,

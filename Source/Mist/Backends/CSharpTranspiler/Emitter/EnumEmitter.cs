@@ -15,9 +15,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <para>
 /// A VARIANT IS NAMED BY WHICH SINGLETON IT IS, not by what its value happens to equal, and the two
 /// come apart whenever a base type discards what it is constructed with. Matching on the value there
-/// makes every variant answer with the first one's name, silently, on a program both pipelines
-/// otherwise agree on. <see cref="EmitFromUnderlying"/> is the one that matches on VALUE, correctly:
-/// it is handed a value and has nothing else to go on.
+/// makes every variant answer with the first one's name, silently. <see cref="EmitFromUnderlying"/>
+/// is the one that matches on VALUE, correctly: it is handed a value and has nothing else to go on.
 /// </para>
 /// </summary>
 internal static class EnumEmitter

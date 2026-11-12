@@ -378,25 +378,29 @@ proven at Tiers 1 and 2 only.
 
 ## Sequencing
 
-Each stage leaves `AllFeaturesV2` passing.
+Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
 
-1. The model and the binder: `SlotCapture`, `CapturedValue`, resolution by
-   slot, `new T[e]`, the classifier's third test, the instance read and its
-   one refusal, stated and inferred method arguments, the pattern type.
-   `SlotIdentity` lands in its strictest form, proving only two slots that are
-   one value, so nothing unproven is admitted before stage 2. The backend
-   refuses a capture outside Array and the spans. `var a = new int[n]` takes
-   the length from this stage on.
-2. Stage 5: `SlotIdentity` over the chain, `SlotReads`, the facts a test adds,
-   and the capture's contract. `new T[n]` owes `n >= 0` from this stage on, and
-   the eight creations in the samples that size by a plain `int` change with
-   it. Mist programs inside tests that do the same are counted before this
-   stage is planned.
-3. The backend: `SlotRoutes`, the value route, `ArrayLowering`, the four
+1. The model and the binder's core: `SlotCapture`, `CapturedValue`, resolution
+   by slot for a local declaration, `new` and a pattern's type, `new T[e]`, the
+   classifier's third test, and Requirement 1.6. `SlotIdentity` lands in its
+   strictest form, proving only two slots that hold one value, so nothing
+   unproven is admitted before stage 3. The capture's contract is proven from
+   this stage on, because the capture is a local and the existing site judges
+   it: `new T[n]` owes `n >= 0`, the eight creations in the samples that size by
+   a plain `int` change here, and Mist programs inside tests that do the same
+   are counted and changed with them. `var a = new int[n]` takes the length
+   from this stage on. The backend refuses a capture outside Array and the
+   spans.
+2. The rest of the binder: the instance read and its one refusal, stated and
+   inferred method arguments, and the refusal of a value's name outside a body
+   in a signature.
+3. Stage 5: `SlotIdentity` over the chain, `SlotReads`, the facts a test adds,
+   and a contract that names a sibling slot.
+4. The backend: `SlotRoutes`, the value route, `ArrayLowering`, the four
    refusals. The first three "wrong afterwards" rows of the proposal are
    closed here and each gets its test.
-4. Requirement 6: the fourth kind of domain.
-5. `samples/RuntimeDependentValues`, the book chapter, and the sentences the
+5. Requirement 6: the fourth kind of domain.
+6. `samples/RuntimeDependentValues`, the book chapter, and the sentences the
    requirements revise in dependent-types, adhoc-refinement-constraints,
    stack-only-types, deep-ownership-types and
    flow-sensitive-refinement-inference.
@@ -420,7 +424,7 @@ Facts across a lambda. A nested body starts from an empty state, as today, so
 a capture made outside is a value the inner body knows nothing about beyond
 its type.
 
-Three of the five defects found while probing. Stage 3 closes the other two,
+Three of the five defects found while probing. Stage 4 closes the other two,
 the `unknown` slot inferred into a method's dependent parameter and the unsized
 array creation. Not closed here: a type test against a type parameter closed
 with a sized array ignores the length; switch arms of two sized arrays merge to

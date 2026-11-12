@@ -19,10 +19,11 @@ internal interface ISlotInference
 /// What a method's dependent parameter binds from an argument whose type leaves the slot <c>unknown</c>
 /// (runtime-dependent-values Requirements 8.3 and 11.5). Through a class or a struct the slot has a value
 /// the object carries, so the parameter binds a capture on the invocation whose initializer reads it:
-/// <c>Len(a)</c> over an <c>int[]</c> binds <c>a.Length</c>. Through an abstract the read has no single
-/// answer, so nothing binds and the call is told to state the parameter. Kept per candidate, since
-/// inference runs for each and only the selected one's captures are owned. The capture is named from
-/// the argument as written, which a bound postfix argument no longer spans: its node is the last suffix.
+/// <c>Len(a)</c> over an <c>int[]</c> binds <c>a.Length</c>, a read typed by the slot's contract as the
+/// capture it initializes is. Through an abstract the read has no single answer, so nothing binds and
+/// the call is told to state the parameter. Kept per candidate, since inference runs for each and only
+/// the selected one's captures are owned. The capture is named from the argument as written, which a
+/// bound postfix argument no longer spans: its node is the last suffix.
 /// </summary>
 internal sealed class SlotInference(TypeInterner interner, IReadOnlyList<ExpressionNode> written) : ISlotInference
 {
@@ -37,8 +38,9 @@ internal sealed class SlotInference(TypeInterner interner, IReadOnlyList<Express
     public IMistType? Unknown(IOverload candidate, TypeParameter parameter, Expression argument, ConstructedType closing, int ordinal)
     {
         if(closing.Definition is not IHasTypeParameters declaring
-            || declaring.TypeParametersList.Find(slot => slot.Ordinal == ordinal) is not { IsDependent: true, Domain: not null } slot
-            || InstanceSlotRead.TypeOf(slot, closing) is not { } type)
+            || declaring.TypeParametersList.Find(slot => slot.Ordinal == ordinal) is not { IsDependent: true } slot
+            || slot.Ordinal >= closing.TypeArguments.Count
+            || InstanceSlotRead.Contract(slot) is not { } type)
         {
             return null;
         }

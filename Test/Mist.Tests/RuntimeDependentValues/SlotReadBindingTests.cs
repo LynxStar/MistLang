@@ -53,6 +53,18 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
     }
 
     [Fact]
+    public void ADiagnosticSpellsASlotReadByTheSlotsDomain()
+    {
+        var diagnostics = BuildRun(
+            "var n = 3; var ring = new Ring<n>(); var four = new Ring<4>(); var a = ring.Capacity(); var b = four.Capacity[0]; var (p, q) = ring.Capacity; var e = four.Capacity.Nope;");
+
+        Assert.Contains("its type 'int' is not a function type", Assert.Single(Errors(diagnostics, "MIST0363")).Message, StringComparison.Ordinal);
+        Assert.StartsWith("'int' cannot be indexed", Assert.Single(Errors(diagnostics, "MIST0354")).Message, StringComparison.Ordinal);
+        Assert.StartsWith("'int' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
+        Assert.StartsWith("'int' has no member named 'Nope'", Assert.Single(Errors(diagnostics, "MIST0301")).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheSlotOfAnAbstractIsRefusedThroughUnknownAndTwoClosingsOfOneAbstractBuild()
     {
         var both = BuildRun("var both = new Both(); ISized<1> one = both; var n = one.N;");

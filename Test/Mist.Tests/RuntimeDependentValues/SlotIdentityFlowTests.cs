@@ -2,7 +2,9 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.RuntimeDependentValues;
@@ -41,6 +43,27 @@ public sealed class SlotIdentityFlowTests
     private static ExpressionStatement Write(LocalVariable target, LocalVariable value)
     {
         return new ExpressionStatement(HandBuiltRefinements.Assign(HandBuiltRefinements.Read(target), HandBuiltRefinements.Read(value)));
+    }
+
+    [Fact]
+    public void ARefusedSlotReadIsSpelledByTheSlotsDomain()
+    {
+        var length = slots.Array.TypeParametersList[1];
+        var literal = HandBuiltRefinements.Local(slots.ArrayOf(slots.Literal(4)), "four");
+        var captured = HandBuiltRefinements.Local(slots.ArrayOf(slots.Capture(n).Value), "a");
+        var ofLiteral = new MemberAccessExpression(HandBuiltModel.Node(), literal, "Length", slots.Literal(4), member: new TypeResult(length));
+        var ofCapture = new MemberAccessExpression(HandBuiltModel.Node(), captured, "Length", Assert.IsType<ConstructedType>(captured.Type).TypeArguments[1], member: new TypeResult(length));
+
+        var refused = slots.Refinements.Built.Analyze(new AssignabilityAnalyzer(), HandBuiltModel.Block(
+            new LocalDeclarationStatement(new LocalVariable("s", slots.Refinements.String), ofLiteral),
+            new LocalDeclarationStatement(new LocalVariable("t", slots.Refinements.String), ofCapture)));
+
+        Assert.Equal(2, refused.Count);
+        Assert.All(refused, diagnostic =>
+        {
+            Assert.Equal("MIST0157", diagnostic.Number.Value);
+            Assert.StartsWith("Cannot implicitly convert type 'int' to 'string'", diagnostic.Message, StringComparison.Ordinal);
+        });
     }
 
     [Fact]

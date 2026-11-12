@@ -163,6 +163,7 @@ internal static class SlotIdentity
         return slot switch
         {
             CapturedValue captured => captured.WrittenName,
+            LiftedType lifted => lifted.Name,
             UnknownType or UnknownValueType when through is not null => $"{RefinementFindings.Display(Written(through))}.{parameter.Name}",
             _ => TypeDisplay.Mist(slot),
         };

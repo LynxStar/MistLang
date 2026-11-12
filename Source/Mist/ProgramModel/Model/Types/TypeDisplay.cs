@@ -53,9 +53,22 @@ internal static class TypeDisplay
 
     private static string Render(IMistType type, Func<TypeParameter, string?>? spell)
     {
+        return type switch
+        {
+            // A slot's argument standing alone is the type of a read of that slot, which a program
+            // sees as the slot's domain: `string s = ring.Capacity;` is refused for an `int`, not for
+            // the `4` or the `n` the ring was closed with. Inside a closing it is the value itself.
+            LiftedType { Value: not TypePackValue } lifted => Render(lifted.Type, spell),
+            CapturedValue captured => Render(captured.Domain, spell),
+            _ => Closing(type, spell),
+        };
+    }
+
+    private static string Closing(IMistType type, Func<TypeParameter, string?>? spell)
+    {
         string mist(IMistType inner)
         {
-            return Render(inner, spell);
+            return Closing(inner, spell);
         }
 
         return type switch

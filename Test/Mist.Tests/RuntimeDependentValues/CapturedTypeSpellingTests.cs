@@ -22,6 +22,23 @@ public sealed class CapturedTypeSpellingTests
     }
 
     [Fact]
+    public void ASlotsArgumentStandingAloneIsSpelledAsItsDomain()
+    {
+        var captured = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive)).Value;
+        var literal = slots.Literal(4);
+        var unknown = new UnknownValueType(slots.Int);
+
+        Assert.Equal("int", TypeDisplay.Mist(captured));
+        Assert.Equal("int", TypeDisplay.Mist(literal));
+        Assert.Equal("int", TypeDisplay.Mist(unknown));
+        Assert.Equal("int", DiagnosticSnapshot.Type(captured, captured.Name).Spelling);
+        Assert.Equal("int", DiagnosticSnapshot.Type(literal, literal.Name).Spelling);
+        Assert.Equal("int", DiagnosticSnapshot.Type(unknown, unknown.Name).Spelling);
+        Assert.Equal("int[4]", TypeDisplay.Mist(slots.ArrayOf(literal)));
+        Assert.Equal(["int", "int"], TypeDisplay.Distinguished([captured, literal]));
+    }
+
+    [Fact]
     public void ATypeHoldingNoCaptureKeepsTheCallersSpelling()
     {
         var closing = slots.ArrayOf(slots.Literal(3));

@@ -134,6 +134,8 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
         Assert.Equal("a.Length", capture.Name);
         Assert.Equal("a", Assert.IsType<LocalReferenceExpression>(read.Receiver).Local.Name);
         Assert.Equal("Length", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(read.Member).Type).Name);
+        Assert.Equal("Standard.ZeroOrPositiveInt", read.Type.FullyQualifiedName);
+        Assert.Equal("ZeroOrPositiveInt", TypeDisplay.Mist(read.Type));
         Assert.Same(capture.Value, Assert.IsType<ConstructedType>(call.ParameterTypes![0]).TypeArguments[1]);
         Assert.Equal("Api.Make().Length", made.Name);
         _ = Assert.IsType<InvocationExpression>(Assert.IsType<MemberAccessExpression>(made.Initializer).Receiver);

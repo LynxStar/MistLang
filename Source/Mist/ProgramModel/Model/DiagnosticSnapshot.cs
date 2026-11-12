@@ -13,12 +13,19 @@ internal static class DiagnosticSnapshot
     }
 
     /// <summary>
-    /// A type that holds a <see cref="CapturedValue"/> is spelled as written whatever spelling the caller
-    /// chose: a structural name interpolates the capture's own, which carries a position no reader wrote.
+    /// A type that holds a <see cref="CapturedValue"/>, or that is a slot's argument standing alone, is
+    /// spelled by <see cref="TypeDisplay"/> whatever spelling the caller chose: a structural name
+    /// interpolates the capture's own, which carries a position no reader wrote, and a bare value is
+    /// the type of a slot read, which a program sees as the slot's domain.
     /// </summary>
     public static TypeValue Type(IMistType type, string spelling)
     {
-        return new TypeValue(TypeIdentity(type), HoldsCapture(type) ? TypeDisplay.Mist(type) : spelling);
+        return new TypeValue(TypeIdentity(type), IsValue(type) || HoldsCapture(type) ? TypeDisplay.Mist(type) : spelling);
+    }
+
+    private static bool IsValue(IMistType type)
+    {
+        return type is CapturedValue or UnknownValueType or LiftedType { Value: not TypePackValue };
     }
 
     private static bool HoldsCapture(IMistType type)

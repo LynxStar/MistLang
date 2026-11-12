@@ -66,7 +66,7 @@ public sealed class SlotInferenceDecisionTests
         var read = Assert.IsType<MemberAccessExpression>(capture.Initializer);
         Assert.Same(a, read.Receiver);
         Assert.Same(slots.Array.TypeParametersList[1], Assert.IsType<TypeResult>(read.Member).Type);
-        Assert.Same(Assert.IsType<ConstructedType>(a.Type).TypeArguments[1], read.Type);
+        Assert.Same(slots.Int, read.Type);
         Assert.Same(slots.Int, capture.Type);
         Assert.Null(inference.RefusedFor(len));
     }

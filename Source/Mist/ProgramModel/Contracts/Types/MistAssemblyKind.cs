@@ -17,9 +17,8 @@ public enum MistAssemblyKind
     Reference,
 
     /// <summary>
-    /// The Mist standard library. A distinguished <see cref="Reference"/>: it arrives
-    /// the same way, but it is always present and never declared by the user, so the
-    /// compiler needs to recognise it specifically.
+    /// The Mist standard library. A distinguished <see cref="Reference"/>: always present and never
+    /// declared by the user, so the compiler recognises it specifically.
     /// </summary>
     Standard,
 
@@ -29,15 +28,10 @@ public enum MistAssemblyKind
     Ambient,
 
     /// <summary>
-    /// Types the compiler constructs rather than reads from a declaration: constructed
-    /// generics, unions, tuples, refinements, lifted literals, type parameters, and the
-    /// error and unknown sentinels.
-    /// <para>
-    /// These exist only to give the program model something to reason about. None is
-    /// emitted as a declaration -- a constructed type surfaces as C# syntax at each use
-    /// site (<c>int[]</c>, <c>List&lt;int&gt;</c>) rather than as a type of its own -- so
-    /// there is no declaration boundary they could honestly belong to.
-    /// </para>
+    /// Types the compiler constructs rather than reads from a declaration: constructed generics, unions,
+    /// tuples, refinements, lifted literals, type parameters, and the error and unknown sentinels. None is
+    /// emitted as a declaration, only as C# syntax at each use site, so there is no declaration boundary
+    /// they could honestly belong to.
     /// </summary>
     Synthetic,
 }

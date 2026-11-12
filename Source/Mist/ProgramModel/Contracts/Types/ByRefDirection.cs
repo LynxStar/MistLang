@@ -12,7 +12,6 @@ namespace Mist.ProgramModel.Contracts.Types;
 /// </summary>
 public enum ByRefDirection
 {
-    /// <summary>Passed by value. Takes no keyword.</summary>
     None,
 
     /// <summary>
@@ -24,8 +23,7 @@ public enum ByRefDirection
 
     /// <summary>
     /// Readonly by-reference: C# <c>in</c> and <c>ref readonly</c>, and Mist's <c>readonly ref</c>.
-    /// Takes <c>in</c>, which both accept; <c>ref</c> is refused outright against a readonly
-    /// location, so this is a correctness distinction rather than a stylistic one.
+    /// Takes <c>in</c>, which both accept; C# refuses <c>ref</c> against a readonly location.
     /// </summary>
     In,
 

@@ -11,11 +11,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// Whether the backend keeps each promise Standard makes with `intrinsic`. DERIVED RATHER THAN
 /// TABULATED: an operator, a cast and an indexer are written as C# syntax the backing type answers; a
 /// member Mist spells differently from the CLR is one of the respellings <see cref="IntrinsicCalls"/>
-/// lists, or a task's Drop, which is spelled <c>await</c>; and everything else is emitted as the call it was written as, which C# resolves against the
-/// CLR type the declaring type projects onto -- so that is where the name is looked up, in the same
-/// metadata the emitted code compiles against. A member found nowhere is refused at its call site
-/// (standard-library spec Req 5.9) instead of reaching Roslyn as a call that does not exist, which is
-/// how Type.Of, Clone and Task.Drop were each found.
+/// lists, or a task's Drop, which is spelled <c>await</c>; and everything else is emitted as the call it
+/// is written as, which C# resolves against the CLR type the declaring type projects onto -- so that is
+/// where the name is looked up, in the same metadata the emitted code compiles against. A member found
+/// nowhere is refused at its call site (standard-library spec Req 5.9) instead of reaching Roslyn as a
+/// call that does not exist.
 /// <para>
 /// The type is the one the emitter writes, read from <see cref="ClrSpelling"/> by its metadata name. A
 /// nested intrinsic type is the CLR nesting of the same name, or failing that whatever the CLR returns

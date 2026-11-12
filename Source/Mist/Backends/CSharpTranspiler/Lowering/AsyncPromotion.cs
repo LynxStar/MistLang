@@ -71,10 +71,6 @@ internal sealed class AsyncPromotion
         return method.SourceDeclaration is { } source ? Declaration(source) : method;
     }
 
-    /// <summary>
-    /// Whether the emitted method carries the <c>async</c> modifier -- because Mist said so, or
-    /// because the obligation reached it.
-    /// </summary>
     public static bool EmitsAsync(Method method)
     {
         return method.Modifiers.IsAsync || IsPromoted(method);

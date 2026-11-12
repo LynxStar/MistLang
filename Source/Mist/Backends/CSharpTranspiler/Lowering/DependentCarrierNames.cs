@@ -32,9 +32,9 @@ internal static class DependentCarrierNames
     }
 
     /// <summary>
-    /// The C# name of a type parameter. A dependent one takes a <c>T</c> prefix because it becomes
-    /// a C# TYPE parameter while its Mist name is also the static property carrying its value, and
-    /// the two would otherwise be one identifier declared twice.
+    /// A dependent parameter takes a <c>T</c> prefix because it becomes a C# TYPE parameter while its
+    /// Mist name is also the static property carrying its value, and the two would otherwise be one
+    /// identifier declared twice.
     /// </summary>
     public static string Parameter(TypeParameter parameter)
     {
@@ -47,9 +47,8 @@ internal static class DependentCarrierNames
     }
 
     /// <summary>
-    /// Reading a dependent parameter as a VALUE, which is the position its C# spelling differs in.
-    /// As a type it is the parameter; as a value it is the witness's static member, because what
-    /// the parameter is bound to is a carrier struct rather than the value itself.
+    /// As a type a dependent parameter is the parameter; as a VALUE it is the witness's static member,
+    /// because what the parameter is bound to is a carrier struct rather than the value itself.
     /// </summary>
     public static string? ValueRead(IMistType type)
     {
@@ -112,9 +111,6 @@ internal static class DependentCarrierNames
             : null;
     }
 
-    /// <summary>
-    /// The C# literal for a value, which is what the carrier's property returns.
-    /// </summary>
     public static string Literal(object value)
     {
         return value switch

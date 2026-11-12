@@ -28,12 +28,11 @@ internal static class DefaultSynthesis
     public const string MarkerTypeName = "__DefaultInit";
 
     /// <summary>
-    /// The default of a type as a C# expression, or null where this backend cannot name one. Every site
-    /// that needs a default -- the expression, a slot of storage the synthesis is answering for, and the
-    /// witness a call passes for a constrained type argument -- resolves it here, so the three cannot
-    /// disagree. A refinement has none, no rule judging a <c>default</c> of one: only its storage starts
-    /// from its base's zero, through <see cref="StorageZero"/>, after DefaultabilityAnalyzer has held that
-    /// zero against the predicate.
+    /// Null where this backend cannot name a default. Every site that needs one -- the expression, a slot
+    /// of storage the synthesis is answering for, and the witness a call passes for a constrained type
+    /// argument -- resolves it here, so the three cannot disagree. A refinement has none, no rule judging a
+    /// <c>default</c> of one: only its storage starts from its base's zero, through
+    /// <see cref="StorageZero"/>, after DefaultabilityAnalyzer has held that zero against the predicate.
     /// </summary>
     public static string? Expression(IMistType type)
     {
@@ -138,10 +137,8 @@ internal static class DefaultSynthesis
     }
 
     /// <summary>
-    /// Each slot of storage paired with what its default assigns, fields before properties, each in
-    /// declaration order. A default block entry REPLACES the field's own answer rather than adding to
-    /// it, which is what makes a block on a type that also has initializers mean the block's values and
-    /// not both.
+    /// A default block entry REPLACES the field's own answer rather than adding to it, which is what makes
+    /// a block on a type that also has initializers mean the block's values and not both.
     /// </summary>
     public static List<DefaultAssignment> Assignments(ConcreteType type)
     {
@@ -160,9 +157,8 @@ internal static class DefaultSynthesis
     }
 
     /// <summary>
-    /// Everything a struct's default assigns, its ancestors' storage first. An ancestor's property that a
-    /// nearer struct redeclares is left out: flattening keeps only the nearer declaration, so the
-    /// ancestor's assignment would land on it after its initializer had run.
+    /// An ancestor's property that a nearer struct redeclares is left out: flattening keeps only the
+    /// nearer declaration, so the ancestor's assignment would land on it after its initializer had run.
     /// </summary>
     public static List<DefaultAssignment> FlattenedAssignments(ConcreteType type)
     {

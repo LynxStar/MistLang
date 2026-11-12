@@ -8,9 +8,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The Standard task types spelled as the CLR's own, which is what <c>await</c> and every framework
 /// API expect -- a structurally identical duplicate would satisfy neither.
 /// <para>
-/// THE VOID CASE COLLAPSES TO THE NON-GENERIC TASK. Mist models "a task with no result" as
-/// <c>Task&lt;void&gt;</c>, so one declaration covers both and <c>async void</c> needs no second rule;
-/// C# splits them into two types instead, and <c>Task&lt;Void&gt;</c> is not one of them.
+/// THE VOID CASE COLLAPSES TO THE NON-GENERIC TASK. Mist models "a task with no result" as a task of
+/// void, so one declaration covers both and <c>async void</c> needs no second rule; C# splits them into
+/// two types instead, and a task of Void is not one of them.
 /// </para>
 /// </summary>
 internal static class TaskProjection

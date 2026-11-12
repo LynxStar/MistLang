@@ -90,10 +90,6 @@ internal static class MonomorphReference
         return widths.Count == 0 ? null : widths;
     }
 
-    /// <summary>
-    /// A call's type arguments with each pack replaced by its elements, which is what the
-    /// specialization declares in their place.
-    /// </summary>
     public static string SpecializedArguments(
         IReadOnlyList<IMistType> typeArguments,
         IReadOnlyList<TypeParameter> parameters,

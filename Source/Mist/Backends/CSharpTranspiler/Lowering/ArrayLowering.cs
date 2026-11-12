@@ -7,8 +7,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// The runtime a GENERATED array needs: <c>new Array&lt;T, N&gt;(i =&gt; ...)</c>, which fills every
-/// slot by calling a factory with the index.
+/// The runtime a GENERATED array needs, which fills every slot by calling a factory with the index.
 /// <para>
 /// C# HAS NO SYNTAX FOR IT. <c>new T[n]</c> zero-fills and a braced initializer lists elements one
 /// by one; neither takes a function of the index, so the construction cannot be spelled as an
@@ -37,9 +36,6 @@ internal static class ArrayLowering
         return used;
     }
 
-    /// <summary>
-    /// The element type and length of a generated array construction, or null when this is not one.
-    /// </summary>
     public static (string Element, long Length)? Generated(IMistType type, int argumentCount)
     {
         if(argumentCount != 1

@@ -10,15 +10,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The intrinsic members whose C# is not the call the emitter would otherwise write. An `intrinsic`
 /// declaration is the stdlib's promise that the backend supplies the member, and most are kept with no
 /// entry here: an operator emits as an operator, and a member of a type the backing map projects emits
-/// as a call on that type, which is why Console.WriteLine and Math.Abs need nothing. Listed is what
-/// Mist spells differently from the CLR. Type.Of is `GetType` on the value. Clone on a backend-backed
-/// type IS the value, a struct copying on assignment and String being immutable. Drop on a task is
-/// not listed: it is the one call spelled as a statement form rather than a call, `await`, which
-/// <c>BodyEmitter.EmitTaskDrop</c> owns. An array's GetEnumerator constructs the struct the backend
-/// generates, see <see cref="ArrayEnumeration"/>. A regex's full match and Pattern are derived from
-/// members the CLR has. The task combinators and array generation are runtime helpers. String's case
-/// mapping, Convert's text conversions and List's Sort name the invariant culture, see
-/// <see cref="InvariantCulture"/>.
+/// as a call on that type. Listed is what Mist spells differently from the CLR. Clone on a
+/// backend-backed type IS the value, a struct copying on assignment and String being immutable. Drop on
+/// a task is not listed: it is the one call spelled as a statement form rather than a call, `await`,
+/// which <c>BodyEmitter.EmitTaskDrop</c> owns. String's case mapping, Convert's text conversions and
+/// List's Sort name the invariant culture, see <see cref="InvariantCulture"/>.
 /// <para>
 /// <see cref="IntrinsicSupply"/> reads <see cref="Respells"/> and <see cref="RespellsProperty"/> to
 /// tell a kept promise from an unkept one, which is what makes this list the whole of the

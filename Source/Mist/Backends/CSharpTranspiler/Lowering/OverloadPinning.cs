@@ -14,7 +14,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// instantiation -- and Roslyn resolves a call written by name against the types it sees there, so
 /// a <c>this</c>, type-parameter-typed, or callable argument to an overloaded member can pick an
 /// overload the program never bound and the analysis never judged. Casting it to the selected
-/// parameter's type pins the call; callable targets use the call's closed parameter type.
+/// parameter's type pins the call.
 /// </summary>
 internal static class OverloadPinning
 {

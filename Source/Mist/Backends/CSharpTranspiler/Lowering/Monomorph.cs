@@ -8,14 +8,12 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// One variadic family specialized to one width per pack it declares: the C# declaration a program
-/// that used the family that way needs, since C# has no pack to declare it with once.
+/// One variadic family specialized to one width per pack, since C# has no pack to declare it with once.
 /// <para>
-/// AMBIENT FOR THE DURATION OF EMITTING IT, which is a deliberate choice about where this belongs.
-/// The alternative is a substitution parameter threaded through every emitter that reads a type,
-/// and there are twelve of them; a concern spread that thinly is one that gets forgotten in the
-/// thirteenth. It is scoped to a single declaration, set and cleared in one place, and thread-static
-/// so parallel emissions cannot see each other's.
+/// AMBIENT FOR THE DURATION OF EMITTING IT. The alternative is a substitution parameter threaded
+/// through every emitter that reads a type, a concern spread thinly enough to be forgotten in the
+/// next one written. It is scoped to a single declaration, set and cleared in one place, and
+/// thread-static so parallel emissions cannot see each other's.
 /// </para>
 /// </summary>
 internal sealed class Monomorph
@@ -38,8 +36,8 @@ internal sealed class Monomorph
     }
 
     /// <summary>
-    /// The specialization being emitted, if any. A method rather than a property because the field
-    /// behind it is thread-static, which an auto-property cannot be.
+    /// A method rather than a property because the field behind it is thread-static, which an
+    /// auto-property cannot be.
     /// </summary>
     public static Monomorph? InScope()
     {
@@ -71,17 +69,11 @@ internal sealed class Monomorph
         return IndexOf(pack) >= 0 || parent?.Binds(pack) == true;
     }
 
-    /// <summary>
-    /// The packs a definition declares, empty when it declares none and needs no specialization.
-    /// </summary>
     public static IReadOnlyList<TypeParameter> PacksOf(MistType definition)
     {
         return definition is IHasTypeParameters generic ? PacksIn(generic.TypeParametersList) : [];
     }
 
-    /// <summary>
-    /// The packs a declaration -- a type or a method -- declares, in slot order.
-    /// </summary>
     public static IReadOnlyList<TypeParameter> PacksIn(IReadOnlyList<TypeParameter> parameters)
     {
         return [.. parameters.Where(parameter => parameter.PackKind != TypePackKind.None)];
@@ -187,10 +179,6 @@ internal sealed class Monomorph
         return parameters;
     }
 
-    /// <summary>
-    /// The element a pack's <paramref name="index"/> stands for here, or null when the pack is not
-    /// one this specialization fixes or the index falls outside it.
-    /// </summary>
     public IMistType? Element(TypeParameter pack, int index)
     {
         var expansion = Expansion(pack);

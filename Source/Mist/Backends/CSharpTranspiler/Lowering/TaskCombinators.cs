@@ -7,10 +7,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
 /// Task.WhenAll and Task.WhenAny, which the CLR spells with a different SHAPE rather than a different
-/// name: it hosts them on a non-generic Task whose overloads answer `Task` and `Task&lt;Task&gt;`, where
-/// Mist declares them on Task&lt;TResult&gt; answering Task&lt;TResult[]&gt; and Task&lt;TResult&gt;.
-/// Emitting the call as written therefore hands back a type the declaration did not promise -- nothing
-/// where a Void[] was promised -- so the backend supplies a wrapper of the declared shape, exactly as it
+/// name: it hosts them on a non-generic Task whose overloads answer a task and a task of a task, where
+/// Mist declares them on the generic Task answering a task of a result array and a task of a result.
+/// Emitting the call as written therefore hands back a type the declaration does not promise -- nothing
+/// where a Void[] is promised -- so the backend supplies a wrapper of the declared shape, exactly as it
 /// supplies MistArray. The declaration is the contract and this is the backend keeping it; the stdlib
 /// has nothing to answer for here.
 /// </summary>

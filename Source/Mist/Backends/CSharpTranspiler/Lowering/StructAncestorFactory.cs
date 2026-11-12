@@ -34,9 +34,6 @@ internal static class StructAncestorFactory
 
     public const string MarkerTypeName = "__StructInit";
 
-    /// <summary>
-    /// The factory name, suffixed if the struct already uses it.
-    /// </summary>
     public static string Name(FlattenedStruct flattened)
     {
         var taken = new HashSet<string>(StringComparer.Ordinal);
@@ -69,8 +66,7 @@ internal static class StructAncestorFactory
     }
 
     /// <summary>
-    /// The members the factory carries, fields before properties. One order used by both the
-    /// declaration and every call site, which is what keeps them matched.
+    /// One order used by both the declaration and every call site, which is what keeps them matched.
     /// </summary>
     public static ImmutableArray<FactoryMember> Members(FlattenedStruct flattened)
     {

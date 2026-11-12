@@ -7,8 +7,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
 /// Names for the synthesized union carrier structs, shared by the generator and every
-/// use-site spelling so the two agree by construction: <c>Union_</c> plus the constituent
-/// names sorted ordinally, e.g. <c>Union_Int32_String</c>. A function type is named by its
+/// use-site spelling so the two agree by construction. A function type is named by its
 /// shape alone, without its purity, because the carrier exists at the CLR level where purity
 /// does not survive. A lifted value does not erase, an array's length among them: <c>int[3]</c>
 /// and <c>int[5]</c> are distinct constituents that one carrier may hold side by side, and two

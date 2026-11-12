@@ -8,12 +8,12 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <summary>
 /// The lowering of a <c>with</c> clause whose key names a type parameter. A context is found by EXACT
 /// key, and the CLR erases what makes two Mist types distinct keys -- <c>string?</c> and <c>string</c>
-/// are one <c>System.String</c> -- so <c>Peek&lt;T&gt;()</c> inside a generic body cannot recover the
-/// key the caller resolved the clause to. Each such clause gains a <c>System.Type</c> PARAMETER the
-/// call site fills with that key, placed with the default and constructor witnesses and for the same
-/// reason they come first: a declared <c>params</c> array has to stay last. A closed key keeps the
-/// generic spelling. Inside a body an open key is spelled by the parameter of the enclosing clause it
-/// is the same key as -- which a nested call forwards and a <c>with</c> block files under -- and by
+/// are one <c>System.String</c> -- so a generic body cannot recover the key the caller resolved the
+/// clause to. Each such clause gains a <c>System.Type</c> PARAMETER the call site fills with that key,
+/// placed first with the default and constructor witnesses for the reason
+/// <see cref="DefaultConstraintWitness"/> gives. A closed key keeps the generic spelling. Inside a body
+/// an open key is spelled by the parameter of the enclosing clause it is the same key as -- which a
+/// nested call forwards and a <c>with</c> block files under -- and by
 /// <c>typeof</c> the erased spelling where no clause holds it, the one case analysis admits being a
 /// <c>with</c> block whose consumers sit in the same body. A member the target runs with no call
 /// written -- an operator, a Drop, an enumerator, a local function C# lets capture -- carries no

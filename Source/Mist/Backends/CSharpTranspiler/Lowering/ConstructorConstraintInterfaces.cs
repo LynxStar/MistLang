@@ -10,9 +10,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// form, so <c>where T : new(int)</c> becomes a synthesized interface carrying a static abstract
 /// factory, which the type closing the constraint implements and the generic body calls through.
 /// <para>
-/// A CLOSING TYPE MUST BE DECLARED IN MIST, because the interface is added to its declaration and a
-/// precompiled type has no declaration to add to. That is a limit of THIS BACKEND rather than of
-/// Mist -- see <see cref="BackendDiagnostics.ForeignConstructorConstraintClosure"/>.
+/// A closing type must be declared in Mist: see
+/// <see cref="BackendDiagnostics.ForeignConstructorConstraintClosure"/>.
 /// </para>
 /// <para>
 /// THE MEMBER IS ONE OVERLOADED NAME rather than one name per signature, so a parameter carrying

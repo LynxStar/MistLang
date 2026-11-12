@@ -27,9 +27,8 @@ internal static class LengthErasure
     };
 
     /// <summary>
-    /// The C# spelling of a length-indexed construction, or null when the definition is not one. The
-    /// element type is emitted through the caller's own <paramref name="emit"/> so a nested
-    /// construction takes the same route this one did.
+    /// The element type is emitted through the caller's own <paramref name="emit"/> so a nested
+    /// construction takes the same route as this one.
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emit)
     {

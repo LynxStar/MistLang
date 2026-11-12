@@ -18,14 +18,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <para>
 /// A UNION OVER A TYPE PARAMETER HAS NO C# SPELLING THAT HOLDS ACROSS INSTANTIATIONS. Mist sorts a
 /// union's constituents and merges duplicates after substitution -- <c>T | R</c> is <c>int | string</c>
-/// at both <c>&lt;int, string&gt;</c> and <c>&lt;string, int&gt;</c>, and <c>int</c> at
-/// <c>&lt;int, int&gt;</c> -- while C# fills a generic's parameters into one declaration by position, so
-/// no carrier written once in terms of T and R agrees with all three. A conversion cannot bridge them
-/// where the union sits inside another type, since converting a <c>Cell&lt;...&gt;</c> would mean
-/// copying an object. A declaration whose own types write such a union is therefore emitted per
-/// instantiation, where every union is closed and spelled exactly as closed code spells it. An optional
-/// over a parameter constrained by the <c>struct</c> or <c>class</c> keyword is left alone: Nullable of
-/// K, or the bare reference, already coincides with every closed spelling.
+/// whether T or R is the int, and <c>int</c> when both are -- while C# fills a generic's parameters into
+/// one declaration by position, so no carrier written once in terms of T and R agrees with every
+/// instantiation. A conversion cannot bridge them where the union sits inside another type, since
+/// converting that type would mean copying an object. A declaration whose own types write such a union
+/// is therefore emitted per instantiation, where every union is closed and spelled exactly as closed
+/// code spells it. An optional over a parameter constrained by the <c>struct</c> or <c>class</c> keyword
+/// is left alone: Nullable of K, or the bare reference, already coincides with every closed spelling.
 /// </para>
 /// <para>
 /// THE SET IS READ OFF THE PROGRAM, as the variadic widths are (see <see cref="MonomorphSet"/>): a Mist
@@ -42,7 +41,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// </para>
 /// <para>
 /// OVERLOADS AN INSTANCE MAKES IDENTICAL are emitted under distinct names: `Take(K?)` beside `Take(int?)`
-/// is one C# signature twice in `Lifted<int>`, and Mist has already chosen which one each call means,
+/// is one C# signature twice once K is int, and Mist has already chosen which one each call means,
 /// so the call is named for its choice rather than left for C# to resolve between two equals. The one
 /// that answers a slot of an abstract the type conforms to keeps its name, C# finding an implementation
 /// by name alone; a call through a derived receiver is named at the base construction it reaches.

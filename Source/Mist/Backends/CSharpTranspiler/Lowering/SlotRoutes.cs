@@ -22,8 +22,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// because C# matches an implementation to its interface member by signature and a hidden parameter
 /// on one side only would leave the member unimplemented. An extension block's own parameters are
 /// closed on a copy of the method at lookup rather than recorded with the call's type arguments, so
-/// each call is read for them. Array and the spans are left out: <see cref="LengthErasure"/> drops
-/// their slot and the CLR object holds the value already.
+/// each call and each method group is read for them; a group's own slot the target function type leaves
+/// <c>unknown</c> is inferred from it, as a call's is from its argument. Array and the spans are left
+/// out: <see cref="LengthErasure"/> drops their slot and the CLR object holds the value already.
 /// </summary>
 internal sealed class SlotRoutes : IDisposable
 {
@@ -147,7 +148,12 @@ internal sealed class SlotRoutes : IDisposable
                     reads.Add(slot);
                 }
 
-                if(node is not InvocationExpression invocation || ClosedThroughReceiver(invocation) is not var (block, arguments))
+                if(node is FunctionReferenceExpression reference)
+                {
+                    inferred.AddRange(InferredByGroup(reference));
+                }
+
+                if(ClosedThroughReceiver(node) is not var (block, arguments))
                 {
                     continue;
                 }
@@ -174,11 +180,32 @@ internal sealed class SlotRoutes : IDisposable
         return Discover(closings, reads, Declarations(model), Answers(model), inferred);
     }
 
-    public static (ExtensionBlock Block, IReadOnlyList<IMistType> Arguments)? ClosedThroughReceiver(InvocationExpression invocation)
+    public static (ExtensionBlock Block, IReadOnlyList<IMistType> Arguments)? ClosedThroughReceiver(object node)
     {
-        return invocation.Method is { ClosedBlock: { DeclarationNode: not null } block } method
+        return ClosedThroughReceiver(node switch
+        {
+            InvocationExpression invocation => invocation.Method,
+            FunctionReferenceExpression reference => reference.Method,
+            _ => null,
+        });
+    }
+
+    public static (ExtensionBlock Block, IReadOnlyList<IMistType> Arguments)? ClosedThroughReceiver(Method? method)
+    {
+        return method is { ClosedBlock: { DeclarationNode: not null } block }
             ? (block, block.TypeParametersList.ConvertAll(parameter => method.BlockClosing.Apply(parameter, interner: null)))
             : null;
+    }
+
+    public static IEnumerable<(IHasTypeParameters Definition, int Ordinal)> InferredByGroup(FunctionReferenceExpression reference)
+    {
+        for(var i = 0; i < reference.TypeArguments.Count && i < reference.Method.TypeParametersList.Count; i++)
+        {
+            if(reference.TypeArguments[i] is UnknownType or UnknownValueType)
+            {
+                yield return (reference.Method, i);
+            }
+        }
     }
 
     public static (ConstructedType Receiver, TypeParameter Slot)? ReceiverSlot(ExtensionBlock block, TypeParameter parameter)

@@ -28,6 +28,7 @@ internal static class RespelledGroups
             || (reference.Method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
                 && ConstructorWitnesses.Stored(owner).Count > 0)
             || ExtensionCalls.Carrier(reference.Method) is not null
+            || BodyEmitter.CarriesSlots(reference)
             || IntrinsicCalls.Respells(reference.Method)
             || (InvariantCulture.FormatsItself(reference.Method) && reference.Receiver is { } receiver && !InvariantCulture.Fixes(receiver.Type));
     }
@@ -50,8 +51,11 @@ internal static class RespelledGroups
         }
 
         var captured = receiver is null ? null : Bound;
-        var callArguments = DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType, reference.ContextTypes)
-            .Select(argument => argument ?? EmissionDiagnostics.Fallback("default constraint witness", method.Name, "/* unsupported: default constraint */")).Concat(PackArguments(reference, arguments));
+        var packed = PackArguments(reference, arguments);
+        var callArguments = BodyEmitter.GroupSlotArguments(reference, packed, method.Modifiers.IsStatic ? null : captured ?? ReceiverSpelling.This)
+            .Concat(DefaultWitnesses.MethodArguments(method, reference.TypeArguments, receiverType ?? method.DeclaringType, reference.ContextTypes)
+                .Select(argument => argument ?? EmissionDiagnostics.Fallback("default constraint witness", method.Name, "/* unsupported: default constraint */")))
+            .Concat(packed);
         var target = captured ?? (method.Modifiers.IsStatic
             ? method.DeclaringType is { } declaring
                 ? TypeNameEmitter.Emit(receiverType is null ? declaring : UnsafeReach.ClosedOwner(declaring, receiverType))

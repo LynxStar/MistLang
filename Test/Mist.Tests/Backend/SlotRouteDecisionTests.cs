@@ -151,6 +151,32 @@ public sealed class SlotRouteDecisionTests
         Assert.Empty(SlotRoutes.Discover([(block, [slots.Literal(3)])], [], [block]));
     }
 
+    [Fact]
+    public void AMethodGroupClosesTheBlocksSlotAndASlotItsTargetLeavesUnknownIsInferred()
+    {
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        var n = slots.Dependent("N");
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "WrapperExtensions", ResolvedReceiverType = slots.Closed(wrapper, n) };
+        block.TypeParametersList.Add(n);
+        var size = new Method("Size", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(size);
+        var closed = ExtensionSpecialization.Close(size, block, [capture.Value], slots.Refinements.Built.Interner);
+        var receiver = HandBuiltRefinements.Local(slots.Closed(wrapper, capture.Value), "w");
+        var bound = new FunctionReferenceExpression(HandBuiltModel.Node(), receiver, closed, new FunctionType([], slots.Int));
+        var open = new FunctionReferenceExpression(HandBuiltModel.Node(), null, len, new FunctionType([slots.ArrayOf(UnknownType.Instance)], slots.Int)) { TypeArguments = [UnknownType.Instance] };
+        var literal = new FunctionReferenceExpression(HandBuiltModel.Node(), null, len, new FunctionType([slots.ArrayOf(slots.Literal(3))], slots.Int)) { TypeArguments = [slots.Literal(3)] };
+
+        var (found, arguments) = Assert.NotNull(SlotRoutes.ClosedThroughReceiver(bound));
+
+        Assert.Same(block, found);
+        Assert.Same(capture.Value, Assert.Single(arguments));
+        Assert.Null(SlotRoutes.ClosedThroughReceiver(open));
+        Assert.Equal([(len, 0)], SlotRoutes.InferredByGroup(open));
+        Assert.Empty(SlotRoutes.InferredByGroup(literal));
+        Assert.Equal([len.TypeParametersList[0]], SlotRoutes.Discover([(len, [UnknownType.Instance])], [], [len], inferredFromUnknown: SlotRoutes.InferredByGroup(open)));
+        Assert.Empty(SlotRoutes.Discover([(len, [UnknownType.Instance])], [], [len]));
+    }
+
     private (Method Method, TypeParameter Parameter) Measure(string parameter)
     {
         var declared = new TypeParameter(parameter, 0, new Scope(null), null) { IsDependent = true, Domain = (MistType)slots.Int };

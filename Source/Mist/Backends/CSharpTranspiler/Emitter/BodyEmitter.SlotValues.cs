@@ -1,5 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -16,7 +17,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// through the argument that carries it, and that argument is bound once when reading it twice would run
 /// it twice. An extension block's own parameter is read through the receiver that closed it, as its
 /// length or its hidden field. The hidden argument comes first in the C# call, so the receiver and every
-/// argument written before the carrier are bound with it, in source order, or they would run after it.
+/// argument written before the carrier are bound with it, in source order, or they would run after it. A
+/// method group has no argument yet, so its lambda reads each slot from the delegate's parameter that
+/// carries it, or from the receiver bound when the group was formed.
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -144,6 +147,13 @@ internal static partial class BodyEmitter
             MethodReferenceExpression reference => reference.TypeArguments,
             _ => [],
         };
+
+        return CallTypeArguments(method, written);
+    }
+
+    private static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter> Parameters, Method Method) CallTypeArguments(
+        Method method, IReadOnlyList<IMistType> written)
+    {
         var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(method, written);
 
         return (arguments, parameters ?? method.TypeParametersList, method);
@@ -170,19 +180,7 @@ internal static partial class BodyEmitter
             return hidden;
         }
 
-        if(method is { Modifiers.IsStatic: true, DeclaringType: MemberType owner } && SlotRoutes.ValueRouted(owner).Count > 0)
-        {
-            var closing = invocation.Receiver switch
-            {
-                MemberAccessExpression { Receiver: TypeReferenceExpression reference } => Unaliased(reference.ReferencedType) as ConstructedType,
-                MethodReferenceExpression => SlotRoutes.ClosingFrom(enclosingType, owner),
-                _ => null,
-            };
-
-            hidden.AddRange(closing is null
-                ? SlotRoutes.ValueRouted(owner).Select(slot => EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
-                : SlotValues(closing, diagnostics));
-        }
+        hidden.AddRange(OwnerSlotArguments(method, invocation.Receiver is MemberAccessExpression access ? access.Receiver : null, diagnostics));
 
         foreach(var (slot, argument) in RoutedCallSlots(typeArguments, parameters))
         {
@@ -196,6 +194,58 @@ internal static partial class BodyEmitter
                 _ => EmissionDiagnostics.Fallback("slot value", $"{method.Name}.{slot.Name}", "default"),
             });
         }
+
+        return hidden;
+    }
+
+    internal static bool CarriesSlots(FunctionReferenceExpression reference)
+    {
+        var (typeArguments, parameters, method) = CallTypeArguments(reference.Method, reference.TypeArguments);
+
+        return RoutedCallSlots(typeArguments, parameters).Any()
+            || (method is { Modifiers.IsStatic: true, DeclaringType: MemberType owner } && SlotRoutes.ValueRouted(owner).Count > 0);
+    }
+
+    internal static List<string> GroupSlotArguments(FunctionReferenceExpression reference, IReadOnlyList<string> arguments, string? receiver)
+    {
+        var (typeArguments, parameters, method) = CallTypeArguments(reference.Method, reference.TypeArguments);
+        var hidden = OwnerSlotArguments(method, reference.Receiver, diagnostics: null);
+
+        foreach(var (slot, argument) in RoutedCallSlots(typeArguments, parameters))
+        {
+            hidden.Add(argument switch
+            {
+                CapturedValue or UnknownType or UnknownValueType => ReadThroughBoundReceiver(method, slot, receiver)
+                    ?? ReadThroughDelegateArgument(method, slot, arguments)
+                    ?? (Nesting(reference, slot) is { } nesting ? Refuse(method, slot, nesting) : SlotValue(argument, diagnostics: null))
+                    ?? EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default"),
+                not null when SlotValue(argument, diagnostics: null) is { } value => value,
+                _ => EmissionDiagnostics.Fallback("slot value", $"{method.Name}.{slot.Name}", "default"),
+            });
+        }
+
+        return hidden;
+    }
+
+    private static List<string> OwnerSlotArguments(Method method, Expression? receiver, DiagnosticBag? diagnostics)
+    {
+        var hidden = new List<string>();
+
+        if(method is not { Modifiers.IsStatic: true, DeclaringType: MemberType owner } || SlotRoutes.ValueRouted(owner).Count == 0)
+        {
+            return hidden;
+        }
+
+        var closing = receiver switch
+        {
+            TypeReferenceExpression reference => Unaliased(reference.ReferencedType) as ConstructedType,
+            null => SlotRoutes.ClosingFrom(enclosingType, owner),
+            _ => null,
+        };
+
+        hidden.AddRange(closing is null
+            ? SlotRoutes.ValueRouted(owner).Select(slot => EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
+            : SlotValues(closing, diagnostics));
 
         return hidden;
     }
@@ -297,12 +347,69 @@ internal static partial class BodyEmitter
         return null;
     }
 
+    private static string? ReadThroughBoundReceiver(Method method, TypeParameter slot, string? receiver)
+    {
+        return receiver is not null && ReceiverMember(method, slot) is { } member ? $"{receiver}.{member}" : null;
+    }
+
+    private static string? ReadThroughDelegateArgument(Method method, TypeParameter slot, IReadOnlyList<string> arguments)
+    {
+        return CarryingParameter(method, slot) is var (ordinal, closing, carried) && ordinal < arguments.Count
+            ? $"{arguments[ordinal]}.{(LengthErasure.IsLengthIndexed(closing) ? "Length" : SlotRoutes.Hidden(carried))}"
+            : null;
+    }
+
+    private static (int Ordinal, ConstructedType Closing, TypeParameter Carried)? CarryingParameter(Method method, TypeParameter slot)
+    {
+        for(var i = 0; i < method.ParametersList.Count; i++)
+        {
+            if(Unaliased(TypeNameEmitter.Closed(method.ParametersList[i].Type)) is not ConstructedType closing || closing.Definition is not IHasTypeParameters generic)
+            {
+                continue;
+            }
+
+            for(var k = 0; k < closing.TypeArguments.Count && k < generic.TypeParametersList.Count; k++)
+            {
+                if(ReferenceEquals(closing.TypeArguments[k], slot)
+                    && (LengthErasure.IsLengthIndexed(closing) || SlotRoutes.IsValueRouted(generic.TypeParametersList[k])))
+                {
+                    return (i, closing, generic.TypeParametersList[k]);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IMistType? Nesting(FunctionReferenceExpression reference, TypeParameter slot)
+    {
+        var method = reference.Method;
+
+        if(BlockNesting(method, slot) is { } receiverType)
+        {
+            return receiverType;
+        }
+
+        return method.ParametersList.Select(parameter => parameter.Type).FirstOrDefault(type => Mentions(type, slot)) is { } nested
+            ? TypeSubstitution.ForMethod(method, reference.TypeArguments).Apply(nested, interner: null)
+            : null;
+    }
+
+    private static IMistType? BlockNesting(Method method, TypeParameter slot)
+    {
+        return method.ClosedBlock is { ResolvedReceiverType: { } receiverType } block && block.TypeParametersList.Contains(slot)
+            ? method.BlockClosing.Apply(receiverType, interner: null)
+            : null;
+    }
+
     private static string RefuseNested(InvocationExpression invocation, Method method, TypeParameter slot, CapturedValue? carried)
     {
-        var nesting = method.ClosedBlock is { ResolvedReceiverType: { } receiverType } block && block.TypeParametersList.Contains(slot)
-            ? method.BlockClosing.Apply(receiverType, interner: null)
-            : carried is null ? null : (invocation.ParameterTypes ?? []).FirstOrDefault(type => Mentions(type, carried));
+        return Refuse(method, slot, BlockNesting(method, slot)
+            ?? (carried is null ? null : (invocation.ParameterTypes ?? []).FirstOrDefault(type => Mentions(type, carried))));
+    }
 
+    private static string Refuse(Method method, TypeParameter slot, IMistType? nesting)
+    {
         if(nesting is null)
         {
             return EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default");
@@ -321,14 +428,21 @@ internal static partial class BodyEmitter
 
     private static (Expression Receiver, string Member)? ReceiverRead(InvocationExpression invocation, TypeParameter slot)
     {
-        if(invocation is not { Receiver: MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression }, Method: { Modifiers.IsStatic: false, ClosedBlock: { } block } }
-            || SlotRoutes.ReceiverSlot(block, slot) is not var (open, carried))
+        return invocation is { Receiver: MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression }, Method: { } method }
+            && ReceiverMember(method, slot) is { } member
+                ? (receiver, member)
+                : null;
+    }
+
+    private static string? ReceiverMember(Method method, TypeParameter slot)
+    {
+        if(method is not { Modifiers.IsStatic: false, ClosedBlock: { } block } || SlotRoutes.ReceiverSlot(block, slot) is not var (open, carried))
         {
             return null;
         }
 
-        return LengthErasure.IsLengthIndexed(open) ? (receiver, "Length")
-            : SlotRoutes.IsValueRouted(carried) ? (receiver, SlotRoutes.Hidden(carried))
+        return LengthErasure.IsLengthIndexed(open) ? "Length"
+            : SlotRoutes.IsValueRouted(carried) ? SlotRoutes.Hidden(carried)
             : null;
     }
 

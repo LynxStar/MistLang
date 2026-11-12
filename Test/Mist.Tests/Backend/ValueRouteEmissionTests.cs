@@ -449,6 +449,75 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
+    public void AMethodGroupOfAValueRoutedMethodReadsItsSlotFromTheDelegatesArgument()
+    {
+        var (len, n) = Len();
+        var m = slots.Dependent("M");
+        var cap = new Method("Cap", slots.Int, [new Parameter("b", slots.Closed(box, m))], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        cap.TypeParametersList.Add(m);
+        m.DeclaringMethod = cap;
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        using var routes = SlotRoutes.Enter([n, m, box.TypeParametersList[0]]);
+
+        Assert.Equal("((System.Func<int[], int>)((__arg0) => Len(__arg0.Length, __arg0)))", Emit(Group(len, UnknownType.Instance, slots.ArrayOf(UnknownType.Instance))));
+        Assert.Equal("((System.Func<int[], int>)((__arg0) => Len(__arg0.Length, __arg0)))", Emit(Group(len, capture.Value, slots.ArrayOf(capture.Value))));
+        Assert.Equal("((System.Func<Probe.Box, int>)((__arg0) => Cap(__arg0.__N, __arg0)))", Emit(Group(cap, UnknownType.Instance, slots.Closed(box, UnknownType.Instance))));
+    }
+
+    [Fact]
+    public void AStaticMemberGroupOfAValueRoutedTypePassesTheClosingsValue()
+    {
+        var twice = new Method("Twice", slots.Int, [], new MemberModifiers { IsStatic = true }) { DeclaringType = ring, Scope = ring.Scope };
+        using var routes = SlotRoutes.Enter([capacity]);
+        var reference = new FunctionReferenceExpression(
+            HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), slots.Closed(ring, slots.Literal(3))), twice, new FunctionType([], slots.Int));
+
+        Assert.Equal("((System.Func<int>)(() => Probe.Ring.Twice(3)))", Emit(reference));
+    }
+
+    [Fact]
+    public void ABoundGroupOfABlockMethodReadsTheBlocksSlotThroughTheBoundReceiver()
+    {
+        var (block, n) = BoxBlock(slots.Closed(box, slots.Dependent("N")));
+        var size = new Method("Size", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
+        block.MethodsList.Add(size);
+        var (arrayBlock, k) = ArrayBlock();
+        var count = new Method("Count", slots.Int, [], default) { DeclaringBlock = arrayBlock, Scope = new Scope(null) };
+        arrayBlock.MethodsList.Add(count);
+        var capture = slots.Capture(new LocalVariable("n", slots.Int));
+        using var routes = SlotRoutes.Enter([n, k, box.TypeParametersList[0]]);
+
+        Assert.Equal(
+            "((System.Func<Probe.Box, System.Func<int>>)(__receiver => () => Probe.BoxExtensions.Size(__receiver, __receiver.__N)))(b)",
+            Emit(Bound(HandBuiltRefinements.Local(slots.Closed(box, capture.Value), "b"), Closed(size, block, capture.Value))));
+        Assert.Equal(
+            "((System.Func<Probe.Box, System.Func<int>>)(__receiver => () => Probe.BoxExtensions.Size(__receiver, __receiver.__N)))(u)",
+            Emit(Bound(HandBuiltRefinements.Local(slots.Closed(box, UnknownType.Instance), "u"), Closed(size, block, UnknownType.Instance))));
+        Assert.Equal(
+            "((System.Func<Probe.Box, System.Func<int>>)(__receiver => () => Probe.BoxExtensions.Size(__receiver, 5)))(c)",
+            Emit(Bound(HandBuiltRefinements.Local(slots.Closed(box, slots.Literal(5)), "c"), Closed(size, block, slots.Literal(5)))));
+        Assert.Equal(
+            "((System.Func<int[], System.Func<int>>)(__receiver => () => Probe.ArrayExtensions.Count(__receiver, __receiver.Length)))(a)",
+            Emit(Bound(HandBuiltRefinements.Local(slots.ArrayOf(capture.Value), "a"), Closed(count, arrayBlock, capture.Value))));
+    }
+
+    [Fact]
+    public void AMethodGroupWhoseSlotIsNestedInTheDelegatesParameterIsRefused()
+    {
+        var list = ListType();
+        var m = slots.Dependent("M");
+        var cap = new Method("Cap", slots.Int, [new Parameter("boxes", slots.Closed(list, slots.Closed(box, m)))], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
+        cap.TypeParametersList.Add(m);
+        m.DeclaringMethod = cap;
+        using var routes = SlotRoutes.Enter([m, box.TypeParametersList[0]]);
+
+        var refusal = Assert.Single(Refused(Group(cap, UnknownType.Instance, slots.Closed(list, slots.Closed(box, UnknownType.Instance)))));
+
+        Assert.Equal("MIST0498", refusal.Number.Value);
+        Assert.Contains("'Cap' cannot infer 'M' from 'List<Box<int>>'", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AnInferredSlotNestedInAnArgumentsTypeIsRefused()
     {
         var list = ListType();
@@ -718,6 +787,16 @@ public sealed class ValueRouteEmissionTests
     {
         var fill = HandBuiltRefinements.Local(UnknownType.Instance, "fill");
         return new NewExpression(HandBuiltModel.Node(), slots.ArrayOf(length), [fill], null, [], null);
+    }
+
+    private static FunctionReferenceExpression Group(Method method, IMistType typeArgument, IMistType parameterType)
+    {
+        return new FunctionReferenceExpression(HandBuiltModel.Node(), null, method, new FunctionType([parameterType], method.ReturnType)) { TypeArguments = [typeArgument] };
+    }
+
+    private static FunctionReferenceExpression Bound(Expression receiver, Method method)
+    {
+        return new FunctionReferenceExpression(HandBuiltModel.Node(), receiver, method, new FunctionType([], method.ReturnType));
     }
 
     private static InvocationExpression Through(

@@ -6,16 +6,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 /// <summary>
-/// Projects CLR indexers onto a Mist MemberType shell.
-/// In CLR, indexers are properties with parameters (typically named "Item").
+/// In the CLR an indexer is a property with parameters.
 /// </summary>
 internal static class IndexerProjector
 {
-    /// <summary>
-    /// Projects all public and protected indexers (properties with index parameters)
-    /// onto the given MemberType.
-    /// Skips indexers with pointer or unresolvable parameter types.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -42,7 +36,6 @@ internal static class IndexerProjector
     internal static Indexer? Judge(
         PropertyInfo prop, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
     {
-        // Only project if at least one accessor is public or protected.
         if(!HasVisibleAccessor(prop))
         {
             withheld = new Withholding(WithholdingReason.NonPublic);

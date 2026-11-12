@@ -5,14 +5,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR properties onto a Mist MemberType shell.
-/// </summary>
 internal static class PropertyProjector
 {
-    /// <summary>
-    /// Projects all public and protected instance and static properties onto the given MemberType.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -40,7 +34,6 @@ internal static class PropertyProjector
     internal static Property? Judge(
         PropertyInfo prop, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
     {
-        // Only project if at least one accessor is public or protected.
         if(!HasVisibleAccessor(prop))
         {
             withheld = new Withholding(WithholdingReason.NonPublic);
@@ -85,17 +78,11 @@ internal static class PropertyProjector
         return projected;
     }
 
-    /// <summary>
-    /// Determines whether a property has at least one public or protected accessor.
-    /// </summary>
     private static bool HasVisibleAccessor(PropertyInfo prop)
     {
         return IsVisibleMethod(prop.GetMethod) || IsVisibleMethod(prop.SetMethod);
     }
 
-    /// <summary>
-    /// Returns whether a method is public or protected (family/familyOrAssembly).
-    /// </summary>
     private static bool IsVisibleMethod(MethodInfo? method)
     {
         if(method is null)
@@ -106,9 +93,6 @@ internal static class PropertyProjector
         return method.IsPublic || method.IsFamily || method.IsFamilyOrAssembly;
     }
 
-    /// <summary>
-    /// Creates a getter accessor if the property has a public or protected get method.
-    /// </summary>
     private static PropertyAccessor? CreateGetter(PropertyInfo prop)
     {
         if(IsVisibleMethod(prop.GetMethod))
@@ -119,11 +103,6 @@ internal static class PropertyProjector
         return null;
     }
 
-    /// <summary>
-    /// Creates a setter accessor if the property has a public or protected set or init method.
-    /// Detects init-only setters via the IsExternalInit convention (return type has
-    /// required modifier IsExternalInit).
-    /// </summary>
     private static PropertyAccessor? CreateSetter(PropertyInfo prop)
     {
         var setMethod = prop.SetMethod;

@@ -14,9 +14,6 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// </summary>
 internal static class AttributeProjector
 {
-    /// <summary>
-    /// Projects custom attributes from a CLR member onto the target attribute list.
-    /// </summary>
     public static void Project(MemberInfo member, List<AttributeData> target, Scope scope, AmbientTypeResolver resolver)
     {
         ProjectAttributes(member.GetCustomAttributesData(), target, scope, resolver);

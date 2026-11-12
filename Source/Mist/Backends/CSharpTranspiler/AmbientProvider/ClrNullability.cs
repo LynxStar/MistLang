@@ -6,11 +6,9 @@ namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 /// Whether a CLR member's result can actually be null, read from the nullable metadata the C#
 /// compiler writes.
 /// <para>
-/// WITHOUT THIS EVERY RESULT IS PESSIMISTIC. Mist has no null and a CLR reference can be one, so an
-/// inbound result is closed over <c>| void</c> -- but most of the BCL says outright that it never
-/// returns null, and wrapping those makes a caller narrow something that cannot be absent.
-/// <c>xs.Skip(5).First()</c> is the shape it breaks: Skip is annotated non-null and First does not
-/// resolve on an optional.
+/// Mist has no null and a CLR reference can be one, so an inbound result is closed over
+/// <c>| void</c> -- but most of the BCL says outright that it never returns null, and wrapping those
+/// makes a caller narrow something that cannot be absent.
 /// </para>
 /// <para>
 /// THE ANNOTATION IS TRUSTED, AND THAT IS A CHOICE RATHER THAN A PROOF. C# erases it -- a string
@@ -34,9 +32,6 @@ internal static class ClrNullability
     private const byte Oblivious = 0;
     private const byte Nullable = 2;
 
-    /// <summary>
-    /// Whether a member's result is declared NON-null, so nothing has to be unwrapped to use it.
-    /// </summary>
     public static bool ResultIsNonNull(ICustomAttributeProvider result, MemberInfo member)
     {
         if(FirstFlag(CustomAttributes(result), NullableAttribute) is { } stated)
@@ -109,9 +104,8 @@ internal static class ClrNullability
 
     /// <summary>
     /// An attribute the loader cannot resolve counts as absent. The list is read eagerly but each entry's
-    /// TYPE is resolved only when touched, and a package can reference a type its own assemblies no
-    /// longer define -- three assemblies of TestHost 17.12 name one CoreUtilities lacks -- which says
-    /// nothing about nullability and must not take the projection down with it.
+    /// TYPE is resolved only when touched, and a package can reference a type its own assemblies do not
+    /// define, which says nothing about nullability and must not take the projection down with it.
     /// </summary>
     private static IEnumerable<CustomAttributeData> SafeAttributes(Func<IList<CustomAttributeData>> read)
     {

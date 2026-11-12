@@ -4,24 +4,11 @@ using Mist.ProgramModel.Model.Enums;
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 /// <summary>
-/// Maps CLR accessibility onto the four-level Mist <see cref="Accessibility"/> enum
-/// without broadening. The mapping never produces <see cref="Accessibility.Internal"/>
-/// because an external assembly's internal member must not be widened into the
-/// consumer's compilation.
+/// Never produces <see cref="Accessibility.Internal"/>: an external assembly's internal member must not
+/// be widened into the consumer's compilation.
 /// </summary>
 internal static class ClrAccessibilityMap
 {
-    /// <summary>
-    /// Maps a CLR field's accessibility to the Mist <see cref="Accessibility"/> enum.
-    /// <list type="table">
-    ///   <item><term>IsPublic</term><description><see cref="Accessibility.Public"/></description></item>
-    ///   <item><term>IsFamily (protected)</term><description><see cref="Accessibility.Protected"/></description></item>
-    ///   <item><term>IsFamilyOrAssembly (protected internal)</term><description><see cref="Accessibility.Protected"/></description></item>
-    ///   <item><term>IsPrivate</term><description><see cref="Accessibility.Private"/></description></item>
-    ///   <item><term>IsAssembly (internal)</term><description><see cref="Accessibility.Private"/></description></item>
-    ///   <item><term>IsFamilyAndAssembly (private protected)</term><description><see cref="Accessibility.Private"/></description></item>
-    /// </list>
-    /// </summary>
     public static Accessibility FromField(FieldInfo field)
     {
         if(field.IsPublic)
@@ -37,10 +24,6 @@ internal static class ClrAccessibilityMap
         return Accessibility.Private;
     }
 
-    /// <summary>
-    /// Maps a CLR method's accessibility to the Mist <see cref="Accessibility"/> enum.
-    /// Applies to regular methods, constructors, property/indexer accessors, and operators.
-    /// </summary>
     public static Accessibility FromMethod(MethodBase method)
     {
         if(method.IsPublic)
@@ -56,9 +39,6 @@ internal static class ClrAccessibilityMap
         return Accessibility.Private;
     }
 
-    /// <summary>
-    /// Maps a CLR nested type's accessibility to the Mist <see cref="Accessibility"/> enum.
-    /// </summary>
     public static Accessibility FromNestedType(Type nestedType)
     {
         if(nestedType.IsNestedPublic)
@@ -74,10 +54,6 @@ internal static class ClrAccessibilityMap
         return Accessibility.Private;
     }
 
-    /// <summary>
-    /// Determines the overall accessibility of a CLR property from its most-visible accessor.
-    /// A property's effective accessibility is that of its most accessible accessor.
-    /// </summary>
     public static Accessibility FromProperty(PropertyInfo property)
     {
         var getMethod = property.GetMethod;

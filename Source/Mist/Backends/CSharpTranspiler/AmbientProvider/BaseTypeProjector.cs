@@ -3,17 +3,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects base types and implemented interfaces from CLR types onto their
-/// Mist shells. Operates after shell creation so all target types are available
-/// in the resolver.
-/// </summary>
 internal static class BaseTypeProjector
 {
-    /// <summary>
-    /// Projects the base type (for classes) and implemented interfaces (for all member types)
-    /// from CLR metadata onto the Mist shell.
-    /// </summary>
     public static void Project(MistType shell, Type clrType, AmbientTypeResolver resolver)
     {
         if(shell is ConcreteType concreteType)
@@ -27,11 +18,6 @@ internal static class BaseTypeProjector
         }
     }
 
-    /// <summary>
-    /// Sets the base type on a ConcreteType (class or struct).
-    /// Skips System.Object (implicit base for all classes) and System.ValueType
-    /// (implicit base for all structs).
-    /// </summary>
     private static void ProjectBaseType(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
         var baseClrType = clrType.BaseType;
@@ -64,15 +50,10 @@ internal static class BaseTypeProjector
         }
     }
 
-    /// <summary>
-    /// Determines whether an interface is directly declared on a type
-    /// (vs inherited from a base type or base interface).
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = MetadataOnlyReflection.Justification)]
     private static bool IsDirectlyImplemented(Type type, Type iface)
     {
-        // If the base type also implements this interface, it's inherited, not direct.
         var baseType = type.BaseType;
         if(baseType is not null)
         {
@@ -86,7 +67,6 @@ internal static class BaseTypeProjector
             }
         }
 
-        // For interfaces, check if any base interface also declares it.
         if(type.IsInterface)
         {
             var baseInterfaces = type.GetInterfaces();

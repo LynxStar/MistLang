@@ -5,27 +5,12 @@ using Mist.Driver;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Factory for creating <see cref="AmbientTypeProviderV2"/> instances.
-/// Handles SDK discovery, assembly loading, and error reporting.
-/// </summary>
 internal static class AmbientTypeProviderV2Factory
 {
-    /// <summary>
-    /// Creates an AmbientTypeProviderV2 by discovering SDK reference assemblies for the
-    /// given target framework and merging them with additional assembly paths (NuGet packages,
-    /// framework references, etc.). Uses <see cref="MetadataLoadContext"/> for reflection-only loading.
-    /// Assemblies that fail to load emit a diagnostic and are skipped.
-    /// </summary>
-    /// <param name="targetFramework">The target framework moniker (e.g., "net9.0").</param>
-    /// <param name="additionalAssemblyPaths">Additional assembly paths from NuGet/framework resolution.</param>
-    /// <param name="typeInterner">The type interner for creating constructed types.</param>
-    /// <param name="diagnostics">Diagnostic bag for reporting assembly load failures.</param>
     /// <param name="unregisteredAssemblyNames">
     /// Simple names loaded for resolution and never registered: the composed Mist projects, whose standalone
     /// copies would otherwise shadow or duplicate the declared types.
     /// </param>
-    /// <returns>A fully initialized <see cref="AmbientTypeProviderV2"/> instance.</returns>
     public static AmbientTypeProviderV2 Create(
         string targetFramework,
         ImmutableArray<string> additionalAssemblyPaths,
@@ -57,11 +42,6 @@ internal static class AmbientTypeProviderV2Factory
         return new AmbientTypeProviderV2(loaded, context, diagnostics);
     }
 
-    /// <summary>
-    /// Resolves the full set of assembly paths needed by the ambient provider:
-    /// SDK reference assemblies (System.Runtime, etc.) merged with any NuGet/framework
-    /// assembly paths already resolved by the driver.
-    /// </summary>
     private static ImmutableArray<string> ResolveSdkAndAdditionalPaths(
         string targetFramework,
         ImmutableArray<string> additionalAssemblyPaths,
@@ -95,10 +75,6 @@ internal static class AmbientTypeProviderV2Factory
         return merged.ToImmutableArray();
     }
 
-    /// <summary>
-    /// Loads all assemblies from the given paths via <see cref="MetadataLoadContext"/>.
-    /// Assemblies that fail to load emit a diagnostic and are skipped.
-    /// </summary>
     internal static ImmutableArray<LoadedAssemblyInfo> LoadAssemblies(
         ImmutableArray<string> assemblyPaths,
         MetadataLoadContext context,

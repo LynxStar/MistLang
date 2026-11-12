@@ -9,15 +9,12 @@ using RoslynApi = Microsoft.CodeAnalysis;
 namespace Mist.Backends.CSharpTranspiler;
 
 /// <summary>
-/// Compiles emitted C# source files into an executable assembly using the
-/// Roslyn API in-process, avoiding the overhead of spawning a <c>dotnet build</c>
-/// subprocess per compilation.
+/// Compiles in-process through Roslyn rather than spawning a <c>dotnet build</c> subprocess per
+/// compilation.
 /// </summary>
 public sealed class CSharpCompilationDriver
 {
-    // Core runtime references needed for every compilation.
-    // Resolved once and reused across all compilations.
-    // Internal so that in-process Roslyn verification tests can reuse the same reference set.
+    // Internal so in-process Roslyn verification tests reuse the same reference set.
     internal static readonly ImmutableArray<RoslynApi.MetadataReference> CoreReferences = BuildCoreReferences();
 
     private static readonly StringComparer PathComparer =
@@ -25,18 +22,13 @@ public sealed class CSharpCompilationDriver
 
     private static ImmutableArray<RoslynApi.MetadataReference> BuildCoreReferences()
     {
-        // Locate the runtime directory so we can reference the core assemblies.
-        // In single-file publish mode, Assembly.Location returns "" so we fall
-        // back to the shared framework directory discovered via RuntimeEnvironment.
         var runtimeDir = GetRuntimeDirectory();
         var refPackDir = TryResolveRefPackDir();
 
         var refs = new List<RoslynApi.MetadataReference>();
 
-        // When a reference-assembly pack is available, reference ALL assemblies
-        // from it. This ensures that transitive framework dependencies (e.g.,
-        // System.Data.Common referenced by EF Core NuGet packages) are available
-        // to the Roslyn compilation without maintaining a manual list.
+        // Every assembly in the pack, so transitive framework dependencies of packages (System.Data.Common
+        // for EF Core) resolve without a manual list.
         if(refPackDir is not null)
         {
             foreach(var dll in Directory.GetFiles(refPackDir, "*.dll"))
@@ -47,7 +39,6 @@ public sealed class CSharpCompilationDriver
             return [.. refs];
         }
 
-        // Fallback: no ref pack installed — use the minimal set from the runtime dir.
         foreach(var name in new[]
         {
             "System.Runtime.dll",
@@ -68,12 +59,9 @@ public sealed class CSharpCompilationDriver
             }
         }
 
-        // Dynamic-dispatch supporting libraries (Task 31 revised,
-        // Req 15.1, 15.2). `Microsoft.CSharp` is the primary — it
-        // carries the DLR binder surface that Roslyn compiles `dynamic`
-        // dispatch against. `System.Linq.Expressions` and
-        // `System.Dynamic.Runtime` are transitively required by the
-        // DLR's lowering.
+        // `Microsoft.CSharp` carries the DLR binder surface Roslyn compiles `dynamic` dispatch
+        // against; `System.Linq.Expressions` and `System.Dynamic.Runtime` are transitively required
+        // by the DLR's lowering.
         foreach(var name in new[]
         {
             "Microsoft.CSharp.dll",
@@ -92,13 +80,8 @@ public sealed class CSharpCompilationDriver
     }
 
     /// <summary>
-    /// Attempts to locate the .NET SDK's reference-assembly directory
-    /// for the currently running runtime's major.minor version. Returns
-    /// the path to the ref DLLs (e.g.,
-    /// <c>/usr/local/share/dotnet/packs/Microsoft.NETCore.App.Ref/10.0.7/ref/net10.0</c>)
-    /// when a ref pack is installed, or <c>null</c> when only the
-    /// runtime is installed (in which case the caller uses the
-    /// shared-framework implementation DLLs).
+    /// Null when only the runtime is installed, which leaves the caller on the shared-framework
+    /// implementation assemblies.
     /// </summary>
     private static string? TryResolveRefPackDir()
     {
@@ -114,8 +97,6 @@ public sealed class CSharpCompilationDriver
             return null;
         }
 
-        // Pick the highest version directory matching the running
-        // runtime's major.minor, then fall back to the highest overall.
         var runtimeMajorMinor = $"{Environment.Version.Major}.{Environment.Version.Minor}.";
         var versionDirs = Directory.GetDirectories(refPackRoot)
             .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
@@ -129,7 +110,6 @@ public sealed class CSharpCompilationDriver
             return null;
         }
 
-        // Pick the highest tfm directory under `ref/`.
         var refDir = Path.Combine(selected, "ref");
         if(!Directory.Exists(refDir))
         {
@@ -143,14 +123,8 @@ public sealed class CSharpCompilationDriver
         return tfmDirs.FirstOrDefault();
     }
 
-    /// <summary>
-    /// Resolves the .NET runtime directory containing the core framework assemblies.
-    /// Handles both normal execution (Assembly.Location available) and single-file
-    /// publish mode (Assembly.Location is empty, must discover shared framework path).
-    /// </summary>
     private static string GetRuntimeDirectory()
     {
-        // Try Assembly.Location first (works in non-single-file scenarios).
         var assemblyLocation = typeof(object).Assembly.Location;
         if(!string.IsNullOrEmpty(assemblyLocation))
         {
@@ -161,20 +135,17 @@ public sealed class CSharpCompilationDriver
             }
         }
 
-        // Single-file publish: discover the shared framework directory.
-        // The runtime is at: <dotnet-root>/shared/Microsoft.NETCore.App/<version>/
+        // Assembly.Location is empty under single-file publish.
         var dotnetRoot = GetDotnetRoot();
         if(dotnetRoot is not null)
         {
             var sharedDir = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App");
             if(Directory.Exists(sharedDir))
             {
-                // Pick the highest version directory that exists.
                 var versionDirs = Directory.GetDirectories(sharedDir)
                     .OrderByDescending(d => Path.GetFileName(d), StringComparer.Ordinal)
                     .ToArray();
 
-                // Prefer the version matching our runtime.
                 var runtimeVersion = Environment.Version.ToString();
                 var exactMatch = versionDirs.FirstOrDefault(d =>
                     Path.GetFileName(d).StartsWith($"{Environment.Version.Major}.{Environment.Version.Minor}.", StringComparison.Ordinal));
@@ -187,24 +158,18 @@ public sealed class CSharpCompilationDriver
             }
         }
 
-        // Last resort: use RuntimeEnvironment.GetRuntimeDirectory() which
-        // should work in all scenarios but may not be available in trimmed apps.
+        // Last because it may be unavailable in trimmed apps.
         return System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
     }
 
-    /// <summary>
-    /// Discovers the .NET root directory (e.g., /usr/local/share/dotnet).
-    /// </summary>
     private static string? GetDotnetRoot()
     {
-        // Check DOTNET_ROOT environment variable first.
         var envRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
         if(!string.IsNullOrEmpty(envRoot) && Directory.Exists(envRoot))
         {
             return envRoot;
         }
 
-        // Common locations per platform.
         var candidates = OperatingSystem.IsWindows()
             ? new[]
             {
@@ -266,7 +231,6 @@ public sealed class CSharpCompilationDriver
 
         var referencePaths = plan.Paths;
 
-        // Collect all emitted .cs files
         var csFiles = Directory.GetFiles(projectDirectory, "*.cs", SearchOption.AllDirectories);
         if(csFiles.Length == 0)
         {
@@ -274,7 +238,6 @@ public sealed class CSharpCompilationDriver
             return new BackendResult(false, null, diagnostics.ToImmutableArray(), EmittedFileCount: emittedFileCount);
         }
 
-        // Parse each .cs file into a SyntaxTree
         var syntaxTrees = csFiles
             .Select(path => CSharpSyntaxTree.ParseText(
                 File.ReadAllText(path),
@@ -282,7 +245,6 @@ public sealed class CSharpCompilationDriver
                 path: path))
             .ToList();
 
-        // Build the Roslyn compilation
         var roslynOutputKind = outputType == ProjectOutputType.Library
             ? RoslynApi.OutputKind.DynamicallyLinkedLibrary
             : RoslynApi.OutputKind.ConsoleApplication;
@@ -311,7 +273,6 @@ public sealed class CSharpCompilationDriver
                 facades.Select(facade => RoslynApi.MetadataReference.CreateFromImage(facade.Image)));
         }
 
-        // Emit to the bin directory
         var outputPath = Path.Combine(binDirectory, $"{projectName}.dll");
         var runtimeConfigPath = Path.Combine(binDirectory, $"{projectName}.runtimeconfig.json");
 
@@ -453,12 +414,9 @@ public sealed class CSharpCompilationDriver
         var tfm = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
         // Extract version like "10.0.3" from ".NET 10.0.3"
         var version = tfm.Replace(".NET ", "").Trim();
-        // Normalise to major.minor (e.g. "10.0")
         var parts = version.Split('.');
         var majorMinor = parts.Length >= 2 ? $"{parts[0]}.{parts[1]}" : version;
 
-        // Check if additional reference paths include ASP.NET Core assemblies
-        // (indicating that Microsoft.AspNetCore.App framework should be included).
         var includeAspNetCore = !additionalReferencePaths.IsDefaultOrEmpty &&
             additionalReferencePaths.Any(p =>
                 p.Contains("Microsoft.AspNetCore.App", StringComparison.OrdinalIgnoreCase));

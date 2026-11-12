@@ -8,28 +8,17 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Creates Mist type shells from CLR types. Handles kind dispatch
-/// (class/struct/interface/enum) and scope creation for generics.
-/// </summary>
 internal static class TypeProjector
 {
 
     private static string isReadOnlyAttribute = "System.Runtime.CompilerServices.IsReadOnlyAttribute";
     private static string isByRefLikeAttribute = "System.Runtime.CompilerServices.IsByRefLikeAttribute";
 
-    /// <summary>
-    /// Creates an empty type shell for a top-level CLR type.
-    /// </summary>
     public static DeclaredType CreateShell(Type clrType, string namespaceName)
     {
         return CreateShell(clrType, namespaceName, declaringType: null, parentScope: null);
     }
 
-    /// <summary>
-    /// Creates an empty type shell for a CLR type, optionally nested inside a declaring type.
-    /// For nested types, the shell's scope is parented to the declaring type's scope.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static DeclaredType CreateShell(Type clrType, string namespaceName, MistType? declaringType, Scope? parentScope)
     {

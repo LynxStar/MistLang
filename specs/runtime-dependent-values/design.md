@@ -327,10 +327,72 @@ literal (`ArrayLowering.cs:43-55`) and otherwise falls through to an unsized
 length from any slot argument through the same rendering a read through a
 closing uses.
 
+### Identity by value
+
+The owner ruled on 2026-11-13 that the backend makes these programs work. A
+closing is identified by its value, however it was written:
+
+```mist
+int n = 5;
+var x = new Ring<n>();
+var y = new Ring<5>();
+
+x is Ring<n>    // true
+x is Ring<5>    // true
+```
+
+C# fixes an object's type when the object is created, so `x` and `y` are
+instances of one C# class, or `x` could never be a `Ring<5>`. That is why a
+value-routed declaration is one C# type for all its closings. It follows that
+the C# type answers nothing about which closing a value has, and the backend
+answers from the value wherever the program can observe the difference. A
+runtime closing in one place never changes whether code in another place
+compiles.
+
+The refusals in the two sections below are stand-ins. Each is replaced by a
+delivery of its own. A delivery first adds its design section here, with the
+list of every place its mechanism touches, and its before-and-after programs
+are shown to the owner before it is dispatched. In order:
+
+1. A test with no binding, and a test under `not` or `or` (MIST0494). The
+   comparison is an expression beside the C# test, not part of a C# pattern.
+2. A slot inferred from a closing nested in an argument (MIST0498). The caller
+   knows the argument's type, so it passes the closing's value: the literal,
+   the capture or the parameter. Nothing is read back from the object.
+3. Overloads that differ only in a slot (MIST0497). The binder has already
+   chosen the overload, so the coinciding members take distinct C# names.
+4. An array or a stack allocation of a struct closing (MIST0496). The elements
+   are built with the value.
+5. Static storage of a value-routed type (MIST0491). One storage for each
+   value of the slots, created on first use, as Requirement 10 states.
+6. A union that holds two closings of one type (MIST0501), and an abstract
+   implemented at two values (MIST0493). The carrier and the implementing type
+   answer by value.
+7. A conversion into the type, and a nested type that reads the enclosing
+   slot (MIST0499). A conversion is a call and takes the value as one. A
+   nested type carries the enclosing slots as its own.
+8. A closing as a type argument (the section of that name, and MIST0495). A
+   generic that tests, creates or holds static storage over its type
+   parameter takes a hidden description of the argument, which carries the
+   slot values. `SlotSensitivity` decides which parameters need one.
+
+Not settled. Each is the owner's to rule on, with an example, when its turn
+comes:
+
+- A type value of a runtime closing (MIST0492). A CLR `Type` cannot carry the
+  value.
+- A test against a closing inside a CLR container, `u is List<Ring<n>>`, and a
+  CLR generic method that tests its type parameter. A CLR object has nowhere to
+  keep the description.
+- An attribute argument that reads the slot. An attribute's arguments are
+  constants.
+- A dependent parameter written as a type, `x is N` (MIST0500, MIST-1363).
+
 ### Where the C# backend falls short
 
-Each is refused by the backend with its own diagnostic, never miscompiled, and
-the language contract is not narrowed by it:
+These were this design's first answer, written before the ruling above. Until
+the delivery that replaces it lands, each is refused by the backend with its
+own diagnostic and never miscompiled:
 
 - Static storage in a value-routed type. Requirement 10 needs a table keyed by
   slot value. Nothing in the samples, Standard or the book snippets declares
@@ -384,7 +446,9 @@ a `new Ring<n>()` or `new Cell<n>()` elsewhere in the program:
 All four close the type with literals. One runtime closing anywhere routes the
 declaration, and every closing of it loses the slot.
 
-The backend refuses these where the closing is written. `SlotSensitivity`, a
+Until item 8 of *Identity by value* lands, the backend refuses these where the
+closing is written; the pass below stays, and then decides where a description
+is passed. `SlotSensitivity`, a
 whole-program pass beside `SlotRoutes`, marks a type parameter of a
 declaration slot-sensitive, to a fixed point, when the declaration:
 
@@ -510,7 +574,10 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    refusals. The first three "wrong afterwards" rows of the proposal are
    closed here and each gets its test. `SlotSensitivity` and its refusal
    follow as their own delivery before stage 5, because stage 4 landed with
-   the four wrong answers of *A closing as a type argument*.
+   the four wrong answers of *A closing as a type argument*. The deliveries of
+   *Identity by value* follow in its order. Stage 5 routes every slot of the
+   fourth kind by value and would meet each stand-in, so it follows items 1 to
+   7.
 5. Requirement 6: the fourth kind of domain.
 6. `samples/RuntimeDependentValues`, the book chapter, and the sentences the
    requirements revise in dependent-types, adhoc-refinement-constraints,

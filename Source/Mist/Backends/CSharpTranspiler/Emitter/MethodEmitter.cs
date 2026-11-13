@@ -89,8 +89,9 @@ internal static class MethodEmitter
         }
         else if(UnionSpecialization.CurrentMethod() is { } instance && ReferenceEquals(instance.Method, method))
         {
-            declared = [];
-            name = UnionSpecialization.Name(method.Name, instance.Arguments);
+            // The copy is closed over every carried parameter; a value-routed one stays its hidden parameter.
+            declared = [.. declared.Where(SlotRoutes.IsValueRouted)];
+            name = UnionSpecialization.Name(method, instance.Arguments);
         }
         else if(UnionSpecialization.Current() is { } enclosing && UnionSpecialization.CollidingName(method, enclosing) is { } renamed)
         {

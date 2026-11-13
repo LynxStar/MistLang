@@ -79,6 +79,7 @@ internal static class TextFreezeTable
         ["BackendDiagnostics.InferredSlotNestedInArgument"] = "'arg0' cannot infer 'arg1' from 'arg2': the value is carried inside another type's argument, where the C# backend has no member to read it back from.",
         ["BackendDiagnostics.ValueRoutedSlotOutOfReach"] = "'arg0' of 'arg1' cannot be read in arg2: it is closed somewhere with a value known only when the program runs, which the C# backend carries in each instance and in a hidden parameter of the owner's own members, and neither reaches here.",
         ["BackendDiagnostics.ValueRoutedParameterAsType"] = "'arg0' of 'arg1' cannot stand where a C# type is needed: it is closed somewhere with a value known only when the program runs, which the C# backend carries in each instance rather than in a C# type parameter, so no C# type names it.",
+        ["BackendDiagnostics.CoincidingUnionConstituents"] = "'arg0' cannot be carried by the C# backend: 'arg1' and 'arg2' are one C# type, so its carrier cannot tell them apart.",
         ["CallableSignatureDiagnostics.DuplicateOperatorSignature"] = "Type 'arg0' already declares operator 'arg1' with parameter types (arg2); the return type does not distinguish overloads.",
         ["CallableSignatureDiagnostics.DuplicateCastSignature"] = "Type 'arg0' already declares an arg1 cast operator from 'arg2' to 'arg3'.",
         ["CommonDiagnostics.StdlibParse"] = "Failed to load Standard Library source: arg0: arg1",

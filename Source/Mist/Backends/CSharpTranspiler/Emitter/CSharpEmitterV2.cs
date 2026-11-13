@@ -128,11 +128,11 @@ internal sealed class CSharpEmitterV2
         var closures = ConstraintClosureMap.Build((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
+        using var routes = SlotRoutes.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
-        using var routes = SlotRoutes.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 
@@ -552,7 +552,7 @@ internal sealed class CSharpEmitterV2
 
     internal static bool IsOpen(IMistType type)
     {
-        return TypeParameterReach.Collect(type).Count > 0;
+        return TypeParameterReach.Carried(type).Count > 0;
     }
 
     /// <summary>

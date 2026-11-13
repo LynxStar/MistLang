@@ -111,7 +111,10 @@ internal static class MonomorphReference
                 continue;
             }
 
-            written.Add(emitType(typeArguments[i]));
+            if(!SlotRoutes.IsValueRouted(parameters[i]))
+            {
+                written.Add(emitType(typeArguments[i]));
+            }
         }
 
         return written.Count == 0 ? "" : $"<{string.Join(", ", written)}>";
@@ -122,7 +125,8 @@ internal static class MonomorphReference
     /// packs is still symbolic -- the latter being a reference from inside the family's own
     /// declaration, which the specialization already answers with its own parameters. The arguments
     /// are spelled only once the reference is known to be one: spelling a type can report a
-    /// refusal, which a construction answered elsewhere would then report twice.
+    /// refusal, which a construction answered elsewhere would then report twice. A value-routed
+    /// slot is left out, as the specialization leaves it out of its parameter list.
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emitType)
     {
@@ -174,7 +178,7 @@ internal static class MonomorphReference
                 widths.Add(elements.Count);
                 arguments.AddRange(elements.Select(emitType));
             }
-            else
+            else if(!SlotRoutes.IsValueRouted(parameters[i]))
             {
                 arguments.Add(emitType(constructed.TypeArguments[i]));
             }

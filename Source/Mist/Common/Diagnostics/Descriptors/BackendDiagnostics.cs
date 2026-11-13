@@ -394,4 +394,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("parameter", SlotKind.Name), new Slot("owner", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic CoincidingUnionConstituents = new(
+        DiagnosticNumber.Mint("MIST0501"),
+        Title: "Union constituents coincide in C#",
+        Template: "'{union}' cannot be carried by the C# backend: '{first}' and '{second}' are one C# type, so its carrier cannot tell them apart.",
+        Description: "A union is carried by a C# struct with one entry, one test and one accessor per constituent, named for the constituent's C# type. A dependent parameter closed somewhere with a runtime value leaves the C# type, so every closing of that type is the one C# type, and two closings of it in one union name the same entry twice. Hold one closing in the union and compare the slot's value where the test is made, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("union", SlotKind.Type), new Slot("first", SlotKind.Type), new Slot("second", SlotKind.Type)]);
 }

@@ -14,7 +14,11 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// and <c>int[5]</c> are distinct constituents that one carrier may hold side by side, and two
 /// unions differing only in a length are distinct carriers. A refinement keeps its identity only
 /// where erasing it would give two constituents one name, because a union's printed text is still
-/// its carrier's name: an int refinement beside a byte one prints as <c>Union_Byte_Int32</c>.
+/// its carrier's name: an int refinement beside a byte one prints as <c>Union_Byte_Int32</c>. A
+/// value-routed slot leaves the C# type (see <see cref="SlotRoutes"/>), so every closing of that type
+/// is one constituent, named by the slot's domain whatever stands in the slot -- a literal, a capture,
+/// the parameter itself -- and two such closings in one union are the pair <c>Coinciding</c> reports,
+/// which no carrier can hold apart.
 /// </summary>
 internal static class UnionCarrierNames
 {
@@ -49,6 +53,23 @@ internal static class UnionCarrierNames
         return erased ? ConstituentName(constituent) : Spelled(constituent, keepsRefinements: true);
     }
 
+    public static (IMistType First, IMistType Second)? Coinciding(UnionType union)
+    {
+        var named = new Dictionary<string, IMistType>(StringComparer.Ordinal);
+
+        foreach(var constituent in union.Constituents)
+        {
+            var name = ConstituentName(constituent, union);
+
+            if(!named.TryAdd(name, constituent))
+            {
+                return (named[name], constituent);
+            }
+        }
+
+        return null;
+    }
+
     public static string ConstituentName(IMistType type)
     {
         return Spelled(type, keepsRefinements: false);
@@ -70,7 +91,7 @@ internal static class UnionCarrierNames
                     + (LengthErasure.ErasedLength(constructed)?.ToString(CultureInfo.InvariantCulture) ?? ""),
             ConstructedType constructed
                 => $"{MistType.StripArity(constructed.Definition.Name)}_{constructed.TypeArguments.Count}_"
-                    + string.Join("_", constructed.TypeArguments.Select(spelled)),
+                    + string.Join("_", constructed.TypeArguments.Select((argument, ordinal) => spelled(Erased(constructed, ordinal) ?? argument))),
             LiftedType { Value: TypePackValue pack }
                 => $"Pack_{pack.Elements.Length}_" + string.Join("_", pack.Elements.Select(spelled)),
             LiftedType lifted => DependentCarrierNames.Carrier(lifted.Value) ?? spelled(lifted.Type),
@@ -83,6 +104,11 @@ internal static class UnionCarrierNames
                     + string.Join("_", function.ParameterTypes.Append(function.ReturnType).Select(spelled)),
             _ => MistType.StripArity(type.Name),
         };
+    }
+
+    private static IMistType? Erased(ConstructedType constructed, int ordinal)
+    {
+        return SlotRoutes.ValueRoutedSlot(constructed.Definition, ordinal)?.Domain;
     }
 
     private static bool IsArray(ConstructedType constructed)

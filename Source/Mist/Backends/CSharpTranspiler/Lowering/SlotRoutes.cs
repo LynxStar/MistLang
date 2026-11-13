@@ -59,6 +59,20 @@ internal sealed class SlotRoutes : IDisposable
         return current?.valueRouted.Contains(parameter) == true;
     }
 
+    public static TypeParameter? ValueRoutedSlot(IMistType definition, int ordinal)
+    {
+        return ValueRoutedSlot(definition as IHasTypeParameters, ordinal);
+    }
+
+    public static TypeParameter? ValueRoutedSlot(IHasTypeParameters? definition, int ordinal)
+    {
+        return definition is not null
+            && ordinal < definition.TypeParametersList.Count
+            && IsValueRouted(definition.TypeParametersList[ordinal])
+                ? definition.TypeParametersList[ordinal]
+                : null;
+    }
+
     public static IReadOnlyList<TypeParameter> ValueRouted(IMistType? type)
     {
         var definition = type is ConstructedType constructed ? constructed.Definition : type;

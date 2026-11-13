@@ -68,7 +68,7 @@ internal static class TypeNameEmitter
 
         var closed = typeArguments.Select(Closed).ToList();
 
-        return UnionSpecialization.IsClosed(closed) ? UnionSpecialization.Name(method.Name, closed) : null;
+        return UnionSpecialization.IsClosed(closed) ? UnionSpecialization.Name(method, closed) : null;
     }
 
     public static string Emit(IMistType type, DiagnosticBag diagnostics)
@@ -249,10 +249,18 @@ internal static class TypeNameEmitter
 
     private static string EmitUnion(UnionType union)
     {
-        return OptionalUnion.InnerType(union) is { } inner
-            ? EmitOptional(inner)
-            : UnionCarrierNames.CarrierName(union)
-            ;
+        if(OptionalUnion.InnerType(union) is { } inner)
+        {
+            return EmitOptional(inner);
+        }
+
+        if(UnionCarrierNames.Coinciding(union) is var (first, second))
+        {
+            EmissionDiagnostics.Refuse(
+                BackendDiagnostics.CoincidingUnionConstituents, DiagnosticSnapshot.Type(union), DiagnosticSnapshot.Type(first), DiagnosticSnapshot.Type(second));
+        }
+
+        return UnionCarrierNames.CarrierName(union);
     }
 
     private static IMistType Unaliased(IMistType type)

@@ -41,6 +41,14 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// instantiation rather than per arity, every pack closed along with every other parameter.
 /// </para>
 /// <para>
+/// A VALUE-ROUTED SLOT IS NO PART OF A SPECIALIZATION (see <see cref="SlotRoutes"/>): it leaves the C#
+/// type parameter list, so every closing of it spells the same C# type, and a union over it alone holds
+/// across instantiations as written. A declaration specialized for another parameter keeps the slot
+/// open in each copy -- the instance holds the parameter itself there, in its key, its name and its
+/// substitution -- so the copy still reads the hidden field or parameter that carries the value, and a
+/// use site names the copy by its carried arguments alone.
+/// </para>
+/// <para>
 /// OVERLOADS AN INSTANCE MAKES IDENTICAL are emitted under distinct names: `Take(K?)` beside `Take(int?)`
 /// is one C# signature twice in `Lifted<int>`, and Mist has already chosen which one each call means,
 /// so the call is named for its choice rather than left for C# to resolve between two equals. The one
@@ -138,7 +146,7 @@ internal sealed class UnionSpecialization
 
     public static string? NameOf(ConstructedType constructed)
     {
-        return Specializes(constructed.Definition) && TypeParameterReach.Collect(constructed).Count == 0
+        return Specializes(constructed.Definition) && TypeParameterReach.Carried(constructed).Count == 0
             ? Name(constructed)
             : null
             ;
@@ -146,12 +154,41 @@ internal sealed class UnionSpecialization
 
     public static string Name(ConstructedType instance)
     {
-        return Name(MistType.StripArity(instance.Definition.Name), instance.TypeArguments);
+        return Name(MistType.StripArity(instance.Definition.Name), Normalized(instance.Definition as IHasTypeParameters, instance.TypeArguments));
+    }
+
+    public static string Name(Method method, IReadOnlyList<IMistType> arguments)
+    {
+        return Name(method.Name, Normalized(method, arguments));
     }
 
     public static string Name(string declaredName, IReadOnlyList<IMistType> arguments)
     {
         return $"{declaredName}__{string.Join("__", arguments.Select(Part))}";
+    }
+
+    private static IReadOnlyList<IMistType> Normalized(IHasTypeParameters? definition, IReadOnlyList<IMistType> arguments)
+    {
+        var normalized = arguments.ToList();
+
+        for(var ordinal = 0; ordinal < normalized.Count; ordinal++)
+        {
+            if(SlotRoutes.ValueRoutedSlot(definition, ordinal) is { } slot)
+            {
+                normalized[ordinal] = slot;
+            }
+        }
+
+        return normalized;
+    }
+
+    private static ConstructedType Normalized(ConstructedType candidate, TypeInterner interner)
+    {
+        var normalized = Normalized(candidate.Definition as IHasTypeParameters, candidate.TypeArguments);
+
+        return normalized.Zip(candidate.TypeArguments).All(pair => ReferenceEquals(pair.First, pair.Second))
+            ? candidate
+            : interner.GetOrCreateConstructedType(candidate.Definition, normalized, candidate.Enclosing);
     }
 
     private static string Part(IMistType argument)
@@ -249,7 +286,7 @@ internal sealed class UnionSpecialization
 
     public static bool IsClosed(IReadOnlyList<IMistType> arguments)
     {
-        return arguments.All(argument => TypeParameterReach.Collect(argument).Count == 0);
+        return arguments.All(argument => TypeParameterReach.Carried(argument).Count == 0);
     }
 
     private static UnionSpecialization Discover(ProgramModelClass model, DiagnosticBag diagnostics)
@@ -289,7 +326,7 @@ internal sealed class UnionSpecialization
 
         void require(IMistType type)
         {
-            foreach(var parameter in TypeParameterReach.Collect(type))
+            foreach(var parameter in TypeParameterReach.Carried(type))
             {
                 if(typeOwners.TryGetValue(Declared(parameter), out var owner))
                 {
@@ -365,17 +402,18 @@ internal sealed class UnionSpecialization
             return false;
         }
 
-        void admitType(ConstructedType candidate)
+        void admitType(ConstructedType closing)
         {
-            if(candidate.Definition is not MemberType definition
+            if(closing.Definition is not MemberType definition
                 || !types.TryGetValue(definition, out var list)
-                || TypeParameterReach.Collect(candidate).Count > 0
+                || TypeParameterReach.Carried(closing).Count > 0
                 || !room(list, BackendFacts.Symbol(definition, "", MistType.StripArity(definition.Name)))
-                || !seen(definition).Add(Name(candidate)))
+                || !seen(definition).Add(Name(closing)))
             {
                 return;
             }
 
+            var candidate = Normalized(closing, interner);
             list.Add(candidate);
 
             var substitution = TypeSubstitution.ForReceiver(candidate);
@@ -392,16 +430,17 @@ internal sealed class UnionSpecialization
             }
         }
 
-        void admitMethod(Method method, IReadOnlyList<IMistType> arguments)
+        void admitMethod(Method method, IReadOnlyList<IMistType> closing)
         {
             if(!methods.TryGetValue(method, out var list)
-                || !IsClosed(arguments)
+                || !IsClosed(closing)
                 || !room(list, DiagnosticSnapshot.Symbol(method, method.Name))
-                || !seen(method).Add(Name(method.Name, arguments)))
+                || !seen(method).Add(Name(method, closing)))
             {
                 return;
             }
 
+            var arguments = Normalized(method, closing);
             list.Add(arguments);
 
             var own = TypeSubstitution.ForMethod(method, arguments);
@@ -492,7 +531,7 @@ internal sealed class UnionSpecialization
 
     private static bool NeedsSpecialization(UnionType union)
     {
-        if(TypeParameterReach.Collect(union).Count == 0)
+        if(TypeParameterReach.Carried(union).Count == 0)
         {
             return false;
         }
@@ -512,7 +551,7 @@ internal sealed class UnionSpecialization
 
     private static bool Mentions(IMistType type, IReadOnlyList<TypeParameter> parameters)
     {
-        return TypeParameterReach.Collect(type).Any(parameter => parameters.Contains(Declared(parameter)));
+        return TypeParameterReach.Carried(type).Any(parameter => parameters.Contains(Declared(parameter)));
     }
 
     private static TypeParameter Declared(TypeParameter parameter)

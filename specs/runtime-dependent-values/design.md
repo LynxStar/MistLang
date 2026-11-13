@@ -104,6 +104,39 @@ binds a bare name through `IdentifierBinder.BindIdentifier` and a dotted path
 through the postfix binder, makes the `SlotCapture`, and returns the
 `CapturedValue`. With no value binder the name is the Requirement 8.1 refusal.
 
+Four sites were too few. Requirement 5 puts no limit on where in a body a
+closing may name a value, so every place a body writes a type owns the
+captures of that type. At a2d87f2f these bind: a typed local with or without an
+initializer, a typed `for` initializer, `new`, a cast, `as`, a type pattern
+with or without a binding, a switch arm, stated method arguments on every call
+form, and a member or a call reached through a closed type.
+
+These are still refused as MIST0487 and are to bind. Each needs its node to
+own the capture, a step in the flow so Stage 5 judges it, and the backend to
+evaluate it once where it is written:
+
+- a typed `foreach` variable;
+- a typed deconstruction, `(Ring<n> x, int y) = pair`;
+- a `with` binding;
+- `default(Ring<n>)`;
+- the element type of an array creation or a stack allocation,
+  `new Cell<n>[3]`;
+- a method group named as a value with stated arguments, `First<Ring<n>>`,
+  which owns its captures as a call does.
+
+A union check has the same fault from the other side. With
+`Ring<n> | string a`, the test `a is Ring<n> x` is MIST0345, because the
+constituent and the tested type are two captures compared as written. The
+check admits a tested type that differs from a constituent only in slots
+that are not both literals, as MIST0193 already does, and Stage 5 judges the
+pair.
+
+Two sites are the owner's to rule on, because each is a signature written
+inside a body and Requirement 8.1 was written for a method's own parameters:
+a local function's parameter and return types, and a typed lambda parameter.
+A type value, `var t = Ring<n>;`, is refused for the backend's reason and is
+listed under *Identity by value*.
+
 Stated method arguments are resolved before the candidates are known
 (`StatedMethodArguments.cs:26`). They are resolved per candidate instead, since
 only a candidate says whether a position is a slot. A name that is a type for

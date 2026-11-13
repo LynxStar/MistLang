@@ -342,6 +342,89 @@ the language contract is not narrowed by it:
 - A test against a closing nested in another type's argument,
   `List<Array<int, n>>`, as MIST0013 refuses for a sized element today.
 
+Stage 4 delivered the first three as MIST0491 to MIST0493 and added these as
+its reviews found them. Each is a place where a slot that has left the C# type
+cannot be answered:
+
+- A test against a runtime closing under `not` or `or`, MIST0494. The
+  comparison has no binding to read through and no guard to carry it.
+- A constructor constraint closed by a value-routed type, MIST0495. Neither
+  C#'s `new()` nor the synthesized factory supplies the hidden constructor
+  argument.
+- An array creation or a stack allocation whose element is a closing of a
+  value-routed struct, MIST0496. The elements start from the CLR zero, the
+  hidden field with them.
+- Overloads that differ only in a slot the backend does not carry in the type,
+  MIST0497. `Name(int[3])` beside `Name(int[4])` is one of them.
+- A method's slot inferred from a closing nested in another type's argument,
+  MIST0498. No member reads the value back.
+- A read of a value-routed parameter where no value reaches, MIST0499: a
+  conversion into the type, a nested type, an attribute argument, and a copy
+  that union specialization makes with a closing of the parameter's owner in a
+  type argument.
+- A value-routed parameter written as a type, MIST0500: `x is N`, `List<N>`.
+- A union that holds two closings of one value-routed type, MIST0501.
+
+### A closing as a type argument
+
+A generic declaration's C# body is shared by every closing of its type
+parameters. Once a slot leaves the C# type, `Tester<Ring<3>>`,
+`Tester<Ring<5>>` and `Tester<Ring<n>>` are one C# type, and the body cannot
+tell them apart. Stage 4 delivered with four such programs printing a wrong
+answer. They were measured at 7926a184, with `Ring` and `Cell` value-routed by
+a `new Ring<n>()` or `new Cell<n>()` elsewhere in the program:
+
+| Program | Prints | Correct |
+|---|---|---|
+| `new Tester<Ring<5>>().Is(three)`, where `Is` is `return x is T;` and `three` is a `Ring<3>` | `True` | `False` |
+| `Counter<Ring<3>>.hits = 1; Counter<Ring<4>>.hits = 2;` and then both are read | `2 2` | `1 2` |
+| `Blank<Cell<7>>()[0].Size()`, where `Blank` is `return new T[2];` and `Cell` is a struct | `0` | `7` |
+| `Same<Ring<3>, Ring<5>>()`, where `Same` compares the type values of its two parameters | `True` | `False` |
+
+All four close the type with literals. One runtime closing anywhere routes the
+declaration, and every closing of it loses the slot.
+
+The backend refuses these where the closing is written. `SlotSensitivity`, a
+whole-program pass beside `SlotRoutes`, marks a type parameter of a
+declaration slot-sensitive, to a fixed point, when the declaration:
+
+- tests a value against a type that mentions the parameter, in an `is`, a type
+  pattern or an `as`, unless the value's own type already admits only that
+  closing: the value is of the parameter's type, or of a union that holds the
+  parameter as a constituent. `T | Void` and `T | string` are tested as today;
+- creates storage of the parameter that starts from the CLR zero: `new T[k]`
+  or a stack allocation;
+- declares static storage, where the declaration is a type;
+- reads the parameter as a type value;
+- passes a type that mentions the parameter to a slot-sensitive parameter of
+  another declaration, as a type argument, a base or an implemented abstract.
+
+A type argument that mentions a closing of a value-routed type and fills a
+slot-sensitive parameter is refused with one backend diagnostic, reported at
+the closing whether it is stated or inferred, and naming the parameter, its
+declaration and the reason. The storage reason is measured for a struct
+closing. Whether a class closing can reach it is for the stage that builds
+this to measure: the class `Ring` of these probes is refused by the frontend
+as not `stampable` (MIST0178). A cast is not a reason: a cast does not narrow
+(MIST0149).
+
+Everything else a body does with its parameter is unaffected: holding it,
+passing it, returning it, and calling members through it. `List<Ring<n>>` runs
+today and still does.
+
+Three things this leaves:
+
+- A copy that union specialization makes is refused more widely than it needs
+  to be (MIST0499 on a read the member's own body wrote, MIST-1366). With the
+  first exemption above the copy's test of `T | string` needs no comparison,
+  and the read can be told from one that came through the argument.
+- A CLR generic's body is not visible. Whether a CLR method that tests its type
+  parameter, as `OfType` does, can be reached with such a closing is measured
+  by the stage that builds this, and reported, not assumed.
+- Array, Span and ReadOnlySpan have been erased since before this spec, and
+  `IsA<int[3]>(new int[5])` has answered `True` throughout. That is not
+  changed here.
+
 ## Diagnostics
 
 New, numbered from MIST0486 in the order they land:
@@ -356,7 +439,8 @@ New, numbered from MIST0486 in the order they land:
   Test it with an 'is' pattern instead."
 - `SlotNotInferable`, Stage 4: "'{parameter}' cannot be inferred from an
   argument of type '{type}'. State it between angle brackets."
-- Three backend refusals, one for each of the first three shortfalls above.
+- The backend refusals of *Where the C# backend falls short*, MIST0491 to
+  MIST0501, and one more for *A closing as a type argument*.
 
 Changed: MIST0298 is no longer reported for a value's name in a dependent
 slot. MIST0301 is no longer reported for a slot read through an instance.
@@ -424,7 +508,9 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    MIST-1357.
 4. The backend: `SlotRoutes`, the value route, `ArrayLowering`, the four
    refusals. The first three "wrong afterwards" rows of the proposal are
-   closed here and each gets its test.
+   closed here and each gets its test. `SlotSensitivity` and its refusal
+   follow as their own delivery before stage 5, because stage 4 landed with
+   the four wrong answers of *A closing as a type argument*.
 5. Requirement 6: the fourth kind of domain.
 6. `samples/RuntimeDependentValues`, the book chapter, and the sentences the
    requirements revise in dependent-types, adhoc-refinement-constraints,

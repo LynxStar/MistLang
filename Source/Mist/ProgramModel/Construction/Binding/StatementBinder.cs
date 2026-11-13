@@ -58,7 +58,8 @@ internal static class StatementBinder
     private static Statement BindUninitialized(
         UninitializedVariableDeclarationNode node, BindingContext ctx, BuilderContext context)
     {
-        var resolution = context.Resolver.ResolveWithFailure(node.Type, ctx.Scope);
+        var values = new SlotValueBinder(ctx, context);
+        var resolution = context.Resolver.ResolveWithFailure(node.Type, ctx.Scope, values);
         var isRef = MemberTypeBuilder.IsRefSpecifier(node.OwnershipSpecifier);
 
         if(isRef)
@@ -74,7 +75,7 @@ internal static class StatementBinder
         };
 
         ctx.Scope.DeclareLocal(local, node, context.Diagnostics, node.Name.Span);
-        return new LocalDeclarationStatement(local, initializer: null);
+        return new LocalDeclarationStatement(local, initializer: null) { Captures = values.Captures };
     }
 
     internal static bool ScopesTheTail(StatementNode node)
@@ -546,10 +547,13 @@ internal static class StatementBinder
         switch(node)
         {
             case ForInitializerVariableDeclarationForInitializerNode typed:
-                return BindLocalDeclaration(
-                    typed, typed.Name, typed.Initializer,
-                    context.Resolver.ResolveWithFailure(typed.VariableDeclaration, forScope),
-                    null, false, ctx, context);
+                {
+                    var values = new SlotValueBinder(ctx, context);
+                    return BindLocalDeclaration(
+                        typed, typed.Name, typed.Initializer,
+                        context.Resolver.ResolveWithFailure(typed.VariableDeclaration, forScope, values),
+                        null, false, ctx, context, values.Captures);
+                }
 
             case ForInitializerVarDeclarationForInitializerNode varDecl:
                 return BindLocalDeclaration(

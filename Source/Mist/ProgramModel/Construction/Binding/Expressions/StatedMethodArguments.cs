@@ -31,16 +31,17 @@ internal static class StatedMethodArguments
         var written = 1 + stated.TypeArguments.Length;
         var candidates = group.Candidates;
         var perCandidate = ownsCaptures ? ResolvePerCandidate(candidates, stated, written, ctx, context) : null;
+        var values = ownsCaptures ? new SlotValueBinder(ctx, context) : null;
         IReadOnlyList<IMistType>? arguments = null;
         Withheld? shared = null;
         if(perCandidate is null)
         {
-            arguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope);
+            arguments = Shared(stated, values, ctx, context);
         }
         else if(candidates.Any(candidate => !perCandidate.ContainsKey(candidate) && PackBinding.AbsorbingSlot(candidate.TypeParametersList) is not null)
             || perCandidate.Values.Any(resolved => resolved.Arguments.Any(argument => argument is SpreadType)))
         {
-            shared = context.Diagnostics.Withhold(() => arguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope));
+            shared = context.Diagnostics.Withhold(() => arguments = Shared(stated, values, ctx, context));
             if(arguments!.Any(argument => argument is SpreadType))
             {
                 shared.Commit();
@@ -87,8 +88,16 @@ internal static class StatedMethodArguments
             Paths = group.Paths,
             StatedTypeArguments = arguments ?? shape,
             StatedShared = shared,
+            StatedSharedCaptures = arguments is null ? [] : values?.Captures ?? [],
             StatedPerCandidate = perCandidate,
         };
+    }
+
+    private static IReadOnlyList<IMistType> Shared(TypeArgumentListNode stated, SlotValueBinder? values, BindingContext ctx, BuilderContext context)
+    {
+        return values is null
+            ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
+            : context.Resolver.ResolveTypeArguments(stated, ctx.Scope, values);
     }
 
     /// <summary>
@@ -137,8 +146,8 @@ internal static class StatedMethodArguments
     /// Only a candidate says whether a written position is a dependent slot, so a list is resolved once
     /// per distinct shape of slots and shared by the candidates of that shape, with each resolution's
     /// reports withheld for the call to settle once it has chosen. A candidate without a slot reads it
-    /// as the shared resolution does, with no value binder. Only a call owns the captures, so a group
-    /// named as a value reads no slot and takes the shared resolution alone.
+    /// as the shared resolution does, every written position a type. Only a call owns the captures, so a
+    /// group named as a value reads no slot and takes the shared resolution alone.
     /// </summary>
     private static Dictionary<Method, StatedResolution>? ResolvePerCandidate(
         IReadOnlyList<Method> candidates, TypeArgumentListNode stated, int written, BindingContext ctx, BuilderContext context)
@@ -169,12 +178,11 @@ internal static class StatedMethodArguments
 
             if(shape.Resolution is null)
             {
-                var values = slotted(candidate) ? new SlotValueBinder(ctx, context) : null;
+                var values = new SlotValueBinder(ctx, context);
                 IReadOnlyList<IMistType> arguments = [];
-                var withheld = context.Diagnostics.Withhold(() => arguments = values is null
-                    ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
-                    : context.Resolver.ResolveTypeArguments(stated, ctx.Scope, candidate.TypeParametersList, values));
-                shape = (slots, new StatedResolution(arguments, values?.Captures ?? [], withheld));
+                var withheld = context.Diagnostics.Withhold(
+                    () => arguments = context.Resolver.ResolveTypeArguments(stated, ctx.Scope, candidate.TypeParametersList, values));
+                shape = (slots, new StatedResolution(arguments, values.Captures, withheld));
                 shapes.Add(shape);
             }
 

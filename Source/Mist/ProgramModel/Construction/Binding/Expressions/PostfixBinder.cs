@@ -14,6 +14,7 @@ internal static class PostfixBinder
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
     {
         Expression result;
+        IReadOnlyList<SlotCapture> owed = [];
         var increment = Array.FindIndex([.. node.Suffix], suffix => suffix is IncrementSuffixPostfixSuffixNode);
         var primaryTarget = node.Suffix.Length == 0 ? ctx.TargetType : ResultPropagationBinder.ProjectionTarget(node, ctx);
         using(increment >= 0
@@ -22,7 +23,9 @@ internal static class PostfixBinder
         {
             using(ctx.PushTargetType(increment >= 0 ? null : primaryTarget, node.Suffix.Length == 0 && ctx.TargetTypeIsFailed))
             {
-                result = ExpressionBinder.BindPrimary(node.Target, ctx, context);
+                result = node is { Target: GenericTypeMemberAccessExpressionPrimaryNode closed, Suffix: [InvocationSuffixPostfixSuffixNode, ..] }
+                    ? GenericTypeMemberBinder.BindCallee(closed, ctx, context, out owed)
+                    : ExpressionBinder.BindPrimary(node.Target, ctx, context);
             }
 
             for(var i = 0; i < node.Suffix.Length; i++)
@@ -35,7 +38,7 @@ internal static class PostfixBinder
 
                 using(ctx.PushTargetType(i == node.Suffix.Length - 1 ? ctx.TargetType : null, i == node.Suffix.Length - 1 && ctx.TargetTypeIsFailed))
                 {
-                    result = BindPostfixSuffix(node.Suffix[i], result, ctx, context);
+                    result = BindPostfixSuffix(node.Suffix[i], result, ctx, context, i == 0 ? owed : []);
                 }
             }
         }
@@ -132,7 +135,8 @@ internal static class PostfixBinder
         return new TypeLiteralExpression(node, type, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
     }
 
-    private static Expression BindPostfixSuffix(PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context)
+    private static Expression BindPostfixSuffix(
+        PostfixSuffixNode suffix, Expression receiver, BindingContext ctx, BuilderContext context, IReadOnlyList<SlotCapture> owed)
     {
         switch(suffix)
         {
@@ -141,7 +145,7 @@ internal static class PostfixBinder
                     BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context, ownsCaptures: false);
 
             case InvocationSuffixPostfixSuffixNode invocation:
-                return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context);
+                return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context, captures: owed);
 
             case MemberAccessSuffixPostfixSuffixNode memberAccess:
                 return BindMemberAccess(suffix, receiver, memberAccess.Name.Lexeme, ctx, context);

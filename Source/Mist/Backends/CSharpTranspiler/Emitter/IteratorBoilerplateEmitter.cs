@@ -28,16 +28,16 @@ internal static class IteratorBoilerplateEmitter
 
         foreach(var (reached, definition, _) in AbstractInheritance.Reached(SlotLift.Reached(type), interner: null))
         {
-            var element = reached is ConstructedType { TypeArguments.Count: > 0 } constructed
-                ? TypeNameEmitter.Emit(constructed.TypeArguments[0])
-                : "object";
-
             if(Is(definition, WellKnownTypes.IEnumerator) && emitted.Add("enumerator"))
             {
                 EmitEnumerator(type, declared, writer, ref anyEmitted);
             }
             else if(Is(definition, WellKnownTypes.IEnumerable) && emitted.Add("enumerable"))
             {
+                var element = reached is ConstructedType { TypeArguments.Count: > 0 } constructed
+                    ? TypeNameEmitter.Emit(constructed.TypeArguments[0])
+                    : "object";
+
                 EmitEnumerable(element, writer, ref anyEmitted);
             }
         }

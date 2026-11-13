@@ -102,9 +102,7 @@ internal static partial class BodyEmitter
 
     private static TypeParameter? RoutedTypeValue(IMistType type)
     {
-        return type is TypeParameter parameter
-            ? SlotRoutes.IsValueRouted(parameter) ? parameter : null
-            : SlotRoutes.ValueRouted(type) is [var routed, ..] ? routed : null;
+        return SlotRoutes.ValueRouted(type) is [var routed, ..] ? routed : null;
     }
 
     internal static List<(TypeParameter Slot, IMistType Argument)> RuntimeSlots(IMistType tested)

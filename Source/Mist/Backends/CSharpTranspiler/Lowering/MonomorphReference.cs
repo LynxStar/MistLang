@@ -120,7 +120,9 @@ internal static class MonomorphReference
     /// <summary>
     /// The C# spelling, or null when this construction is not of a variadic family or one of its
     /// packs is still symbolic -- the latter being a reference from inside the family's own
-    /// declaration, which the specialization already answers with its own parameters.
+    /// declaration, which the specialization already answers with its own parameters. The arguments
+    /// are spelled only once the reference is known to be one: spelling a type can report a
+    /// refusal, which a construction answered elsewhere would then report twice.
     /// </summary>
     public static string? Emit(ConstructedType constructed, Func<IMistType, string> emitType)
     {
@@ -131,14 +133,12 @@ internal static class MonomorphReference
         }
 
         var parameters = generic.TypeParametersList;
-        var arguments = new List<string>();
-        var widths = new List<int>();
+        var expanded = new Dictionary<int, List<IMistType>>();
 
         for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
         {
             if(parameters[i].PackKind == TypePackKind.None)
             {
-                arguments.Add(emitType(constructed.TypeArguments[i]));
                 continue;
             }
 
@@ -156,13 +156,28 @@ internal static class MonomorphReference
                 return null;
             }
 
-            widths.Add(elements.Count);
-            arguments.AddRange(elements.Select(emitType));
+            expanded[i] = elements;
         }
 
-        if(widths.Count == 0)
+        if(expanded.Count == 0)
         {
             return null;
+        }
+
+        var arguments = new List<string>();
+        var widths = new List<int>();
+
+        for(var i = 0; i < parameters.Count && i < constructed.TypeArguments.Count; i++)
+        {
+            if(expanded.TryGetValue(i, out var elements))
+            {
+                widths.Add(elements.Count);
+                arguments.AddRange(elements.Select(emitType));
+            }
+            else
+            {
+                arguments.Add(emitType(constructed.TypeArguments[i]));
+            }
         }
 
         var name = MonomorphSet.SpecializedName(definition.Name, widths);

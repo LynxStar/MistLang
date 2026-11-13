@@ -384,4 +384,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("parameter", SlotKind.Name), new Slot("owner", SlotKind.Name), new Slot("site", SlotKind.Enum)]);
+
+    public static readonly MistDiagnostic ValueRoutedParameterAsType = new(
+        DiagnosticNumber.Mint("MIST0500"),
+        Title: "Value-routed parameter spelled as a type",
+        Template: "'{parameter}' of '{owner}' cannot stand where a C# type is needed: it is closed somewhere with a value known only when the program runs, which the C# backend carries in each instance rather than in a C# type parameter, so no C# type names it.",
+        Description: "A dependent parameter closed somewhere with a runtime value leaves the C# type parameter list, and its value lives in a hidden field of each instance and in a hidden parameter of the owner's members. Its name written as a type, in a declared type, a type argument, a type test or switch pattern, a construction or a type value, names a C# type parameter the backend no longer declares. Write the parameter where its value is wanted and compare against that value, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name), new Slot("owner", SlotKind.Name)]);
 }

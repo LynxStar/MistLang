@@ -130,7 +130,7 @@ internal sealed class SlotReach : IDisposable
         return new SlotReach(sources, every: false, $"the restated default '{method.Name}'");
     }
 
-    private static string Owner(TypeParameter slot)
+    internal static string Owner(TypeParameter slot)
     {
         return MistType.StripArity(slot.DeclaringMethod?.Name ?? slot.DeclaringType?.Name ?? slot.Name);
     }

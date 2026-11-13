@@ -107,7 +107,7 @@ internal static class TypeNameEmitter
             MemberType memberType => MapMemberType(memberType),
             EnumType enumType => ShouldQualify(enumType) ? Qualified(enumType) : IdentifierSpelling.Of(enumType.Name),
             PackElementType element => Emit(Specialized(element)),
-            TypeParameter typeParameter => DependentCarrierNames.Parameter(typeParameter),
+            TypeParameter typeParameter => EmitParameter(typeParameter),
             RefinedType refined => Emit(refined.BaseType),
             TypeAlias { AliasedType: { } aliased } => Emit(aliased),
             ErrorType => EmissionDiagnostics.Fallback("type", nameof(ErrorType), "/* error */"),
@@ -115,6 +115,24 @@ internal static class TypeNameEmitter
             UnknownType => "object",
             _ => type.Name,
         };
+    }
+
+    /// <summary>
+    /// A value-routed parameter is refused here, the one place every type position passes through, rather
+    /// than at each pattern, argument and declaration that can name it: the value route erases it from the
+    /// C# parameter list, so no C# type stands for it anywhere. Spelled as its domain so the file stays
+    /// readable; the build stops before Roslyn reads it.
+    /// </summary>
+    private static string EmitParameter(TypeParameter parameter)
+    {
+        if(!SlotRoutes.IsValueRouted(parameter))
+        {
+            return DependentCarrierNames.Parameter(parameter);
+        }
+
+        EmissionDiagnostics.Refuse(
+            BackendDiagnostics.ValueRoutedParameterAsType, new NameValue(parameter.Name), new NameValue(SlotReach.Owner(parameter)));
+        return SlotRoutes.Keyword(parameter);
     }
 
     /// <summary>

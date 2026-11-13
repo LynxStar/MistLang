@@ -22,7 +22,7 @@ namespace Mist.Tests.Backend;
 /// route</em>): where a slot's value lives once it leaves the C# type parameter list, how a read, a
 /// test and a call reach it, the shapes the backend refuses rather than miscompiles, and the places a
 /// bare read of a slot lands where no hidden member carries it: an operator, a nested type, an attribute
-/// argument and a restated default.
+/// argument and a restated default, and the type positions a value-routed parameter's own name is refused in.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ValueRouteEmissionTests
@@ -682,6 +682,65 @@ public sealed class ValueRouteEmissionTests
 
         var refusal = Assert.Single(Refused(literal));
         Assert.Equal("MIST0492", refusal.Number.Value);
+    }
+
+    [Fact]
+    public void ATypeValueOfAValueRoutedParameterIsRefusedWhereTheParameterIsSpelled()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var literal = new TypeLiteralExpression(HandBuiltModel.Node(), capacity, slots.Refinements.Built.Type("Type"));
+
+        var refusal = Assert.Single(Refused(literal));
+        Assert.Equal("MIST0500", refusal.Number.Value);
+        Assert.StartsWith("'Capacity' of 'Ring' cannot stand where a C# type is needed", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ADeclaredTypeNamingAValueRoutedParameterIsRefused()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        ring.FieldsList.Add(new Field("Items", slots.Closed(ListType(), capacity), OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public }) { DeclaringType = ring });
+        var diagnostics = new DiagnosticBag();
+
+        TypeEmitter.EmitTypeBody(ring, ConstraintClosureMap.Build(slots.Refinements.Built.Model, diagnostics), slots.Refinements.Built.Model.VariadicUses, new CSharpWriter(), diagnostics);
+
+        var refusals = diagnostics.ToImmutableArray();
+        Assert.NotEmpty(refusals);
+        Assert.All(refusals, refusal => Assert.Equal("MIST0500", refusal.Number.Value));
+    }
+
+    [Fact]
+    public void ATypeArgumentNamingAValueRoutedParameterIsRefused()
+    {
+        var program = new ClassType("Program", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode());
+        var name = new Method("Name", slots.Int, [], new MemberModifiers { IsStatic = true }) { DeclaringType = program, Scope = program.Scope };
+        name.TypeParametersList.Add(new TypeParameter("T", 0, program.Scope, null) { DeclaringMethod = name });
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var refusal = Assert.Single(Refused(Call(name, [capacity], [], [])));
+        Assert.Equal("MIST0500", refusal.Number.Value);
+    }
+
+    [Fact]
+    public void AConstructionNamingAValueRoutedParameterIsRefused()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var creation = new NewExpression(HandBuiltModel.Node(), slots.Closed(ListType(), capacity), [], null, [], null);
+
+        var refusal = Assert.Single(Refused(creation));
+        Assert.Equal("MIST0500", refusal.Number.Value);
+    }
+
+    [Fact]
+    public void ATypeTestNamingAValueRoutedParameterIsRefusedWithOrWithoutABinding()
+    {
+        using var routes = SlotRoutes.Enter([capacity]);
+        var scrutinee = HandBuiltRefinements.Local(UnknownType.Instance, "x");
+
+        var bound = Assert.Single(Refused(Is(scrutinee, Tested(capacity, "y"))));
+        var bare = Assert.Single(Refused(Is(scrutinee, new TypeTestPattern(HandBuiltModel.Node(), capacity, binding: null))));
+        Assert.Equal("MIST0500", bound.Number.Value);
+        Assert.Equal("MIST0500", bare.Number.Value);
     }
 
     [Fact]

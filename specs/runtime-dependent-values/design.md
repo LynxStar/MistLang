@@ -478,6 +478,56 @@ The delivery hands in, for each of the four, the list of every place its
 mechanism touches, each marked done, cannot occur, or left with its reason.
 Stage 4 had no such list until its fourth review.
 
+### Identity by value: static storage
+
+Item 5. This is Requirement 10's own example. At afd43acab the declaration of
+`hits` is refused with MIST0491 because of the last two lines:
+
+```mist
+public class Counter<N:int>
+{
+    public static int hits;
+}
+
+Counter<1>.hits = 5;
+Console.WriteLine(Counter<2>.hits);     // 0
+var n = GetOne();                       // 1 when the program runs
+Console.WriteLine(Counter<n>.hits);     // 5
+```
+
+Closed only with literals, the same type keeps separate storage today: a
+static field, a static initializer that reads `N`, a static auto-property, and
+a static method and an instance method that read the field all answer per
+closing.
+
+A value-routed type's static storage moves into a holder. The holder is a
+nested C# class with one instance field for each static field and each static
+auto-property. Its constructor takes the type's value-routed slots and runs
+the static initializers in declaration order, so an initializer that reads
+`N` reads the holder's own value. The type keeps one table from the slot
+values to the holder.
+
+A read or a write of static storage through a closing, `Counter<n>.hits`,
+finds the holder for the closing's values and uses its field. Inside the
+type's own members the values are the hidden field or the hidden parameters.
+A holder is made on first use and exactly once for a value, as a C# static
+initializer runs exactly once, so the table hands out one holder when two
+threads ask together.
+
+Two closings that are one type under Requirement 2 hold the same values, so
+they reach the same holder, which is Requirement 10.2. The table grows with
+the distinct values a program uses, as the requirement says it does. A type
+that also has type parameters, `Pair<T, N>`, keeps its C# type parameter, so
+its table is one per `T` with no further work. The key is the slot's value; a
+slot of the fourth kind needs value equality on its domain, which stage 5
+supplies.
+
+Static storage of an ordinary generic closed with a closing of a
+value-routed type, `Counter<Ring<3>>`, is item 8.
+
+The delivery hands in the list of every form of static storage and every
+place that reads or writes one, each marked as above.
+
 ### Where the C# backend falls short
 
 These were this design's first answer, written before the ruling above. Until

@@ -17,10 +17,13 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// slot from the first operand whose type carries it, and has no value when none does; a type nested in a
 /// value-routed type is no instance of it; an attribute argument is a constant; an abstract's default body
 /// restated in an implementing type reads the abstract's slot as that type's closing supplies it; a
-/// declaration copied per instantiation (see <see cref="UnionSpecialization"/>) at a closing of another
-/// type, <c>Holder&lt;Ring&lt;N&gt;&gt;</c>, is one C# copy for every value of that type's slot, so the
-/// copy has no value of it, while a copy of the slot's own declaration or of its members still reads the
-/// hidden name. A read no reach supplies is refused by name rather than written as a member C# cannot find.
+/// declaration copied per instantiation (see <see cref="UnionSpecialization"/>) with a closing standing in
+/// a type argument, <c>Holder&lt;Ring&lt;N&gt;&gt;</c> or Ring's own <c>Same&lt;Ring&lt;N&gt;&gt;</c>, is one
+/// C# copy for every value of that closing's slot, which belongs to whatever named the instance and not to
+/// the copy's receiver or hidden parameter, so the copy has no value of it; only the slot normalized into
+/// its own ordinal of the instance is the copy's own, and a copy whose argument carries the slot of its own
+/// declaration cannot tell the argument's value from its own, so it reads neither. A read no reach supplies
+/// is refused by name rather than written as a member C# cannot find.
 /// </summary>
 internal sealed class SlotReach : IDisposable
 {
@@ -137,35 +140,39 @@ internal sealed class SlotReach : IDisposable
 
     public static IDisposable? OfSpecialized(ConstructedType instance)
     {
-        var declared = (instance.Definition as IHasTypeParameters)?.TypeParametersList ?? [];
+        var own = (instance.Definition as IHasTypeParameters)?.TypeParametersList ?? [];
 
         return OfSpecialized(
-            instance.TypeArguments, declared,
-            $"the copy of '{MistType.StripArity(instance.Definition.Name)}' emitted for '{TypeDisplay.Mist(instance)}', which is one C# type for every value of it");
+            instance.TypeArguments, own,
+            $"the copy of '{MistType.StripArity(instance.Definition.Name)}' emitted for '{TypeDisplay.Mist(instance)}', which is one C# type for every value of it standing in its type arguments");
     }
 
     public static IDisposable? OfSpecialized(Method method, IReadOnlyList<IMistType> arguments)
     {
-        var declared = method.TypeParametersList
-            .Concat((method.DeclaringType as IHasTypeParameters)?.TypeParametersList ?? [])
-            .Concat(method.ClosedBlock?.TypeParametersList ?? []);
         var name = MistType.StripArity(method.Name);
 
         return OfSpecialized(
-            arguments, declared,
-            $"the copy of '{name}' emitted for '{name}<{string.Join(", ", arguments.Select(TypeDisplay.Mist))}>', which is one C# method for every value of it");
+            arguments, method.TypeParametersList,
+            $"the copy of '{name}' emitted for '{name}<{string.Join(", ", arguments.Select(TypeDisplay.Mist))}>', which is one C# method for every value of it standing in its type arguments");
     }
 
-    private static SlotReach? OfSpecialized(IReadOnlyList<IMistType> arguments, IEnumerable<TypeParameter> declared, string site)
+    private static SlotReach? OfSpecialized(IReadOnlyList<IMistType> arguments, IReadOnlyList<TypeParameter> own, string site)
     {
-        var own = new HashSet<TypeParameter>(declared, ReferenceEqualityComparer.Instance);
         var sources = new Dictionary<TypeParameter, string?>(ReferenceEqualityComparer.Instance);
 
-        foreach(var slot in arguments.SelectMany(TypeParameterReach.Collect))
+        for(var ordinal = 0; ordinal < arguments.Count; ordinal++)
         {
-            if(SlotRoutes.IsValueRouted(slot) && !own.Contains(slot))
+            if(ordinal < own.Count && ReferenceEquals(arguments[ordinal], own[ordinal]))
             {
-                sources[slot] = null;
+                continue;
+            }
+
+            foreach(var slot in TypeParameterReach.Collect(arguments[ordinal]))
+            {
+                if(SlotRoutes.IsValueRouted(slot))
+                {
+                    sources[slot] = null;
+                }
             }
         }
 

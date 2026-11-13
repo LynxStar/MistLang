@@ -17,8 +17,9 @@ namespace Mist.Tests.Backend;
 /// What the backend's other whole-declaration rewrites make of a value-routed slot (runtime-dependent-values
 /// design, <em>The value route</em>): a union over the slot alone is one C# spelling and specializes nothing;
 /// a declaration specialized for a carried parameter keeps the slot open in each copy, keyed and named
-/// without it; a copy of another declaration at a closing of the type carries no value of the slot and refuses
-/// each read of it; a union carrier names a closing of the type by the slot's domain whatever stands in the
+/// without it; a copy of any declaration with a closing of the type standing in a type argument, the type's own
+/// members included, carries no value of the slot and refuses each read of it, while the slot normalized into the
+/// copy's own ordinal stays in reach; a union carrier names a closing of the type by the slot's domain whatever stands in the
 /// slot, and refuses two closings of one such type; a variadic reference leaves the slot out of its arguments.
 /// </summary>
 [Trait("Tier", "2")]
@@ -181,6 +182,64 @@ public sealed class ValueRouteSpecializationTests
             refused.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ACopyOfTheOwnersOwnMethodWithItsClosingInATypeArgumentHasNoReachToItsSlot(bool isStatic)
+    {
+        var model = slots.Refinements.Built.Model;
+        var (same, tested) = OwnSame(isStatic);
+        _ = Union(tested, text);
+        model.GenericCalls.Record(same, [slots.Closed(ring, capacity)]);
+        using var routes = SlotRoutes.Enter([capacity]);
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
+
+        using(TypeEmitter.Specializing(same, Assert.Single(UnionSpecialization.InstancesOf(same))))
+        {
+            Assert.Equal("default", DependentCarrierNames.ValueRead(capacity));
+        }
+
+        Assert.Equal("__Capacity", DependentCarrierNames.ValueRead(capacity));
+
+        var refused = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refused.Number.Value);
+        Assert.StartsWith(
+            "'Capacity' of 'Ring' cannot be read in the copy of 'Same' emitted for 'Same<Ring<Capacity>>', which is one C# method for every value of it standing in its type arguments",
+            refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACopyOfAMethodWithItsOwnSlotInsideATypeArgumentReadsNeitherValueOfIt()
+    {
+        var model = slots.Refinements.Built.Model;
+        var (pick, item, m) = Pick();
+        _ = Union(item, text);
+        model.GenericCalls.Record(pick, [slots.Closed(ring, m), slots.Literal(5)]);
+        using var routes = SlotRoutes.Enter([capacity, m]);
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
+
+        var instance = Assert.Single(UnionSpecialization.InstancesOf(pick));
+
+        Assert.Same(m, instance[1]);
+
+        using(TypeEmitter.Specializing(pick, instance))
+        {
+            Assert.Equal("default", DependentCarrierNames.ValueRead(m));
+        }
+
+        Assert.Equal("__M", DependentCarrierNames.ValueRead(m));
+
+        var refused = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refused.Number.Value);
+        Assert.StartsWith(
+            "'M' of 'Pick' cannot be read in the copy of 'Pick' emitted for 'Pick<Ring<M>, M>', which is one C# method for every value of it standing in its type arguments",
+            refused.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void AUnionCarrierNamesAValueRoutedClosingByItsSlotsDomainWhateverStandsInTheSlot()
     {
@@ -279,6 +338,16 @@ public sealed class ValueRouteSpecializationTests
         tested.DeclaringMethod = same;
         owner.MethodsList.Add(same);
         _ = slots.Refinements.Built.Model.RegisterType(owner);
+        return (same, tested);
+    }
+
+    private (Method Same, TypeParameter Tested) OwnSame(bool isStatic)
+    {
+        var tested = new TypeParameter("T", 0, new Scope(null), null);
+        var same = new Method("Same", slots.Refinements.Bool, [new Parameter("v", Union(tested, text))], new MemberModifiers { IsStatic = isStatic }) { DeclaringType = ring, Scope = ring.Scope };
+        same.TypeParametersList.Add(tested);
+        tested.DeclaringMethod = same;
+        ring.MethodsList.Add(same);
         return (same, tested);
     }
 

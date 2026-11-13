@@ -388,6 +388,96 @@ comes:
   constants.
 - A dependent parameter written as a type, `x is N` (MIST0500, MIST-1363).
 
+### Identity by value: the first delivery
+
+Items 1 to 4. Each program was run at afd43acab and is refused there with the
+diagnostic its comment names. After the delivery it prints what the comment
+says.
+
+**A test under `not` or `or`.**
+
+```mist
+public class Ring<Capacity:int>
+{
+    public bool Differs(unknown other)
+    {
+        return other is not Ring<Capacity>;     // MIST0494
+    }
+}
+
+var x = new Ring<n>();      // n is 5
+x.Differs(new Ring<5>())    // False
+x.Differs(new Ring<6>())    // True
+```
+
+A C# pattern has no place for the comparison under `not` or `or`. The emitter
+moves a comparison out of a pattern only from a conjunction, through the
+`hoisted` list of `EmitPattern`, and refuses where there is no list. A pattern
+that holds a runtime test under a combinator is emitted as a boolean
+expression over the scrutinee instead. The scrutinee is bound once, each test
+is its own `s is Ring t && t.__Capacity == v`, and `not`, `or` and `and`
+become `!`, `||` and `&&`. A `switch` arm becomes `var s when <expression>`.
+
+**A slot inferred from a closing nested in an argument.**
+
+```mist
+static int Len<N:int>(List<Ring<N>> rings) { return N; }
+
+var list = new List<Ring<n>>();    // n is 5
+n = 9;
+Len(list)                          // 5; MIST0498
+```
+
+The value is the capture's, taken where `list`'s type was written. It cannot
+be read from `n` again, and a list has no element to read it from. A capture
+that a later node reads, and that no receiver or argument carries, is kept in
+a C# local. The local is declared before the statement that owns the capture
+and assigned where the type is written, so the initializer still runs once
+and in order. `CallSlotArguments` and `GroupSlotArguments` read that local
+where they refuse today. A slot nested under `unknown`, as in
+`List<Ring<unknown>>`, has no value anywhere. It stays refused and belongs
+with the CLR container limit above.
+
+**Overloads that differ only in a slot.**
+
+```mist
+static string Name(Ring<3> r) { return "three"; }
+static string Name(Ring<4> r) { return "four"; }    // MIST0497
+
+Name(new Ring<3>())    // three
+Name(new Ring<4>())    // four
+```
+
+The binder chooses the overload from the Mist types, and a call with no proof
+of the closing does not compile, so the choice never needs the value at run
+time. Members of one name whose emitted parameter lists coincide take distinct
+C# names. A name is derived from the member's own Mist signature, so it does
+not change when another overload is added. Every reference to the member
+spells that name: a call, a method group, an implementing type's member for an
+abstract's, and a restated default. A constructor and an indexer cannot be
+renamed in C#: a constructor takes a discriminating parameter, and an indexer
+is emitted as its accessor methods. `ReportCoincidingOverloads` finds the
+coinciding sets today.
+
+**An array or a stack allocation of a struct closing.**
+
+```mist
+public struct Cell<N:int> { public int Size() { return N; } }
+
+var cells = new Cell<7>[2];    // MIST0496, once Cell is closed at run time anywhere
+cells[1].Size()                // 7
+```
+
+Every element is the closing's stamp, made once with the slot's value and
+copied into each element. definite-assignment Requirement 4.1b already asks
+for this wherever a stamp differs from the CLR zero, and a hidden field that
+holds the slot's value makes it differ. The creation in a generic body,
+`new T[k]`, is item 8.
+
+The delivery hands in, for each of the four, the list of every place its
+mechanism touches, each marked done, cannot occur, or left with its reason.
+Stage 4 had no such list until its fourth review.
+
 ### Where the C# backend falls short
 
 These were this design's first answer, written before the ruling above. Until

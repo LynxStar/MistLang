@@ -327,10 +327,303 @@ literal (`ArrayLowering.cs:43-55`) and otherwise falls through to an unsized
 length from any slot argument through the same rendering a read through a
 closing uses.
 
+### Identity by value
+
+The owner ruled on 2026-11-13 that the backend makes these programs work. A
+closing is identified by its value, however it was written:
+
+```mist
+int n = 5;
+var x = new Ring<n>();
+var y = new Ring<5>();
+
+x is Ring<n>    // true
+x is Ring<5>    // true
+```
+
+C# fixes an object's type when the object is created, so `x` and `y` are
+instances of one C# class, or `x` could never be a `Ring<5>`. That is why a
+value-routed declaration is one C# type for all its closings. It follows that
+the C# type answers nothing about which closing a value has, and the backend
+answers from the value wherever the program can observe the difference. A
+runtime closing in one place never changes whether code in another place
+compiles.
+
+The refusals in the two sections below are stand-ins. Each is replaced by a
+delivery of its own. A delivery first adds its design section here, with the
+list of every place its mechanism touches, and its before-and-after programs
+are shown to the owner before it is dispatched. In order:
+
+1. A test with no binding, and a test under `not` or `or` (MIST0494). The
+   comparison is an expression beside the C# test, not part of a C# pattern.
+2. A slot inferred from a closing nested in an argument (MIST0498). The caller
+   knows the argument's type, so it passes the closing's value: the literal,
+   the capture or the parameter. Nothing is read back from the object.
+3. Overloads that differ only in a slot (MIST0497). The binder has already
+   chosen the overload, so the coinciding members take distinct C# names.
+4. An array or a stack allocation of a struct closing (MIST0496). The elements
+   are built with the value.
+5. Static storage of a value-routed type (MIST0491). One storage for each
+   value of the slots, created on first use, as Requirement 10 states.
+6. A union that holds two closings of one type (MIST0501), and an abstract
+   implemented at two values (MIST0493). The carrier and the implementing type
+   answer by value.
+7. A conversion into the type, and a nested type that reads the enclosing
+   slot (MIST0499). A conversion is a call and takes the value as one. A
+   nested type carries the enclosing slots as its own.
+8. A closing as a type argument (the section of that name, and MIST0495). A
+   generic that tests, creates or holds static storage over its type
+   parameter takes a hidden description of the argument, which carries the
+   slot values. `SlotSensitivity` decides which parameters need one.
+
+Not settled. Each is the owner's to rule on, with an example, when its turn
+comes:
+
+- A type value of a runtime closing (MIST0492). A CLR `Type` cannot carry the
+  value.
+- A test against a closing inside a CLR container, `u is List<Ring<n>>`, and a
+  CLR generic method that tests its type parameter. A CLR object has nowhere to
+  keep the description.
+- An attribute argument that reads the slot. An attribute's arguments are
+  constants.
+- A dependent parameter written as a type, `x is N` (MIST0500, MIST-1363).
+
+### Identity by value: the first delivery
+
+Items 1 to 4. Each program was run at afd43acab and is refused there with the
+diagnostic its comment names. After the delivery it prints what the comment
+says.
+
+**A test under `not` or `or`.**
+
+```mist
+public class Ring<Capacity:int>
+{
+    public bool Differs(unknown other)
+    {
+        return other is not Ring<Capacity>;     // MIST0494
+    }
+}
+
+var x = new Ring<n>();      // n is 5
+x.Differs(new Ring<5>())    // False
+x.Differs(new Ring<6>())    // True
+```
+
+A C# pattern has no place for the comparison under `not` or `or`. The emitter
+moves a comparison out of a pattern only from a conjunction, through the
+`hoisted` list of `EmitPattern`, and refuses where there is no list. A pattern
+that holds a runtime test under a combinator is emitted as a boolean
+expression over the scrutinee instead. The scrutinee is bound once, each test
+is its own `s is Ring t && t.__Capacity == v`, and `not`, `or` and `and`
+become `!`, `||` and `&&`. A `switch` arm becomes `var s when <expression>`.
+
+**A slot inferred from a closing nested in an argument.**
+
+```mist
+static int Len<N:int>(List<Ring<N>> rings) { return N; }
+
+var list = new List<Ring<n>>();    // n is 5
+n = 9;
+Len(list)                          // 5; MIST0498
+```
+
+The value is the capture's, taken where `list`'s type was written. It cannot
+be read from `n` again, and a list has no element to read it from. A capture
+that a later node reads, and that no receiver or argument carries, is kept in
+a C# local. The local is declared before the statement that owns the capture
+and assigned where the type is written, so the initializer still runs once
+and in order. `CallSlotArguments` and `GroupSlotArguments` read that local
+where they refuse today. A slot nested under `unknown`, as in
+`List<Ring<unknown>>`, has no value anywhere. It stays refused and belongs
+with the CLR container limit above.
+
+**Overloads that differ only in a slot.**
+
+```mist
+static string Name(Ring<3> r) { return "three"; }
+static string Name(Ring<4> r) { return "four"; }    // MIST0497
+
+Name(new Ring<3>())    // three
+Name(new Ring<4>())    // four
+```
+
+The binder chooses the overload from the Mist types, and a call with no proof
+of the closing does not compile, so the choice never needs the value at run
+time. Members of one name whose emitted parameter lists coincide take distinct
+C# names. A name is derived from the member's own Mist signature, so it does
+not change when another overload is added. Every reference to the member
+spells that name: a call, a method group, an implementing type's member for an
+abstract's, and a restated default. A constructor and an indexer cannot be
+renamed in C#: a constructor takes a discriminating parameter, and an indexer
+is emitted as its accessor methods. `ReportCoincidingOverloads` finds the
+coinciding sets today.
+
+**An array or a stack allocation of a struct closing.**
+
+```mist
+public struct Cell<N:int> { public int Size() { return N; } }
+
+var cells = new Cell<7>[2];    // MIST0496, once Cell is closed at run time anywhere
+cells[1].Size()                // 7
+```
+
+Every element is the closing's stamp, made once with the slot's value and
+copied into each element. definite-assignment Requirement 4.1b already asks
+for this wherever a stamp differs from the CLR zero, and a hidden field that
+holds the slot's value makes it differ. The creation in a generic body,
+`new T[k]`, is item 8.
+
+The delivery hands in, for each of the four, the list of every place its
+mechanism touches, each marked done, cannot occur, or left with its reason.
+Stage 4 had no such list until its fourth review.
+
+### Identity by value: static storage
+
+Item 5. This is Requirement 10's own example. At afd43acab the declaration of
+`hits` is refused with MIST0491 because of the last two lines:
+
+```mist
+public class Counter<N:int>
+{
+    public static int hits;
+}
+
+Counter<1>.hits = 5;
+Console.WriteLine(Counter<2>.hits);     // 0
+var n = GetOne();                       // 1 when the program runs
+Console.WriteLine(Counter<n>.hits);     // 5
+```
+
+Closed only with literals, the same type keeps separate storage today: a
+static field, a static initializer that reads `N`, a static auto-property, and
+a static method and an instance method that read the field all answer per
+closing.
+
+A value-routed type's static storage moves into a holder. The holder is a
+nested C# class with one instance field for each static field and each static
+auto-property. Its constructor takes the type's value-routed slots and runs
+the static initializers in declaration order, so an initializer that reads
+`N` reads the holder's own value. The type keeps one table from the slot
+values to the holder.
+
+A read or a write of static storage through a closing, `Counter<n>.hits`,
+finds the holder for the closing's values and uses its field. Inside the
+type's own members the values are the hidden field or the hidden parameters.
+A holder is made on first use and exactly once for a value, as a C# static
+initializer runs exactly once, so the table hands out one holder when two
+threads ask together.
+
+Two closings that are one type under Requirement 2 hold the same values, so
+they reach the same holder, which is Requirement 10.2. The table grows with
+the distinct values a program uses, as the requirement says it does. A type
+that also has type parameters, `Pair<T, N>`, keeps its C# type parameter, so
+its table is one per `T` with no further work. The key is the slot's value; a
+slot of the fourth kind needs value equality on its domain, which stage 5
+supplies.
+
+Static storage of an ordinary generic closed with a closing of a
+value-routed type, `Counter<Ring<3>>`, is item 8.
+
+The delivery hands in the list of every form of static storage and every
+place that reads or writes one, each marked as above.
+
+### Identity by value: unions and abstracts
+
+Item 6. Each program below runs at afd43acab while its types are closed only
+with literals, and prints what its comments say. Each is refused once the type
+is closed at run time anywhere in the program.
+
+**A union that holds two closings of one type.** Add `var x = new Ring<n>();`
+anywhere and `Which` is MIST0501.
+
+```mist
+static string Which(Ring<5> | Ring<7> u)
+{
+    if(u is Ring<5> a) { return "five"; }
+    if(u is Ring<7> b) { return "seven"; }
+    return "neither";
+}
+
+Which(new Ring<5>())    // five
+Which(new Ring<7>())    // seven
+```
+
+A union's carrier has one entry for each constituent, named for the
+constituent's C# type, and two closings of a value-routed declaration are one
+C# type (`EmitUnion`, `UnionCarrierNames.Coinciding`). Constituents that
+coincide share one entry. A value needs no tag to enter it, because the object
+carries its slot's value. A test against one of them is the entry's test and
+the comparison every runtime test already appends: `u is Ring<5> a` is the
+entry test and `a.__Capacity == 5`.
+
+A union with a runtime closing as a constituent cannot be tested at all today,
+for a frontend reason. With `Ring<n> | string a`, the test `a is Ring<n> x` is
+MIST0345, "not one of the types the union can hold": the constituent and the
+tested type are two captures of `n`, and the check compares them as written
+instead of as Requirement 2 judges them. That is fixed in the frontend, with
+the other body sites, and is not part of this delivery.
+
+**An abstract implemented at two values.** Add a test `u is ISized<n> sized`
+anywhere and `Both` is MIST0493.
+
+```mist
+public abstract ISized<N:int> { string Describe(); }
+
+public class Both : ISized<1>, ISized<2>
+{
+    public string Describe() { return "both"; }
+}
+
+ISized<1> one = new Both();
+one.N                       // 1
+x is ISized<2> two          // true for a Both, false for a One : ISized<1>
+```
+
+A value-routed abstract declares a hidden getter, and each implementing type
+answers it with one value (`ValueRouteEmitter`, `Answered`). A type that
+conforms at two values has two answers. The getter becomes a hidden test that
+takes the values and answers whether the object conforms at them. `Both`
+answers for 1 and for 2. A type that conforms at its own parameter,
+`Ring<N> : ISized<N>`, compares with its hidden field. Nothing but a test
+reads through the object: a read through a named closing is the closing's
+value, and a read or an inference through `unknown` is refused by
+Requirement 11.
+
+A member may differ by value, and this runs today too:
+
+```mist
+public abstract ITake<N:int> { string Take(Ring<N> ring); }
+
+public class Both : ITake<1>, ITake<2>
+{
+    public string Take(Ring<1> ring) { return "took one"; }
+    public string Take(Ring<2> ring) { return "took two"; }
+}
+
+one.Take(new Ring<1>())     // took one, through an ITake<1>
+two.Take(new Ring<2>())     // took two, through an ITake<2>
+```
+
+Once `ITake` is value-routed there is one C# interface member for both
+conformances. It becomes a dispatcher: it takes the abstract's slot values as
+hidden leading parameters, as a value-routed method does, and calls the
+implementation for those values. The implementations already have distinct C#
+names from item 3, and a caller passes its closing's values. A member that
+does not differ by value, as `Describe` above, has one implementation and
+needs no dispatcher. Two members cannot differ in their return type alone
+(MIST0176), so a difference is always in the parameters.
+
+The delivery hands in two lists, each entry marked as above: every way a value
+enters, leaves and is tested in a union whose constituents coincide; and every
+way an abstract's member is declared, restated, implemented and called,
+through a literal closing, a capture, a dependent parameter and `unknown`.
+
 ### Where the C# backend falls short
 
-Each is refused by the backend with its own diagnostic, never miscompiled, and
-the language contract is not narrowed by it:
+These were this design's first answer, written before the ruling above. Until
+the delivery that replaces it lands, each is refused by the backend with its
+own diagnostic and never miscompiled:
 
 - Static storage in a value-routed type. Requirement 10 needs a table keyed by
   slot value. Nothing in the samples, Standard or the book snippets declares
@@ -384,7 +677,9 @@ a `new Ring<n>()` or `new Cell<n>()` elsewhere in the program:
 All four close the type with literals. One runtime closing anywhere routes the
 declaration, and every closing of it loses the slot.
 
-The backend refuses these where the closing is written. `SlotSensitivity`, a
+Until item 8 of *Identity by value* lands, the backend refuses these where the
+closing is written; the pass below stays, and then decides where a description
+is passed. `SlotSensitivity`, a
 whole-program pass beside `SlotRoutes`, marks a type parameter of a
 declaration slot-sensitive, to a fixed point, when the declaration:
 
@@ -510,7 +805,10 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    refusals. The first three "wrong afterwards" rows of the proposal are
    closed here and each gets its test. `SlotSensitivity` and its refusal
    follow as their own delivery before stage 5, because stage 4 landed with
-   the four wrong answers of *A closing as a type argument*.
+   the four wrong answers of *A closing as a type argument*. The deliveries of
+   *Identity by value* follow in its order. Stage 5 routes every slot of the
+   fourth kind by value and would meet each stand-in, so it follows items 1 to
+   7.
 5. Requirement 6: the fourth kind of domain.
 6. `samples/RuntimeDependentValues`, the book chapter, and the sentences the
    requirements revise in dependent-types, adhoc-refinement-constraints,

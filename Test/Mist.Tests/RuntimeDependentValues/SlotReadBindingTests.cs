@@ -21,6 +21,10 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         {
         }
 
+        public class Bounded<Capacity:int> where Capacity >= 1
+        {
+        }
+
         public abstract ISized<N:int>
         {
         }
@@ -47,7 +51,8 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         var through = Assert.IsType<MemberAccessExpression>(statements[2].Initializer);
 
         Assert.Equal("Capacity", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(instance.Member).Type).Name);
-        Assert.Equal(4L, Assert.IsType<LiftedType>(instance.Type).Value);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, instance.Type.FullyQualifiedName);
+        Assert.Equal(4L, Assert.IsType<LiftedType>(Assert.IsType<ConstructedType>(instance.Receiver.Type).TypeArguments[0]).Value);
         Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, Assert.IsType<PropertyResult>(through.Member).Property.Type.FullyQualifiedName);
         Assert.Equal("Capacity", Assert.IsType<PropertyResult>(through.Member).Property.ProjectedParameter?.Name);
     }
@@ -61,7 +66,7 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
 
         Assert.Contains("its type 'int' is not a function type", Assert.Single(Errors(diagnostics, "MIST0363")).Message, StringComparison.Ordinal);
         Assert.StartsWith("'int' cannot be indexed", Assert.Single(Errors(diagnostics, "MIST0354")).Message, StringComparison.Ordinal);
-        Assert.StartsWith("'int' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
+        Assert.StartsWith("'Int32' is not a tuple", Assert.Single(Errors(diagnostics, "MIST0366")).Message, StringComparison.Ordinal);
         Assert.Equal(2, members.Count);
         Assert.Contains(members, message => message.StartsWith("'int' has no member named 'Nope'", StringComparison.Ordinal));
         Assert.Contains(members, message => message.StartsWith("'(int, int)' has no member named 'Nope'", StringComparison.Ordinal));
@@ -128,5 +133,18 @@ public sealed class SlotReadBindingTests : ProgramModelProbe
         Assert.Same(Assert.Single(tested.Captures).Value, Assert.IsType<ConstructedType>(tested.TargetType).TypeArguments[0]);
         Assert.Same(Assert.Single(read.Captures).Value, Assert.IsType<ConstructedType>(Assert.IsType<TypeReferenceExpression>(read.Receiver).ReferencedType).TypeArguments[0]);
         _ = Assert.IsType<PropertyResult>(read.Member);
+    }
+
+    [Fact]
+    public void AReadOfASlotDeclaredWithAWhereIsTypedByTheDomainAlone()
+    {
+        var statements = BodyIn("var b = new Bounded<4>(); var c = b.Capacity; c = 0;")
+            .Statements.OfType<LocalDeclarationStatement>().ToList();
+        var read = Assert.IsType<MemberAccessExpression>(statements[1].Initializer);
+
+        Assert.Equal("Capacity", Assert.IsType<TypeParameter>(Assert.IsType<TypeResult>(read.Member).Type).Name);
+        Assert.IsNotType<RefinedType>(read.Type);
+        Assert.IsNotType<RefinedType>(statements[1].Local.Type);
+        Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, statements[1].Local.Type.FullyQualifiedName);
     }
 }

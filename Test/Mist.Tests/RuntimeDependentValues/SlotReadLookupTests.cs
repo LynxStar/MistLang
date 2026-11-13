@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -92,13 +93,23 @@ public sealed class SlotReadLookupTests
     }
 
     [Fact]
-    public void TheReadIsTypedByTheValueTheClosingHoldsInTheSlot()
+    public void TheReadIsTypedByTheSlotsDomainWhateverTheClosingHoldsAndWhateverItsWhereSays()
     {
         var capacity = ring.TypeParametersList[0];
         var captured = slots.Capture(new LocalVariable("n", slots.Int)).Value;
+        var bounded = HandBuiltSlots.Generic(HandBuiltModel.Class("Bounded<>"), "Capacity", slots.Int);
+        var limit = bounded.TypeParametersList[0];
+        limit.RefinementNode = HandBuiltModel.Node();
+        limit.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, HandBuiltModel.Literal(slots.Int, 1L));
 
-        Assert.Same(slots.Literal(4), InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, slots.Literal(4))));
-        Assert.Same(captured, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, captured)));
+        _ = Assert.IsType<RefinedType>(InstanceSlotRead.Contract(limit));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(limit, slots.Closed(bounded, slots.Literal(4))));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(limit, slots.Closed(bounded, new UnknownValueType(slots.Int))));
+
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, slots.Literal(4))));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, captured)));
+        Assert.Same(slots.Int, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, new UnknownValueType(slots.Int))));
+        Assert.Same(ErrorType.Instance, InstanceSlotRead.TypeOf(capacity, slots.Closed(ring, ErrorType.Instance)));
         Assert.Null(InstanceSlotRead.TypeOf(capacity, null));
     }
 

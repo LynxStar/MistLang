@@ -279,6 +279,12 @@ internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound
                     bounds.Add(bound with { Named = forwarded });
                     continue;
                 }
+
+                if(argument is CapturedValue captured)
+                {
+                    bounds.Add(bound with { Named = captured.Capture });
+                    continue;
+                }
             }
 
             bounds.Add(bound);

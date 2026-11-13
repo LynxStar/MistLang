@@ -1,47 +1,62 @@
+using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
-using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string Left, string Right);
+internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string Left, string Right, Proof? Proof = null);
 
 /// <summary>
 /// Whether a value's type and the type it meets are one type where they differ only in the values of
 /// dependent slots, which <see cref="ConversionClassifier.AgreesUpToProof"/> admits and leaves to be
-/// proven here. Only two slots that hold one value are proven: the same capture, two captures the
-/// flow bound to one value because each read the same unchanged holder, or the <c>unknown</c> slot of
-/// the value against a capture that reads that slot, either of this very expression, which inference
-/// makes for an argument, or of the same unchanged holder, which the flow shows by binding the
-/// holder's slot and the capture to one value. A slot the target leaves <c>unknown</c> owes nothing.
+/// proven here (runtime-dependent-values Requirement 2). Each slot pair that is not one object is read
+/// as two terms through <see cref="SlotReads"/> and the chain is asked to rule out their difference, so
+/// <c>if(n == m)</c> proves <c>int[m]</c> to be an <c>int[n]</c> and the failing case names the program's
+/// own values. Without a reading in hand there are no facts, and only the same capture, literal or
+/// parameter is one value. A slot the target leaves <c>unknown</c> owes nothing. A pair nested inside a type
+/// argument has no value expression to read an <c>unknown</c> slot through: the outer value is not the inner
+/// object, so that pair is judged with no receiver and only the same value proves it.
 /// </summary>
 internal static class SlotIdentity
 {
-    public static UnprovenSlot? Judge(FactState state, Expression value, IMistType target)
+    public static UnprovenSlot? Judge(FactState state, Expression value, IMistType target, FactReading? reading = null, Budget? budget = null)
     {
-        return Judge(state, Written(value).Type, target, value);
+        return Judge(state, SlotReads.Written(value).Type, target, value, reading, budget);
     }
 
-    public static UnprovenSlot? Judge(FactState state, IMistType source, IMistType target, Expression? through)
+    public static UnprovenSlot? Judge(FactState state, IMistType source, IMistType target, Expression? through, FactReading? reading = null, Budget? budget = null)
     {
         UnprovenSlot? first = null;
+        var written = through is null ? null : SlotReads.Written(through);
 
         foreach(var constituent in Constituents(target))
         {
-            if(Plain(constituent) is not ConstructedType closing || Reaching(source, closing, []) is not { } reaching)
+            if(SlotReads.Plain(constituent) is not ConstructedType closing || SlotReads.Closing(source, closing.Definition) is not { } reaching
+                || reaching.TypeArguments.Count != closing.TypeArguments.Count)
             {
                 continue;
             }
 
-            var unproven = Pairs(reaching, closing)
-                .Where(pair => !Proven(state, pair.Argument, pair.Slot, pair.Read, through))
-                .Select(pair => new UnprovenSlot(source, constituent, Shown(pair.Argument, pair.Parameter, through), Shown(pair.Slot, pair.Parameter, null)))
-                .FirstOrDefault();
+            UnprovenSlot? unproven = null;
+
+            foreach(var pair in Pairs(reaching, closing))
+            {
+                var via = pair.Nested ? null : written;
+                var proof = Prove(ref state, pair, via, reading, budget);
+
+                if(proof is not Proven)
+                {
+                    unproven = new UnprovenSlot(
+                        Spelled(state, source), Spelled(state, constituent),
+                        Shown(state, pair.Argument, pair.Parameter, via), Shown(state, pair.Slot, pair.Parameter, null), proof);
+                    break;
+                }
+            }
 
             if(unproven is null)
             {
@@ -56,35 +71,55 @@ internal static class SlotIdentity
 
     public static bool Owes(Expression? value, IMistType? target)
     {
-        return value is not null && target is not null
-            && Constituents(target).Any(constituent => Plain(constituent) is ConstructedType closing
-                && Reaching(Written(value).Type, closing, []) is { } reaching && Pairs(reaching, closing).Any());
+        return value is not null && Owes(SlotReads.Written(value).Type, target);
     }
 
-    private static bool Proven(FactState state, IMistType argument, IMistType slot, TypeParameter? read, Expression? through)
+    public static bool Owes(IMistType? source, IMistType? target)
     {
-        if(argument is UnknownType or UnknownValueType)
-        {
-            if(through is null || slot is not CapturedValue { Capture: var capture and { Initializer: MemberAccessExpression { Member: TypeResult, Receiver: var source } } })
-            {
-                return false;
-            }
+        return source is not null && target is not null
+            && Constituents(target).Any(constituent => SlotReads.Plain(constituent) is ConstructedType closing
+                && SlotReads.Closing(source, closing.Definition) is { } reaching && reaching.TypeArguments.Count == closing.TypeArguments.Count
+                && Pairs(reaching, closing).Any());
+    }
 
-            var written = Written(through);
-            return ReferenceEquals(Written(source), written)
-                || (read is not null
-                    && Terms.Holder(written, state.Bindings) is { } holder
-                    && state.Bindings.Get(holder) is { } value
-                    && state.Bindings.Get(new MemberHolder(value, read)) is { } held
-                    && ReferenceEquals(held, state.Bindings.Get(capture)));
+    private static Proof? Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget)
+    {
+        if(reading is null)
+        {
+            return Same(pair.Argument, pair.Slot) ? new Proven() : null;
         }
 
-        return argument is CapturedValue left && slot is CapturedValue right
-            && (ReferenceEquals(left.Capture, right.Capture)
-                || (state.Bindings.Get(left.Capture) is { } mine && ReferenceEquals(mine, state.Bindings.Get(right.Capture))));
+        var left = SlotReads.Value(ref state, reading, pair.Argument, through, pair.Read ?? pair.Parameter);
+        var right = SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
+
+        if(left is null || right is null)
+        {
+            return null;
+        }
+
+        var difference = left.Subtract(right);
+
+        if(difference.Variables.IsEmpty)
+        {
+            return difference.Constant.IsZero ? new Proven() : new Refuted(Alternative.Empty, false);
+        }
+
+        return Chain.Prove(state.Bag, new Fact(difference, Relation.Equal).Denial(), difference.Variables.ToHashSet(), budget);
     }
 
-    private static IEnumerable<(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read)> Pairs(ConstructedType source, ConstructedType target)
+    private static bool Same(IMistType argument, IMistType slot)
+    {
+        return (argument, slot) switch
+        {
+            (CapturedValue left, CapturedValue right) => ReferenceEquals(left.Capture, right.Capture),
+            (LiftedType left, LiftedType right) => SlotReads.Constant(left) is { } mine && mine == SlotReads.Constant(right),
+            _ => ReferenceEquals(argument, slot),
+        };
+    }
+
+    private sealed record Pair(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read, bool Nested = false);
+
+    private static IEnumerable<Pair> Pairs(ConstructedType source, ConstructedType target)
     {
         for(var i = 0; i < source.TypeArguments.Count && i < target.TypeArguments.Count; i++)
         {
@@ -101,71 +136,64 @@ internal static class SlotIdentity
                 if(slot is not (UnknownType or UnknownValueType))
                 {
                     var ordinal = i;
-                    yield return (
+                    yield return new Pair(
                         argument, slot,
                         ((IHasTypeParameters)target.Definition).TypeParametersList.First(parameter => parameter.Ordinal == ordinal),
                         (source.Definition as IHasTypeParameters)?.TypeParametersList.Find(parameter => parameter.Ordinal == ordinal));
                 }
             }
-            else if(Plain(argument) is ConstructedType inner && Plain(slot) is ConstructedType outer && SameDefinition(inner, outer))
+            else if(SlotReads.Plain(argument) is ConstructedType inner && SlotReads.Plain(slot) is ConstructedType outer
+                && SlotReads.Closing(inner, outer.Definition) is { } reaching && reaching.TypeArguments.Count == outer.TypeArguments.Count)
             {
-                foreach(var nested in Pairs(inner, outer))
+                foreach(var nested in Pairs(reaching, outer))
                 {
-                    yield return nested;
+                    yield return nested with { Nested = true };
                 }
             }
         }
     }
 
-    private static ConstructedType? Reaching(IMistType source, ConstructedType closing, HashSet<string> visited)
-    {
-        var from = Plain(source);
-
-        if(from is ConstructedType constructed && SameDefinition(constructed, closing))
-        {
-            return constructed;
-        }
-
-        return ConversionRelation.Bases(from)
-            .Where(wider => visited.Add(wider.FullyQualifiedName))
-            .Select(wider => Reaching(wider, closing, visited))
-            .FirstOrDefault(found => found is not null);
-    }
-
-    private static bool SameDefinition(ConstructedType left, ConstructedType right)
-    {
-        return (ReferenceEquals(left.Definition, right.Definition) || ConversionRelation.IsIdentity(left.Definition, right.Definition))
-            && left.TypeArguments.Count == right.TypeArguments.Count;
-    }
-
     private static IReadOnlyList<IMistType> Constituents(IMistType target)
     {
-        return Plain(target) is UnionType union ? union.Constituents : [target];
+        return SlotReads.Plain(target) is UnionType union ? union.Constituents : [target];
     }
 
-    private static IMistType Plain(IMistType type)
-    {
-        return Requirement.Unrefined(type);
-    }
-
-    private static Expression Written(Expression value)
-    {
-        return value switch
-        {
-            ImplicitConversionExpression conversion => Written(conversion.Operand),
-            CloneExpression clone => Written(clone.Source),
-            _ => value,
-        };
-    }
-
-    private static string Shown(IMistType slot, TypeParameter parameter, Expression? through)
+    private static string Shown(FactState state, IMistType slot, TypeParameter parameter, Expression? through)
     {
         return slot switch
         {
-            CapturedValue captured => captured.WrittenName,
+            CapturedValue captured => SlotReads.Known(state, captured) is { } known ? Spell(captured.Domain, known) : captured.WrittenName,
             LiftedType lifted => lifted.Name,
-            UnknownType or UnknownValueType when through is not null => $"{RefinementFindings.Display(Written(through))}.{parameter.Name}",
+            UnknownType or UnknownValueType when through is not null => $"{RefinementFindings.Display(through)}.{parameter.Name}",
             _ => TypeDisplay.Mist(slot),
+        };
+    }
+
+    private static IMistType Spelled(FactState state, IMistType type)
+    {
+        return type switch
+        {
+            CapturedValue captured when SlotReads.Known(state, captured) is { } known => new LiftedType(captured.Domain, Literal(captured.Domain, known)),
+            ConstructedType constructed when constructed.TypeArguments.Select(argument => Spelled(state, argument)).ToList() is var arguments
+                && arguments.Where((argument, i) => !ReferenceEquals(argument, constructed.TypeArguments[i])).Any()
+                => new ConstructedType(constructed.Definition, arguments, constructed.Enclosing),
+            _ => type,
+        };
+    }
+
+    private static string Spell(IMistType domain, BigInteger known)
+    {
+        return DependentDomains.Spell(Literal(domain, known));
+    }
+
+    private static object Literal(IMistType domain, BigInteger known)
+    {
+        return SlotReads.Plain(domain).FullyQualifiedName switch
+        {
+            "Standard.Boolean" => !known.IsZero,
+            "Standard.Char" => (char)known,
+            "Standard.UInt64" => (ulong)known,
+            _ => (long)known,
         };
     }
 }

@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
@@ -75,16 +76,18 @@ internal sealed class MethodGroupExpression : Expression
     public IReadOnlyList<IMistType>? StatedTypeArguments { get; init; }
 
     /// <summary>
-    /// The stated arguments as each candidate with a dependent slot resolved them, a name there being a
-    /// value for that candidate where <see cref="StatedTypeArguments"/> read it as a type, with the
-    /// reports of that resolution withheld until the call has chosen, so one written list resolved
-    /// several ways is reported once. Null when no candidate has such a slot. <see cref="StatedShared"/>
-    /// says whether <see cref="StatedTypeArguments"/> was resolved for the candidates without one and
-    /// reported as it went; otherwise it is the first candidate's own list, kept for its count.
+    /// The stated arguments as each candidate of the written count resolved them, a name being a value
+    /// where that candidate has a dependent slot and a type where it does not, with the reports of that
+    /// resolution withheld until the call has chosen, so one written list resolved several ways is
+    /// reported once: the chosen candidate's, or with none chosen, the shared resolution's or else the
+    /// first slotted one's unless some resolution took the list cleanly. Null when no candidate has such
+    /// a slot. <see cref="StatedShared"/> holds the reports of <see cref="StatedTypeArguments"/> when it
+    /// was resolved for a pack candidate or a spread, a spread's committed as it went; otherwise it is the
+    /// first candidate's own list, kept for its count.
     /// </summary>
     public IReadOnlyDictionary<Method, StatedResolution>? StatedPerCandidate { get; init; }
 
-    public bool StatedShared { get; init; }
+    public Withheld? StatedShared { get; init; }
 
     public IReadOnlyList<IMistType>? StatedArgumentsFor(Method candidate)
     {
@@ -103,19 +106,34 @@ internal sealed class MethodGroupExpression : Expression
             return;
         }
 
-        var spoken = StatedShared;
+        var resolutions = StatedPerCandidate.Values.Distinct(ReferenceEqualityComparer.Instance).Cast<StatedResolution>().ToList();
+        var clean = resolutions.Exists(resolution => resolution.Withheld is { Occurrences.IsEmpty: true });
+        var kept = selected is not null
+            ? StatedPerCandidate.GetValueOrDefault(selected)
+            : StatedShared is not null || clean ? null : resolutions[0];
 
-        foreach(var (candidate, resolved) in StatedPerCandidate)
+        if(StatedShared is { Decided: false } shared)
         {
-            if(resolved.Withheld is not { Decided: false } withheld)
+            if(selected is not null ? kept is null : !clean)
+            {
+                shared.Commit();
+            }
+            else
+            {
+                shared.Discard();
+            }
+        }
+
+        foreach(var resolution in resolutions)
+        {
+            if(resolution.Withheld is not { Decided: false } withheld)
             {
                 continue;
             }
 
-            if(selected is null ? !spoken : ReferenceEquals(candidate, selected))
+            if(ReferenceEquals(resolution, kept))
             {
                 withheld.Commit();
-                spoken = true;
             }
             else
             {

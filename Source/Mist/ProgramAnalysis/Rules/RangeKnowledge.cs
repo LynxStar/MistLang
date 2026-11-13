@@ -1,7 +1,5 @@
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model.Expressions;
-using Mist.ProgramModel.Model.Scopes;
-using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -21,20 +19,6 @@ internal static class RangeKnowledge
             length => CapturedLength(state, length, lifted));
     }
 
-    public static bool IsLength(MemberAccessExpression access)
-    {
-        var receiver = Requirement.Unrefined(access.Receiver.Type);
-
-        return access.MemberName == "Length" && Lengths.IsSized(receiver) && access.Member switch
-        {
-            TypeResult { Type: TypeParameter { IsDependent: true, Ordinal: 1 } parameter }
-                => receiver is ConstructedType constructed && ReferenceEquals(parameter.DeclaringType, constructed.Definition),
-            PropertyResult { Property: { Modifiers.IsIntrinsic: true, DeclaringType: { } host } }
-                => receiver.FullyQualifiedName == "Standard.String" && ReferenceEquals(host, receiver),
-            _ => false,
-        };
-    }
-
     private static Admitted Captured(FactState state, Expression value, LiftedReturns? lifted)
     {
         var declared = (Requirement.ValuesOf(value.Type) ?? Admitted.Everything).And(lifted?.Produced(value) ?? Admitted.Everything);
@@ -46,7 +30,7 @@ internal static class RangeKnowledge
 
     private static RangeBound? CapturedLength(FactState state, Expression value, LiftedReturns? lifted)
     {
-        if(value is not MemberAccessExpression access || !IsLength(access))
+        if(value is not MemberAccessExpression access || !SlotReads.IsLength(access))
         {
             return null;
         }

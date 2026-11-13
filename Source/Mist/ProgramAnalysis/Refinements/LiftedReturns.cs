@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
@@ -114,6 +115,12 @@ internal sealed class LiftedReturns(Func<object, FlowGraph>? graphOf = null)
         if(value is ImplicitConversionExpression { Operator: null } conversion && Requirement.IsIntegral(Requirement.Unrefined(conversion.Type)))
         {
             return Produced(conversion.Operand);
+        }
+
+        if(value is MemberAccessExpression read && Rules.SlotReads.Parameter(read) is { } slot && Rules.SlotReads.Argument(read, slot) is LiftedType closed
+            && Requirement.ValuesOf(closed) is { } held)
+        {
+            return held;
         }
 
         var typed = Requirement.ValuesOf(value.Type);

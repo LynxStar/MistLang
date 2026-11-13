@@ -53,12 +53,14 @@ internal static class TypeDisplay
 
     /// <summary>
     /// True when the type is a slot's argument standing alone, or holds a capture or <c>unknown</c>
-    /// outside a slot: the type of a read of that slot, which a program sees as the slot's domain.
-    /// <c>string s = ring.Capacity;</c> is refused for an <c>int</c>, not for the <c>4</c> or the
-    /// <c>n</c> the ring was closed with, and so is <c>(ring.Capacity, 1)</c> for an <c>(int, int)</c>.
-    /// Inside a slot the argument is the value itself, so <c>int[n]</c> and <c>Ring&lt;4&gt;</c> are
-    /// spelled as written; so is a literal inside any other type, since <c>Box&lt;4&gt;</c> is a type
-    /// the source writes itself and the same model type as a read inferred into that position.
+    /// outside a slot: the type of a member declared by the dependent parameter, <c>meter.Value</c> on
+    /// <c>public N Value</c>, which a program sees as the slot's domain. <c>string s = meter.Value;</c>
+    /// is refused for an <c>int</c>, not for the <c>4</c> or the <c>n</c> the meter was closed with, and
+    /// so is <c>(meter.Value, 1)</c> for an <c>(int, int)</c>. A read of the slot itself,
+    /// <c>ring.Capacity</c>, is typed by the slot's domain and never reaches here. Inside a slot the
+    /// argument is the value itself, so <c>int[n]</c> and <c>Ring&lt;4&gt;</c> are spelled as written;
+    /// so is a literal inside any other type, since <c>Box&lt;4&gt;</c> is a type the source writes
+    /// itself and the same model type as a member's value inferred into that position.
     /// </summary>
     public static bool HoldsSlotRead(IMistType type)
     {
@@ -101,7 +103,7 @@ internal static class TypeDisplay
             // Before the general constructed case: an array is spelled with a rank suffix, not as
             // the Standard.Array<,> it is represented by, and its second argument is a length
             // rather than a type -- so the general case would render `int[]` as `Array<int, int>`.
-            ConstructedType array when IsArray(array) => $"{mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1])}",
+            ConstructedType array when IsArray(array) => $"{mist(array.TypeArguments[0])}{Rank(array.TypeArguments[1], spell)}",
             ConstructedType { Enclosing: { } enclosing } nested => $"{mist(enclosing)}.{Segment(nested, spell)}",
             ConstructedType constructed => Segment(constructed, spell),
             UnionType union => string.Join(" | ", union.Constituents.Select(mist)),
@@ -206,15 +208,16 @@ internal static class TypeDisplay
     }
 
     /// <summary>
-    /// The rank suffix for an array of the given length: <c>[5]</c> for a length the source stated,
-    /// <c>[]</c> for one it did not.
+    /// The rank suffix for an array of the given length: <c>[5]</c>, <c>[n]</c> or <c>[N]</c> for a length
+    /// the source stated as a literal, a capture or a dependent parameter, <c>[]</c> for one it did not.
     /// </summary>
-    private static string Rank(IMistType length)
+    private static string Rank(IMistType length, Func<TypeParameter, string?>? spell)
     {
         return length switch
         {
             LiftedType lifted => $"[{lifted.Name}]",
             CapturedValue captured => $"[{captured.WrittenName}]",
+            TypeParameter { IsDependent: true } parameter => $"[{Render(parameter, spell)}]",
             _ => "[]",
         };
     }

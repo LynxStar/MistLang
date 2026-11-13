@@ -189,8 +189,12 @@ what the read is, from the receiver type's argument for that parameter:
   `MemberHolder(receiver, parameter)`, as `Length` has today
   (`FactReading.cs:165-191`).
 
-The type of a slot read is the slot's domain: `a.Length` is an `int` whatever
-the array is closed with. What the read holds is known through `SlotReads`,
+The type of a slot read is the slot's domain, the type written after the
+parameter's colon, as dependent-types Requirement 7.1 gives the property read
+through the type. `a.Length` is a `ZeroOrPositiveInt` whatever the array is
+closed with, and `ring.Capacity` over `Ring<Capacity:int>` is an `int`. A
+`where` on the parameter is no part of that type; what it states is known as a
+fact about the value. What the read holds is known through `SlotReads`,
 from the receiver's type, never through the type of the read. Today the read
 is typed by the slot's argument, a literal or `unknown`, and the index prover
 and `SpanLengthDecisionTests` take the length from there. Typing it by a

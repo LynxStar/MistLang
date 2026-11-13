@@ -405,13 +405,17 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             var term = reading.Read(ref state, boolean);
             state = state with { Bag = state.Bag.Add(new Fact(term.Subtract(new Term(holds ? 1 : 0)), Relation.Equal)) };
         }
+        else if(condition is IsPatternExpression { Pattern: TypeTestPattern tested } closingTest && holds)
+        {
+            state = SlotReads.Tested(state, reading, closingTest.Scrutinee, tested.NarrowedType);
+        }
 
         return LearnSide(state, condition, holds);
     }
 
     private FactState RememberLength(FactState state, Expression subject, Expression bound, ComparisonKind kind)
     {
-        if(subject is not LocalReferenceExpression local || bound is not MemberAccessExpression access || !RangeKnowledge.IsLength(access)
+        if(subject is not LocalReferenceExpression local || bound is not MemberAccessExpression access || !SlotReads.IsLength(access)
             || kind is not (ComparisonKind.LessThan or ComparisonKind.LessThanOrEqual))
         {
             return state;

@@ -157,6 +157,11 @@ internal sealed partial class RefinementAnalyzer
 
             if(bound is { Name: "Length", Member: null } && measured is not null && IntegralTypes.Range(expression.Type) is not null)
             {
+                if(SlotReads.LengthOf(measured) is { } sized)
+                {
+                    return factReading.Read(ref state, sized);
+                }
+
                 var source = factReading.Read(ref state, measured);
                 if(source.Variables is [var receiver])
                 {
@@ -174,6 +179,12 @@ internal sealed partial class RefinementAnalyzer
 
                     return new Term(length);
                 }
+            }
+
+            if(bound is { Named: TypeParameter { IsDependent: true } sibling, Member: null } && reading.Slot(sibling) is { } filled
+                && SlotReads.Value(ref state, factReading, filled, null, sibling) is { } slotValue)
+            {
+                return slotValue;
             }
 
             if(bound.Member is not null && reading.Member(bound, expression.Node) is { } member)
@@ -250,11 +261,18 @@ internal sealed partial class RefinementAnalyzer
         // receiver or one of its parameters, whose member is read on the argument the call passes for it: a
         // captured receiver is not the instance the call supplies, however it is named. A bound naming a
         // sibling parameter reads what the call passes in that position.
-        private sealed class Reading(LocalVariable? receiver, Func<Parameter, Admitted?>? sibling, Func<Parameter, Expression?>? argument = null, Expression? instance = null, bool currentInstance = true)
+        private sealed class Reading(
+            LocalVariable? receiver, Func<Parameter, Admitted?>? sibling, Func<Parameter, Expression?>? argument = null, Expression? instance = null, bool currentInstance = true,
+            IReadOnlyDictionary<TypeParameter, IMistType>? slots = null)
         {
             public Expression? Argument(Parameter parameter)
             {
                 return argument?.Invoke(parameter);
+            }
+
+            public IMistType? Slot(TypeParameter parameter)
+            {
+                return slots is not null && slots.TryGetValue(parameter, out var filled) ? filled : null;
             }
 
             public static readonly Reading None = new(null, null);
@@ -262,6 +280,11 @@ internal sealed partial class RefinementAnalyzer
             public static Reading ForReceiver(Expression instance)
             {
                 return new Reading(null, null, instance: instance);
+            }
+
+            public static Reading ForClosing(IReadOnlyDictionary<TypeParameter, IMistType>? closing)
+            {
+                return closing is null ? None : new Reading(null, null, slots: closing);
             }
 
             public Expression? Member(SymbolicBound bound, Storm.Runtime.SyntaxNode node)

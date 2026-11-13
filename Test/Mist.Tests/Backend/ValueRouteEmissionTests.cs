@@ -636,7 +636,7 @@ public sealed class ValueRouteEmissionTests
 
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST0497", refusal.Number.Value);
-        Assert.Contains("coincide with 'Len<N>(int[])': the two differ only in 'N' of 'int[]'", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("coincide with 'Len<N>(int[N])': the two differ only in 'N' of 'int[N]'", refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -30,6 +30,11 @@ internal sealed partial class ScopeResolver
         return WithSlotValues(values, () => Resolve(node, scope));
     }
 
+    public IReadOnlyList<IMistType> ResolveTypeArguments(TypeArgumentListNode syntax, Scope scope, ISlotValueBinder values)
+    {
+        return WithSlotValues(values, () => ResolveTypeArguments(syntax, scope));
+    }
+
     public IReadOnlyList<IMistType> ResolveTypeArguments(
         TypeArgumentListNode syntax, Scope scope, IMistType definition, ISlotValueBinder values)
     {

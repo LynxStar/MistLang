@@ -230,7 +230,8 @@ internal static partial class PatternBinder
             return new ComparisonPattern(node, scrutineeType, ComparisonKind.Equal, variant);
         }
 
-        var resolution = context.Resolver.ResolveWithFailure(bareType.Type, ctx.Scope);
+        var values = new SlotValueBinder(ctx, context);
+        var resolution = context.Resolver.ResolveWithFailure(bareType.Type, ctx.Scope, values);
 
         return BindTypeTest(
             node,
@@ -239,7 +240,8 @@ internal static partial class PatternBinder
             scrutineeType,
             ctx,
             context,
-            scrutineeFailed || resolution.IsFailed);
+            scrutineeFailed || resolution.IsFailed,
+            values.Captures);
     }
 
     /// <summary>

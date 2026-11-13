@@ -89,6 +89,8 @@ internal sealed class MethodGroupExpression : Expression
 
     public Withheld? StatedShared { get; init; }
 
+    public IReadOnlyList<SlotCapture> StatedSharedCaptures { get; init; } = [];
+
     public IReadOnlyList<IMistType>? StatedArgumentsFor(Method candidate)
     {
         return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Arguments : StatedTypeArguments;
@@ -96,7 +98,7 @@ internal sealed class MethodGroupExpression : Expression
 
     public IReadOnlyList<SlotCapture> StatedCapturesFor(Method candidate)
     {
-        return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Captures : [];
+        return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Captures : StatedSharedCaptures;
     }
 
     public void SettleStated(Method? selected)

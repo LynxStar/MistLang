@@ -181,12 +181,25 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
     }
 
     [Fact]
-    public void AnOrdinarySlotBesideASlottedOverloadRefusesANestedValueAsWithoutIt()
+    public void AnOrdinarySlotBesideASlottedOverloadCapturesANestedValueAsWithoutIt()
     {
-        var bound = Initializers("var a = m.Pick<Box<n>>(q); var b = Meter.Choose<Box<n>>(q);", out var diagnostics, "Run(int p, Box<3> q)");
+        var calls = Calls("var a = m.Pick<Box<n>>(q); var b = Meter.Choose<Box<n>>(q);", out var diagnostics, "Run(int p, Box<3> q)");
 
-        Assert.Equal(["MIST0487 n", "MIST0487 n"], Errors(diagnostics).Select(error => $"{error.Number.Value} {error.Message.Split('\'')[1]}"));
-        Assert.All(bound.OfType<InvocationExpression>(), call => Assert.Empty(call.Captures));
+        Assert.Empty(Errors(diagnostics));
+        Assert.All(calls, call => Assert.False(call.Method!.TypeParametersList[0].IsDependent));
+        Assert.All(calls, call => Assert.Same(
+            NestedCaptureOf(call).Value,
+            Assert.IsType<ConstructedType>(Assert.IsType<MemberAccessExpression>(call.Receiver).TypeArguments[0]).TypeArguments[0]));
+    }
+
+    [Fact]
+    public void BesideAPackOverloadTheSharedReadingCapturesANestedValue()
+    {
+        var calls = Calls("var a = m.Wide<Box<n>>(s); var b = Meter.Broad<Box<n>>(s);", out var diagnostics);
+
+        Assert.Empty(Errors(diagnostics));
+        Assert.All(calls, call => Assert.True(call.Method!.TypeParametersList[0].IsPack));
+        Assert.All(calls, call => _ = NestedCaptureOf(call));
     }
 
     [Fact]
@@ -249,6 +262,13 @@ public sealed class OverloadedSlotArgumentBindingTests : ProgramModelProbe
     {
         var capture = Assert.Single(call.Captures);
         Assert.Same(capture.Value, Assert.IsType<MemberAccessExpression>(call.Receiver).TypeArguments[0]);
+        return capture;
+    }
+
+    private static SlotCapture NestedCaptureOf(InvocationExpression call)
+    {
+        var capture = Assert.Single(call.Captures);
+        Assert.Equal("n", Assert.IsType<LocalReferenceExpression>(capture.Initializer).Local.Name);
         return capture;
     }
 

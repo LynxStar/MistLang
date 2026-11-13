@@ -15,6 +15,20 @@ internal static class GenericTypeMemberBinder
     {
         var (member, captures) = BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context);
 
+        return Attached(member, captures, node, context);
+    }
+
+    internal static Expression BindCallee(
+        GenericTypeMemberAccessExpressionPrimaryNode node, BindingContext ctx, BuilderContext context, out IReadOnlyList<SlotCapture> owed)
+    {
+        var (member, captures) = BindMemberAccess(node, node.Type, node.TypeArgs, node.Member.Lexeme, ctx, context);
+        owed = member is MethodGroupExpression ? captures : [];
+
+        return member is MethodGroupExpression ? member : Attached(member, captures, node, context);
+    }
+
+    private static Expression Attached(Expression member, IReadOnlyList<SlotCapture> captures, SyntaxNode node, BuilderContext context)
+    {
         return member is MemberAccessExpression access && captures.Count > 0
             ? new MemberAccessExpression(access.Node, access.Receiver, access.MemberName, access.Type, access.TypeArguments, access.IsConditional, access.Member, access.IsFailed)
             {

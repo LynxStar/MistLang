@@ -528,6 +528,97 @@ value-routed type, `Counter<Ring<3>>`, is item 8.
 The delivery hands in the list of every form of static storage and every
 place that reads or writes one, each marked as above.
 
+### Identity by value: unions and abstracts
+
+Item 6. Each program below runs at afd43acab while its types are closed only
+with literals, and prints what its comments say. Each is refused once the type
+is closed at run time anywhere in the program.
+
+**A union that holds two closings of one type.** Add `var x = new Ring<n>();`
+anywhere and `Which` is MIST0501.
+
+```mist
+static string Which(Ring<5> | Ring<7> u)
+{
+    if(u is Ring<5> a) { return "five"; }
+    if(u is Ring<7> b) { return "seven"; }
+    return "neither";
+}
+
+Which(new Ring<5>())    // five
+Which(new Ring<7>())    // seven
+```
+
+A union's carrier has one entry for each constituent, named for the
+constituent's C# type, and two closings of a value-routed declaration are one
+C# type (`EmitUnion`, `UnionCarrierNames.Coinciding`). Constituents that
+coincide share one entry. A value needs no tag to enter it, because the object
+carries its slot's value. A test against one of them is the entry's test and
+the comparison every runtime test already appends: `u is Ring<5> a` is the
+entry test and `a.__Capacity == 5`.
+
+A union with a runtime closing as a constituent cannot be tested at all today,
+for a frontend reason. With `Ring<n> | string a`, the test `a is Ring<n> x` is
+MIST0345, "not one of the types the union can hold": the constituent and the
+tested type are two captures of `n`, and the check compares them as written
+instead of as Requirement 2 judges them. That is fixed in the frontend, with
+the other body sites, and is not part of this delivery.
+
+**An abstract implemented at two values.** Add a test `u is ISized<n> sized`
+anywhere and `Both` is MIST0493.
+
+```mist
+public abstract ISized<N:int> { string Describe(); }
+
+public class Both : ISized<1>, ISized<2>
+{
+    public string Describe() { return "both"; }
+}
+
+ISized<1> one = new Both();
+one.N                       // 1
+x is ISized<2> two          // true for a Both, false for a One : ISized<1>
+```
+
+A value-routed abstract declares a hidden getter, and each implementing type
+answers it with one value (`ValueRouteEmitter`, `Answered`). A type that
+conforms at two values has two answers. The getter becomes a hidden test that
+takes the values and answers whether the object conforms at them. `Both`
+answers for 1 and for 2. A type that conforms at its own parameter,
+`Ring<N> : ISized<N>`, compares with its hidden field. Nothing but a test
+reads through the object: a read through a named closing is the closing's
+value, and a read or an inference through `unknown` is refused by
+Requirement 11.
+
+A member may differ by value, and this runs today too:
+
+```mist
+public abstract ITake<N:int> { string Take(Ring<N> ring); }
+
+public class Both : ITake<1>, ITake<2>
+{
+    public string Take(Ring<1> ring) { return "took one"; }
+    public string Take(Ring<2> ring) { return "took two"; }
+}
+
+one.Take(new Ring<1>())     // took one, through an ITake<1>
+two.Take(new Ring<2>())     // took two, through an ITake<2>
+```
+
+Once `ITake` is value-routed there is one C# interface member for both
+conformances. It becomes a dispatcher: it takes the abstract's slot values as
+hidden leading parameters, as a value-routed method does, and calls the
+implementation for those values. The implementations already have distinct C#
+names from item 3, and a caller passes its closing's values. A member that
+does not differ by value, as `Describe` above, has one implementation and
+needs no dispatcher. Two members cannot differ in their return type alone
+(MIST0176), so a difference is always in the parameters.
+
+The delivery hands in two lists, each entry marked as above: every way a value
+enters, leaves and is tested in a union whose constituents coincide; and every
+way an abstract's member is declared, restated, implemented and called,
+through a literal closing, a capture, a dependent parameter and `unknown`.
+
 ### Where the C# backend falls short
 
 These were this design's first answer, written before the ruling above. Until

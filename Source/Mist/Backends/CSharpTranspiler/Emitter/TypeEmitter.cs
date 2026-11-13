@@ -646,14 +646,18 @@ internal static class TypeEmitter
 
     internal static IDisposable Specializing(ConstructedType instance)
     {
-        return new Both(UnionSpecialization.For(instance), TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance)));
+        return new Both(
+            UnionSpecialization.For(instance),
+            TypeNameEmitter.Substituting(TypeSubstitution.ForReceiver(instance)),
+            SlotReach.OfSpecialized(instance));
     }
 
     internal static IDisposable Specializing(Method method, IReadOnlyList<IMistType> arguments)
     {
         return new Both(
             UnionSpecialization.For(method, arguments),
-            TypeNameEmitter.Substituting(TypeSubstitution.ForMethod(method, arguments)));
+            TypeNameEmitter.Substituting(TypeSubstitution.ForMethod(method, arguments)),
+            SlotReach.OfSpecialized(method, arguments));
     }
 
     private static bool IsSpecializing(MemberType type)
@@ -661,10 +665,11 @@ internal static class TypeEmitter
         return ReferenceEquals(UnionSpecialization.Current()?.Definition, type);
     }
 
-    private sealed class Both(IDisposable first, IDisposable second) : IDisposable
+    private sealed class Both(IDisposable first, IDisposable second, IDisposable? third = null) : IDisposable
     {
         public void Dispose()
         {
+            third?.Dispose();
             second.Dispose();
             first.Dispose();
         }

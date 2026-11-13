@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
+using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -16,8 +17,9 @@ namespace Mist.Tests.Backend;
 /// What the backend's other whole-declaration rewrites make of a value-routed slot (runtime-dependent-values
 /// design, <em>The value route</em>): a union over the slot alone is one C# spelling and specializes nothing;
 /// a declaration specialized for a carried parameter keeps the slot open in each copy, keyed and named
-/// without it; a union carrier names a closing of the type by the slot's domain whatever stands in the slot,
-/// and refuses two closings of one such type; a variadic reference leaves the slot out of its arguments.
+/// without it; a copy of another declaration at a closing of the type carries no value of the slot and refuses
+/// each read of it; a union carrier names a closing of the type by the slot's domain whatever stands in the
+/// slot, and refuses two closings of one such type; a variadic reference leaves the slot out of its arguments.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ValueRouteSpecializationTests
@@ -118,6 +120,68 @@ public sealed class ValueRouteSpecializationTests
     }
 
     [Fact]
+    public void ACopyOfAnotherTypeAtAClosingOfAValueRoutedTypeHasNoReachToItsSlot()
+    {
+        var model = slots.Refinements.Built.Model;
+        var (holder, item) = Holder();
+        _ = Union(item, text);
+        var closing = slots.Closed(holder, slots.Closed(ring, capacity));
+        using var routes = SlotRoutes.Enter([capacity]);
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
+
+        var instance = Assert.Single(UnionSpecialization.InstancesOf(holder));
+
+        Assert.Same(closing, instance);
+
+        using(TypeEmitter.Specializing(instance))
+        {
+            Assert.Equal("default", DependentCarrierNames.ValueRead(capacity));
+        }
+
+        Assert.Equal("__Capacity", DependentCarrierNames.ValueRead(capacity));
+
+        var refused = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refused.Number.Value);
+        Assert.StartsWith(
+            "'Capacity' of 'Ring' cannot be read in the copy of 'Holder' emitted for 'Holder<Ring<Capacity>>', which is one C# type for every value of it",
+            refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACopyOfAnotherMethodAtAClosingOfAValueRoutedTypeHasNoReachToItsSlotWhileItsOwnStaysInReach()
+    {
+        var model = slots.Refinements.Built.Model;
+        var (same, tested) = Same();
+        _ = Union(tested, text);
+        var (pick, item, m) = Pick();
+        _ = Union(item, text);
+        model.GenericCalls.Record(same, [slots.Closed(ring, capacity)]);
+        model.GenericCalls.Record(pick, [text, slots.Capture(new LocalVariable("n", slots.Int)).Value]);
+        using var routes = SlotRoutes.Enter([capacity, m]);
+        var diagnostics = new DiagnosticBag();
+        using var specialization = UnionSpecialization.Enter(model, diagnostics);
+        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
+
+        using(TypeEmitter.Specializing(same, Assert.Single(UnionSpecialization.InstancesOf(same))))
+        {
+            Assert.Equal("default", DependentCarrierNames.ValueRead(capacity));
+        }
+
+        using(TypeEmitter.Specializing(pick, Assert.Single(UnionSpecialization.InstancesOf(pick))))
+        {
+            Assert.Equal("__M", DependentCarrierNames.ValueRead(m));
+        }
+
+        var refused = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0499", refused.Number.Value);
+        Assert.StartsWith(
+            "'Capacity' of 'Ring' cannot be read in the copy of 'Same' emitted for 'Same<Ring<Capacity>>', which is one C# method for every value of it",
+            refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AUnionCarrierNamesAValueRoutedClosingByItsSlotsDomainWhateverStandsInTheSlot()
     {
         var capture = slots.Capture(new LocalVariable("n", slots.Int)).Value;
@@ -193,6 +257,29 @@ public sealed class ValueRouteSpecializationTests
         TypeParameterDomainResolver.ProjectValues(pair);
         _ = slots.Refinements.Built.Model.RegisterType(pair);
         return (pair, item, n);
+    }
+
+    private (ClassType Holder, TypeParameter Item) Holder()
+    {
+        var holder = HandBuiltModel.Class("Holder<>");
+        holder.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var item = new TypeParameter("T", 0, holder.Scope, holder);
+        holder.TypeParametersList.Add(item);
+        _ = slots.Refinements.Built.Model.RegisterType(holder);
+        return (holder, item);
+    }
+
+    private (Method Same, TypeParameter Tested) Same()
+    {
+        var owner = HandBuiltModel.Class("Util");
+        owner.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var tested = new TypeParameter("T", 0, new Scope(null), null);
+        var same = new Method("Same", slots.Refinements.Bool, [new Parameter("v", Union(tested, text))], new MemberModifiers { IsStatic = true }) { DeclaringType = owner, Scope = owner.Scope };
+        same.TypeParametersList.Add(tested);
+        tested.DeclaringMethod = same;
+        owner.MethodsList.Add(same);
+        _ = slots.Refinements.Built.Model.RegisterType(owner);
+        return (same, tested);
     }
 
     private (Method Pick, TypeParameter Item, TypeParameter M) Pick()

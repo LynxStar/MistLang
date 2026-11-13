@@ -1,6 +1,8 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -9,13 +11,16 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <summary>
 /// Where a value-routed slot's value reaches in the C# being written. A bare read names the hidden field or
 /// the hidden parameter of the member it sits in, which every member of the declaring type, of the method
-/// or block declaring the slot, and every local function and lambda inside them has. Four positions have
+/// or block declaring the slot, and every local function and lambda inside them has. Five positions have
 /// neither, and each enters a reach around what it writes so that <see cref="DependentCarrierNames.ValueRead"/>
 /// finds the innermost: a C# operator or conversion takes no hidden parameter, so it reads the owner's
 /// slot from the first operand whose type carries it, and has no value when none does; a type nested in a
 /// value-routed type is no instance of it; an attribute argument is a constant; an abstract's default body
-/// restated in an implementing type reads the abstract's slot as that type's closing supplies it. A read
-/// no reach supplies is refused by name rather than written as a member C# cannot find.
+/// restated in an implementing type reads the abstract's slot as that type's closing supplies it; a
+/// declaration copied per instantiation (see <see cref="UnionSpecialization"/>) at a closing of another
+/// type, <c>Holder&lt;Ring&lt;N&gt;&gt;</c>, is one C# copy for every value of that type's slot, so the
+/// copy has no value of it, while a copy of the slot's own declaration or of its members still reads the
+/// hidden name. A read no reach supplies is refused by name rather than written as a member C# cannot find.
 /// </summary>
 internal sealed class SlotReach : IDisposable
 {
@@ -128,6 +133,43 @@ internal sealed class SlotReach : IDisposable
         }
 
         return new SlotReach(sources, every: false, $"the restated default '{method.Name}'");
+    }
+
+    public static IDisposable? OfSpecialized(ConstructedType instance)
+    {
+        var declared = (instance.Definition as IHasTypeParameters)?.TypeParametersList ?? [];
+
+        return OfSpecialized(
+            instance.TypeArguments, declared,
+            $"the copy of '{MistType.StripArity(instance.Definition.Name)}' emitted for '{TypeDisplay.Mist(instance)}', which is one C# type for every value of it");
+    }
+
+    public static IDisposable? OfSpecialized(Method method, IReadOnlyList<IMistType> arguments)
+    {
+        var declared = method.TypeParametersList
+            .Concat((method.DeclaringType as IHasTypeParameters)?.TypeParametersList ?? [])
+            .Concat(method.ClosedBlock?.TypeParametersList ?? []);
+        var name = MistType.StripArity(method.Name);
+
+        return OfSpecialized(
+            arguments, declared,
+            $"the copy of '{name}' emitted for '{name}<{string.Join(", ", arguments.Select(TypeDisplay.Mist))}>', which is one C# method for every value of it");
+    }
+
+    private static SlotReach? OfSpecialized(IReadOnlyList<IMistType> arguments, IEnumerable<TypeParameter> declared, string site)
+    {
+        var own = new HashSet<TypeParameter>(declared, ReferenceEqualityComparer.Instance);
+        var sources = new Dictionary<TypeParameter, string?>(ReferenceEqualityComparer.Instance);
+
+        foreach(var slot in arguments.SelectMany(TypeParameterReach.Collect))
+        {
+            if(SlotRoutes.IsValueRouted(slot) && !own.Contains(slot))
+            {
+                sources[slot] = null;
+            }
+        }
+
+        return sources.Count == 0 ? null : new SlotReach(sources, every: false, site);
     }
 
     internal static string Owner(TypeParameter slot)

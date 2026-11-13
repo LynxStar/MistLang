@@ -20,12 +20,14 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// argument</em>). Once a slot leaves the C# type, every closing of its type is one C# type, so a generic body
 /// shared by all closings of its parameter answers for the wrong one wherever it tells closings apart: a test
 /// against a type that mentions the parameter, storage of such a type that starts from the CLR zero, static
-/// storage of the declaring type, a type value, or a closing passed on to a parameter of another declaration
-/// that does one of these, to a fixed point. A test is exempt when the value's own type admits only the tested
-/// closing, the parameter itself or a union holding it, because the C# test then decides the same question the
-/// slot would; the emitter writes no slot comparison for such a test either. The zeroed-storage reason refuses
-/// only a struct closing, a zeroed reference being null whichever closing it was declared as. Everything else a
-/// body does with its parameter holds, passes, returns or calls through an object that carries its own value.
+/// storage of the declaring type, a type value, a closing passed on to a parameter of another declaration
+/// that does one of these, or an abstract's method slot whose parameter a call through the abstract fills
+/// while the body that runs is the answering method's, to a fixed point. A test is exempt when the value's
+/// own type admits only the tested closing, the parameter itself or a union holding it, because the C# test
+/// then decides the same question the slot would; the emitter writes no slot comparison for such a test
+/// either. The zeroed-storage reason refuses only a struct closing, a zeroed reference being null whichever
+/// closing it was declared as. Everything else a body does with its parameter holds, passes, returns or calls
+/// through an object that carries its own value.
 /// </summary>
 internal sealed class SlotSensitivity
 {
@@ -36,6 +38,7 @@ internal sealed class SlotSensitivity
         Static,
         TypeValue,
         Forwarded,
+        Answered,
     }
 
     public sealed record Reason(Kind Kind, TypeParameter Parameter, TypeParameter? Target = null);
@@ -76,13 +79,14 @@ internal sealed class SlotSensitivity
     {
         var roots = SourceBodies.Of(model).Select(root => root.Root).ToList();
 
-        return Discover(roots, SourceDeclared(model), Closings(model, roots));
+        return Discover(roots, SourceDeclared(model), Closings(model, roots), SlotRoutes.Answers(model, slot => slot.TypeParametersList.Count > 0));
     }
 
     public static SlotSensitivity Discover(
         IEnumerable<object> roots,
         IEnumerable<MemberType> types,
-        IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> closings)
+        IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> closings,
+        IEnumerable<(Method Slot, Method Answer)>? answers = null)
     {
         var found = new SlotSensitivity();
 
@@ -111,6 +115,7 @@ internal sealed class SlotSensitivity
         }
 
         var fills = closings.ToList();
+        var answered = answers?.ToList() ?? [];
         var changed = true;
 
         while(changed)
@@ -134,6 +139,17 @@ internal sealed class SlotSensitivity
                         {
                             changed |= found.Add(new Reason(Kind.Forwarded, mentioned, filled));
                         }
+                    }
+                }
+            }
+
+            foreach(var (slot, answer) in answered)
+            {
+                for(var i = 0; i < slot.TypeParametersList.Count && i < answer.TypeParametersList.Count; i++)
+                {
+                    if(found.IsSensitive(answer.TypeParametersList[i]))
+                    {
+                        changed |= found.Add(new Reason(Kind.Answered, slot.TypeParametersList[i], answer.TypeParametersList[i]));
                     }
                 }
             }
@@ -211,6 +227,14 @@ internal sealed class SlotSensitivity
 
                     break;
 
+                case Kind.Answered:
+                    if(Judge(reason.Target!, routed, visited) is var (answering, answered))
+                    {
+                        return ($"is answered by '{SlotReach.Owner(reason.Target!)}' of '{Host(reason.Target!)}', which {answering}", answered);
+                    }
+
+                    break;
+
                 case Kind.Test:
                     return ($"tests a value against a type that mentions '{parameter.Name}', which the shared body cannot tell from another closing's", routed[0]);
 
@@ -223,6 +247,11 @@ internal sealed class SlotSensitivity
         }
 
         return null;
+    }
+
+    private static string Host(TypeParameter parameter)
+    {
+        return MistType.StripArity(parameter.DeclaringMethod?.DeclaringType?.Name ?? SlotReach.Owner(parameter));
     }
 
     private bool Add(Reason reason)

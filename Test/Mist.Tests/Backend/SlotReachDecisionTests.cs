@@ -3,6 +3,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -14,7 +15,7 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Where <see cref="SlotReach"/> says a value-routed slot's bare read lands: the hidden name by default,
 /// an operand's member inside an operator, the closing's value inside a restated default, and a refusal
-/// where nothing carries it.
+/// where nothing carries it; and which declaration a refusal names as a slot's owner.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class SlotReachDecisionTests
@@ -28,6 +29,22 @@ public sealed class SlotReachDecisionTests
         ring = (ClassType)HandBuiltSlots.Generic(new ClassType("Ring<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "Capacity", slots.Int);
         TypeParameterDomainResolver.ProjectValues(ring);
         capacity = ring.TypeParametersList[0];
+    }
+
+    [Fact]
+    public void AnOwnerIsTheDeclaringMethodTheDeclaringTypeOrTheExtensionBlockWithItsReceiver()
+    {
+        var scope = new ExtensionScope(null);
+        var block = new ExtensionBlock("self", "Probe", scope, null);
+        var t = new TypeParameter("T", 0, scope, null);
+        block.TypeParametersList.Add(t);
+        block.ResolvedReceiverType = slots.Closed(ring, t);
+        var same = new Method("Same", slots.Int, [], default) { Scope = new Scope(null) };
+        var u = new TypeParameter("U", 0, new Scope(null), null) { DeclaringMethod = same };
+
+        Assert.Equal("Ring", SlotReach.Owner(capacity));
+        Assert.Equal("Same", SlotReach.Owner(u));
+        Assert.Equal("extension(Ring<T> self)", SlotReach.Owner(t));
     }
 
     [Fact]

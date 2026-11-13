@@ -4,6 +4,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -181,6 +182,19 @@ internal sealed class SlotReach : IDisposable
 
     internal static string Owner(TypeParameter slot)
     {
-        return MistType.StripArity(slot.DeclaringMethod?.Name ?? slot.DeclaringType?.Name ?? slot.Name);
+        return slot switch
+        {
+            { DeclaringMethod: { } method } => MistType.StripArity(method.Name),
+            { DeclaringType: { } type } => MistType.StripArity(type.Name),
+            { Scope: ExtensionScope { Block: { } block } } => Owner(block),
+            _ => slot.Name,
+        };
+    }
+
+    internal static string Owner(ExtensionBlock block)
+    {
+        return block.ResolvedReceiverType is { } receiver
+            ? $"extension({TypeDisplay.Mist(receiver)} {block.ReceiverParameterName})"
+            : $"extension({block.ReceiverParameterName})";
     }
 }

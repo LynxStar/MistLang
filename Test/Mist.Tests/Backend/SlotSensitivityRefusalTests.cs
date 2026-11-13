@@ -19,9 +19,10 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// The refusal of a closing of a value-routed type as a slot-sensitive type argument over a hand-built model
 /// (runtime-dependent-values design, <em>A closing as a type argument</em>): one row per reason at a stated
-/// closing and one at a closing a call carries as the binder records it, the zeroed-storage reason meeting a
-/// class closing, a declaration that only holds and passes its parameter, and the test exemption written
-/// without a slot comparison in a copy union specialization makes.
+/// closing and one at a closing a call carries as the binder records it, a call through an abstract's method
+/// slot whose answer tests its parameter, the zeroed-storage reason meeting a class closing, a declaration that
+/// only holds and passes its parameter, and the test exemption written without a slot comparison in a copy
+/// union specialization makes.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class SlotSensitivityRefusalTests
@@ -167,6 +168,39 @@ public sealed class SlotSensitivityRefusalTests
     }
 
     [Fact]
+    public void ACallThroughAnAbstractsMethodSlotIsRefusedWhenTheMethodAnsweringItTestsItsParameter()
+    {
+        var checker = new AbstractType("IChecker", "Probe", new Scope(null), null, null);
+        var s = new TypeParameter("S", 0, new Scope(null), null);
+        var slot = new Method("Is", slots.Refinements.Bool, [new Parameter("x", UnknownType.Instance)], new MemberModifiers()) { DeclaringType = checker, Scope = checker.Scope };
+        slot.TypeParametersList.Add(s);
+        s.DeclaringMethod = slot;
+        checker.MethodsList.Add(slot);
+        var answering = HandBuiltModel.Class("Checker");
+        var a = new TypeParameter("A", 0, new Scope(null), null);
+        var answer = new Method("Is", slots.Refinements.Bool, [new Parameter("x", UnknownType.Instance)], new MemberModifiers())
+        {
+            DeclaringType = answering,
+            Scope = answering.Scope,
+            Body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Test(a)))),
+        };
+        answer.TypeParametersList.Add(a);
+        a.DeclaringMethod = answer;
+        answering.MethodsList.Add(answer);
+        var argument = slots.Closed(ring, slots.Literal(5));
+        slots.Refinements.Built.Model.GenericCalls.Record(slot, [argument]);
+
+        var refused = Assert.Single(Refuse([answer.Body!, Call(slot, [argument])], [], [(slot, answer)]));
+
+        Assert.Equal("MIST0502", refused.Number.Value);
+        Assert.Equal(
+            $"'Ring<5>' cannot fill 'S' of 'Is': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Is' is answered by 'Is' of 'Checker', "
+            + "which tests a value against a type that mentions 'A', which the shared body cannot tell from another closing's.",
+            refused.Message);
+        Assert.Empty(Refuse([answer.Body!, Call(slot, [argument])], []));
+    }
+
+    [Fact]
     public void ADeclarationThatOnlyHoldsAndPassesItsParameterAdmitsTheClosing()
     {
         var list = HandBuiltModel.Class("List<>");
@@ -213,7 +247,7 @@ public sealed class SlotSensitivityRefusalTests
         Assert.Contains("__Capacity == n", throughUnknown, StringComparison.Ordinal);
     }
 
-    private IReadOnlyList<Diagnostic> Refuse(IEnumerable<object> roots, IEnumerable<MemberType> types)
+    private IReadOnlyList<Diagnostic> Refuse(IEnumerable<object> roots, IEnumerable<MemberType> types, IEnumerable<(Method Slot, Method Answer)>? answers = null)
     {
         var bodies = roots.ToList();
         var declared = types.ToList();
@@ -223,7 +257,7 @@ public sealed class SlotSensitivityRefusalTests
             .Where(constructed => constructed.Definition is IHasTypeParameters)
             .Select(constructed => ((IHasTypeParameters)constructed.Definition, constructed.TypeArguments))
             .Concat(model.GenericCalls.All().Select(call => ((IHasTypeParameters)call.Method, call.TypeArguments)));
-        var sensitivity = SlotSensitivity.Discover(bodies, declared, closings);
+        var sensitivity = SlotSensitivity.Discover(bodies, declared, closings, answers);
         var diagnostics = new DiagnosticBag();
 
         sensitivity.Report(bodies.Select(root => new SourceRoot(root, null, MistAssembly.Synthetic, null)), declared, [], diagnostics);

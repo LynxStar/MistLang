@@ -587,6 +587,40 @@ public sealed class ValueRouteEmissionTests
         Assert.Empty(Refused(new ArrayCreationExpression(HandBuiltModel.Node(), slots.Closed(ring, slots.Literal(7)), size, slots.Closed(slots.Array, slots.Closed(ring, slots.Literal(7)), slots.Literal(2)))));
     }
 
+    [Fact]
+    public void AnArrayOrAStackAllocationOfAStructHoldingAValueRoutedStructByValueIsRefused()
+    {
+        var cell = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
+        using var routes = SlotRoutes.Enter([cell.TypeParametersList[0], capacity]);
+        var holder = HandBuiltModel.Struct("Holder<>");
+        var t = new TypeParameter("T", 0, holder.Scope, holder);
+        holder.TypeParametersList.Add(t);
+        holder.FieldsList.Add(new Field("item", t, default, new MemberModifiers()) { DeclaringType = holder });
+        var keep = HandBuiltModel.Struct("Keep<>");
+        var k = new TypeParameter("K", 0, keep.Scope, keep);
+        keep.TypeParametersList.Add(k);
+        keep.PropertiesList.Add(new Property("Item", slots.Closed(holder, k), new MemberModifiers()) { DeclaringType = keep, UsesBackingField = true });
+        var boxed = HandBuiltModel.Class("Boxed<>");
+        var b = new TypeParameter("B", 0, boxed.Scope, boxed);
+        boxed.TypeParametersList.Add(b);
+        boxed.FieldsList.Add(new Field("item", b, default, new MemberModifiers()) { DeclaringType = boxed });
+        var seven = slots.Closed(cell, slots.Literal(7));
+        var size = HandBuiltModel.Literal(slots.Int, 2L);
+
+        var direct = Assert.Single(Refused(Create(slots.Closed(holder, seven), size)));
+        var nested = Assert.Single(Refused(new StackallocExpression(HandBuiltModel.Node(), slots.Closed(keep, seven), size, slots.Closed(slots.Array, slots.Closed(keep, seven), slots.Literal(2)))));
+
+        Assert.Equal("MIST0503", direct.Number.Value);
+        Assert.Equal(
+            "'Holder<Cell<7>>' cannot be the element of an array: it holds 'Cell<7>' by value, whose dependent parameter 'N' is carried in each instance, "
+            + "and the elements start from zero with no value in them.",
+            direct.Message);
+        Assert.Equal("MIST0503", nested.Number.Value);
+        Assert.StartsWith("'Keep<Cell<7>>' cannot be the element of a stack allocation: it holds 'Cell<7>' by value", nested.Message, StringComparison.Ordinal);
+        Assert.Empty(Refused(Create(slots.Closed(boxed, seven), size)));
+        Assert.Empty(Refused(Create(slots.Closed(holder, slots.Closed(ring, slots.Literal(7))), size)));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -1061,6 +1095,11 @@ public sealed class ValueRouteEmissionTests
     private static string Emit(Expression expression)
     {
         return PropertyPatternEmissionTests.Emit(expression);
+    }
+
+    private ArrayCreationExpression Create(IMistType element, Expression size)
+    {
+        return new ArrayCreationExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)));
     }
 
     private static IReadOnlyList<Diagnostic> Refused(Expression expression)

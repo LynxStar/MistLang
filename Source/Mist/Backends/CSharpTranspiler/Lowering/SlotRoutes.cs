@@ -191,7 +191,7 @@ internal sealed class SlotRoutes : IDisposable
             }
         }
 
-        return Discover(closings, reads, Declarations(model), Answers(model), inferred);
+        return Discover(closings, reads, Declarations(model), Answers(model, slot => !slot.Modifiers.IsStatic && slot.TypeParametersList.Exists(parameter => parameter.IsDependent)), inferred);
     }
 
     public static (ExtensionBlock Block, IReadOnlyList<IMistType> Arguments)? ClosedThroughReceiver(object node)
@@ -340,7 +340,7 @@ internal sealed class SlotRoutes : IDisposable
         return routed;
     }
 
-    public static IEnumerable<(Method Slot, Method Answer)> Answers(ProgramModelClass model)
+    public static IEnumerable<(Method Slot, Method Answer)> Answers(ProgramModelClass model, Func<Method, bool> slots)
     {
         var interner = model.TypeInterner;
 
@@ -361,7 +361,7 @@ internal sealed class SlotRoutes : IDisposable
             {
                 foreach(var slot in abstractType.MethodsList)
                 {
-                    if(slot.Modifiers.IsStatic || !slot.TypeParametersList.Exists(parameter => parameter.IsDependent))
+                    if(!slots(slot))
                     {
                         continue;
                     }

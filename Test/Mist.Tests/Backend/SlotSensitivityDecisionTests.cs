@@ -4,6 +4,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -13,8 +14,9 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Which type parameters <see cref="SlotSensitivity"/> marks, one reason at a time over hand-built bodies and
 /// closings (runtime-dependent-values design, <em>A closing as a type argument</em>): each reason, each form
-/// of the test exemption, forwarding through two declarations and through a base or an implemented abstract,
-/// and a declaration that only holds, passes and calls through its parameter.
+/// of the test exemption, forwarding through two declarations, through a base or an implemented abstract and
+/// from an abstract's method slot to the method answering it, and a declaration that only holds, passes and
+/// calls through its parameter.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class SlotSensitivityDecisionTests
@@ -180,6 +182,31 @@ public sealed class SlotSensitivityDecisionTests
     }
 
     [Fact]
+    public void AnAbstractsMethodSlotTakesTheSensitivityOfTheMethodAnsweringItAndTheReasonNamesTheAnswer()
+    {
+        var (slot, s) = Generic(new AbstractType("IChecker", "Probe", new Scope(null), null, null), "S");
+        var (answer, a) = Generic(HandBuiltModel.Class("Checker"), "A");
+        var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
+        var body = Is(Local(UnknownType.Instance), Test(a));
+
+        var linked = SlotSensitivity.Discover([body], [], [], [(slot, answer)]);
+        var unlinked = SlotSensitivity.Discover([body], [], []);
+
+        var reason = Assert.Single(linked.ReasonsOf(s));
+        Assert.Equal(SlotSensitivity.Kind.Answered, reason.Kind);
+        Assert.Same(a, reason.Target);
+        Assert.Equal([a], unlinked.Sensitive);
+
+        using var routes = SlotRoutes.Enter(ring.TypeParametersList);
+        var (text, closing) = Assert.NotNull(linked.Judge(s, slots.Closed(ring, slots.Literal(5))));
+
+        Assert.Equal(
+            "is answered by 'Is' of 'Checker', which tests a value against a type that mentions 'A', which the shared body cannot tell from another closing's",
+            text);
+        Assert.Same(ring, closing.Definition);
+    }
+
+    [Fact]
     public void ADeclarationThatHoldsPassesReturnsAndCallsThroughItsParameterIsNotMarked()
     {
         var holder = HandBuiltModel.Class("Holder<>");
@@ -201,6 +228,20 @@ public sealed class SlotSensitivityDecisionTests
     private static SlotSensitivity Discover(object root)
     {
         return SlotSensitivity.Discover([root], [], []);
+    }
+
+    private (Method Method, TypeParameter Parameter) Generic(MemberType host, string parameter)
+    {
+        var declared = new TypeParameter(parameter, 0, new Scope(null), null);
+        var method = new Method("Is", slots.Refinements.Bool, [new Parameter("x", UnknownType.Instance)], new MemberModifiers())
+        {
+            DeclaringType = host,
+            Scope = host.Scope,
+        };
+        method.TypeParametersList.Add(declared);
+        declared.DeclaringMethod = method;
+        host.MethodsList.Add(method);
+        return (method, declared);
     }
 
     private static TypeParameter Parameter(MemberType owner, string name)

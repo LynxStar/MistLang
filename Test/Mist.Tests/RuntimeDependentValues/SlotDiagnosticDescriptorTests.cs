@@ -18,6 +18,7 @@ public sealed class SlotDiagnosticDescriptorTests
             BackendDiagnostics.CoincidingOverloads, BackendDiagnostics.InferredSlotNestedInArgument,
             BackendDiagnostics.ValueRoutedSlotOutOfReach, BackendDiagnostics.ValueRoutedParameterAsType,
             BackendDiagnostics.CoincidingUnionConstituents, BackendDiagnostics.SlotSensitiveClosingArgument,
+            BackendDiagnostics.ZeroedStorageHoldingValueRoutedStruct,
         ];
         var retired = Assert.Single(DiagnosticRegistry.Index.Tombstones);
         var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)

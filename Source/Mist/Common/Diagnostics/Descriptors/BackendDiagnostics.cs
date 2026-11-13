@@ -414,4 +414,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("argument", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("declaration", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("slot", SlotKind.Name), new Slot("reason", SlotKind.Enum)]);
+
+    public static readonly MistDiagnostic ZeroedStorageHoldingValueRoutedStruct = new(
+        DiagnosticNumber.Mint("MIST0503"),
+        Title: "Zeroed storage holds a value-routed struct",
+        Template: "'{element}' cannot be the element of {storage}: it holds '{type}' by value, whose dependent parameter '{parameter}' is carried in each instance, and the elements start from zero with no value in them.",
+        Description: "An array creation or a stack allocation starts every element from the CLR zero, and a struct element's fields and tuple elements start from zero with it. A struct whose dependent parameter is closed somewhere with a runtime value keeps that parameter's value in a hidden field of each instance, so an element that holds such a struct by value, in a field, a property's backing field or a tuple element, reads the slot as zero whatever its type says. Build the elements one by one with an array literal or a generated array, hold the struct by reference, or close it only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("element", SlotKind.Type), new Slot("storage", SlotKind.Enum), new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
 }

@@ -172,13 +172,60 @@ internal static partial class BodyEmitter
 
     private static void RefuseZeroedStorage(IMistType element, string storage, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
     {
-        if(Unaliased(TypeNameEmitter.Closed(element)) is ConstructedType { Definition: StructType } constructed
-            && SlotRoutes.ValueRouted(constructed.Definition) is [var slot, ..])
+        var closed = Unaliased(TypeNameEmitter.Closed(element));
+
+        if(closed is ConstructedType { Definition: StructType } constructed && SlotRoutes.ValueRouted(constructed.Definition) is [var slot, ..])
         {
             diagnostics.ReportAtNodeTyped(
                 BackendDiagnostics.ZeroedStorageOfValueRoutedStruct, node, null,
                 DiagnosticSnapshot.Type(constructed), new EnumValue(storage), new NameValue(slot.Name));
         }
+        else if(HeldByValue(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance)) is { } held)
+        {
+            diagnostics.ReportAtNodeTyped(
+                BackendDiagnostics.ZeroedStorageHoldingValueRoutedStruct, node, null,
+                DiagnosticSnapshot.Type(closed), new EnumValue(storage), DiagnosticSnapshot.Type(held), new NameValue(SlotRoutes.ValueRouted(held.Definition)[0].Name));
+        }
+    }
+
+    private static ConstructedType? HeldByValue(IMistType type, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            return null;
+        }
+
+        return Unaliased(type) switch
+        {
+            ConstructedType { Definition: StructType definition } constructed => SlotRoutes.ValueRouted(definition).Count > 0
+                ? constructed
+                : HeldByValue(definition, TypeSubstitution.ForReceiver(constructed), seen),
+            StructType definition => HeldByValue(definition, TypeSubstitution.Empty, seen),
+            TupleType tuple => tuple.ElementTypes.Select(element => HeldByValue(element, seen)).FirstOrDefault(found => found is not null),
+            NamedTupleType named => named.ElementTypes.Select(element => HeldByValue(element, seen)).FirstOrDefault(found => found is not null),
+            _ => null,
+        };
+    }
+
+    private static ConstructedType? HeldByValue(StructType definition, TypeSubstitution closing, HashSet<IMistType> seen)
+    {
+        foreach(var field in definition.FieldsList)
+        {
+            if(!field.Modifiers.IsStatic && HeldByValue(closing.Apply(field.Type, interner: null), seen) is { } inField)
+            {
+                return inField;
+            }
+        }
+
+        foreach(var property in definition.PropertiesList)
+        {
+            if(property.Modifiers is { IsStatic: false } && property.HasBackingStorage && HeldByValue(closing.Apply(property.Type, interner: null), seen) is { } inProperty)
+            {
+                return inProperty;
+            }
+        }
+
+        return null;
     }
 
     private static void RefuseCombinedRuntimeTest(IMistType tested, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)

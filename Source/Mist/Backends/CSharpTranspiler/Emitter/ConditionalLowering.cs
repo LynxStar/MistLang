@@ -134,7 +134,7 @@ internal static class ConditionalLowering
             foreach(var arm in PackTuplePatterns.Reached(switchExpression.Arms))
             {
                 writer.Write("case ");
-                BodyEmitter.EmitArmHead(arm, narrowed, writer, diagnostics);
+                BodyEmitter.EmitArmHead(arm, switchExpression.Scrutinee.Type, narrowed, writer, diagnostics);
                 writer.Append(":");
                 writer.AppendLine();
 

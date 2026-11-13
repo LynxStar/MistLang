@@ -404,4 +404,14 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("union", SlotKind.Type), new Slot("first", SlotKind.Type), new Slot("second", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic SlotSensitiveClosingArgument = new(
+        DiagnosticNumber.Mint("MIST0502"),
+        Title: "Value-routed closing fills slot-sensitive parameter",
+        Template: "'{argument}' cannot fill '{parameter}' of '{declaration}': it mentions '{type}', whose dependent parameter '{slot}' is closed somewhere with a value known only when the program runs, so every closing of '{type}' is one C# type, and '{declaration}' {reason}.",
+        Description: "A generic declaration's C# body is shared by every closing of its type parameters. A dependent parameter closed somewhere with a runtime value leaves the C# type, so every closing of its type is one C# type, and a body that tests a value against a type mentioning the parameter, creates storage of such a type from the CLR zero, declares static storage, reads the parameter as a type value, or passes it on to a parameter of another declaration that does one of these cannot tell one closing from another and would answer for the wrong one. A test is exempt when the value's own type admits only the tested closing. Fill the parameter with a type whose parameters are all carried in the C# type, or close the dependent type only with literals everywhere; the limit is the backend's, not the language's.",
+        Category: DiagnosticCategory.Bck,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("argument", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("declaration", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("slot", SlotKind.Name), new Slot("reason", SlotKind.Enum)]);
 }

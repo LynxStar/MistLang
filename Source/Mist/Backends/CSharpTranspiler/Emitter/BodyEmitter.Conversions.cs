@@ -87,7 +87,9 @@ internal static partial class BodyEmitter
 
         var tested = TestedType(asExpression.TargetType, asExpression.Node, diagnostics);
         var bound = $"__as{asExpression.Node.Span.Start}";
-        var compared = RuntimeComparisons(asExpression.TargetType, bound, diagnostics);
+        var compared = SlotSensitivity.AdmitsOnly(asExpression.Operand.Type, asExpression.TargetType)
+            ? new List<string>()
+            : RuntimeComparisons(asExpression.TargetType, bound, diagnostics);
 
         if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType))
             && ErasedShape.Members(asExpression.TargetType).Count == 0

@@ -28,6 +28,35 @@ internal static partial class BodyEmitter
     [ThreadStatic]
     private static NewExpression? discarding;
 
+    [ThreadStatic]
+    private static IMistType? patternSubject;
+
+    internal static IDisposable Subject(IMistType? type)
+    {
+        return new PatternSubject(type);
+    }
+
+    private sealed class PatternSubject : IDisposable
+    {
+        private readonly IMistType? previous;
+
+        public PatternSubject(IMistType? type)
+        {
+            previous = patternSubject;
+            patternSubject = type;
+        }
+
+        public void Dispose()
+        {
+            patternSubject = previous;
+        }
+    }
+
+    private static bool Compared(IMistType tested)
+    {
+        return RuntimeSlots(tested).Count > 0 && !SlotSensitivity.AdmitsOnly(patternSubject, tested);
+    }
+
     internal static IDisposable? Within(MemberType type)
     {
         return SlotRoutes.ValueRouted(type).Count > 0 ? new Enclosing(type) : null;

@@ -9,6 +9,7 @@ internal static partial class BodyEmitter
     private static void EmitTuplePattern(
         TuplePattern tuple, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var elements = Subject(null);
         var (widthMissed, tested) = PackTuplePatterns.Lowering(tuple);
 
         if(widthMissed)

@@ -1853,6 +1853,8 @@ internal static partial class BodyEmitter
     private static void EmitIsPattern(
         IsPatternExpression isPattern, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var subject = Subject(isPattern.Scrutinee.Type);
+
         if(TypeNameEmitter.Closed(isPattern.Scrutinee.Type) is UnionType union && !OptionalUnion.IsOptional(union))
         {
             EmitUnionNarrowing(isPattern, union, writer, diagnostics);
@@ -2008,7 +2010,7 @@ internal static partial class BodyEmitter
 
         EmitList.Separated(PackTuplePatterns.Reached(switchExpression.Arms), ", ", writer, arm =>
         {
-            EmitArmHead(arm, narrowed, writer, diagnostics);
+            EmitArmHead(arm, switchExpression.Scrutinee.Type, narrowed, writer, diagnostics);
             writer.Append(" => ");
             EmitEntering(arm.Result, switchExpression.Type, writer, diagnostics);
         });
@@ -2025,8 +2027,9 @@ internal static partial class BodyEmitter
     }
 
     internal static void EmitArmHead(
-        SwitchArm arm, UnionType? narrowed, CSharpWriter writer, DiagnosticBag diagnostics)
+        SwitchArm arm, IMistType subject, UnionType? narrowed, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var scrutinee = Subject(subject);
         var hoisted = new List<HoistedTest>();
 
         if(narrowed is { } union)
@@ -2369,7 +2372,7 @@ internal static partial class BodyEmitter
 
         // A runtime slot is compared beside the pattern through the binding, so a test that binds
         // nothing binds a temporary for the comparison's sake.
-        var compared = RuntimeSlots(typeTest.NarrowedType).Count > 0;
+        var compared = Compared(typeTest.NarrowedType);
         var bound = typeTest.Binding is { } binding ? LocalNames.Of(binding) : compared ? TemporaryName() : null;
 
         if(compared && hoisted is null)
@@ -2455,6 +2458,8 @@ internal static partial class BodyEmitter
     private static void EmitListPattern(
         ListPattern list, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        using var elements = Subject(null);
+
         if(list.Slice is { Method: { } promoted } && AsyncPromotion.IsPromoted(promoted))
         {
             diagnostics.ReportAtNodeTyped(
@@ -2548,7 +2553,7 @@ internal static partial class BodyEmitter
         }
 
         IReadOnlyList<string> shape = [];
-        var compared = property.TypeTest is { } tested && RuntimeSlots(tested.NarrowedType).Count > 0;
+        var compared = property.TypeTest is { } tested && Compared(tested.NarrowedType);
         TypeTestPattern? mergedTest = null;
 
         if(property.TypeTest is { Refinement: null, TestsAbsence: false, Binding: null, NarrowedType: not RefinedType } merged
@@ -2575,6 +2580,7 @@ internal static partial class BodyEmitter
             writer.Append(shape.Count > 0 && property.Subpatterns.Count > 0 ? ", " : "");
             EmitList.Separated(property.Subpatterns, ", ", writer, subpattern =>
             {
+                using var member = Subject(subpattern.MemberType);
                 writer.Append($"{IdentifierSpelling.Of(subpattern.MemberName)}: ");
                 EmitPattern(subpattern.Pattern, 0, hoisted, writer, diagnostics);
             });

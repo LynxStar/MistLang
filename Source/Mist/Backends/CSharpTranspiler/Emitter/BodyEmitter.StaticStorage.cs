@@ -33,16 +33,34 @@ internal static partial class BodyEmitter
 
     private static string? HeldStorage(Field field, Expression? receiver, DiagnosticBag diagnostics)
     {
-        return (field.DeclaringType ?? field.StorageSource?.DeclaringType) is { } declaring && StorageOwner(declaring, receiver) is var owner && StaticHolders.IsHeld(field, owner)
-            ? $"{Holder(owner, receiver, diagnostics)}.{IdentifierSpelling.Of(field.Name)}"
-            : null;
+        return HeldOwner(field, receiver) is { } owner ? $"{Holder(owner, receiver, diagnostics)}.{IdentifierSpelling.Of(field.Name)}" : null;
     }
 
     private static string? HeldStorage(Property property, Expression? receiver, DiagnosticBag diagnostics)
     {
-        return property.DeclaringType is { } declaring && StorageOwner(declaring, receiver) is var owner && StaticHolders.IsHeld(property, owner)
-            ? $"{Holder(owner, receiver, diagnostics)}.{IdentifierSpelling.Of(property.Name)}"
+        return HeldOwner(property, receiver) is { } owner ? $"{Holder(owner, receiver, diagnostics)}.{IdentifierSpelling.Of(property.Name)}" : null;
+    }
+
+    private static MemberType? HeldOwner(MemberAccessExpression access)
+    {
+        return access.Member switch
+        {
+            FieldResult { Field: var field } => HeldOwner(field, access.Receiver),
+            PropertyResult { Property: var property } => HeldOwner(property, access.Receiver),
+            _ => null,
+        };
+    }
+
+    private static MemberType? HeldOwner(Field field, Expression? receiver)
+    {
+        return (field.DeclaringType ?? field.StorageSource?.DeclaringType) is { } declaring && StorageOwner(declaring, receiver) is var owner && StaticHolders.IsHeld(field, owner)
+            ? owner
             : null;
+    }
+
+    private static MemberType? HeldOwner(Property property, Expression? receiver)
+    {
+        return property.DeclaringType is { } declaring && StorageOwner(declaring, receiver) is var owner && StaticHolders.IsHeld(property, owner) ? owner : null;
     }
 
     private static MemberType StorageOwner(MemberType declaring, Expression? receiver)
@@ -60,7 +78,7 @@ internal static partial class BodyEmitter
 
     private static string? HeldReceiver(Expression target, Expression part, DiagnosticBag diagnostics)
     {
-        return target is MemberAccessExpression access && ReferenceEquals(access.Receiver, part) && Held(access) is { } owner
+        return target is MemberAccessExpression access && ReferenceEquals(access.Receiver, part) && HeldOwner(access) is { } owner
             ? Holder(owner, part, diagnostics)
             : null;
     }
@@ -96,7 +114,7 @@ internal static partial class BodyEmitter
     private static bool ConsumedByHolder(MemberAccessExpression access, SlotCapture capture)
     {
         return access.Receiver is TypeReferenceExpression reference
-            && Held(access) is { } owner
+            && HeldOwner(access) is { } owner
             && ConsumedByClosing(UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))), capture);
     }
 
@@ -115,15 +133,5 @@ internal static partial class BodyEmitter
     private static bool Mentions(IMistType type)
     {
         return TypeParameterReach.Collect(type).Any(SlotRoutes.IsValueRouted);
-    }
-
-    private static MemberType? Held(MemberAccessExpression access)
-    {
-        return access.Member switch
-        {
-            FieldResult { Field: var field } when (field.DeclaringType ?? field.StorageSource?.DeclaringType) is { } declaring && StorageOwner(declaring, access.Receiver) is var owner && StaticHolders.IsHeld(field, owner) => owner,
-            PropertyResult { Property: { DeclaringType: { } declaring } property } when StorageOwner(declaring, access.Receiver) is var owner && StaticHolders.IsHeld(property, owner) => owner,
-            _ => null,
-        };
     }
 }

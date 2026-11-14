@@ -97,7 +97,7 @@ internal static partial class BodyEmitter
             yield return receiver;
         }
 
-        if(receiver is TypeReferenceExpression && target is MemberAccessExpression held && Held(held) is { } owner && !StaticHolders.IsBuilding(owner))
+        if(receiver is TypeReferenceExpression && target is MemberAccessExpression held && HeldOwner(held) is { } owner && !StaticHolders.IsBuilding(owner))
         {
             yield return receiver;
         }

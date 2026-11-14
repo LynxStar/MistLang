@@ -1,10 +1,6 @@
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Formats diagnostics in MSBuild-compatible format for stderr output.
-/// Format: <c>path(startLine,startCol): severity id: message</c>; a location with a path but no
-/// position drops the parenthesis, and an external or absent one drops the path as well.
-/// </summary>
+/// Stderr diagnostics use MSBuild-compatible syntax.
 public static class DiagnosticFormatter
 {
     public static string Format(Diagnostic diagnostic)

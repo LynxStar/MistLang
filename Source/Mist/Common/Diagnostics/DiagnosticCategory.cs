@@ -1,9 +1,6 @@
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// What a condition is about, independent of the stage that noticed it and of its severity.
-/// Exactly these thirteen tokens exist; catalog grouping and JSON filtering read nothing else.
-/// </summary>
+/// Condition categories are independent of reporting stage and severity; catalog and JSON consumers use this closed set.
 public enum DiagnosticCategory
 {
     Syn,

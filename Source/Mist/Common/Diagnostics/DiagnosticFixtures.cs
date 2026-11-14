@@ -2,10 +2,7 @@ using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// The one way a test builds a diagnostic of its own. A fixture is never a registry field, so the
-/// index, the catalog and the validator never see it.
-/// </summary>
+/// Fixture descriptors stay outside registry fields so the index, catalog and validator cannot discover them.
 internal static class DiagnosticFixtures
 {
     public static MistDiagnostic Descriptor(

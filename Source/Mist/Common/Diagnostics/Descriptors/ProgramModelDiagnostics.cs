@@ -2,14 +2,8 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors for the program model construction phase.
-/// Covers namespace validation, type registration, type resolution,
-/// base type resolution, and member resolution.
-/// </summary>
 public static partial class ProgramModelDiagnostics
 {
-    // ── Internal / driver-level errors ────────────────────────────────────
 
     public static readonly MistDiagnostic UnexpectedNamespaceNode = new(
         DiagnosticNumber.Mint("MIST0288"),
@@ -30,8 +24,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("nodeKind", SlotKind.Name)]);
-
-    // ── Namespace validation ─────────────────────────────────────────────
 
     public static readonly MistDiagnostic DuplicateFileScopedNamespace = new(
         DiagnosticNumber.Mint("MIST0290"),
@@ -79,8 +71,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Promotable,
         DefaultSeverity: DiagnosticSeverity.Warning,
         Slots: [new Slot("namespace", SlotKind.Name), new Slot("project", SlotKind.Name)]);
-
-    // ── Type resolution ──────────────────────────────────────────────────
 
     public static readonly MistDiagnostic DuplicateTypeName = new(
         DiagnosticNumber.Mint("MIST0295"),
@@ -192,8 +182,6 @@ public static partial class ProgramModelDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name)]);
 
-    // ── Base type resolution ─────────────────────────────────────────────
-
     public static readonly MistDiagnostic BaseTypeKindMismatch = new(
         DiagnosticNumber.Mint("MIST0306"),
         Title: "Base type kind mismatch",
@@ -223,8 +211,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Name)]);
-
-    // ── Member resolution ────────────────────────────────────────────────
 
     public static readonly MistDiagnostic GetterCannotHaveModifier = new(
         DiagnosticNumber.Mint("MIST0309"),
@@ -294,8 +280,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("member", SlotKind.Name)]);
-
-    // ── Modifier validation ──────────────────────────────────────────────
 
     public static readonly MistDiagnostic ConflictingDisciplineModifiers = new(
         DiagnosticNumber.Mint("MIST0316"),
@@ -439,8 +423,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
 
-    // ── Cast operator validation ─────────────────────────────────────────
-
     public static readonly MistDiagnostic CastOperatorMissingParameter = new(
         DiagnosticNumber.Mint("MIST0331"),
         Title: "Cast operator without parameter",
@@ -496,8 +478,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
 
-    // ── Default block validation ─────────────────────────────────────────
-
     public static readonly MistDiagnostic DuplicateDefaultBlock = new(
         DiagnosticNumber.Mint("MIST0337"),
         Title: "Duplicate default block",
@@ -507,8 +487,6 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Name)]);
-
-    // ── Constraint resolution ────────────────────────────────────────────
 
     public static readonly MistDiagnostic UnresolvedConstraintTarget = new(
         DiagnosticNumber.Mint("MIST0338"),
@@ -540,8 +518,6 @@ public static partial class ProgramModelDiagnostics
         DefaultSeverity: DiagnosticSeverity.Warning,
         Slots: [new Slot("parameter", SlotKind.Name), new Slot("constraint", SlotKind.Enum)]);
 
-    // ── With clause resolution ───────────────────────────────────────────
-
     public static readonly MistDiagnostic ThisTierOnConstructor = new(
         DiagnosticNumber.Mint("MIST0341"),
         Title: "This tier on constructor",
@@ -550,8 +526,6 @@ public static partial class ProgramModelDiagnostics
         Category: DiagnosticCategory.Own,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
-
-    // ── Extension block validation ───────────────────────────────────────
 
     public static readonly MistDiagnostic ExtensionPropertyCannotHaveAutoAccessor = new(
         DiagnosticNumber.Mint("MIST0342"),

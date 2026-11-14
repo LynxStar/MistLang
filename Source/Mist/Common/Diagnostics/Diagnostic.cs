@@ -2,11 +2,7 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// One admitted report of a descriptor. Built only by <see cref="DiagnosticFactory"/>; its text is
-/// rendered on demand from the descriptor and the slot values, so nothing downstream can hold a
-/// message the registry did not produce.
-/// </summary>
+/// Only <see cref="DiagnosticFactory"/> constructs occurrences, keeping downstream messages tied to registry descriptors.
 public sealed record Diagnostic
 {
     internal Diagnostic(

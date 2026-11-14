@@ -189,8 +189,7 @@ public static class DiagnosticFactory
         return null;
     }
 
-    // A composite's declared element kind is a claim about its payload, which the record types cannot
-    // enforce; this walk is what makes "Optional of a kind" and "Sequence of a kind" true of the values.
+    // Record types cannot enforce composite payload kinds; validation must walk nested values.
     private static string? Malformed(string subject, SlotValue? value)
     {
         switch(value)

@@ -3,13 +3,7 @@ using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Resolves where a node points by walking its origin chain to a parsed root, and places a range or
-/// point a producer built by hand under the same rule. A span is valid only when it starts at or
-/// after zero, is not negative in length and ends at or before the end of its text, with the end
-/// computed in 64-bit arithmetic so no overflow can fake a fit; anything else resolves to an absent
-/// location and a bounds fault for the factory to report.
-/// </summary>
+/// Hand-built and origin-derived spans share bounds checks; 64-bit ends prevent overflow from admitting an invalid range.
 public static class DiagnosticHelper
 {
     private const int MaxChainDepth = 100;

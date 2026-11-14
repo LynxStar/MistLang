@@ -3,15 +3,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Extension methods for reporting diagnostics with AST node location resolution.
-/// Replaces the per-analyzer MakeDiagnostic helper pattern.
-/// </summary>
 public static class DiagnosticBagExtensions
 {
-    /// <summary>
-    /// Reports a diagnostic using a descriptor, resolving location from an AST node.
-    /// </summary>
     public static void ReportAtNode(
         this DiagnosticBag bag,
         MistDiagnostic descriptor,

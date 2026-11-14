@@ -4,9 +4,6 @@ using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// An append-only collection of diagnostics, drained into an immutable array at stage boundaries.
-/// </summary>
 public sealed class DiagnosticBag
 {
     private List<Diagnostic> diagnostics = [];
@@ -30,16 +27,9 @@ public sealed class DiagnosticBag
 
     public DiagnosticOperation Operation { get; }
 
-    /// <summary>
-    /// The stage currently reporting into this bag. A stage announces itself as it starts, so an
-    /// occurrence records who produced it without the descriptor having to guess.
-    /// </summary>
+    /// Each stage announces itself so occurrences identify their producer independently of the descriptor.
     public PipelineStage Stage { get; set; }
 
-    /// <summary>
-    /// Admits an occurrence the factory already built: one not yet admitted anywhere receives the
-    /// operation's next ordinal, and one forwarded from another bag keeps the ordinal it has.
-    /// </summary>
     public void Add(Diagnostic diagnostic)
     {
         if(diagnostic.Ordinal == 0)
@@ -120,11 +110,6 @@ public sealed class DiagnosticBag
         Admit(DiagnosticFactory.Create(descriptor, location, Stage, LegacyArguments.For(descriptor, args).AsSpan()));
     }
 
-    /// <summary>
-    /// What <paramref name="action"/> reports, held back rather than added, for a caller that decides
-    /// afterwards whether to commit, discard or replay it. Withholds nest, and an exception inside
-    /// the action leaves the parent exactly as it was.
-    /// </summary>
     public Withheld Withhold(Action action)
     {
         var kept = diagnostics;
@@ -141,14 +126,8 @@ public sealed class DiagnosticBag
         }
     }
 
-    /// <summary>
-    /// Returns <c>true</c> if any admitted occurrence has the effective severity <see cref="DiagnosticSeverity.Error"/>.
-    /// </summary>
     public bool HasErrors => diagnostics.Exists(d => d.Severity == DiagnosticSeverity.Error);
 
-    /// <summary>
-    /// Returns all diagnostics as an immutable array.
-    /// </summary>
     public ImmutableArray<Diagnostic> ToImmutableArray()
     {
         return [.. diagnostics];

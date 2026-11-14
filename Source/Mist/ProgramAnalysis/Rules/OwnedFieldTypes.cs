@@ -9,12 +9,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The field-type restriction on an owned type (owned-fields Requirements 4, 5 and 11.2): each instance storage
-/// slot, inherited ones included (3.1), is an owned type, clonable as <see cref="OwnedProvenance.IsClonable"/>
-/// decides, or a value type, and a type parameter is constrained to one of those. A union is judged by its
-/// constituents. Only a reference type is judged, so a type the model cannot place is admitted rather than
-/// refused, and the restriction reads no provenance (5.3). An owned base judges its own slots, so the walk up
-/// the base chain stops there.
+/// This restriction uses declared types, not provenance (owned-fields Requirement 5.3), and admits
+/// types the model cannot classify as references. <see cref="OwnedProvenance.IsClonable"/> decides cloning.
+/// An owned base judges its own storage, so the inherited-slot walk stops there.
 /// </summary>
 internal static class OwnedFieldTypes
 {

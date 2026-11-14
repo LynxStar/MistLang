@@ -10,12 +10,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Ownership-v2 Requirement 6.9, where the binder left it: an owned binding, an owned field or
-/// property, and an owned parameter each promise a value nothing else holds, so what moves into one
-/// must yield ownership exactly as an owned return must. The binder clones the source of an owned
-/// binding or parameter where its type declares Clone and leaves any other alone, and every rule that
-/// reads an owned slot -- the purity judge's Own origin above all -- trusts that nothing unowned got in,
-/// in every scope and not only a judged one.
+/// The binder clones owned binding and parameter sources when Clone exists; other sources still need
+/// judgment here. Every owned slot must contain an owned value in every scope, since the purity judge
+/// trusts that invariant when assigning Own provenance (ownership-v2 Requirement 6.9).
 /// </summary>
 internal static class OwnedDestinations
 {

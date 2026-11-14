@@ -12,15 +12,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Ownership on a finished body: moves, leases and per-field state through <see cref="OwnershipFlow"/>,
-/// owned destinations through <see cref="OwnedDestinations"/>, and the owned return judged here.
-/// <para>
-/// An owned return hands the caller a value nothing else holds (ownership-v2 Requirements 1.5 and
-/// 6.7), so a `return` in a method returning owned is judged by <see cref="Origins"/>, without flow: a
-/// construction, a clone, a call returning owned, an owned binding, a local fresh at every assignment,
-/// or a value of a type that cannot change; the receiver and its owned fields count once the method
-/// takes `this` owned. Anything else is refused at the value.
-/// </para>
+/// Moves and leases belong to <see cref="OwnershipFlow"/> and destinations to <see cref="OwnedDestinations"/>.
+/// Owned returns use <see cref="Origins"/> without flow; an owned receiver includes its owned fields.
 /// </summary>
 internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 {

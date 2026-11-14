@@ -4,10 +4,7 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// An initializer block assigns each member once (property-initializers Requirement 6), and either assigns
-/// members or adds collection elements, since one block emits as one C# initializer and C# has no form that
-/// does both. Each is judged block by block, so a nested construction's block answers only for itself. An
-/// entry whose target the binder could not resolve to storage already has its complaint and is not counted.
+/// Unresolved initializer targets belong to the binder's refusal and do not count as assigned storage.
 /// </summary>
 internal sealed class InitializerAnalyzer : IProgramAnalyzer
 {

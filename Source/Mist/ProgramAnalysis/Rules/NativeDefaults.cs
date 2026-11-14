@@ -5,11 +5,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Whether a native default answers a slot a conformer leaves unanswered, by the rule the CLR dispatches
-/// with: of the slot's own declaration and every restatement among the interfaces the conformer reaches,
-/// the most specific one decides, and it must be the only one. A body there answers; a declaration without
-/// one, or a tie between two restatements neither of which derives from the other, leaves the slot to the
-/// conformer, as C# would.
+/// CLR dispatch requires one most-specific declaration among the slot and its restatements.
+/// A bodiless winner or incomparable tie leaves the slot to the conformer.
 /// </summary>
 internal static class NativeDefaults
 {

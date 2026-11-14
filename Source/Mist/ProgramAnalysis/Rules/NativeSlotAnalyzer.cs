@@ -6,10 +6,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The refusals of clr-slot-filling Requirements 3 and 4 that are not redeclarations: a required CLR
-/// slot nothing fills, a member colliding with a sealed slot, and a member that repeats a slot's name and
-/// parameters but not its shape. What fills what is <see cref="NativeSlotFills"/>'s; a collision with a
-/// member that is no slot is <see cref="DeclarationShapeAnalyzer"/>'s redeclaration.
+/// <see cref="NativeSlotFills"/> owns slot matching; collisions with non-slot members belong to
+/// <see cref="DeclarationShapeAnalyzer"/>.
 /// </summary>
 internal sealed class NativeSlotAnalyzer : IProgramAnalyzer
 {

@@ -12,29 +12,18 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Moves and leases on the flow framework, over <see cref="Place"/>s. A place is moved by a declaration
-/// or assignment that takes it directly, by an owned parameter, an owned field or an owned constructor
-/// argument, by an array literal, by a call `with owned`, and -- for a linear or affine value -- by
-/// `Drop()`, but not by any other field taking it, as classic has it; a use after that is refused at the
-/// use, and a move inside a loop of a binding that outlives the loop is refused at the move. A lease is a
-/// local declared frozen, borrowed or readonly ref from a place, and ends where that local's block does,
-/// which is what the Leave step is for. What a place may do depends on three things, judged in this order
-/// (owned-fields Requirement 16): its own state and that of the places above it, since a lease on the
-/// holder is a lease on every field it holds; and, for an action on the whole of it, the worst state
-/// among the places below it, which is the composite restriction -- a holder with a field moved out is
-/// incomplete and cannot be handed anywhere, while its other fields stay usable and the moved one may be
-/// written back. A write to a slot is the one action not evaluated as a step, so its own borrow is
-/// judged there; everything else complains about a borrow where the place is read. What such a store
-/// keeps, like an owned field stored into a plain one, is a second holder of the value, and so is an
-/// ordinary parameter -- one neither owned nor lent -- since the callee may keep what it is handed
-/// (owned-fields Requirement 18.9), where a borrowed, frozen or readonly ref parameter gives it back as
-/// the call returns; from there on the holder may not move into an owned destination or be returned
-/// owned until it or that field is assigned afresh, and a plain use of it stays admitted. Two
-/// paths join by remembering either path's move, which is classic's verdict measured; a use once
-/// complained of settles the place, so one mistake is one complaint per path. Linear and affine structs
-/// move like classes; ordinary structs copy even in owned bindings. The rest of what classic admits
-/// here -- a call as no move for a linear value, a frozen lender lent borrowed by call -- remains under MIST-122 and
-/// MIST-061 in Carbonek.
+/// Judge a <see cref="Place"/>'s own and ancestor state first, then its worst descendant state for whole-place
+/// actions (owned-fields Requirement 16):
+/// a holder's lease covers its fields, and a moved field prevents whole-holder use while siblings remain
+/// usable and the field can be restored. Leases end with the recipient's block. A slot write has no
+/// evaluation step, so its borrow is checked at the store; other actions report at the read.
+/// A plain field store or ordinary parameter may retain another holder (Requirement 18.9); borrowed,
+/// frozen and readonly ref parameters return the loan. Shared holders stay usable but cannot move or
+/// return owned until the holder or affected field is assigned afresh. Joins remember either path's
+/// move; a reported use settles the place on that path. Linear and affine structs move like classes;
+/// ordinary structs copy even in owned bindings. Non-owned field stores keep rather than move.
+/// Calls that do not move linear values and frozen lenders lent borrowed by call remain under
+/// MIST-122 and MIST-061 in Carbonek.
 /// </summary>
 internal sealed partial class OwnershipFlow(
     AnalysisContext context,

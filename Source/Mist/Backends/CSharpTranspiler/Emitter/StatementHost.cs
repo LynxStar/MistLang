@@ -35,13 +35,13 @@ internal static class StatementHost
         return new Hosted(name, value, type, read);
     }
 
-    public static void EmitMethods(IEnumerable<Hosted> hosted, CSharpWriter writer, DiagnosticBag diagnostics)
+    public static void EmitMethods(IEnumerable<Hosted> hosted, CSharpWriter writer, DiagnosticBag diagnostics, bool instance = false)
     {
         foreach(var method in hosted)
         {
             writer.WriteBlankLine();
             writer.WriteLine(
-                $"private static {TypeNameEmitter.Emit(method.Type)} {method.Name}({ParameterEmitter.Emit(method.Parameters, diagnostics)})");
+                $"private {(instance ? "" : "static ")}{TypeNameEmitter.Emit(method.Type)} {method.Name}({ParameterEmitter.Emit(method.Parameters, diagnostics)})");
 
             using(writer.Block())
             {

@@ -187,7 +187,7 @@ internal static class TypeEmitter
             // between them.
             if(flattened is not null)
             {
-                foreach(var field in flattened.Fields)
+                foreach(var field in flattened.Fields.Where(field => !StaticHolders.IsHeld(field.Field, type)))
                 {
                     FieldEmitter.Emit(field, inReadonlyType, writer, diagnostics);
                     anyEmitted = true;
@@ -195,7 +195,7 @@ internal static class TypeEmitter
             }
             else
             {
-                foreach(var field in concrete?.FieldsList ?? [])
+                foreach(var field in concrete?.FieldsList.Where(field => !StaticHolders.IsHeld(field, type)) ?? [])
                 {
                     FieldEmitter.Emit(field, inReadonlyType, writer, diagnostics);
                     anyEmitted = true;
@@ -203,6 +203,13 @@ internal static class TypeEmitter
             }
 
             anyEmitted |= ValueRouteEmitter.EmitMembers(type, writer, diagnostics);
+
+            if(concrete is not null)
+            {
+                StaticHolderEmitter.Emit(
+                    concrete, flattened?.Fields.Select(field => field.Field) ?? concrete.FieldsList, flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList,
+                    inReadonlyType, writer, diagnostics, ref anyEmitted);
+            }
 
             foreach(var parameter in Parameters(type))
             {
@@ -225,7 +232,7 @@ internal static class TypeEmitter
                 IntrinsicCloneEmitter.EmitWrapper(concrete!, writer);
             }
 
-            foreach(var constructor in concrete?.ConstructorsList ?? [])
+            foreach(var constructor in concrete?.ConstructorsList.Where(constructor => !StaticHolders.IsHeld(constructor)) ?? [])
             {
                 SeparateMember(writer, ref anyEmitted);
                 ConstructorEmitter.Emit(constructor, type, writer, diagnostics, initNames);
@@ -255,7 +262,7 @@ internal static class TypeEmitter
 
             var properties = flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList;
 
-            foreach(var property in properties)
+            foreach(var property in properties.Where(property => !StaticHolders.IsHeld(property, type)))
             {
                 using var inherited = Substituting(flattened?.PropertyPaths.GetValueOrDefault(property));
                 SeparateMember(writer, ref anyEmitted);

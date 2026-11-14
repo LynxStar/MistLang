@@ -633,6 +633,33 @@ value-routed type, `Counter<Ring<3>>`, is item 8.
 The delivery hands in the list of every form of static storage and every
 place that reads or writes one, each marked as above.
 
+Item 5 landed with MIST-1372, over 6ae40868. MIST0491 is retired as a
+tombstone. The holder is `__Statics`, nested in the type, with a readonly
+field for each value-routed slot and one member for each static field and
+static property, computed properties included, since a getter that reads the
+slot needs the value as much as an initializer does. Its constructor runs
+the initializers in the order the type's C# statics run them on the carrier
+route, the fields, then the properties, then the static constructor's body,
+so a program prints the same whichever route its types take. The table is
+`__statics` and the lookup `__StaticsOf`, which takes the slot values as the
+type's static methods take them. The table enters a holder before the
+constructor runs anything, so an initializer that reaches its own value's
+storage, directly or through a static method, reads the holder being built,
+as a C# static initializer reads its own statics; one lock across all the
+tables builds each holder exactly once and lets no two types deadlock. The
+holder's own constructor and members reach its storage through `this`, which
+is where a readonly static is assigned. A type that declares a static
+constructor touches its holder from every instance constructor and every
+static method, because C# runs a static constructor on any use of the type
+and not only on a read of its storage. A read through a closing evaluates a
+capture's initializer once, as the argument of the lookup, and a compound
+assignment that C# cannot write in place binds the holder once. A bare name
+inside the type's members supplies the hidden field or parameter; inside an
+operator, the operand that carries the slot; inside a nested type, nothing,
+which is MIST0499 until item 7. A struct's static is held by the struct that
+copies it, as its C# static is today. A static lambda keeps its modifier only
+where it reads no hidden value, since C# lets it capture none.
+
 ### Identity by value: unions and abstracts
 
 Item 6. Each program below runs at afd43acab while its types are closed only
@@ -860,7 +887,8 @@ own diagnostic and never miscompiled:
 
 - Static storage in a value-routed type. Requirement 10 needs a table keyed by
   slot value. Nothing in the samples, Standard or the book snippets declares
-  static storage in a type with a dependent parameter.
+  static storage in a type with a dependent parameter. Retired by item 5 of
+  *Identity by value*.
 - A type value of a value-routed closing, `var t = Ring<n>;`. A CLR `Type`
   cannot hold the value.
 - A type that implements a value-routed abstract at two values of a slot. The

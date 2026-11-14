@@ -122,6 +122,7 @@ internal sealed class CSharpEmitterV2
         LifetimeLowering.Reset();
         ArrayLowering.Reset();
         ArrayEnumeration.Reset();
+        StaticHolders.Reset();
         TaskCombinators.Reset();
         InvariantCulture.Reset();
         BodyEmitter.ResetTemporaries();
@@ -181,6 +182,7 @@ internal sealed class CSharpEmitterV2
         EmitContextRuntime(outputDir, emittedFiles);
         EmitOwnershipRuntime(outputDir, emittedFiles);
         EmitArrayRuntime(outputDir, emittedFiles);
+        EmitStaticsRuntime(outputDir, emittedFiles);
         EmitTaskRuntime(outputDir, emittedFiles);
         EmitInvariantRuntime(outputDir, emittedFiles);
         LocaleStartup.EmitFile(options, outputDir, emittedFiles);
@@ -537,6 +539,21 @@ internal sealed class CSharpEmitterV2
         }
 
         var path = Path.Combine(outputDir, "__Array.g.cs");
+        File.WriteAllText(path, writer.ToString());
+        emittedFiles.Add(path);
+    }
+
+    private static void EmitStaticsRuntime(string outputDir, List<string> emittedFiles)
+    {
+        if(!StaticHolders.Used())
+        {
+            return;
+        }
+
+        var writer = new CSharpWriter();
+        StaticHolders.Emit(writer);
+
+        var path = Path.Combine(outputDir, "__Statics.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

@@ -46,7 +46,7 @@ internal static partial class BodyEmitter
         // in its parentheses.
         var bound = BoundParts(compound.Target).ToList();
         var precedence = bound.Count == 1 ? SwitchPrecedence + 1 : AssignmentPrecedence;
-        var parts = bound.Select(part => (Part: part, Rendered: RenderAt(part, precedence, diagnostics), Name: TemporaryName())).ToList();
+        var parts = bound.Select(part => (Part: part, Rendered: HeldReceiver(compound.Target, part, diagnostics) ?? RenderAt(part, precedence, diagnostics), Name: TemporaryName())).ToList();
         var enclosing = boundParts;
         boundParts = new Dictionary<Expression, string>(enclosing ?? [], ReferenceEqualityComparer.Instance);
 
@@ -93,6 +93,11 @@ internal static partial class BodyEmitter
         };
 
         if(receiver is not (null or ThisExpression or TypeReferenceExpression) && !TypeNameEmitter.IsValueKind(receiver.Type) && receiver.Type is not TypeParameter)
+        {
+            yield return receiver;
+        }
+
+        if(receiver is TypeReferenceExpression && target is MemberAccessExpression held && Held(held) is { } owner && !StaticHolders.IsBuilding(owner))
         {
             yield return receiver;
         }

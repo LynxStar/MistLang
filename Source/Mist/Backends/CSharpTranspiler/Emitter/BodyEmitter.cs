@@ -1579,6 +1579,7 @@ internal static partial class BodyEmitter
             case FieldReferenceExpression fieldRef:
                 writer.Append(
                     UnsafeReach.Implicit(fieldRef.Field)
+                    ?? HeldStorage(fieldRef.Field, null, diagnostics)
                     ?? FieldReceiver.Of(fieldRef.Field) + IdentifierSpelling.Of(fieldRef.Field.Name));
                 break;
             case PropertyReferenceExpression projected when ProjectedValueAccess.Declaring(projected) is { } declaring:
@@ -1589,6 +1590,7 @@ internal static partial class BodyEmitter
             case PropertyReferenceExpression propertyRef:
                 writer.Append(
                     UnsafeReach.Implicit(propertyRef.Property)
+                    ?? HeldStorage(propertyRef.Property, null, diagnostics)
                     ?? ReceiverSpelling.Qualifier(propertyRef.Property.DeclaringType, propertyRef.Property.Modifiers.IsStatic) + IdentifierSpelling.Of(propertyRef.Property.Name));
                 break;
             case BackingFieldReferenceExpression backing:
@@ -1828,7 +1830,7 @@ internal static partial class BodyEmitter
             parameter => $"{TypeNameEmitter.Emit(parameter.Type)} {LocalNames.Of(parameter)}");
 
         writer.Append(lambda.IsAsync ? "async " : "");
-        writer.Append(lambda.IsStatic ? "static (" : "(");
+        writer.Append(lambda.IsStatic && !ReadsHiddenValues(lambda) ? "static (" : "(");
         writer.Append($"{string.Join(", ", parameters)}) => ");
 
         if(lambda.Result is { } result)
@@ -2945,6 +2947,12 @@ internal static partial class BodyEmitter
             && !IntrinsicSupply.Supplies(property))
         {
             ReportMissingIntrinsic(BackendFacts.Symbol(property.DeclaringType, property.Name, IntrinsicSupply.Describe(property)), memberAccess.Node, writer, diagnostics);
+            return;
+        }
+
+        if(memberAccess.Receiver is TypeReferenceExpression && HeldStorage(memberAccess.Member, memberAccess.Receiver, diagnostics) is { } held)
+        {
+            writer.Append(held);
             return;
         }
 

@@ -79,6 +79,8 @@ internal static class ValueRouteEmitter
         {
             writer.WriteLine($"this.{SlotRoutes.Hidden(slot)} = {SlotRoutes.Hidden(slot)};");
         }
+
+        StaticHolderEmitter.Touch(type, writer);
     }
 
     public static bool NeedsConstructor(ConcreteType type)
@@ -283,23 +285,6 @@ internal static class ValueRouteEmitter
         }
 
         ReportCoincidingOverloads(type.MethodsList, diagnostics);
-
-        if(SlotRoutes.ValueRouted(type) is [var first, ..] && type is ConcreteType concrete)
-        {
-            foreach(var field in concrete.FieldsList.Where(field => field.Modifiers.IsStatic))
-            {
-                diagnostics.ReportAtNodeTyped(
-                    BackendDiagnostics.StaticStorageOnValueRoute, field.DeclarationNode ?? node, null,
-                    new NameValue(field.Name), DiagnosticSnapshot.Type(type, TypeEmitter.DeclaredName(type)), new NameValue(first.Name));
-            }
-
-            foreach(var property in type.PropertiesList.Where(property => property.Modifiers.IsStatic))
-            {
-                diagnostics.ReportAtNodeTyped(
-                    BackendDiagnostics.StaticStorageOnValueRoute, property.DeclarationNode ?? node, null,
-                    new NameValue(property.Name), DiagnosticSnapshot.Type(type, TypeEmitter.DeclaredName(type)), new NameValue(first.Name));
-            }
-        }
 
         foreach(var group in Answered(type).GroupBy(closing => closing.Definition))
         {

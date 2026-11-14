@@ -74,7 +74,7 @@ internal static class StructAncestorFactory
     {
         var members = ImmutableArray.CreateBuilder<FactoryMember>();
 
-        foreach(var field in flattened.Fields)
+        foreach(var field in flattened.Fields.Where(field => !field.Field.Modifiers.IsStatic))
         {
             members.Add(new FactoryMember(field.Name, TypeNameEmitter.Emit(field.Type)));
         }
@@ -95,7 +95,7 @@ internal static class StructAncestorFactory
     {
         var types = ImmutableArray.CreateBuilder<IMistType>();
 
-        foreach(var field in flattened.Fields)
+        foreach(var field in flattened.Fields.Where(field => !field.Field.Modifiers.IsStatic))
         {
             types.Add(field.Type);
         }
@@ -112,14 +112,14 @@ internal static class StructAncestorFactory
     }
 
     /// <summary>
-    /// Whether a property has storage of its own for the factory to write. Only an auto-property
+    /// Whether a property has storage of its own for the factory to write. Only an instance auto-property
     /// does: a computed one derives its value from members already carried, so transporting it would
     /// mean assigning a property with no setter -- which C# refuses even inside a constructor, and
     /// which would also be duplicating state the factory already moves.
     /// </summary>
     private static bool HoldsState(Property property)
     {
-        return AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter);
+        return !property.Modifiers.IsStatic && AccessorEmitter.IsBodiless(property.Getter) && AccessorEmitter.IsBodiless(property.Setter);
     }
 
     public static string Parameters(ImmutableArray<FactoryMember> members)

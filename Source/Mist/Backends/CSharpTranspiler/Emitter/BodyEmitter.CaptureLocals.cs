@@ -326,6 +326,11 @@ internal static partial class BodyEmitter
 
     private static bool ConsumedByAccess(MemberAccessExpression access, SlotCapture capture)
     {
+        if(ConsumedByHolder(access, capture))
+        {
+            return true;
+        }
+
         return ProjectedValueAccess.Declaring(access) is { } declaring
             && access.Member is PropertyResult { Property.ProjectedParameter: { } parameter }
             && SlotRoutes.IsValueRouted(parameter)

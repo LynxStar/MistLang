@@ -3,11 +3,7 @@ using System.Reflection;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Built once per process by reflection over the registry classes, so the catalog, the JSON
-/// document, the policy parser and the renderer all read one index and cannot disagree about which
-/// descriptors exist. Entries are ordered by declaring type and declaration position.
-/// </summary>
+/// Catalog, JSON, policy parsing and rendering share one index to keep descriptor discovery consistent.
 public static class DiagnosticRegistry
 {
     private static readonly Lazy<RegistryIndex> Built = new(Build, LazyThreadSafetyMode.ExecutionAndPublication);

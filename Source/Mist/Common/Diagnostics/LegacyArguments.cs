@@ -3,12 +3,7 @@ using System.Globalization;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// The bridge from today's positional object arguments to slot values. Each argument is rendered
-/// to text at report time exactly as composite formatting would have rendered it, so a producer
-/// that has not migrated keeps producing the same message; a descriptor that already names its
-/// slots takes the arguments in schema order, coerced to each slot's kind.
-/// </summary>
+/// Preserves positional composite-formatting output while coercing named-slot arguments in schema order.
 internal static class LegacyArguments
 {
     public static ImmutableArray<SlotValue> For(MistDiagnostic descriptor, ReadOnlySpan<object?> args)

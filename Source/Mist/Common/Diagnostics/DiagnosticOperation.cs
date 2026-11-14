@@ -1,10 +1,6 @@
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// One CLI invocation's worth of reporting. It owns the ordinal counter, so an occurrence withheld
-/// in one bag and replayed into another keeps the ordinal it was admitted with, and every bag the
-/// driver creates for a compile counts in one sequence.
-/// </summary>
+/// All bags in one CLI invocation share an ordinal sequence; replay preserves an occurrence's ordinal.
 public sealed class DiagnosticOperation
 {
     private int admitted;

@@ -2,15 +2,8 @@ using Mist.Common.Source;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// Where an occurrence points, as a closed union: a position that exists is exact, and one that
-/// does not says why it is absent. Offsets are authoritative; line and column are derived on
-/// demand from the text the range was computed against, so nothing stores them and nothing can
-/// fabricate them. Containment compares file identity together with the range, never line and
-/// column alone, with a point counted as a zero-width range; two absent positions are held to
-/// contain each other only when their reasons agree, which is what a hand-built model with no
-/// file relies on.
-/// </summary>
+/// Source positions derive line/column from text; containment uses file identity and offsets,
+/// with zero-width points and reason-matched absences.
 public abstract record Location
 {
     private protected Location()

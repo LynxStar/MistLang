@@ -5,12 +5,7 @@ using System.Text;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// The one component that turns an occurrence into message text. It formats under the invariant
-/// culture, substitutes by name for a migrated template and by index for one still positional,
-/// and never throws: a fault while rendering yields the fallback text, which has no slots and so
-/// cannot fault again.
-/// </summary>
+/// Uses invariant culture and slot-free fallback text so rendering failures still yield a stable message.
 public static class DiagnosticRenderer
 {
     private static readonly ConcurrentDictionary<MistDiagnostic, ImmutableArray<TemplateSyntax.Segment>?> Parsed =

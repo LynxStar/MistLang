@@ -2,11 +2,7 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// One unit of provenance kept on an occurrence rather than appended to its message: how a
-/// synthetic node came to be, or which operation the compiler was inside. A chain cut by the depth
-/// limit or by a cycle ends in a <see cref="TruncatedFrame"/> so the reader knows it is incomplete.
-/// </summary>
+/// Provenance stays separate from message text; <see cref="TruncatedFrame"/> marks chains cut by a cycle or depth limit.
 public abstract record Frame
 {
     private protected Frame()

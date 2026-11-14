@@ -2,11 +2,7 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// What a project asked policy to do: raise every warning or the listed numbers to errors, and
-/// switch Optional rules off or on. Nothing here can lower a severity, hide an occurrence or
-/// touch a Fixed descriptor; a disabled Optional rule does not run at all.
-/// </summary>
+/// Applies <see cref="PolicyClass"/> permissions; disabling an Optional rule prevents it from running.
 public sealed record DiagnosticPolicy(
     bool PromoteAllWarnings,
     ImmutableHashSet<DiagnosticNumber> Promoted,

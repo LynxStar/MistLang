@@ -131,6 +131,21 @@ check admits a tested type that differs from a constituent only in slots
 that are not both literals, as MIST0193 already does, and Stage 5 judges the
 pair.
 
+Both landed with MIST-1373. `ForEachStatement`, `TupleDeconstructionStatement`,
+`WithBlockStatement` and `DefaultExpression` own the captures of the type they
+write, an array creation or a stack allocation owns its element type's ahead
+of its length, and a method group converted to a function type hands its stated
+captures to the `FunctionReferenceExpression`. The flow declares them before
+the node's own operand. A group whose closed signature differs from the
+function type only in slot pairs converts where no candidate is identical, and
+Stage 5 judges each parameter and the result as one type. The backend
+evaluates each capture once where its type is written: a statement ahead of
+itself, `default`, an array and a stack allocation as the stamp's hidden value
+or else ahead of the node, and a method group ahead of the reference. A later
+`default` or target-typed `new` that reads a capture it does not own reads the
+C# local its owner assigned. The union test compares the slot when the program
+runs, as any test against a closing does.
+
 Two sites are the owner's to rule on, because each is a signature written
 inside a body and Requirement 8.1 was written for a method's own parameters:
 a local function's parameter and return types, and a typed lambda parameter.
@@ -539,16 +554,20 @@ a later operand, evaluates its capture once where it moves to, and what stands
 in its place, the unit instance or the temporary, evaluates nothing. A lambda's
 result type holds `unknown` where its body closed a type with a capture
 (Requirement 1.6), so an inference from it outside the lambda is the slot
-nested under `unknown`: a call that infers a slot from `unknown` routes it,
-as a method group does, and is refused with MIST0498 where no receiver
-carries the value.
+nested under `unknown`. A list of rings of unknown capacity carries no single
+value, so a dependent parameter whose only source is a slot under `unknown`
+nested inside another type's argument, or a function type's position, is
+MIST0490 in the frontend (Requirement 8.3, MIST-1373); a `Ring<unknown>`
+argument passed directly still infers through the object's own read.
 The stamp of a struct element is `StructStamp`: the type's own default where
 the backend synthesizes one, so a struct holding the closing in a field, an
 auto-property or a nested struct starts from its default with the inner stamp
 inside, and otherwise the struct built from its parts through `__FromParts`
 with the hidden slot values filled in; `MistArray.Stamp` copies it into every
-element of the array or the span. MIST0498 stays for a slot nested under
-`unknown`. Item 3 is MIST-1371.
+element of the array or the span. MIST0498 stays for what the frontend does
+not infer: a slot stated as `unknown`, a method group converted against a
+type with a slot nested under `unknown`, and an extension block's receiver.
+Item 3 is MIST-1371.
 
 ### Identity by value: static storage
 

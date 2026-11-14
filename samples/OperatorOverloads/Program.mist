@@ -2,9 +2,7 @@ using Standard;
 
 namespace OperatorOverloads;
 
-// Every printed value below is computed THROUGH a declared operator, so a dropped or misspelled one
-// fails the build or changes a line. `*` takes the scalar on the LEFT, so `3 * a` is found on the
-// right operand's type, and `<` and `>` order by length, so unequal vectors can be neither.
+// The left scalar forces lookup on the right operand's type; equal-length unequal vectors distinguish ordering from equality.
 public struct Vec2
 {
     public int X;

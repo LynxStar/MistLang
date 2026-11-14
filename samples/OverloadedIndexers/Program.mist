@@ -2,10 +2,7 @@ using Standard;
 
 namespace OverloadedIndexers;
 
-// An index reaches the indexer its argument selects, as a call reaches its overload. Every read and write
-// below goes through the indexer its type declares SECOND, typed where the first would be refused, so a
-// line reaching the first would prove nothing. Classic types an index by the first indexer, so this sample
-// is banked on AllFeaturesV2 alone.
+// Each access selects the second declared indexer with a type the first rejects, so first-indexer selection cannot pass.
 public class Roster
 {
     private string captain = "none";

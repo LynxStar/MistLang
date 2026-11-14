@@ -1,6 +1,3 @@
-// NestedScoping — Demonstrates nested type declarations and nested namespaces.
-//
-// Patterns demonstrated:
 //   1. Class in class
 //   2. Struct in class
 //   3. Abstract type in class
@@ -65,7 +62,6 @@ public class Outer
         Pending = "pending"
     }
 
-    // Static methods that exercise nested types from within the parent scope
     public static string DemoClassInClass()
     {
         return Inner.Hello();
@@ -127,9 +123,6 @@ public class Level1
 }
 
 // ─── 10. Nested type inside generic parent accessing parent's type parameters ─
-// The nested Wrapper class is inside generic Box<T>. The C# emitter correctly
-// nests Wrapper inside Box<T> without re-declaring T on Wrapper.
-// The nested type can access T through the scope chain.
 // NOTE: Calling Box<int>.DemoWrapper() from outside triggers a pre-existing
 // entry point detection bug with constructed generic types. The nested type
 // is exercised from within the parent's own static method.
@@ -175,10 +168,6 @@ public class Registry
 }
 
 // ─── 16. Nested types used in type positions ─────────────────────────────────
-// Nested types used as return types, parameter types, field types, local
-// variable types, and in new expressions — from classes, structs, interfaces,
-// and abstract types. This proves nested types work as full type references in all
-// contexts, not just as targets for static method calls.
 
 public class Factory
 {
@@ -189,23 +178,19 @@ public class Factory
         public Product(string name, int quantity) { Name = name; Quantity = quantity; }
     }
 
-    // Field typed as nested type
     Product _lastCreated = new Product("none", 0);
 
-    // Return type is nested type
     public Product Create(string name, int qty)
     {
         _lastCreated = new Product(name, qty);
         return _lastCreated;
     }
 
-    // Parameter type is nested type
     public string Describe(Product p)
     {
         return $"{p.Name} x{p.Quantity}";
     }
 
-    // Local variable typed as nested type
     public string CreateAndDescribe()
     {
         Product item = new Product("Gadget", 3);
@@ -222,7 +207,6 @@ public class Factory
     }
 }
 
-// Nested type in a struct — struct containing a nested class used in type positions
 public struct Inventory
 {
     public class Record
@@ -232,7 +216,6 @@ public struct Inventory
         public Record(string item, int count) { Item = item; Count = count; }
     }
 
-    // Field typed as nested type
     Record _current;
 
     public Inventory(string item, int count)
@@ -240,13 +223,11 @@ public struct Inventory
         _current = new Record(item, count);
     }
 
-    // Return type is nested type from within struct
     public Record GetCurrent()
     {
         return _current;
     }
 
-    // Parameter type is nested type from within struct
     public string FormatRecord(Record r)
     {
         return $"{r.Item}:{r.Count}";

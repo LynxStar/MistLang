@@ -1,5 +1,3 @@
-// BlockNamespaces — Demonstrates block namespaces nested inside block namespaces
-// and repeated block namespaces with the same name.
 
 using Standard;
 
@@ -20,8 +18,6 @@ namespace NestedScoping.Networking.Protocol
 }
 
 // ─── 13. Repeated block namespaces with same name ────────────────────────────
-// Both blocks contribute to the same NestedScoping.Utilities namespace scope.
-// Types from either block are cross-resolvable by simple name within the namespace.
 
 namespace NestedScoping.Utilities
 {

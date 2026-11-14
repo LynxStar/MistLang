@@ -1,4 +1,4 @@
-// V2-ONLY: nested block identity follows nested-scoping 5.2; classic cannot resolve these namespace paths.
+// Nested block identity follows nested-scoping requirement 5.2.
 using Standard;
 using NestedBlockNamespaces.Tree.Inner.Qualified.Leaf;
 

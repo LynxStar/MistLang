@@ -1,5 +1,3 @@
-// MathHelper — Demonstrates method overloading with a static utility class
-// and cross-hierarchy overloading with inheritance.
 
 using Standard;
 
@@ -7,7 +5,6 @@ namespace Overloading;
 
 public class MathHelper
 {
-    // Overloaded static methods: same name, different parameter counts/types
     public static int Add(int a, int b)
     {
         return a + b;

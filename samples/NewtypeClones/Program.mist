@@ -4,8 +4,7 @@ namespace NewtypeClones;
 
 // A newtype is a renamed clone of its source with no nominal relationship to it: a copyable source is
 // left for implicitly and entered by a cast, a literal enters only where the slot's type is in sight, and
-// a class that defines its own copy converts by running that Clone with the operand as this. Classic
-// implements the earlier revision of the newtypes spec, so this sample is banked on AllFeaturesV2 alone.
+// a class that defines its own copy converts by running that Clone with the operand as this.
 public struct Point
 {
     public int X;

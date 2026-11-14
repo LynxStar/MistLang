@@ -1,4 +1,3 @@
-// Overloading — Covers method overloading.
 
 using Standard;
 
@@ -16,11 +15,9 @@ public class Program
         Console.WriteLine(printer.Format(3.14));
         Console.WriteLine(printer.Format("hello"));
 
-        // Constructor overloading: default vs parameterized
         var defaultPrinter = new Printer();
         Console.WriteLine(defaultPrinter.Format(99));
 
-        // Static method overloading
         Console.WriteLine($"Add(int): {MathHelper.Add(3, 4)}");
         Console.WriteLine($"Add(double): {MathHelper.Add(1.5, 2.5)}");
         Console.WriteLine($"Clamp(int): {MathHelper.Clamp(15, 0, 10)}");

@@ -2,10 +2,6 @@ using Standard;
 
 namespace NestedGenericTypes;
 
-// A nested type named through an instantiation of its enclosing generic, in each position the grammar
-// admits it: a local's type, the target of a `new()`, a static reached through it, a type pattern, and
-// a nested type declared on a generic base reached through the deriver. Classic parses the form, the
-// grammar being shared, but resolves none of it, so this sample is banked on AllFeaturesV2 alone.
 public class Box<T>
 {
     public class Wrapper

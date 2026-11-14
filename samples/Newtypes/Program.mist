@@ -1,6 +1,3 @@
-// Newtypes — Demonstrates newtype features in Mist.
-//
-// This sample showcases:
 //   1. Newtype from primitive types (int, string, bool)
 //   2. Newtype from struct
 //   3. Newtype from class
@@ -59,15 +56,12 @@ public class Entity
 
 // ─── Newtype declarations ────────────────────────────────────────────────────
 
-// Newtypes from primitives
 type UserId = new int;
 type Label = new string;
 type Flag = new bool;
 
-// Newtype from struct
 type Position = new Point;
 
-// Newtype from class
 type Actor = new Entity;
 
 // ─── Program ─────────────────────────────────────────────────────────────────

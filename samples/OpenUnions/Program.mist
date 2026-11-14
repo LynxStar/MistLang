@@ -1,17 +1,4 @@
-// OpenUnions -- A union over a generic's OWN type parameters: `T | R` inside `Pair<T, R>`, `K?` inside
-// `Slot<K>` and `Box<K>`, and the same inside generic methods.
-//
-// Mist sorts a union and merges duplicates once its type arguments are filled in, so `T | R` is
-// `int | string` at both `Pair<int, string>` and `Pair<string, int>`, and plain `int` at `Pair<int, int>`.
-// A C# generic fills its parameters in by position and can do neither, so each declaration below is
-// emitted once per instantiation the program uses. Without that, none of this compiles: the open union
-// has no C# type, and an unconstrained `K?` lowered to a bare `K` cannot hold absence at `int`.
-//
-// V2-ONLY. Classic refuses this program in its own checker (measured 2026-09-19): it does not merge
-// `int | int` into `int` (MIST_TC_0071, and MIST_TC_0001 for the nested `Cell`), refuses `void` assigned
-// to a field (MIST_TC_0070), cannot pass `K?` where `int?` is expected (MIST_TC_0072), sees no member
-// inherited through a generic derived type (MIST_UNDEFINED_MEMBER), and implements an earlier newtypes
-// revision that gives a newtype none of its source's members.
+// Union normalization and unconstrained optionals require per-instantiation emission because C# generics cannot express their closed shapes.
 
 using Standard;
 

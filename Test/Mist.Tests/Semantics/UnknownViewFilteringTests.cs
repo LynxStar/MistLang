@@ -92,10 +92,6 @@ public sealed class UnknownViewFilteringTests : ProgramModelProbe
         Assert.Contains("'Forward' cannot be called on 'MyList<unknown>'", Assert.Single(Errors(transitive, Hidden)).Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// <c>Add(T)</c> is hidden and <c>Add(string)</c> is not, so the call selects the reader on its own
-    /// terms rather than refusing the name.
-    /// </summary>
     [Fact]
     public void AReaderOverloadIsSelectedWhereTheWriterIsHidden()
     {

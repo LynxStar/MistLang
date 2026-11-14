@@ -6,17 +6,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// Unit tests for member lookup on a type and its bases -- the single question behind both an
-/// unqualified name arriving at a <see cref="TypeScope"/> and a qualified <c>receiver.X</c>.
-/// <para>
-/// The rules under test: the whole base graph is searched rather than stopping at the first level
-/// that contributes; a nearer declaration of the same KIND shadows a further one; methods instead
-/// accumulate into one overload set across depths with only identical signatures shadowed; two
-/// different kinds at the same name conflict; private members belong to their own type; and
-/// staticness is filtered by how the lookup arrived.
-/// </para>
-/// </summary>
 public sealed class TypeMemberLookupTests
 {
     private static MemberModifiers Mods(bool isStatic = false, Accessibility access = Accessibility.Public)
@@ -60,14 +49,6 @@ public sealed class TypeMemberLookupTests
         return TypeMemberLookup.Find(type, new LookupRequest(name, visibility, null));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Reaching into the base chain
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// A base's field is found from the derived type. Nothing at depth 0 matches, so the walk keeps
-    /// going -- which is the whole point of the base chain.
-    /// </summary>
     [Fact]
     public void BaseField_IsFoundFromDerived()
     {
@@ -83,9 +64,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(baseType, field.DeclaringType);
     }
 
-    /// <summary>
-    /// Two levels up still resolves, so the search is not one hop.
-    /// </summary>
     [Fact]
     public void GrandparentField_IsFoundFromDerived()
     {
@@ -103,14 +81,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(inherited, field.Field);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Shadowing by depth, for kinds that shadow
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// A derived field hides a base field of the same name. Same kind, nearer declaration -- that is
-    /// shadowing, not a conflict, and silent by design since Mist has no hiding keyword.
-    /// </summary>
     [Fact]
     public void DerivedField_ShadowsBaseField_NotAmbiguous()
     {
@@ -147,9 +117,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(own, field.Field);
     }
 
-    /// <summary>
-    /// Two kinds declared at the same depth conflict for the same reason.
-    /// </summary>
     [Fact]
     public void FieldAndProperty_SameNameSameType_IsAmbiguous()
     {
@@ -159,10 +126,6 @@ public sealed class TypeMemberLookupTests
 
         _ = Assert.IsType<AmbiguousResult>(Find(type, "Foo"));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Methods accumulate instead of shadowing
-    // ═══════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Overloads split across two levels form ONE group. Stopping at the nearest level that had a
@@ -188,9 +151,6 @@ public sealed class TypeMemberLookupTests
     }
 
     /// <summary>
-    /// One identical signature resolves to ONE declaration, and between two classes it is the
-    /// INHERITED one: Mist has no override and no hiding, so the deriving declaration -- refused where
-    /// it is written -- answers nothing, and a use keeps the meaning it has once that line is deleted.
     /// The parameter is a real type because a signature naming an unresolved one has no identity to
     /// coincide with.
     /// </summary>
@@ -212,10 +172,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(inherited, Assert.Single(group.Methods));
     }
 
-    /// <summary>
-    /// A diamond reaches a shared base once. Visiting it twice would turn one inherited member into
-    /// a self-conflict.
-    /// </summary>
     [Fact]
     public void DiamondInheritance_VisitsSharedBaseOnce()
     {
@@ -238,14 +194,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(inherited, Assert.Single(group.Methods));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Accessibility
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// A private base member is not reachable from a derived type. It was reachable before member
-    /// lookup consulted accessibility at all.
-    /// </summary>
     [Fact]
     public void PrivateBaseField_IsNotFoundFromDerived()
     {
@@ -258,9 +206,6 @@ public sealed class TypeMemberLookupTests
         _ = Assert.IsType<NotFoundResult>(Find(derived, "Hidden"));
     }
 
-    /// <summary>
-    /// The same member is reachable on the type that declared it.
-    /// </summary>
     [Fact]
     public void PrivateField_IsFoundOnItsOwnType()
     {
@@ -272,9 +217,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(own, field.Field);
     }
 
-    /// <summary>
-    /// A private base overload drops out of the group while the reachable one stays.
-    /// </summary>
     [Fact]
     public void PrivateBaseOverload_IsExcludedFromGroup()
     {
@@ -291,14 +233,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(reachable, Assert.Single(group.Methods));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Staticness follows how the lookup arrived
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Naming the type reaches only its statics, which is what <c>Console.WriteLine</c> needs and
-    /// what stops <c>SomeType.InstanceMethod</c>.
-    /// </summary>
     [Fact]
     public void StaticOnly_ExcludesInstanceMembers()
     {
@@ -313,9 +247,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(shared, field.Field);
     }
 
-    /// <summary>
-    /// Supplying a value reaches only instance members: a static one needs the type named instead.
-    /// </summary>
     [Fact]
     public void InstanceOnly_ExcludesStaticMembers()
     {
@@ -330,9 +261,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(instance, field.Field);
     }
 
-    /// <summary>
-    /// A type-reference position wants no members at all, only names.
-    /// </summary>
     [Fact]
     public void None_ExcludesEveryMemberKind()
     {
@@ -346,13 +274,6 @@ public sealed class TypeMemberLookupTests
         _ = Assert.IsType<NotFoundResult>(Find(type, "Method", MemberVisibility.None));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Type names
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// A nested type is nameable, and inherited, since it needs no receiver.
-    /// </summary>
     [Fact]
     public void NestedType_IsFoundAndInherited()
     {
@@ -367,11 +288,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(nested, found.Type);
     }
 
-    /// <summary>
-    /// A type parameter belongs to the declaration that introduced it, so a base's is not a name in
-    /// the derived type -- in <c>class Derived&lt;T&gt; : Base&lt;T&gt;</c> the <c>T</c> in scope is
-    /// Derived's own.
-    /// </summary>
     [Fact]
     public void BaseTypeParameter_IsNotVisibleInDerived()
     {
@@ -384,9 +300,6 @@ public sealed class TypeMemberLookupTests
         _ = Assert.IsType<NotFoundResult>(Find(derived, "T", MemberVisibility.None));
     }
 
-    /// <summary>
-    /// Its own type parameter is.
-    /// </summary>
     [Fact]
     public void OwnTypeParameter_IsVisible()
     {
@@ -398,9 +311,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(parameter, found.Type);
     }
 
-    /// <summary>
-    /// Nothing matching is a miss, not an error.
-    /// </summary>
     [Fact]
     public void NoMatch_ReturnsNotFound()
     {
@@ -409,15 +319,6 @@ public sealed class TypeMemberLookupTests
         _ = Assert.IsType<NotFoundResult>(Find(type, "Nothing"));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Kinds reached by the same syntax but not stored as ordinary members
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// An enum variant resolves, and its type is the enum. It is not a field -- there is no instance
-    /// to read it from -- so it needs its own result, and it answers to a static request because
-    /// that is how <c>Color.Red</c> arrives.
-    /// </summary>
     [Fact]
     public void EnumVariant_IsFoundThroughTheEnumType()
     {
@@ -431,11 +332,6 @@ public sealed class TypeMemberLookupTests
         Assert.Same(color, found.DeclaringType);
     }
 
-    /// <summary>
-    /// A tuple's positional element resolves. <see cref="TupleType"/> is not a
-    /// <see cref="ConcreteType"/>, so its synthesized fields need finding explicitly -- and without
-    /// that, a caller reporting its misses would call <c>Item1</c> missing.
-    /// </summary>
     [Fact]
     public void TuplePositionalElement_IsFound()
     {
@@ -446,9 +342,6 @@ public sealed class TypeMemberLookupTests
         Assert.Equal("Item1", found.Field.Name);
     }
 
-    /// <summary>
-    /// A named tuple element resolves under its name as well as its position.
-    /// </summary>
     [Fact]
     public void NamedTupleElement_IsFoundByName()
     {

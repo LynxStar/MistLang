@@ -2,8 +2,8 @@
 // over minimal source. See ProgramModelProbe for the harness and for why these assert on the model
 // rather than on output.
 //
-// Several fixtures below declare the wanted overload SECOND on purpose. Taking the first candidate is
-// what selection replaced, so a fixture that happens to want the first one passes either way.
+// Several fixtures below declare the wanted overload SECOND on purpose: one that wants the first
+// passes even when selection simply takes the first candidate.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;
@@ -105,10 +105,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal("Standard.String", parameter.Type.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// The string overload is declared FIRST deliberately: a fixture whose wanted overload sits first
-    /// passes even when nothing is selected at all.
-    /// </summary>
     [Fact]
     public void TheSelectedOverloadsReturnType_FlowsIntoAnInferredLocal()
     {
@@ -138,9 +134,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal(expectedArity, invocation.Method.ParametersList.Count);
     }
 
-    /// <summary>
-    /// Constructors reach the same selection because <c>Constructor</c> derives from <c>Method</c>.
-    /// </summary>
     [Theory]
     [InlineData("", 0)]
     [InlineData("i", 1)]
@@ -214,10 +207,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Null(creation.Constructor);
     }
 
-    /// <summary>
-    /// Settled by APPLICABILITY alone, with no tiebreak involved: only the double form accepts both
-    /// arguments, so selecting the int form would pick a candidate the call cannot legally reach.
-    /// </summary>
     [Fact]
     public void MixedNumericArguments_SelectTheOnlyApplicableOverload()
     {
@@ -227,10 +216,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.All(invocation.Method.ParametersList, p => Assert.Equal("Standard.Double", p.Type.FullyQualifiedName));
     }
 
-    /// <summary>
-    /// Both <c>Take</c> forms accept two ints, so applicability leaves a contest and betterness
-    /// settles it.
-    /// </summary>
     [Fact]
     public void AnExactMatch_BeatsAWidening()
     {
@@ -240,10 +225,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.All(invocation.Method.ParametersList, p => Assert.Equal("Standard.Int32", p.Type.FullyQualifiedName));
     }
 
-    /// <summary>
-    /// Neither candidate is exact, so betterness falls to the narrower target. The double form is
-    /// declared first, so first-match would pick it.
-    /// </summary>
     [Fact]
     public void WithNoExactMatch_TheNarrowerTargetWins()
     {
@@ -263,10 +244,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal("Standard.Int64", parameter.Type.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// Applicability is not only numeric: <c>Accept</c> is declared with the string form second, and
-    /// only the base-typed one admits a <c>Cub</c>.
-    /// </summary>
     [Fact]
     public void ADerivedArgument_ReachesABaseTypedParameter()
     {
@@ -363,10 +340,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, UnresolvableId));
     }
 
-    /// <summary>
-    /// Both forms accept two ints and each is exact in one position and widened in the other, so
-    /// neither beats the other.
-    /// </summary>
     [Fact]
     public void AGenuineTie_IsReportedAsAmbiguous()
     {
@@ -387,11 +360,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Contains("(double, int)", reported.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// A tie names only the candidates nothing beats. An int reaches decimal, float and double, but
-    /// float beats double, so double must not appear -- comparing each candidate against a running
-    /// winner rather than against every other would leave it there.
-    /// </summary>
     [Fact]
     public void AReportedTie_ExcludesCandidatesAnotherBeats()
     {
@@ -414,12 +382,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.DoesNotContain("double", reported.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// An int reaches neither a string nor a bool by any conversion ConversionRelation models, so
-    /// applicability eliminates every candidate and leaves nothing to choose on. Refused rather than
-    /// bound to whichever form is declared first, which is the one thing a partial relation does not
-    /// license: declining to refuse is not the same as inventing a selection.
-    /// </summary>
     [Fact]
     public void WhenNoCandidateIsKnownApplicable_TheCallIsRefused()
     {
@@ -483,12 +445,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal(UnresolvableId, Assert.Single(diagnostics, d => d.Severity == DiagnosticSeverity.Error).Number.Value);
     }
 
-    /// <summary>
-    /// <c>BackendDiagnostics.MethodGroupReachedEmission</c> is meant to be unreachable, which holds
-    /// only while every position unable to consume a group reports one instead. These are the two
-    /// such positions: a name nothing follows, and an argument, which cannot resolve because the
-    /// overload it belongs to is not selected until after its arguments are bound.
-    /// </summary>
     [Theory]
     [InlineData("var f = Plain.Once;")]
     [InlineData("var c = Plain.Once(Plain.Once);")]
@@ -500,12 +456,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Contains("Once", reported.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// TWO overloads of the same arity, which is what leaves the group with no target type: the binder
-    /// cannot know which parameter the argument is for until the argument's type has picked it. So the
-    /// group survives binding untyped and SELECTION converts it, asking each candidate whether one of
-    /// the group's overloads is the function it declares.
-    /// </summary>
     [Fact]
     public void AMethodGroupAmongSeveralSameArityOverloads_PicksTheFunctionTypedOne()
     {
@@ -542,11 +492,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Wanted", parameter.Type.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// The same fixture with the operator declared explicit. An explicit conversion does not happen on
-    /// its own, so no candidate is applicable and the call is refused rather than silently taking the
-    /// one whose arity fits.
-    /// </summary>
     [Fact]
     public void AUserDefinedExplicitConversion_DoesNotMakeAnOverloadApplicable()
     {
@@ -559,13 +504,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Contains("Take", reported.Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// A DELIBERATE DIVERGENCE FROM CLASSIC, which compiles this call and resolves it to <c>Take(A)</c>
-    /// on the strength of A declaring an operator to B. Mist refuses it: an <c>implicit operator</c>
-    /// asserts no containment, so it cannot say which parameter is the narrower home, and a call whose
-    /// meaning would turn on an operator declared elsewhere between two parameter types is one the
-    /// caller should disambiguate. See ConversionRelation.IsWithin.
-    /// </summary>
     [Fact]
     public void TwoCandidatesSeparatedOnlyByAUserDefinedConversion_AreAmbiguous()
     {
@@ -669,8 +607,6 @@ public sealed class OverloadSelectionTests : ProgramModelProbe
         Assert.Contains("(uint, T)", reported.Message, StringComparison.Ordinal);
         Assert.Contains("(short, int)", reported.Message, StringComparison.Ordinal);
     }
-
-    // ── Harness ──────────────────────────────────────────────────
 
     private const string ClosedPreamble = """
         var keyed = new Keyed<int>();

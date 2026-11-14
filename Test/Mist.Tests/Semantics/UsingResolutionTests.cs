@@ -3,10 +3,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// When the builder judges usings, a file's own and a project's implicit ones: after every unit and the
-/// ambient projection have registered their namespaces, and before a name is resolved through one.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class UsingResolutionTests : ProgramModelProbe
 {

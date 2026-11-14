@@ -106,8 +106,6 @@ public sealed class NestedTypeResolutionTests : ProgramModelProbe
         Assert.Equal("T", item.Type.Name);
     }
 
-    // ── Harness ──────────────────────────────────────────────────────────
-
     private MemberType Declared(string fullyQualifiedName)
     {
         var model = BuildModel("var unused = 1;", "", extraPreamble: "", out _);

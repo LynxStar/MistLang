@@ -62,11 +62,6 @@ public sealed class UnknownCovariantWideningTests : ProgramModelProbe
         Assert.True(ConversionRelation.IsWithin(TypeOf("MyList<int>"), TypeOf("MyList<unknown>")));
     }
 
-    /// <summary>
-    /// The restriction that keeps this sound. An argument may widen to <c>unknown</c> and to nothing
-    /// else, so the ordinary numeric widening from int to long does NOT lift through a construction --
-    /// general covariance needs a declared variance annotation, which Mist has no syntax for.
-    /// </summary>
     [Fact]
     public void TheWideningIsKeyedOnUnknownAndNotOnOtherSupertypes()
     {
@@ -80,10 +75,6 @@ public sealed class UnknownCovariantWideningTests : ProgramModelProbe
         Assert.False(ConversionRelation.IsWithin(TypeOf("MyList<unknown>"), TypeOf("MyList<int>")));
     }
 
-    /// <summary>
-    /// A struct generic is excluded because reaching the <c>dynamic</c> its emission would use means
-    /// boxing, which discards the value semantics that made it a struct.
-    /// </summary>
     [Fact]
     public void AStructGenericDoesNotWiden()
     {
@@ -96,11 +87,6 @@ public sealed class UnknownCovariantWideningTests : ProgramModelProbe
         Assert.Equal("dynamic", TypeNameEmitter.Emit(TypeOf("MyList<unknown>")));
     }
 
-    /// <summary>
-    /// Transitively, so a construction is dynamic when unknown appears at any depth. Asserted alongside
-    /// the bare case because they are the two sides of the same rule and it is the CONSTRUCTION that
-    /// changes spelling, never <c>unknown</c> itself.
-    /// </summary>
     [Fact]
     public void NestingReachesTheRuleButABareUnknownStaysObject()
     {

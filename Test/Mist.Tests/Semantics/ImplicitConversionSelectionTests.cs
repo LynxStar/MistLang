@@ -1,6 +1,5 @@
 // Tier 3 (Component): which conversion an implicit site calls, asserted on ImplicitConversionExpression against
-// a real ProgramModelBuilder run. The same call a cast makes, written invisibly (cast-operators spec,
-// Requirement 7): implicit operators only, and an operand reaching the parameter losslessly.
+// a real ProgramModelBuilder run.
 
 using Mist.ProgramModel;
 using Mist.ProgramModel.Model.Expressions;

@@ -14,16 +14,11 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// Property-based tests for nested scoping.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class NestedScopingPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-
-    // ─── Helpers ─────────────────────────────────────────────────────────
 
     private static ParseResult ParseSource(string source)
     {
@@ -33,9 +28,6 @@ public sealed class NestedScopingPropertyTests
         return Parser.Parse(tokens, bag);
     }
 
-    /// <summary>
-    /// Returns the Mist keyword for any of the five type kinds.
-    /// </summary>
     private static string AllTypeKindKeyword(AllTypeKind kind)
     {
         return kind switch
@@ -48,9 +40,6 @@ public sealed class NestedScopingPropertyTests
         };
     }
 
-    /// <summary>
-    /// Builds a Mist source string with a container type containing a nested type.
-    /// </summary>
     private static string BuildNestedSource(AllTypeKind containerKind, AllTypeKind nestedKind)
     {
         var containerKeyword = AllTypeKindKeyword(containerKind);
@@ -76,10 +65,6 @@ public sealed class NestedScopingPropertyTests
         };
     }
 
-    /// <summary>
-    /// Checks if a parsed compilation unit contains a nested type member declaration
-    /// as a member of the first type declaration.
-    /// </summary>
     private static bool HasNestedTypeMember(CompilationUnitNode cu)
     {
         if(cu.Items.Length == 0)
@@ -111,36 +96,18 @@ public sealed class NestedScopingPropertyTests
             or NestedTypeAliasMemberMemberDeclarationNode);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Parser nesting universality
-    //
-    // For any container type kind × nested type kind, verify the parser
-    // produces a NestedTypeMember node.
-    //
-    // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 1: Parser nesting universality.
-    /// For any container type kind (class, struct) and for any nested type kind
-    /// (class, struct, abstract type, enum), the parser SHALL produce a valid
-    /// AST where the nested type appears as a NestedTypeMember within the
-    /// container's member list.
     /// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]
     public bool ParserNestingUniversality_ProducesNestedTypeMemberNode(
         NestedTypeSource input)
     {
         var result = ParseSource(input.Source);
 
-        // Parser should return a non-null result with a CompilationUnitNode root
         if(result.Root is not CompilationUnitNode cu)
         {
             return false;
         }
 
-        // No parse errors should be reported
         var parseErrors = result.Diagnostics
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
@@ -150,15 +117,10 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // The AST should contain a nested type member declaration node
         return HasNestedTypeMember(cu);
     }
 
-    /// <summary>
-    /// Deterministic verification that all 10 combinations of container (class, struct)
-    /// × nested type kinds produce a NestedTypeMember node.
     /// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
-    /// </summary>
     [Fact]
     public void ParserNestingUniversality_All10Combinations_ProduceNestedTypeMemberNode()
     {
@@ -208,27 +170,12 @@ public sealed class NestedScopingPropertyTests
             $"Failed combinations ({failures.Count}/10):\n" + string.Join("\n", failures));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 2: Nesting depth acceptance
-    //
-    // For any depth 1–8 and any sequence of type kinds, verify the parser
-    // produces an AST with exactly that depth of nesting.
-    //
-    // **Validates: Requirements 1.6, 2.3, 5.3**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 2: Nesting depth acceptance.
-    /// For any depth 1–8 and any sequence of type kinds, verify the parser produces
-    /// an AST with exactly that depth of nesting.
     /// **Validates: Requirements 1.6, 2.3, 5.3**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]
     public bool NestingDepthAcceptance_ParserProducesCorrectDepth(NestedTypeDepthSource input)
     {
         var result = ParseSource(input.Source);
 
-        // Parser should produce a valid AST without errors
         if(result.Root is not CompilationUnitNode cu)
         {
             return false;
@@ -243,15 +190,10 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // Verify the AST has exactly the expected nesting depth
         var measuredDepth = MeasureNestingDepth(cu);
         return measuredDepth == input.Depth;
     }
 
-    /// <summary>
-    /// Measures the maximum nesting depth of type declarations in a CompilationUnit.
-    /// A single top-level type has depth 1. A type nested inside another has depth 2, etc.
-    /// </summary>
     private static int MeasureNestingDepth(CompilationUnitNode cu)
     {
         var maxDepth = 0;
@@ -271,9 +213,6 @@ public sealed class NestedScopingPropertyTests
         return maxDepth;
     }
 
-    /// <summary>
-    /// Recursively measures the nesting depth of a TypeDeclarationNode.
-    /// </summary>
     private static int MeasureTypeDepth(TypeDeclarationNode typeDecl, int currentDepth)
     {
         var members = GetMembers(typeDecl);
@@ -300,24 +239,7 @@ public sealed class NestedScopingPropertyTests
         return maxChildDepth;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 3: Modifier preservation on nested types
-    //
-    // For any subset of {public, private, static} applied to a nested type
-    // declaration, the parser SHALL produce an AST node whose modifier list
-    // contains exactly those modifiers.
-    //
-    // **Validates: Requirements 1.7**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 3: Modifier preservation on nested types.
-    /// For any subset of {public, private, static} and any nested type kind,
-    /// the parser SHALL produce an AST node whose modifier list contains exactly
-    /// those modifiers when the nested type is inside a class container.
-    ///
     /// **Validates: Requirements 1.7**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]
     public bool ModifierPreservation_NestedType_InClass(
         ModifierSubset mods, AllTypeKind nestedKind)
@@ -329,12 +251,7 @@ public sealed class NestedScopingPropertyTests
         return VerifyNestedTypeModifiers(source, mods);
     }
 
-    /// <summary>
-    /// Property 3: Modifier preservation on nested types.
-    /// Same as above but with a struct container.
-    ///
     /// **Validates: Requirements 1.7**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]
     public bool ModifierPreservation_NestedType_InStruct(
         ModifierSubset mods, AllTypeKind nestedKind)
@@ -346,13 +263,10 @@ public sealed class NestedScopingPropertyTests
         return VerifyNestedTypeModifiers(source, mods);
     }
 
-    // ─── Property 3 verification helper ──────────────────────────────────
-
     private static bool VerifyNestedTypeModifiers(string source, ModifierSubset expectedMods)
     {
         var result = ParseSource(source);
 
-        // Parse must succeed without errors
         if(result.Root is not CompilationUnitNode cu)
         {
             return false;
@@ -369,14 +283,12 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // Get the outer type's members
         var members = GetMembers(types[0]);
         if(members is null || members.Value.Length == 0)
         {
             return false;
         }
 
-        // Find the nested type member and get its modifiers
         ImmutableArray<ModifierNode> actualModifiers = default;
         var found = false;
 
@@ -413,83 +325,56 @@ public sealed class NestedScopingPropertyTests
             return false;
         }
 
-        // Verify count matches
         var expectedCount = MistNestedScopingGenerator.ModifierCount(expectedMods);
         if(actualModifiers.Length != expectedCount)
         {
             return false;
         }
 
-        // Verify each expected modifier is present by type
         var expectedTypes = MistNestedScopingGenerator.ExpectedModifierNodeTypes(expectedMods);
         var actualTypes = actualModifiers.Select(m => m.GetType()).ToHashSet();
 
         return expectedTypes.SetEquals(actualTypes);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 4: Parse–print–parse round trip
-    //
-    // For any valid Mist source with nested types/namespaces, verify
-    // parse → print → parse produces structurally identical AST.
-    //
-    // **Validates: Requirements 1.8, 12.5, 13.3**
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 4: Parse–print–parse round trip.
-    /// For any valid Mist source file containing nested types and/or nested namespaces,
-    /// parsing the source, pretty-printing the resulting AST, then parsing the
-    /// pretty-printed output SHALL produce an AST that is structurally identical
-    /// to the original (same node types, same token lexemes, same tree shape),
-    /// disregarding source position spans.
-    ///
     /// Structural identity is verified by comparing the pretty-printed output of
     /// both ASTs: if print(AST1) == print(AST2), the ASTs are structurally identical.
     ///
     /// **Validates: Requirements 1.8, 12.5, 13.3**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]
     public bool ParsePrintParseRoundTrip_ProducesStructurallyIdenticalAst(
         RoundTripSource input)
     {
-        // Step 1: Parse the generated source to get AST1
         var result1 = ParseSource(input.Source);
         if(result1.Root is not CompilationUnitNode ast1)
         {
             return false;
         }
 
-        // No parse errors
         if(result1.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             return false;
         }
 
-        // Step 2: Pretty-print AST1 to get printed1
         var printed1 = MistPrettyPrinter.Print(ast1, input.Source);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false;
         }
 
-        // Step 3: Parse printed1 to get AST2
         var result2 = ParseSource(printed1);
         if(result2.Root is not CompilationUnitNode ast2)
         {
             return false;
         }
 
-        // No parse errors on the re-parsed output
         if(result2.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             return false;
         }
 
-        // Step 4: Pretty-print AST2 to get printed2
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Step 5: Verify structural identity: print(AST1) == print(AST2)
         return printed1 == printed2;
     }
 }

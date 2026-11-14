@@ -8,11 +8,6 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// A qualified name in expression position is refused at the segment that resolves to nothing, rather
-/// than left for the backend to call unsupported, and a Standard intrinsic named by its CLR namespace and
-/// name is that intrinsic in expression and type position alike.
-/// </summary>
 [Trait("Tier", "2")]
 public sealed class QualifiedNameBindingTests
 {

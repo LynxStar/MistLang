@@ -1,8 +1,4 @@
-// Tier 1 (Unit): the decisions behind member filtering on a receiver closed with `unknown`
-// (unknown-type Requirements 9 and 10), each called on types and members built directly: which type
-// parameters a type mentions and whether it bears `unknown`, which written parameter a receiver's
-// substitution binds to `unknown`, what a bodiless member may write by its signature, how a receiver's
-// construction reaches a declaring type up the base chain, and which access an assignment writes through.
+// Member filtering on a receiver closed with `unknown` (unknown-type Requirements 9 and 10).
 
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Binding;
@@ -68,10 +64,6 @@ public sealed class UnknownViewDecisionTests
         Assert.Empty(TypeParameterOccurrences.In(Int32));
     }
 
-    /// <summary>
-    /// A bare member type is its own instantiation -- what <c>this</c> is typed as inside its body -- so it
-    /// mentions its own parameters and those of every type enclosing it.
-    /// </summary>
     [Fact]
     public void ABareMemberTypeMentionsItsOwnAndEnclosingParameters()
     {
@@ -100,11 +92,6 @@ public sealed class UnknownViewDecisionTests
         Assert.False(TypeParameterOccurrences.BearsUnknown(Int32));
     }
 
-    /// <summary>
-    /// An array of unknown LENGTH is every unsized array in the language, so the top type at a dependent
-    /// position must not close the array with <c>unknown</c>, directly or as another type's argument;
-    /// the same distinction keeps array fields out of the storage ban.
-    /// </summary>
     [Fact]
     public void AnUnknownLengthDoesNotCloseAnArrayWithUnknown()
     {
@@ -214,10 +201,6 @@ public sealed class UnknownViewDecisionTests
         Assert.Same(t, open!.Apply(t, built.Interner));
     }
 
-    /// <summary>
-    /// The base clause renames and rewraps: <c>Derived&lt;Y&gt; : Base&lt;List&lt;Y&gt;&gt;</c> binds Base's X to
-    /// List of Derived's Y, and the receiver's argument closes Y, so X reads as a list of the argument.
-    /// </summary>
     [Fact]
     public void AReceiverReachesABaseThroughItsConstructedBaseClause()
     {

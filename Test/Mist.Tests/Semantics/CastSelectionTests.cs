@@ -1,11 +1,6 @@
 // Tier 3 (Component): which conversion operator a cast selects, asserted on CastExpression.Operator
 // against a real ProgramModelBuilder run. See ProgramModelProbe for the harness.
 //
-// WHY THIS CANNOT BE A SAMPLE. Emission writes `((T)operand)` whatever Mist selected, because C# will
-// not let a conversion operator be called by name (CS0571), and Roslyn then resolves the cast again
-// from the same declarations. So the generated code and the program's output are identical whether Mist
-// chose the right operator, the wrong one, or none -- only the model separates them.
-//
 // Several fixtures declare a competing operator to the same target on ANOTHER type on purpose. Taking
 // the first match found would pass a fixture where only one candidate exists.
 
@@ -164,10 +159,6 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Kelvin", cast.Operator.TargetType.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// Celsius ALSO declares an explicit operator to Kelvin, so a selection that stopped at the first
-    /// operator reaching Kelvin anywhere in the program would pass on the wrong one.
-    /// </summary>
     [Fact]
     public void AnExplicitCast_SelectsTheOperatorOnTheActualSourceType()
     {
@@ -187,10 +178,6 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Fahrenheit", cast.Operator.TargetType.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// The operator is declared by Feet, the TARGET, rather than by Meters. Both ends of a conversion
-    /// may declare it, and searching only the source would miss this one entirely.
-    /// </summary>
     [Fact]
     public void ACast_FindsAnOperatorDeclaredByTheTargetType()
     {
@@ -201,10 +188,6 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal("Probe.Feet", cast.Operator.TargetType.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// Matching brackets the operator's parameter by standard convertibility rather than identity, which
-    /// is the whole of what lets a derived source reach an operator its base declares.
-    /// </summary>
     [Fact]
     public void ACastFromADerivedSource_ReachesAnOperatorItsBaseDeclares()
     {
@@ -407,8 +390,6 @@ public sealed class CastSelectionTests : ProgramModelProbe
         Assert.Equal(WellKnownTypes.Int32.FullyQualifiedName, cast.ParameterType?.FullyQualifiedName);
         Assert.Equal("Probe.Box<Int32>", cast.Type.FullyQualifiedName);
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private CastExpression SingleCast(string statement, string extraTypes = "", string extraPreamble = "")
     {

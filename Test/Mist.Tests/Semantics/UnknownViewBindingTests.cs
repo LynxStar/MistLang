@@ -39,10 +39,6 @@ public sealed class UnknownViewBindingTests
         _ = Assert.IsType<ErrorType>(bound.Type);
     }
 
-    /// <summary>
-    /// Hiding the writer removes it from the candidates rather than refusing the name: the reader
-    /// overload of the same name is what the call selects, and it is selected on its own terms.
-    /// </summary>
     [Fact]
     public void AReaderOverloadIsSelectedWhereTheWriterIsHidden()
     {
@@ -117,10 +113,6 @@ public sealed class UnknownViewBindingTests
         Assert.Contains("typed by 'X'", f.Errors().First().Message, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// A member the binder has finished is read as it stands: Forward's tree calls Set, and the
-    /// summaries read that tree rather than binding anything, so the call inherits Set's classification.
-    /// </summary>
     [Fact]
     public void ACompletedBodyClassifiesThroughItsCalls()
     {

@@ -4,10 +4,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// Finding a member on an extension block rather than on the receiver's own type, and choosing
-/// between blocks when more than one offers the name.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class ExtensionLookupTests : ProgramModelProbe
 {
@@ -107,24 +103,12 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
         Assert.Equal("String", ReturnTypeOf("dog.Own()"));
     }
 
-    /// <summary>
-    /// THE ORDERING TEST. Filtering by member name has to happen BEFORE ranking blocks by
-    /// specificity. Rank first and the two Animal/Dog blocks win the tier for this receiver, the
-    /// universal block is discarded before its members are looked at, and every universal member
-    /// becomes unresolvable -- which is how a prototype of this left the sample with four errors,
-    /// all of them universal calls.
-    /// </summary>
     [Fact]
     public void AUniversalMemberSurvivesAMoreSpecificBlock()
     {
         Assert.Equal("Int32", ReturnTypeOf("dog.Universal()"));
     }
 
-    /// <summary>
-    /// Within the concrete tier the ranking is pairwise and load-bearing. With both blocks offering
-    /// Named and neither ranked, the binder records one and C# resolves the other; they agree only
-    /// because this picks the same one C# would.
-    /// </summary>
     [Fact]
     public void TheMoreSpecificReceiverWins()
     {
@@ -132,11 +116,6 @@ public sealed class ExtensionLookupTests : ProgramModelProbe
         Assert.Equal("Int32", ReturnTypeOf("dog.Named()"));
     }
 
-    /// <summary>
-    /// An extension PROPERTY is not an access in the output. C# has no such member, so the site is
-    /// reclassified into a call to the carrier's generated getter -- named explicitly, because
-    /// `get_Tall` is a name the user never wrote and C#'s own extension lookup has nothing to find.
-    /// </summary>
     [Fact]
     public void AnExtensionPropertyBecomesACarrierCall()
     {

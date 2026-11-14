@@ -1,7 +1,3 @@
-// Tier 1 (Unit): what the scope chain answers for `this`, read off hand-built scopes. An instance
-// member reaches its type's own definition, a static member, an initializer and a chain with no type
-// each refuse in their own way, and a receiver a scope supplies already typed is answered as supplied.
-
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;

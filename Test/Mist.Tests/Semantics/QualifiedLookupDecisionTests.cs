@@ -7,10 +7,6 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// One qualification step off a namespace: a CLR type with a Standard intrinsic is that intrinsic, an
-/// ordinary CLR type is its projection, and a name that is neither is a miss for the caller to refuse.
-/// </summary>
 [Trait("Tier", "1")]
 public sealed class QualifiedLookupDecisionTests
 {

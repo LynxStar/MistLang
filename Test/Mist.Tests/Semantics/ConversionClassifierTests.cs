@@ -1,6 +1,5 @@
-// Tier 3 (Component): the conversion kind between two types of a real model. ConversionClassifier
-// states the total classification rules that the partial ConversionRelation declines; these rows pin
-// those language decisions independently of emitted conversions.
+// Tier 3 (Component): the conversion kind between two types of a real model. These rows pin
+// ConversionClassifier's language decisions independently of emitted conversions.
 
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;

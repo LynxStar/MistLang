@@ -4,15 +4,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// What an extension block's body can see, and that it is looked at in the first place.
-/// <para>
-/// Both were previously false and silently so. The receiver existed only as a string on the block,
-/// answerable by no scope, so <c>self</c> did not resolve; and no body was ever bound, because the
-/// binder walks TYPES and a block is not one. Together those meant a member could name an identifier
-/// that does not exist anywhere and the file still compiled clean.
-/// </para>
-/// </summary>
 public sealed class ExtensionReceiverScopeTests : ProgramModelProbe
 {
     public ExtensionReceiverScopeTests()
@@ -71,9 +62,6 @@ public sealed class ExtensionReceiverScopeTests : ProgramModelProbe
         Assert.Equal("MIST0296", error.Number.Value);
     }
 
-    /// <summary>
-    /// The bodies are bound at all, which is the claim that a silent acceptance no longer happens.
-    /// </summary>
     [Fact]
     public void UnknownIdentifierInABody_IsReported()
     {

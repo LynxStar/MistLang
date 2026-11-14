@@ -2,13 +2,8 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// The one reading of a message template, shared by the registry validator and the renderer so
-/// that what the validator accepts is exactly what the renderer can print. Placeholders are
-/// <c>{name}</c> or, until Phase 3 of the migration, a positional <c>{0}</c>; <c>{{</c> and <c>}}</c>
-/// are literal braces; <c>{name?text}</c> prints its text, placeholders included, only when the
-/// Optional slot it names carries a value.
-/// </summary>
+/// Shared parsing keeps registry validation and rendering aligned: {name} and positional {0} substitute slots,
+/// {{ and }} escape braces, and {name?text} includes its body only when the named Optional slot carries a value.
 internal static class TemplateSyntax
 {
     internal abstract record Segment;

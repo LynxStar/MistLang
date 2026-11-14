@@ -2,10 +2,7 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// A snapshot of one argument taken at report time. No live model object, node or exception is
-/// ever stored on an occurrence, so later mutation cannot change what was reported.
-/// </summary>
+/// Arguments snapshot at report time so later model mutations cannot change an occurrence.
 public abstract record SlotValue
 {
     private protected SlotValue()

@@ -14,8 +14,5 @@ public enum SlotKind
     Optional,
 }
 
-/// <summary>
-/// One named, typed argument position of a descriptor. <paramref name="ElementKind"/> is the item
-/// kind of a <see cref="SlotKind.Sequence"/> or the carried kind of a <see cref="SlotKind.Optional"/>.
-/// </summary>
+/// ElementKind names the payload kind for Sequence and Optional slots.
 public readonly record struct Slot(string Name, SlotKind Kind, SlotKind? ElementKind = null);

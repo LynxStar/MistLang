@@ -2,11 +2,8 @@ using System.Collections.Immutable;
 
 namespace Mist.Common.Diagnostics;
 
-/// <summary>
-/// What a speculative step reported, held back for the caller to decide: commit all of it to the
-/// parent with ordinals intact, discard it, or replay one occurrence the caller kept from an
-/// earlier withhold. Nothing here removes an occurrence another one resembles.
-/// </summary>
+/// Holds speculative reports for commit, discard or replay under <see cref="DiagnosticOperation"/> identity;
+/// similar occurrences remain distinct.
 public sealed class Withheld
 {
     private readonly DiagnosticBag parent;

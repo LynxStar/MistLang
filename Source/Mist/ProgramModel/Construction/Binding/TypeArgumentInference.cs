@@ -28,7 +28,7 @@ internal static class TypeArgumentInference
             InferAcrossPack(method, arguments, receiver, interner, bounds, flattened, reads);
             var pending = Enumerable.Range(0, Math.Min(flattened, arguments.Count))
                 .Where(i => arguments[i] is UnboundLambdaExpression or MethodGroupExpression).ToList();
-            var blockedPack = InferFromCallables(method, arguments, pending, receiver, interner, lambdas, constructTask, bounds);
+            var blockedPack = InferFromCallables(method, arguments, pending, receiver, interner, lambdas, constructTask, bounds, reads);
             var packTypes = Fix(method.TypeParametersList, bounds, interner, out conflict);
             conflict = blockedPack ?? conflict;
             return packTypes;
@@ -53,7 +53,7 @@ internal static class TypeArgumentInference
             MatchArgument(declared, arguments[i], method.TypeParametersList, bounds, Reading(reads, method, arguments[i]));
         }
 
-        var blocked = InferFromCallables(method, arguments, callables, receiver, interner, lambdas, constructTask, bounds);
+        var blocked = InferFromCallables(method, arguments, callables, receiver, interner, lambdas, constructTask, bounds, reads);
         var fixedTypes = Fix(method.TypeParametersList, bounds, interner, out conflict);
         conflict = blocked ?? conflict;
 
@@ -74,7 +74,8 @@ internal static class TypeArgumentInference
         TypeInterner interner,
         ILambdaTrials? lambdas,
         Func<IMistType, IMistType>? constructTask,
-        List<IMistType>[] bounds)
+        List<IMistType>[] bounds,
+        ISlotInference? reads)
     {
         var parameters = method.TypeParametersList;
         var frozen = new IMistType?[bounds.Length];
@@ -134,7 +135,10 @@ internal static class TypeArgumentInference
 
                 if(output is not null)
                 {
-                    Learn(shape.ReturnType, output, parameters, bounds, frozen);
+                    var nested = Reading(reads, method, arguments[i]) is { } reading
+                        ? reading with { Nested = true, Shown = interner.GetOrCreateFunctionType(given, output) }
+                        : null;
+                    Learn(shape.ReturnType, output, parameters, bounds, frozen, nested);
                 }
             }
         }
@@ -193,10 +197,10 @@ internal static class TypeArgumentInference
     }
 
     private static void Learn(
-        IMistType declared, IMistType output, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds, IMistType?[] frozen)
+        IMistType declared, IMistType output, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds, IMistType?[] frozen, SlotReading? reading)
     {
         var learned = NewBounds(bounds.Length);
-        Match(declared, output, parameters, learned);
+        Match(declared, output, parameters, learned, reading);
 
         for(var j = 0; j < bounds.Length; j++)
         {
@@ -431,16 +435,23 @@ internal static class TypeArgumentInference
     }
 
     /// <summary>
-    /// The argument an unknown slot is read from, carried one level down into its type's own arguments
-    /// and no further: a slot nested deeper, <c>List&lt;int[]&gt;</c>, has no value the argument can read.
+    /// The argument an unknown slot is read from, carried one level down into its type's own arguments.
+    /// A slot nested deeper, <c>List&lt;int[]&gt;</c>, has no value the argument can read: its elements
+    /// may differ, so an unknown there infers nothing (runtime-dependent-values Requirement 8.3).
     /// </summary>
-    private sealed record SlotReading(ISlotInference Slots, IOverload Method, Expression Argument, ConstructedType? Closing, int Ordinal);
+    private sealed record SlotReading(ISlotInference Slots, IOverload Method, Expression Argument, ConstructedType? Closing, int Ordinal, bool Nested = false, IMistType? Shown = null);
 
     private static void Match(
         IMistType declared, IMistType actual, IReadOnlyList<TypeParameter> parameters, List<IMistType>[] bounds, SlotReading? reading = null)
     {
         if(declared is TypeParameter parameter)
         {
+            if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Nested: true })
+            {
+                reading.Slots.Nested(reading.Method, parameter, reading.Shown ?? reading.Argument.Type);
+                return;
+            }
+
             if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Closing: { } closing })
             {
                 var slot = Slot(parameter, parameters);
@@ -483,13 +494,14 @@ internal static class TypeArgumentInference
         // once a spread among them is skipped, that part being the pack binding's to make.
         if(DelegateShape.Of(declared) is { } declaredFunction && DelegateShape.Of(actual) is { } actualFunction)
         {
-            Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, bounds);
+            var nested = reading is null ? null : reading with { Nested = true };
+            Match(declaredFunction.ReturnType, actualFunction.ReturnType, parameters, bounds, nested);
 
             if(declaredFunction.ParameterTypes.Count == actualFunction.ParameterTypes.Count)
             {
                 for(var i = 0; i < declaredFunction.ParameterTypes.Count; i++)
                 {
-                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], parameters, bounds);
+                    Match(declaredFunction.ParameterTypes[i], actualFunction.ParameterTypes[i], parameters, bounds, nested);
                 }
             }
 
@@ -513,7 +525,7 @@ internal static class TypeArgumentInference
         {
             Match(
                 declaredConstructed.TypeArguments[i], actualConstructed.TypeArguments[i], parameters, bounds,
-                reading is { Closing: null } top ? top with { Closing = actualConstructed, Ordinal = i } : null);
+                reading is { Closing: null } top ? top with { Closing = actualConstructed, Ordinal = i } : reading is null ? null : reading with { Nested = true });
         }
     }
 

@@ -29,6 +29,8 @@ internal sealed partial class RefinementAnalyzer
                 ObjectInitializerAssignment entry => Refined(entry.TargetType) || Targets(entry.AddParameterTypes)
                     || SlotIdentity.Owes(entry.Value, entry.TargetType) || Owed([entry.Value], entry.AddParameterTypes),
                 CastExpression cast => Refined(cast.ParameterType ?? cast.TargetType) || SlotIdentity.Owes(cast.Operand, cast.ParameterType ?? cast.TargetType),
+                FunctionReferenceExpression { Type: IFunctionType function } reference => function.ParameterTypes.Zip(reference.ClosedParameterTypes).Any(pair => SlotIdentity.Owes(pair.First, pair.Second))
+                    || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType),
                 _ => false,
             });
         }

@@ -13,6 +13,8 @@ namespace Mist.ProgramModel.Construction.Binding;
 internal interface ISlotInference
 {
     IMistType? Unknown(IOverload candidate, TypeParameter parameter, Expression argument, ConstructedType closing, int ordinal);
+
+    void Nested(IOverload candidate, TypeParameter parameter, IMistType argument);
 }
 
 /// <summary>
@@ -69,6 +71,11 @@ internal sealed class SlotInference(TypeInterner interner, IReadOnlyList<Express
         return capture.Value;
     }
 
+    public void Nested(IOverload candidate, TypeParameter parameter, IMistType argument)
+    {
+        _ = refused.TryAdd(candidate, (parameter, Unknowing(argument)));
+    }
+
     public IReadOnlyList<SlotCapture> CapturesOf(IOverload candidate)
     {
         return captures.TryGetValue(candidate, out var owned) ? owned : [];
@@ -77,6 +84,19 @@ internal sealed class SlotInference(TypeInterner interner, IReadOnlyList<Express
     public (TypeParameter Parameter, IMistType Type)? RefusedFor(IOverload candidate)
     {
         return refused.TryGetValue(candidate, out var failure) ? failure : null;
+    }
+
+    private IMistType Unknowing(IMistType type)
+    {
+        return type switch
+        {
+            UnknownValueType => UnknownType.Instance,
+            ConstructedType constructed => interner.GetOrCreateConstructedType(
+                constructed.Definition, [.. constructed.TypeArguments.Select(Unknowing)],
+                constructed.Enclosing is { } enclosing ? Unknowing(enclosing) as ConstructedType : null),
+            FunctionType function => interner.GetOrCreateFunctionType([.. function.ParameterTypes.Select(Unknowing)], Unknowing(function.ReturnType), function.IsPure),
+            _ => type,
+        };
     }
 
     private Storm.Runtime.SyntaxNode Spanning(Expression argument)

@@ -2,7 +2,10 @@ using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
 namespace Mist.Tests.RuntimeDependentValues;
@@ -56,5 +59,52 @@ public sealed class SlotCaptureFlowTests
         Assert.Equal(
             [(FlowStepKind.Evaluate, creation.Size), (FlowStepKind.Declare, creation.Captures[0].Declaration), (FlowStepKind.Evaluate, creation)],
             created.Select(step => (step.Kind, step.Node)));
+    }
+
+    [Fact]
+    public void TheWalkerYieldsTheCapturesOfEveryOtherBodySiteAheadOfItsOperands()
+    {
+        var n = new LocalVariable("n", slots.ZeroOrPositive);
+        var written = slots.Capture(n);
+        var length = slots.Capture(n);
+        var source = HandBuiltRefinements.Local(slots.ArrayOf(written.Value), "a");
+        var body = HandBuiltModel.Block();
+        var loop = new ForEachStatement(new LocalVariable("x", slots.Int), source, body) { Captures = [written] };
+        var deconstruction = new TupleDeconstructionStatement([new LocalVariable("x", slots.Int)], source) { Captures = [written] };
+        var ambient = new WithBlockStatement(source, body, keyType: source.Type) { Captures = [written] };
+        var defaulted = new DefaultExpression(HandBuiltModel.Node(), source.Type) { Captures = [written] };
+        var array = new ArrayCreationExpression(HandBuiltModel.Node(), source.Type, length.Initializer, slots.ArrayOf(length.Value)) { Captures = [written, length] };
+        var method = new Method("First", slots.Int, [], new MemberModifiers());
+        var reference = new FunctionReferenceExpression(HandBuiltModel.Node(), source, method, slots.Int) { Captures = [written] };
+
+        Assert.Equal([written.Initializer, source, body], BodyWalker.ChildrenOf(loop));
+        Assert.Equal([written.Initializer, source], BodyWalker.ChildrenOf(deconstruction));
+        Assert.Equal([written.Initializer, source, body], BodyWalker.ChildrenOf(ambient));
+        Assert.Equal([written.Initializer], BodyWalker.ChildrenOf(defaulted));
+        Assert.Equal([written.Initializer, length.Initializer], BodyWalker.ChildrenOf(array));
+        Assert.Equal([written.Initializer, source], BodyWalker.ChildrenOf(reference));
+    }
+
+    [Theory]
+    [InlineData("foreach")]
+    [InlineData("deconstruction")]
+    [InlineData("with")]
+    public void AStatementThatWritesATypeDeclaresItsCapturesBeforeItsOwnOperand(string site)
+    {
+        var written = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive));
+        var source = HandBuiltRefinements.Local(slots.ArrayOf(slots.Literal(2)), "a");
+        IReadOnlyList<SlotCapture> captures = [written];
+        Statement statement = site switch
+        {
+            "foreach" => new ForEachStatement(new LocalVariable("x", slots.Int), source, HandBuiltModel.Block()) { Captures = captures },
+            "deconstruction" => new TupleDeconstructionStatement([new LocalVariable("x", slots.Int)], source) { Captures = captures },
+            _ => new WithBlockStatement(source, HandBuiltModel.Block(), keyType: source.Type) { Captures = captures },
+        };
+
+        var steps = FlowGraphBuilder.Build(HandBuiltModel.Block(statement)).Blocks.SelectMany(block => block.Steps).ToList();
+
+        Assert.Equal(
+            [(FlowStepKind.Evaluate, written.Initializer), (FlowStepKind.Declare, written.Declaration), (FlowStepKind.Evaluate, source)],
+            steps.Take(3).Select(step => (step.Kind, step.Node)));
     }
 }

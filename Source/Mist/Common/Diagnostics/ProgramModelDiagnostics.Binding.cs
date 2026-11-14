@@ -516,7 +516,7 @@ public static partial class ProgramModelDiagnostics
         DiagnosticNumber.Mint("MIST0490"),
         Title: "Slot not inferable",
         Template: "'{parameter}' cannot be inferred from an argument of type '{type}'. State it between angle brackets.",
-        Description: "A method's dependent parameter is inferred from the value an argument carries in its slot, but the argument's type is an abstract closed with 'unknown', whose slot has no single value to read. Pass the value between angle brackets at the call, or pass a value whose type names the slot.",
+        Description: "A method's dependent parameter is inferred from the value an argument carries in its slot, but the argument's type has no single value there: an abstract closed with 'unknown', which an object may implement at several values, or a slot under 'unknown' nested inside another type's argument, such as the element type of a list, whose elements may differ. Pass the value between angle brackets at the call, or pass a value whose type names the slot.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,

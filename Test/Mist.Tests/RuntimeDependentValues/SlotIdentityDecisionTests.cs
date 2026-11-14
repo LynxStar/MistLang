@@ -220,6 +220,19 @@ public sealed class SlotIdentityDecisionTests
     }
 
     [Fact]
+    public void AnUnknownSlotIsOneValueWithTheCaptureOfThatSameArgumentsReadWithNoFactsAtAll()
+    {
+        var argument = HandBuiltRefinements.Local(slots.Closed(ring, UnknownType.Instance), "Some(6)");
+        var read = new MemberAccessExpression(HandBuiltModel.Node(), argument, "Capacity", slots.Int, member: new TypeResult(capacity));
+        var inferred = new SlotCapture("Some(6).Capacity", slots.Int, slots.Int, new ImplicitConversionExpression(HandBuiltModel.Node(), read, slots.Int, []), 9);
+        var again = HandBuiltRefinements.Local(argument.Type, "Some(6)", 2);
+
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, argument, slots.Closed(ring, inferred.Value)));
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, new ImplicitConversionExpression(HandBuiltModel.Node(), argument, argument.Type, []), slots.Closed(ring, inferred.Value)));
+        Assert.NotNull(SlotIdentity.Judge(FactState.Empty, again, slots.Closed(ring, inferred.Value)));
+    }
+
+    [Fact]
     public void AnOptionalTargetIsJudgedByTheClosingItHolds()
     {
         var optional = new UnionType([slots.Closed(ring, second.Value), slots.Refinements.Built.Type("Void")]);

@@ -245,6 +245,9 @@ internal static partial class BodyEmitter
         return expression switch
         {
             NewExpression creation => creation.Captures.Where(capture => !ConsumedByClosing(creation.Type, capture)),
+            DefaultExpression defaulted => defaulted.Captures.Where(capture => !ConsumedByClosing(defaulted.Type, capture)),
+            ArrayCreationExpression array => array.Captures.Where(capture => !ReferenceEquals(capture.Initializer, array.Size) && !ConsumedByClosing(array.ElementType, capture)),
+            StackallocExpression stack => stack.Captures.Where(capture => !ReferenceEquals(capture.Initializer, stack.Size) && !ConsumedByClosing(stack.ElementType, capture)),
             InvocationExpression invocation => invocation.Captures.Where(capture => !ConsumedByCall(invocation, capture)),
             MemberAccessExpression access => access.Captures.Where(capture => !ConsumedByAccess(access, capture)),
             _ => [],
@@ -363,6 +366,10 @@ internal static partial class BodyEmitter
             case NewExpression creation:
                 Own(creation, sequence);
                 PlaceArguments(creation.Arguments, creation.Constructor?.ParametersList, sequence);
+                break;
+
+            case DefaultExpression or ArrayCreationExpression or StackallocExpression:
+                Own(expression, sequence);
                 break;
 
             case MemberAccessExpression access:
@@ -489,7 +496,8 @@ internal static partial class BodyEmitter
 
         if(sequenced?.Contains(expression) == true
             || UnitHoisting.Substitution(expression) is not null
-            || expression is not (InvocationExpression or NewExpression or MemberAccessExpression or AssignmentExpression or CompoundAssignmentExpression))
+            || expression is not (InvocationExpression or NewExpression or DefaultExpression or ArrayCreationExpression or StackallocExpression
+                or MemberAccessExpression or AssignmentExpression or CompoundAssignmentExpression))
         {
             return false;
         }

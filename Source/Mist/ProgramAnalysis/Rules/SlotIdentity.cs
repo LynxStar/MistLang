@@ -5,6 +5,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -84,6 +85,11 @@ internal static class SlotIdentity
 
     private static Proof? Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget)
     {
+        if(ReadsItself(pair, through))
+        {
+            return new Proven();
+        }
+
         if(reading is null)
         {
             return Same(pair.Argument, pair.Slot) ? new Proven() : null;
@@ -105,6 +111,17 @@ internal static class SlotIdentity
         }
 
         return Chain.Prove(state.Bag, new Fact(difference, Relation.Equal).Denial(), difference.Variables.ToHashSet(), budget);
+    }
+
+    // A slot inferred from an argument's unknown one is a capture of that argument's own read, the same value
+    // however often the argument would run if read again.
+    private static bool ReadsItself(Pair pair, Expression? through)
+    {
+        return pair is { Argument: UnknownType or UnknownValueType, Slot: CapturedValue captured }
+            && through is not null
+            && SlotReads.Written(captured.Capture.Initializer) is MemberAccessExpression { Member: TypeResult { Type: TypeParameter read }, Receiver: { } receiver }
+            && ReferenceEquals(read, pair.Read ?? pair.Parameter)
+            && ReferenceEquals(SlotReads.Written(receiver), through);
     }
 
     private static bool Same(IMistType argument, IMistType slot)

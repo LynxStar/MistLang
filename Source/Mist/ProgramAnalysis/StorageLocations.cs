@@ -9,9 +9,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether an expression names storage a reference can be taken to, answered as what it is when it is
-/// not, for the diagnostic. Null means a location or a shape this does not decide -- <c>this</c>, a value
-/// that already failed -- so a program is refused only for what is certainly a value.
+/// Null includes undecided shapes and prior failures: refuse only expressions known to be
+/// values rather than storage.
 /// </summary>
 internal static class StorageLocations
 {

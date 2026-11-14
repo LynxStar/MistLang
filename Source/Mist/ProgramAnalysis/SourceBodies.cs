@@ -6,11 +6,8 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Every root under which the project's own source holds code -- member bodies, constructor chains,
-/// accessors, initializers, default blocks, enum values, extension blocks and top-level statements --
-/// over the declarations <see cref="SourceTypes"/> scopes, each with the type whose declaration it
-/// sits inside, or null for code that sits in none, and the member it belongs to, or null for a
-/// default block or an enum value.
+/// Scope follows <see cref="SourceTypes"/>. Owner is null outside type declarations; Member is
+/// null for default blocks and enum values.
 /// </summary>
 internal static class SourceBodies
 {

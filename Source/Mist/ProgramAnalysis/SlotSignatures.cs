@@ -11,24 +11,14 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a member answers a slot, which abstract-type-unification Requirements 14.5 and 28.4 want
-/// exact: the same arity, with a value pack the conformer bound written out
-/// (<see cref="ValuePack.Expand"/>); every parameter passed the same way and a <c>ref</c> return
-/// answered by one (ref-parameters Requirement 7.5); and every type AGREEING once the slot is read
-/// through the abstract's type arguments with its own method type parameters renamed to the filler's
-/// (<see cref="Closing"/>), and the filler through the base it was inherited from. Types agree part by
-/// part and a type parameter only with itself, so a generic <c>Identity</c> returning <c>int</c> does not
-/// answer one returning its own <c>T</c>. What still agrees with anything is what no substitution here
-/// could have closed: an error, and a parameter DECLARED BY AN ABSTRACT, which surviving the slot's
-/// substitution is one the conformer gave no argument for -- someone else's complaint already -- or an
-/// associated type slot it left unfilled, which <see cref="ConformanceAnalyzer"/> reports on its own; a
-/// filled slot is closed to its filler by the substitution the conformance passes. A generic answer's
-/// constraints are not part of agreeing: <see cref="Strengthened"/> judges them, by entailment from the
-/// slot's, once the answer is found. A refinement, named or a parameter's `where`, is
-/// looked through, at the top and in a construction's arguments: it is the same signature over a
-/// narrower set of values, and whether the filler narrows MORE than the slot promised is the refinement
-/// rule's to judge. Inside a tuple, union or function type it is not, those signatures being nominal.
-/// Ownership is no part of passing: an `owned` return is <see cref="ReturnsOwned"/>'s to judge.
+/// Abstract-type-unification Requirements 14.5/28.4 and ref-parameters Requirement 7.5 require
+/// exact passing and types after pack expansion, inheritance substitution and method-parameter
+/// renaming by <see cref="Closing"/>. Unclosed abstract parameters and associated slots agree
+/// with anything because missing arguments/fillers belong to <see cref="ConformanceAnalyzer"/>;
+/// errors also suppress disagreement. <see cref="Strengthened"/> judges constraints separately.
+/// Refinements are transparent at the top and in constructed arguments; the refinement rule
+/// judges stronger restrictions. Tuple, union and function components remain nominal. Ownership
+/// is separate from passing; <see cref="ReturnsOwned"/> judges owned returns.
 /// </summary>
 internal static class SlotSignatures
 {

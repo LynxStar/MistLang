@@ -8,11 +8,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// A type's static initializers, as the one member the inference keys them by: its static field and
-/// property initializers and its static constructor's body, or an enum's variant values, which the
-/// target builds as static fields. They run as a unit the first time any static field of the type is
-/// read -- and, once the type declares a static constructor, the first time anything of it is used at
-/// all, which is what <see cref="IsPrecise"/> tells a caller.
+/// Inference keys a type's static initialization as one member, including enum values the
+/// target stores as static fields. Field reads trigger it; an explicit static constructor
+/// also makes other uses triggers, as <see cref="IsPrecise"/> records.
 /// </summary>
 internal sealed class TypeInitializer
 {

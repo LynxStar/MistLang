@@ -1,9 +1,5 @@
 namespace Mist.Common.Source;
 
-/// <summary>
-/// Represents the source text of a single compilation unit, with efficient
-/// offset-to-line/column conversion via a lazily-cached line-start array.
-/// </summary>
 public sealed class SourceText
 {
     private int[]? lineStarts;
@@ -14,29 +10,17 @@ public sealed class SourceText
         Contents = contents;
     }
 
-    /// <summary>
-    /// The file path of this source text.
-    /// </summary>
     public string Path { get; }
 
-    /// <summary>
-    /// The full contents of this source text.
-    /// </summary>
     public string Contents { get; }
 
     public string ContentHash => field ??= Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Contents)));
 
-    /// <summary>
-    /// Returns the characters covered by the given <paramref name="span"/>.
-    /// </summary>
     public ReadOnlySpan<char> GetSpan(SourceSpan span)
     {
         return Contents.AsSpan(span.Start, span.Length);
     }
 
-    /// <summary>
-    /// Converts an offset-based <see cref="SourceSpan"/> to a 1-based <see cref="LinePositionSpan"/>.
-    /// </summary>
     public LinePositionSpan ToLinePositionSpan(SourceSpan span)
     {
         var lineStarts = GetLineStarts();
@@ -64,7 +48,7 @@ public sealed class SourceText
                 if(i + 1 < Contents.Length && Contents[i + 1] == '\n')
                 {
                     starts.Add(i + 2);
-                    i++; // skip the \n
+                    i++;
                 }
                 else
                 {
@@ -79,7 +63,6 @@ public sealed class SourceText
 
     private static LinePosition OffsetToLinePosition(int[] lineStarts, int offset)
     {
-        // Binary search for the line containing this offset.
         var lo = 0;
         var hi = lineStarts.Length - 1;
         while(lo <= hi)
@@ -95,8 +78,8 @@ public sealed class SourceText
             }
         }
 
-        var line = hi; // 0-based line index
+        var line = hi;
         var column = offset - lineStarts[line];
-        return new LinePosition(line + 1, column + 1); // 1-based
+        return new LinePosition(line + 1, column + 1);
     }
 }

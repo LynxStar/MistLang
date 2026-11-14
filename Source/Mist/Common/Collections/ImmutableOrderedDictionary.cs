@@ -4,9 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Mist.Common.Collections;
 
-/// <summary>
-/// A deterministic, immutable ordered dictionary that preserves insertion order.
-/// </summary>
+/// Enumeration preserves insertion order.
 public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictionary<TKey, TValue>
     where TKey : notnull
 {
@@ -53,10 +51,6 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
         return GetEnumerator();
     }
 
-    /// <summary>
-    /// Returns a new map with the given key-value pair appended.
-    /// Throws if the key already exists.
-    /// </summary>
     public ImmutableOrderedDictionary<TKey, TValue> Add(TKey key, TValue value)
     {
         return new ImmutableOrderedDictionary<TKey, TValue>(
@@ -64,9 +58,6 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
             lookup.Add(key, value));
     }
 
-    /// <summary>
-    /// Builder for constructing an <see cref="ImmutableOrderedDictionary{TKey, TValue}"/> incrementally.
-    /// </summary>
     public sealed class Builder
     {
         private List<KeyValuePair<TKey, TValue>> entries = [];
@@ -74,7 +65,7 @@ public sealed class ImmutableOrderedDictionary<TKey, TValue> : IReadOnlyDictiona
 
         public void Add(TKey key, TValue value)
         {
-            lookup.Add(key, value); // throws on duplicate
+            lookup.Add(key, value);
             entries.Add(new KeyValuePair<TKey, TValue>(key, value));
         }
 

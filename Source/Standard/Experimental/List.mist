@@ -20,8 +20,7 @@ intrinsic public class List<T> : IEnumerable<T>
     intrinsic public local void Sort();
     intrinsic public local void Reverse();
 
-    // Unmarked: each reads through a reference-typed argument (purity spec Req 5.2) or runs
-    // a function value it was handed, so neither can promise to touch only this list.
+    // Reading reference arguments or invoking callbacks prevents a local promise (purity spec Req 5.2).
     intrinsic public void AddRange(IEnumerable<T> items);
     intrinsic public void ForEach(Action<T> action);
     intrinsic public List<T> FindAll(Func<T, bool> match);

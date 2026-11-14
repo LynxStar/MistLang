@@ -13,7 +13,6 @@ intrinsic public readonly owned class String : IClonable<String>
     intrinsic public pure static Boolean operator ==(String a, String b);
     intrinsic public pure static Boolean operator !=(String a, String b);
 
-    // Instance members migrated from the former System.String ambient type —
     // Requirement 9.12.
     intrinsic public pure Int32 Length { get; }
     intrinsic public pure Char this[Int32 index] { get; }

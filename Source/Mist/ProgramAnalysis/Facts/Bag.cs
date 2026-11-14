@@ -211,9 +211,7 @@ internal sealed class Bag
     }
 
     /// <summary>
-    /// The facts of <see cref="Common"/> that <paramref name="other"/> also holds, in this bag's order, with no alternatives. The
-    /// longest prefix of them is a bag this one was extended from, so its index and projections are reused and only the shared
-    /// facts after it are added, rather than indexing every shared fact again.
+    /// Reuse the longest shared ancestor's index and projections instead of indexing every shared fact again.
     /// </summary>
     public Bag Shared(Bag other)
     {

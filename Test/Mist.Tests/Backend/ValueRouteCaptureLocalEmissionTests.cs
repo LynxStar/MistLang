@@ -152,7 +152,7 @@ public sealed class ValueRouteCaptureLocalEmissionTests
         Assert.Equal([(len, 0)], SlotRoutes.InferredByCall(call));
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST0498", refusal.Number.Value);
-        Assert.Contains("'Len' cannot infer 'N' from 'List<Ring<int>>'", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("'Len' cannot infer 'N' from 'List<Ring<unknown>>'", refusal.Message, StringComparison.Ordinal);
     }
 
     private (Method Len, TypeParameter N) Len()

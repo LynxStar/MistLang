@@ -533,7 +533,10 @@ reference, stays where it is written, and the expression or the statement
 holding it evaluates the capture. A call returning by reference runs in
 place, and a capture written after it is evaluated as it returns. A call
 that yields nothing has no value to wrap, so in a lambda body, an accessor
-body and a `for` clause its capture is a statement ahead of it. A lambda's
+body and a `for` clause its capture is a statement ahead of it. A call that
+`UnitHoisting` moves ahead of its statement, or stores in a temporary ahead of
+a later operand, evaluates its capture once where it moves to, and what stands
+in its place, the unit instance or the temporary, evaluates nothing. A lambda's
 result type holds `unknown` where its body closed a type with a capture
 (Requirement 1.6), so an inference from it outside the lambda is the slot
 nested under `unknown`: a call that infers a slot from `unknown` routes it,

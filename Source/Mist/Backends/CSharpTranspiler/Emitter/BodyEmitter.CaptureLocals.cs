@@ -309,6 +309,11 @@ internal static partial class BodyEmitter
 
     private static void Lead(Expression expression, Sequence sequence)
     {
+        if(UnitHoisting.Substitution(expression) is not null)
+        {
+            return;
+        }
+
         switch(expression)
         {
             case InvocationExpression invocation:
@@ -416,6 +421,7 @@ internal static partial class BodyEmitter
     {
         return !IsPlainRead(part)
             && !UnitHoisting.IsStable(part)
+            && UnitHoisting.Substitution(part) is null
             && part is not (ArrayLiteralExpression or FunctionReferenceExpression)
             && boundParts?.ContainsKey(part) != true;
     }
@@ -425,7 +431,7 @@ internal static partial class BodyEmitter
         var sequence = new Sequence();
         Place(operand, reading, sequence);
 
-        return sequence.Steps.Where(step => !step.InPlace).Select(step => step.Part).OfType<Expression>().Where(part => !IsPlainRead(part) && boundParts?.ContainsKey(part) != true);
+        return sequence.Steps.Where(step => !step.InPlace).Select(step => step.Part).OfType<Expression>().Where(part => !IsPlainRead(part) && UnitHoisting.Substitution(part) is null && boundParts?.ContainsKey(part) != true);
     }
 
     private static bool RunsInPlace(Expression receiver)
@@ -448,6 +454,7 @@ internal static partial class BodyEmitter
         }
 
         if(sequenced?.Contains(expression) == true
+            || UnitHoisting.Substitution(expression) is not null
             || expression is not (InvocationExpression or NewExpression or MemberAccessExpression or AssignmentExpression or CompoundAssignmentExpression))
         {
             return false;

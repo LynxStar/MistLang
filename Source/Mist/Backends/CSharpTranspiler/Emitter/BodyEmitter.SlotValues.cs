@@ -477,8 +477,19 @@ internal static partial class BodyEmitter
             return EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default");
         }
 
-        EmissionDiagnostics.Refuse(BackendDiagnostics.InferredSlotNestedInArgument, new NameValue(method.Name), new NameValue(slot.Name), DiagnosticSnapshot.Type(nesting));
+        EmissionDiagnostics.Refuse(
+            BackendDiagnostics.InferredSlotNestedInArgument, new NameValue(method.Name), new NameValue(slot.Name), DiagnosticSnapshot.Type(nesting, TypeDisplay.Mist(Unknowing(nesting))));
         return "default";
+    }
+
+    private static IMistType Unknowing(IMistType type)
+    {
+        return type is ConstructedType constructed
+            ? new ConstructedType(
+                constructed.Definition,
+                [.. constructed.TypeArguments.Select(argument => argument is UnknownValueType ? UnknownType.Instance : Unknowing(argument))],
+                constructed.Enclosing is { } enclosing ? Unknowing(enclosing) as ConstructedType : null)
+            : type;
     }
 
     private static bool Mentions(IMistType type, IMistType target)

@@ -206,9 +206,7 @@ internal static class TypeEmitter
 
             if(concrete is not null)
             {
-                StaticHolderEmitter.Emit(
-                    concrete, flattened?.Fields.Select(field => field.Field) ?? concrete.FieldsList, flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList,
-                    inReadonlyType, writer, diagnostics, ref anyEmitted);
+                StaticHolderEmitter.Emit(concrete, flattened, inReadonlyType, writer, diagnostics, ref anyEmitted);
             }
 
             foreach(var parameter in Parameters(type))

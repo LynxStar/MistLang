@@ -48,6 +48,10 @@ internal static class PropertyEmitter
             hosted = StatementHost.Emit(initializer, $"__Initialize{property.Name}", property.Type, [], writer, diagnostics);
             writer.Append(";");
         }
+        else if(storage is null && property is { Initializer: null, HasBackingStorage: true, Modifiers.IsStatic: true } && StructStamp.Of(property.Type, diagnostics) is { } stamp)
+        {
+            writer.Append($" = {stamp};");
+        }
 
         writer.AppendLine();
         StatementHost.EmitMethods(hosted is null ? [] : [hosted], writer, diagnostics);
@@ -61,7 +65,8 @@ internal static class PropertyEmitter
 
         if(property.Initializer is null || (!isStatic && DefaultWitnesses.Deferred(property.Initializer, property.DeclaringType)))
         {
-            writer.WriteLine($"{modifiers}{typeName} {name};");
+            var stamp = isStatic && property.Initializer is null ? StructStamp.Of(property.Type, diagnostics) : null;
+            writer.WriteLine($"{modifiers}{typeName} {name}{(stamp is null ? "" : $" = {stamp}")};");
             return null;
         }
 

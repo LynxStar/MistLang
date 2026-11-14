@@ -657,8 +657,13 @@ assignment that C# cannot write in place binds the holder once. A bare name
 inside the type's members supplies the hidden field or parameter; inside an
 operator, the operand that carries the slot; inside a nested type, nothing,
 which is MIST0499 until item 7. A struct's static is held by the struct that
-copies it, as its C# static is today. A static lambda keeps its modifier only
-where it reads no hidden value, since C# lets it capture none.
+copies it, as its C# static is today, and a struct's ancestor factory carries
+no static member. A static spread member's per-element projections are
+members of the holder. A static with no initializer that holds a value-routed
+struct by value starts from the struct's stamp, in the holder and in an
+ordinary type's C# static alike, as an array element does. A static lambda
+keeps its modifier only where it reads no hidden value, since C# lets it
+capture none.
 
 ### Identity by value: unions and abstracts
 

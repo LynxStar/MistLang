@@ -155,6 +155,39 @@ public sealed class ValueRouteStaticStorageEmissionTests
     }
 
     [Fact]
+    public void ALambdaReadsTheHolderThroughTheHiddenValueAndAStaticOneDropsTheModifierToCaptureIt()
+    {
+        var read = new FieldReferenceExpression(HandBuiltModel.Node(), hits, slots.Int);
+        var lambda = new LambdaExpression(HandBuiltModel.Node(), [], read, null, isStatic: true, new FunctionType([], slots.Int));
+        counter.MethodsList.Add(new Method("Later", new FunctionType([], slots.Int), [], new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true })
+        {
+            DeclaringType = counter,
+            Scope = counter.Scope,
+            Body = HandBuiltModel.Block(new ReturnStatement(lambda, lambda.Type)),
+        });
+        using var routes = SlotRoutes.Enter([n]);
+
+        var lines = TypeBody(counter);
+
+        Assert.Contains(lines, line => line.Contains("() => Probe.Counter.__StaticsOf(__N).hits", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, line => line.Contains("static ()", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AStaticHoldingAValueRoutedStructStartsFromItsStampInTheHolderAndInAnOrdinaryType()
+    {
+        var cell = Cell(slots, out var m);
+        counter.FieldsList.Add(new Field("cell", slots.Closed(cell, n), OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true }) { DeclaringType = counter });
+        var plain = HandBuiltModel.Class("Plain");
+        plain.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        plain.FieldsList.Add(new Field("seven", slots.Closed(cell, slots.Literal(7)), OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true }) { DeclaringType = plain });
+        using var routes = SlotRoutes.Enter([n, m]);
+
+        Assert.Contains("this.cell = Probe.Cell.__CreateDefault(__N);", TypeBody(counter));
+        Assert.Contains("public static Probe.Cell seven = Probe.Cell.__CreateDefault(7);", TypeBody(plain));
+    }
+
+    [Fact]
     public void ACarrierRoutedTypeKeepsItsCSharpStatics()
     {
         using var routes = SlotRoutes.Enter([]);

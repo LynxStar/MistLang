@@ -21,23 +21,28 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class SpreadProjectionEmitter
 {
-    public static void Emit(MemberType type, FlattenedStruct? flattened, CSharpWriter writer, ref bool anyEmitted)
+    public static void Emit(MemberType type, FlattenedStruct? flattened, CSharpWriter writer, ref bool anyEmitted, bool inHolder = false)
     {
         var fields = flattened is not null
             ? flattened.Fields.Select(field => (field.Field, field.Type, field.Field.Modifiers with { Accessibility = field.Accessibility }))
             : ((type as ConcreteType)?.FieldsList ?? []).Select(field => (field, field.Type, field.Modifiers));
 
-        foreach(var (field, held, modifiers) in fields)
+        foreach(var (field, held, modifiers) in fields.Where(field => StaticHolders.IsHeld(field.Item1, type) == inHolder))
         {
-            EmitFamily(field.Name, field.Type, held, modifiers, item => $"set => {IdentifierSpelling.Of(field.Name)}.{item} = value;", writer, ref anyEmitted);
+            EmitFamily(field.Name, field.Type, held, Placed(modifiers, inHolder), item => $"set => {IdentifierSpelling.Of(field.Name)}.{item} = value;", writer, ref anyEmitted);
         }
 
-        foreach(var property in flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList)
+        foreach(var property in (flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList).Where(property => StaticHolders.IsHeld(property, type) == inHolder))
         {
             using var inherited = TypeEmitter.Substituting(flattened?.PropertyPaths.GetValueOrDefault(property));
             EmitFamily(
-                property.Name, property.Type, property.Type, property.Modifiers, WriteBack(property), writer, ref anyEmitted);
+                property.Name, property.Type, property.Type, Placed(property.Modifiers, inHolder), WriteBack(property), writer, ref anyEmitted);
         }
+    }
+
+    private static MemberModifiers Placed(MemberModifiers modifiers, bool inHolder)
+    {
+        return inHolder ? new MemberModifiers { Accessibility = StaticHolders.Reach(modifiers.Accessibility) } : modifiers;
     }
 
     /// <summary>

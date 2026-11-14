@@ -15,11 +15,10 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class StaticHolderEmitter
 {
-    public static void Emit(
-        ConcreteType type, IEnumerable<Field> fields, IEnumerable<Property> properties, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
+    public static void Emit(ConcreteType type, FlattenedStruct? flattened, bool inReadonlyType, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
-        var held = fields.Where(field => StaticHolders.IsHeld(field, type)).ToList();
-        var heldProperties = properties.Where(property => StaticHolders.IsHeld(property, type)).ToList();
+        var held = (flattened?.Fields.Select(field => field.Field) ?? type.FieldsList).Where(field => StaticHolders.IsHeld(field, type)).ToList();
+        var heldProperties = (flattened?.Properties ?? (IReadOnlyList<Property>)type.PropertiesList).Where(property => StaticHolders.IsHeld(property, type)).ToList();
         var bodies = type.ConstructorsList.Where(StaticHolders.IsHeld).ToList();
 
         if(held.Count == 0 && heldProperties.Count == 0 && bodies.Count == 0)
@@ -55,6 +54,9 @@ internal static class StaticHolderEmitter
                 EmitProperty(property, writer, diagnostics);
             }
 
+            var projected = true;
+            SpreadProjectionEmitter.Emit(type, flattened, writer, ref projected, inHolder: true);
+
             writer.WriteBlankLine();
             writer.WriteLine($"public {StaticHolders.Holder}({parameters})");
 
@@ -67,14 +69,14 @@ internal static class StaticHolderEmitter
 
                 writer.WriteLine($"{StaticHolders.Table}.Enter({StaticHolders.Key(slots)}, this);");
 
-                foreach(var field in held.Where(field => field.Initializer is not null))
+                foreach(var field in held)
                 {
-                    Initialize(IdentifierSpelling.Of(field.Name), field.Name, field.Initializer!, field.Type, hosted, writer, diagnostics);
+                    Initialize(IdentifierSpelling.Of(field.Name), field.Name, field.Initializer, field.Type, hosted, writer, diagnostics);
                 }
 
-                foreach(var property in heldProperties.Where(property => property.Initializer is not null))
+                foreach(var property in heldProperties.Where(property => property.Initializer is not null || property.HasBackingStorage))
                 {
-                    Initialize(BackingStorage.DeclaredField(property) ?? IdentifierSpelling.Of(property.Name), property.Name, property.Initializer!, property.Type, hosted, writer, diagnostics);
+                    Initialize(BackingStorage.DeclaredField(property) ?? IdentifierSpelling.Of(property.Name), property.Name, property.Initializer, property.Type, hosted, writer, diagnostics);
                 }
 
                 foreach(var constructor in bodies.Where(constructor => constructor.Body is not null))
@@ -190,9 +192,19 @@ internal static class StaticHolderEmitter
     }
 
     private static void Initialize(
-        string target, string name, ProgramModel.Model.Expressions.Expression initializer, ProgramModel.Contracts.Types.IMistType type,
+        string target, string name, ProgramModel.Model.Expressions.Expression? initializer, ProgramModel.Contracts.Types.IMistType type,
         List<StatementHost.Hosted> hosted, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        if(initializer is null)
+        {
+            if(StructStamp.Of(type, diagnostics) is { } stamp)
+            {
+                writer.WriteLine($"this.{target} = {stamp};");
+            }
+
+            return;
+        }
+
         writer.Write($"this.{target} = ");
 
         if(StatementHost.Emit(initializer, $"__Initialize{name}", type, [], writer, diagnostics) is { } host)

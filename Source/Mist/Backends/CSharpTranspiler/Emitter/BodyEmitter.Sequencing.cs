@@ -107,6 +107,8 @@ internal static partial class BodyEmitter
 
             if(step.Kind is UnitHoisting.StepKind.Hoist)
             {
+                using var evaluating = AtStatement(step.Expression, writer, diagnostics);
+
                 if(step.Expression is InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional
                     && CompletesPromoted(conditional))
                 {
@@ -114,7 +116,6 @@ internal static partial class BodyEmitter
                 }
                 else
                 {
-                    using var evaluating = AtStatement(step.Expression, writer, diagnostics);
                     writer.WriteLine($"{Render(step.Expression, diagnostics)};");
                 }
 

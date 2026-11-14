@@ -101,6 +101,34 @@ public sealed class ValueRouteHoistedCaptureEmissionTests
         _ = Assert.Single(lines, line => line.Contains("p.Count", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void APromotedUnitCallThroughAConditionalAccessTakenAsAValueEvaluatesItsCaptureOnce(bool inTuple)
+    {
+        var built = slots.Refinements.Built;
+        var service = HandBuiltModel.Class("Svc");
+        var touch = new Method("Touch", nothing, [], new MemberModifiers { Accessibility = Accessibility.Public }) { DeclaringType = service, Scope = service.Scope };
+        var receiver = HandBuiltRefinements.Local(built.Interner.GetOrCreateUnionType([service, nothing]), "o");
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), receiver, "Touch", nothing, [closing], isConditional: true);
+        var call = new InvocationExpression(HandBuiltModel.Node(), access, [], nothing, touch, []) { Captures = [capture] };
+        built.Model.TaskDrops.RecordDrop(touch);
+        using var promotion = AsyncPromotion.Enter(built.Model);
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var lines = inTuple
+            ? Statements(new LocalDeclarationStatement(
+                new LocalVariable("t", built.Interner.GetOrCreateTupleType([nothing, slots.Int])),
+                new TupleLiteralExpression(
+                    HandBuiltModel.Node(), [call, HandBuiltModel.Literal(slots.Int, 1L)], [], built.Interner.GetOrCreateTupleType([nothing, slots.Int]))))
+            : Statements(HandBuiltRefinements.Evaluate(Call(Static("Use", nothing, new Parameter("v", nothing)), [], [call], [nothing])));
+
+        Assert.Equal("_ = p.Count;", lines[0]);
+        Assert.Contains(lines, line => line.Contains("await __e1.Touch<Probe.Ring>();", StringComparison.Ordinal));
+        Assert.Equal(inTuple ? "(Void, int) t = (Standard.Void.Instance, 1);" : "Use(Standard.Void.Instance);", lines[^1]);
+        _ = Assert.Single(lines, line => line.Contains("p.Count", StringComparison.Ordinal));
+    }
+
     private InvocationExpression Do()
     {
         return Counted("Do", nothing);

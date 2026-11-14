@@ -28,7 +28,6 @@ intrinsic public readonly owned struct SByte : IClonable<SByte>
     // Unary negation — Requirement 3.3
     intrinsic public pure static SByte operator -(SByte a);
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Int16(SByte value);
     intrinsic public pure static implicit operator Int32(SByte value);
     intrinsic public pure static implicit operator Int64(SByte value);

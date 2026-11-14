@@ -13,7 +13,6 @@ intrinsic public readonly owned struct Char : IClonable<Char>
     intrinsic public pure static Boolean operator <=(Char a, Char b);
     intrinsic public pure static Boolean operator >=(Char a, Char b);
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator UInt16(Char value);
     intrinsic public pure static implicit operator Int32(Char value);
     intrinsic public pure static implicit operator UInt32(Char value);

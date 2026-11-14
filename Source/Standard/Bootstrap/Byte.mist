@@ -24,7 +24,6 @@ intrinsic public readonly owned struct Byte : IClonable<Byte>
 
     // No unary '-' on unsigned types — Requirement 3.4.
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Int16(Byte value);
     intrinsic public pure static implicit operator UInt16(Byte value);
     intrinsic public pure static implicit operator Int32(Byte value);

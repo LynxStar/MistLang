@@ -32,7 +32,6 @@ intrinsic public readonly owned struct Int32 : IClonable<Int32>
         return this % 2 == 0;
     }
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Int64(Int32 value);
     intrinsic public pure static implicit operator Single(Int32 value);
     intrinsic public pure static implicit operator Double(Int32 value);

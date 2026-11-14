@@ -23,7 +23,6 @@ intrinsic public readonly owned struct Single : IClonable<Single>
     // Unary negation — Requirement 3.3
     intrinsic public pure static Single operator -(Single a);
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Double(Single value);
 
     public static Result<Single, DivisionError> operator +(Result<Single, DivisionError> a, Single b)

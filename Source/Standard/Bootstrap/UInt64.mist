@@ -24,7 +24,6 @@ intrinsic public readonly owned struct UInt64 : IClonable<UInt64>
 
     // No unary '-' on unsigned types — Requirement 3.4.
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Single(UInt64 value);
     intrinsic public pure static implicit operator Double(UInt64 value);
     intrinsic public pure static implicit operator Decimal(UInt64 value);

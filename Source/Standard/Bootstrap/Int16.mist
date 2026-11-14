@@ -28,7 +28,6 @@ intrinsic public readonly owned struct Int16 : IClonable<Int16>
     // Unary negation — Requirement 3.3
     intrinsic public pure static Int16 operator -(Int16 a);
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Int32(Int16 value);
     intrinsic public pure static implicit operator Int64(Int16 value);
     intrinsic public pure static implicit operator Single(Int16 value);

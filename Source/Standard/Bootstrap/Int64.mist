@@ -27,7 +27,6 @@ intrinsic public readonly owned struct Int64 : IClonable<Int64>
     // Unary negation — Requirement 3.3
     intrinsic public pure static Int64 operator -(Int64 a);
 
-    // Implicit widening conversions
     intrinsic public pure static implicit operator Single(Int64 value);
     intrinsic public pure static implicit operator Double(Int64 value);
     intrinsic public pure static implicit operator Decimal(Int64 value);

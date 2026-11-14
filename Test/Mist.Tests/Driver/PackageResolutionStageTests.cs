@@ -1,14 +1,3 @@
-// Feature: csharp-interop-v2, Task 7.6
-// In-process tests verifying end-to-end behavior of the Package Resolution
-// stage (Stage 1.5) through the CompilerDriver. These tests exercise:
-//   - Quiet build emits no 1.5 header/detail
-//   - Verbose build emits header + detail + summary
-//   - Resolution error surfaces in both modes
-//   - Resolution error runs the build through analysis and fails it before emission
-//   - Each resolution failure reaches the listener during Stage 1.5, before lexing
-//
-// Validates: Requirements 1.3, 1.6, 1.9, 2.3, 2.6, 3.5, 3.6, 5.7
-
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
@@ -19,9 +8,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Driver;
 
 /// <summary>
-/// Integration tests verifying the Package Resolution stage (1.5) behavior
-/// through the <see cref="CompilerDriver"/>. All tests are in-process —
-/// no child processes are spawned (the resolver spawns dotnet restore internally).
+/// The resolver spawns dotnet restore internally; the tests themselves spawn no process.
 /// </summary>
 [Trait("Tier", "4")]
 public sealed class PackageResolutionStageTests : IDisposable
@@ -46,8 +33,6 @@ public sealed class PackageResolutionStageTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    // ─── Spy Reporter ────────────────────────────────────────────────────
-
     private sealed class SpyProgressReporter : ICompilationProgressReporter
     {
         public List<(string StageId, string Title)> StageStarts { get; } = [];
@@ -69,8 +54,6 @@ public sealed class PackageResolutionStageTests : IDisposable
             Summary = (succeeded, errorCount, warningCount, totalElapsed);
         }
     }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────
 
     private static CompilerDriver CreateDriver(SpyProgressReporter spy)
     {
@@ -116,15 +99,9 @@ public sealed class PackageResolutionStageTests : IDisposable
         }
         """;
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // 1. Quiet build emits no 1.5 header/detail (Requirement 1.3)
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void QuietBuild_WithPackages_DoesNotEmitStage1_5()
     {
-        // Even when packages are declared, VerboseResolution=false (the
-        // default) should suppress all reporter output for stage 1.5.
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
         var options = CreateOptions(
@@ -134,11 +111,9 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         _ = driver.Compile(options);
 
-        // Stage 1.5 should NOT appear in reporter starts or completes.
         Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "1.5");
         Assert.DoesNotContain(spy.StageCompletes, s => s.StageId == "1.5");
 
-        // No detail/title strings should mention "Package Resolution" or "1.5".
         var allTitles = spy.StageStarts.Select(s => s.Title);
         Assert.DoesNotContain(allTitles, t => t.Contains("Package Resolution"));
     }
@@ -146,8 +121,6 @@ public sealed class PackageResolutionStageTests : IDisposable
     [Fact]
     public void QuietBuild_WithFailedPackage_DoesNotEmitStage1_5_ButDiagnosticSurfaces()
     {
-        // When resolution fails and verbose is off, the stage is still silent
-        // (no header/detail), but the diagnostic surfaces in the result.
         var spy = new SpyProgressReporter();
         var driver = CreateDriver(spy);
         var options = CreateOptions(
@@ -157,18 +130,12 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // No stage 1.5 reporter output.
         Assert.DoesNotContain(spy.StageStarts, s => s.StageId == "1.5");
         Assert.DoesNotContain(spy.StageCompletes, s => s.StageId == "1.5");
 
-        // But the MIST0036 diagnostic still surfaces (Requirement 1.9).
         Assert.Contains(result.Diagnostics,
             d => d.Number.Value == "MIST0036");
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 2. Verbose build emits header + detail + summary (Requirement 1.6)
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void VerboseBuild_EmitsStage1_5_HeaderDetailSummary()
@@ -182,12 +149,10 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         _ = driver.Compile(options);
 
-        // Stage header: starts with stageId "1.5" and title "Package Resolution".
         var stageStart = spy.StageStarts.FirstOrDefault(s => s.StageId == "1.5");
         Assert.NotEqual(default, stageStart);
         Assert.Equal("Package Resolution", stageStart.Title);
 
-        // Stage complete reported.
         var stageComplete = spy.StageCompletes.FirstOrDefault(s => s.StageId == "1.5");
         Assert.NotEqual(default, stageComplete);
 
@@ -196,19 +161,12 @@ public sealed class PackageResolutionStageTests : IDisposable
         Assert.True(details.Count >= 3,
             $"Expected at least 3 detail lines (restored, ms, summary), got {details.Count}");
 
-        // Detail line should contain the package restoration info.
         Assert.Contains(details, d => d.Contains("Restored") && d.Contains("Newtonsoft.Json"));
 
-        // Elapsed ms line (integer milliseconds).
         Assert.Contains(details, d => d.EndsWith("ms"));
 
-        // Summary line with succeeded/failed counts.
         Assert.Contains(details, d => d.Contains("succeeded") && d.Contains("failed"));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 3. Resolution error surfaces in both modes (Requirement 1.9)
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ResolutionError_SurfacesInQuietMode()
@@ -222,8 +180,6 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The MIST0036 diagnostic appears in the compilation result
-        // regardless of verbose setting.
         var diag = result.Diagnostics.FirstOrDefault(
             d => d.Number.Value == "MIST0036");
         Assert.NotNull(diag);
@@ -243,18 +199,12 @@ public sealed class PackageResolutionStageTests : IDisposable
 
         var result = driver.Compile(options);
 
-        // The MIST0036 diagnostic appears in the compilation result.
         var diag = result.Diagnostics.FirstOrDefault(
             d => d.Number.Value == "MIST0036");
         Assert.NotNull(diag);
         Assert.Equal(DiagnosticSeverity.Error, diag.Severity);
         Assert.Contains("BadPkg", diag.Message);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 4. Resolution error does not stop binding and analysis, and fails the
-    //    build before emission (Requirements 2.3, 2.6)
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ResolutionError_RunsStagesOneToFive_AndFailsTheBuildWithoutEmitting()
@@ -327,11 +277,6 @@ public sealed class PackageResolutionStageTests : IDisposable
             ["MIST0101", "MIST0036", "MIST0123"],
             result.Diagnostics.Select(d => d.Number.Value));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // 5. Each failure reaches the listener during Stage 1.5, before Stage 2
-    //    begins, and stays in the result (Requirements 1.9, 3.5, 3.6, 5.7)
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void ResolutionFailures_ReachTheListenerOneByOneBeforeLexing_AndStayInTheResult()

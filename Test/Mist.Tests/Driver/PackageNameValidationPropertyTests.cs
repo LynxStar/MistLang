@@ -1,10 +1,3 @@
-// Feature: assembly-type-provider, Property 1: Package Name Validation Round-Trip
-// **Validates: Requirements 1.2, 1.3, 1.8**
-//
-// For any string, the ProjectFileParser SHALL accept it as a valid package name
-// if and only if it matches the regex [a-zA-Z0-9\-_\.]+  and does not exceed 128
-// characters. All other strings SHALL produce an Error diagnostic.
-
 using System.Text.RegularExpressions;
 using FsCheck;
 using FsCheck.Fluent;
@@ -13,24 +6,11 @@ using Mist.Driver;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Property-based tests for package name validation in <see cref="ProjectFileParser"/>.
-/// Verifies that acceptance/rejection of package names matches the regex
-/// <c>[a-zA-Z0-9\-_\.]+</c> and ≤128 characters.
-/// All tests are pure in-process — no process spawning.
-/// </summary>
 public sealed class PackageNameValidationPropertyTests
 {
     // The canonical regex from the spec and implementation
     private static readonly Regex ValidPackageNameRegex = new(@"^[a-zA-Z0-9\-_\.]+$");
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates strings that are valid package names: 1–128 chars from [a-zA-Z0-9\-_\.].
-    /// </summary>
     private static Gen<string> GenValidPackageName()
     {
         var validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.".ToCharArray();
@@ -39,10 +19,6 @@ public sealed class PackageNameValidationPropertyTests
                 .Select(chars => new string(chars)));
     }
 
-    /// <summary>
-    /// Generates strings that are invalid package names due to containing
-    /// characters outside [a-zA-Z0-9\-_\.].
-    /// </summary>
     private static Gen<string> GenInvalidByChars()
     {
         var invalidChars = " @#$%^&*()+=[]{}|:;'<>,?/!~`".ToCharArray();
@@ -52,7 +28,6 @@ public sealed class PackageNameValidationPropertyTests
             Gen.Elements(invalidChars).SelectMany(badChar =>
                 Gen.ArrayOf(Gen.Elements(validChars), len).Select(rest =>
                 {
-                    // Insert the bad char at a random position in the middle
                     var insertPos = rest.Length / 2;
                     var result = new char[rest.Length + 1];
                     Array.Copy(rest, 0, result, 0, insertPos);
@@ -62,10 +37,6 @@ public sealed class PackageNameValidationPropertyTests
                 })));
     }
 
-    /// <summary>
-    /// Generates strings that are invalid because they exceed 128 characters
-    /// (but contain only valid characters).
-    /// </summary>
     private static Gen<string> GenTooLong()
     {
         var validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.".ToCharArray();
@@ -74,9 +45,6 @@ public sealed class PackageNameValidationPropertyTests
                 .Select(chars => new string(chars)));
     }
 
-    /// <summary>
-    /// Generates arbitrary non-null strings (mix of valid and invalid package names).
-    /// </summary>
     private static Gen<string> GenArbitraryPackageName()
     {
         return Gen.Frequency(
@@ -85,14 +53,6 @@ public sealed class PackageNameValidationPropertyTests
             (2, GenTooLong()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Determines whether a string should be accepted as a valid package name
-    /// according to the spec: matches [a-zA-Z0-9\-_\.]+ and ≤128 chars.
-    /// </summary>
     private static bool IsValidPackageName(string name)
     {
         if(string.IsNullOrEmpty(name))
@@ -108,9 +68,6 @@ public sealed class PackageNameValidationPropertyTests
         return ValidPackageNameRegex.IsMatch(name);
     }
 
-    /// <summary>
-    /// Escapes a string for use as a TOML quoted key value.
-    /// </summary>
     private static string EscapeTomlString(string value)
     {
         return value
@@ -122,7 +79,6 @@ public sealed class PackageNameValidationPropertyTests
     }
 
     /// <summary>
-    /// Determines whether a string can be represented as a TOML basic string key.
     /// TOML basic strings cannot contain certain control characters.
     /// </summary>
     private static bool CanRepresentInToml(string value)
@@ -153,10 +109,6 @@ public sealed class PackageNameValidationPropertyTests
         return true;
     }
 
-    /// <summary>
-    /// Verifies the property for a single candidate name.
-    /// Returns true if the parser's acceptance/rejection matches the expected behavior.
-    /// </summary>
     private static bool VerifyPackageNameValidation(string candidateName)
     {
         if(candidateName is null)
@@ -172,7 +124,6 @@ public sealed class PackageNameValidationPropertyTests
 
         var expectedValid = IsValidPackageName(candidateName);
 
-        // Build a TOML document with the candidate as a package name (quoted key)
         var escapedName = EscapeTomlString(candidateName);
         var toml = $"name = \"TestProject\"\n\n[packages]\n\"{escapedName}\" = \"1.0.0\"\n";
 
@@ -189,7 +140,6 @@ public sealed class PackageNameValidationPropertyTests
 
             if(expectedValid)
             {
-                // Should parse successfully with no package-name errors
                 if(result is null)
                 {
                     return false;
@@ -201,7 +151,6 @@ public sealed class PackageNameValidationPropertyTests
             }
             else
             {
-                // Should produce an error diagnostic for the invalid package name
                 var hasNameError = diags.Any(d =>
                     d.Number.Value is "MIST0084" or "MIST0085" &&
                     d.Severity == DiagnosticSeverity.Error);
@@ -214,16 +163,6 @@ public sealed class PackageNameValidationPropertyTests
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property test
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 1: Package Name Validation Round-Trip.
-    /// For any string that can be represented in TOML, the ProjectFileParser accepts it
-    /// as a valid package name if and only if it matches [a-zA-Z0-9\-_\.]+ and ≤128 chars.
-    /// Uses FsCheck Gen.Sample to generate 200 random inputs and verify the property.
-    /// </summary>
     [Fact]
     public void PackageName_AcceptanceMatchesRegexAndLengthConstraint()
     {

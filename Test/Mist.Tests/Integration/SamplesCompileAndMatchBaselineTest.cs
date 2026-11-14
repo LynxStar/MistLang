@@ -3,13 +3,6 @@ using System.Text.RegularExpressions;
 
 namespace Mist.Tests.Integration;
 
-/// <summary>
-/// Regression guard that compiles and runs sample projects via the Mist CLI,
-/// then diffs the captured stdout against stored baselines. AllFeaturesV2
-/// exercises every feature sample via project references, so that single
-/// test covers the entire sample suite. Individual sample tests verify
-/// standalone compilation and expected output for specific features.
-/// </summary>
 public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
 {
     private readonly string scratchDir = Path.Combine(Path.GetTempPath(), "MistSamples_" + Guid.NewGuid().ToString("N"));
@@ -98,12 +91,6 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         Assert.DoesNotContain("warning CS", stdout, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Verifies that the EnumReadonlyRestriction sample compiles and runs
-    /// without errors, producing the expected output demonstrating all
-    /// readonly-base enum patterns (primitive, struct, class, name-only,
-    /// union, member access, implicit conversion, pattern matching).
-    /// </summary>
     [Fact]
     [Trait("Tier", "5")]
     public async Task EnumReadonlyRestriction_CompilesAndProducesExpectedOutput()
@@ -123,10 +110,8 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
 
         var output = NormalizeLineEndings(stdout);
 
-        // Verify the sample header is present
         Assert.Contains("=== Enum Readonly Restriction Sample ===", output);
 
-        // Verify each demonstrated pattern section is present
         Assert.Contains("--- Enum with int base type ---", output);
         Assert.Contains("--- Enum with string base type ---", output);
         Assert.Contains("--- Enum with byte base type ---", output);
@@ -138,7 +123,6 @@ public sealed class SamplesCompileAndMatchBaselineTest : IDisposable
         Assert.Contains("--- Implicit conversion to underlying type ---", output);
         Assert.Contains("--- Pattern matching with readonly-base enums ---", output);
 
-        // Verify specific output values for key patterns
         Assert.Contains("StatusCode.Ok = Ok", output);
         Assert.Contains("Planet.Earth = Earth", output);
         Assert.Contains("Rank.Sergeant = Sergeant", output);

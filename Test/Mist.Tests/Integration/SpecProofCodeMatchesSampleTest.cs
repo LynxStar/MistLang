@@ -5,17 +5,6 @@ namespace Mist.Tests.Integration;
 /// <summary>
 /// Holds every spec's <c>#### Proof Code</c> block to the sample it is supposed to appear in, so a
 /// requirements document cannot drift away from working code unnoticed.
-/// <para>
-/// It went unchecked long enough to matter: when this was first measured, 19 of 28 blocks had
-/// drifted, one of them into code that could not compile at all, and the sample the
-/// abstract-type-unification spec designates was referenced by no orchestrator and so run by
-/// nothing. Every one of those was found by reading, which is the failure mode this replaces.
-/// </para>
-/// <para>
-/// Reads files only. The companion invariant -- that a spec's <c>Expected output</c> equals what the
-/// sample prints -- needs the sample compiled and run, so it is deliberately not asserted here; see
-/// <see cref="SamplesCompileAndMatchBaselineTest"/> for what paying that cost looks like.
-/// </para>
 /// </summary>
 [Trait("Tier", "2")]
 public class SpecProofCodeMatchesSampleTest
@@ -105,15 +94,14 @@ public class SpecProofCodeMatchesSampleTest
     }
 
     /// <summary>
-    /// The companion invariant, asserted against the orchestrator's baseline rather than by running
+    /// A spec's <c>Expected output</c> is asserted against the orchestrator's baseline rather than by running
     /// anything. AllFeaturesV2 orchestrates every banked sample, so its recorded stdout already says
     /// what they print, and <see cref="SamplesCompileAndMatchBaselineTest"/> is what keeps that file
     /// honest -- so this chains off an artifact something else already verifies instead of spawning
     /// 27 compilations of its own.
     /// <para>
     /// A SLICE rather than an equality, which is the same shape the proof-code assertion takes and is
-    /// what makes it work for a spec documenting one section of a large sample. ownership-v2 states
-    /// eight lines of a sample that prints ninety-eight, and needs no exemption for it.
+    /// what makes it work for a spec documenting one section of a large sample.
     /// </para>
     /// </summary>
     [Fact]

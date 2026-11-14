@@ -14,8 +14,7 @@ namespace Mist.Tests.Driver;
 /// <para>
 /// Standalone, a project's own manifest is all resolution ever reads, so a sample declaring the
 /// framework its files use is green on its own and unresolved the moment another project
-/// references it. The orchestrators are where that was visible, and only as a refusal three stages
-/// later. The project file is asserted here too because nothing in the compiler reads it back.
+/// references it. The project file is asserted here too because nothing in the compiler reads it back.
 /// </para>
 /// <para>
 /// The program names nothing from the framework. That resolved assemblies reach the provider and

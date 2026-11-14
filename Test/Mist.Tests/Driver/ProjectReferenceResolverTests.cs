@@ -5,15 +5,8 @@ using Mist.Driver.Contracts;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Example-based unit tests for <see cref="ProjectReferenceResolver"/>.
-/// Each test creates real temp directories with mist.toml files on disk
-/// and calls <see cref="ProjectReferenceResolver.Resolve"/> directly.
-/// </summary>
 public sealed class ProjectReferenceResolverTests
 {
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_ref_{Guid.NewGuid():N}");
@@ -27,7 +20,6 @@ public sealed class ProjectReferenceResolverTests
     }
 
     /// <summary>
-    /// Builds a <see cref="ProjectReference"/> pointing at the given directory's mist.toml.
     /// The <paramref name="name"/> should match the target project's <c>name</c> field in its TOML.
     /// </summary>
     private static ProjectReference RefTo(string name, string projectDir)
@@ -35,8 +27,6 @@ public sealed class ProjectReferenceResolverTests
         var path = Path.GetFullPath(Path.Combine(projectDir, ProjectFileParser.FileName));
         return new ProjectReference(name, path);
     }
-
-    // ─── Error path tests ────────────────────────────────────────────────
 
     [Fact]
     public void NonExistentPath_ReportsReferenceNotFound()
@@ -102,7 +92,6 @@ public sealed class ProjectReferenceResolverTests
         {
             WriteToml(rootDir, """name = "Root" """);
 
-            // Create a file that is NOT named mist.toml
             var wrongFile = Path.Combine(otherDir, "project.toml");
             File.WriteAllText(wrongFile, """name = "Other" """);
 
@@ -133,7 +122,6 @@ public sealed class ProjectReferenceResolverTests
         {
             WriteToml(rootDir, """name = "Root" """);
 
-            // Write an invalid mist.toml (missing required 'name' field)
             WriteToml(badDir, """version = "1.0.0" """);
 
             var references = ImmutableArray.Create(RefTo("BadProject", badDir));
@@ -155,8 +143,6 @@ public sealed class ProjectReferenceResolverTests
         }
     }
 
-    // ─── Diamond dependency test ─────────────────────────────────────────
-
     [Fact]
     public void DiamondDependency_EachProjectAppearsExactlyOnce()
     {
@@ -167,11 +153,9 @@ public sealed class ProjectReferenceResolverTests
         var dirD = CreateTempDir();
         try
         {
-            // D has no references
             WriteToml(dirD, """name = "D" """);
             File.WriteAllText(Path.Combine(dirD, "d.mist"), "// D source");
 
-            // B references D
             var dTomlPath = Path.GetFullPath(Path.Combine(dirD, "mist.toml")).Replace("\\", "/");
             WriteToml(dirB, $$"""
                 name = "B"
@@ -181,7 +165,6 @@ public sealed class ProjectReferenceResolverTests
                 """);
             File.WriteAllText(Path.Combine(dirB, "b.mist"), "// B source");
 
-            // C references D
             WriteToml(dirC, $$"""
                 name = "C"
 
@@ -190,7 +173,6 @@ public sealed class ProjectReferenceResolverTests
                 """);
             File.WriteAllText(Path.Combine(dirC, "c.mist"), "// C source");
 
-            // Root references B and C
             WriteToml(rootDir, """name = "Root" """);
 
             var references = ImmutableArray.Create(RefTo("B", dirB), RefTo("C", dirC));
@@ -206,7 +188,6 @@ public sealed class ProjectReferenceResolverTests
             var canonicalPaths = result.Select(r => r.CanonicalTomlPath).ToList();
             Assert.Equal(canonicalPaths.Distinct().Count(), canonicalPaths.Count);
 
-            // D should appear before B (D is B's dependency)
             var dIndex = canonicalPaths.IndexOf(
                 Path.GetFullPath(Path.Combine(dirD, "mist.toml")));
             var bIndex = canonicalPaths.IndexOf(
@@ -229,8 +210,6 @@ public sealed class ProjectReferenceResolverTests
         }
     }
 
-    // ─── Cycle detection tests ───────────────────────────────────────────
-
     [Fact]
     public void DirectSelfReference_ReportsCircularReference()
     {
@@ -239,7 +218,6 @@ public sealed class ProjectReferenceResolverTests
         {
             WriteToml(rootDir, """name = "Root" """);
 
-            // Root references itself
             var references = ImmutableArray.Create(RefTo("Root", rootDir));
 
             var diagnostics = new DiagnosticBag();
@@ -266,7 +244,6 @@ public sealed class ProjectReferenceResolverTests
         var dirB = CreateTempDir();
         try
         {
-            // A references B
             var bTomlPath = Path.GetFullPath(Path.Combine(dirB, "mist.toml")).Replace("\\", "/");
             WriteToml(dirA, $$"""
                 name = "A"
@@ -275,7 +252,6 @@ public sealed class ProjectReferenceResolverTests
                 B = { path = "{{bTomlPath}}" }
                 """);
 
-            // B references A (creating the cycle)
             var aTomlPath = Path.GetFullPath(Path.Combine(dirA, "mist.toml")).Replace("\\", "/");
             WriteToml(dirB, $$"""
                 name = "B"
@@ -297,7 +273,6 @@ public sealed class ProjectReferenceResolverTests
             Assert.Equal("MIST0064", diags[0].Number.Value);
             Assert.Equal(DiagnosticSeverity.Error, diags[0].Severity);
 
-            // The message should contain both A and B paths
             var aCanonical = Path.GetFullPath(Path.Combine(dirA, "mist.toml"));
             var bCanonical = Path.GetFullPath(Path.Combine(dirB, "mist.toml"));
             Assert.Contains(aCanonical, diags[0].Message);
@@ -311,8 +286,6 @@ public sealed class ProjectReferenceResolverTests
         }
     }
 
-    // ─── Name-mismatch tests ────────────────────────────────────────────
-
     [Fact]
     public void NameMismatch_ReportsProjectReferenceNameMismatch()
     {
@@ -324,7 +297,6 @@ public sealed class ProjectReferenceResolverTests
             WriteToml(targetDir, """name = "CorrectName" """);
             File.WriteAllText(Path.Combine(targetDir, "lib.mist"), "// source");
 
-            // Reference key is "WrongName" but target project's name is "CorrectName"
             var targetTomlPath = Path.GetFullPath(Path.Combine(targetDir, "mist.toml"));
             var references = ImmutableArray.Create(new ProjectReference("WrongName", targetTomlPath));
 
@@ -339,7 +311,6 @@ public sealed class ProjectReferenceResolverTests
             Assert.Contains("WrongName", diags[0].Message);
             Assert.Contains("CorrectName", diags[0].Message);
 
-            // The mismatched reference should NOT appear in the resolved output
             Assert.Empty(result);
         }
         finally
@@ -353,7 +324,6 @@ public sealed class ProjectReferenceResolverTests
     public void NameMismatch_TransitiveDepsAreNotTraversed()
     {
         // Graph: Root → "WrongName" (actual name "CorrectName") → "Transitive"
-        // Because "WrongName" mismatches, "Transitive" should NOT be resolved.
         var rootDir = CreateTempDir();
         var mismatchedDir = CreateTempDir();
         var transitiveDir = CreateTempDir();
@@ -362,7 +332,6 @@ public sealed class ProjectReferenceResolverTests
             WriteToml(transitiveDir, """name = "Transitive" """);
             File.WriteAllText(Path.Combine(transitiveDir, "trans.mist"), "// transitive source");
 
-            // The mismatched project references "Transitive" using the new format
             var transitiveTomlPath = Path.GetFullPath(Path.Combine(transitiveDir, "mist.toml"))
                 .Replace("\\", "/");
             WriteToml(mismatchedDir, $$"""
@@ -375,7 +344,6 @@ public sealed class ProjectReferenceResolverTests
 
             WriteToml(rootDir, """name = "Root" """);
 
-            // Root references the mismatched project with key "WrongName"
             var mismatchedTomlPath = Path.GetFullPath(Path.Combine(mismatchedDir, "mist.toml"));
             var references = ImmutableArray.Create(new ProjectReference("WrongName", mismatchedTomlPath));
 
@@ -387,7 +355,6 @@ public sealed class ProjectReferenceResolverTests
             _ = Assert.Single(diags);
             Assert.Equal("MIST0070", diags[0].Number.Value);
 
-            // Neither the mismatched project nor its transitive dep should be in the result
             Assert.Empty(result);
             var resolvedPaths = result.Select(r => r.CanonicalTomlPath).ToList();
             Assert.DoesNotContain(
@@ -402,8 +369,6 @@ public sealed class ProjectReferenceResolverTests
         }
     }
 
-    // ─── Multiple independent errors test ────────────────────────────────
-
     [Fact]
     public void MultipleIndependentInvalidReferences_AllErrorsReported()
     {
@@ -412,7 +377,6 @@ public sealed class ProjectReferenceResolverTests
         {
             WriteToml(rootDir, """name = "Root" """);
 
-            // Create 3 independent non-existent paths
             var bogus1 = Path.Combine(Path.GetTempPath(), $"mist_bogus1_{Guid.NewGuid():N}", "mist.toml");
             var bogus2 = Path.Combine(Path.GetTempPath(), $"mist_bogus2_{Guid.NewGuid():N}", "mist.toml");
             var bogus3 = Path.Combine(Path.GetTempPath(), $"mist_bogus3_{Guid.NewGuid():N}", "mist.toml");
@@ -428,7 +392,6 @@ public sealed class ProjectReferenceResolverTests
             Assert.True(diagnostics.HasErrors);
             var diags = diagnostics.ToImmutableArray();
 
-            // All 3 errors should be reported, not just the first
             Assert.Equal(3, diags.Length);
             Assert.All(diags, d =>
             {
@@ -436,7 +399,6 @@ public sealed class ProjectReferenceResolverTests
                 Assert.Equal(DiagnosticSeverity.Error, d.Severity);
             });
 
-            // Each diagnostic should reference a different path
             var messages = diags.Select(d => d.Message).ToList();
             Assert.Contains(messages, m => m.Contains(bogus1));
             Assert.Contains(messages, m => m.Contains(bogus2));
@@ -447,8 +409,6 @@ public sealed class ProjectReferenceResolverTests
             Directory.Delete(rootDir, recursive: true);
         }
     }
-
-    // --- C# project and assembly references ---------------------------------
 
     private static ProjectReference DirectoryRef(string name, string directory)
     {

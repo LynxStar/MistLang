@@ -1,15 +1,3 @@
-// Feature: csharp-interop-v2, Task 3.3
-// In-process tests for the structured PackageResolutionResult shape and each
-// resolver diagnostic category.
-//
-// Validates: Requirements 3.1 (MIST0036 — not found / invalid version),
-//            3.6 (one independent diagnostic per failing package; siblings continue).
-//
-// These tests exercise the pre-network validation path (invalid NuGet version
-// strings fail NuGetVersion.TryParse before any feed is contacted). Tests that
-// require actual package resolution are handled by integration tests that use
-// real NuGet packages.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver;
@@ -18,18 +6,12 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Driver;
 
 /// <summary>
-/// Unit tests for <see cref="PackageResolver.ResolvePackages"/> covering the
-/// structured <see cref="PackageResolutionResult"/> shape and the
-/// <c>MIST0036</c> diagnostic category (invalid version / not found).
-/// Network-dependent tests are in integration test classes.
+/// An invalid version string fails NuGetVersion.TryParse before any feed is contacted, so only the
+/// Newtonsoft.Json cases need a network or a cached package.
 /// </summary>
 public sealed class PackageResolverDiagnosticsTests
 {
     private const string TargetFramework = "net10.0";
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Structured result shape
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void EmptyPackages_ReturnsEmptyResultWithZeroFailures()
@@ -63,10 +45,6 @@ public sealed class PackageResolverDiagnosticsTests
         Assert.Empty(diagnostics.ToImmutableArray());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // MIST0036 — not found / invalid version (Requirement 3.2)
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void InvalidVersionString_EmitsSingleMistPkg002AndCountsFailure()
     {
@@ -86,11 +64,6 @@ public sealed class PackageResolverDiagnosticsTests
         Assert.Empty(result.Resolved);
         Assert.Empty(result.AssemblyPaths);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Requirement 3.6 — one independent diagnostic per failing package;
-    // resolution continues for the remaining declared packages.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void MultipleFailingPackages_EmitOneIndependentDiagnosticEach()
@@ -118,12 +91,6 @@ public sealed class PackageResolverDiagnosticsTests
     [Fact]
     public void FailingPackageDoesNotPreventSiblingResolution()
     {
-        // One package fails (invalid version → MIST0036); a sibling package
-        // with a valid version gets passed to dotnet restore. The invalid package
-        // should produce a diagnostic without blocking the restore of valid packages.
-        //
-        // Note: This test uses "Newtonsoft.Json" which is a real package that
-        // should be restorable from NuGet.org. If offline, this test may fail.
         var diagnostics = new DiagnosticBag();
 
         var result = PackageResolver.ResolvePackages(
@@ -134,18 +101,14 @@ public sealed class PackageResolverDiagnosticsTests
             TargetFramework,
             diagnostics);
 
-        // The invalid version package should produce a diagnostic.
         var invalidVersionDiag = diagnostics.ToImmutableArray()
             .FirstOrDefault(d => d.Number.Value == "MIST0036" && d.Message.Contains("BadPackage"));
         Assert.NotNull(invalidVersionDiag);
 
-        // The failure count includes the invalid version package.
         Assert.True(result.FailureCount >= 1,
             "Expected at least 1 failure for the invalid version package");
 
         // The valid package should resolve (if network is available).
-        // We check that the resolved list either contains the good package
-        // or the failure count accounts for both (network unavailable scenario).
         if(result.Resolved.Length > 0)
         {
             var info = result.Resolved.FirstOrDefault(r =>
@@ -155,15 +118,9 @@ public sealed class PackageResolverDiagnosticsTests
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Real package resolution (requires network or cached package)
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void RealPackage_ResolvesSuccessfully()
     {
-        // Tests that a real, well-known package resolves correctly through
-        // the dotnet restore pipeline. Uses Newtonsoft.Json as a stable target.
         var diagnostics = new DiagnosticBag();
 
         var result = PackageResolver.ResolvePackages(
@@ -180,7 +137,6 @@ public sealed class PackageResolverDiagnosticsTests
             Assert.True(info.AssemblyCount > 0, "Expected at least one assembly from Newtonsoft.Json");
             Assert.NotEmpty(result.AssemblyPaths);
 
-            // Verify the assembly path points to a real file
             foreach(var path in result.AssemblyPaths)
             {
                 Assert.True(File.Exists(path), $"Assembly path does not exist: {path}");

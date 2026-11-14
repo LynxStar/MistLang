@@ -3,14 +3,8 @@ using Mist.Driver;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Unit tests for <see cref="ProjectFileParser"/> [packages] table parsing.
-/// Validates requirements 1.1–1.8 from the Assembly Type Provider spec.
-/// </summary>
 public sealed class ProjectFileParserPackagesTests
 {
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pkg_test_{Guid.NewGuid():N}");
@@ -22,8 +16,6 @@ public sealed class ProjectFileParserPackagesTests
     {
         File.WriteAllText(Path.Combine(projectDir, ProjectFileParser.FileName), tomlContent);
     }
-
-    // ─── Requirement 1.5: Absent [packages] table → empty package list ──
 
     [Fact]
     public void AbsentPackagesTable_ReturnsEmptyPackageList()
@@ -47,8 +39,6 @@ public sealed class ProjectFileParserPackagesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 1.6: Non-table [packages] → error diagnostic ───────
 
     [Fact]
     public void PackagesFieldNotATable_ReportsError()
@@ -101,8 +91,6 @@ public sealed class ProjectFileParserPackagesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 1.7: Non-string version value → error diagnostic ───
 
     [Fact]
     public void PackageVersionAsInteger_ReportsError()
@@ -161,8 +149,6 @@ public sealed class ProjectFileParserPackagesTests
         }
     }
 
-    // ─── Requirement 1.1: Valid package entries parse correctly ──────────
-
     [Fact]
     public void ValidSinglePackage_ParsesCorrectly()
     {
@@ -198,7 +184,6 @@ public sealed class ProjectFileParserPackagesTests
         var projectDir = CreateTempProjectDir();
         try
         {
-            // Dotted package names must be quoted in TOML to avoid nested table interpretation
             WriteToml(projectDir, """
                 name = "MyApp"
 
@@ -232,8 +217,6 @@ public sealed class ProjectFileParserPackagesTests
         var projectDir = CreateTempProjectDir();
         try
         {
-            // Name uses all allowed character classes: letters, digits, hyphens, underscores, periods
-            // Dotted names must be quoted in TOML
             WriteToml(projectDir, """
                 name = "MyApp"
 
@@ -255,8 +238,6 @@ public sealed class ProjectFileParserPackagesTests
         }
     }
 
-    // ─── Requirement 1.8: Invalid package name characters → error ────────
-
     [Theory]
     [InlineData("Bad Package")]
     [InlineData("Bad@Package")]
@@ -268,7 +249,6 @@ public sealed class ProjectFileParserPackagesTests
         var projectDir = CreateTempProjectDir();
         try
         {
-            // Use inline table syntax to avoid TOML key parsing issues with special chars
             WriteToml(projectDir, $"""
                 name = "MyApp"
 
@@ -279,7 +259,6 @@ public sealed class ProjectFileParserPackagesTests
             var diagnostics = new DiagnosticBag();
             var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
-            // The parser continues after invalid package names (uses continue)
             Assert.NotNull(result);
             var diags = diagnostics.ToImmutableArray();
             _ = Assert.Single(diags);
@@ -292,8 +271,6 @@ public sealed class ProjectFileParserPackagesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 1.8: Package name exceeding 128 chars → error ───────
 
     [Fact]
     public void PackageNameExceeding128Chars_ReportsError()
@@ -354,8 +331,6 @@ public sealed class ProjectFileParserPackagesTests
         }
     }
 
-    // ─── Requirement 1.4: Empty/whitespace version → error diagnostic ────
-
     [Fact]
     public void PackageWithEmptyVersion_ReportsError()
     {
@@ -414,8 +389,6 @@ public sealed class ProjectFileParserPackagesTests
         }
     }
 
-    // ─── Multiple errors: parser continues past invalid entries ───────────
-
     [Fact]
     public void MultipleInvalidPackages_ReportsAllErrors()
     {
@@ -443,7 +416,6 @@ public sealed class ProjectFileParserPackagesTests
             Assert.Contains(diags, d => d.Number.Value == "MIST0085");
             Assert.Contains(diags, d => d.Number.Value == "MIST0087");
 
-            // The valid package should still be parsed
             _ = Assert.Single(result.Packages);
             Assert.Equal("ValidPackage", result.Packages[0].Name);
             Assert.Equal("1.0.0", result.Packages[0].Version);

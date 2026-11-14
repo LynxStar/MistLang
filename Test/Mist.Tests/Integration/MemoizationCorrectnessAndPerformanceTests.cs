@@ -7,20 +7,12 @@ using Xunit.Abstractions;
 
 namespace Mist.Tests.Integration;
 
-/// <summary>
-/// Integration tests verifying that the expanded memoization (multi-caller heuristic
-/// + @memo annotations) preserves parsing correctness and meets performance targets
-/// when applied to the AllFeaturesV2 corpus.
-/// </summary>
 [Collection(WallClockCollection.Name)]
 [Trait("Tier", "3")]
 public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper output)
 {
     /// <summary>
-    /// Verifies that parsing the AllFeaturesV2 corpus with expanded memoization
-    /// produces no parse errors — confirming that memoization is transparent
-    /// to parsing results. Lexes and parses every .mist file in the samples
-    /// directory tree (all referenced projects included).
+    /// Memoization must be transparent to parsing results, so the whole corpus parses without errors.
     /// </summary>
     [Fact]
     public void AllFeaturesV2_ParsesWithoutErrors_WithExpandedMemoization()
@@ -30,7 +22,6 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
 
         Assert.True(Directory.Exists(sampleDir), $"AllFeaturesV2 sample directory not found: {sampleDir}");
 
-        // Collect all corpus files (AllFeaturesV2 + referenced projects)
         var sourceFiles = CollectAllCorpusFiles(repoRoot);
         Assert.NotEmpty(sourceFiles);
 
@@ -79,12 +70,6 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
             string.Join("\n", parseErrors.Take(20)));
     }
 
-    /// <summary>
-    /// Verifies that lexing and parsing the AllFeaturesV2 corpus completes within
-    /// 2 seconds wall-clock time, confirming the performance benefit of expanded
-    /// memoization. Measures only the lex + parse stages (no semantic model,
-    /// type checking, or emission) to isolate parser performance.
-    /// </summary>
     [Fact]
     public void AllFeaturesV2_ParsesWithinPerformanceTarget()
     {
@@ -93,7 +78,6 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
 
         Assert.True(Directory.Exists(sampleDir), $"AllFeaturesV2 sample directory not found: {sampleDir}");
 
-        // Collect all .mist source files from AllFeaturesV2 and its referenced projects
         var sourceFiles = CollectAllCorpusFiles(repoRoot);
         Assert.NotEmpty(sourceFiles);
 
@@ -114,7 +98,6 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
             _ = parser.Parse(warmTokens, warmParseBag);
         }
 
-        // Measured pass: lex + parse only
         var pauseBefore = GC.GetTotalPauseDuration();
         var collectionsBefore = GC.CollectionCount(2);
         var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -138,13 +121,8 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
             $"{(Process.GetCurrentProcess().TotalProcessorTime - processCpuBefore).TotalSeconds:F2}s CPU across the whole test process";
         output.WriteLine($"lex+parse {elapsed.TotalSeconds:F2}s wall; {conditions}");
 
-        // Performance target: under 2 seconds wall-clock time for lex+parse.
-        // In Release builds this typically completes in ~1s. In Debug/interpreted
-        // test runners with no tiered JIT, overhead can push it well beyond that —
-        // especially on slower machines or under heavy system load. We use a
-        // 15-second ceiling to catch catastrophic regressions in all build
-        // configurations while the canonical 2-second target is validated in
-        // Release mode CI.
+        // Debug and non-tiered test runners can run well past the 2-second Release target, especially
+        // under load, so this ceiling catches only catastrophic regressions.
         Assert.True(
             elapsed.TotalSeconds < 15.0,
             $"AllFeaturesV2 corpus lex+parse took {elapsed.TotalSeconds:F2}s, " +
@@ -152,13 +130,6 @@ public sealed class MemoizationCorrectnessAndPerformanceTests(ITestOutputHelper 
             $"The production target is 2 seconds (Release mode). During the measured pass: {conditions}.");
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Collects all .mist source files that constitute the AllFeaturesV2 corpus:
-    /// the AllFeaturesV2 project files plus all referenced sample project files.
-    /// Excludes bin/out/obj directories.
-    /// </summary>
     private static IReadOnlyList<string> CollectAllCorpusFiles(string repoRoot)
     {
         var samplesDir = Path.Combine(repoRoot, "samples");

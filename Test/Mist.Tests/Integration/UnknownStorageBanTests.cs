@@ -9,8 +9,8 @@
 //
 // SCOPE. This covers the storage ban only. The rest of what makes `unknown` a top type -- that
 // every non-void type widens into it, and that nothing comes back out without a pattern -- is type
-// checking, and belongs to the analysis stage, which does not exist yet. So a program that assigns
-// an `unknown` to an int is NOT rejected here, and there is deliberately no test claiming it is.
+// checking, and belongs to the analysis stage. So a program that assigns an `unknown` to an int is
+// NOT rejected here, and there is deliberately no test claiming it is.
 
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
@@ -85,7 +85,7 @@ public sealed class UnknownStorageBanTests : IDisposable
     /// The expected spelling is asserted along with the rejection, because a diagnostic naming a
     /// type the user cannot find in their file is most of the way to being useless. A generic
     /// definition is registered under an arity-bearing name, so the type reported here is exactly
-    /// where <c>Box&lt;&gt;&lt;unknown&gt;</c> surfaces if that marker is not stripped.
+    /// where the arity marker would surface if it were not stripped.
     /// </para>
     /// </summary>
     [Theory]
@@ -188,8 +188,6 @@ public sealed class UnknownStorageBanTests : IDisposable
 
         Assert.Empty(Errors(diagnostics, StorageId));
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
     {

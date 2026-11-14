@@ -3,14 +3,8 @@ using Mist.Driver;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Unit tests for <see cref="ProjectFileParser"/> [framework_references] table parsing.
-/// Validates requirements 4.2–4.8 from the csharp-interop-v2 spec.
-/// </summary>
 public sealed class ProjectFileParserFrameworkReferencesTests
 {
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_fwref_test_{Guid.NewGuid():N}");
@@ -22,8 +16,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
     {
         File.WriteAllText(Path.Combine(projectDir, ProjectFileParser.FileName), tomlContent);
     }
-
-    // ─── Requirement 4.2: true entry included exactly once ───────────────
 
     [Fact]
     public void FrameworkReferenceTrue_IsIncludedOnce()
@@ -52,8 +44,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 4.3: false entry excluded ───────────────────────────
 
     [Fact]
     public void FrameworkReferenceFalse_IsExcluded()
@@ -114,8 +104,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.4: Absent table → empty list, no diagnostic ───────
-
     [Fact]
     public void AbsentFrameworkReferencesTable_ReturnsEmptyListNoDiagnostic()
     {
@@ -139,8 +127,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.5: Non-table value → MIST0088 ────
-
     [Fact]
     public void FrameworkReferencesAsString_ReportsTableExpectedAndEmptyList()
     {
@@ -155,7 +141,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             var diagnostics = new DiagnosticBag();
             var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
-            // Parser collects the diagnostic and continues with an empty list.
             Assert.NotNull(result);
             Assert.Empty(result.FrameworkReferences);
 
@@ -197,8 +182,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 4.6: Non-boolean value → MIST0091 ───
 
     [Fact]
     public void FrameworkReferenceWithStringValue_ReportsInvalidValueAndExcludes()
@@ -280,7 +263,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
 
             Assert.NotNull(result);
 
-            // Offending entry excluded; sibling valid entry retained.
             _ = Assert.Single(result.FrameworkReferences);
             Assert.Equal("Microsoft.NETCore.App", result.FrameworkReferences[0].Name);
 
@@ -293,8 +275,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Requirement 4.7: Empty/whitespace name → MIST0089 ─
 
     [Fact]
     public void FrameworkReferenceWithEmptyName_ReportsInvalidNameAndExcludes()
@@ -356,8 +336,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.8: Name >256 chars after trim → MIST0090 ─
-
     [Fact]
     public void FrameworkReferenceNameExceeding256Chars_ReportsInvalidNameAndExcludes()
     {
@@ -418,8 +396,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         }
     }
 
-    // ─── Requirement 4.2: duplicate-true dedupe (after trimming) ─────────
-
     [Fact]
     public void DuplicateTrueEntriesAfterTrim_DedupedToSingleEntry()
     {
@@ -427,7 +403,6 @@ public sealed class ProjectFileParserFrameworkReferencesTests
         try
         {
             // Two distinct TOML keys that trim to the same framework name.
-            // Both are enabled (true); the trimmed name must appear exactly once.
             WriteToml(projectDir, """
                 name = "MyApp"
 

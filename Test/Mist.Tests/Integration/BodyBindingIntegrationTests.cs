@@ -1,13 +1,3 @@
-// Integration tests for the ProgramModel body binder (walking-skeleton slice).
-//
-// Builds the Program Model from Mist source in-process (through the real
-// ProgramModelBuilder, so Phase 3 body binding runs) and asserts on the resolved
-// body directly. Standard-library type shells are registered via a small ambient
-// provider so that `int` resolves to Standard.Int32 for typing assertions.
-//
-// These are clean-room assertions: every expectation is derived from what the
-// source program means, never from the legacy Semantics/Analysis frontend.
-
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
 using Mist.Common.Diagnostics;
@@ -30,12 +20,6 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Integration;
 
-/// <summary>
-/// Verifies that Phase 3 (body binding) fills the model's <see cref="Block"/> with
-/// resolved statements and expressions: local declarations, literals, local
-/// references (wired back to their declaration), and graceful placeholders for
-/// constructs the walking-skeleton slice does not yet handle.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class BodyBindingIntegrationTests : IDisposable
 {
@@ -87,7 +71,7 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         Assert.Equal(42, literal.Value);
         Assert.Equal("Standard.Int32", literal.Type.FullyQualifiedName);
 
-        // return x;  — the reference must resolve to the SAME local the declaration introduced.
+        // return x;
         var returnStatement = Assert.IsType<ReturnStatement>(statements[1]);
         var reference = Assert.IsType<LocalReferenceExpression>(returnStatement.Value);
         Assert.Same(declaration.Local, reference.Local);
@@ -116,8 +100,6 @@ public sealed class BodyBindingIntegrationTests : IDisposable
     [Fact]
     public void BinaryOperator_BindsToBinaryExpression()
     {
-        // Binary operators are now handled by the operator binder. The binder
-        // produces a BinaryExpression wrapping the two operands.
         var source = """
             namespace TestProject;
 
@@ -201,18 +183,11 @@ public sealed class BodyBindingIntegrationTests : IDisposable
     }
 
     /// <summary>
-    /// A three-element array literal and a <c>int[3]</c> type annotation must produce the
-    /// SAME interned type instance. Both encode as
-    /// <c>Standard.Array&lt;Int32, LiftedType(3)&gt;</c>, and the interner keys type
-    /// arguments by reference identity, so this only holds if both paths lift the length
-    /// through the same call with the same Mist type and the same boxed value.
-    /// <para>
-    /// This is a regression guard on that agreement. The two paths are far apart —
-    /// <c>LiteralBinder</c> passes an element count, <c>ScopeResolver.ResolveArrayType</c>
-    /// parses a rank suffix — and they previously diverged by boxing an <c>int</c> on one
-    /// side and a <c>long</c> on the other, which silently produced two distinct types for
-    /// the same array.
-    /// </para>
+    /// A three-element array literal and a <c>int[3]</c> type annotation must produce the SAME
+    /// interned type instance. The interner keys type arguments by reference identity, so this holds
+    /// only if <c>LiteralBinder</c> (from an element count) and <c>ScopeResolver.ResolveArrayType</c>
+    /// (from a rank suffix) lift the length through the same call with the same Mist type and the
+    /// same boxed value.
     /// </summary>
     [Fact]
     public void ArrayLiteral_AndSizedArrayAnnotation_ShareOneInternedType()
@@ -308,10 +283,6 @@ public sealed class BodyBindingIntegrationTests : IDisposable
         Assert.Equal("Array<,>", constructed.Definition.Name);
         Assert.Equal(expectedElementFqn, constructed.TypeArguments[0].FullyQualifiedName);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Harness
-    // ═══════════════════════════════════════════════════════════════════════
 
     private static Method GetMethod(IProgramModel model, string typeName, string methodName)
     {

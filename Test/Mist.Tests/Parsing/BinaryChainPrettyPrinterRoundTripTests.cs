@@ -1,10 +1,6 @@
 // Feature: storm-anonymous-groups -- round-trip pretty-printer coverage for
 // same-precedence multi-operand binary chains (the Group0 lists on AdditiveNode,
-// MultiplicativeNode, EqualityNode, and RelationalComparisonRelationalNode). A
-// pretty printer that read the old last-wins scalar shim instead of iterating
-// Group0 would drop the middle operand(s) -- e.g. print "10 - 5" for "10 + 3 - 5".
-// These tests fail in that case. Uses in-process MistParser and MistPrettyPrinter;
-// no process spawning.
+// MultiplicativeNode, EqualityNode, and RelationalComparisonRelationalNode).
 
 using Mist.Common.Diagnostics;
 using Mist.Generated;
@@ -14,12 +10,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Verifies the pretty printer reproduces EVERY operator and operand of a
-/// same-precedence multi-operand chain, rather than collapsing to the last-wins
-/// scalar the pre-migration shim exposed. Covers the four struct-projected binary
-/// nodes: Additive, Multiplicative, Equality, and RelationalComparison.
-/// </summary>
 public class BinaryChainPrettyPrinterRoundTripTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();

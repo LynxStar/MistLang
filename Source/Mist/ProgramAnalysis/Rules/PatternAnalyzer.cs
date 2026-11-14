@@ -12,22 +12,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The pattern questions that are assignability's question asked of a test rather than a value: a type
-/// test no value of the input could pass, a relational or constant bound the
-/// input cannot be compared with or that is not a constant, and an arm an earlier arm already covers.
-/// Each pattern is judged against the type flowing INTO it -- the
-/// scrutinee's, a conjunct's predecessor's narrowing, a member's, a tuple element's, a list element's
-/// or slice's -- and an input
-/// that is indeterminate, <c>unknown</c> above all, admits any test, since that is what a test of it
-/// is for. A test of an unsealed class against an abstract is possible whichever side is which,
-/// because a derivation may implement it, which is C#'s rule and classic's verdict.
-/// <para>
-/// A type test, an <c>as</c> or a cast whose target names a type parameter the operand's static type
-/// does not is judged once more at every closing of that parameter (purity Requirement 16.5): the
-/// erased runtime test would read a plain function value as a pure one, so no closing may hand the
-/// parameter a type holding a pure function type -- through a forwarding closing of an enclosing
-/// generic's parameter included.
-/// </para>
+/// Indeterminate inputs admit tests; an unsealed class may gain abstract conformance through a derivation.
+/// Purity checks follow every hidden target parameter's closing, including forwarded enclosing parameters;
+/// <see cref="ProgramAnalysisDiagnostics.PureFunctionTypeUntestableClosing"/> owns the erased-test rationale.
 /// </summary>
 internal sealed class PatternAnalyzer : IProgramAnalyzer
 {

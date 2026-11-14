@@ -13,10 +13,8 @@ namespace Mist.ProgramAnalysis;
 internal static partial class PurityJudge
 {
     /// <summary>
-    /// A hole is formatted by the runtime object's own ToString, never a Mist member: Mist has no
-    /// override, so a type declared in Mist prints its name however it spells a ToString of its own.
-    /// What prints differently for the same reference is a type whose ToString the program cannot
-    /// see -- a CLR class, a container, or whatever an unknown, a type parameter or an abstract holds.
+    /// Mist has no ToString override, so an ordinary Mist member of that name cannot change
+    /// runtime formatting. Unseen runtime code can produce different text for the same reference.
     /// </summary>
     internal static bool FormatsByType(IMistType type)
     {

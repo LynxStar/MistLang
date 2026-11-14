@@ -10,12 +10,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
 /// A newtype over an intrinsic Standard type is that type's contract renamed, and the backend owes it an
-/// implementation exactly as it owes one of the source (newtypes spec Requirement 5.2). It already has one to
-/// reuse: the clone holds one backing value in <c>Value</c>, and every intrinsic member forwards to the
-/// source's own, taking the backing value of an argument typed as the newtype and wrapping a result typed as
-/// it. A Mist-bodied member of the source was bound again for the clone and emits as any member does. Boolean's
-/// short-circuiting operators emit as the bitwise ones beside the true and false operators, the only way C#
-/// lets a type of its own take part in them.
+/// implementation exactly as it owes one of the source (newtypes spec Requirement 5.2). The clone holds one
+/// backing value in <c>Value</c>, and every intrinsic member forwards to the source's own. A Mist-bodied
+/// member of the source is bound again for the clone and emits as any member does. Boolean's short-circuiting
+/// operators emit as the bitwise ones beside the true and false operators, the only way C# lets a type of its
+/// own take part in them.
 /// </summary>
 internal static class IntrinsicCloneEmitter
 {

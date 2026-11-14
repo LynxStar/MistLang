@@ -1,10 +1,5 @@
 // Feature: attributes-and-test-command, Property 2: Declaration-Position Disambiguation
 // **Validates: Requirements 1.10**
-//
-// For any valid Mist program containing both attribute annotations on declarations
-// and bracket expressions in expression position (array literals, index access),
-// the parser SHALL produce AttributeListNode only in declaration context and
-// ArrayLiteralExpression/IndexSuffix nodes in expression context -- never confusing the two.
 
 using System.Text;
 using FsCheck;
@@ -16,14 +11,6 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for declaration-position disambiguation.
-///
-/// Property 2: The parser never confuses attribute brackets with array/index brackets.
-/// Programs that contain BOTH attribute annotations on declarations AND bracket
-/// expressions in method bodies parse without parse errors, proving the parser
-/// correctly disambiguates <c>[</c> in declaration vs expression position.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
 {
@@ -32,12 +19,6 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
     private static readonly MistLexer Lexer = new();
     private static readonly MistParser Parser = new();
 
-    // === Scenario definition ===
-
-    /// <summary>
-    /// Describes a disambiguation scenario: an attribute configuration on
-    /// a declaration combined with bracket expressions in a method body.
-    /// </summary>
     private sealed record DisambiguationScenario(
         string AttributeName,
         string[] AttributeArgs,
@@ -52,8 +33,6 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
             return $"[{AttributeName}{args}] {DeclarationKind} with [{string.Join("; ", BracketExpressions)}]";
         }
     }
-
-    // === Generators ===
 
     private static readonly string[] AttributeNames =
         ["Serializable", "Obsolete", "Conditional", "Flags", "TestAttr", "MyCustom"];
@@ -81,7 +60,6 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
 
         var genDeclKind = Gen.Elements(DeclarationKinds);
 
-        // Generate 1-3 bracket expressions for the method body
         var genBracketExprs = Gen.Frequency(
             (3, Gen.Constant(new[] { "array-literal" })),
             (3, Gen.Constant(new[] { "index-access" })),
@@ -95,32 +73,23 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
                select new DisambiguationScenario(attrName, args, declKind, bracketExprs);
     }
 
-    // === Source code builder ===
-
-    /// <summary>
-    /// Builds a Mist source program that has both attribute annotations on
-    /// declarations and bracket expressions inside a method body.
-    /// </summary>
     private static string BuildProgram(DisambiguationScenario scenario)
     {
         var sb = new StringBuilder();
         _ = sb.AppendLine("namespace TestDisambiguation;");
         _ = sb.AppendLine();
 
-        // Build the attribute annotation
         var attrArgs = scenario.AttributeArgs.Length > 0
             ? $"({string.Join(", ", scenario.AttributeArgs)})"
             : "";
         var attrAnnotation = $"[{scenario.AttributeName}{attrArgs}]";
 
-        // Emit the declaration with the attribute
         _ = sb.AppendLine(attrAnnotation);
         _ = sb.AppendLine($"{scenario.DeclarationKind} Decorated");
         _ = sb.AppendLine("{");
         _ = sb.AppendLine("}");
         _ = sb.AppendLine();
 
-        // Emit a class with a method containing bracket expressions
         _ = sb.AppendLine("class Program");
         _ = sb.AppendLine("{");
         _ = sb.AppendLine("    public static void Main()");
@@ -160,18 +129,6 @@ public sealed class AttributeDeclarationPositionDisambiguationPropertyTests
         return (parseErrors.Count == 0, parseErrors);
     }
 
-    // === Property test ===
-
-    /// <summary>
-    /// Property 2: Declaration-Position Disambiguation.
-    ///
-    /// For any valid Mist program containing both attribute annotations on
-    /// declarations and bracket expressions in method bodies, parsing
-    /// reports no errors -- proving the parser correctly
-    /// disambiguates [brackets] in declaration vs expression position.
-    ///
-    /// **Validates: Requirements 1.10**
-    /// </summary>
     [Fact]
     public void DeclarationPositionDisambiguation_NoParsErrorsWithBothContexts()
     {

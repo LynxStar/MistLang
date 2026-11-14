@@ -13,10 +13,8 @@ internal static class FailingCase
         return shown.Count == 0 ? null : $"fails when {string.Join(" and ", shown.Distinct())}{(refuted.AfterMerge ? ", after merging paths" : "")}";
     }
 
-    // The chain stops at the contract's values; a reader wants the statement those values are left with.
-    // So a further value is removed only while removing it states something the untouched facts did not,
-    // which turns `used <= capacity and used >= 2 * capacity + 1` into `capacity <= -1` and leaves
-    // `start == items.Length` alone. A type's own range is never the reason a use fails, so it is set aside.
+    // After projection to contract values, eliminate a value only if removing it adds information to the untouched facts.
+    // Set aside declared ranges: a type's own range cannot explain why a use fails.
     internal static List<Fact> Narrowed(IEnumerable<Fact> source)
     {
         var meter = new ProofBudget(Budget.Default);

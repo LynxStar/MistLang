@@ -75,10 +75,6 @@ internal sealed class ThisTiers
         return needed;
     }
 
-    /// <summary>
-    /// The instance fields of the declaring type a method reads or writes, its own body and every
-    /// instance method it calls on `this` included; empty for a method whose body is not in source.
-    /// </summary>
     public IReadOnlyDictionary<Field, FieldUse> FieldUses(Method method)
     {
         if(uses.TryGetValue(method, out var known))

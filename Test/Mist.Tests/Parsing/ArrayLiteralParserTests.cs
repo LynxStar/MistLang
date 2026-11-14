@@ -1,5 +1,5 @@
-// Feature: array-literals — Unit tests for parser handling of array literal expressions
-// **Validates: Requirements 1.1, 1.2, 1.3, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 11.1, 11.2, 11.3, 11.4, 11.5**
+// Feature: array-literals
+// **Validates: Requirements 1.1, 1.2, 1.3, 2.1, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 11.1, 11.2, 11.3, 11.4, 11.5**
 
 using Mist.Common.Diagnostics;
 using Mist.Generated;
@@ -8,10 +8,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying that the parser correctly handles array literal expressions
-/// in various positions, and disambiguates them from index suffixes and list patterns.
-/// </summary>
 public class ArrayLiteralParserTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -52,8 +48,6 @@ public class ArrayLiteralParserTests
         return Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
     }
 
-    // ─── Requirement 1.1: Single-element array literal ───────────────────
-
     [Fact]
     public void SingleElementArrayLiteral_ProducesNodeWith1Element()
     {
@@ -70,8 +64,6 @@ public class ArrayLiteralParserTests
         _ = Assert.Single(arrayLiteral.GetElements());
     }
 
-    // ─── Requirement 1.1: Multi-element array literal ────────────────────
-
     [Fact]
     public void MultiElementArrayLiteral_ProducesNodeWith3Elements()
     {
@@ -87,8 +79,6 @@ public class ArrayLiteralParserTests
 
         Assert.Equal(3, arrayLiteral.GetElements().Length);
     }
-
-    // ─── Requirement 1.2: Trailing comma ─────────────────────────────────
 
     [Fact]
     public void TrailingComma_ProducesSameNodeAsWithout()
@@ -112,12 +102,9 @@ public class ArrayLiteralParserTests
         var withTrailing = GetArrayLiteralFromInitializer(sourceWithTrailing);
         var without = GetArrayLiteralFromInitializer(sourceWithout);
 
-        // Both should have 2 elements total.
         Assert.Equal(2, withTrailing.GetElements().Length);
         Assert.Equal(2, without.GetElements().Length);
     }
-
-    // ─── Requirement 1.3: Nested array literals ──────────────────────────
 
     [Fact]
     public void NestedArrayLiteral_ProducesNestedNodes()
@@ -135,7 +122,6 @@ public class ArrayLiteralParserTests
         var outerElements = outerArray.GetElements();
         Assert.Equal(2, outerElements.Length);
 
-        // Both elements should themselves be two-element array literals.
         var firstInner = UnwrapToPrimary(outerElements[0]);
         var firstInnerArray = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(firstInner);
         Assert.Equal(2, firstInnerArray.GetElements().Length);
@@ -144,8 +130,6 @@ public class ArrayLiteralParserTests
         var secondInnerArray = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(secondInner);
         Assert.Equal(2, secondInnerArray.GetElements().Length);
     }
-
-    // ─── Requirement 11.1: Array literal as variable initializer ─────────
 
     [Fact]
     public void ArrayLiteralAsVariableInitializer_ParsesCorrectly()
@@ -162,8 +146,6 @@ public class ArrayLiteralParserTests
         Assert.NotNull(arrayLiteral);
         Assert.Equal(3, arrayLiteral.GetElements().Length);
     }
-
-    // ─── Requirement 11.2: Array literal as method argument ──────────────
 
     [Fact]
     public void ArrayLiteralAsMethodArgument_ParsesCorrectly()
@@ -183,13 +165,10 @@ public class ArrayLiteralParserTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // The statement is an expression statement containing a method call
         var stmt = Assert.IsType<ExpressionStatementStatementNode>(block!.Statements[0]);
         Assert.NotNull(stmt);
         // If it parsed without errors, the array literal was accepted as an argument
     }
-
-    // ─── Requirement 11.3: Array literal as return value ─────────────────
 
     [Fact]
     public void ArrayLiteralAsReturnValue_ParsesCorrectly()
@@ -211,12 +190,9 @@ public class ArrayLiteralParserTests
         var returnStmt = Assert.IsType<ReturnStatementStatementNode>(block!.Statements[0]);
         Assert.NotNull(returnStmt.ReturnStatement.Value);
 
-        // Unwrap the return value to find the array literal
         var primary = UnwrapToPrimary(returnStmt.ReturnStatement.Value!);
         _ = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
     }
-
-    // ─── Requirement 11.5: Array literal as assignment RHS ───────────────
 
     [Fact]
     public void ArrayLiteralAsAssignmentRHS_ParsesCorrectly()
@@ -236,12 +212,9 @@ public class ArrayLiteralParserTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // Second statement is the assignment
         Assert.True(block!.Statements.Length >= 2);
         // If it parsed without errors, the array literal was accepted as assignment RHS
     }
-
-    // ─── Requirement 3.1, 3.2, 3.3: Disambiguation from IndexSuffix ─────
 
     [Fact]
     public void IndexAccess_ParsesAsIndexSuffix_NotArrayLiteral()
@@ -261,15 +234,11 @@ public class ArrayLiteralParserTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // Second statement: var x = arr[0];
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[1]);
         var varDecl = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        // The initializer should contain a PostfixNode with an IndexSuffix,
-        // not an ArrayLiteralExpressionPrimaryNode
         var primary = UnwrapToPrimary(varDecl.Initializer);
 
-        // arr[0] should NOT be an array literal
         Assert.IsNotType<ArrayLiteralExpressionPrimaryNode>(primary);
     }
 
@@ -291,18 +260,14 @@ public class ArrayLiteralParserTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // Second statement: var x = arr[0];
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[1]);
         var varDecl = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        // Walk the expression tree to find the PostfixNode with IndexSuffix
         var postfix = FindPostfixNode(varDecl.Initializer);
         Assert.NotNull(postfix);
         Assert.True(postfix!.Suffix.Length > 0, "arr[0] should have at least one postfix suffix");
         _ = Assert.IsType<IndexSuffixPostfixSuffixNode>(postfix.Suffix[0]);
     }
-
-    // ─── Requirement 4.1, 4.2, 4.3: Disambiguation from ListPattern ─────
 
     [Fact]
     public void IsExpression_WithBrackets_ParsesAsListPattern_NotArrayLiteral()
@@ -322,21 +287,16 @@ public class ArrayLiteralParserTests
         var block = methodMember.Method.Body.GetBlock();
         Assert.NotNull(block);
 
-        // Second statement: var result = arr is [> 0, ..];
         var stmt = Assert.IsType<VariableDeclarationStatementStatementNode>(block!.Statements[1]);
         var varDecl = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
 
-        // Find the IsExpression in the expression tree
         var isExpr = FindIsExpression(varDecl.Initializer);
         Assert.NotNull(isExpr);
 
-        // The pattern should be a ListPattern, not an ArrayLiteralExpression
         var pattern = isExpr!.Pattern;
         var primaryPattern = UnwrapToPrimaryPattern(pattern);
         _ = Assert.IsType<ListPatternPrimaryPatternNode>(primaryPattern);
     }
-
-    // ─── Requirement 2.1: Empty array literal [] ──────────────────────────
 
     [Fact]
     public void EmptyArrayLiteral_ParsesAsArrayLiteralWithNoElementList()
@@ -358,7 +318,6 @@ public class ArrayLiteralParserTests
         var varDecl = Assert.IsType<TypedVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
         var primary = UnwrapToPrimary(varDecl.Initializer);
 
-        // The empty literal is the ordinary array literal node with no element list.
         var arrayLiteral = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
         Assert.Null(arrayLiteral.Elements);
         Assert.Empty(arrayLiteral.GetElements());
@@ -384,7 +343,6 @@ public class ArrayLiteralParserTests
         var varDecl = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt.VariableDeclaration);
         var primary = UnwrapToPrimary(varDecl.Initializer);
 
-        // The empty literal is the ordinary array literal node with no element list.
         var arrayLiteral = Assert.IsType<ArrayLiteralExpressionPrimaryNode>(primary);
         Assert.Null(arrayLiteral.Elements);
         Assert.Empty(arrayLiteral.GetElements());
@@ -412,11 +370,6 @@ public class ArrayLiteralParserTests
         _ = Assert.IsType<TypeLiteralExpressionPrimaryNode>(primary);
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Unwraps a simple expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -457,9 +410,6 @@ public class ArrayLiteralParserTests
         return null;
     }
 
-    /// <summary>
-    /// Finds the PostfixNode in an expression tree.
-    /// </summary>
     private static PostfixNode? FindPostfixNode(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -498,17 +448,11 @@ public class ArrayLiteralParserTests
         return null;
     }
 
-    /// <summary>
-    /// Finds an IsExpressionRelationalNode in the expression tree.
-    /// </summary>
     private static IsExpressionRelationalNode? FindIsExpression(ExpressionNode expr)
     {
         return FindNode<IsExpressionRelationalNode>(expr);
     }
 
-    /// <summary>
-    /// Unwraps a PatternNode to its PrimaryPatternNode.
-    /// </summary>
     private static PrimaryPatternNode? UnwrapToPrimaryPattern(PatternNode pattern)
     {
         Storm.Runtime.SyntaxNode current = pattern;
@@ -547,9 +491,6 @@ public class ArrayLiteralParserTests
         return null;
     }
 
-    /// <summary>
-    /// Generic depth-first search for a node of type T in the expression tree.
-    /// </summary>
     private static T? FindNode<T>(Storm.Runtime.SyntaxNode root) where T : Storm.Runtime.SyntaxNode
     {
         if(root is T target)

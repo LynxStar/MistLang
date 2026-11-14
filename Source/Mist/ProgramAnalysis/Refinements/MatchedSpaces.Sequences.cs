@@ -30,11 +30,9 @@ internal static partial class MatchedSpaces
     }
 
     /// <summary>
-    /// Sequences a list pattern admits: for each length below the threshold a product over that many
-    /// positions, and for every length at or above it one product over the length, <see cref="Prefix"/>
-    /// positions counted from the start and <see cref="Suffix"/> counted from the end -- which are
-    /// distinct elements exactly when the length is at least their sum, so the threshold is where that
-    /// shape becomes exact for every box in the set.
+    /// Below <see cref="Prefix"/> + <see cref="Suffix"/>, each length needs its own positional product.
+    /// At or above that threshold, prefix and suffix positions are distinct, so one product over length
+    /// and those positions is exact for every box.
     /// </summary>
     private sealed record Sequences(int Prefix, int Suffix, IReadOnlyList<IReadOnlyList<object?[]>> Finite, IReadOnlyList<object?[]> Tail)
     {

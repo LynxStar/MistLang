@@ -1,6 +1,4 @@
-// Purity Requirement 1.5 and 1.7 at the accessor: an accessor may state its own promise ahead of its
-// accessibility, on a property and on an indexer, auto or bodied, and the pretty printer keeps it, so
-// parse, print and parse again agree.
+// Purity Requirements 1.5 and 1.7: an accessor may state its own promise ahead of its accessibility.
 
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;

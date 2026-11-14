@@ -9,17 +9,10 @@ using ParameterModifier = Mist.ProgramModel.Model.Enums.ParameterModifier;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR method/constructor/indexer parameters into Mist Parameter instances.
-/// Shared by all member projectors to ensure consistent filtering (pointer types,
-/// unresolvable types).
-/// </summary>
 internal static class ParameterProjector
 {
     /// <summary>
-    /// Projects CLR parameters into Mist Parameter instances.
-    /// Returns null if any parameter has a pointer type or resolves to an error/not-projected type,
-    /// indicating the owning member should be skipped entirely.
+    /// Null when any parameter cannot be projected, which skips the owning member.
     /// </summary>
     public static List<Parameter>? Project(ParameterInfo[] clrParams, Scope scope, AmbientTypeResolver resolver)
     {
@@ -84,14 +77,8 @@ internal static class ParameterProjector
     }
 
     /// <summary>
-    /// Builds the parameter modifier from CLR metadata. CLR carries no ownership tier, so the tier
-    /// is always <see cref="OwnershipKind.Unrestricted"/>.
-    /// <para>
-    /// IsReadonly FOLLOWS THE DIRECTION rather than being decided beside it, so the two cannot
-    /// disagree. It used to be read straight off the <c>In</c> metadata flag, which is set by a
-    /// mutable <c>[In] ref</c> as readily as by a genuine <c>in</c>, and that made every COM-style
-    /// interop parameter look readonly.
-    /// </para>
+    /// The CLR carries no ownership tier. IsReadonly FOLLOWS THE DIRECTION rather than being decided
+    /// beside it, so the two cannot disagree.
     /// </summary>
     private static ParameterModifier BuildModifier(ParameterInfo parameter)
     {
@@ -107,10 +94,9 @@ internal static class ParameterProjector
     /// <para>
     /// THE In FLAG IS NOT READONLY-NESS. It is set by a genuine <c>in</c>, by <c>ref readonly</c>,
     /// and equally by <c>[In] ref</c> and <c>[In, Out] ref</c> -- interop annotations on a parameter
-    /// that stays an ordinary mutable <c>ref</c>. Reading the flag as readonly marks 43 such COM
-    /// parameters in the WindowsDesktop reference pack readonly, and each then takes the wrong
-    /// keyword. Only a readonly MARKER settles it: the compiler emits IsReadOnly for <c>in</c> and
-    /// RequiresLocation for <c>ref readonly</c>, and neither appears on a mutable ref.
+    /// that stays an ordinary mutable <c>ref</c>. Only a readonly MARKER settles it: the compiler emits
+    /// IsReadOnly for <c>in</c> and RequiresLocation for <c>ref readonly</c>, and neither appears on a
+    /// mutable ref.
     /// </para>
     /// <para>
     /// Out is tested first and excludes In, because <c>[In, Out] ref</c> sets both flags and is a
@@ -133,10 +119,8 @@ internal static class ParameterProjector
     }
 
     /// <summary>
-    /// The two markers that mean a by-ref parameter genuinely cannot be written through:
-    /// <c>IsReadOnly</c> for C# <c>in</c>, and <c>RequiresLocation</c> for <c>ref readonly</c>.
-    /// Both arrive as required custom modifiers or as attributes depending on the compiler that
-    /// produced the assembly, so both surfaces are checked.
+    /// Both readonly markers arrive as required custom modifiers or as attributes depending on the
+    /// compiler that produced the assembly, so both surfaces are checked.
     /// </summary>
     internal static bool IsReadonlyRef(ParameterInfo? result)
     {
@@ -167,10 +151,6 @@ internal static class ParameterProjector
         return false;
     }
 
-    /// <summary>
-    /// Checks whether a CLR type involves pointers (unsafe types that cannot
-    /// be represented in Mist).
-    /// </summary>
     private static bool HasPointerType(Type type)
     {
         return type.IsPointer || (type.IsByRef && type.GetElementType()!.IsPointer);

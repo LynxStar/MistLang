@@ -4,11 +4,6 @@ using Mist.ProgramModel.Contracts.Types;
 
 namespace Mist.ProgramModel.Model.Members;
 
-/// <summary>
-/// A cast operator (implicit or explicit conversion) declared on a type.
-/// Cast operators are methods whose return type is the target type and whose
-/// single parameter is the source value.
-/// </summary>
 internal sealed class CastOperator(
     IMistType targetType,
     Parameter sourceParameter,

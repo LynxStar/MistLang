@@ -6,18 +6,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR methods onto a Mist MemberType shell.
-/// Handles instance and static methods, method-level type parameters with
-/// constraints, and filters out property/event accessors and operators.
-/// </summary>
 internal static class MethodProjector
 {
-    /// <summary>
-    /// Projects all public and protected declared methods onto the given MemberType.
-    /// Skips property accessors, event accessors, operators, and methods
-    /// with unresolvable parameter or return types.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -48,22 +38,16 @@ internal static class MethodProjector
         return ProjectMethod(method, memberType, resolver, out withheld);
     }
 
-    /// <summary>
-    /// Projects a single CLR method into a Mist Method instance.
-    /// Returns null if any parameter or return type is unresolvable.
-    /// </summary>
     private static Method? ProjectMethod(
         MethodInfo method, MemberType memberType, AmbientTypeResolver resolver, out Withholding? withheld)
     {
         withheld = null;
 
-        // Create a method scope for method-level type parameters.
         var methodScope = new MethodScope(memberType.Scope)
         {
             IsStatic = method.IsStatic,
         };
 
-        // Project method-level type parameters (if generic method).
         var typeParameters = new List<TypeParameter>();
         if(method.IsGenericMethodDefinition)
         {
@@ -74,7 +58,6 @@ internal static class MethodProjector
             }
         }
 
-        // Resolve return type.
         var returnType = resolver.ResolveInbound(
             method.ReturnType,
             methodScope,
@@ -86,7 +69,6 @@ internal static class MethodProjector
             return null;
         }
 
-        // Resolve parameters via shared projector.
         var parameters = ParameterProjector.Project(method.GetParameters(), methodScope, resolver, out var unresolvable);
         if(parameters is null)
         {
@@ -147,10 +129,8 @@ internal static class MethodProjector
     }
 
     /// <summary>
-    /// Projects method-level generic type parameters and their constraints.
-    /// Uses a two-pass approach: first creates all type parameters and registers
-    /// them in the method scope, then resolves constraints (so cross-parameter
-    /// constraints like <c>where T : U</c> can resolve).
+    /// Every parameter is declared before any constraint resolves, so a constraint may name another
+    /// parameter of the same method.
     /// </summary>
     private static bool ProjectMethodTypeParameters(
         MethodInfo method,
@@ -186,14 +166,8 @@ internal static class MethodProjector
         }
     }
 
-    /// <summary>
-    /// Determines whether a CLR method should be skipped during projection.
-    /// Filters out: private/internal methods, property accessors, event accessors,
-    /// operator overloads, and finalizers.
-    /// </summary>
     private static WithholdingReason? SkipReason(MethodInfo method)
     {
-        // Only project public and protected (family) methods.
         if(!method.IsPublic && !method.IsFamily && !method.IsFamilyOrAssembly)
         {
             return WithholdingReason.NonPublic;
@@ -205,7 +179,6 @@ internal static class MethodProjector
             return WithholdingReason.AccessorOrOperator;
         }
 
-        // Skip finalizers.
         if(method.Name == "Finalize" && method.GetParameters().Length == 0 && method.DeclaringType != typeof(object))
         {
             return WithholdingReason.Finalizer;

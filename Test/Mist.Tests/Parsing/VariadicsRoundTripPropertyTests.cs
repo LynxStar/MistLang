@@ -14,67 +14,19 @@ using Storm.Runtime;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based test for the variadics pretty-printer print/parse round-trip
-/// (Property 1 of the variadics design).
-///
-/// <para>
-/// <b>Property 1: Print/parse round-trip.</b> For every valid AST that contains
-/// variadic surface forms — pack declarations in the <c>params</c> and
-/// <c>Type[]:</c> / <c>Type[N]:</c> spellings, <c>params TArgs args</c> and
-/// homogeneous <c>params T[]</c> value parameters, plain <c>(TArgs...)</c> tuple
-/// parameters, spreads (<c>TArgs...</c> and <c>args...</c>), and both flat and
-/// bracketed argument lists — parsing the text produced by the pretty-printer
-/// yields an AST that is structurally equal to the original: identical node kinds
-/// and nesting, declared identifiers, element types, fixed-size domain lengths, and
-/// modifiers, and the same flat-versus-bracketed choice for each argument list,
-/// disregarding source positions and formatting trivia.
-/// </para>
-///
-/// <para>
-/// The round-trip is exercised entirely <b>in-process</b> with <b>zero</b> external
-/// process spawns: parse source → AST1, pretty-print AST1 → text, re-parse text →
-/// AST2, then assert AST1 and AST2 are structurally equal. Scenarios come from the
-/// shared <see cref="MistVariadicsGenerator"/> and parsing uses the shared
-/// <see cref="VariadicsCompilerFixture"/> (both from task 1.3).
-/// </para>
-///
-/// <para>
-/// Structural equality is checked by <see cref="AstStructurallyEqual"/>, a focused
-/// comparison over the Storm <see cref="SyntaxNode"/> tree that compares (1) the node
-/// kind (runtime type) at each position, (2) every token-valued property by kind and
-/// lexeme — capturing declared identifiers, primitive element-type keywords,
-/// fixed-size domain lengths, and modifier presence — and (3) the ordered child
-/// nodes recursively. Source positions and trivia (spans, parent links, hidden
-/// leading/trailing tokens, and node origins declared on the <see cref="SyntaxNode"/>
-/// base) are deliberately excluded.
-/// </para>
-///
-/// **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
-/// </summary>
 public class VariadicsRoundTripPropertyTests
 {
-    /// <summary>Arbitrary registration for the FsCheck property below.</summary>
     public static Arbitrary<VariadicSurfaceScenario> VariadicScenarios()
     {
         return MistVariadicsGenerator.ArbitraryVariadicSurfaceScenario();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Print/parse round-trip (structural equality).
-    //
-    // **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6**
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Property(Arbitrary = new[] { typeof(VariadicsRoundTripPropertyTests) }, MaxTest = 100)]
     public Property RoundTrip_VariadicSurfaceForms_IsStructurallyStable(VariadicSurfaceScenario scenario)
     {
-        // Step 1: parse the generated source into the original AST (AST1).
         var outcome1 = VariadicsCompilerFixture.Parse(scenario.Source);
         if(!VariadicsCompilerFixture.ParsedCleanly(outcome1) || outcome1.Root is null)
         {
-            // The generators only emit grammar-valid source (guaranteed by the task
-            // 1.3 smoke test), so a parse failure here is unexpected — surface it.
             return false.ToProperty().Label(
                 $"Generated source did not parse cleanly:\n{scenario.Source}\n"
                 + DescribeDiagnostics(outcome1.Diagnostics));
@@ -82,8 +34,6 @@ public class VariadicsRoundTripPropertyTests
 
         var ast1 = outcome1.Root;
 
-        // Step 2: pretty-print AST1 (using the original source for qualified-name
-        // fidelity), then re-parse the printed text into AST2 — all in-process.
         var printed = MistPrettyPrinter.Print(ast1, scenario.Source);
         var outcome2 = VariadicsCompilerFixture.Parse(printed);
         if(!VariadicsCompilerFixture.ParsedCleanly(outcome2) || outcome2.Root is null)
@@ -96,23 +46,11 @@ public class VariadicsRoundTripPropertyTests
 
         var ast2 = outcome2.Root;
 
-        // Step 3: AST1 and AST2 must be structurally equal, ignoring positions/trivia.
         var equal = AstStructurallyEqual(ast1, ast2, out var diff);
         return equal.ToProperty().Label(
             $"Round-trip AST mismatch: {diff}\nSource:\n{scenario.Source}\nPrinted:\n{printed}");
     }
 
-    // ─── Structural equality over the AST (ignoring positions/trivia) ────────
-
-    /// <summary>
-    /// Structurally compares two AST subtrees, ignoring source positions and trivia.
-    /// Two nodes are structurally equal when they have the same runtime type (node
-    /// kind), all their token-valued properties match by token kind and lexeme, and
-    /// their ordered child nodes are pairwise structurally equal.
-    /// </summary>
-    /// <param name="diff">
-    /// On failure, a human-readable description of the first difference found.
-    /// </param>
     private static bool AstStructurallyEqual(SyntaxNode? a, SyntaxNode? b, out string diff)
     {
         // Children() may yield null entries for absent non-nullable child slots, so
@@ -217,10 +155,6 @@ public class VariadicsRoundTripPropertyTests
         return true;
     }
 
-    /// <summary>
-    /// Two tokens are equal for round-trip purposes when they have the same token
-    /// kind and lexeme. Span, line/column position, and channel are ignored.
-    /// </summary>
     private static bool TokensEqual(Token a, Token b)
     {
         return a.Kind == b.Kind && a.Lexeme == b.Lexeme;

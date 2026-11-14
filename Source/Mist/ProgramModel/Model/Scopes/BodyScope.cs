@@ -8,12 +8,9 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// Locals and parameters: a member body, or any nested block within one. To name resolution those
-/// are the same thing, so one kind serves both, nested by block.
-/// <para>
-/// Deliberately not where staticness lives. A body can be many blocks deep and the request must
-/// narrow exactly once on the way out, which is the <see cref="MethodScope"/> above it.
-/// </para>
+/// A member body or any block nested in one: to name resolution those are the same thing. Deliberately
+/// not where staticness lives: a body can be many blocks deep and the request must narrow exactly once
+/// on the way out, which is the <see cref="MethodScope"/> above it.
 /// </summary>
 internal sealed class BodyScope(Scope parent) : Scope(parent)
 {
@@ -28,9 +25,8 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
     public IReadOnlyDictionary<string, LocalVariable> Locals => locals;
 
     /// <summary>
-    /// The local function built for each declaration in this scope's statement list, kept by node
-    /// rather than by name so a declaration whose name was refused as a duplicate still binds its
-    /// own body rather than the first declaration's.
+    /// Keyed by node rather than by name so a declaration whose name is refused as a duplicate still
+    /// binds its own body rather than the first declaration's.
     /// </summary>
     public IReadOnlyDictionary<LocalFunctionDeclarationNode, Method> LocalFunctions => functionsByNode;
 
@@ -72,8 +68,7 @@ internal sealed class BodyScope(Scope parent) : Scope(parent)
     }
 
     /// <summary>
-    /// Declares a local or parameter. Errors only if THIS scope already declares the name -- an
-    /// outer scope declaring it is shadowing, not a conflict.
+    /// An outer scope declaring the name is shadowing, not a conflict.
     /// </summary>
     public void DeclareLocal(LocalVariable local, SyntaxNode declaration, DiagnosticBag diagnostics, SourceSpan? nameSpan = null)
     {

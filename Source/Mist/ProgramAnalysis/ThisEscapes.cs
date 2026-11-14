@@ -8,13 +8,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a member can hand out the object it runs on: its body -- for a construction, the whole chain
-/// of constructors and the instance initializers they run -- uses `this` other than through a member
-/// access on it, as an argument, a stored value, a capture or a method group, or calls a member of the
-/// object that does. A construction that cannot is fresh when the caller receives it, and a local that
-/// only calls such members keeps what it holds to itself. A declared pure member writes nothing outside
-/// what it owns, so it cannot keep `this` anywhere; a method with no body here may do anything, while a
-/// constructor with none is the runtime's and taken to build what it returns.
+/// Freshness requires the whole constructor chain and its initializers to keep this private;
+/// locals retain exclusivity only while calling members that do likewise. Pure members cannot
+/// store this externally. A bodiless method is untrusted, but a bodiless runtime constructor
+/// is trusted to build what it returns.
 /// </summary>
 internal static class ThisEscapes
 {

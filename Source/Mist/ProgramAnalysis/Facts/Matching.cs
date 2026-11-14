@@ -7,11 +7,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Facts;
 
 /// <summary>
-/// Match facts: a string value fully matches a regex, named by the regex literal's body. A value's own type states the matches
-/// its refinement names; a narrowing <c>is</c> states the rest. A match is proven when a value equal to the text holds a literal
-/// <see cref="LiteralPredicates.Decide(IMistType, LiteralValue?)"/> accepts, or holds every match the target asks for. A literal
-/// or match belongs to its own value and is reached through the copies in each alternative, so joined paths keep theirs and an
-/// alternative selected later proves with the knowledge of the path it came from.
+/// Regex facts name full matches by the literal's body, from a value's type or a narrowing <c>is</c>.
+/// Literals and matches stay with their own values; copies in each alternative expose them without
+/// losing path-specific knowledge at joins.
 /// </summary>
 internal static class Matching
 {

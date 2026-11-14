@@ -179,8 +179,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     }
 
     /// <summary>
-    /// A linear or affine binding is the one holder its discipline allows, so it lends with the access an
-    /// owned binding does; an unrestricted binding of any other type may be aliased and lends nothing.
+    /// Linear and affine bindings have one holder, so they lend with owned access despite an unrestricted binding modifier.
     /// </summary>
     private static bool Exclusive(IMistType type)
     {

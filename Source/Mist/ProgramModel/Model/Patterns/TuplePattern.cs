@@ -7,12 +7,6 @@ namespace Mist.ProgramModel.Model.Patterns;
 /// <summary>
 /// <c>(p, q, ...)</c>. Each element pattern matches against the element the scrutinee holds at that
 /// position, so an element's type is its subpattern's scrutinee and nesting narrows progressively.
-/// <para>
-/// A whole-value binding coexists with the element bindings, as it does for a property pattern.
-/// <c>x is (int a, int b) whole</c> keeps three names, and only one of them belongs to this node --
-/// which is what <see cref="Pattern.Binding"/> being singular per node means, rather than a pattern
-/// having at most one binder anywhere beneath it.
-/// </para>
 /// </summary>
 internal sealed class TuplePattern(
     SyntaxNode node,
@@ -21,9 +15,6 @@ internal sealed class TuplePattern(
     IMistType? testedType,
     LocalVariable? binding) : Pattern(node)
 {
-    /// <summary>
-    /// The element patterns in positional order.
-    /// </summary>
     public IReadOnlyList<Pattern> Elements { get; } = elements;
 
     /// <summary>

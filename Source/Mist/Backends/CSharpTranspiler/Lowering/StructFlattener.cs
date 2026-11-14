@@ -9,7 +9,6 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// Folds a struct's inherited members into it, producing the member set the C# backend emits.
 /// See <see cref="FlattenedStruct"/> for why this exists and what it guarantees.
 /// </summary>
 internal sealed class StructFlattener
@@ -22,8 +21,8 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// Flattens a struct. Safe to call on a struct with no base, which yields its own members with
-    /// accessibility remapped -- so the emitter has one code path rather than two.
+    /// Safe to call on a struct with no base, which yields its own members with accessibility
+    /// remapped -- so the emitter has one code path rather than two.
     /// </summary>
     public FlattenedStruct Flatten(StructType structType)
     {
@@ -44,14 +43,10 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// Appends <paramref name="structType"/>'s chain root-first, then its own members.
-    /// <para>
     /// Recursive rather than iterative because a generic ancestor's type parameters have to be
     /// substituted once per level on the way back down. Recursion puts each level's substitution
-    /// exactly where the members it applies to are returned, so a chain like
-    /// <c>C : B&lt;int&gt;</c> over <c>B&lt;T&gt; : A&lt;T&gt;</c> composes without the caller
-    /// tracking a substitution stack.
-    /// </para>
+    /// exactly where the members it applies to are returned, so a multi-level generic chain composes
+    /// without the caller tracking a substitution stack.
     /// </summary>
     private void CollectInto(
         StructType structType,
@@ -185,12 +180,9 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// The base chain root first, excluding <paramref name="structType"/> itself.
-    /// <para>
     /// Each ancestor's reference is taken from the level that named it, so a grandparent is named
     /// as the PARENT spelled it. For a generic ancestor more than one level up that means its type
     /// arguments are the parent's, which is only correct where they pass straight through unchanged.
-    /// </para>
     /// </summary>
     private static ImmutableArray<AbsorbedAncestor> CollectAncestors(StructType structType)
     {
@@ -217,10 +209,8 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// A field name already present from an ancestor. Legal Mist -- two levels declaring a private
-    /// field cannot see each other -- but flattening puts both in one struct, where the name can
-    /// only mean one of them. Refused rather than resolved by picking, which would silently drop a
-    /// field.
+    /// Enforces <see cref="BackendDiagnostics.StructInheritanceFieldCollision"/>, refusing rather than
+    /// resolving by picking, which would silently drop a field.
     /// </summary>
     private void ReportIfCollides(
         Field field,
@@ -245,10 +235,6 @@ internal sealed class StructFlattener
         }
     }
 
-    /// <summary>
-    /// Whether the struct declares a method matching <paramref name="candidate"/>'s name and
-    /// parameter types, which is what makes the inherited one an override to be skipped.
-    /// </summary>
     private static bool DeclaresSignature(StructType structType, Method candidate)
     {
         foreach(var declared in structType.MethodsList)
@@ -263,8 +249,8 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// Name plus parameter types. Return type is excluded because it does not distinguish
-    /// overloads, so two methods differing only in it would collide in C# as well.
+    /// Return type is excluded because it does not distinguish overloads, so two methods differing
+    /// only in it would collide in C# as well.
     /// </summary>
     private static string SignatureKey(Method method)
     {
@@ -273,8 +259,7 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// The accessibility to emit. Only <c>protected</c> moves; see
-    /// <see cref="FlattenedField.Accessibility"/> for why it becomes private.
+    /// See <see cref="FlattenedField.Accessibility"/> for why <c>protected</c> becomes private.
     /// </summary>
     private static Accessibility Remap(Accessibility declared)
     {
@@ -282,9 +267,7 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// Splits a base type reference into the struct it names and, when the reference was generic,
-    /// the construction to substitute its type arguments through. Both null when there is no base,
-    /// or when the base is not a struct -- an abstract in the base list is a conformance rather
+    /// Both null when the base is not a struct: an abstract in the base list is a conformance rather
     /// than something to flatten, and is left for the base list to emit.
     /// </summary>
     private static (StructType? BaseStruct, ConstructedType? Constructed) UnwrapBase(MistType? baseType)
@@ -304,9 +287,9 @@ internal sealed class StructFlattener
     }
 
     /// <summary>
-    /// Reports a struct that inherits an intrinsic struct. The immediate base only: every struct in a
-    /// chain is flattened in its own right, so a deeper intrinsic ancestor is reported against the
-    /// struct that names it, which is where the declaration a reader has to change actually sits.
+    /// The immediate base only: every struct in a chain is flattened in its own right, so a deeper
+    /// intrinsic ancestor is reported against the struct that names it, which is where the
+    /// declaration a reader has to change actually sits.
     /// </summary>
     public static void ReportIntrinsicBase(StructType structType, DiagnosticBag diagnostics)
     {

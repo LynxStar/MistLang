@@ -3,10 +3,6 @@ using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
 
-/// <summary>
-/// Base class for all type definitions in the program model.
-/// Contains the fields that 100% of types have regardless of kind.
-/// </summary>
 internal abstract class MistType : IMistType
 {
     /// <summary>
@@ -34,9 +30,8 @@ internal abstract class MistType : IMistType
 
     /// <summary>
     /// A type that OWNS its scope -- see <see cref="DeclaredType"/>. The scope is built here rather
-    /// than passed in because it needs this type, and this type needs it: handing the factory
-    /// <c>this</c> is what lets both ends be readonly instead of one being filled in after
-    /// construction.
+    /// than passed in because each needs the other: handing the factory <c>this</c> lets both ends be
+    /// readonly.
     /// </summary>
     /// <param name="scopeFactory">
     /// Receives this type and returns the scope it owns. Called with a partially constructed type,
@@ -72,14 +67,8 @@ internal abstract class MistType : IMistType
     }
 
     /// <summary>
-    /// A generic definition's name without the arity marker it is registered under
-    /// (<c>Box&lt;&gt;</c> to <c>Box</c>), so type arguments can be written in its place. The
-    /// inverse of <c>ScopeResolver.BuildArityName</c>, which puts the marker there.
-    /// <para>
-    /// Shared because three callers need it and each one writing the <c>IndexOf('&lt;')</c> itself
-    /// is how <c>Box&lt;&gt;&lt;int&gt;</c> came about: the two that stripped were the emitter and
-    /// the diagnostic renderer, and the one that forgot was the name the type reports for itself.
-    /// </para>
+    /// A generic definition's name without the arity marker it is registered under, so type arguments
+    /// can be written in its place. The inverse of <c>ScopeResolver.BuildArityName</c>.
     /// </summary>
     public static string StripArity(string definitionName)
     {
@@ -88,8 +77,7 @@ internal abstract class MistType : IMistType
     }
 
     /// <summary>
-    /// The type's own scope. Parent is the file scope for top-level types,
-    /// or the enclosing type's scope for nested types.
+    /// Parented by the file scope for a top-level type, or by the enclosing type's scope for a nested one.
     /// </summary>
     public Scope Scope { get; }
 
@@ -98,14 +86,9 @@ internal abstract class MistType : IMistType
     public List<MistType> NestedTypes { get; } = [];
 
     /// <summary>
-    /// The assembly this type belongs to, overwritten when the type is registered
-    /// against a declaration boundary.
-    /// <para>
-    /// Defaults to <see cref="MistAssembly.Synthetic"/>, which is the correct answer for
-    /// every type the compiler constructs rather than reads from a declaration, and those
-    /// are exactly the types that are never registered. Registration is therefore the
-    /// only thing that changes it, and the property is never null.
-    /// </para>
+    /// Overwritten when the type is registered against a declaration boundary. The default,
+    /// <see cref="MistAssembly.Synthetic"/>, is correct for every type the compiler constructs rather
+    /// than reads from a declaration, and those are exactly the types never registered.
     /// </summary>
     public MistAssembly Assembly { get; internal set; } = MistAssembly.Synthetic;
 

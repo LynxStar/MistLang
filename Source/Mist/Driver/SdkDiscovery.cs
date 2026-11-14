@@ -6,9 +6,8 @@ using Mist.Common.Diagnostics;
 namespace Mist.Driver;
 
 /// <summary>
-/// Locates the .NET SDK installation and resolves the target framework
-/// reference assembly path. Implements a two-level cache (in-process static
-/// + disk file) to avoid spawning <c>dotnet --list-sdks</c> on every compilation.
+/// Caches the reference assembly path in process and on disk so a compilation need not spawn
+/// <c>dotnet --list-sdks</c>.
 /// </summary>
 public static partial class SdkDiscovery
 {
@@ -24,30 +23,16 @@ public static partial class SdkDiscovery
         CacheFile.Read,
         CacheFile.Update);
 
-    /// <summary>
-    /// Timeout for the <c>dotnet --list-sdks</c> process spawn.
-    /// </summary>
     private const int DotnetTimeoutMs = 10_000;
 
     [GeneratedRegex(@"^(\d+\.\d+\.\d+)\s+\[(.+)\]$")]
     private static partial Regex SdkLinePattern();
 
-    /// <summary>
-    /// Discovers the SDK reference assembly path for the given target framework.
-    /// Uses a two-level cache: in-process static cache, then disk cache at
-    /// <c>~/.mist/sdk-ref-path.cache</c>, then full discovery via
-    /// <c>dotnet --list-sdks</c> and well-known paths.
-    /// Returns <c>null</c> and emits diagnostics on failure.
-    /// </summary>
     public static string? FindReferenceAssemblyPath(string targetFramework, DiagnosticBag diagnostics)
     {
         return ReferencePathCache.Find(targetFramework, diagnostics);
     }
 
-    /// <summary>
-    /// Regenerates the disk cache's <c>net10.0</c> entry by running full SDK discovery.
-    /// Called by the publish script to warm the cache after SDK updates.
-    /// </summary>
     public static void RegenerateDiskCache()
     {
         _ = ReferencePathCache.Regenerate("net10.0", new DiagnosticBag());
@@ -55,10 +40,8 @@ public static partial class SdkDiscovery
 
     private static string? RunFullDiscovery(string targetFramework, DiagnosticBag diagnostics)
     {
-        // Extract the TFM short name (e.g., "net10.0" → "net10.0")
         var tfm = targetFramework;
 
-        // Locate the dotnet root (the directory containing packs/).
         var sdkRoot = FindDotnetRoot();
 
         if(sdkRoot is null)
@@ -67,7 +50,6 @@ public static partial class SdkDiscovery
             return null;
         }
 
-        // Find the highest version reference assembly path for the target framework.
         var refPath = FindHighestVersionRefPath(sdkRoot, tfm);
         if(refPath is null)
         {
@@ -80,28 +62,14 @@ public static partial class SdkDiscovery
     }
 
     /// <summary>
-    /// Discovers the .NET installation root: the directory that contains the
-    /// <c>packs/</c> folder (e.g., <c>/usr/share/dotnet</c>). Tries
-    /// <c>dotnet --list-sdks</c> first, then falls back to well-known paths.
-    /// Returns <c>null</c> when no installation can be located.
+    /// The directory holding <c>packs/</c>. Uncached: <see cref="FindReferenceAssemblyPath"/> caches the
+    /// reference-assembly directory, not this root.
     /// </summary>
-    /// <remarks>
-    /// Exposed for reuse by <see cref="FrameworkReferenceResolver"/>, which
-    /// resolves reference packs relative to the same root. This method performs
-    /// no caching; the cached path served by
-    /// <see cref="FindReferenceAssemblyPath"/> is the resolved reference-assembly
-    /// directory, not the dotnet root.
-    /// </remarks>
     internal static string? FindDotnetRoot()
     {
-        // Try dotnet --list-sdks first, then fall back to well-known paths.
         return TryDiscoverViaDotnetCli() ?? TryWellKnownPaths();
     }
 
-    /// <summary>
-    /// Runs <c>dotnet --list-sdks</c> and parses the output to find the SDK root.
-    /// Returns the dotnet root directory (parent of the sdk/ folder), or null on failure.
-    /// </summary>
     private static string? TryDiscoverViaDotnetCli()
     {
         try
@@ -144,11 +112,6 @@ public static partial class SdkDiscovery
         }
     }
 
-    /// <summary>
-    /// Parses the output of <c>dotnet --list-sdks</c> to find the SDK root directory.
-    /// Each line has the format: <c>version [path]</c>
-    /// We pick the highest version and derive the dotnet root from the path.
-    /// </summary>
     internal static string? ParseSdkListOutput(string output)
     {
         if(string.IsNullOrWhiteSpace(output))
@@ -176,8 +139,6 @@ public static partial class SdkDiscovery
                 if(highestVersion is null || version > highestVersion)
                 {
                     highestVersion = version;
-                    // The path in the output is the sdk folder (e.g., /usr/share/dotnet/sdk)
-                    // The dotnet root is its parent.
                     highestPath = sdkPath;
                 }
             }
@@ -188,16 +149,11 @@ public static partial class SdkDiscovery
             return null;
         }
 
-        // The [path] in dotnet --list-sdks output is the directory containing
-        // the SDK version folders (e.g., /usr/share/dotnet/sdk).
-        // The dotnet root is the parent of that directory.
+        // Each listed path is the sdk folder holding the SDK versions; the dotnet root is its parent.
         var dotnetRoot = Path.GetDirectoryName(highestPath);
         return dotnetRoot;
     }
 
-    /// <summary>
-    /// Tries well-known .NET installation paths as a fallback.
-    /// </summary>
     private static string? TryWellKnownPaths()
     {
         var candidates = GetWellKnownDotnetPaths();
@@ -236,7 +192,6 @@ public static partial class SdkDiscovery
             ];
         }
 
-        // Linux and other Unix
         return
         [
             "/usr/share/dotnet",
@@ -245,11 +200,6 @@ public static partial class SdkDiscovery
         ];
     }
 
-    /// <summary>
-    /// Finds the highest version of <c>Microsoft.NETCore.App.Ref</c> that
-    /// provides reference assemblies for the given target framework moniker.
-    /// Path pattern: <c>{sdkRoot}/packs/Microsoft.NETCore.App.Ref/{version}/ref/{tfm}/</c>
-    /// </summary>
     internal static string? FindHighestVersionRefPath(string sdkRoot, string tfm)
     {
         var packsDir = Path.Combine(sdkRoot, "packs", "Microsoft.NETCore.App.Ref");
@@ -268,7 +218,6 @@ public static partial class SdkDiscovery
             return null;
         }
 
-        // Extract the major version from the TFM (e.g., "net10.0" → 10)
         var tfmMajor = ExtractTfmMajorVersion(tfm);
 
         Version? highestVersion = null;
@@ -282,7 +231,6 @@ public static partial class SdkDiscovery
                 continue;
             }
 
-            // Only consider versions whose major matches the TFM major
             if(tfmMajor.HasValue && version.Major != tfmMajor.Value)
             {
                 continue;
@@ -304,11 +252,6 @@ public static partial class SdkDiscovery
         return highestRefPath;
     }
 
-    /// <summary>
-    /// Extracts the major version number from a TFM string.
-    /// E.g., "net10.0" → 10, "net8.0" → 8, "net9.0" → 9.
-    /// Returns null if the TFM cannot be parsed.
-    /// </summary>
     internal static int? ExtractTfmMajorVersion(string tfm)
     {
         if(tfm.StartsWith("net", StringComparison.OrdinalIgnoreCase) && tfm.Contains('.'))

@@ -15,8 +15,6 @@ internal sealed class ProgramScope(ProgramModel programModel) : Scope(parent: nu
             return new TypeResult(type);
         }
 
-        // Or a namespace being used to qualify something, as `Simpliest` in
-        // `Simpliest.Program.RunDemo()`.
         if(programModel.IsKnownNamespace(request.Name))
         {
             return new NamespaceResult(request.Name);

@@ -4,9 +4,6 @@ using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Statements;
 
-/// <summary>
-/// A foreach loop: <c>foreach (T name in collection) { body }</c>.
-/// </summary>
 internal sealed class ForEachStatement(
     LocalVariable variable,
     Expression collection,

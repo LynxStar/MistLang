@@ -8,10 +8,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
-/// Whether a receiver can be indexed or sliced, and what either yields. The ARGUMENT's type asks the
-/// question -- an index reads one element out, a range reads a contiguous sub-sequence -- so an element
-/// access cannot be typed from its receiver alone, and a list pattern needs both answers at once for
-/// its positional elements and its slice.
+/// The ARGUMENT's type decides between reading one element and reading a sub-sequence, so an element
+/// access cannot be typed from its receiver alone, and a list pattern needs both answers at once for its
+/// positional elements and its slice.
 /// </summary>
 internal static class Indexability
 {
@@ -80,10 +79,8 @@ internal static class Indexability
     }
 
     /// <summary>
-    /// Every indexer the receiver answers, its own and each one it inherits, paired with the
-    /// constructed bases it was reached through so a generic base's slot closes as the receiver sees
-    /// it. A call's candidates walk the chain through the scope tree; an index has no name to look up,
-    /// so the walk is here.
+    /// A call's candidates walk the inheritance chain through the scope tree; an index has no name to
+    /// look up, so the walk is here.
     /// </summary>
     public static IReadOnlyList<Indexer> Indexers(IMistType receiverType)
     {
@@ -217,9 +214,8 @@ internal static class Indexability
     }
 
     /// <summary>
-    /// The Slice C#'s implicit range support calls, which it takes only as an instance method of no type
-    /// parameters whose two parameters are int values, so the candidates are narrowed to that shape before
-    /// the ordinary selection weighs them. Null when the receiver has none of that shape.
+    /// C#'s implicit range support calls a Slice only if it is an instance method of no type parameters
+    /// whose two parameters are int values, so the candidates are narrowed to that shape first.
     /// </summary>
     public static OverloadChoice<Method>? SelectSlice(IMistType receiverType, Storm.Runtime.SyntaxNode node, BuilderContext context)
     {

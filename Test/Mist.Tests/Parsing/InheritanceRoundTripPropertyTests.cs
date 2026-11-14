@@ -1,4 +1,5 @@
 // Feature: class-inheritance, Property 1: Parse/print round-trip for inheritance clauses
+// **Validates: Requirements 1.1, 1.2, 1.4, 1.5, 1.6**
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -10,21 +11,10 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for parse/print round-trip with inheritance clauses.
-///
-/// **Validates: Requirements 1.1, 1.2, 1.4, 1.5, 1.6**
-///
-/// For any valid Mist AST containing class declarations with or without an
-/// inheritance clause, pretty-printing the AST to source text, parsing it back,
-/// and pretty-printing again SHALL produce identical source text.
-/// </summary>
 public class InheritanceRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Token helper ────────────────────────────────────────────────────
 
     private static Storm.Runtime.Token Tok(string lexeme)
     {
@@ -37,12 +27,6 @@ public class InheritanceRoundTripPropertyTests
             lexeme: lexeme);
     }
 
-    // ─── Test data model ─────────────────────────────────────────────────
-
-    /// <summary>
-    /// Represents a generated test case: a set of class declarations, some with
-    /// inheritance clauses, wrapped in a CompilationUnitNode.
-    /// </summary>
 #pragma warning disable CA1034
     public record InheritanceRoundTripTestCase(
         string Description,
@@ -138,18 +122,12 @@ public class InheritanceRoundTripPropertyTests
         return new CompilationUnitNode { Items = types.AsTopLevelItems() };
     }
 
-    // ─── FsCheck generators ─────────────────────────────────────────────
-
     private static readonly string[] ClassNames = ["Animal", "Dog", "Cat", "Vehicle", "Car", "Shape", "Circle"];
     private static readonly string[] FieldNames = ["x", "y", "name", "value", "count", "size"];
     private static readonly string[] MethodNames = ["DoWork", "Process", "GetValue", "Run", "Execute"];
 
-    /// <summary>
-    /// Generates a random set of class declarations, some with inheritance clauses.
-    /// </summary>
     private static Gen<InheritanceRoundTripTestCase> GenTestCase()
     {
-        // Strategy: generate 1-3 classes where derived classes may reference earlier classes as base.
         // We use a fixed-size approach to avoid Gen.ArrayOf sizing issues.
         var gen1Class = from idx in Gen.Choose(0, ClassNames.Length - 1)
                         from memberCount in Gen.Choose(0, 2)
@@ -202,7 +180,6 @@ public class InheritanceRoundTripPropertyTests
 
         for(var i = 0; i < classIndices.Length; i++)
         {
-            // Ensure unique class names
             var baseName = ClassNames[classIndices[i]];
             var name = baseName;
             var suffix = 0;
@@ -214,20 +191,17 @@ public class InheritanceRoundTripPropertyTests
 
             declaredNames.Add(name);
 
-            // Determine base class: only if there's a previously declared class and hasInheritance is true
             string? baseClassName = null;
             if(hasInheritance[i] && i > 0)
             {
                 baseClassName = declaredNames[rng.Next(i)];
             }
 
-            // Build members
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             var memberCount = memberCounts[i];
 
             for(var m = 0; m < memberCount; m++)
             {
-                // Alternate between fields and methods to keep it simple
                 if(m % 2 == 0)
                 {
                     var fieldName = FieldNames[rng.Next(FieldNames.Length)];
@@ -252,7 +226,6 @@ public class InheritanceRoundTripPropertyTests
                 }
             }
 
-            // Optionally add a constructor with base chain for derived classes
             if(baseClassName is not null && rng.Next(2) == 0)
             {
                 members.Add(new ConstructorMemberMemberDeclarationNode
@@ -281,35 +254,22 @@ public class InheritanceRoundTripPropertyTests
         return new InheritanceRoundTripTestCase(description, MakeCompilationUnit(classDecls.ToArray()));
     }
 
-    /// <summary>FsCheck Arbitrary registration for InheritanceRoundTripTestCase.</summary>
     public static Arbitrary<InheritanceRoundTripTestCase> ArbitraryInheritanceRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // Property 1: Parse/print round-trip for inheritance clauses
-    //
-    // **Validates: Requirements 1.1, 1.2, 1.4, 1.5, 1.6**
-    //
-    // For any valid Mist AST containing class declarations with or without
-    // an inheritance clause, pretty-printing → parsing → pretty-printing
-    // SHALL produce identical source text.
-    // ═════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(InheritanceRoundTripPropertyTests) })]
     public Property RoundTrip_PrintParsePreservesInheritanceClauses(InheritanceRoundTripTestCase testCase)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -330,10 +290,8 @@ public class InheritanceRoundTripPropertyTests
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);
 
-        // Step 4: Compare the two printed outputs — they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
         ;

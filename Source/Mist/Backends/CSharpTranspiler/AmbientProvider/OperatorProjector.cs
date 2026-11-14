@@ -6,17 +6,10 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR operator overloads and cast operators (implicit/explicit conversions)
-/// onto a Mist MemberType or ConcreteType shell. CLR operators are static methods
-/// with <see cref="MethodBase.IsSpecialName"/> and names like "op_Addition",
-/// "op_Implicit", "op_Explicit".
-/// </summary>
 internal static class OperatorProjector
 {
     /// <summary>
-    /// Maps CLR operator method names to Mist <see cref="OperatorKind"/> values.
-    /// Only operators that have a Mist representation are included.
+    /// Only operators with a Mist representation are listed.
     /// </summary>
     private static readonly Dictionary<string, OperatorKind> OperatorNameMap = new()
     {
@@ -36,11 +29,6 @@ internal static class OperatorProjector
         ["op_UnaryPlus"] = OperatorKind.Plus,
     };
 
-    /// <summary>
-    /// Projects all public operator overloads and cast operators onto the given type.
-    /// Regular operators go to <see cref="MemberType.OperatorsList"/>.
-    /// Cast operators go to <see cref="ConcreteType.CastOperatorsList"/> (if applicable).
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(MemberType memberType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -64,9 +52,6 @@ internal static class OperatorProjector
         }
     }
 
-    /// <summary>
-    /// Projects a regular operator (arithmetic, comparison, logical) onto the type.
-    /// </summary>
     private static void ProjectOperator(MethodInfo method, OperatorKind kind, MemberType memberType, AmbientTypeResolver resolver)
     {
         var returnType = resolver.Resolve(
@@ -93,10 +78,6 @@ internal static class OperatorProjector
         memberType.OperatorsList.Add(op);
     }
 
-    /// <summary>
-    /// Projects an implicit or explicit cast operator onto the type.
-    /// Cast operators are only stored on <see cref="ConcreteType"/> (classes/structs).
-    /// </summary>
     private static void ProjectCastOperator(MethodInfo method, MemberType memberType, AmbientTypeResolver resolver)
     {
         if(memberType is not ConcreteType concreteType)

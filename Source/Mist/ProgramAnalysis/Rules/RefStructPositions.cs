@@ -6,10 +6,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Which storage may hold a ref struct (ref-structs Requirement 3): an instance field of another ref struct,
-/// and nothing static. A property is refused in any class or struct that is not a ref struct, whether or not
-/// it has storage, as Requirement 3.6 words it; a static one in a ref struct only when it has storage, since
-/// a computed one stores nothing.
+/// Ref-structs Requirement 3.6 refuses even computed properties in non-ref classes and structs;
+/// static properties in a ref struct are refused only when backed by storage.
 /// </summary>
 internal static class RefStructPositions
 {

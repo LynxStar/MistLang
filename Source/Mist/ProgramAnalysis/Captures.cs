@@ -6,8 +6,8 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What a closure -- a lambda or a local function -- declares for itself, so that every other local
-/// it references is a capture of the enclosing body's.
+/// Names declared inside a closure, including nested closures' parameters, are not captures
+/// of the enclosing body.
 /// </summary>
 internal static class Captures
 {

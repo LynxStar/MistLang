@@ -6,15 +6,10 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
 /// <summary>
-/// Binds a <c>new { ... }</c> literal. Each member contributes a name and a value, and the names are
-/// what the literal's TYPE is built from -- see <see cref="Model.Types.AnonymousType"/>.
-/// <para>
 /// A PROJECTED member takes its name from the syntax it was written as, never from what that syntax
-/// resolved to: <c>new { lang.Name }</c> is named Name because the source says Name, and reading the
-/// name off the bound expression instead would have nothing to read for every form that is not a
-/// member access. So the name is decided before the value is bound, which is also why an unnameable
-/// projection can be refused without binding anything.
-/// </para>
+/// resolved to, since a bound expression that is not a member access has no name to read. So the name
+/// is decided before the value is bound, which also lets an unnameable projection be refused without
+/// binding anything.
 /// </summary>
 internal static class AnonymousObjectBinder
 {

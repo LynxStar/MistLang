@@ -10,13 +10,9 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The places that would hold a ref struct off the stack: storage <see cref="RefStructPositions"/> refuses,
-/// a type argument, a union constituent, an optional, and a tuple or array element. A composite is judged
-/// where it was written -- an alias's union once, at the alias, and again at a use only for what that use
-/// closed its parameters with -- and an inferred tuple or array literal where it is formed, unless a
-/// written target gave it its type. A ref struct local, parameter or return stays admitted, and so does a
-/// ref struct declaring an interface: the boxing that would follow is refused where a value is converted
-/// or type-tested, by <see cref="Assignability.Boxing"/>.
+/// Judge composites at their written declaration; alias uses answer only for newly closed arguments.
+/// Inferred literals answer at formation unless a written target supplies their type. Interface conformance
+/// stays legal: <see cref="Assignability.Boxing"/> refuses boxing at conversions and type tests instead.
 /// </summary>
 internal sealed class RefStructPositionAnalyzer : IProgramAnalyzer
 {

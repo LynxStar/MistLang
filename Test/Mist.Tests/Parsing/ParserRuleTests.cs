@@ -5,16 +5,7 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests for parser rules.
-/// Validates operator precedence, statement forms, and edge cases.
-///
 /// Requirements: 2.1-2.11, 3.1-3.9, 4.1-4.8
-///
-/// Note: The parser is currently skeletal (returns null root). These tests
-/// are structured to validate behavior once the full parser is implemented.
-/// Tests that require a non-null AST root gracefully handle the skeletal case.
-/// </summary>
 public class ParserRuleTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -27,8 +18,6 @@ public class ParserRuleTests
         var tokens = Lexer.Lex(sourceText, bag);
         return Parser.Parse(tokens, bag);
     }
-
-    // --- Edge Cases ---
 
     [Fact]
     public void EmptyProgram_ParsesWithoutErrors()
@@ -62,12 +51,9 @@ public class ParserRuleTests
         Assert.Empty(result.Diagnostics);
     }
 
-    // --- Operator Precedence Tests ---
-
     [Fact]
     public void OperatorPrecedence_MultiplicationBindsTighterThanAddition()
     {
-        // "1 + 2 * 3" should parse as "1 + (2 * 3)", not "(1 + 2) * 3"
         var source = "class T { public void M() { int x = 1 + 2 * 3; } }";
         var result = ParseSource(source);
 
@@ -92,13 +78,10 @@ public class ParserRuleTests
             var relational = (RelationalComparisonRelationalNode)equality.Left;
             var additive = relational.Left;
 
-            // The additive node should have a PLUS operator
             Assert.Equal((int)TokenKind.PLUS, additive.Group0[^1].Operator.Kind);
-            // The right side of the additive should contain the multiplicative (2 * 3)
             var multiplicative = additive.Group0[^1].Right;
             Assert.Equal((int)TokenKind.STAR, multiplicative.Group0[^1].Operator.Kind);
         }
-        // If Root is null (skeletal parser), the test passes gracefully.
     }
 
     [Fact]
@@ -120,7 +103,6 @@ public class ParserRuleTests
             var assignment = expr.AsAssignment();
             var logicalOr = assignment.Target.Left;
 
-            // LogicalOr should have one repeated operand (b && c)
             _ = Assert.Single(logicalOr.LogicalAnds);
         }
     }
@@ -149,8 +131,6 @@ public class ParserRuleTests
             Assert.Equal((int)TokenKind.EQUAL_EQUAL, equality.Group0[^1].Operator.Kind);
         }
     }
-
-    // --- Statement Form Tests ---
 
     [Fact]
     public void IfStatement_ParsesCorrectly()
@@ -321,8 +301,6 @@ public class ParserRuleTests
             _ = Assert.IsType<InferredVariableDeclarationVariableDeclarationStatementNode>(stmt!.VariableDeclaration);
         }
     }
-
-    // --- Top-Level Structure Tests ---
 
     [Fact]
     public void ClassDeclaration_ParsesCorrectly()

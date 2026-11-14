@@ -7,10 +7,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What a constructor that writes no chain runs first: an accessible base constructor callable with
-/// nothing, or the base itself when it declares no instance constructor. Class and struct refusals
-/// share this decision; an Ambient class base stays with Roslyn because its projection can omit
-/// constructors and optional or params parameters.
+/// Class and struct chain rules share this decision. Ambient class bases stay with Roslyn
+/// because projection can omit constructors and optional or params parameters.
 /// </summary>
 internal static class ImplicitChains
 {

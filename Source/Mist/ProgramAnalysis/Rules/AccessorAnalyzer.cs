@@ -12,16 +12,10 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The accessor a use calls -- the getter to read, the setter to write, both for <c>??=</c> -- must exist,
-/// must be accessible where it is called, and if it is <c>init</c> must be called in construction: the
-/// properties spec's Requirements 13.1-13.2, 13.5 and 11.4-11.5. An indexer is judged as its index selected
-/// it, never chosen again by accessor, because C# selects first and then refuses -- a sibling that has the
-/// accessor does not rescue the one the index picked. Construction is an object initializer entry, or
-/// <c>this</c> in an instance constructor or an init accessor of the type or a derivation. A get-only
-/// auto-property stays assignable in its own type's constructor body alone, where the write lands on the
-/// backing field. A lambda or local function in either body is a body of its own and gets neither
-/// privilege. Whether the member and its type are accessible is <see cref="AccessibilityAnalyzer"/>'s to say,
-/// so nothing more is said here about an accessor of either out of reach.
+/// C# selects an indexer before checking its accessors; a sibling with the required accessor cannot rescue it.
+/// A get-only auto-property write in its own type's constructor targets the backing field. Lambdas and local
+/// functions inherit neither that privilege nor init access. Inaccessible members and types are left to
+/// <see cref="AccessibilityAnalyzer"/>; accessor refusals belong to the selected slot alone.
 /// </summary>
 internal sealed class AccessorAnalyzer : IProgramAnalyzer
 {

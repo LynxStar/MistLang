@@ -9,13 +9,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a comparison pattern can be asked of a value of a type: a relational pattern orders only a
-/// primitive numeric, a char, or a refinement or enum over one -- a user type's declared comparison
-/// operators do not count, since a relational pattern is not a call to one, and neither does a type
-/// parameter under any constraint -- and a constant pattern compares only a constant some value of the
-/// type could equal. A pattern in a body and a refinement predicate on a declaration ask these same
-/// questions, so the two cannot disagree about a type; an indeterminate input admits any test, since
-/// that is what a test of it is for.
+/// Body patterns and declared refinement predicates share this decision. Relational patterns
+/// do not call user-defined operators; indeterminate inputs admit tests because testing them
+/// is how their type becomes known.
 /// </summary>
 internal static class Comparability
 {

@@ -11,10 +11,8 @@ internal enum CallEntry
 }
 
 /// <summary>
-/// Whether a call is entered once its arguments are evaluated. A conditional one is skipped when its
-/// receiver is absent, and an instance call through a reference that turns out null throws before the
-/// callee begins; either way what it was handed is still the caller's. A static call, an extension's
-/// carrier and a call on this or on a value just made always begin.
+/// Arguments remain the caller's if a conditional call skips an absent receiver or a null receiver
+/// throws before entry. Static calls, extension carriers, and calls on this or a fresh value always enter.
 /// </summary>
 internal static class CallEntries
 {

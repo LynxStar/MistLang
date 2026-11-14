@@ -13,11 +13,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The accessibility questions, from the full-accessibility-model spec: whether a name sits inside the
-/// domain of the type it names, whether a use sits inside the member's -- <see cref="AccessDomains"/> --
-/// and whether a declaration exposes a type less accessible than itself. A member of a type out of reach,
-/// and a declaration exposing one, are left to the name that reached the type, so that one mistake is
-/// one complaint.
+/// An inaccessible type is reported at its written name; member uses and declarations exposing it
+/// defer to that finding to avoid duplicate complaints. Access domains belong to <see cref="AccessDomains"/>.
 /// </summary>
 internal sealed class AccessibilityAnalyzer : IProgramAnalyzer
 {

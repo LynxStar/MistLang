@@ -35,25 +35,19 @@ internal sealed class CandidateSet
 
     public bool IsEmpty => candidates.Count == 0;
 
-    /// <summary>
-    /// Records a match found on the type itself.
-    /// </summary>
     public void Add(LookupResult candidate)
     {
         Add(candidate, depth: 0);
     }
 
-    /// <summary>
-    /// Records a match, and how far up the base chain it was found.
-    /// </summary>
     public void Add(LookupResult candidate, int depth)
     {
         candidates.Add(new Candidate(candidate, depth));
     }
 
     /// <summary>
-    /// Nested types and type parameters from a scope's own table. Neither is instance or static
-    /// state, so member visibility does not apply.
+    /// Neither a nested type nor a type parameter is instance or static state, so member visibility
+    /// does not apply.
     /// </summary>
     public void AddTypeNames(Dictionary<string, IMistType> table, LookupRequest request)
     {
@@ -64,8 +58,8 @@ internal sealed class CandidateSet
     }
 
     /// <summary>
-    /// The overloads a scope's own method table offers that the request admits. Excluding the rest,
-    /// rather than matching and rejecting them, is what lets the lookup continue outward.
+    /// Overloads the request does not admit are excluded rather than matched and rejected, which is
+    /// what lets the lookup continue outward.
     /// </summary>
     public void AddMethods(Dictionary<string, List<Method>> table, LookupRequest request)
     {
@@ -193,8 +187,7 @@ internal sealed class CandidateSet
     }
 
     /// <summary>
-    /// The candidates of one kind at the shallowest depth any of them was found at. More than one
-    /// means a single type declared the same name twice.
+    /// More than one means a single type declared the same name twice.
     /// </summary>
     private List<LookupResult> NearestOfKind(CandidateKind kind)
     {

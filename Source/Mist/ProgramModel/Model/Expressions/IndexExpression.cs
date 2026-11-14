@@ -4,9 +4,6 @@ using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
 
-/// <summary>
-/// An index expression (<c>receiver[index]</c>).
-/// </summary>
 internal sealed class IndexExpression(
     SyntaxNode node,
     Expression receiver,

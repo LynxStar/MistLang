@@ -13,10 +13,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// values takes its base from them first -- their one type, or the union of their types (enums spec,
 /// Requirement 3.1 and 3.2) -- so the written values bind with no target, the base being what they decide.
 /// <para>
-/// Synthesizing rather than leaving the gap for emission to fill is what keeps the answer in one
-/// place. A backend that re-derived an omitted value would be reimplementing the inference rules,
-/// and a backend that re-emitted a WRITTEN value from the syntax would be reading a source the model
-/// has already resolved -- so neither is asked to.
+/// Synthesizing rather than leaving the gap for emission keeps the answer in one place: a backend
+/// that re-derived an omitted value would reimplement the inference rules, and one that re-emitted a
+/// WRITTEN value from the syntax would read a source the model has already resolved.
 /// </para>
 /// </summary>
 internal static class EnumMemberBinder

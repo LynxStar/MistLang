@@ -21,9 +21,8 @@ internal static partial class MatchedSpaces
         return nullable && IsReference(definition) ? WithNull(product) : product;
     }
 
-    // A dimension is the member the binder resolved, not its name: a member hidden by a derivation or
-    // declared again on another type shares the name and nothing else, and the same member reached from
-    // the same receiver resolves to the same declaration in every arm.
+    // Dimensions use declaration identity: hidden or unrelated members can share names, while the
+    // same member on the same receiver resolves to one declaration across arms.
     private static ValueAlgebra<object> MemberProduct(IMistType structure)
     {
         var boxes = new Boxes([]);

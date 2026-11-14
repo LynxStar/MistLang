@@ -15,16 +15,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Reads of what nothing has yet assigned, on the assigned-set lattice: intersection at a join, a
-/// declaration without an initializer removing its slots, an assignment adding its target slots, and a
-/// read settling only the slots it needs, so repeated reads of the same unassigned path do not cascade.
-/// A local is tracked when declared without an initializer or bound by a pattern, whose Bind step
-/// assigns its slots only on the successful path. A field is tracked only inside a constructor of
-/// its own type that does not chain to
-/// `this(...)`, when its type has no default and is not a type parameter, whose default is each
-/// instantiation's to decide; and only as classic tracks it: read through an explicit `this`, so that
-/// a bare read, a call on `this`, or `this` handed away stays admitted as classic admits it -- the
-/// stricter constructor policy remains MIST-120 in Carbonek.
+/// A read settles only the slots it needs to avoid repeated complaints on that path. Pattern bindings
+/// become assigned only on success. Constructor fields exclude type parameters, whose defaults depend
+/// on the closing, and are read-checked only through explicit <c>this</c>: bare reads, calls on
+/// <c>this</c> and handing <c>this</c> away stay admitted. The stricter policy is MIST-120 in Carbonek.
 /// </summary>
 internal sealed class DefiniteAssignmentAnalyzer : IProgramAnalyzer
 {

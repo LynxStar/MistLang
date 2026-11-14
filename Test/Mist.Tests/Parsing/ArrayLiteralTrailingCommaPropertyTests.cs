@@ -9,10 +9,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario: a list of N integer literal expressions
-/// that will be formatted as array literals with and without trailing comma.
-/// </summary>
 public sealed class ArrayLiteralTrailingCommaScenario
 {
     private readonly int[] elements;
@@ -32,20 +28,10 @@ public sealed class ArrayLiteralTrailingCommaScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for trailing comma equivalence.
-///
-/// Property 2: For any valid array literal source text [e1, e2, ..., eN],
-/// parsing with a trailing comma [e1, e2, ..., eN,] SHALL produce an AST
-/// with the same element count and equivalent element expressions as parsing
-/// without the trailing comma.
-/// </summary>
 public class ArrayLiteralTrailingCommaPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     public static Arbitrary<ArrayLiteralTrailingCommaScenario> ArbitraryScenario()
     {
@@ -56,8 +42,6 @@ public class ArrayLiteralTrailingCommaPropertyTests
 
         return gen.ToArbitrary();
     }
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode? ParseSource(string source)
     {
@@ -78,27 +62,18 @@ public class ArrayLiteralTrailingCommaPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Builds a complete Mist source file with the array literal (no trailing comma).
-    /// </summary>
     private static string BuildSourceWithoutTrailingComma(IReadOnlyList<int> elements)
     {
         var elementList = string.Join(", ", elements);
         return $"class Test {{ void Run() {{ var x = [{elementList}]; }} }}";
     }
 
-    /// <summary>
-    /// Builds a complete Mist source file with the array literal (with trailing comma).
-    /// </summary>
     private static string BuildSourceWithTrailingComma(IReadOnlyList<int> elements)
     {
         var elementList = string.Join(", ", elements);
         return $"class Test {{ void Run() {{ var x = [{elementList},]; }} }}";
     }
 
-    /// <summary>
-    /// Extracts the ArrayLiteralExpressionPrimaryNode from a parsed source.
-    /// </summary>
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteral(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -131,9 +106,6 @@ public class ArrayLiteralTrailingCommaPropertyTests
         return primary as ArrayLiteralExpressionPrimaryNode;
     }
 
-    /// <summary>
-    /// Unwraps a simple expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -172,24 +144,10 @@ public class ArrayLiteralTrailingCommaPropertyTests
         return null;
     }
 
-    /// <summary>
-    /// Collects all element values from an ArrayLiteralExpressionPrimaryNode
-    /// by pretty-printing the full compilation unit and extracting the array literal text.
-    /// We compare the pretty-printed output of both variants to verify structural equivalence.
-    /// </summary>
     private static string GetPrettyPrintedOutput(CompilationUnitNode cu, string source)
     {
         return Mist.Parsing.MistPrettyPrinter.Print(cu, source);
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 2: Trailing comma equivalence
-    //
-    // For any valid array literal source text [e1, e2, ..., eN], parsing with
-    // a trailing comma [e1, e2, ..., eN,] SHALL produce an AST with the same
-    // element count and equivalent element expressions as parsing without the
-    // trailing comma.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -225,7 +183,6 @@ public class ArrayLiteralTrailingCommaPropertyTests
             return false.ToProperty().Label($"No ArrayLiteralExpressionPrimaryNode found (with comma): {sourceWith}");
         }
 
-        // Verify identical element count
         var countWithout = arrayWithout.GetElements().Length;
         var countWith = arrayWith.GetElements().Length;
 

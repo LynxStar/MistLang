@@ -8,10 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The CLR interfaces through which the target's own code calls back into a Mist type -- a foreach
-/// disposing its enumerator, a formatter asking for text, a comparer asking for equality or order. A Mist
-/// type conforms to one through <c>using System;</c>, and the member answering it then runs from code
-/// the program never shows the analysis, so a rule judging what a scope sets off must find it here.
+/// CLR interface callbacks run Mist members from runtime code absent from the model.
+/// Rules judging a scope's effects must include those calls.
 /// </summary>
 internal static class ClrCallbacks
 {

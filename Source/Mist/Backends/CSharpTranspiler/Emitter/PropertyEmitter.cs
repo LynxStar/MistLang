@@ -5,10 +5,6 @@ using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-/// <summary>
-/// Emits a property declaration: modifiers, type, name, accessors and any initializer, after the
-/// backing field it declares (<see cref="BackingStorage"/>), which then carries the initializer.
-/// </summary>
 internal static class PropertyEmitter
 {
     public static void Emit(

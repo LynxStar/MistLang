@@ -8,11 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Every refinement predicate a declaration carries -- an alias's, a dependent parameter's, a parameter's
-/// `where` -- on a type, in an extension block or on a local function, each with where it is written: the
-/// type whose code it counts as, the assembly, how far the declaration is visible, and how a message names
-/// it. One enumeration for every rule that judges a predicate where it is declared, so that no such rule
-/// reaches a position another misses.
+/// All declaration-predicate rules share this enumeration so aliases, dependent parameters,
+/// extension blocks and local functions cannot receive different coverage.
 /// </summary>
 internal static class DeclaredPredicates
 {

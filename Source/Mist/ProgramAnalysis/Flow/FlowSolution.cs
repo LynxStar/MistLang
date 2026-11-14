@@ -20,11 +20,8 @@ internal interface IFlowLattice<TState>
 }
 
 /// <summary>
-/// The state a forward analysis holds at the entry of every reached block once nothing changes any
-/// more. Reachability is kept apart from the state rather than folded into it as a bottom element,
-/// because a lattice whose universe is finite can produce the same value legitimately -- every local
-/// assigned IS the identity of intersection -- and a block that no path reaches must be told from one
-/// that every path reaches with nothing left to say.
+/// Reachability is separate from lattice state: a finite lattice can legitimately produce its bottom
+/// value (all locals assigned is intersection's identity), so that value cannot also mean unreachable.
 /// </summary>
 internal sealed class FlowSolution<TState>
 {

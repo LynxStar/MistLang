@@ -13,17 +13,10 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based round-trip tests for tuple syntax: tuple type references,
-/// tuple literal expressions, and tuple deconstruction statements.
-/// Parse → pretty-print → parse → pretty-print must produce identical output.
-/// </summary>
 public class TupleRoundTripPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-
-    // ─── Parsing helpers ───────────────────────────────────────────────────
 
     private static CompilationUnitNode? TryParse(string source)
     {
@@ -64,37 +57,24 @@ public class TupleRoundTripPropertyTests
         return printed1 == printed2;
     }
 
-    // ─── Property tests ────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 1: Tuple type references round-trip through parse → print → parse → print.
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistTupleSourceGenerator) })]
     public bool TupleTypeRef_RoundTrips(TupleTypeRefSource scenario)
     {
         return AssertRoundTripPreserved(scenario.Source);
     }
 
-    /// <summary>
-    /// Property 1: Tuple literal expressions round-trip through parse → print → parse → print.
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistTupleSourceGenerator) })]
     public bool TupleLiteral_RoundTrips(TupleLiteralSource scenario)
     {
         return AssertRoundTripPreserved(scenario.Source);
     }
 
-    /// <summary>
-    /// Property 1: Var tuple deconstruction statements round-trip.
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(MistTupleSourceGenerator) })]
     public bool VarTupleDeconstruction_RoundTrips(VarTupleDeconstructionSource scenario)
     {
         return AssertRoundTripPreserved(scenario.Source);
     }
 }
-
-// ─── Scenario types ─────────────────────────────────────────────────────────
 
 public record TupleTypeRefSource(string Source)
 {
@@ -120,11 +100,6 @@ public record VarTupleDeconstructionSource(string Source)
     }
 }
 
-// ─── Generator ──────────────────────────────────────────────────────────────
-
-/// <summary>
-/// Generates Mist source strings containing tuple syntax for round-trip testing.
-/// </summary>
 public static class MistTupleSourceGenerator
 {
     private static readonly string[] PrimitiveTypes =
@@ -151,9 +126,6 @@ public static class MistTupleSourceGenerator
         return Gen.Elements(IntLiterals);
     }
 
-    /// <summary>
-    /// Generates a tuple type string like "(int, string)" or "(int x, bool y)".
-    /// </summary>
     private static Gen<string> GenTupleTypeString(int depth = 1)
     {
         var elementGen = depth <= 0
@@ -171,9 +143,6 @@ public static class MistTupleSourceGenerator
                select $"({string.Join(", ", elements)})";
     }
 
-    /// <summary>
-    /// Generates a tuple literal string like "(1, 2)" or "(x: 1, y: 2)".
-    /// </summary>
     private static Gen<string> GenTupleLiteralString(int depth = 1)
     {
         var valueGen = depth <= 0
@@ -186,31 +155,22 @@ public static class MistTupleSourceGenerator
                from values in Gen.ArrayOf(valueGen, arity)
                from useNames in Gen.ArrayOf(Gen.Elements(true, false), arity)
                from names in Gen.ArrayOf(GenIdentifier(), arity)
-                   // For named elements, all must be named or all unnamed to avoid
-                   // ambiguity in the grammar. Use all-named or all-unnamed.
+                   // All elements are named or none are, to avoid ambiguity in the grammar.
                from allNamed in Gen.Elements(true, false)
                let elements = values.Select((v, i) =>
                    allNamed ? $"{names[i]}: {v}" : v).ToArray()
                select $"({string.Join(", ", elements)})";
     }
 
-    /// <summary>
-    /// Wraps a variable declaration in a minimal class/method body.
-    /// </summary>
     private static string WrapInMethod(string statement)
     {
         return $"class Test {{\n  void Run() {{\n    {statement}\n  }}\n}}";
     }
 
-    /// <summary>
-    /// Wraps a field declaration with a tuple type in a class.
-    /// </summary>
     private static string WrapFieldDecl(string tupleType, string name)
     {
         return $"class Test {{\n  {tupleType} {name} = default;\n}}";
     }
-
-    // ─── Arbitrary instances ────────────────────────────────────────────
 
     public static Arbitrary<TupleTypeRefSource> ArbitraryTupleTypeRefSource()
     {

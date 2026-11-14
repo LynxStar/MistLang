@@ -5,7 +5,7 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding;
 
-// Standard's named operand refinements define the hazards; binding fixes the type before dependent lookup.
+// Standard's named operand refinements define the hazards.
 internal static class ArithmeticProof
 {
     internal enum Verdict

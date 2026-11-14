@@ -4,8 +4,7 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// Sentinel type representing the unknown top type. All non-void values
-/// are assignable to it. Used for gradual typing and inference boundaries.
+/// The top type: every non-void value is assignable to it.
 /// </summary>
 internal sealed class UnknownType : MistType, IMistType
 {

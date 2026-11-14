@@ -10,16 +10,10 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario for target-typed new expression round-trip testing.
-/// Includes generated source code and a description of the variant being tested.
-/// </summary>
 public sealed class TargetTypedNewRoundTripScenario
 {
-    /// <summary>The complete Mist source string containing a target-typed new expression.</summary>
     public string Source { get; }
 
-    /// <summary>Human-readable description of the scenario kind.</summary>
     public string Description { get; }
 
     public TargetTypedNewRoundTripScenario(string source, string description)
@@ -34,30 +28,15 @@ public sealed class TargetTypedNewRoundTripScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for parsing round-trip of target-typed new expressions.
-///
-/// Property 1: For any valid Mist source containing a target-typed new expression
-/// (with or without arguments, with or without property initializers), parsing the
-/// source into an AST, pretty-printing that AST back to source text, and re-parsing
-/// should produce an equivalent AST. Equivalence is verified via idempotence of
-/// parse → pretty-print (printed1 == printed2).
-///
-/// **Validates: Requirements 2.5**
-/// </summary>
 public class TargetTypedNewRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<TargetTypedNewRoundTripScenario> ArbitraryScenario()
     {
         return TargetTypedNewRoundTripGenerator.GenScenario().ToArbitrary();
     }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -80,23 +59,11 @@ public class TargetTypedNewRoundTripPropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Parsing round-trip
-    //
-    // **Validates: Requirements 2.5**
-    //
-    // For any valid Mist source containing a target-typed new expression,
-    // parsing and pretty-printing the result, then parsing and pretty-printing
-    // again, SHALL produce identical output (idempotence / round-trip stability).
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(TargetTypedNewRoundTripPropertyTests) })]
     public Property RoundTrip_TargetTypedNew_PrintParseIsIdempotent(TargetTypedNewRoundTripScenario scenario)
     {
-        // Step 1: Parse the generated source
         var ast1 = ParseOrFail(scenario.Source);
 
-        // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
@@ -104,40 +71,22 @@ public class TargetTypedNewRoundTripPropertyTests
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);
 
-        // Step 4: Pretty-print AST2 → printed2
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Step 5: Verify idempotence: printed1 == printed2
         return (printed1 == printed2).ToProperty()
             .Label($"Round-trip mismatch.\nSource: {scenario.Source}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }
 }
 
-/// <summary>
-/// FsCheck generators for Mist source strings containing target-typed new expressions.
-/// Generates random valid target-typed new expressions covering:
-/// <list type="bullet">
-///   <item>No arguments: <c>new()</c></item>
-///   <item>With varying argument counts: <c>new(arg1, arg2)</c></item>
-///   <item>With property initializer block: <c>new(args) { Prop = value }</c></item>
-///   <item>No-args with property initializer (no parens): <c>new { Prop = value }</c></item>
-///   <item>With arguments and property initializer: <c>new(args) { Prop = value }</c></item>
-/// </list>
-/// </summary>
 public static class TargetTypedNewRoundTripGenerator
 {
-    // ─── Name pools ─────────────────────────────────────────────────────
-
     private static readonly string[] TypeNames =
         ["Point", "Config", "Settings", "Options", "Data", "State", "Node", "Item"];
 
     private static readonly string[] PropertyNames =
         ["Name", "Value", "Count", "Size", "Width", "Height", "Timeout", "Label", "Score", "Enabled"];
-
-    // ─── Value expression generators ────────────────────────────────────
 
     private static Gen<string> GenIntExpr()
     {
@@ -162,8 +111,6 @@ public static class TargetTypedNewRoundTripGenerator
             GenStringExpr());
     }
 
-    // ─── Argument generators ────────────────────────────────────────────
-
     private static Gen<string> GenArgList(int count)
     {
         if(count == 0)
@@ -182,8 +129,6 @@ public static class TargetTypedNewRoundTripGenerator
                           select arr.Append(item).ToArray())
             .Select(args => string.Join(", ", args));
     }
-
-    // ─── Property assignment generators ─────────────────────────────────
 
     private static Gen<string> GenAssignment(int index)
     {
@@ -210,12 +155,6 @@ public static class TargetTypedNewRoundTripGenerator
             .Select(assignments => string.Join(", ", assignments));
     }
 
-    // ─── Scenario generators ────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a target-typed new expression with no arguments and no initializer.
-    /// Example: <c>Point p = new();</c>
-    /// </summary>
     private static Gen<TargetTypedNewRoundTripScenario> GenNoArgsNoInitializer()
     {
         return from typeName in Gen.Elements(TypeNames)
@@ -224,10 +163,6 @@ public static class TargetTypedNewRoundTripGenerator
                select new TargetTypedNewRoundTripScenario(source, $"no-args: {typeName} x = new()");
     }
 
-    /// <summary>
-    /// Generates a target-typed new expression with arguments and no initializer.
-    /// Example: <c>Point p = new(1, 2);</c>
-    /// </summary>
     private static Gen<TargetTypedNewRoundTripScenario> GenWithArgs()
     {
         return from typeName in Gen.Elements(TypeNames)
@@ -239,10 +174,6 @@ public static class TargetTypedNewRoundTripGenerator
                    $"with-args({argCount}): {typeName} x = new({args})");
     }
 
-    /// <summary>
-    /// Generates a target-typed new expression with no arguments but with property initializer.
-    /// Example: <c>Point p = new() { X = 1, Y = 2 };</c>
-    /// </summary>
     private static Gen<TargetTypedNewRoundTripScenario> GenNoArgsWithInitializer()
     {
         return from typeName in Gen.Elements(TypeNames)
@@ -254,10 +185,6 @@ public static class TargetTypedNewRoundTripGenerator
                    $"no-args-with-init({assignmentCount}): {typeName} x = new() {{ ... }}");
     }
 
-    /// <summary>
-    /// Generates a target-typed new expression with arguments and property initializer.
-    /// Example: <c>Point p = new(1, 2) { Label = "hello" };</c>
-    /// </summary>
     private static Gen<TargetTypedNewRoundTripScenario> GenWithArgsAndInitializer()
     {
         return from typeName in Gen.Elements(TypeNames)
@@ -271,10 +198,6 @@ public static class TargetTypedNewRoundTripGenerator
                    $"with-args-and-init({argCount},{assignmentCount}): {typeName} x = new({args}) {{ ... }}");
     }
 
-    /// <summary>
-    /// Generates a target-typed new expression with only a property initializer (no parens).
-    /// Example: <c>Point p = new { X = 1, Y = 2 };</c>
-    /// </summary>
     private static Gen<TargetTypedNewRoundTripScenario> GenNoParensWithInitializer()
     {
         return from typeName in Gen.Elements(TypeNames)
@@ -286,11 +209,6 @@ public static class TargetTypedNewRoundTripGenerator
                    $"no-parens-with-init({assignmentCount}): {typeName} x = new {{ ... }}");
     }
 
-    // ─── Combined generator ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a random target-typed new expression scenario covering all variants.
-    /// </summary>
     public static Gen<TargetTypedNewRoundTripScenario> GenScenario()
     {
         return Gen.OneOf(
@@ -301,12 +219,6 @@ public static class TargetTypedNewRoundTripGenerator
             GenNoParensWithInitializer());
     }
 
-    // ─── Helpers ────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Wraps a target-typed new expression in a minimal compilable Mist program structure.
-    /// Uses a typed variable declaration so the target-typed new has a context type.
-    /// </summary>
     private static string WrapInProgram(string typeName, string newExpr)
     {
         return $@"class Program {{

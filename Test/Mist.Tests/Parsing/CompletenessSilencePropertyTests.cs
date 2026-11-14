@@ -11,22 +11,11 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests verifying that the parser does NOT emit
-/// <c>MIST0123</c> for fully valid source files.
-///
-/// For all source files where the Storm parser returns a non-null root and
-/// consumes all default-channel tokens, no <c>MIST0123</c>
-/// diagnostic is emitted.
-///
 /// **Validates: Requirements 3.2**
-/// </summary>
 public class CompletenessSilencePropertyTests
 {
     private static readonly MistLexer Lexer = new();
     private static readonly MistParser Parser = new();
-
-    // --- Helpers ---
 
     private static ImmutableArray<Diagnostic> ParseAndGetDiagnostics(string source)
     {
@@ -40,8 +29,6 @@ public class CompletenessSilencePropertyTests
         return parseBag.ToImmutableArray();
     }
 
-    // --- Test data model ---
-
 #pragma warning disable CA1034
     public record ValidSourceScenario(string Description, string Source)
     {
@@ -51,8 +38,6 @@ public class CompletenessSilencePropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // --- Generators ---
 
     private static readonly string[] ClassNames =
         ["Foo", "Bar", "Widget", "Container", "Handler", "Service", "Builder"];
@@ -75,26 +60,17 @@ public class CompletenessSilencePropertyTests
     private static readonly string[] Namespaces =
         ["MyApp", "Core", "Utils", "Domain", "Services"];
 
-    /// <summary>
-    /// Generates an empty source file (trivially valid).
-    /// </summary>
     private static Gen<ValidSourceScenario> GenEmptyFile()
     {
         return Gen.Constant(new ValidSourceScenario("empty file", ""));
     }
 
-    /// <summary>
-    /// Generates a namespace-only source file.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenNamespaceOnly()
     {
         return from ns in Gen.Elements(Namespaces)
                select new ValidSourceScenario($"namespace {ns}", $"namespace {ns};");
     }
 
-    /// <summary>
-    /// Generates a namespace with a single empty class.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenNamespaceWithClass()
     {
         return from ns in Gen.Elements(Namespaces)
@@ -104,9 +80,6 @@ public class CompletenessSilencePropertyTests
                    $"namespace {ns}; class {cls} {{ }}");
     }
 
-    /// <summary>
-    /// Generates a class with fields.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenClassWithFields()
     {
         return from cls in Gen.Elements(ClassNames)
@@ -120,9 +93,6 @@ public class CompletenessSilencePropertyTests
                    $"class {cls} {{\n{fieldBlock}\n}}");
     }
 
-    /// <summary>
-    /// Generates a class with a method that has a return statement.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenClassWithMethod()
     {
         return from cls in Gen.Elements(ClassNames)
@@ -139,9 +109,6 @@ public class CompletenessSilencePropertyTests
                    $"class {cls} {{\n    public {retType} {method}() {{\n        {body}\n    }}\n}}");
     }
 
-    /// <summary>
-    /// Generates a class with a generic type parameter.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenGenericClass()
     {
         return from cls in Gen.Elements(ClassNames)
@@ -151,9 +118,6 @@ public class CompletenessSilencePropertyTests
                    $"class {cls}<{tp}> {{ }}");
     }
 
-    /// <summary>
-    /// Generates a struct declaration.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenStruct()
     {
         return from name in Gen.Elements(StructNames)
@@ -164,9 +128,6 @@ public class CompletenessSilencePropertyTests
                    $"struct {name} {{\n    {typ} {field};\n}}");
     }
 
-    /// <summary>
-    /// Generates a namespace with multiple classes.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenNamespaceWithMultipleClasses()
     {
         return from ns in Gen.Elements(Namespaces)
@@ -180,9 +141,6 @@ public class CompletenessSilencePropertyTests
                    $"namespace {ns};\n{classDecls}");
     }
 
-    /// <summary>
-    /// Generates a class with a static void Main entry point.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenProgramWithMain()
     {
         return from ns in Gen.Elements(Namespaces)
@@ -191,9 +149,6 @@ public class CompletenessSilencePropertyTests
                    $"namespace {ns};\nclass Program {{\n    public static void Main() {{\n    }}\n}}");
     }
 
-    /// <summary>
-    /// Generates a class with a dependent type parameter using a primitive constraint.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenDependentTypeClass()
     {
         return from cls in Gen.Elements(ClassNames)
@@ -204,9 +159,6 @@ public class CompletenessSilencePropertyTests
                    $"class {cls}<{param}:{prim}> {{ }}");
     }
 
-    /// <summary>
-    /// Generates a using directive with a namespace.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenUsingDirective()
     {
         return from ns in Gen.Elements(Namespaces)
@@ -216,9 +168,6 @@ public class CompletenessSilencePropertyTests
                    $"using {ns};\nclass {cls} {{ }}");
     }
 
-    /// <summary>
-    /// Combined generator producing a variety of valid Mist source files.
-    /// </summary>
     private static Gen<ValidSourceScenario> GenValidSource()
     {
         return Gen.OneOf(
@@ -240,17 +189,6 @@ public class CompletenessSilencePropertyTests
         return GenValidSource().ToArbitrary();
     }
 
-    // --- Property 6: Completeness Silence on Full Consumption ---
-
-    /// <summary>
-    /// Property 6: Completeness Silence on Full Consumption.
-    ///
-    /// For all source files where the Storm parser returns a non-null root and
-    /// consumes all default-channel tokens, no <c>MIST0123</c>
-    /// diagnostic is emitted.
-    ///
-    /// **Validates: Requirements 3.2**
-    /// </summary>
     [Property(
         MaxTest = 200,
         Arbitrary = new[] { typeof(CompletenessSilencePropertyTests) })]
@@ -265,49 +203,27 @@ public class CompletenessSilencePropertyTests
         return incompleteDiags.Count == 0;
     }
 
-    // --- Deterministic validation with known-good inputs ---
-
-    /// <summary>
-    /// Validates that a curated set of known-valid programs produce no
-    /// MIST0123 diagnostics. These cover structural patterns
-    /// that the random generator might not exercise.
-    /// </summary>
+    /// Curated structural patterns the random generator might not exercise.
     [Fact]
     public void KnownValidSources_NeverEmitIncomplete()
     {
         var validSources = new[]
         {
-            // Empty file
             "",
-            // Comment-only file
             "// just a comment",
-            // Namespace only
             "namespace MyApp;",
-            // Empty class
             "class Foo { }",
-            // Namespace + class
             "namespace MyApp; class Foo { }",
-            // Class with method
             "class Foo { public int GetValue() { return 42; } }",
-            // Multiple classes
             "class Foo { } class Bar { }",
-            // Generic class
             "class Container<T> { }",
-            // Struct
             "struct Point { int x; int y; }",
-            // Class with static method
             "class Program { public static void Main() { } }",
-            // Namespace + using + class
             "using Standard; namespace MyApp; class Foo { }",
-            // Dependent type parameter
             "class Fixed<Size:int> { }",
-            // Multiple type parameters
             "class Map<TKey, TValue> { }",
-            // Dependent type with identifier constraint
             "type PositiveInt = int >= 0;\nclass Arr<Length:PositiveInt> { }",
-            // Class with abstract type
             "class Foo : IDisposable { }",
-            // Class with field and method
             "class Counter {\n    int count;\n    public int GetCount() {\n        return count;\n    }\n}",
         };
 

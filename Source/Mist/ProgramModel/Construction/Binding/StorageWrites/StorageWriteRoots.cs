@@ -9,8 +9,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Construction.Binding.StorageWrites;
 
 /// <summary>
-/// One bound body a member's classification reads: the member, the direction the body answers for, the
-/// tree, the type the body was written inside, and the type parameters in scope there.
+/// One bound body a member's classification reads; the owner is the type the body was written inside.
 /// </summary>
 internal readonly record struct StorageWriteRoot(
     object Member, StorageAccess Side, object? Root, MistType? Owner, HashSet<TypeParameter> Scope);

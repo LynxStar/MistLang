@@ -4,16 +4,12 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A union type composed of multiple resolved constituent types.
-/// Not registered in a namespace — constructed on-the-fly during type resolution.
-/// <para>
-/// Constituents are canonical by construction: flattened, deduplicated and sorted, so
-/// spelling order never reaches identity. <see cref="NormalizeConstituents"/> is the one
-/// definition of that form, shared by the interner and by substitution's interner-less
-/// path. The qualified name is built from constituent QUALIFIED names because the
-/// conversion relation compares types by that name, and two unions over same-named types
+/// Not registered in a namespace; constructed during type resolution. Constituents are canonical by
+/// construction: flattened, deduplicated and sorted, so spelling order never reaches identity.
+/// <see cref="NormalizeConstituents"/> is the one definition of that form, shared by the interner and
+/// by substitution's interner-less path. The qualified name is built from constituent QUALIFIED names
+/// because the conversion relation compares types by that name, and two unions over same-named types
 /// from different namespaces must not collide.
-/// </para>
 /// </summary>
 internal sealed class UnionType : MistType, IUnionType
 {

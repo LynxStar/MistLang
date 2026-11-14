@@ -30,8 +30,6 @@ internal sealed class ConstraintClosureMap
         {
             var definition = Definition(closure.TypeArgument);
 
-            // Only a Mist declaration can be given an interface it did not ask for. Reported here
-            // because this is the point where the backend learns it cannot express the program.
             if(definition is null || !definition.Assembly.HasMistSource)
             {
                 diagnostics.ReportAtNodeTyped(
@@ -96,8 +94,8 @@ internal sealed class ConstraintClosureMap
     }
 
     /// <summary>
-    /// The declaration a closure lands on. A constructed generic closes through its own definition,
-    /// since that is the only thing with a base list to extend.
+    /// A constructed generic closes through its own definition, since that is the only thing with a
+    /// base list to extend.
     /// </summary>
     private static MemberType? Definition(IMistType typeArgument)
     {

@@ -96,11 +96,6 @@ internal sealed partial class EscapeAnalyzer
         }
     }
 
-    /// <summary>
-    /// A call whose receiver or a ref argument is ref struct storage outliving the frame could store any
-    /// other ref struct it is given there, so a frame-bound one may not be given beside it -- C#'s
-    /// method-arguments-must-match rule. A readonly member cannot write its receiver.
-    /// </summary>
     private static void JudgeLent(
         AnalysisContext context, Method? callee, Expression? receiver, IReadOnlyList<Expression> arguments,
         IReadOnlyList<Parameter>? parameters, ImmutableDictionary<LocalVariable, LocalFrame> state)

@@ -5,8 +5,8 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Every assembly with Mist source, Standard included: its declarations are Mist and answer to
-/// the same rules as a user's, and a finding there lands on the Standard file that earned it.
+/// Standard is Mist source and answers to the same rules as user code; its findings belong
+/// on its own source files.
 /// </summary>
 internal static class SourceTypes
 {

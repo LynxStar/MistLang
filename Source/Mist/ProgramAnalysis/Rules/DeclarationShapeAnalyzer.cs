@@ -14,21 +14,6 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// Refusals decidable from a declaration alone: a base or a newtype source that is sealed, `sealed` on
-/// an alias, an enum base that is not readonly, two variants sharing a value, a default block naming
-/// something that is not a field, an operator that is not public, is declared without its pair, is a
-/// logical operator off Boolean, or takes no parameter of the type declaring it, a refinement predicate
-/// -- every one <see cref="DeclaredPredicates"/> finds -- that orders a type <see cref="Comparability"/>
-/// gives no order, compares a constant no value of the type could equal, so that nothing could ever
-/// discharge it, or reads a member <see cref="StableMembers"/> does not vouch for or that has no getter, a method,
-/// constructor or indexer repeating an earlier one's signature on its type, a member hiding one its
-/// type inherits, which Mist admits only as an overload, and a constructor writing no chain to a base
-/// <see cref="ImplicitChains"/> finds nothing to run in, and a dependent parameter named like a member its
-/// <see cref="TypeParameter.ValueProperty"/> would collide with. Each shape is classic's verdict, measured, or
-/// the spec's where classic dropped the declaration unread, and the enum and sealed rules are the
-/// full-accessibility-model and enum-readonly-restriction specs' own.
-/// </summary>
 internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 {
     public string Id => "declaration-shape-checks";
@@ -477,9 +462,8 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
     private static bool Names(IMistType parameter, ConcreteType declaring)
     {
-        // A Result over the declaring type counts as naming it: that is how a numeric type declares the
-        // Result arithmetic composition overloads (exceptions Requirement 4), found through the operand's
-        // payload type, including the overload whose operands are both Results.
+        // Result arithmetic overloads belong to the payload's numeric type (exceptions Requirement 4),
+        // so a Result over the declaring type counts as naming it.
         if(ResultTypes.Of(parameter) is { Success: { } payload } && Names(payload, declaring))
         {
             return true;

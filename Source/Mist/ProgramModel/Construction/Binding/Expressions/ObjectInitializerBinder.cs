@@ -11,9 +11,8 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 internal static class ObjectInitializerBinder
 {
     /// <summary>
-    /// Empty for a block that assigns nothing AND for no block at all. The two are not
-    /// distinguished because C# reads them identically, so a third state would buy the model
-    /// nothing that anything downstream could act on.
+    /// Empty for a block that assigns nothing AND for no block at all: C# reads them identically, so
+    /// nothing downstream could act on a third state.
     /// </summary>
     internal static IReadOnlyList<ObjectInitializerAssignment> Bind(
         PropertyInitializerBlockNode? block,
@@ -70,10 +69,9 @@ internal static class ObjectInitializerBinder
     }
 
     /// <summary>
-    /// A COLLECTION element: <c>{ 1, 2 }</c>, which names no member and stands for a call to
-    /// <c>Add</c>. The overload is resolved HERE even though emission writes the element back as C#
-    /// initializer syntax and lets Roslyn resolve Add again -- otherwise the model would have chosen
-    /// nothing, and an element matching no Add would reach the generated file to fail there.
+    /// A COLLECTION element names no member and stands for a call to <c>Add</c>. The overload is resolved
+    /// HERE even though emission writes the element back as C# initializer syntax for Roslyn to resolve
+    /// again, so an element matching no Add is refused by the model rather than in the generated file.
     /// </summary>
     private static void AddElement(
         PropertyAssignmentNode assignment,
@@ -158,9 +156,8 @@ internal static class ObjectInitializerBinder
 
     /// <summary>
     /// Tested for the kinds that DO exist and cannot be assigned, rather than for the absence of the
-    /// two that can. Resolving to nothing and resolving ambiguously are reported by
-    /// <see cref="MemberResolution"/> already, and a negative test would claim a member is not
-    /// storage when the real complaint is that there are two of it.
+    /// two that can: <see cref="MemberResolution"/> already reports a missing or ambiguous member, and a
+    /// negative test would call an ambiguous member not storage.
     /// </summary>
     private static bool ReportNotStorage(
         LookupResult found, IMistType type, string memberName, SyntaxNode node, BuilderContext context)

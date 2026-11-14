@@ -4,15 +4,8 @@ using Mist.ProgramModel.Model.Expressions;
 
 namespace Mist.ProgramModel.Model;
 
-/// <summary>
-/// A single entry in a default block. Always targets a field, and provides
-/// either an expression value or a type binding with nested entries.
-/// </summary>
 internal abstract class DefaultEntry
 {
-    /// <summary>
-    /// The field name this entry targets.
-    /// </summary>
     public string FieldName { get; }
 
     protected DefaultEntry(string fieldName)
@@ -21,14 +14,11 @@ internal abstract class DefaultEntry
     }
 }
 
-/// <summary>
-/// A simple field override: <c>fieldName = expression</c>.
-/// </summary>
 internal sealed class DefaultValueEntry : DefaultEntry
 {
     /// <summary>
-    /// The initializer expression. Parked unbound by the type builder and replaced in Phase 3, the
-    /// same two-step a field initializer takes, because binding it needs the enclosing type's scope.
+    /// Parked unbound by the type builder and replaced in Phase 3, as a field initializer is, because
+    /// binding it needs the enclosing type's scope.
     /// </summary>
     public Expression Value { get; internal set; }
 
@@ -39,25 +29,17 @@ internal sealed class DefaultValueEntry : DefaultEntry
 }
 
 /// <summary>
-/// A type binding entry: <c>fieldName : Type { nested entries }</c>.
-/// Binds a field to a type and provides nested default entries for that type's fields.
+/// <c>fieldName : Type { nested entries }</c>
 /// </summary>
 internal sealed class DefaultBindingEntry : DefaultEntry
 {
     /// <summary>
-    /// The bound type reference, or null if not yet resolved.
+    /// Null when the type did not resolve.
     /// </summary>
     public IMistType? BoundType { get; }
 
-    /// <summary>
-    /// Nested default entries for the bound type's fields.
-    /// Each nested entry is itself a <see cref="DefaultEntry"/>.
-    /// </summary>
     public IReadOnlyList<DefaultEntry> NestedEntries { get; }
 
-    /// <summary>
-    /// The AST node for the type binding, preserved for later type resolution.
-    /// </summary>
     public DefaultTypeBindingDefaultFieldInitializerNode BindingNode { get; }
 
     public DefaultBindingEntry(

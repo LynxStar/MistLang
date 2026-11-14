@@ -8,11 +8,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// What a receiver binds the type parameters of a member's declaring type to, where the bound tree kept
-/// the member but not the constructed bases it was reached through. A call records its callee and the
-/// receiver expression; the path from the receiver's definition to the declaration is walked again
-/// here, by the rules <see cref="TypeMemberLookup"/> finds members by, so that a member of
-/// <c>Base&lt;X&gt;</c> reached on a <c>Derived&lt;int&gt; : Base&lt;List&lt;Y&gt;&gt;</c> reads X as
-/// <c>List&lt;int&gt;</c>.
+/// the member but not the constructed bases it was reached through. The path from the receiver's
+/// definition to the declaration is walked again here, by the rules <see cref="TypeMemberLookup"/>
+/// finds members by.
 /// </summary>
 internal static class Ancestry
 {
@@ -62,7 +60,7 @@ internal static class Ancestry
 
     /// <summary>
     /// The constructed bases stepped through from <paramref name="from"/> to <paramref name="declaring"/>,
-    /// outermost first, or null where the walk never reaches it.
+    /// outermost first.
     /// </summary>
     public static IReadOnlyList<ConstructedType>? PathTo(MistType from, MemberType declaring)
     {

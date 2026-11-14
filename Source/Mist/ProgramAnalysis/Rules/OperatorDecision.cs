@@ -24,10 +24,6 @@ internal static class OperatorDecision
             ? ProgramAnalysisDiagnostics.UnknownHasNoOperators : ProgramAnalysisDiagnostics.OperatorNotApplicable;
     }
 
-    /// <summary>
-    /// <c>++</c> and <c>--</c> are defined on the integral and real families alone, so a type whose <c>+</c> admits
-    /// an integer -- a string, or one that declares the operator -- is refused all the same.
-    /// </summary>
     public static MistDiagnostic? Increment(IMistType target, BinaryOperatorKind kind, Func<WellKnownType, IMistType> wellKnown)
     {
         if(CompoundAssignmentBinder.Increments(target))
@@ -50,9 +46,8 @@ internal static class OperatorDecision
     }
 
     /// <summary>
-    /// A tie the binder recorded among declared operators is refused under the code a tied method call carries
-    /// (standard-library Requirement 14.2), naming each candidate with its owner: two owners may declare one
-    /// parameter list, so the parameters alone would describe a tie between two identical signatures.
+    /// Operator ties use the method-call diagnostic (standard-library Requirement 14.2). Qualify candidates
+    /// by owner because distinct owners can declare identical parameter lists.
     /// </summary>
     public static MistDiagnostic? Tie(IReadOnlyList<ClosedOperator> tied)
     {

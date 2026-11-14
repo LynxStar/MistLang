@@ -64,10 +64,6 @@ internal sealed class LifetimePlan(IReadOnlyDictionary<LocalVariable, LocalDecla
                 && (scope.Holding == (Holding.Owned | Holding.Unowned) || (changing.Contains(owner) && owed.Contains(owner))));
     }
 
-    /// <summary>
-    /// What a with scope does with the holder whose value it was given: release it on the way out,
-    /// unconditionally or under that holder's flag, or not at all when every path has handed it on.
-    /// </summary>
     public (object Owner, LifetimeRelease Release)? ReleaseAt(WithBlockStatement scope)
     {
         if(!scoped.TryGetValue(scope, out var found))

@@ -4,14 +4,10 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Scopes;
 
-/// <summary>
-/// What a name resolved to.
-/// </summary>
 internal abstract record LookupResult;
 
 internal sealed record VariableResult(LocalVariable Variable) : LookupResult;
 
-/// <summary>A nested type, a type parameter, or a type found by namespace.</summary>
 /// <param name="BaseConstructions">
 /// See <see cref="FieldResult.BaseConstructions"/>; empty for everything but a nested type reached
 /// through a base of the type the lookup started from.
@@ -28,11 +24,11 @@ internal sealed record MethodGroupResult(
 /// Where it was found, which is not necessarily where the lookup started -- it may be a base type.
 /// </param>
 /// <param name="BaseConstructions">
-/// The constructed bases stepped through to reach it, outermost first, empty when it was declared on
+/// The constructed bases stepped through to reach it, outermost first, empty when it is declared on
 /// the type the lookup started from. Recorded rather than applied because this layer holds no
-/// substitution: <c>Derived&lt;T&gt; : Base&lt;T&gt;</c> binds Base's parameter to Derived's, which is
-/// only half of what a member's type needs, the receiver's own arguments being the other half and
-/// known only to the caller. Composing the two is
+/// substitution: a constructed base binds the base's parameters to the deriving type's, which is only
+/// half of what a member's type needs, the receiver's own arguments being the other half and known
+/// only to the caller. Composing the two is
 /// <see cref="Construction.Binding.TypeSubstitution.ForMember"/>.
 /// </param>
 internal sealed record FieldResult(
@@ -44,10 +40,8 @@ internal sealed record PropertyResult(
     Property Property, IMistType DeclaringType, IReadOnlyList<ConstructedType> BaseConstructions) : LookupResult;
 
 /// <summary>
-/// A variant of an enum. Not a field: there is no instance to read it from, and its type is the
-/// enum itself.
+/// Not a field: there is no instance to read it from, and its type is the enum itself.
 /// </summary>
-/// <param name="DeclaringType">The enum, which is also the expression's type.</param>
 internal sealed record EnumMemberResult(EnumMember Member, IMistType DeclaringType) : LookupResult;
 
 /// <summary>

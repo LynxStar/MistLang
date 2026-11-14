@@ -5,10 +5,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Verifies that top-level statements parse correctly and produce
-/// StatementItemTopLevelItemNode entries in the CompilationUnitNode.
-/// </summary>
 public class TopLevelStatementParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();

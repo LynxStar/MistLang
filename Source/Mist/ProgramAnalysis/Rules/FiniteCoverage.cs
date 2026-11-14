@@ -9,13 +9,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The values of a switch scrutinee that no arm given here admits, found by exact search rather than
-/// guessed. Each arm reads as a box, one <see cref="Admitted"/> set per leaf of the scrutinee -- a
-/// tuple's elements are its leaves, to any depth -- and a witness is a cell of the leaf domains that
-/// lies inside no box. An arm this cannot read, a property pattern or a test of a type no leaf is, has
-/// no box and ends the search with no verdict, since it may admit anything; so a value named here is
-/// one no arm could match, never one the search failed to see covered. A leaf with no domain, a string
-/// or a class, takes only a catch-all and is spelled `_` in a witness.
+/// Each arm is a box of <see cref="Admitted"/> sets over scrutinee leaves, including nested tuple elements.
+/// A witness lies outside every box. An unreadable arm ends the search with no verdict because it may
+/// admit anything. A leaf with no domain accepts only a catch-all and renders as `_` in a witness.
 /// </summary>
 internal static class FiniteCoverage
 {

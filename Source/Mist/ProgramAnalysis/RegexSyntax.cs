@@ -5,10 +5,8 @@ using Mist.ProgramModel.Model.Patterns;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a written regex is one the .NET engine accepts on its own, which is the question every full
-/// match rests on: the runtime test and <see cref="LiteralPredicates"/> both wrap the pattern as text, so
-/// one that fails alone can still parse once wrapped -- <c>a)|(?:b</c> closes the wrapper's group and
-/// leaves a partial match -- and only asking before wrapping keeps the whole-input boundary intact.
+/// Validate before wrapping: malformed syntax can close the full-match wrapper and parse
+/// with a weaker boundary. Runtime tests and <see cref="LiteralPredicates"/> both rely on it.
 /// </summary>
 internal static class RegexSyntax
 {

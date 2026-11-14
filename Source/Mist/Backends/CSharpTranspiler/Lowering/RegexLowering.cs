@@ -7,10 +7,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// Mist's <c>regex</c> IS System.Text.RegularExpressions.Regex, and what Mist spells differently is
 /// rewritten at the use site.
 /// <para>
-/// NEVER A WRAPPER. An intrinsic declaration says the target already has this and the emitter is to
-/// reach it -- a Mist-side duplicate would be a type no framework API accepts, and the same reasoning
-/// applied to String or Int32 would have the backend shipping its own copy of every primitive.
-/// <see cref="ClrProjection"/> states it for the Standard abstracts and it holds here.
+/// NEVER A WRAPPER. A Mist-side duplicate would be a type no framework API accepts, the reason
+/// <see cref="ClrProjection"/> gives for the Standard abstracts.
 /// </para>
 /// </summary>
 internal static class RegexLowering
@@ -23,8 +21,7 @@ internal static class RegexLowering
     }
 
     /// <summary>
-    /// A pattern as a C# string literal. The model already holds it as a literal's BODY, so this
-    /// only puts the quotes back.
+    /// The model holds the pattern as a literal's BODY, so this only puts the quotes back.
     /// </summary>
     public static string Quote(string patternBody)
     {
@@ -40,9 +37,6 @@ internal static class RegexLowering
         return $"new {ClrType}({csharpPatternExpression}, {ClrType}Options.Compiled | {InvariantCulture.RegexOption})";
     }
 
-    /// <summary>
-    /// The pattern Mist's <c>Pattern</c> reads, which the CLR spells as ToString.
-    /// </summary>
     public static string PatternOf(string receiverExpression)
     {
         return $"{receiverExpression}.ToString()";

@@ -1,12 +1,9 @@
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// One namespace level, for a block namespace or for a file's own namespace.
-/// <para>
-/// Declares nothing itself: types written inside are registered into the program model under this
-/// namespace and read back out here, so same-namespace scoping covers the whole namespace including
-/// the parts other files contributed.
-/// </para>
+/// One namespace level, for a block namespace or a file's own. Declares nothing itself: types written
+/// inside are registered into the program model under this namespace and read back out here, so
+/// same-namespace scoping covers the parts other files contributed.
 /// </summary>
 internal sealed class NamespaceScope(Scope parent, string namespaceName, ProgramModel programModel)
     : Scope(parent)

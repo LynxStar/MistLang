@@ -13,10 +13,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a generated Mist source fragment with adhoc refinement constraints
-/// for round-trip testing.
-/// </summary>
 public sealed class AdhocRefinementRoundTripScenario
 {
     public string Source { get; }
@@ -34,24 +30,10 @@ public sealed class AdhocRefinementRoundTripScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for adhoc refinement constraint pretty-print round-trip (idempotence).
-///
-/// **Validates: Requirements 1.1, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6,
-///              3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 10.1, 10.2, 10.5**
-///
-/// For any valid Mist source text containing adhoc refinement constraints (on type
-/// declarations, methods, constructors, and indexers, with single or compound predicates,
-/// with or without interleaved generic constraints), parsing the text and then
-/// pretty-printing the resulting AST SHALL produce text that, when parsed and
-/// pretty-printed again, yields identical output.
-/// </summary>
 public class AdhocRefinementRoundTripPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-
-    // ─── Known names for generation ─────────────────────────────────────────
 
     private static readonly string[] ClassNames = ["Array", "Matrix", "Buffer", "Container"];
     private static readonly string[] StructNames = ["Cell", "Entry", "Slot", "Wrapper"];
@@ -63,9 +45,6 @@ public class AdhocRefinementRoundTripPropertyTests
     private static readonly string[] TypeParamNames = ["T", "U", "V"];
     private static readonly string[] PrimitiveTypes = ["int", "byte", "short", "long"];
 
-    // ─── Predicate generators ───────────────────────────────────────────────
-
-    /// <summary>Generates a single relational predicate (e.g., ">= 0", "< 100").</summary>
     private static Gen<string> GenSinglePredicate()
     {
         return from op in Gen.Elements(">=", "<=", ">", "<")
@@ -73,7 +52,6 @@ public class AdhocRefinementRoundTripPropertyTests
                select $"{op} {value}";
     }
 
-    /// <summary>Generates a compound predicate with 'and' (e.g., ">= 0 and <= 100").</summary>
     private static Gen<string> GenCompoundPredicate()
     {
         return from op1 in Gen.Elements(">=", ">")
@@ -83,33 +61,22 @@ public class AdhocRefinementRoundTripPropertyTests
                select $"{op1} {val1} and {op2} {val2}";
     }
 
-    /// <summary>Generates either a single or compound predicate.</summary>
     private static Gen<string> GenPredicate()
     {
         return Gen.OneOf(GenSinglePredicate(), GenCompoundPredicate());
     }
 
-    // ─── Adhoc refinement where clause generators ───────────────────────────
-
-    /// <summary>Generates a single adhoc refinement where clause for a dependent param.</summary>
     private static Gen<string> GenAdhocWhereClause(string name)
     {
         return GenPredicate().Select(pred => $"where {name} {pred}");
     }
 
-    /// <summary>Generates a generic constraint where clause for a type param.</summary>
     private static Gen<string> GenGenericWhereClause(string typeParam)
     {
         return Gen.Elements("class", "struct")
             .Select(constraint => $"where {typeParam} : {constraint}");
     }
 
-    // ─── Declaration generators ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a class with a single dependent type parameter and a single adhoc refinement.
-    /// Example: class Array&lt;TValue, Size:int&gt; where Size >= 0 { }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenClassSingleConstraint()
     {
         return from name in Gen.Elements(ClassNames)
@@ -120,10 +87,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"class single constraint: {name}");
     }
 
-    /// <summary>
-    /// Generates a class with multiple dependent type parameters and multiple adhoc refinements.
-    /// Example: class Matrix&lt;Rows:int, Cols:int&gt; where Rows >= 1 where Cols >= 1 { }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenClassMultipleConstraints()
     {
         return from name in Gen.Elements(ClassNames)
@@ -136,10 +99,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"class multiple constraints: {name}");
     }
 
-    /// <summary>
-    /// Generates a class with mixed generic + adhoc refinement constraints.
-    /// Example: class Container&lt;T, Size:int&gt; where T : class where Size >= 0 { }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenClassMixedConstraints()
     {
         return from name in Gen.Elements(ClassNames)
@@ -156,10 +115,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"class mixed constraints: {name}");
     }
 
-    /// <summary>
-    /// Generates a struct with adhoc refinement constraints.
-    /// Example: struct Cell&lt;Size:int&gt; where Size >= 0 { }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenStructConstraint()
     {
         return from name in Gen.Elements(StructNames)
@@ -170,10 +125,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"struct constraint: {name}");
     }
 
-    /// <summary>
-    /// Generates an abstract type with adhoc refinement constraints.
-    /// Example: abstract ISized&lt;Size:int&gt; where Size >= 0 { }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenAbstractConstraint()
     {
         return from name in Gen.Elements(AbstractNames)
@@ -184,10 +135,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"abstract type constraint: {name}");
     }
 
-    /// <summary>
-    /// Generates a type alias with adhoc refinement constraints.
-    /// Example: type FixedSize&lt;Size:int&gt; = int where Size >= 0;
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenTypeAliasConstraint()
     {
         return from name in Gen.Elements(AliasNames)
@@ -199,10 +146,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"type alias constraint: {name}");
     }
 
-    /// <summary>
-    /// Generates a method with a single parameter refinement constraint.
-    /// Example: class Foo { void Process(int x) where x >= 0 { } }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenMethodSingleConstraint()
     {
         return from className in Gen.Elements(ClassNames)
@@ -215,10 +158,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"method single constraint: {className}.{methodName}");
     }
 
-    /// <summary>
-    /// Generates a method with multiple parameter refinement constraints.
-    /// Example: class Foo { void Clamp(int min, int max) where min >= 0 where max <= 100 { } }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenMethodMultipleConstraints()
     {
         return from className in Gen.Elements(ClassNames)
@@ -230,10 +169,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"method multiple constraints: {className}.{methodName}");
     }
 
-    /// <summary>
-    /// Generates a method with both generic constraint and parameter refinement.
-    /// Example: class Foo { void Process&lt;T&gt;(int x) where T : class where x >= 0 { } }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenMethodMixedConstraints()
     {
         return from className in Gen.Elements(ClassNames)
@@ -252,10 +187,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"method mixed constraints: {className}.{methodName}");
     }
 
-    /// <summary>
-    /// Generates a constructor with a parameter refinement constraint.
-    /// Example: class Foo { Foo(int size) where size > 0 { } }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenConstructorConstraint()
     {
         return from className in Gen.Elements(ClassNames)
@@ -267,10 +198,6 @@ public class AdhocRefinementRoundTripPropertyTests
                    $"constructor constraint: {className}");
     }
 
-    /// <summary>
-    /// Generates an indexer with a parameter refinement constraint.
-    /// Example: class Foo { int this[int index] where index >= 0 { get; } }
-    /// </summary>
     private static Gen<AdhocRefinementRoundTripScenario> GenIndexerConstraint()
     {
         return from className in Gen.Elements(ClassNames)
@@ -282,8 +209,6 @@ public class AdhocRefinementRoundTripPropertyTests
                select new AdhocRefinementRoundTripScenario(source,
                    $"indexer constraint: {className}");
     }
-
-    // ─── Combined generator ─────────────────────────────────────────────────
 
     private static Gen<AdhocRefinementRoundTripScenario> GenScenario()
     {
@@ -301,14 +226,10 @@ public class AdhocRefinementRoundTripPropertyTests
             GenIndexerConstraint());
     }
 
-    // ─── Arbitrary registration ─────────────────────────────────────────────
-
     public static Arbitrary<AdhocRefinementRoundTripScenario> ArbitraryAdhocRefinementRoundTripScenario()
     {
         return GenScenario().ToArbitrary();
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -333,23 +254,13 @@ public class AdhocRefinementRoundTripPropertyTests
 
     // ═══════════════════════════════════════════════════════════════════════
     // Property 1: Pretty-print round-trip (idempotence)
-    //
-    // **Validates: Requirements 1.1, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3,
-    //              2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 10.1,
-    //              10.2, 10.5**
-    //
-    // For any valid Mist source text containing adhoc refinement constraints,
-    // parsing and pretty-printing, then parsing and pretty-printing again,
-    // SHALL produce identical output.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(AdhocRefinementRoundTripPropertyTests) })]
     public Property RoundTrip_AdhocRefinementConstraints_PrintParseIsIdempotent(AdhocRefinementRoundTripScenario scenario)
     {
-        // Step 1: Parse the generated source
         var ast1 = ParseOrFail(scenario.Source);
 
-        // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
@@ -357,13 +268,10 @@ public class AdhocRefinementRoundTripPropertyTests
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);
 
-        // Step 4: Pretty-print AST2 → printed2
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Step 5: Verify idempotence: printed1 == printed2
         return (printed1 == printed2).ToProperty()
             .Label($"Round-trip mismatch.\nSource: {scenario.Source}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

@@ -5,12 +5,7 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Parse-level smoke tests for the new structured context grammar rules.
-/// Verifies that each new with-statement variant produces the correct AST node type.
-///
 /// Requirements: 1.5, 1.6, 1.7, 1.8, 2.3, 3.3, 13.1, 13.3
-/// </summary>
 public class WithStatementParsingTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -24,9 +19,6 @@ public class WithStatementParsingTests
         return Parser.Parse(tokens, bag);
     }
 
-    /// <summary>
-    /// Helper to extract the first statement from a method body inside a class.
-    /// </summary>
     private static StatementNode? GetFirstStatement(ParseResult result)
     {
         if(result.Root is not CompilationUnitNode cu)
@@ -53,8 +45,6 @@ public class WithStatementParsingTests
         return block.Statements[0];
     }
 
-    // ─── Test 1: with var x = someExpr; ─────────────────────────────────
-
     [Fact]
     public void WithVarDeclaration_ParsesCorrectly()
     {
@@ -78,8 +68,6 @@ public class WithStatementParsingTests
         var stmt = GetFirstStatement(result);
         _ = Assert.IsType<WithVarDeclarationStatementStatementNode>(stmt);
     }
-
-    // ─── Test 2: with MyType x = someExpr; ──────────────────────────────
 
     [Fact]
     public void WithTypedDeclaration_ParsesCorrectly()
@@ -108,8 +96,6 @@ public class WithStatementParsingTests
         _ = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(withTypedStmt.WithTypedDeclaration.Type.First);
     }
 
-    // ─── Test 3: with MyType _ = someExpr; ──────────────────────────────
-
     [Fact]
     public void WithDiscardDeclaration_ParsesCorrectly()
     {
@@ -134,8 +120,6 @@ public class WithStatementParsingTests
         _ = Assert.IsType<WithDiscardDeclarationStatementStatementNode>(stmt);
     }
 
-    // ─── Test 4: with someExpr; ─────────────────────────────────────────
-
     [Fact]
     public void WithPushStatement_ParsesCorrectly()
     {
@@ -158,8 +142,6 @@ public class WithStatementParsingTests
         var stmt = GetFirstStatement(result);
         _ = Assert.IsType<WithPushStatementStatementNode>(stmt);
     }
-
-    // ─── Test 5: with(someExpr) { ... } ─────────────────────────────────
 
     [Fact]
     public void WithBlockStatement_ParsesCorrectly()
@@ -186,8 +168,6 @@ public class WithStatementParsingTests
         Assert.NotNull(withBlockStmt.WithBlockStatement.Body);
         _ = Assert.Single(withBlockStmt.WithBlockStatement.Body.Statements);
     }
-
-    // ─── Test 6: Method with WithClause ─────────────────────────────────
 
     [Fact]
     public void MethodWithClause_ParsesCorrectly()

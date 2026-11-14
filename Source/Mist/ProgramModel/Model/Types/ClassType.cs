@@ -4,9 +4,6 @@ using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Types;
 
-/// <summary>
-/// A class type definition in the program model.
-/// </summary>
 internal sealed class ClassType(
     string name, string namespaceName, Scope? parentScope, MistType? declaringType, TypeDeclarationNode? declarationNode)
     : ConcreteType(name, namespaceName, parentScope, declaringType, declarationNode),

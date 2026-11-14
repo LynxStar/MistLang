@@ -4,10 +4,8 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What an assignment writes, one target at a time: the assignment itself, or, for a deconstruction,
-/// each element of its tuple target paired with the element of the value it takes -- the literal's own
-/// element when the value is a tuple literal, and otherwise an element read off the value, so every rule
-/// that reads an assignment sees each write as though it were written alone.
+/// Expose deconstructions as individual writes so assignment rules also cover tuple targets.
+/// Nonliteral values need synthetic element reads.
 /// </summary>
 internal static class Deconstructions
 {

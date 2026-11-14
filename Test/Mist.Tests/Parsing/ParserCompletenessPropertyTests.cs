@@ -8,35 +8,18 @@ using Mist.Common.Diagnostics;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for parser completeness checking.
-///
-/// **Property 5: Parser Completeness Invariant**
-///
-/// For all source files where the Storm parser returns a non-null root but does not
-/// consume all default-channel tokens, <c>MIST0123</c> is emitted with
-/// the correct line position of the first unconsumed token.
-///
-/// **Validates: Requirements 3.1, 3.3, 3.4**
-/// </summary>
 public class ParserCompletenessPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Test data model ─────────────────────────────────────────────────
-
 #pragma warning disable CA1034
 
-    /// <summary>
-    /// A scenario combining a valid Mist source prefix with trailing unparseable content.
-    /// </summary>
     public record CompletenessScenario(
         string ValidPrefix,
         string TrailingContent,
         string Description)
     {
-        /// <summary>The combined source text that should trigger MIST0123.</summary>
         public string CombinedSource => ValidPrefix + TrailingContent;
 
         public override string ToString()
@@ -47,12 +30,7 @@ public class ParserCompletenessPropertyTests
 
 #pragma warning restore CA1034
 
-    // ─── Valid prefix pool ───────────────────────────────────────────────
-
-    /// <summary>
-    /// Complete, parseable Mist programs that the Storm parser consumes fully.
     /// Each prefix ends with a newline to ensure the trailing content starts on a known line.
-    /// </summary>
     private static readonly string[] ValidPrefixes =
     [
         "class Foo { }\n",
@@ -65,16 +43,8 @@ public class ParserCompletenessPropertyTests
         "namespace Ns;\n\npublic class A { }\n\npublic class B { }\n",
     ];
 
-    /// <summary>
-    /// Trailing content fragments that are NOT parseable as additional top-level items.
-    /// The PEG parser's CompilationUnit rule uses <c>TopLevelItem*</c> which includes
-    /// Statement alternatives. To trigger the completeness check, we use fragments
-    /// that cannot start any TopLevelItem alternative:
-    /// - Unmatched closing delimiters (cannot start any rule)
-    /// - Incomplete declarations (keyword without required following tokens)
-    /// - Bare expressions without a trailing semicolon (ExpressionStatement needs SEMICOLON)
-    /// - Content starting with tokens that no rule alternative accepts
-    /// </summary>
+    /// CompilationUnit is <c>TopLevelItem*</c>, which includes Statement, so each fragment
+    /// must be unable to complete any TopLevelItem.
     private static readonly string[] TrailingFragments =
     [
         "garbage",                  // lone identifier without semicolon → not a valid Statement
@@ -89,8 +59,6 @@ public class ParserCompletenessPropertyTests
         "abstract",                // incomplete abstract declaration
     ];
 
-    // ─── Generators ──────────────────────────────────────────────────────
-
     private static Gen<CompletenessScenario> GenScenario()
     {
         return from prefix in Gen.Elements(ValidPrefixes)
@@ -101,22 +69,10 @@ public class ParserCompletenessPropertyTests
                    $"prefix='{prefix.TrimEnd()}' + trailing='{trailing}'");
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<CompletenessScenario> ArbitraryCompletenessScenario()
     {
         return GenScenario().ToArbitrary();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 5: Parser Completeness Invariant
-    //
-    // **Validates: Requirements 3.1, 3.3, 3.4**
-    //
-    // For all source files where the Storm parser returns a non-null root
-    // but does not consume all default-channel tokens, MIST0123
-    // is emitted with the correct line position of the first unconsumed token.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -131,33 +87,25 @@ public class ParserCompletenessPropertyTests
 
         var diagnostics = bag.ToImmutableArray();
 
-        // If the parser is skeletal (MIST0121), the completeness check cannot
-        // be exercised; treat as vacuously satisfied.
         if(diagnostics.Any(d => d.Number.Value == "MIST0121"))
         {
             return true.ToProperty().Label("parser skeletal (MIST0121)");
         }
 
-        // If the prefix itself doesn't parse (root is null), the completeness check
-        // is not triggered — this scenario is not applicable. Skip gracefully.
         if(result.Root is null)
         {
             return true.ToProperty().Label("root is null (prefix did not parse)");
         }
 
-        // (1) MIST0123 must be present (Requirement 3.1)
         var incompleteDiag = diagnostics.FirstOrDefault(d =>
             d.Number.Value == "MIST0123");
 
         var hasDiag = incompleteDiag is not null;
 
-        // (2) Severity must be Error (Requirement 3.3)
         var hasCorrectSeverity = incompleteDiag?.Severity == DiagnosticSeverity.Error;
 
-        // (3) Stage must be Parsing (Requirement 3.3)
         var hasCorrectStage = incompleteDiag?.Stage == PipelineStage.Parsing;
 
-        // (4) Location must reference the correct line (Requirement 3.4)
         // Determine the expected line by finding the first unconsumed token in the stream.
         var lastPos = Generated.MistParser.LastPosition;
         var defaultTokens = tokens.DefaultChannelTokens;
@@ -166,7 +114,6 @@ public class ParserCompletenessPropertyTests
             : -1;
         var hasCorrectLine = incompleteDiag?.Position().Start.Line == expectedLine;
 
-        // (5) File path must be present (Requirement 3.4)
         var hasFilePath = incompleteDiag?.Location.Path == "test.mist";
 
         var allPass = hasDiag && hasCorrectSeverity && hasCorrectStage && hasCorrectLine && hasFilePath;

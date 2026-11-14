@@ -22,8 +22,8 @@ internal readonly record struct LookupRequest(
     internal const string ReceiverName = "this";
 
     /// <summary>
-    /// A request for the enclosing instance. Starts wide: whether a receiver exists here is for the
-    /// scopes to answer, not the caller to assume.
+    /// Starts wide: whether a receiver exists here is for the scopes to answer, not the caller to
+    /// assume.
     /// </summary>
     public static LookupRequest Receiver(SyntaxNode? locationNode)
     {
@@ -31,15 +31,11 @@ internal readonly record struct LookupRequest(
     }
 
     /// <summary>
-    /// The request with the enclosing type's receiver taken away. Instance members fall out of
-    /// consideration because reading one needs an instance; static members stay because they do not.
-    /// <para>
     /// Applied wherever a lookup passes a point at which no receiver of the enclosing type is to be
     /// had. That is not always the type's lexical edge: travelling OUT of a type reaches code with no
     /// instance of it (<see cref="TypeScope"/>), but so does reaching the enclosing type from INSIDE
     /// a member that holds no instance either -- <see cref="MethodScope"/> when static, and
     /// <see cref="InitializerScope"/> always, since an initializer runs before any constructor body.
-    /// </para>
     /// <para>
     /// Only ever NARROWS. A type-position request (<see cref="MemberVisibility.None"/>) travels
     /// through unchanged: it admits no member at all, so it has no receiver to lose, and moving it to
@@ -59,8 +55,7 @@ internal readonly record struct LookupRequest(
     }
 
     /// <summary>
-    /// A request for the members of one specific type, as reached by qualification. Travels no chain,
-    /// so there is no narrowing to do -- the caller already knows which type to ask.
+    /// Travels no chain, so there is no narrowing to do -- the caller already knows which type to ask.
     /// </summary>
     public static LookupRequest Member(string name, MemberVisibility visibility, SyntaxNode? locationNode)
     {

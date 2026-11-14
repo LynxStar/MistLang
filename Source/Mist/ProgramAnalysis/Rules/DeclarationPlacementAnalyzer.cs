@@ -7,10 +7,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Modifiers the grammar and the builders admit but a finished declaration's position rules out:
-/// <c>static</c> on a member of a Mist abstract type (abstract-type-unification Requirement 1.3), whose CLR
-/// counterparts are projected rather than declared here and fill no slot (Requirement 14.8), and <c>ref</c>
-/// or <c>readonly ref</c> on an operator or cast-operator parameter (ref-parameters Requirement 1.2).
+/// Static CLR abstract members are projected rather than declared in Mist and fill no slot
+/// (abstract-type-unification Requirement 14.8); declaration placement checks exclude them.
 /// </summary>
 internal sealed class DeclarationPlacementAnalyzer : IProgramAnalyzer
 {

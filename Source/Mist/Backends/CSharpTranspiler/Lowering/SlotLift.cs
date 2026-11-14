@@ -76,7 +76,7 @@ internal static class SlotLift
     /// order the parameters and their constraints declare them. A method generic over a lifting
     /// abstract declares one extra type parameter per slot, named for the slot as the interface's
     /// is, so a member typed with the slot inside the body spells the parameter untouched; the
-    /// constraint names it, <c>where T : IProducer&lt;Output&gt;</c>, and a call supplies the filler.
+    /// constraint names it and a call supplies the filler.
     /// </summary>
     public static IReadOnlyList<TypeSlot> Synthesized(IReadOnlyList<TypeParameter> typeParameters)
     {
@@ -150,8 +150,8 @@ internal static class SlotLift
     /// <paramref name="conformer"/>, with the argument for each lifted slot appended to whatever type
     /// arguments were already written: the filler a concrete conformer declares, or the same-named
     /// parameter a derived abstract lifted for itself. Null when the abstract lifts nothing, or when
-    /// an argument is missing, leaving the entry to be spelled as it always was -- which
-    /// the conformance rule has already refused by then.
+    /// an argument is missing, which the conformance rule has already refused, leaving the entry as
+    /// written.
     /// </summary>
     public static IMistType? Base(IMistType abstractRef, MemberType conformer)
     {
@@ -191,11 +191,6 @@ internal static class SlotLift
         return Lifted(conformer).FirstOrDefault(own => MistType.StripArity(own.Name) == name);
     }
 
-    /// <summary>
-    /// The bound a parameterized slot erases to, with the slot's own parameters closed by the
-    /// arguments the use site applied. Null when <paramref name="type"/> is not such a slot, or
-    /// declares no bound to erase to.
-    /// </summary>
     public static IMistType? Erased(IMistType type)
     {
         if(type is not ConstructedType { Definition: TypeSlot slot } constructed
@@ -215,9 +210,8 @@ internal static class SlotLift
     }
 
     /// <summary>
-    /// Reports every parameterized slot that has no bound to erase to. Separate from
-    /// <see cref="Erased"/> so the report happens once per declaration rather than once per use,
-    /// and so a slot used nowhere is still refused.
+    /// Separate from <see cref="Erased"/> so the report happens once per declaration rather than once
+    /// per use, and so a slot used nowhere is still refused.
     /// </summary>
     public static void ReportUnboundedParameterized(MemberType type, DiagnosticBag diagnostics)
     {

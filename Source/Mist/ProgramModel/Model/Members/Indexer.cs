@@ -4,9 +4,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Model.Members;
 
-/// <summary>
-/// An indexer declared on a type.
-/// </summary>
 internal sealed class Indexer(
     IMistType type,
     List<Parameter> parameters,
@@ -24,21 +21,12 @@ internal sealed class Indexer(
 
     public NativeSlotKind SlotKind { get; init; }
 
-    /// <summary>
-    /// The attributes applied to this indexer.
-    /// </summary>
     public List<AttributeData> AttributesList { get; } = [];
 
     public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];
 
-    /// <summary>
-    /// The getter accessor, or null if the indexer has no getter.
-    /// </summary>
     public PropertyAccessor? Getter { get; init; }
 
-    /// <summary>
-    /// The setter accessor, or null if the indexer has no setter.
-    /// </summary>
     public PropertyAccessor? Setter { get; init; }
 
     List<TypeParameter> IOverload.TypeParametersList => [];

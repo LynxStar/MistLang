@@ -8,40 +8,15 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Whether a member reads only, or writes storage. Beside <see cref="ThisTiers"/> and for the same
-/// reason: both answer what a BODY does, and one walk with two questions beats two walkers that can
-/// disagree. The rules are the readonly-contexts spec's base rules (Req 11) read as a classification --
-/// a field written, a setter called, a callee that is not readonly, an allocation through a constructor
-/// that is not -- with a constructor privileged to assign the fields of the instance it builds
-/// (Req 10.7), and with the purity spec's amendment (its Req 11): a write to what the context owns by
-/// <see cref="Origins"/>, and a call to a local member on such a receiver, are not writes of the
-/// context. The one write of what it owns that a context may not make is an external or frozen
-/// reference of a type that can change stored into an owned field or property: the context's next read
-/// through that owned slot would answer Own for an object other references share. What a callee
-/// without a body here keeps -- an abstract slot, whose promise is its implementers', or a local
-/// member -- is the caller's oracle, because the answer is the purity fixpoint's and that fixpoint asks
-/// this class in turn; without one, only a declaration counts, and an auto accessor, which does nothing
-/// but touch its own storage, counts as local.
-/// <para>
-/// A call asks the CALLEE'S status and never its body (Req 10.8), which is what makes this a fixed
-/// point over the call graph rather than an inlining. It is the GREATEST one: a member is readonly
-/// unless something reachable from it writes, so two methods that only call each other settle readonly
-/// rather than deadlocking on each other's answer. A member with no Mist body -- intrinsic, CLR-projected
-/// or abstract -- is readonly only if it SAYS so, since there is no body here to prove it, and an
-/// auto-getter is readonly by construction because reading a field is all it can do (Req 10.4).
-/// </para>
-/// <para>
-/// The walk memoises only what it PROVED: everything reached when nothing writes, and the root alone
-/// when something does -- a member reached on a failing path may still be readonly by itself, and
-/// settling it from that path would answer a question the walk never asked.
-/// </para>
-/// <para>
-/// Every write the context makes through anything External counts (purity Req 4.1): an element of an
-/// array parameter, a ref parameter, a ref local aliasing a field, an initializer entry's setter. A
-/// write through an index is admitted only into an array the context owns, so a readonly member filling
-/// a scratch array it just allocated mutates nothing the value reaches, while one filling an array it
-/// was handed writes the caller's storage.
-/// </para>
+/// Readonly-contexts Requirements 10.4, 10.7 and 11 privilege auto-getters and constructor
+/// field writes. Purity Requirement 11 also admits writes and local calls on owned receivers,
+/// subject to <see cref="PurityJudge"/>'s owned-store constraint; external storage writes
+/// still count (purity Requirement 4.1).
+/// Callee status comes from the purity oracle when available, otherwise declarations and
+/// auto-accessor locality. Requirement 10.8 asks status rather than inlining bodies: the
+/// greatest fixed point admits cycles with no reachable write.
+/// Memoize all reached members only on success; on failure memoize the root alone, since
+/// other members reached on that path can still be readonly.
 /// </summary>
 internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred = null, FormattingCallbacks? callbacks = null)
 {

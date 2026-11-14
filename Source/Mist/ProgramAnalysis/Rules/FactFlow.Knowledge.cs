@@ -48,10 +48,8 @@ internal sealed partial class FactFlow
     }
 
     /// <summary>
-    /// A length learned from a condition, and never negative -- which every caller here already assumes of
-    /// the member it read. Without that, the negation of an EQUALITY carries nothing usable: `Length == 0`
-    /// failing leaves the values below zero beside those above it, so `Length >= 1` does not follow, where
-    /// the negation of an inequality needs no such help.
+    /// Callers supply nonnegative lengths. This bound makes a failed <c>Length == 0</c> imply a positive
+    /// length; negated inequalities do not need that extra bound.
     /// </summary>
     private static FactState Sized(
         FactState state, object measured, Admitted admitted, bool holds)

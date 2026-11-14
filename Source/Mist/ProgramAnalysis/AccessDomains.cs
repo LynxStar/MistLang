@@ -5,11 +5,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis;
 
-/// <summary>
-/// Whether a use sits inside a declaration's domain, from the full-accessibility-model spec: its declaring
-/// type for private, that type or a derivation for protected, the same compilation for internal, with a
-/// nested type counting as inside its enclosing one.
-/// </summary>
 internal static class AccessDomains
 {
     public static bool Admits(AnalysisContext context, object use, Accessibility accessibility, MistType declaring)
@@ -41,11 +36,9 @@ internal static class AccessDomains
     }
 
     /// <summary>
-    /// The outermost type along <paramref name="type"/>'s nesting whose own accessibility shuts the site out,
-    /// or null where every level admits it: a nested type's domain is its own intersected with its enclosing
-    /// type's (the accessibility spec's Requirement 11.1), and the outermost is the one C# names. A top-level
-    /// type has no enclosing type to be private or protected within, so anything but public is judged
-    /// against the compilation, and the declaration itself is left to be judged as a declaration.
+    /// Requirement 11.1 intersects nested accessibility with every enclosing domain. Name the
+    /// outermost blocker, as C# does; judge non-public top-level types against the compilation
+    /// and leave declaration validity to declaration rules.
     /// </summary>
     public static MistType? Blocking(MistType? owner, MistAssembly? assembly, MistType type)
     {

@@ -18,9 +18,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// still owns its value at the end of the scope is dropped there; one whose value has been MOVED
 /// elsewhere is not, the new owner having taken the obligation with it.
 /// <para>
-/// A MOVE IS ANY USE THAT HANDS THE VALUE ON: passing it as an argument, returning it, or calling its
-/// own Drop for a non-relevant value. Relevant explicit drops retain lexical cleanup. Reading a member off it is not one -- <c>f.GetFd()</c> borrows and gives back -- which is
-/// why this looks at the POSITION a reference occupies rather than counting references.
+/// A MOVE IS ANY USE THAT HANDS THE VALUE ON (see <see cref="Moves"/>); a relevant value's explicit
+/// Drop is not one and keeps its scope-exit drop. Reading a member off it is not one either --
+/// <c>f.GetFd()</c> borrows and gives back -- which is why this looks at the POSITION a reference
+/// occupies rather than counting references.
 /// </para>
 /// </summary>
 internal static class DropInsertion
@@ -78,10 +79,6 @@ internal static class DropInsertion
 
     private const int ChainLimit = 8;
 
-    /// <summary>
-    /// What this type's declared drop hands back, with the type arguments of a constructed generic
-    /// applied -- a box of tokens gives up a token, not the T its declaration names.
-    /// </summary>
     private static IMistType? DropReturns(IMistType type)
     {
         if(Definition(type) is not MemberType member
@@ -137,11 +134,6 @@ internal static class DropInsertion
             .ToList();
     }
 
-    /// <summary>
-    /// Whether a field's type is a type PARAMETER known droppable by its constraint. The constraint is
-    /// a discipline rather than a nominal type, so C# has no interface to call the drop through and the
-    /// dispatch is dynamic -- see <see cref="FieldDrop"/>.
-    /// </summary>
     public static bool IsDroppableParameter(IMistType type)
     {
         return type is TypeParameter parameter
@@ -154,9 +146,9 @@ internal static class DropInsertion
     }
 
     /// <summary>
-    /// Releasing one field of the enclosing value. A generic one goes through <c>dynamic</c>, which is
-    /// the cost of a discipline constraint carrying no member: nothing in the emitted C# says a T has a
-    /// Drop, so nothing but the runtime can find it.
+    /// A generic field goes through <c>dynamic</c>, which is the cost of a discipline constraint
+    /// carrying no member: nothing in the emitted C# says a T has a Drop, so nothing but the runtime
+    /// can find it.
     /// </summary>
     public static string FieldDrop(Field field)
     {
@@ -444,8 +436,8 @@ internal static class DropInsertion
     }
 
     /// <summary>
-    /// Whether an argument hands the value over. A BY-REFERENCE parameter does not: lending is a loan
-    /// and the caller still owns what it lent, so the drop stays with it.
+    /// A BY-REFERENCE parameter does not take the value: lending is a loan and the caller still owns
+    /// what it lent, so the drop stays with it.
     /// </summary>
     private static bool MovesThroughArguments(InvocationExpression invocation, Func<Expression, bool> isTarget)
     {

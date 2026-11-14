@@ -9,10 +9,6 @@ using Mist.Generated;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Represents a test scenario: a list of N integer literal expressions
-/// that will be formatted as an array literal [e1, e2, ..., eN].
-/// </summary>
 public sealed class ArrayLiteralElementCountScenario
 {
     private readonly int[] elements;
@@ -32,20 +28,10 @@ public sealed class ArrayLiteralElementCountScenario
     }
 }
 
-/// <summary>
-/// Property-based tests for array literal element count correctness.
-///
-/// Property 1: For any list of N valid expressions (where N ∈ [1, 20]),
-/// parsing the source text [e1, e2, ..., eN] in expression position SHALL
-/// produce an ArrayLiteralExpressionPrimaryNode whose total element count
-/// (1 for First + Expressions.Length) equals N.
-/// </summary>
 public class ArrayLiteralElementCountPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Generator ──────────────────────────────────────────────────────────
 
     public static Arbitrary<ArrayLiteralElementCountScenario> ArbitraryScenario()
     {
@@ -56,8 +42,6 @@ public class ArrayLiteralElementCountPropertyTests
 
         return gen.ToArbitrary();
     }
-
-    // ─── Parsing helpers ────────────────────────────────────────────────────
 
     private static CompilationUnitNode? ParseSource(string source)
     {
@@ -78,18 +62,12 @@ public class ArrayLiteralElementCountPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    /// <summary>
-    /// Builds a complete Mist source file with the array literal as a variable initializer.
-    /// </summary>
     private static string BuildSource(IReadOnlyList<int> elements)
     {
         var elementList = string.Join(", ", elements);
         return $"class Test {{ void Run() {{ var x = [{elementList}]; }} }}";
     }
 
-    /// <summary>
-    /// Extracts the ArrayLiteralExpressionPrimaryNode from a parsed source.
-    /// </summary>
     private static ArrayLiteralExpressionPrimaryNode? ExtractArrayLiteral(CompilationUnitNode cu)
     {
         if(cu.GetTypes()[0] is not BodyTypeTypeDeclarationNode typeDecl)
@@ -122,9 +100,6 @@ public class ArrayLiteralElementCountPropertyTests
         return primary as ArrayLiteralExpressionPrimaryNode;
     }
 
-    /// <summary>
-    /// Unwraps a simple expression down to its primary node.
-    /// </summary>
     private static PrimaryNode? UnwrapToPrimary(ExpressionNode expr)
     {
         Storm.Runtime.SyntaxNode current = expr;
@@ -162,14 +137,6 @@ public class ArrayLiteralElementCountPropertyTests
 
         return null;
     }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // Property 1: Array literal parsing produces correct element count
-    //
-    // For any list of N valid expressions (N ∈ [1, 20]), constructing source
-    // [e1, e2, ..., eN], parsing in-process, and verifying that the
-    // ArrayLiteralExpressionPrimaryNode total element count equals N.
-    // ═════════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,

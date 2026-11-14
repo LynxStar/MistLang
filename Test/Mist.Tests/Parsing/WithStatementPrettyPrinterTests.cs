@@ -1,4 +1,4 @@
-// Feature: structured-context — Unit tests for pretty printer handling of context constructs
+// Feature: structured-context
 // **Validates: Requirements 11.1, 11.2, 11.3, 11.4, 11.5, 11.6**
 
 using Mist.Common.Diagnostics;
@@ -9,10 +9,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying that the pretty printer correctly formats all structured context constructs.
-/// Uses in-process MistParser and MistPrettyPrinter — no process spawning.
-/// </summary>
 public class WithStatementPrettyPrinterTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -39,8 +35,6 @@ public class WithStatementPrettyPrinterTests
         var cu = ParseOrFail(source);
         return MistPrettyPrinter.Print(cu, source);
     }
-
-    // ─── Requirement 11.1: with var identifier = expression ; ────────────
 
     [Fact]
     public void WithVarDeclaration_PrettyPrintsCorrectly()
@@ -76,8 +70,6 @@ public class WithStatementPrettyPrinterTests
         Assert.Equal(printed1, printed2);
     }
 
-    // ─── Requirement 11.2: with TypeReference identifier = expression ; ──
-
     [Fact]
     public void WithTypedDeclaration_PrettyPrintsCorrectly()
     {
@@ -111,8 +103,6 @@ public class WithStatementPrettyPrinterTests
 
         Assert.Equal(printed1, printed2);
     }
-
-    // ─── Requirement 11.3: with TypeReference _ = expression ; ───────────
 
     [Fact]
     public void WithDiscardDeclaration_PrettyPrintsCorrectly()
@@ -148,8 +138,6 @@ public class WithStatementPrettyPrinterTests
         Assert.Equal(printed1, printed2);
     }
 
-    // ─── Requirement 11.4: with expression ; ─────────────────────────────
-
     [Fact]
     public void WithPushStatement_PrettyPrintsCorrectly()
     {
@@ -183,8 +171,6 @@ public class WithStatementPrettyPrinterTests
 
         Assert.Equal(printed1, printed2);
     }
-
-    // ─── Requirement 11.5: with (expression) { ... } ─────────────────────
 
     [Fact]
     public void WithBlockStatement_PrettyPrintsCorrectly()
@@ -220,8 +206,6 @@ public class WithStatementPrettyPrinterTests
 
         Assert.Equal(printed1, printed2);
     }
-
-    // ─── Requirement 11.6: Method with clauses ───────────────────────────
 
     [Fact]
     public void MethodWithClause_PrettyPrintsCorrectly()

@@ -67,17 +67,12 @@ internal readonly record struct ScopeDescription(string Text)
 }
 
 /// <summary>
-/// One walk over a body under a scope kind, yielding a finding for each operation the purity design's
-/// table refuses. Nested lambdas and local functions are scopes of their own and are not walked; calling
-/// one is judged as a call to the member whose promise <c>promiseOf</c> answers, with its captures as the
-/// receiver. A lambda root judged with a member's Origins rather than a closure's is an initializer
-/// written as a bare lambda: the scope's VALUE, whose creation is admitted (Requirement 7.4) and whose
-/// body is judged as a closure where it converts. A struct-typed storage read is judged once, at the
-/// outermost hop, because a field of a by-value copy is the copy's and only the copy's source could be
-/// external; and a refused operation silences the reads along its receiver chain, which fail for the
-/// same reason it did. A local scope may keep an argument it was handed (Requirement 5.2), but only in
-/// an unowned slot of its own instance: an owned slot, or any slot of something else the scope owns,
-/// would make the scope's next read through it answer Own for an object other references share.
+/// Nested closures are separate scopes; calls use their captures as the receiver. A bare
+/// lambda initializer creates the scope's value (Requirement 7.4); its body is judged at
+/// conversion. Judge struct storage reads at the outermost hop, since fields belong to the
+/// copy; a refusal silences its receiver chain to avoid duplicate findings.
+/// Requirement 5.2 lets a local scope retain inputs only in unowned slots of its own instance:
+/// other owned storage would falsely give shared objects Own provenance on the next read.
 /// </summary>
 internal static partial class PurityJudge
 {

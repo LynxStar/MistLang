@@ -16,10 +16,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The sites of <see cref="ContextCalls"/>: what each node of a body runs, and what each scope drops on
-/// its way out, which has one home, <see cref="PurityJudge.ExitDrops"/>. A property's direction is the
-/// assignment holding it as a target, read before its children are reached, so a getter is recorded for
-/// a read, a setter for a write and both for a <c>??=</c>.
+/// Read assignment direction before visiting its children to record the correct accessors.
+/// Scope cleanup follows <see cref="PurityJudge.ExitDrops"/>.
 /// </summary>
 internal sealed partial class ContextCalls
 {

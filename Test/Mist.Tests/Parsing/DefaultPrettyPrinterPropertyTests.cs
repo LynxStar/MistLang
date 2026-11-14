@@ -12,29 +12,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for pretty-printer round-trip of default constructs.
-///
-/// **Validates: Requirements 4.5**
-///
-/// For any valid Mist AST containing default blocks (0–5 entries, mix of field overrides
-/// and type bindings), <c>default(TypeName)</c> expressions, and bare <c>default</c>
-/// expressions, pretty-printing the AST then parsing the result then pretty-printing
-/// again SHALL produce identical output.
-/// </summary>
 public class DefaultPrettyPrinterPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Token / AST helpers ─────────────────────────────────────────────
-
     private static Storm.Runtime.Token Tok(string lexeme)
     {
         return MistTypeGenerator.MakeToken(lexeme);
     }
-
-    // ─── Name pools ──────────────────────────────────────────────────────
 
     private static readonly string[] ClassNames =
         ["Widget", "Config", "Engine", "Sensor", "Agent"];
@@ -48,13 +34,6 @@ public class DefaultPrettyPrinterPropertyTests
     private static readonly string[] NestedFieldNames =
         ["depth", "rate", "mode", "size", "limit"];
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Default block entry generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a field override entry: <c>fieldName = expression</c>.
-    /// </summary>
     private static Gen<DefaultFieldInitializerNode> GenFieldOverride()
     {
         return from fieldName in Gen.Elements(FieldNames)
@@ -66,9 +45,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a type binding entry without nested overrides: <c>fieldName: TypeName</c>.
-    /// </summary>
     private static Gen<DefaultFieldInitializerNode> GenTypeBindingSimple()
     {
         return from fieldName in Gen.Elements(FieldNames)
@@ -86,10 +62,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a type binding entry with nested overrides:
-    /// <c>fieldName: TypeName { nestedField = value, ... }</c>.
-    /// </summary>
     private static Gen<DefaultFieldInitializerNode> GenTypeBindingWithOverrides()
     {
         var genNestedOverride =
@@ -119,21 +91,11 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a random default field initializer entry (field override or type binding).
-    /// </summary>
     private static Gen<DefaultFieldInitializerNode> GenDefaultEntry()
     {
         return Gen.OneOf(GenFieldOverride(), GenTypeBindingSimple(), GenTypeBindingWithOverrides());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Default block declaration generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a default block with 0–5 entries.
-    /// </summary>
     private static Gen<DefaultBlockDeclarationNode> GenDefaultBlock()
     {
         return from entries in GenDefaultEntry().ListOf()
@@ -144,9 +106,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Wraps a default block as a member declaration.
-    /// </summary>
     private static Gen<MemberDeclarationNode> GenDefaultBlockMember()
     {
         return GenDefaultBlock().Select(block =>
@@ -156,13 +115,6 @@ public class DefaultPrettyPrinterPropertyTests
             });
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Default expression generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a <c>default(TypeName)</c> expression using named types.
-    /// </summary>
     private static Gen<ExpressionNode> GenDefaultExpression()
     {
         return Gen.Elements(ClassNames).Select(typeName =>
@@ -178,9 +130,6 @@ public class DefaultPrettyPrinterPropertyTests
             }));
     }
 
-    /// <summary>
-    /// Generates a <c>default(PrimitiveType)</c> expression using primitive types.
-    /// </summary>
     private static Gen<ExpressionNode> GenDefaultPrimitiveExpression()
     {
         return MistTypeGenerator.GenPrimitiveTypeRef().Select(typeRef =>
@@ -190,18 +139,12 @@ public class DefaultPrettyPrinterPropertyTests
             }));
     }
 
-    /// <summary>
-    /// Generates a bare <c>default</c> literal expression.
-    /// </summary>
     private static Gen<ExpressionNode> GenDefaultLiteralExpression()
     {
         return Gen.Constant(
             MistAstGenerator.WrapPrimary(new DefaultLiteralExpressionPrimaryNode()));
     }
 
-    /// <summary>
-    /// Generates a random default-related expression.
-    /// </summary>
     private static Gen<ExpressionNode> GenAnyDefaultExpression()
     {
         return Gen.OneOf(
@@ -210,13 +153,6 @@ public class DefaultPrettyPrinterPropertyTests
             GenDefaultLiteralExpression());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Complete program generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates a class with a default block member and optional fields.
-    /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultBlock()
     {
         var genField = from fieldName in Gen.Elements(FieldNames)
@@ -288,9 +224,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a class with a method containing default expression statements.
-    /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultExpressions()
     {
         var genDefaultStmt = GenAnyDefaultExpression().Select(MistAstGenerator.MakeExpressionStatement);
@@ -333,9 +266,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a class with both a default block and a method using default expressions.
-    /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultBlockAndExpressions()
     {
         var genDefaultStmt = GenAnyDefaultExpression().Select(MistAstGenerator.MakeExpressionStatement);
@@ -393,9 +323,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a class with a method that uses default expressions in variable declarations.
-    /// </summary>
     private static Gen<CompilationUnitNode> GenClassWithDefaultVarDecls()
     {
         var genTypedVarDecl =
@@ -462,9 +389,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a random CompilationUnitNode with default-related constructs.
-    /// </summary>
     public static Gen<CompilationUnitNode> GenDefaultProgram()
     {
         return Gen.OneOf(
@@ -475,19 +399,11 @@ public class DefaultPrettyPrinterPropertyTests
             GenClassWithDefaultVarDecls());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<CompilationUnitNode> ArbitraryCompilationUnitNode()
     {
         return GenDefaultProgram().ToArbitrary();
     }
 
-    // ─── Round-trip helper ───────────────────────────────────────────────
-
-    /// <summary>
-    /// Performs a single parse → print cycle on the given source text.
-    /// Returns the re-printed output, or null if the parser cannot produce a usable AST.
-    /// </summary>
     private static string? ParseAndPrint(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -513,24 +429,14 @@ public class DefaultPrettyPrinterPropertyTests
         return MistPrettyPrinter.Print(reparsed, source);
     }
 
-    /// <summary>
-    /// Checks the round-trip property: print → parse → print → parse → print.
-    /// The last two printed outputs must be identical (idempotent round-trip).
-    ///
-    /// If the parser cannot produce a usable AST for the generated source,
-    /// falls back to determinism checking (printing the same AST twice yields
-    /// identical output).
-    /// </summary>
     private static Property CheckRoundTrip(CompilationUnitNode ast)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: First round-trip: parse printed1 → print → printed2
         var printed2 = ParseAndPrint(printed1);
 
         if(printed2 is null)
@@ -541,14 +447,11 @@ public class DefaultPrettyPrinterPropertyTests
                 .Label($"Determinism failed (parser unavailable).\nPrinted1:\n{printed1}\nReprinted:\n{reprinted}");
         }
 
-        // Step 3: Second round-trip: parse printed2 → print → printed3
         var printed3 = ParseAndPrint(printed2);
 
         if(printed3 is null)
         {
-            // Parser failed on second round-trip — the first round-trip output
-            // is not parseable. Fall back to verifying that the first round-trip
-            // is at least deterministic (parsing printed1 twice yields the same output).
+            // printed2 does not reparse, so check that the first round-trip is at least deterministic.
             var printed2Again = ParseAndPrint(printed1);
             if(printed2Again is null)
             {
@@ -559,25 +462,9 @@ public class DefaultPrettyPrinterPropertyTests
                 .Label($"First round-trip not deterministic.\nPrinted2:\n{printed2}\nPrinted2Again:\n{printed2Again}");
         }
 
-        // Step 4: The last two printed outputs must be identical
         return (printed2 == printed3).ToProperty()
             .Label($"Round-trip not idempotent.\nPrinted2:\n{printed2}\nPrinted3:\n{printed3}");
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Pretty-printer round-trip for default constructs
-    //
-    // **Validates: Requirements 4.5**
-    //
-    // For any valid Mist AST containing default blocks, default(TypeName)
-    // expressions, and/or bare default literal expressions, pretty-printing
-    // the AST to source text, parsing it back, and pretty-printing again
-    // SHALL produce identical source text.
-    //
-    // When the parser cannot fully round-trip new default syntax (produces
-    // an empty AST), the test falls back to verifying determinism: printing
-    // the same AST twice yields identical output.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
@@ -594,12 +481,6 @@ public class DefaultPrettyPrinterPropertyTests
     {
         var printed = MistPrettyPrinter.Print(ast);
 
-        // The output should contain at least one default-related keyword or syntax:
-        // - "default {" or "default { }" for default blocks
-        // - "default(" for default(TypeName) expressions
-        // - "default;" for bare default expression statements
-        // - "= default;" for bare default in variable declarations
-        // - "= default(" for default(TypeName) in variable declarations
         var containsDefaultSyntax =
             printed.Contains("default {") ||
             printed.Contains("default(") ||

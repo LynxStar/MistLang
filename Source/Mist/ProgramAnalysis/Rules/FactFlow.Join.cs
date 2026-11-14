@@ -61,8 +61,8 @@ internal sealed partial class FactFlow
         return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap, live) };
     }
 
-    // Text knowledge holds in every alternative of the state that has it, so it stays with a value the other side never saw:
-    // that side's alternatives say nothing of the value, and an alternative selected later keeps the literal or match it was joined with.
+    // Text facts hold in every alternative that knows the value. An alternative that never sees it
+    // cannot contradict them; retaining them preserves knowledge when that alternative is selected later.
     private static ImmutableDictionary<Value, Knowledge> Carried(FactState side, FactState other, ImmutableDictionary<Value, Knowledge> details)
     {
         foreach(var (value, known) in side.Details)

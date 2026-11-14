@@ -5,8 +5,8 @@ namespace Mist.ProgramModel.Construction.Binding.Expressions;
 /// <summary>
 /// Reads a decimal, hex or binary integer literal into its exact value and the type the binary-literals spec
 /// gives it: by suffix (Requirement 3), separators ignored (Requirement 8.10). Where the suffix's type cannot
-/// hold the value the spec is silent, and the next type that can is taken, as C# does -- classic emits the
-/// literal as written, so C#'s reading is the behavior it has always had.
+/// hold the value the spec is silent, and the next type that can is taken, as C# does, since classic emits
+/// the literal as written for C# to read.
 /// </summary>
 internal static class IntegerLiterals
 {

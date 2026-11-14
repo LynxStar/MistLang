@@ -12,10 +12,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A value at a position that expects a type it cannot implicitly become: one question, <see cref="Assignability"/>, asked at every position the binder gave a
-/// target type to, and reported at the value, since the value is what has to change. An argument is
-/// judged against what <see cref="ArgumentTargets"/> pairs it with, a CLR-projected callee's included,
-/// and an index against the indexer it selected, an intrinsic or projected one included.
+/// Targets come from the binder and <see cref="ArgumentTargets"/>; conversion decisions belong to
+/// <see cref="Assignability"/>. Report at the value because that is what must change.
 /// </summary>
 internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
 {

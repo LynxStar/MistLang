@@ -11,17 +11,10 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-// ─── Scenario types ─────────────────────────────────────────────────────────
-
-/// <summary>
-/// A scenario for Property 1: a valid type name that can have the optional suffix applied.
-/// </summary>
 public sealed class OptionalTypeSuffixScenario
 {
-    /// <summary>The base type name (e.g., "int", "string", "MyClass", "Result&lt;int&gt;").</summary>
     public string TypeName { get; }
 
-    /// <summary>Whether this is a primitive type (affects which AST node to expect).</summary>
     public bool IsPrimitive { get; }
 
     public OptionalTypeSuffixScenario(string typeName, bool isPrimitive)
@@ -36,18 +29,12 @@ public sealed class OptionalTypeSuffixScenario
     }
 }
 
-/// <summary>
-/// A scenario for Property 3: a type position where T? should parse without errors.
-/// </summary>
 public sealed class TypePositionScenario
 {
-    /// <summary>The type name to use with the optional suffix.</summary>
     public string TypeName { get; }
 
-    /// <summary>A description of the position (for labeling).</summary>
     public string PositionDescription { get; }
 
-    /// <summary>The full Mist source code exercising the type position.</summary>
     public string Source { get; }
 
     public TypePositionScenario(string typeName, string positionDescription, string source)
@@ -63,27 +50,10 @@ public sealed class TypePositionScenario
     }
 }
 
-// ─── Property Tests ─────────────────────────────────────────────────────────
-
-/// <summary>
-/// Property-based tests for optional type suffix parsing correctness.
-///
-/// - Property 1: For any valid type name T, `T?` parses to a type reference with the `optional` field set.
-/// - Property 3: For any type position, `T?` parses without errors.
-/// - Property 4: Precedence — `T[]?` has arrayRank set and optional set; `T? | U` parses as UnionTypeRef.
-/// - Property 5: Double-optional `T??` produces a parse error (the lexer tokenizes `??` as QUESTION_QUESTION).
-///
-/// **Validates: Requirements 1.1, 1.2, 1.4, 1.6, 1.7**
-/// </summary>
 public sealed class OptionalTypeSuffixPropertyTests
 {
-
-    // ─── Shared infrastructure ───────────────────────────────────────────
-
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
-
-    // ─── Known types for generation ─────────────────────────────────────
 
     private static readonly string[] PrimitiveTypes =
         ["int", "string", "bool", "float", "double", "long", "short", "byte", "char", "decimal"];
@@ -93,8 +63,6 @@ public sealed class OptionalTypeSuffixPropertyTests
 
     private static readonly string[] GenericTypes =
         ["Result<int>", "List<string>", "Map<int, string>"];
-
-    // ─── Arbitrary registration ─────────────────────────────────────────
 
     public static Arbitrary<OptionalTypeSuffixScenario> ArbitraryOptionalTypeSuffix()
     {
@@ -136,8 +104,6 @@ public sealed class OptionalTypeSuffixPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Parsing helpers ────────────────────────────────────────────────
-
     private static CompilationUnitNode ParseOrFail(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -175,10 +141,6 @@ public sealed class OptionalTypeSuffixPropertyTests
     // Property 1: Optional suffix parsing equivalence
     //
     // **Validates: Requirements 1.1, 1.2**
-    //
-    // For any valid type name T (primitive, named, or generic), parsing `T?`
-    // SHALL produce a type reference with the `optional` field set (Token? is
-    // non-null).
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OptionalTypeSuffixPropertyTests) })]
@@ -208,10 +170,6 @@ public sealed class OptionalTypeSuffixPropertyTests
     // Property 3: Optional suffix in all type positions
     //
     // **Validates: Requirements 1.4**
-    //
-    // For any valid type name T and any type-reference position (variable
-    // declaration, parameter, return type, field, generic type argument),
-    // a program using `T?` in that position SHALL parse without errors.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OptionalTypeSuffixPropertyTests) })]
@@ -236,10 +194,6 @@ public sealed class OptionalTypeSuffixPropertyTests
     //             looser than array
     //
     // **Validates: Requirements 1.6**
-    //
-    // For any valid type name T:
-    //   - `T[]?` has arrayRank set AND optional set (array binds first)
-    //   - `T? | U` parses as UnionTypeRef (optional binds before union)
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
@@ -250,7 +204,6 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("double")]
     public void ArrayThenOptional_HasBothArrayRankAndOptionalSet(string primitiveType)
     {
-        // T[]? should parse as (T[]) with optional set
         var source = $"class T {{ public void M() {{ {primitiveType}[]? x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
@@ -265,14 +218,12 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("string", "float")]
     public void OptionalBeforeUnion_ParsesAsUnionTypeRef(string leftType, string rightType)
     {
-        // T? | U should parse as a union with T? as the first constituent
         var source = $"class T {{ public void M() {{ {leftType}? | {rightType} x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
         Assert.NotEmpty(typeRef.SingleTypeRefs);
         var firstConstituent = typeRef.First;
 
-        // The first constituent should be a PrimitiveSingleTypeRef with optional set
         var primSingle = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(firstConstituent);
         _ = Assert.NotNull(primSingle.Optional);
     }
@@ -282,7 +233,6 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("Foo")]
     public void NamedArrayThenOptional_HasBothArrayRankAndOptionalSet(string namedType)
     {
-        // NamedType[]? should parse as NamedTypeRef with arrayRank and optional set
         var source = $"class T {{ public void M() {{ {namedType}[]? x = default; }} }}";
         var typeRef = GetVariableTypeRef(source);
 
@@ -296,27 +246,9 @@ public sealed class OptionalTypeSuffixPropertyTests
     //
     // **Validates: Requirements 1.7**
     //
-    // For any valid type name T, a program containing the type annotation
-    // `T??` SHALL ultimately produce a diagnostic error. However, the error
-    // does NOT come from the parser — it comes from the semantic model
-    // builder (task 4.1, the historical type-checker code 0045).
-    //
-    // At the parser level, `T??` is handled as follows:
-    // - The lexer tokenizes `??` as QUESTION_QUESTION (not two QUESTION tokens)
-    // - The parser's `optional:QUESTION?` field only matches a single QUESTION token
-    // - Therefore, `T??` does NOT set the optional field on the type reference
-    // - The `??` token is consumed elsewhere in the grammar (e.g., as the
-    //   VoidCoalescing operator in expression context)
-    //
-    // This test verifies the parser-level behavior: `T?` sets the optional
-    // field, but `T` followed by `??` does NOT set it. The semantic error
-    // for double-optional (`T??` meaning `(T?)?`) is handled by task 4.1.
-    //
-    // NOTE: The actual `T??` error scenario requires `T?` to first resolve
-    // to a union containing void, and then applying `?` again. Since the
-    // lexer tokenizes `??` as a single token, the user would need to write
-    // `(T?)?` or have a type alias that already contains void. The semantic
-    // model builder (task 4.1) handles this case.
+    // The lexer tokenizes `??` as one QUESTION_QUESTION token, which the grammar's
+    // `optional:QUESTION?` field cannot match, so `T??` never sets the optional field. A
+    // double optional such as `(T?)?` is diagnosed by the semantic model builder instead.
     // ═══════════════════════════════════════════════════════════════════════
 
     [Theory]
@@ -325,14 +257,11 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("bool")]
     public void SingleOptional_SetsOptionalField_DoubleQuestionDoesNot(string primitiveType)
     {
-        // T? sets the optional field
         var sourceWithOptional = $"class T {{ public void M() {{ {primitiveType}? x = default; }} }}";
         var typeRefOptional = GetVariableTypeRef(sourceWithOptional);
         var primRefOptional = Assert.IsType<PrimitiveSingleTypeRefSingleTypeRefNode>(typeRefOptional.First);
         _ = Assert.NotNull(primRefOptional.Optional);
 
-        // Verify that the QUESTION token is what sets the optional field
-        // (This confirms the grammar's optional:QUESTION? field works correctly)
         Assert.Equal("?", primRefOptional.Optional!.Value.Lexeme);
     }
 
@@ -344,17 +273,11 @@ public sealed class OptionalTypeSuffixPropertyTests
     [InlineData("Foo")]
     public void DoubleOptional_LexerTokenizesAsQuestionQuestion_NotTwoQuestions(string typeName)
     {
-        // Verify that `??` is lexed as a single QUESTION_QUESTION token,
-        // which means it CANNOT be consumed by the optional:QUESTION? field.
-        // This is the fundamental reason why `T??` cannot produce a double-optional
-        // type at the parser level — the error must come from the semantic model.
         var source = $"{typeName}??";
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
 
-        // The token stream should contain the type name token followed by
-        // QUESTION_QUESTION (a single token), not two separate QUESTION tokens
         var questionTokens = tokens.DefaultChannelTokens
             .Where(t => t.Lexeme is "??" or "?")
             .ToList();

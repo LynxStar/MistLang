@@ -2,13 +2,13 @@ namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
 /// One element of a pack at a known index, where the pack's ARITY is fixed but its element types
-/// are not -- <c>TShapes[0]</c> inside <c>ShapePair&lt;Type[2]:TShapes&gt;</c>.
+/// are not, such as <c>TShapes[0]</c> for a <c>Type[2]:TShapes</c> pack.
 /// <para>
 /// A type parameter, which is what carries the whole-pack constraint down to it: a
 /// <c>where TShapes : IShape</c> holds of every element, so answering with the pack's own
-/// constraints is what makes <c>Shape1.Area()</c> resolve. Being a parameter rather than the pack
-/// is equally load-bearing in the other direction -- the pack is a <c>Type[]</c> and would answer
-/// for <c>Length</c>, which one element must not.
+/// constraints lets a member of <c>IShape</c> resolve on one element. Being a parameter rather than
+/// the pack matters in the other direction too -- the pack is a <c>Type[]</c> and would answer for
+/// <c>Length</c>, which one element must not.
 /// </para>
 /// </summary>
 internal sealed class PackElementType : TypeParameter

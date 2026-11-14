@@ -4,7 +4,7 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// A coalescing expression (<c>left ?? right</c>). The <see cref="Type"/> is the UN-lifted
+/// The <see cref="Type"/> is the UN-lifted
 /// left type: the non-void portion of the left operand's union, since the right operand
 /// supplies a value exactly when the left is absent.
 /// </summary>

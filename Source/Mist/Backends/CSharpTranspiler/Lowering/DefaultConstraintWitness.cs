@@ -35,9 +35,6 @@ internal static class DefaultConstraintWitness
         return $"__default_{DependentCarrierNames.Parameter(parameter)}";
     }
 
-    /// <summary>
-    /// The witness parameters a declaration carries, in the order its type parameters were declared.
-    /// </summary>
     public static List<string> Parameters(IReadOnlyList<TypeParameter> typeParameters)
     {
         var witnesses = new List<string>();
@@ -56,13 +53,9 @@ internal static class DefaultConstraintWitness
     }
 
     /// <summary>
-    /// The witness arguments a call supplies, each a lambda over the default of the type argument that
-    /// filled the parameter. Empty when the call fills none of them, which is every non-generic call.
-    /// <para>
     /// A NULL ENTRY IS KEPT rather than dropped: a type argument with no default violates the
     /// constraint, and shortening the list instead would reach C# as an arity error naming a parameter
     /// nobody wrote.
-    /// </para>
     /// </summary>
     public static List<string?> Arguments(
         IReadOnlyList<TypeParameter> typeParameters, IReadOnlyList<IMistType> typeArguments)

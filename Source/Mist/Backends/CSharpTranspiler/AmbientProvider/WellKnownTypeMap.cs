@@ -1,19 +1,12 @@
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
 /// <summary>
-/// Maps CLR types (by namespace + type name) to their Mist Standard Library equivalents.
-/// Types in this map are never projected from assemblies — the existing Standard Library
-/// instance is returned instead.
+/// Types in this map are never projected from assemblies; the Standard Library instance stands in.
 /// </summary>
 internal static class WellKnownTypeMap
 {
-    /// <summary>
-    /// CLR (namespace, typeName) -> Mist (namespace, typeName).
-    /// Keys use CLR names (with backtick arity suffix for generics).
-    /// </summary>
     public static readonly Dictionary<(string Namespace, string TypeName), (string MistNamespace, string MistTypeName)> Entries = new()
     {
-        // Numeric types
         [("System", "Int32")] = ("Standard", "Int32"),
         [("System", "Int64")] = ("Standard", "Int64"),
         [("System", "Int16")] = ("Standard", "Int16"),
@@ -25,23 +18,19 @@ internal static class WellKnownTypeMap
         [("System", "Single")] = ("Standard", "Single"),
         [("System", "Double")] = ("Standard", "Double"),
         [("System", "Decimal")] = ("Standard", "Decimal"),
-        // Primitives
         [("System", "String")] = ("Standard", "String"),
         [("System", "Boolean")] = ("Standard", "Boolean"),
         [("System", "Char")] = ("Standard", "Char"),
         [("System", "Void")] = ("Standard", "Void"),
         [("System", "Index")] = ("Standard", "Index"),
         [("System", "Range")] = ("Standard", "Range"),
-        // Async
         [("System.Threading.Tasks", "Task")] = ("Standard", "Task"),
         [("System.Threading.Tasks", "Task`1")] = ("Standard", "Task<>"),
         [("System.Threading.Tasks", "ValueTask")] = ("Standard", "ValueTask"),
         [("System.Threading.Tasks", "ValueTask`1")] = ("Standard", "ValueTask<>"),
-        // The enumerable interfaces ARE the CLR ones, which ClrProjection has always asserted at
-        // emission -- a foreach, a LINQ extension and every framework API expect that interface and
-        // a structurally identical duplicate satisfies none of them. Mapping them here is the same
-        // claim made one stage earlier, so the model holds one type rather than two that only
-        // emission reconciles.
+        // The enumerable interfaces ARE the CLR ones: a foreach, a LINQ extension and every framework
+        // API expect that interface, and a structurally identical duplicate satisfies none of them.
+        // Mapping them here keeps one type in the model rather than two that only emission reconciles.
         [("System.Collections.Generic", "IEnumerable`1")] = ("Standard", "IEnumerable<>"),
         [("System.Collections.Generic", "IEnumerator`1")] = ("Standard", "IEnumerator<>"),
         [("System", "Array")] = ("Standard", "Array<,>"),

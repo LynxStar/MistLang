@@ -9,9 +9,9 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <summary>
 /// What a runtime test must check beyond the C# type it names, because <see cref="LengthErasure"/> drops a
 /// concrete length from that spelling: <c>int[3]</c> tests as <c>int[] { Length: 3 }</c>, and a tuple
-/// carries its elements' checks as <c>{ Item1: { Length: 3 } }</c>. Without them a test succeeds for every
-/// length and binds a value whose type promises one it does not have. Written as property-clause MEMBERS so
-/// a pattern with members of its own merges both into the one clause C# allows after a type.
+/// carries its elements' checks. Without them a test succeeds for every length and binds a value whose type
+/// promises one it does not have. Written as property-clause MEMBERS so a pattern with members of its own
+/// merges both into the one clause C# allows after a type.
 /// <para>
 /// A sequence whose ELEMENTS carry an erased length has no such clause: C# has no pattern for "every
 /// element", so <see cref="UnstatedElements"/> names it for the caller to refuse rather than emit a test

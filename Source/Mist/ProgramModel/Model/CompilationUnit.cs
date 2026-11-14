@@ -5,29 +5,24 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramModel.Model;
 
 /// <summary>
-/// The program model's record of a single Mist source file. Preserves file scope into
-/// emission: the file's using directives, its types in declaration order, and its
-/// top-level statements if any.
+/// One Mist source file, preserving its file scope into emission.
 /// </summary>
 public sealed class CompilationUnit
 {
     /// <summary>
-    /// The path to the source file on disk. The emitted C# file takes its name from this,
-    /// which is what makes generated output traceable back to the Mist file it came from.
+    /// The emitted C# file takes its name from this, which traces output back to its Mist file.
     /// </summary>
     public required string SourcePath { get; init; }
 
     /// <summary>
-    /// This file's directory relative to the project root, or empty for a file at the root.
-    /// Carried so emitted output mirrors the source tree rather than flattening it, which
-    /// would collide two same-named files in different folders.
+    /// Empty for a file at the project root. Emitted output mirrors the source tree by this, since
+    /// flattening it would collide two same-named files in different folders.
     /// </summary>
     public string RelativePath { get; init; } = "";
 
     /// <summary>
-    /// The namespace names brought into scope by this file's own <c>using</c> directives.
-    /// Excludes the global usings from <c>mist.toml</c>, which belong to the assembly: mixing
-    /// them in here would emit one project's implicit usings into another project's files.
+    /// This file's own <c>using</c> directives only. The <c>mist.toml</c> global usings belong to the
+    /// assembly: mixing them in would emit one project's implicit usings into another project's files.
     /// </summary>
     public ImmutableArray<string> Usings { get; init; } = [];
 
@@ -53,9 +48,6 @@ public sealed class CompilationUnit
     /// </summary>
     internal List<ExtensionBlock> Extensions { get; } = [];
 
-    /// <summary>
-    /// Whether this unit contains top-level statements.
-    /// </summary>
     public bool HasTopLevelStatements { get; init; }
 
     /// <summary>

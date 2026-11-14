@@ -62,11 +62,9 @@ internal sealed record FlattenedStruct(
 /// declared: its type may have been substituted on the way down a generic chain, and its
 /// accessibility is remapped by <see cref="StructFlattener"/>.
 /// </summary>
-/// <param name="Field">The declaration this came from, on whichever ancestor declared it.</param>
 /// <param name="Type">
-/// The field's type in terms of the flattened struct. Differs from <c>Field.Type</c> only when a
-/// generic ancestor's type parameter was substituted -- <c>Container&lt;T&gt;.Value</c> becomes
-/// <c>int</c> on a struct extending <c>Container&lt;int&gt;</c>.
+/// The field's type in terms of the flattened struct. Differs from <c>Field.Type</c> only where a
+/// generic ancestor's type parameter is substituted.
 /// </param>
 /// <param name="Accessibility">
 /// The accessibility to emit, which is <see cref="Accessibility.Private"/> wherever the
@@ -84,13 +82,10 @@ internal sealed record FlattenedField(
     public required StructType DeclaringStruct { get; init; }
 }
 
-/// <summary>
-/// An ancestor a struct absorbed.
-/// </summary>
 /// <param name="Reference">
-/// How the ancestor was named at the point it was inherited, which is what a conversion operator
-/// has to spell. Differs from <paramref name="Definition"/> for a generic ancestor: extending
-/// <c>Container&lt;T&gt;</c> converts to <c>Container&lt;T&gt;</c>, not to the bare definition.
+/// How the ancestor is named where it is inherited, which is what a conversion operator has to
+/// spell. Differs from <paramref name="Definition"/> for a generic ancestor, which converts to its
+/// constructed form rather than to the bare definition.
 /// </param>
 internal sealed record AbsorbedAncestor(StructType Definition, IMistType Reference)
 {

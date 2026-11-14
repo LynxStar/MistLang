@@ -12,10 +12,10 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// specialized to: the language has no pack, so one declaration becomes one type per combination of
 /// widths its packs were bound to.
 /// <para>
-/// PER WIDTH AND NOT PER CONSTRUCTION, which is the whole economy of it. <c>Box&lt;int, string&gt;</c>
-/// and <c>Box&lt;bool, char&gt;</c> want the same C# declaration -- a generic of two parameters --
-/// and differ only in what they pass it. Specializing per construction would emit a type per
-/// distinct argument list and lose genericity that C# is perfectly able to express.
+/// PER WIDTH AND NOT PER CONSTRUCTION. Two constructions of a family at the same widths want the
+/// same C# declaration -- a generic of that many parameters -- and differ only in what they pass it.
+/// Specializing per construction would emit a type per distinct argument list and lose genericity
+/// that C# is perfectly able to express.
 /// </para>
 /// <para>
 /// The set is FINITE because it is read off the program: a pack is only ever bound by a use site,
@@ -60,16 +60,11 @@ internal static class MonomorphSet
     }
 
     /// <summary>
-    /// The C# name a family takes at one combination of widths.
-    /// <para>
     /// SUFFIXED TO KEEP IT OFF AN ORDINARY GENERIC'S NAME, not to tell the specializations apart --
-    /// C# overloads generic types on arity, so those are already distinct without help. What is not
-    /// distinct is a specialization against an unrelated same-named generic: Mist names a family by
-    /// its SLOT count, so `Box&lt;params T&gt;` and `Box&lt;A, B&gt;` are Box&lt;&gt; and Box&lt;,&gt;
-    /// and may both be declared -- while the first, specialized to arity two, wants exactly the C#
-    /// name the second has. Reachable through a bracketed construction, `Box&lt;[int, string]&gt;`,
-    /// which resolves to the variadic rather than to the exact-arity ordinary one.
-    /// </para>
+    /// C# overloads generic types on arity, so those are already distinct. Mist names a family by its
+    /// SLOT count, so a one-pack <c>Box</c> and a two-parameter <c>Box</c> may both be declared, and
+    /// the first specialized to width two would otherwise take exactly the C# name of the second. A
+    /// bracketed pack argument reaches the variadic one even where the exact-arity one exists.
     /// </summary>
     public static string SpecializedName(string declaredName, IReadOnlyList<int> widths)
     {
@@ -77,8 +72,7 @@ internal static class MonomorphSet
     }
 
     /// <summary>
-    /// One specialization per way a variadic METHOD was called, or none when it declares no pack. A
-    /// method never called is never specialized, which is correct: nothing names it.
+    /// A method never called is never specialized, which is correct: nothing names it.
     /// </summary>
     public static IEnumerable<Monomorph> MethodSpecializations(Method method, VariadicUseRegistry uses)
     {

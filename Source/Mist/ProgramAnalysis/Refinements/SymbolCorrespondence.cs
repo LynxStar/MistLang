@@ -6,10 +6,9 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// The symbols a filler and the slot it answers name for one value: a slot property and the member the
-/// conformance selects for it, both read through `this`, and a slot parameter and the filler's in the same
-/// position, which one call fills alike. A slot answered differently under two closings stands for neither
-/// filler. Any other pair is the same symbol only when it is the same object, however it is spelled.
+/// Slot and filler members read through this, or parameters in corresponding positions, name one value.
+/// Conflicting fillers under different closings establish no correspondence; all other symbols require
+/// object identity, regardless of spelling.
 /// </summary>
 internal sealed class SymbolCorrespondence
 {

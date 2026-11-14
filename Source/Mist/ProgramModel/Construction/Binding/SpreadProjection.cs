@@ -10,18 +10,16 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// The per-element members a spread declaration stands for: <c>public TArgs... Item;</c> names the
 /// aggregate <c>Item</c> and one projection <c>Item1</c> .. <c>ItemN</c>.
 /// <para>
-/// FOUND ON DEMAND RATHER THAN DECLARED, because N is not a property of the declaration. The same
-/// <c>Bundle</c> has three projections where its pack holds three and none where it holds none, so
-/// the family exists per CONSTRUCTION and the receiver is the only thing that knows which.
+/// FOUND ON DEMAND RATHER THAN DECLARED, because N is a property of each CONSTRUCTION, not of the
+/// declaration, and the receiver is the only thing that knows it.
 /// </para>
 /// </summary>
 internal static class SpreadProjection
 {
     /// <summary>
-    /// Looked for on the receiver's own declaration and then on each base in turn, each closed by the
-    /// one below it, since a projection is inherited like the aggregate it reads. A base answers only
-    /// with an element whose position it can count to: one at or past a spread of a pack still open
-    /// there has no width yet.
+    /// A projection is inherited like the aggregate it reads, so each base is searched too, closed by the
+    /// one below it. A base answers only with an element whose position it can count to: one at or past a
+    /// spread of a pack still open there has no width yet.
     /// </summary>
     public static LookupResult? Find(
         ConstructedType? receiver, MistType declaring, string memberName, BuilderContext context)
@@ -84,9 +82,7 @@ internal static class SpreadProjection
     }
 
     /// <summary>
-    /// The element a projection name denotes, or null when the name is not one of this member's.
-    /// An index outside the pack is not one of them either: <c>Item4</c> on a pack of three names
-    /// nothing, and saying so lets the ordinary "no such member" answer stand.
+    /// An index outside the pack names nothing, so the ordinary "no such member" answer stands.
     /// </summary>
     private static IMistType? Element(
         ConstructedType receiver, string stem, IMistType declaredType, string memberName, bool inherited, BuilderContext context)

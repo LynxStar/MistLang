@@ -5,15 +5,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR constructors onto a Mist ConcreteType shell.
-/// </summary>
 internal static class ConstructorProjector
 {
-    /// <summary>
-    /// Projects all public and protected constructors onto the given ConcreteType.
-    /// Skips constructors with pointer or unresolvable parameter types.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -21,7 +14,6 @@ internal static class ConstructorProjector
 
         foreach(var ctor in constructors)
         {
-            // Only project public and protected constructors.
             if(!ctor.IsPublic && !ctor.IsFamily && !ctor.IsFamilyOrAssembly)
             {
                 continue;

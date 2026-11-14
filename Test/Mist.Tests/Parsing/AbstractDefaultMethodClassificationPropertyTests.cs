@@ -12,10 +12,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// A generated abstract-type method member that is either a slot (no body,
-/// semicolon-terminated) or a default implementation (braced body).
-/// </summary>
 public sealed class AbstractMethodClassificationScenario
 {
     public string Source { get; }
@@ -35,16 +31,6 @@ public sealed class AbstractMethodClassificationScenario
     }
 }
 
-/// <summary>
-/// Property-based test for Property 2: Slot vs Default Classification by Body Presence.
-///
-/// **Validates: Requirements 13.1, 13.2, 13.5**
-///
-/// For any method declaration inside an abstract type body, the method is classified
-/// as a slot if and only if it has no body (semicolon-terminated), and as a default
-/// implementation if and only if it has a braced body. The classification is
-/// determined solely by body presence.
-/// </summary>
 public class AbstractDefaultMethodClassificationPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -55,7 +41,6 @@ public class AbstractDefaultMethodClassificationPropertyTests
     private static readonly string[] ReturnTypes = ["void", "int", "string", "bool"];
     private static readonly string[] ParamTypes = ["int", "string", "bool"];
 
-    /// <summary>Generates a parameter list body (without the enclosing parentheses).</summary>
     private static Gen<string> GenParams()
     {
         return Gen.Choose(0, 3).SelectMany(count =>

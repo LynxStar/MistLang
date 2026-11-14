@@ -13,17 +13,16 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <summary>
 /// A call yielding nothing, written where its value is taken. C# has no value for such a call, so it runs as a
 /// statement ahead of the one holding it and the unit instance stands in its place. Every operand C# would have
-/// evaluated before the call is stored in a temporary ahead of it, so evaluation order survives: in
-/// <c>g(k(), f(), h())</c> k still runs before f and h after. A local, a literal, <c>this</c> and a lambda
-/// need no temporary, no call being able to change what they are. A value-type receiver or a by-reference
-/// argument is read by C# as a location when the call is made, so what is stored ahead of it is what the
-/// location is made of -- the object holding the field, the index -- and never the value in it. A value-type
-/// receiver that is no location is a copy already, and is stored whole unless a call returned it by reference.
+/// evaluated before the call is stored in a temporary ahead of it, so evaluation order survives. A local, a
+/// literal, <c>this</c> and a lambda need no temporary, no call being able to change what they are. A value-type
+/// receiver or a by-reference argument is read by C# as a location when the call is made, so what is stored
+/// ahead of it is what the location is made of -- the object holding the field, the index -- and never the value
+/// in it. A value-type receiver that is no location is a copy already, and is stored whole unless a call returned
+/// it by reference.
 /// <para>
 /// A call under an operand that may not run -- the right side of a logical operator, a coalesce, a
-/// conditional access's arguments, a <c>??=</c> value, a switch arm -- cannot move ahead of its statement.
-/// The conditional holding it is lowered instead (<see cref="ConditionalLowering"/>): it runs as statements
-/// into a temporary that takes its place, and the operand is planned afresh inside the branch that runs it.
+/// conditional access's arguments, a <c>??=</c> value, a switch arm -- cannot move ahead of its statement, so
+/// <see cref="ConditionalLowering"/> lowers the conditional holding it instead.
 /// </para>
 /// </summary>
 internal static class UnitHoisting

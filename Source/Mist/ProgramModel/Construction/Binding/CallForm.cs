@@ -11,10 +11,8 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// parameters the call leaves out.
 /// <para>
 /// <see cref="Prefer"/> orders two candidates whose parameter types the arguments cannot separate by
-/// the rules C# applies to the emitted call, so the overload bound is the one that runs: the normal
-/// form over the expanded one, then fewer collected arguments, then the better collection
-/// (<see cref="ParamsCollection.Compare"/>), then supplying every parameter over leaving one to its
-/// default. Negative means the left candidate wins.
+/// the rules C# applies to the emitted call, so the overload bound is the one that runs. Negative
+/// means the left candidate wins.
 /// </para>
 /// </summary>
 internal readonly record struct CallForm(bool Expanded, int Collected, int Omitted, IMistType? Collection)

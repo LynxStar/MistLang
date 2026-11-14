@@ -5,12 +5,11 @@ namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
 /// The comptime <c>Type[]</c> a pack slot is bound to: an ordered list of types, standing as one
-/// VALUE the way <c>5</c> stands in <c>FixedBuffer&lt;5&gt;</c>.
+/// VALUE the way a number stands in a dependent slot.
 /// <para>
-/// Equatable because that is what makes it interable, and interning is what gives a constructed
-/// variadic type its identity. Order and length both count -- <c>Foo&lt;[int, string]&gt;</c>,
-/// <c>Foo&lt;[string, int]&gt;</c> and <c>Foo&lt;[int, string, bool]&gt;</c> are three types --
-/// which falls out of comparing the elements pairwise rather than being stated anywhere.
+/// Equatable because that is what makes it internable, and interning is what gives a constructed
+/// variadic type its identity. Order and length both count, which falls out of comparing the
+/// elements pairwise rather than being stated anywhere.
 /// </para>
 /// </summary>
 internal sealed class TypePackValue : IEquatable<TypePackValue>
@@ -58,9 +57,8 @@ internal sealed class TypePackValue : IEquatable<TypePackValue>
     /// parameter it names is not.
     /// <para>
     /// By reference and never by NAME. Two type parameters from different declarations are routinely
-    /// both called TArgs, so comparing names makes `Func&lt;TArgs..., TResult&gt;` in one method the
-    /// same pack as Standard.Action's -- which then hands back the wrong parameter and makes a
-    /// spread that should be provable unprovable, several scopes from anything that looks related.
+    /// both called TArgs, so comparing names makes one method's TArgs the same pack as
+    /// Standard.Action's, which hands back the wrong parameter and makes a provable spread unprovable.
     /// </para>
     /// </summary>
     private static object Identity(IMistType element)
@@ -80,7 +78,7 @@ internal sealed class TypePackValue : IEquatable<TypePackValue>
 
     /// <summary>
     /// The bracketed form the language writes, which is also how the lifted type carrying this is
-    /// named -- so a diagnostic mentioning <c>Func&lt;[int, string], void&gt;</c> reads back.
+    /// named, so a diagnostic shows the pack as source spells it.
     /// </summary>
     public override string ToString()
     {

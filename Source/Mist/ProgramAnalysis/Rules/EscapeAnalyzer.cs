@@ -6,14 +6,6 @@ using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// What may not leave where it lives: a ref struct tied to its frame by <see cref="FrameScopes"/> --
-/// returned, stored where it outlives the frame, or lent to a call beside storage that does -- a
-/// reference returned to storage the call does not outlive, and a binding a lambda or a local function
-/// would carry onto the heap -- a ref struct, an owned value whose transfer a closure cannot honour, or a
-/// lease bounded to the scope it was taken in, which for a readonly ref is also Roslyn's refusal of an
-/// `in` parameter inside a lambda.
-/// </summary>
 internal sealed partial class EscapeAnalyzer : IProgramAnalyzer
 {
     public string Id => "ownership-borrow-checking";

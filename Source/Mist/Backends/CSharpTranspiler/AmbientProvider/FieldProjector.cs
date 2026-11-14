@@ -8,15 +8,8 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Projects CLR fields onto a Mist ConcreteType shell.
-/// </summary>
 internal static class FieldProjector
 {
-    /// <summary>
-    /// Projects all public and protected instance and static fields (excluding enum backing
-    /// fields and compiler-generated fields) onto the given ConcreteType.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     public static void Project(ConcreteType concreteType, Type clrType, AmbientTypeResolver resolver)
     {
@@ -24,7 +17,6 @@ internal static class FieldProjector
 
         foreach(var field in fields)
         {
-            // Only project public and protected fields.
             if(!field.IsPublic && !field.IsFamily && !field.IsFamilyOrAssembly)
             {
                 continue;

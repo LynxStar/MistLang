@@ -10,11 +10,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// What a refinement predicate asks of a value, read off the pattern the binder bound for it: the
-/// integral set it admits, and the bounds it names symbolically -- `&lt; Length` inside Array, which
-/// no number stands for until an array is in hand. Null where the predicate has no integral reading;
-/// supported real, string and regex constant decisions belong to <see cref="LiteralPredicates"/>. Read for a real
-/// family, a comparison with a literal is left to <see cref="RealRequirement.Literal"/> and only the symbolic bounds remain.
+/// An Array's symbolic Length bound needs an instance to acquire numeric meaning. Null means no integral reading;
+/// real, string and regex constant decisions belong to <see cref="LiteralPredicates"/>. For real families,
+/// <see cref="RealRequirement.Literal"/> handles literal comparisons, leaving only symbolic bounds here.
 /// </summary>
 internal sealed record Requirement(Admitted Values, ImmutableArray<SymbolicBound> Bounds)
 {

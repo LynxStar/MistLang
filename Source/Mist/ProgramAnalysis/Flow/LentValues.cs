@@ -7,10 +7,9 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
-/// A fresh linear value passed to a frozen or borrowed parameter. The callee only borrows it, as it does a
-/// lease, so the statement lending it is its one holder and releases it once that statement is done -- a
-/// declaration once the scope it declares into is; a loop condition or step lends afresh each time it runs
-/// and releases the last one as the body begins.
+/// The caller holds a fresh linear value lent to a frozen or borrowed parameter until the statement
+/// ends, or the declaration's scope ends. Loop conditions and steps lend afresh each run and release
+/// the last loan as the body begins.
 /// </summary>
 internal static class LentValues
 {

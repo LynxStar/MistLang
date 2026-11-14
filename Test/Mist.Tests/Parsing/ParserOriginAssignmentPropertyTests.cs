@@ -11,27 +11,11 @@ using Storm.Runtime;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for parser origin assignment.
-///
-/// Property 3: Parser Assigns Correct ParsedOrigin to All Nodes.
-/// For any valid Mist source file parsed by MistParser, every SyntaxNode in the resulting
-/// tree SHALL have an Origin of type ParsedOrigin whose Source is reference-equal to the
-/// SourceText that was passed to the parser.
-/// </summary>
 public class ParserOriginAssignmentPropertyTests
 {
     private static readonly MistLexer Lexer = new();
     private static readonly MistParser Parser = new();
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates valid Mist source strings that parse without errors.
-    /// Uses a variety of simple, well-formed Mist programs.
-    /// </summary>
     private static Gen<string> GenValidMistSource()
     {
         return Gen.OneOf(
@@ -49,9 +33,6 @@ public class ParserOriginAssignmentPropertyTests
             GenClassWithFields());
     }
 
-    /// <summary>
-    /// Generates a class with a random number of simple methods.
-    /// </summary>
     private static Gen<string> GenClassWithMethods()
     {
         return from methodCount in Gen.Choose(1, 3)
@@ -62,9 +43,6 @@ public class ParserOriginAssignmentPropertyTests
                select $"class {className} {{\n    {methods}\n}}";
     }
 
-    /// <summary>
-    /// Generates a class with a random number of fields.
-    /// </summary>
     private static Gen<string> GenClassWithFields()
     {
         return from fieldCount in Gen.Choose(1, 3)
@@ -75,9 +53,6 @@ public class ParserOriginAssignmentPropertyTests
                select $"class {className} {{\n    {fields}\n}}";
     }
 
-    /// <summary>
-    /// Wraps a valid Mist source string with a generated file path.
-    /// </summary>
     private static Gen<MistSourceScenario> GenMistSourceScenario()
     {
         return from source in GenValidMistSource()
@@ -92,13 +67,6 @@ public class ParserOriginAssignmentPropertyTests
         return GenMistSourceScenario().ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Recursively collects all nodes in the syntax tree.
-    /// </summary>
     private static IEnumerable<SyntaxNode> WalkAllNodes(SyntaxNode root)
     {
         yield return root;
@@ -114,15 +82,6 @@ public class ParserOriginAssignmentPropertyTests
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 3: For any valid Mist source file parsed by MistParser, every SyntaxNode
-    /// in the resulting tree SHALL have an Origin of type ParsedOrigin whose Source is
-    /// reference-equal to the SourceText that was passed to the parser.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ParserOriginAssignmentPropertyTests) })]
     public Property AllNodes_HaveParsedOrigin_WithCorrectSourceText(MistSourceScenario scenario)
     {
@@ -131,7 +90,6 @@ public class ParserOriginAssignmentPropertyTests
         var tokens = Lexer.Lex(sourceText, bag);
         var result = Parser.Parse(tokens, bag);
 
-        // If parsing produced no root (skeletal parser), skip this scenario
         if(result.Root is null)
         {
             return true.ToProperty().Label("Skipped: parser returned null root (skeletal)");
@@ -139,7 +97,6 @@ public class ParserOriginAssignmentPropertyTests
 
         var allNodes = WalkAllNodes(result.Root).ToList();
 
-        // Verify every node has a ParsedOrigin
         foreach(var node in allNodes)
         {
             if(node.Origin is not ParsedOrigin parsedOrigin)
@@ -150,7 +107,6 @@ public class ParserOriginAssignmentPropertyTests
                            $"Source: {scenario.Source}");
             }
 
-            // Verify the Source is reference-equal to the SourceText passed to the parser
             if(!ReferenceEquals(parsedOrigin.Source, sourceText))
             {
                 return false.ToProperty()
@@ -163,11 +119,6 @@ public class ParserOriginAssignmentPropertyTests
             .Label($"All {allNodes.Count} nodes have correct ParsedOrigin");
     }
 
-    /// <summary>
-    /// Property 3 (supplementary): For any valid Mist source file parsed by MistParser,
-    /// all nodes in the tree SHALL share the same ParsedOrigin instance (not just equal,
-    /// but reference-equal), confirming a single origin is propagated to all children.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ParserOriginAssignmentPropertyTests) })]
     public Property AllNodes_ShareSameParsedOriginInstance(MistSourceScenario scenario)
     {
@@ -188,7 +139,6 @@ public class ParserOriginAssignmentPropertyTests
             return true.ToProperty().Label("Skipped: no nodes in tree");
         }
 
-        // All nodes should share the exact same Origin instance
         var firstOrigin = allNodes[0].Origin;
         foreach(var node in allNodes.Skip(1))
         {
@@ -205,7 +155,4 @@ public class ParserOriginAssignmentPropertyTests
     }
 }
 
-/// <summary>
-/// Test data record representing a Mist source file scenario.
-/// </summary>
 public record MistSourceScenario(string Path, string Source);

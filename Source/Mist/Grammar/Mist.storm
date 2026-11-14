@@ -82,8 +82,6 @@ rule TypeArgument
     | type:TypeReference              as TypeReferenceTypeArgument
     ;
 
-// A bracketed pack argument supplies a Type[] pack explicitly, e.g. `Foo<[int, string]>`
-// or the empty pack `Foo<[]>`. Elements are ordinary type references.
 rule BracketedPackList = TypeReference (COMMA TypeReference)*;
 
 // ─── Parser Rules — Constraint Clauses ───────────────────────────────────────
@@ -128,11 +126,8 @@ rule AttributeArgument
     | value:AttributeExpression               as PositionalAttributeArgument
     ;
 
-// Attribute expressions are like regular expressions but with special handling
-// for type literals with type arguments (e.g., List<int>) which would otherwise
-// be ambiguous with relational comparisons in the general expression grammar.
-// PEG ordered choice tries the generic type literal first; if it fails (no TypeArgumentList
-// follows the identifier), it falls through to the regular expression path.
+// Through Expression, a generic type literal such as `List<int>` reads as a relational comparison, so
+// ordered choice tries the type literal first and falls back to Expression.
 rule AttributeExpression
     = name:QualifiedIdentifier typeArgs:TypeArgumentList  as GenericTypeLiteralExpression
     | expr:Expression                                     as RegularExpression
@@ -148,8 +143,8 @@ rule TypeBodyDeclaration : HasModifiers = attributes:AttributeList* modifiers:Mo
     constraints:WhereClause*
     LEFT_BRACE members:MemberDeclaration* RIGHT_BRACE;
 
-// Bases use the nominal name forms from type positions, including a constructed enclosing type.
-// A trailing spread keeps the existing Type[] pack syntax without admitting arbitrary base shapes.
+// Bases take a type position's nominal name forms, including a constructed enclosing type, plus a trailing
+// pack spread; no other type shape is a base.
 rule BaseTypeRef = name:QualifiedIdentifier enclosing:BaseTypeEnclosing?
     typeArgs:TypeArgumentList? spread:ELLIPSIS?;
 
@@ -390,9 +385,7 @@ rule Parameter
 rule ArgumentList = Argument (COMMA Argument)*;
 rule Argument = REF expression:Expression as RefArgument | expression:Expression as ValueArgument;
 
-// The element list of an array literal. Lifted into its own rule so the literal can
-// make it optional with `elements:ArrayElementList?`, letting `[]` and `[a, b]` share
-// one node instead of needing a separate empty-literal alternative.
+// Its own rule so the array literal can make it optional, giving `[]` and `[a, b]` one node.
 rule ArrayElementList = first:Expression (COMMA Expression)* COMMA?;
 
 // ─── Parser Rules — Type References ─────────────────────────────────────────
@@ -402,10 +395,8 @@ rule ArrayRankSuffix
     | LEFT_BRACKET RIGHT_BRACKET as UnsizedArrayRank
     ;
 
-// Element type reference for array creation expressions (new T[N]).
-// Same as TypeReference but without ArrayRankSuffix to avoid ambiguity
-// between `new int[3]` (create array of int with size 3) and `new int[3][...]`
-// (create array of int[3] — which would be a sized array type as element).
+// TypeReference without ArrayRankSuffix, so the brackets in `new int[3]` are always the size, never a
+// sized element type.
 rule ElementTypeRef
     = pure:PURE? primitiveType:PrimitiveType as PrimitiveElementTypeRef
     | UNKNOWN as UnknownElementTypeRef
@@ -547,18 +538,11 @@ rule WithClause
     ;
 
 // ─── Parser Rules — Expressions (Precedence Climbing) ───────────────────────
-// Operator precedence is encoded structurally via a chain of rules, from
-// lowest to highest binding:
+// Precedence is structural, from loosest to tightest binding:
 //   Lambda < Assignment < VoidCoalescing < LogicalOr < LogicalAnd < Equality
-//   < Relational < Additive < Multiplicative < Unary < Postfix < Primary
-//
-// Lambda sits at the lowest binding precedence (a peer of, but looser than,
-// Assignment) so that it can appear anywhere a value is expected and binds
-// looser than every operator including `=`. PEG ordered choice tries the
-// LambdaExpression alternative first: it only succeeds if it matches a
-// parameter list followed by SUCH_THAT (`=>`); otherwise it backtracks and
-// Assignment handles the input. This is the structural analogue of how
-// C#/Roslyn treats a lambda as the lowest-precedence expression form.
+//   < Relational < Additive < Multiplicative < Range < Unary < Postfix < Primary
+// Expression tries LambdaExpression first; it matches only a parameter list followed by `=>`, so a
+// lambda binds looser than every operator including `=`, and anything else backtracks to Assignment.
 
 @memo
 rule Expression
@@ -566,10 +550,7 @@ rule Expression
     | assignment:Assignment    as AssignmentForm
     ;
 
-// The assignment RHS is a full Expression (not just Assignment) so that lambdas
-// — which live above Assignment at the Expression level — are reachable from the
-// RHS of an assignment, and right-associativity falls out naturally
-// (`f = x => x + 1` parses as `f = (x => x + 1)`).
+// The value is a full Expression so a lambda is reachable on the right, and assignment is right-associative.
 rule Assignment = target:VoidCoalescing (operator:(EQUAL | QUESTION_QUESTION_EQUAL | PLUS_EQUAL | MINUS_EQUAL
                                                    | STAR_EQUAL | SLASH_EQUAL | PERCENT_EQUAL) value:Expression)?;
 
@@ -595,14 +576,8 @@ rule Range
 @memo
 rule Unary
     = LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
-    // PostfixExpression is tried before the ASYNC/AWAIT prefix operators. An
-    // async-prefixed lambda (`async x => ...`) is recognized at the Expression
-    // level (via the LambdaExpression alternative, whose LambdaModifier* accepts
-    // `async`), not here in Unary/Primary. Because Expression tries the
-    // LambdaExpression alternative before Assignment, a leading `async`/`static`
-    // followed by a lambda parameter list resolves as a lambda; non-lambda inputs
-    // such as `async foo()` fail the LambdaExpression attempt and fall through to
-    // Assignment, reaching the `ASYNC operand:Unary` async-functor rule below.
+    // An `async` lambda is taken by Expression's LambdaExpression alternative before Unary is reached;
+    // a non-lambda such as `async foo()` falls through to the ASYNC alternatives here.
     | primary:Postfix              as PostfixExpression
     | ASYNC hint:IDENTIFIER body:Block                                            as AsyncHintBlockExpression
     | ASYNC body:Block                                                            as AsyncBlockExpression
@@ -639,20 +614,11 @@ rule SwitchArmList = SwitchArm (COMMA SwitchArm)* COMMA?;
 
 rule SwitchArm = pattern:Pattern guard:WhenGuard? SUCH_THAT result:Expression;
 
-// The guard condition is bounded to VoidCoalescing (not the full Expression)
-// so the arm's trailing `=>` is never consumed by a lambda/assignment inside
-// the guard. This is the structural analogue of Roslyn's Precedence.Coalescing
-// floor: `??` and everything tighter is permitted; lambda and assignment (which
-// sit above VoidCoalescing) are excluded, leaving the `=>` for SwitchArm.
+// Bounded to VoidCoalescing so a lambda or assignment in the guard cannot consume the arm's `=>`.
 rule WhenGuard = WHEN condition:VoidCoalescing;
 
 @memo
 rule Primary
-    // Lambda expressions are NOT handled here — they are recognized at the
-    // Expression level (the lowest precedence tier) as a peer of Assignment, so
-    // that a lambda's `=>` body binds looser than every operator and never
-    // collides with a switch-arm `=>`. Primary is the highest-precedence tier
-    // and contains only atomic/parenthesized forms.
     = integerLiteral:INTEGER_LITERAL                                               as IntegerLiteralExpression
     | hexLiteral:HEX_LITERAL                                                       as HexLiteralExpression
     | binaryLiteral:BINARY_LITERAL                                                 as BinaryLiteralExpression
@@ -694,9 +660,7 @@ rule TupleLiteralElement
     ;
 
 // ─── Parser Rules — Lambda Expressions ──────────────────────────────────────
-// Lambdas reuse the existing SUCH_THAT (`=>`) token. The block-bodied
-// alternative is tried before the expression-bodied one so that a brace-led
-// body (`{ ... }`) is parsed as a Block rather than failing through Expression.
+// The block-bodied alternative comes first so a `{` body parses as a Block, not through Expression.
 
 rule LambdaExpression
     = modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Block       as BlockLambda
@@ -750,7 +714,7 @@ rule PropertyAssignment
     ;
 
 // ─── Parser Rules — Patterns ────────────────────────────────────────────────
-// Pattern grammar for `is` expressions. Precedence: or < and < not < primary.
+// Precedence: or < and < not < primary.
 
 rule Pattern = OrPattern;
 

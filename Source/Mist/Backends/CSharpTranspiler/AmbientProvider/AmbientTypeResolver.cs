@@ -8,13 +8,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Resolves CLR types to their Mist ProgramModel equivalents during ambient
-/// type projection. Checks the current scope (for type parameters), well-known
-/// types (Standard Library), and projected shells — in that order.
-/// Handles closed generics by interning <see cref="ConstructedType"/> instances.
-/// Returns <see cref="ErrorType"/> silently for unresolvable metadata types.
-/// </summary>
 internal sealed partial class AmbientTypeResolver
 {
     private readonly Dictionary<string, DeclaredType> shells;
@@ -39,11 +32,6 @@ internal sealed partial class AmbientTypeResolver
         _ = diagnostics;
     }
 
-    /// <summary>
-    /// Resolves a CLR <see cref="Type"/> reference within the given scope.
-    /// Handles closed generics by resolving the definition and type arguments
-    /// recursively, then interning a <see cref="ConstructedType"/>.
-    /// </summary>
     public MistType Resolve(Type clrType, Scope scope, TupleElementNames? names = null)
     {
         return Resolve(clrType, scope, names, null);
@@ -58,8 +46,6 @@ internal sealed partial class AmbientTypeResolver
             return ErrorType.Instance;
         }
 
-        // Pointer types (int*, void*, T**) are unsafe and have no Mist representation.
-        // Returning ErrorType causes the owning member to be skipped.
         if(clrType.IsPointer)
         {
             return ErrorType.Instance;
@@ -71,8 +57,6 @@ internal sealed partial class AmbientTypeResolver
             return ErrorType.Instance;
         }
 
-        // Bare by-ref types (T&) that reach the resolver without being unwrapped.
-        // Unwrap to the element type and resolve that instead.
         if(clrType.IsByRef)
         {
             var elementType = clrType.GetElementType()!;
@@ -84,7 +68,6 @@ internal sealed partial class AmbientTypeResolver
             return Resolve(elementType, scope, names, substitutions);
         }
 
-        // CLR array type (e.g., int[], string[]): construct Standard.Array<Element, unknown>.
         if(clrType.IsArray)
         {
             return ResolveArrayType(clrType, scope, names, substitutions);
@@ -109,14 +92,11 @@ internal sealed partial class AmbientTypeResolver
             return function;
         }
 
-        // Closed generic (e.g., IComparable<int>, List<string>): resolve the
-        // definition and each argument, then intern a ConstructedType.
         if(clrType.IsGenericType && !clrType.IsGenericTypeDefinition)
         {
             return ResolveClosedGeneric(clrType, scope, names, substitutions);
         }
 
-        // Generic type parameter (e.g., T, TKey): resolve by name from the scope chain.
         if(clrType.IsGenericParameter)
         {
             if(substitutions is not null && substitutions.TryGetValue(clrType, out var argument))
@@ -127,8 +107,6 @@ internal sealed partial class AmbientTypeResolver
             return ResolveTypeParameter(clrType, scope);
         }
 
-        // Named type — top-level or nested. Both are a single FQN lookup; the only
-        // difference is how the FQN is spelled, which BuildFQN handles.
         return ResolveByFQN(BuildFQN(clrType));
     }
 
@@ -226,9 +204,7 @@ internal sealed partial class AmbientTypeResolver
     }
 
     /// <summary>
-    /// Resolves a generic type parameter (e.g., T, TKey) by name, walking the scope
-    /// parent chain. A parameter declared on a declaring type stays visible to its
-    /// nested types through scope parentage.
+    /// A parameter declared on a declaring type stays visible to its nested types through scope parentage.
     /// </summary>
     private static MistType ResolveTypeParameter(Type clrParam, Scope scope)
     {
@@ -244,10 +220,6 @@ internal sealed partial class AmbientTypeResolver
         return ErrorType.Instance;
     }
 
-    /// <summary>
-    /// Resolves a type by its pre-built fully qualified name (CLR-format key).
-    /// Checks well-known types first, then projected shells.
-    /// </summary>
     private MistType ResolveByFQN(string fqn)
     {
         if(wellKnownTypes.TryGetValue(fqn, out var wellKnown))
@@ -269,23 +241,18 @@ internal sealed partial class AmbientTypeResolver
 
         // ERROR WITHOUT A DIAGNOSTIC, because the caller already knows what to do with it: every
         // member projector skips a member whose signature will not resolve, and a member mentioning
-        // a type from an assembly nobody loaded is unusable whether or not we say so. Classic never
-        // reaches these -- it resolves on demand, so a signature it never asks about costs nothing.
-        // v2 projects every member of every type eagerly and so walks thousands of them, which is
-        // how samples/Testing came to be refused over Xunit.Sdk.ITheoryData, a name its author
-        // never wrote. Calling such a member still fails, at the call site, in the user's own file.
+        // a type from an assembly nobody loaded is unusable whether or not we say so. Every member of
+        // every type is projected eagerly, so a report would refuse programs over names their authors
+        // never wrote; calling such a member still fails, at the call site, in the user's own file.
         return ErrorType.Instance;
     }
 
     /// <summary>
-    /// Builds a CLR-format FQN for any named type, matching the key format used in
-    /// the shells dictionary. For nested types this walks the DeclaringType chain
-    /// ("Namespace.Outer.Inner"); for top-level types the loop is a no-op and it
-    /// degenerates to "Namespace.Name". Raw CLR names (with backtick arity) are used.
+    /// The shells' key format: a nested type is spelled "Namespace.Outer.Inner", and raw CLR names keep
+    /// their backtick arity.
     /// </summary>
     internal static string BuildFQN(Type clrType)
     {
-        // Walk any nesting chain from innermost outward: [Inner, Middle, ...].
         var chain = new List<string>();
         var current = clrType;
 
@@ -295,7 +262,6 @@ internal sealed partial class AmbientTypeResolver
             current = current.DeclaringType;
         }
 
-        // current is now the outermost (non-nested) type — its namespace is the real one.
         var ns = current?.Namespace ?? "";
         chain.Add(current?.Name ?? "");
         chain.Reverse();
@@ -305,15 +271,11 @@ internal sealed partial class AmbientTypeResolver
     }
 
     /// <summary>
-    /// Resolves a closed generic CLR type by resolving its definition and each
-    /// type argument, then interning a <see cref="ConstructedType"/>.
-    /// <para>
     /// A NESTED generic repeats its declaring type's parameters in CLR metadata, so the leading
     /// arguments of <c>List`1+Enumerator[Int32]</c> belong to the enclosing instantiation and not to
     /// the nested definition, which <see cref="TypeParameterProjector"/> projected without them. They
-    /// are split the same way here: the leading ones build the enclosing <c>List&lt;int&gt;</c>, and only
-    /// the remainder are the nested type's own.
-    /// </para>
+    /// are split the same way here: the leading ones build the enclosing instantiation, and only the
+    /// remainder are the nested type's own.
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2055", Justification = MetadataOnlyReflection.Justification)]
     private MistType ResolveClosedGeneric(
@@ -412,18 +374,12 @@ internal sealed partial class AmbientTypeResolver
     }
 
     /// <summary>
-    /// Resolves a CLR array type (e.g., int[], string[]) by constructing
-    /// <c>Standard.Array&lt;ElementType, Length&gt;</c>, where the length is an
-    /// <see cref="UnknownValueType"/> over <c>int</c> because reflection carries no length.
-    /// <para>
-    /// The length has to be built the same way <c>ScopeResolver.ConstructArray</c> builds it, or a
-    /// CLR <c>string[]</c> and a Mist <c>string[]</c> intern as two different types. It is
-    /// specifically NOT <c>UnknownType</c>: that is the user-facing top type, and putting it at a
-    /// dependent-value position says the array's LENGTH is a value of unknown type rather than an
-    /// int nobody has named -- which loses the domain that lets <c>arr.Length</c> emit as an
-    /// <c>int</c>, and reads as an array carrying the top type to anything asking where
-    /// <c>unknown</c> appears.
-    /// </para>
+    /// The length is an <see cref="UnknownValueType"/> over <c>int</c> because reflection carries no
+    /// length, built the same way <c>ScopeResolver.ConstructArray</c> builds it, or a CLR <c>string[]</c>
+    /// and a Mist <c>string[]</c> intern as two different types. It is specifically NOT
+    /// <c>UnknownType</c>: that is the user-facing top type, and at a dependent-value position it says the
+    /// array's LENGTH is a value of unknown type rather than an int nobody has named -- which loses the
+    /// domain that lets <c>arr.Length</c> emit as an <c>int</c>.
     /// </summary>
     private MistType ResolveArrayType(
         Type clrType, Scope scope, TupleElementNames? names, IReadOnlyDictionary<Type, MistType>? substitutions)
@@ -434,7 +390,6 @@ internal sealed partial class AmbientTypeResolver
             return elementType;
         }
 
-        // Look up Standard.Array<,> from well-known types.
         if(!wellKnownTypes.TryGetValue("System.Array", out var arrayDef))
         {
             return ErrorType.Instance;
@@ -453,25 +408,22 @@ internal sealed partial class AmbientTypeResolver
 
     /// <summary>
     /// Resolves a CLR type in an INBOUND position -- a method return, property, field or indexer
-    /// result -- as <c>T | void</c> for reference types and <c>Nullable&lt;T&gt;</c>.
+    /// result -- as <c>T | void</c> for reference types.
     /// <para>
     /// PARAMETERS DELIBERATELY DO NOT COME THROUGH HERE. Mist has no null to send, so an outbound
     /// reference is non-null by construction; a union there buys nothing and gives overload
     /// resolution extra candidates to be ambiguous between. Inbound is the only direction a null
-    /// can arrive from, and NRT annotations are advisory -- a lying one is still a naked null --
-    /// so they are ignored and every reference result is wrapped.
+    /// can arrive from.
     /// </para>
     /// <para>
     /// A generic parameter is left alone. Wrapping T before substitution would make the element of
-    /// a <c>List&lt;int&gt;</c> optional, which is unsound in the other direction; the reference
-    /// case belongs at substitution time instead.
+    /// a list of <c>int</c> optional, which is unsound in the other direction; the reference case
+    /// belongs at substitution time instead.
     /// </para>
     /// </summary>
     /// <param name="declaredNonNull">
-    /// What the assembly's nullable metadata says about this result. A reference the CLR PROMISES is
-    /// never null needs no wrapping, and wrapping it anyway makes a caller narrow something that
-    /// cannot be absent -- which is what stopped `xs.Skip(5).First()` resolving. Nullable-of-T is
-    /// unaffected: its absence is in the type, not in an annotation.
+    /// What the assembly's nullable metadata says about this result; <see cref="ClrNullability"/> says
+    /// when it is trusted. Nullable-of-T is unaffected: its absence is in the type, not in an annotation.
     /// </param>
     public IMistType ResolveInbound(
         Type clrType, Scope scope, bool declaredNonNull = false, TupleElementNames? names = null)

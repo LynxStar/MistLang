@@ -9,25 +9,14 @@ using ProgramModelType = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Backends.CSharpTranspiler.AmbientProvider;
 
-/// <summary>
-/// Scans projected static classes for extension methods (methods with
-/// [ExtensionAttribute] on a static class with [ExtensionAttribute]) and
-/// registers them as <see cref="ExtensionBlock"/> instances on the appropriate
-/// <see cref="MistNamespace"/>.
-/// </summary>
 internal static class ExtensionProjector
 {
     private const string ExtensionAttributeFullName =
         "System.Runtime.CompilerServices.ExtensionAttribute";
 
     /// <summary>
-    /// Scans all projected CLR types for extension methods and registers them
-    /// as extension blocks on their declaring namespace in the ProgramModel.
-    /// Each extension method gets its own <see cref="ExtensionBlock"/> because
-    /// generic extension methods resolve their receiver to distinct type instances
-    /// (e.g., each method's TSource is a unique TypeParameter).
-    /// Should be called after <see cref="AmbientTypeProviderV2.ProjectTypes"/>
-    /// completes, so all type shells are fully projected and resolvable.
+    /// Each extension method gets its own <see cref="ExtensionBlock"/> because generic extension methods
+    /// resolve their receiver to distinct type instances, each method's TSource being a unique TypeParameter.
     /// </summary>
     public static void ProjectExtensions(
         Dictionary<string, Type> clrTypes,
@@ -36,7 +25,6 @@ internal static class ExtensionProjector
     {
         foreach(var (_, clrType) in clrTypes)
         {
-            // Extension methods live in static classes with [ExtensionAttribute].
             if(!IsExtensionClass(clrType))
             {
                 continue;
@@ -46,10 +34,6 @@ internal static class ExtensionProjector
         }
     }
 
-    /// <summary>
-    /// Scans a single static extension class for qualifying extension methods,
-    /// projects each one, and registers it on the appropriate namespace.
-    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = MetadataOnlyReflection.Justification)]
     private static void ScanExtensionClass(
         Type extensionClass,
@@ -86,11 +70,6 @@ internal static class ExtensionProjector
         }
     }
 
-    /// <summary>
-    /// Projects a single CLR extension method: resolves the receiver type from the
-    /// first parameter, projects the remaining parameters as a regular method, and
-    /// registers a new <see cref="ExtensionBlock"/> on the namespace.
-    /// </summary>
     private static void ProjectExtensionMethod(
         MethodInfo method,
         string namespaceName,
@@ -172,8 +151,7 @@ internal static class ExtensionProjector
 
         // NOT static, though the CLR method is. An extension block's members are reached THROUGH a
         // receiver, which is what `self` names and what makes them instance-shaped in Mist; a
-        // Mist-declared block marks none of them static either. Carrying the CLR's own staticness
-        // here made every projected extension invisible to a call on a receiver.
+        // Mist-declared block marks none of them static either.
         var modifiers = new MemberModifiers
         {
             Accessibility = Accessibility.Public,
@@ -197,7 +175,6 @@ internal static class ExtensionProjector
 
         extensionBlock.MethodsList.Add(projected);
 
-        // Register on namespace.
         var ns = programModel.GetOrAddNamespace(namespaceName);
         if(!ns.Extensions.TryGetValue(receiverType, out var list))
         {
@@ -209,14 +186,12 @@ internal static class ExtensionProjector
     }
 
     /// <summary>
-    /// Splits a CLR extension method's type parameters between the block and the method, creates
-    /// both sets, and resolves their constraints. Returns the method-level ones; the block-level ones
-    /// are added to <paramref name="extensionBlock"/>.
+    /// Returns the method-level type parameters; the block-level ones are added to
+    /// <paramref name="extensionBlock"/>.
     /// <para>
-    /// The CLR has no extension blocks -- <c>Select&lt;TSource, TResult&gt;(this
-    /// IEnumerable&lt;TSource&gt; ...)</c> is one flat list -- so resugaring has to decide where each
-    /// parameter came from. A parameter the receiver type mentions was the block's:
-    /// <c>extension&lt;TSource&gt;(IEnumerable&lt;TSource&gt; self)</c>. The rest were the method's.
+    /// The CLR has no extension blocks -- a method's type parameters are one flat list -- so resugaring
+    /// has to decide where each came from. A parameter the receiver type mentions was the block's; the
+    /// rest were the method's.
     /// </para>
     /// <para>
     /// Ordinals stay as the CLR numbered them rather than becoming positions within either list,
@@ -282,10 +257,10 @@ internal static class ExtensionProjector
     /// The type parameters that belong to the block: those the receiver type mentions, plus any a
     /// block-level parameter's constraints mention.
     /// <para>
-    /// The second part is what makes <c>where TSource : IEquatable&lt;TResult&gt;</c> representable.
-    /// A block-level parameter constrained by a method-level one would need both visible at the block,
-    /// and the method scope is the inner one, so the referenced parameter is promoted instead.
-    /// Iterated to a fixed point, since a promoted parameter's own constraints may pull in more.
+    /// The second part is what makes a block-level parameter constrained by a method-level one
+    /// representable. Both would need to be visible at the block, and the method scope is the inner
+    /// one, so the referenced parameter is promoted instead. Iterated to a fixed point, since a
+    /// promoted parameter's own constraints may pull in more.
     /// </para>
     /// </summary>
     private static HashSet<Type> PartitionBlockLevel(Type[] clrTypeParams, Type receiverClrType)
@@ -324,10 +299,6 @@ internal static class ExtensionProjector
         return blockLevel;
     }
 
-    /// <summary>
-    /// Whether <paramref name="candidate"/> appears anywhere in <paramref name="type"/>, at any
-    /// depth: <c>TValue</c> is mentioned by <c>Dictionary&lt;TKey, List&lt;TValue&gt;&gt;</c>.
-    /// </summary>
     private static bool Mentions(Type type, Type candidate)
     {
         if(type.IsGenericParameter)
@@ -355,10 +326,6 @@ internal static class ExtensionProjector
         return false;
     }
 
-    /// <summary>
-    /// Determines whether a CLR type is a static class with [ExtensionAttribute]
-    /// (i.e., a class that contains extension methods).
-    /// </summary>
     private static bool IsExtensionClass(Type clrType)
     {
         // Static class in CLR = abstract + sealed.
@@ -371,9 +338,7 @@ internal static class ExtensionProjector
     }
 
     /// <summary>
-    /// Determines whether a CLR method is an extension method
-    /// ([ExtensionAttribute], public, static, at least 1 parameter).
-    /// SpecialName methods (property/event accessors) are excluded.
+    /// SpecialName methods are property and event accessors.
     /// </summary>
     private static bool IsExtensionMethod(MethodInfo method)
     {
@@ -385,10 +350,6 @@ internal static class ExtensionProjector
         return HasExtensionAttribute(method);
     }
 
-    /// <summary>
-    /// Checks whether a type or method has [System.Runtime.CompilerServices.ExtensionAttribute]
-    /// using metadata-only inspection.
-    /// </summary>
     private static bool HasExtensionAttribute(MemberInfo member)
     {
         try
@@ -404,7 +365,6 @@ internal static class ExtensionProjector
         }
         catch
         {
-            // If GetCustomAttributesData() throws, treat as not having the attribute.
         }
 
         return false;

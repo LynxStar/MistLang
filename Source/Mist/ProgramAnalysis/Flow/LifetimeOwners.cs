@@ -14,11 +14,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
-/// The holders of a tracked value in one body, each keyed by what its references reach -- a local by
-/// itself, a parameter by its <see cref="Parameter"/> since every body declares its own local for one, a
-/// field of a Drop by its <see cref="Field"/> -- and each with the node whose Leave step ends it. A name
-/// that only views another holder's value, a pattern binding over it or a with binding of it, is an alias
-/// and resolves to that holder; a lease or a foreach element is neither and owns nothing.
+/// Holder keys follow references: locals key themselves, parameters use <see cref="Parameter"/> across
+/// body-local wrappers, and Drop fields use <see cref="Field"/>. Each holder has an ending Leave node.
+/// Pattern and with views alias their holder; leases and foreach elements own nothing.
 /// </summary>
 internal sealed class LifetimeOwners
 {

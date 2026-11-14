@@ -4,11 +4,8 @@ using System.Globalization;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// The values a predicate over one integral quantity admits, as a sorted list of disjoint closed
-/// intervals, so that every question the prover asks -- does a constant satisfy it, does one predicate
-/// imply another, what do two facts leave when both hold -- is a set operation with an exact answer.
-/// A code point and a truth are integers too; real literals are decided by <see cref="LiteralPredicates"/>
-/// without approximating their values as integral intervals.
+/// Sorted, disjoint closed intervals make integral proofs exact set operations. Code points and booleans
+/// use this domain; real literals use <see cref="LiteralPredicates"/> without integral approximation.
 /// </summary>
 internal sealed class Admitted : IEquatable<Admitted>
 {

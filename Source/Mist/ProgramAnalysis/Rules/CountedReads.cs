@@ -3,8 +3,7 @@ using Mist.ProgramModel.Model.Members;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The members C# calls for a list pattern or a counted slice without the model spelling a call to any of
-/// them, each once: a list pattern's slice reads the count its elements already read.
+/// C# calls these members implicitly; a list slice shares its elements' count read, so count is checked once.
 /// </summary>
 internal static class CountedReads
 {

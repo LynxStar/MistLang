@@ -6,19 +6,13 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// A declaration-site tuple type that decorates a structural <see cref="TupleType"/>
-/// with element names (e.g., <c>(int x, bool flag)</c>). Names are cosmetic and do
-/// NOT affect identity — <see cref="Underlying"/> is the identity-bearing type.
+/// Element names over a structural <see cref="TupleType"/>. Names are cosmetic and do NOT affect
+/// identity: this is not interned but created per declaration site, so any code that keys on type
+/// identity (interning, equality) must see through it to <see cref="Underlying"/>.
 /// <para>
-/// Members mirror C# named tuples: the positional <c>Item1..ItemN</c> fields from the
-/// underlying type are exposed via <see cref="Fields"/> alongside one aliasing field per
-/// named element, so both <c>pair.Item1</c> and <c>pair.x</c> resolve to a field. Unnamed
-/// elements contribute no alias.
-/// </para>
-/// <para>
-/// Not interned: created once per declaration site where the names are written.
-/// Any code that keys on type identity (interning, equality) must see through this
-/// decorator to <see cref="Underlying"/>.
+/// Members mirror C# named tuples: <see cref="Fields"/> holds the positional <c>Item1..ItemN</c>
+/// fields followed by one alias per named element, so both <c>pair.Item1</c> and <c>pair.x</c>
+/// resolve to a field.
 /// </para>
 /// </summary>
 internal sealed class NamedTupleType : MistType, INamedTupleType
@@ -33,14 +27,8 @@ internal sealed class NamedTupleType : MistType, INamedTupleType
         fields = BuildFields(underlying, elementNames);
     }
 
-    /// <summary>
-    /// The underlying structural tuple type (interned, name-free).
-    /// </summary>
     public TupleType Underlying { get; }
 
-    /// <summary>
-    /// Element names in positional order. Null entries indicate unnamed elements.
-    /// </summary>
     public IReadOnlyList<string?> ElementNames { get; }
 
     public IReadOnlyList<IMistType> ElementTypes => Underlying.ElementTypes;
@@ -51,15 +39,10 @@ internal sealed class NamedTupleType : MistType, INamedTupleType
 
     IReadOnlyList<IMistType> ITupleType.ElementTypes => Underlying.ElementTypes;
 
-    /// <summary>
-    /// The tuple's fields: the positional <c>Item1..ItemN</c> fields followed by
-    /// one alias field per named element.
-    /// </summary>
     public IReadOnlyList<Field> Fields => fields;
 
     private static List<Field> BuildFields(TupleType underlying, IReadOnlyList<string?> elementNames)
     {
-        // Positional Item1..ItemN come first, then one alias per named element.
         var result = new List<Field>(underlying.PositionalFields);
         var elementTypes = underlying.ElementTypes;
 

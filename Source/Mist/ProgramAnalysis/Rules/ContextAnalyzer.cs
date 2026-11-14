@@ -8,14 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The structured-context discipline, the spec's Context_Checker: a call owed a context of some type has
-/// one wherever it can be run from (Requirements 3.6, 3.7, 9 and 14.1, over <see cref="ContextCalls"/>),
-/// a member filling an abstract's slot declares the slot's <c>with</c> clauses exactly, since a call
-/// through the abstract answers for those and no others (8), one member binds a key once (14.3), and a
-/// name standing for an ambient value is never given another (4.1, 4.2, 7.5), by assignment or by a
-/// reference it could be assigned through. What a key IS has one home, <see cref="ContextKeys"/>. A
-/// type nobody can name keys nothing a clause could ask for, which is the one case 14.5 leaves this
-/// stage: every other untyped expression is the binder's to refuse.
+/// <see cref="ContextCalls"/> supplies call obligations and <see cref="ContextKeys"/> defines key identity.
+/// An unnameable type cannot key a clause; the binder reports other untyped expressions.
 /// </summary>
 internal sealed class ContextAnalyzer : IProgramAnalyzer
 {

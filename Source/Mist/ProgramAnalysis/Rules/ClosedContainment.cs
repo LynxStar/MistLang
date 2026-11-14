@@ -9,17 +9,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The containment matrix at the closings a program writes, for the one field a declaration cannot judge:
-/// an unconstrained type parameter, admitted in an unrestricted container because nothing says what it
-/// holds, until `Box of Resource` puts a linear value in a plain struct. A constrained parameter is NOT
-/// judged again here, since its constraint stood in for the field at the declaration and the closing is
-/// held to that constraint by <see cref="ConstraintAnalyzer"/> -- `AffineBox of LinearToken` is legal
-/// exactly because linear satisfies affine. A construction reached only through a field of a closed one
-/// is judged along the way, as the registry records no closing for it; each closed field is reported
-/// once, however many sites reach it, because the fault is the closed type's and not the site's. The
-/// walk through fields stops at <see cref="Depth"/> constructions because a polymorphically recursive
-/// field -- `Node of Pair of T` inside `Node of T` -- reaches a new construction at every step, and
-/// no identity set ends that.
+/// Unconstrained fields need a containment check at closing; constrained fields rely on the declaration
+/// and <see cref="ConstraintAnalyzer"/>. Follow closed fields too, since the registry has no closing for
+/// those constructions. Report each closed field once because the fault belongs to the type, not its uses.
+/// Stop at <see cref="Depth"/> constructions: polymorphic recursion produces fresh identities indefinitely.
 /// </summary>
 internal static class ClosedContainment
 {

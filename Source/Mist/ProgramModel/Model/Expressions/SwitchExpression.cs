@@ -33,7 +33,7 @@ internal sealed class SwitchArm(SyntaxNode node, Pattern pattern, Expression? gu
 
     /// <summary>
     /// The <c>when</c> condition, or null where the arm has none. Evaluated only after the pattern
-    /// matched, which is what lets it read the pattern's bindings -- and what will stop a guarded arm
+    /// matched, which is what lets it read the pattern's bindings -- and what stops a guarded arm
     /// counting toward coverage, since holding is not something the pattern alone decides.
     /// </summary>
     public Expression? Guard { get; } = guard;

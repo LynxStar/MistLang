@@ -1,4 +1,5 @@
 // Feature: dependent-type-refinement-constraints, Property 1: TypeParameter Round-Trip (Grammar)
+// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 9.1, 9.2, 9.3**
 
 using System.Collections.Immutable;
 using FsCheck;
@@ -11,28 +12,15 @@ using Mist.Tests.Generators;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Property-based tests for TypeParameter round-trip across all three variants.
-///
-/// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 9.1, 9.2, 9.3**
-///
-/// For all valid type parameter forms (Name:PrimitiveKeyword, Name:Identifier, Name),
-/// parsing the pretty-printed form produces an equivalent AST node with the same
-/// parameter name and constraint.
-/// </summary>
 public class TypeParameterRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
 
-    // ─── Token helper ────────────────────────────────────────────────────
-
     private static Storm.Runtime.Token Tok(string lexeme)
     {
         return MistTypeGenerator.MakeToken(lexeme);
     }
-
-    // ─── Test data model ─────────────────────────────────────────────────
 
 #pragma warning disable CA1034
     public record TypeParameterRoundTripTestCase(
@@ -46,13 +34,6 @@ public class TypeParameterRoundTripPropertyTests
     }
 #pragma warning restore CA1034
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // TypeParameter AST node generators — all three variants
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// The allowed primitive types for dependent type parameters.
-    /// </summary>
     private static readonly PrimitiveTypeNode[] DependentPrimitiveTypeNodes =
     [
         new IntTypePrimitiveTypeNode(),
@@ -76,9 +57,6 @@ public class TypeParameterRoundTripPropertyTests
     private static readonly string[] RegularParamNames = ["T", "U", "V", "W", "TValue", "TKey"];
     private static readonly string[] ClassNames = ["Foo", "Bar", "Container", "Holder", "Matrix"];
 
-    // ─── Variant 1: Name:PrimitiveKeyword ────────────────────────────────
-
-    /// <summary>Generates a dependent type parameter with a primitive keyword constraint (e.g., Size:int).</summary>
     private static Gen<TypeParameterNode> GenDependentPrimitiveTypeParameter()
     {
         return from name in Gen.Elements(ParamNames)
@@ -90,9 +68,6 @@ public class TypeParameterRoundTripPropertyTests
                };
     }
 
-    // ─── Variant 2: Name:Identifier ─────────────────────────────────────
-
-    /// <summary>Generates a dependent type parameter with an identifier constraint (e.g., Length:ZeroOrPositiveInt).</summary>
     private static Gen<TypeParameterNode> GenNamedConstraintTypeParameter()
     {
         return from name in Gen.Elements(ParamNames)
@@ -104,9 +79,6 @@ public class TypeParameterRoundTripPropertyTests
                };
     }
 
-    // ─── Variant 3: Name (no constraint) ────────────────────────────────
-
-    /// <summary>Generates a regular type parameter with no constraint (e.g., T).</summary>
     private static Gen<TypeParameterNode> GenRegularTypeParameter()
     {
         return Gen.Elements(RegularParamNames)
@@ -116,8 +88,6 @@ public class TypeParameterRoundTripPropertyTests
             });
     }
 
-    // ─── Any single TypeParameter ────────────────────────────────────────
-
     private static Gen<TypeParameterNode> GenAnyTypeParameter()
     {
         return Gen.OneOf(
@@ -126,11 +96,6 @@ public class TypeParameterRoundTripPropertyTests
             GenRegularTypeParameter());
     }
 
-    // ─── TypeParameterList generators ────────────────────────────────────
-
-    /// <summary>
-    /// Generates a TypeParameterListNode with 1–3 parameters, mixing all three variants.
-    /// </summary>
     private static Gen<TypeParameterListNode> GenTypeParameterList()
     {
         return Gen.Choose(1, 3).SelectMany(count => Gen.ArrayOf(GenAnyTypeParameter(), count)
@@ -141,10 +106,6 @@ public class TypeParameterRoundTripPropertyTests
                 }));
     }
 
-    /// <summary>
-    /// Generates a TypeParameterListNode with exactly one parameter of each variant.
-    /// Ensures all three variants appear in a single list.
-    /// </summary>
     private static Gen<TypeParameterListNode> GenAllThreeVariantsList()
     {
         return from dep in GenDependentPrimitiveTypeParameter()
@@ -157,11 +118,6 @@ public class TypeParameterRoundTripPropertyTests
                };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Test case generators — class declarations with type parameters
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>Generates a class with a mixed type parameter list.</summary>
     private static Gen<TypeParameterRoundTripTestCase> GenMixedClassTestCase()
     {
         return from className in Gen.Elements(ClassNames)
@@ -169,7 +125,6 @@ public class TypeParameterRoundTripPropertyTests
                select MakeClassTestCase(className, typeParams);
     }
 
-    /// <summary>Generates a class with all three variants present.</summary>
     private static Gen<TypeParameterRoundTripTestCase> GenAllVariantsClassTestCase()
     {
         return from className in Gen.Elements(ClassNames)
@@ -199,10 +154,6 @@ public class TypeParameterRoundTripPropertyTests
             $"class {className}<{DescribeTypeParams(typeParams)}>", cu);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Combined test case generator
-    // ═══════════════════════════════════════════════════════════════════════
-
     private static Gen<TypeParameterRoundTripTestCase> GenTestCase()
     {
         return Gen.OneOf(
@@ -210,37 +161,22 @@ public class TypeParameterRoundTripPropertyTests
             GenAllVariantsClassTestCase());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<TypeParameterRoundTripTestCase> ArbitraryTypeParameterRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: TypeParameter Round-Trip (Grammar)
-    //
-    // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 9.1, 9.2, 9.3**
-    //
-    // For all valid type parameter forms (Name:PrimitiveKeyword, Name:Identifier,
-    // Name), pretty-printing → parsing → pretty-printing SHALL produce identical
-    // output, and the reparsed AST SHALL contain structurally equivalent
-    // TypeParameter nodes.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(TypeParameterRoundTripPropertyTests) })]
     public Property RoundTrip_TypeParameterPreservesAllThreeVariants(TypeParameterRoundTripTestCase testCase)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -261,17 +197,14 @@ public class TypeParameterRoundTripPropertyTests
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed, printed1);
 
-        // Step 4: Compare the two printed outputs — they must be identical
         if(printed1 != printed2)
         {
             return false.ToProperty()
                 .Label($"Pretty-print mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
         }
 
-        // Step 5: Verify structural equivalence of TypeParameter nodes
         var originalParams = ExtractTypeParameters(testCase.Ast);
         var reparsedParams = ExtractTypeParameters(reparsed);
 
@@ -298,7 +231,6 @@ public class TypeParameterRoundTripPropertyTests
                     .Label($"TypeParameter[{i}] name mismatch: '{orig.GetName().Lexeme}' vs '{repr.GetName().Lexeme}'");
             }
 
-            // Verify constraint equivalence for dependent variants
             var constraintCheck = CheckConstraintEquivalence(orig, repr);
             if(constraintCheck is not null)
             {
@@ -308,8 +240,6 @@ public class TypeParameterRoundTripPropertyTests
 
         return true.ToProperty();
     }
-
-    // ─── Helper: extract TypeParameter nodes from a CompilationUnit ──────
 
     private static List<TypeParameterNode> ExtractTypeParameters(CompilationUnitNode cu)
     {
@@ -340,10 +270,6 @@ public class TypeParameterRoundTripPropertyTests
         return result;
     }
 
-    /// <summary>
-    /// Checks that the constraint portion of two TypeParameterNodes is equivalent.
-    /// Returns null if equivalent, or an error message string if not.
-    /// </summary>
     private static string? CheckConstraintEquivalence(TypeParameterNode orig, TypeParameterNode repr)
     {
         switch(orig)
@@ -367,14 +293,11 @@ public class TypeParameterRoundTripPropertyTests
                 break;
 
             case RegularTypeParameterTypeParameterNode:
-                // No constraint to compare
                 break;
         }
 
         return null;
     }
-
-    // ─── Description helper ──────────────────────────────────────────────
 
     private static string DescribeTypeParams(TypeParameterListNode typeParams)
     {

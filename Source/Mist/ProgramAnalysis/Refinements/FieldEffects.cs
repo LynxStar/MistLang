@@ -7,16 +7,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// Whether evaluating one node may write a field whose fact the refinement flow holds. A call -- a user
-/// operator or conversion is one too -- keeps the facts only when the method it selected is readonly,
-/// declared or inferred by <see cref="ReadonlyInference"/> from a body this program owns, and nothing
-/// else the call runs could write: no argument is passed by reference, no argument is a function value
-/// that is not pure, and no type initializer with work to do is triggered. A read asks only the getter
-/// it runs and a write only the setter, and an accessor with no body here keeps the facts only as an
-/// auto accessor touching its own storage or an intrinsic one, since a CLR getter can run code it was
-/// handed. Readonly is a promise about the callee, so a member of an abstract type, whose body is its
-/// implementers', and a method with no body here count only what they declare; a delegate call and an
-/// object creation never keep anything.
+/// Readonly describes the selected callee, not argument callbacks, ref writes or type initializers;
+/// those can invalidate field facts independently. <see cref="ReadonlyInference"/> supplies the promise
+/// only for local bodies; abstract instance dispatch and external bodies need declared readonly.
+/// Reads judge the getter and writes the setter. A bodyless accessor needs declared readonly, auto storage
+/// or intrinsic status: a CLR getter may run supplied code. Delegate calls and creation keep no facts.
 /// </summary>
 internal sealed class FieldEffects
 {

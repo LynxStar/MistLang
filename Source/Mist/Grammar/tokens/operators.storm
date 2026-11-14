@@ -1,14 +1,9 @@
-// operators.storm — Operators, punctuation, and hidden tokens.
-
 // ─── Hidden Tokens ───────────────────────────────────────────────────────────
 
 hidden token WHITESPACE   = `\s+`;
 hidden token LINE_COMMENT = "//" `[^\n]*`;
 
 // ─── Operators and Punctuation ───────────────────────────────────────────────
-// Multi-character operators are declared before their single-character
-// counterparts so that maximal-munch combined with declaration-order priority
-// selects the longer token.
 
 token LOGICAL_AND           = "&&";
 token PIPE                  = "|";

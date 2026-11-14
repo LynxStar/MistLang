@@ -15,15 +15,9 @@ namespace Mist.ProgramAnalysis;
 internal readonly record struct ExitDrop(string Name, Method Drop, SyntaxNode At, bool IsAwait, LocalDeclarationStatement? Declaration = null);
 
 /// <summary>
-/// What a scope calls on its way out without writing the call: the emitter releases every linear or
-/// relevant binding the body did not hand on -- as an argument, a return value or a non-relevant explicit drop --
-/// through its declared Drop and then whatever that Drop hands back, its droppable fields' Drops when it
-/// declares none, or an await when it is a task; and a declared Drop's own body releases every
-/// droppable field it did not hand on after what it was written to do, and a lender releases what it
-/// lent fresh. Except for the linear holders <see cref="LocalLifetimes"/> plans and what
-/// <see cref="LentValues"/> finds, this mirrors the backend's DropInsertion rather than sharing it,
-/// since analysis may not depend on a backend; a divergence between the two shows as a drop judged that
-/// never runs, or one run unjudged.
+/// Exit calls must match backend DropInsertion: a divergence judges drops that never run or
+/// misses ones that do. Analysis cannot depend on a backend, so this mirrors it except for
+/// shared <see cref="LocalLifetimes"/> plans and <see cref="LentValues"/> discoveries.
 /// </summary>
 internal static partial class PurityJudge
 {

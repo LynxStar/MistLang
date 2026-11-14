@@ -7,14 +7,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What each argument of a call is judged against once a <c>params</c> parameter has taken its share:
-/// the fixed parameters pair inward from both ends, and an argument the flattened slot absorbed pairs
-/// with the element it lands in -- the collection's element for <c>params T[]</c> and its collection
-/// kin (<see cref="ParamsCollection"/>), the pack element at its position for a value pack the call
-/// closed. An argument is null where it is a spread, whose count
-/// the binder already proved, and a target is null where nothing pairs with one argument: a pack still
-/// open, or one holding another count than the call passed, which <see cref="Unpaired"/> answers for
-/// the slot as a whole.
+/// A null argument represents a spread whose count the binder proves. A null target represents an open
+/// or mismatched pack, judged as a whole by <see cref="Unpaired"/>. Flattened collection arguments target
+/// <see cref="ParamsCollection"/>'s element; closed value-pack arguments target their positional element.
 /// </summary>
 internal static class ArgumentTargets
 {

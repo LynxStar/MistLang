@@ -4,12 +4,8 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// An array literal expression (<c>[a, b, c]</c> or <c>[]</c>).
-/// <para>
-/// Distinct from <see cref="ArrayCreationExpression"/>: the length is implied by the
-/// element count rather than written as a size expression, and the element type is
-/// inferred rather than declared.
-/// </para>
+/// Distinct from <see cref="ArrayCreationExpression"/>: the length is implied by the element count
+/// rather than written as a size expression, and the element type is inferred rather than declared.
 /// </summary>
 internal sealed class ArrayLiteralExpression(
     SyntaxNode node,
@@ -19,9 +15,6 @@ internal sealed class ArrayLiteralExpression(
 {
     public IMistType ElementType { get; } = elementType;
 
-    /// <summary>
-    /// The literal's elements in source order. Empty for the <c>[]</c> form.
-    /// </summary>
     public IReadOnlyList<Expression> Elements { get; } = elements;
 
     public bool IsTargetTyped { get; init; }

@@ -7,14 +7,12 @@ namespace Mist.ProgramModel.Model;
 /// <summary>
 /// The pack widths each generic METHOD is called at, recorded as calls are bound.
 /// <para>
-/// Recorded rather than searched for, because a call site is the only thing that knows: a method's
-/// own declaration names no width, and an INFERRED call writes none either -- the width is what
-/// overload resolution worked out. Sitting beside the constraint closures, which exist for the same
-/// reason and are read by the same consumer.
+/// Recorded rather than searched for because only a call site knows: a method's declaration names no
+/// width, and an INFERRED call writes none -- the width is what overload resolution worked out.
 /// </para>
 /// <para>
-/// A fact about the program, not about any target. What is DONE with it -- emitting one C# method
-/// per width, since C# has no pack -- belongs to the backend and is no part of this.
+/// A fact about the program, not about any target: emitting one C# method per width belongs to the
+/// backend.
 /// </para>
 /// </summary>
 internal sealed class VariadicUseRegistry
@@ -76,10 +74,6 @@ internal sealed class VariadicUseRegistry
         }
     }
 
-    /// <summary>
-    /// The width combinations this method was called at, empty when it has no pack or was never
-    /// called.
-    /// </summary>
     public IReadOnlyCollection<IReadOnlyList<int>> WidthsOf(Method method)
     {
         method = method.SourceDeclaration ?? method;

@@ -7,10 +7,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// What is known of a sequence's length. A length reaches the prover two ways: the TYPE carries it,
-/// as <c>int[3]</c> does, or the flow does, because the expression a local was given says how long it
-/// is and nothing since has reassigned it. The second is why this exists -- <c>int[] a = new int[3]</c>
-/// erases the 3 the creation states, and a span or a slice carries no length in its type at all.
+/// Length facts survive type erasure through flow until reassignment: an initializer can state a length
+/// its local's type omits, and spans and slices carry no length in their types.
 /// </summary>
 internal static class Lengths
 {

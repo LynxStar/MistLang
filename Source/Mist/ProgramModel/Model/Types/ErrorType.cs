@@ -4,9 +4,8 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramModel.Model.Types;
 
 /// <summary>
-/// Sentinel type representing an unresolved or invalid type. Prevents
-/// cascading diagnostics by allowing downstream code to proceed with a
-/// known-bad type rather than null.
+/// An unresolved or invalid type, standing in for null so downstream code proceeds without
+/// cascading diagnostics.
 /// </summary>
 internal sealed class ErrorType : MistType, IMistType
 {

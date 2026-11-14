@@ -1,14 +1,9 @@
 namespace Mist.ProgramModel.Model.Scopes;
 
 /// <summary>
-/// A field or property initializer. Declares nothing of its own, since an initializer has no locals
-/// and no type parameters; it exists only to apply <see cref="LookupRequest.WithoutReceiver"/>, which
-/// documents when that applies and why.
-/// <para>
-/// Unconditionally, unlike <see cref="MethodScope"/> -- there is no staticness to consult, because an
-/// initializer is receiver-less either way. That is what keeps the emitter from writing a C# field
-/// initializer that reads an instance member, which C# rejects outright: the name does not resolve.
-/// </para>
+/// A field or property initializer. It exists only to apply <see cref="LookupRequest.WithoutReceiver"/>,
+/// which documents why; that keeps the emitter from writing a C# field initializer that reads an instance
+/// member, which C# rejects: the name does not resolve.
 /// </summary>
 internal sealed class InitializerScope(Scope? parent) : Scope(parent)
 {

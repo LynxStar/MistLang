@@ -10,8 +10,7 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// <para>
 /// Its own node rather than a <see cref="MemberAccessExpression"/> because the two do not EMIT
 /// alike. C# has no extension property, so this is not an access at all in the output -- it becomes
-/// a call to the carrier's generated getter with the receiver as its argument, and a node that
-/// emitted as written would produce a member C# cannot find.
+/// a call to the carrier's generated getter with the receiver as its argument.
 /// </para>
 /// <para>
 /// The carrier is named rather than resolved through C#'s own extension lookup, which the METHOD

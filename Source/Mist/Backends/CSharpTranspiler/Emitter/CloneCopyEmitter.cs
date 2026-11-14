@@ -8,13 +8,12 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
-/// The body of a conversion between a newtype's clone and its copyable source: a new value of the target
-/// holding every field of the operand. The two are unrelated C# types that each keep their state private,
-/// so each field is reached through an UnsafeAccessor rather than by name -- no reflection, and nothing the
-/// program's own code may touch is widened. A class is allocated uninitialized, every field being written
-/// afterwards; a constructor would run the source's code a second time. A source emitted per instantiation
-/// (<see cref="UnionSpecialization"/>) is reached as the closed type it is in C#, not through a holder over
-/// parameters it no longer declares.
+/// The body of a conversion between a newtype's clone and its copyable source. The two are unrelated C#
+/// types that each keep their state private, so each field is reached through an UnsafeAccessor rather than
+/// by name -- no reflection, and nothing the program's own code may touch is widened. A class is allocated
+/// uninitialized, every field being written afterwards; a constructor would run the source's code a second
+/// time. A source emitted per instantiation (<see cref="UnionSpecialization"/>) is reached as the closed type
+/// it is in C#, not through a holder over parameters it does not declare.
 /// </summary>
 internal static class CloneCopyEmitter
 {

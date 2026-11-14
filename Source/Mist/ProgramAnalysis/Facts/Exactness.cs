@@ -25,9 +25,8 @@ internal static class Exactness
         return Chain.Prove(bag, [below], values, budget) is Proven && Chain.Prove(bag, [above], values, budget) is Proven;
     }
 
-    // A quotient is no whole-number term, so for a division the term is the dividend and the caller records
-    // `divisor * quotient == dividend`; halving is exact only while the quotient stays a normal number, so a dividend that might be
-    // tiny is refused.
+    // Division passes the dividend as its term because a quotient is not a whole-number term; the caller records
+    // `divisor * quotient == dividend`. Power-of-two division requires a normal quotient to avoid rounding tiny values.
     private static bool Real(Expression operation, RealKind kind, Term term, Bag bag, Budget? budget)
     {
         if(operation is UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true } })

@@ -225,9 +225,8 @@ internal static partial class PurityJudge
         }
 
         /// <summary>
-        /// A callee reads a frozen parameter, and the array a params parameter is handed whole, as a loan
-        /// it holds frozen; so the argument must be one the calling scope could read itself. A local the
-        /// ownership analyzer already refuses for the lend is left to it.
+        /// Frozen lends and whole params arrays are reads by the callee, so callers must admit those
+        /// reads. Leave lends already refused by ownership to that analyzer.
         /// </summary>
         private void JudgeLends(IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter> parameters, string callee)
         {

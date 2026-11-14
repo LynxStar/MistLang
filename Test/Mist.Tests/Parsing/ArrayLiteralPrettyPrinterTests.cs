@@ -1,4 +1,4 @@
-// Feature: array-literals — Unit tests for pretty printer handling of array literal expressions
+// Feature: array-literals
 // **Validates: Requirements 9.1, 9.2, 9.3**
 
 using Mist.Common.Diagnostics;
@@ -9,10 +9,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.Parsing;
 
-/// <summary>
-/// Unit tests verifying that the pretty printer correctly reproduces array literal syntax.
-/// Uses in-process MistParser and MistPrettyPrinter — no process spawning.
-/// </summary>
 public class ArrayLiteralPrettyPrinterTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -34,16 +30,11 @@ public class ArrayLiteralPrettyPrinterTests
         return Assert.IsType<CompilationUnitNode>(result.Root);
     }
 
-    /// <summary>
-    /// Parses the source, pretty-prints it, and returns the pretty-printed output.
-    /// </summary>
     private static string PrettyPrint(string source)
     {
         var cu = ParseOrFail(source);
         return MistPrettyPrinter.Print(cu, source);
     }
-
-    // ─── Requirement 9.1: [1, 2, 3] pretty-prints as [1, 2, 3] ──────────
 
     [Fact]
     public void ArrayLiteral_PrettyPrintsWithCommaSpace()
@@ -61,8 +52,6 @@ public class ArrayLiteralPrettyPrinterTests
         Assert.Contains("[1, 2, 3]", printed);
     }
 
-    // ─── Requirement 9.1: Nested [[1, 2], [3, 4]] pretty-prints correctly ─
-
     [Fact]
     public void NestedArrayLiteral_PrettyPrintsCorrectly()
     {
@@ -79,8 +68,6 @@ public class ArrayLiteralPrettyPrinterTests
         Assert.Contains("[[1, 2], [3, 4]]", printed);
     }
 
-    // ─── Requirement 9.2: Empty array [] pretty-prints as [] ──────────────
-
     [Fact]
     public void EmptyArrayLiteral_PrettyPrintsAsBrackets()
     {
@@ -94,11 +81,8 @@ public class ArrayLiteralPrettyPrinterTests
 
         var printed = PrettyPrint(source);
 
-        // The empty array literal should pretty-print as []
         Assert.Contains("[]", printed);
     }
-
-    // ─── Requirement 9.2: int[] type literal pretty-prints as int[] ──────
 
     [Fact]
     public void TypeLiteralIntArray_PrettyPrintsAsIntBrackets()
@@ -116,8 +100,6 @@ public class ArrayLiteralPrettyPrinterTests
         Assert.Contains("int[]", printed);
     }
 
-    // ─── Requirement 9.3: Round-trip stability ───────────────────────────
-
     [Fact]
     public void ArrayLiteral_RoundTripIsStable()
     {
@@ -129,7 +111,6 @@ public class ArrayLiteralPrettyPrinterTests
             }
             """;
 
-        // Parse → print → parse → print should produce identical output
         var ast1 = ParseOrFail(source);
         var printed1 = MistPrettyPrinter.Print(ast1, source);
 

@@ -3,9 +3,6 @@ using Mist.Common.Diagnostics;
 
 namespace Mist.Driver.Contracts;
 
-/// <summary>
-/// The structured result of a compilation run.
-/// </summary>
 public sealed record CompilerResult(
     bool Succeeded,
     string? PrimaryOutputArtifactPath,

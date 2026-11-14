@@ -27,24 +27,15 @@ internal enum ScopeKind
 }
 
 /// <summary>
-/// Where a value comes from, for the scope judging it: what the scope owns, what it holds frozen, and
-/// everything else (purity spec, design 'Origins'). Read off the body WITHOUT flow: a local is owned
-/// when every assignment to it is fresh and nothing aliases it, so the answer holds at every use. A
-/// closure's Origins is built over its enclosing scope's, which answers what a capture reaches and
-/// whether the captured variable may be read at all (Requirement 16.4) -- unless the closure is judged
-/// as a conversion to a pure function type, where every capture is an External input. A closure given
-/// with no enclosing scope is a body root of its own -- an initializer or an expression body that IS a
-/// lambda -- whose parameters are inputs like a member's.
-/// <para>
-/// An owned reference field answers its holder's origin only through an owning reference, which a null
-/// holder type passed to <see cref="Through(Origin, Field, IMistType)"/> also names: a struct's own
-/// member is handed a copy, whose fields share their objects with every other copy, so only its
-/// constructor, building the one instance, holds its owned fields as its own. A readonly type is not
-/// thereby unchangeable: it promises that no member writes it, not that nothing it holds can change, so
-/// an owned field of a mutable class or a settable property's storage (readonly-contexts base rule 12)
-/// is state a second reference can still reach. An intrinsic type has no fields here to look at, so its
-/// declaration is taken at its word; an abstract one could be implemented by anything.
-/// </para>
+/// Purity's Origins design is flow-insensitive: ownership must hold at every use. Closures
+/// inherit capture provenance and Requirement 16.4 readability from their enclosing scope; a
+/// pure-function conversion treats captures as External inputs. A root lambda is its own
+/// scope, with parameters as inputs.
+/// Struct copies share reference fields, so only construction treats owned fields as its own;
+/// a null holder type in <see cref="Through(Origin, Field, IMistType)"/> denotes an owning
+/// reference. Readonly promises no member writes, not that held state is unchangeable
+/// (readonly-contexts base rule 12). Intrinsics lack inspectable fields and are trusted;
+/// abstract types can have arbitrary implementations.
 /// </summary>
 internal sealed partial class Origins
 {

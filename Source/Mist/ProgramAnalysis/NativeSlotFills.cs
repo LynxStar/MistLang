@@ -9,13 +9,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Which members of a source type fill a slot of a projected class it derives from, and which collide
-/// with one instead (clr-slot-filling Requirement 2). A source member is judged against the NEAREST
-/// projected declaration repeating its name and signature through the inheritance substitution, so a
-/// CLR class overriding its base's abstract member presents a defaulted slot, and a Mist ancestor's
-/// own fill is no projected declaration at all: a derived type restating it fills the same slot. A
-/// chain with a base that did not resolve answers nothing, that base having been reported where it
-/// was written. Stage 5 and the emitter both ask here; neither decides a fill itself.
+/// Stage 5 and emission share the clr-slot-filling Requirement 2 decision. Only projected
+/// declarations compete for the nearest slot through inheritance substitution: a CLR override
+/// defaults its base slot, while a Mist ancestor's fill keeps that slot's identity. An
+/// unresolved base suppresses the chain's answers because binding owns that failure.
 /// </summary>
 internal static class NativeSlotFills
 {

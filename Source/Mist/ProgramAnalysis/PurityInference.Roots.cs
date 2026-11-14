@@ -60,9 +60,8 @@ internal sealed partial class PurityInference
     }
 
     /// <summary>
-    /// An extension member the target never calls: C# binds a call spelled on an instance to the
-    /// object's own member before any extension, and every object has these, so the body written here
-    /// is not what runs and the member keeps only what it declares (Requirement 9.1).
+    /// C# prefers Object's own members to these extensions, so their bodies do not run through
+    /// instance calls; Requirement 9.1 permits only their declared promises.
     /// </summary>
     private static bool RunsTheObjectsOwn(Method method)
     {

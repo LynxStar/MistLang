@@ -2,9 +2,6 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors for entry-point validation.
-/// </summary>
 public static class EntryPointDiagnostics
 {
     public static readonly MistDiagnostic MissingEntryPoint = new(

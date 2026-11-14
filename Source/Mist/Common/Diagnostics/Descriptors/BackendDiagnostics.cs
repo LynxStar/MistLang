@@ -2,11 +2,6 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors for the C# transpiler backend, compilation driver,
-/// and assembly type provider. Covers emission template errors, Roslyn compilation
-/// failures, assembly load failures, and general backend exceptions.
-/// </summary>
 public static class BackendDiagnostics
 {
     public static readonly MistDiagnostic MissingIntrinsicEmissionTemplate = new(

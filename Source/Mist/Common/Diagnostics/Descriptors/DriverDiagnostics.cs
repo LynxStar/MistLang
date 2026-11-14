@@ -2,13 +2,8 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors for the compiler driver, project file parsing,
-/// and related infrastructure (loading, package/framework resolution, csproj properties).
-/// </summary>
 public static class DriverDiagnostics
 {
-    // ── Project file diagnostics ─────────────────────────────────────────
 
     public static readonly MistDiagnostic ProjectFileNotFound = new(
         DiagnosticNumber.Mint("MIST0049"),
@@ -119,8 +114,6 @@ public static class DriverDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("outputType", SlotKind.Enum), new Slot("path", SlotKind.Path)]);
-
-    // ── Project reference diagnostics ────────────────────────────────────
 
     public static readonly MistDiagnostic ProjectReferenceMissingPath = new(
         DiagnosticNumber.Mint("MIST0060"),
@@ -287,8 +280,6 @@ public static class DriverDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("chain", SlotKind.Sequence, SlotKind.Name), new Slot("referencingPath", SlotKind.Optional, SlotKind.Path), new Slot("target", SlotKind.Optional, SlotKind.Name)]);
 
-    // ── Global using diagnostics ─────────────────────────────────────────
-
     public static readonly MistDiagnostic GlobalUsingInvalidFormat = new(
         DiagnosticNumber.Mint("MIST0076"),
         Title: "Global usings section not a table",
@@ -362,8 +353,6 @@ public static class DriverDiagnostics
         DefaultSeverity: DiagnosticSeverity.Warning,
         Slots: [new Slot("namespace", SlotKind.Name), new Slot("path", SlotKind.Path)]);
 
-    // ── Package diagnostics ──────────────────────────────────────────────
-
     public static readonly MistDiagnostic PackageTableExpected = new(
         DiagnosticNumber.Mint("MIST0083"),
         Title: "Packages section not a table",
@@ -418,8 +407,6 @@ public static class DriverDiagnostics
         Slots: [new Slot("name", SlotKind.Name), new Slot("path", SlotKind.Path)],
         Related: [DiagnosticNumber.Mint("MIST0086")]);
 
-    // ── Framework reference diagnostics ──────────────────────────────────
-
     public static readonly MistDiagnostic FrameworkReferenceTableExpected = new(
         DiagnosticNumber.Mint("MIST0088"),
         Title: "Framework references not a table",
@@ -461,8 +448,6 @@ public static class DriverDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name), new Slot("path", SlotKind.Path)]);
-
-    // ── Csproj property diagnostics ──────────────────────────────────────
 
     public static readonly MistDiagnostic CsprojPropertyTableExpected = new(
         DiagnosticNumber.Mint("MIST0092"),
@@ -533,8 +518,6 @@ public static class DriverDiagnostics
         Policy: PolicyClass.Promotable,
         DefaultSeverity: DiagnosticSeverity.Warning,
         Slots: [new Slot("key", SlotKind.Name), new Slot("path", SlotKind.Path)]);
-
-    // ── Compiler driver diagnostics ──────────────────────────────────────
 
     public static readonly MistDiagnostic UnknownBackend = new(
         DiagnosticNumber.Mint("MIST0099"),

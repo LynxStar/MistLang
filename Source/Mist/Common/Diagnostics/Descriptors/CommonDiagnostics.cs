@@ -2,15 +2,8 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors shared across multiple compiler areas.
-/// Covers standard library loading, SDK resolution, namespace/type resolution,
-/// interop projection, target-typed new expressions, void type restrictions,
-/// default keyword semantics, definite assignment, and associated type validation.
-/// </summary>
 public static class CommonDiagnostics
 {
-    // ── Standard Library loading diagnostics ─────────────────────────────
 
     public static readonly MistDiagnostic StdlibParse = new(
         DiagnosticNumber.Mint("MIST0031"),
@@ -21,8 +14,6 @@ public static class CommonDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("path", SlotKind.Path), new Slot("cause", SlotKind.Text)]);
-
-    // ── SDK diagnostics ──────────────────────────────────────────────────
 
     public static readonly MistDiagnostic SdkNotFound = new(
         DiagnosticNumber.Mint("MIST0032"),
@@ -42,12 +33,6 @@ public static class CommonDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("tfm", SlotKind.Name), new Slot("sdk", SlotKind.Path)]);
-
-    // ── Namespace and type resolution diagnostics ────────────────────────
-
-    // ── Interop diagnostics ──────────────────────────────────────────────
-
-    // ── Framework reference resolution diagnostics ────────────────────────
 
     public static readonly MistDiagnostic FrameworkReferenceNotInstalled = new(
         DiagnosticNumber.Mint("MIST0034"),
@@ -69,8 +54,6 @@ public static class CommonDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("name", SlotKind.Name)]);
 
-    // ── Package resolution diagnostics ───────────────────────────────────
-
     public static readonly MistDiagnostic PackageNotFound = new(
         DiagnosticNumber.Mint("MIST0036"),
         Title: "Package not found",
@@ -90,16 +73,6 @@ public static class CommonDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("assetsMissing", SlotKind.Optional, SlotKind.Path), new Slot("temporaryProject", SlotKind.Optional, SlotKind.Path), new Slot("assetsRead", SlotKind.Optional, SlotKind.Path), new Slot("network", SlotKind.Optional, SlotKind.Boolean), new Slot("upstream", SlotKind.Optional, SlotKind.Boolean), new Slot("message", SlotKind.Text)]);
-
-    // ── Target-typed new diagnostics ─────────────────────────────────────
-
-    // ── Void type diagnostics ────────────────────────────────────────────
-
-    // ── Default keyword diagnostics ──────────────────────────────────────
-
-    // ── Definite assignment diagnostics ──────────────────────────────────
-
-    // ── Associated type diagnostics ──────────────────────────────────────
 
     public static readonly MistDiagnostic DuplicateAssociatedTypeSlot = new(
         DiagnosticNumber.Mint("MIST0038"),

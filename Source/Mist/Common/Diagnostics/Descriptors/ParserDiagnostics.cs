@@ -2,9 +2,6 @@
 namespace Mist.Common.Diagnostics;
 #pragma warning restore IDE0130
 
-/// <summary>
-/// Diagnostic descriptors for the parser stage.
-/// </summary>
 public static class ParserDiagnostics
 {
     public static readonly MistDiagnostic ParseStub = new(

@@ -10,19 +10,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// A cast with no conversion to perform. Mist admits a cast only to a type the value already is, or to
-/// one whose conversion function -- a declared cast operator, the cast-operators spec's Requirement 8, or
-/// an enum's lookup -- the value can be passed to, so that no cast can fail at runtime. That rules
-/// out every conversion C# would check when it ran: a downcast, a numeric narrowing, a union narrowed
-/// to one constituent, a value typed <c>unknown</c> narrowed to anything. Narrowing is what an
-/// <c>is</c> pattern is for. A pure function type is a promise the emitted program erases, so a cast
-/// or an <c>as</c> that would have the runtime test for one -- directly, in a union constituent or in
-/// a type argument -- is refused unless the operand's static type already states that same type
-/// (purity Requirement 16.5); <see cref="PatternAnalyzer"/> asks <see cref="HidesPurity"/> of a type
-/// test for the same reason, and at every closing of a type parameter the target names and the
-/// operand's type does not.
-/// </summary>
 internal sealed class CastAnalyzer : IProgramAnalyzer
 {
     public string Id => "total-conversion-classification";

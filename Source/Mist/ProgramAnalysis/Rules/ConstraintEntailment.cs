@@ -9,20 +9,12 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A type parameter forwarded into a constrained one, judged by what it DECLARES rather than by any
-/// closing it stands in for: an open argument is a promise kept at every closing of the forwarding
-/// declaration, so a requirement holds only where that declaration already entails it. A type
-/// constraint is entailed by a declared bound that is the required type, one whose bases reach it, or
-/// one that is itself a parameter whose bounds do, the walk cut at a parameter already entered and at
-/// a depth no declared inheritance reaches. A keyword is entailed only by the same keyword, under the
-/// lattice the closed judgment uses -- linear is affine and relevant, stampable is struct -- because a
-/// type bound may be met through an implicit conversion and so promises no shape. Every constructor
-/// constraint must hold of every closing, since the body may call each one, so each required signature
-/// is met only by the same declared signature, or by struct where it is parameterless. Stampable
-/// and default keep the direct rule <see cref="ConstraintAnalyzer.Decide"/> holds for an open
-/// argument, since stampability through a bound is what its spec forbids. Types are compared by
-/// identity after the closing's substitution, a parameter by reference and a construction by its
-/// parts, never by a name two declarations can share.
+/// Forwarding promises every closing satisfies the required constraints, so only declared bounds count.
+/// A type bound may hold through a conversion and promises no keyword shape; every constructor signature
+/// must hold because the body may call each one. Stampable and default use <see cref="ConstraintAnalyzer.Decide"/>;
+/// stampability cannot follow through a bound. Compare substituted types structurally, with parameter
+/// identity, because distinct declarations may share a name. Revisited parameters and a depth beyond
+/// declared inheritance bound recursive searches.
 /// </summary>
 internal static class ConstraintEntailment
 {

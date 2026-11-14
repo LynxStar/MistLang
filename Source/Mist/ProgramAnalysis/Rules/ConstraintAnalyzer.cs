@@ -10,13 +10,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A type argument against the constraints of the parameter it closes, at every closing written or
-/// inferred in the project's source. The nominal kinds Roslyn would refuse against the generated file;
-/// the Mist-only kinds -- readonly, mutable, owned, the substructural three, default -- erase, so
-/// nothing else checks them at all. An argument that is itself a type parameter is judged by
-/// <see cref="ConstraintEntailment"/> against what it declares, at the site that forwards it; a pack
-/// forwarded whole, spread into a pack, or one of its elements, is judged by what that pack declares of
-/// every element.
+/// Mist-only constraints erase, so generated C# cannot enforce them. Open arguments are judged by
+/// <see cref="ConstraintEntailment"/> against their declarations; a forwarded pack's constraints promise
+/// the requirement for every element, whether forwarded whole, spread or projected.
 /// </summary>
 internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 {

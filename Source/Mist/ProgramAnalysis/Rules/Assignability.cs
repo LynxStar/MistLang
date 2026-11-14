@@ -8,14 +8,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Whether a value may stand where a type is expected, decided once for every position that has one:
-/// it may when the conversion is identity or implicit. Two things the classification alone would refuse
-/// are admitted here: an integer constant that fits (<see cref="ConstantConversion"/>), and a target that
-/// is a refinement over a type the value already belongs to, since whether the predicate holds is the
-/// refinement prover's to discharge, and a rule that judged it here
-/// would refuse <c>AdultAge age = 20</c>, which classic admits. And a refinement refused at its own
-/// declaration, one ordering a type with no order, admits any value: judging a value against it would be
-/// a second complaint about that one mistake.
+/// <see cref="ConstantConversion"/> admits fitting integer constants beyond ordinary implicit conversions.
+/// Refinement predicates belong to the refinement prover; this decision checks their base conversion only
+/// and admits values against a predicate refused at its declaration to avoid a second complaint.
 /// </summary>
 internal static class Assignability
 {

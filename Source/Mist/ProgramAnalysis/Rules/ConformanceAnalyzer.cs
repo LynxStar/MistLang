@@ -12,19 +12,9 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Whether a concrete type fills every slot of every abstract it reaches, from Requirements 14 and 28
-/// of the abstract-type-unification spec. Slots are the bodiless
-/// members of the type's own base list, transitively through the abstract hierarchy; fillers are the
-/// public members the type declares or inherits along its concrete base chain. A default fills its own
-/// slot and NOTHING ELSE: one restated on a derived abstract hides the base's slot rather than filling
-/// it, so the obligation stays with the conformer, which is what both pipelines measure and what C#
-/// does with a hiding interface member. A with block answers the slots of the abstract it names by its
-/// mappings or by the type's own members, and is redundant when the abstract is reached already. A slot
-/// that is `readonly`, which every slot of a readonly abstract is, is answered only by a member that
-/// writes nothing, by its modifier or by <see cref="PurityInference"/>: readonly-contexts Requirement
-/// 13, which holds the member and not the conforming type, so a mutable type may meet it. A slot that
-/// declares `local`, `local readonly` or `pure` is likewise answered only by a member that keeps that
-/// promise (purity Requirement 8.4), a default included once a conformer's own member replaces it.
+/// A default fills only its own slot: a derived abstract's restatement hides the base slot and leaves
+/// the conformer responsible. Readonly and purity promises constrain the answering member, not its type;
+/// <see cref="PurityInference"/> supplies inferred promises, so mutable types can satisfy readonly slots.
 /// </summary>
 internal sealed class ConformanceAnalyzer : IProgramAnalyzer
 {

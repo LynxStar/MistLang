@@ -56,6 +56,7 @@ internal static partial class BodyEmitter
         using var names = LocalNames.Enter(block, parameterNames);
         using var lifetimes = LifetimeLowering.Enter(block);
         using var reach = UnitHoisting.Enter(block);
+        using var locals = EnterCaptureLocals(block);
 
         foreach(var (temp, flag, type) in LifetimeLowering.Renewed(block))
         {
@@ -355,6 +356,9 @@ internal static partial class BodyEmitter
     internal static void EmitStatement(Statement statement, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using var emission = EmissionDiagnostics.Enter(diagnostics);
+        DeclareKeptLocals(statement, writer);
+        using var evaluating = AtStatement((statement as ExpressionStatement)?.Expression, writer, diagnostics);
+
         switch(statement)
         {
             case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional }
@@ -623,11 +627,8 @@ internal static partial class BodyEmitter
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        foreach(var discarded in Discarded(localDecl.Captures.Where(capture => !ConsumesCapture(localDecl.Initializer, capture))))
-        {
-            writer.WriteLine($"_ = {Render(discarded, diagnostics)};");
-        }
-
+        EvaluateDiscarded(localDecl.Captures.Where(capture => !ConsumesCapture(localDecl.Initializer, capture)), writer, diagnostics);
+        using var evaluating = AtStatement(localDecl.Initializer, writer, diagnostics);
         using var hoisted = EmitHoisted(localDecl.Initializer, writer, diagnostics);
         var local = localDecl.Local;
         var refKeyword = RefKeywords.For(local.IsRef, local.IsReadonly);
@@ -947,9 +948,15 @@ internal static partial class BodyEmitter
             return;
         }
 
-        writer.Write("for (");
-
         var initializer = initialized ? null : forStmt.Initializer;
+
+        if(initializer is LocalDeclarationStatement declared)
+        {
+            DeclareKeptLocals(declared, writer);
+            EvaluateDiscarded(declared.Captures.Where(capture => !ConsumesCapture(declared.Initializer, capture)), writer, diagnostics);
+        }
+
+        writer.Write("for (");
 
         if(initializer is LocalDeclarationStatement initDecl)
         {
@@ -1011,6 +1018,12 @@ internal static partial class BodyEmitter
         }
 
         using var emission = EmissionDiagnostics.Enter(diagnostics, expression.Node);
+
+        if(EmitEvaluatingCaptures(expression, writer, diagnostics))
+        {
+            return;
+        }
+
         if(LifetimeLowering.Captured(expression) is { } receiver)
         {
             writer.Append("MistOwnership.Present(");
@@ -1341,8 +1354,8 @@ internal static partial class BodyEmitter
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
                 // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
-                writer.Append(WrapDiscarded(cast.Captures,
-                    $"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))", diagnostics));
+                writer.Append(Evaluating([.. cast.Captures.Where(Evaluates)], cast, cast.Operand,
+                    () => $"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))", diagnostics));
                 break;
 
             case ImplicitConversionExpression conversion:
@@ -1417,17 +1430,11 @@ internal static partial class BodyEmitter
                 break;
 
             case ArrayCreationExpression arrayCreation:
-                RefuseZeroedStorage(arrayCreation.ElementType, "an array", arrayCreation.Node, diagnostics);
-                writer.Append($"new {TypeNameEmitter.Emit(arrayCreation.ElementType)}[");
-                EmitExpression(arrayCreation.Size, writer, diagnostics);
-                writer.Append("]");
+                EmitStorage("new", arrayCreation.ElementType, arrayCreation.Size, writer, diagnostics);
                 break;
 
             case StackallocExpression allocation:
-                RefuseZeroedStorage(allocation.ElementType, "a stack allocation", allocation.Node, diagnostics);
-                writer.Append($"stackalloc {TypeNameEmitter.Emit(allocation.ElementType)}[");
-                EmitExpression(allocation.Size, writer, diagnostics);
-                writer.Append("]");
+                EmitStorage("stackalloc", allocation.ElementType, allocation.Size, writer, diagnostics);
                 break;
 
             case ArrayLiteralExpression arrayLiteral:
@@ -1854,16 +1861,31 @@ internal static partial class BodyEmitter
         IsPatternExpression isPattern, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using var subject = Subject(isPattern.Scrutinee.Type);
+        var owned = Evaluated(isPattern.Pattern);
 
         if(TypeNameEmitter.Closed(isPattern.Scrutinee.Type) is UnionType union && !OptionalUnion.IsOptional(union))
         {
-            EmitUnionNarrowing(isPattern, union, writer, diagnostics);
+            EmitUnionNarrowing(isPattern, union, owned, writer, diagnostics);
             return;
         }
 
         if(EnumVariantTested(isPattern.Pattern) is { } variant)
         {
             EmitVariantComparison(isPattern.Scrutinee, variant, writer, diagnostics);
+            return;
+        }
+
+        if(owned.Count > 0)
+        {
+            writer.Append("(");
+            EmitScrutinee(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+            var bound = TemporaryName();
+            writer.Append($" is var {bound}");
+            using var prelude = EmitPrelude(owned, " && ", writer, diagnostics);
+            var (text, tests) = RenderPattern(isPattern.Pattern, diagnostics);
+            writer.Append($" && {bound} is {text}");
+            EmitHoistedTests(tests, " && ", writer, diagnostics);
+            writer.Append(")");
             return;
         }
 
@@ -1951,7 +1973,7 @@ internal static partial class BodyEmitter
     /// introduced it, where hoisting it into the branch would put it out of reach.
     /// </summary>
     private static void EmitUnionNarrowing(
-        IsPatternExpression isPattern, UnionType union, CSharpWriter writer, DiagnosticBag diagnostics)
+        IsPatternExpression isPattern, UnionType union, IReadOnlyList<SlotCapture> owned, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         // A catch-all discriminates nothing, so it matches the carrier as it stands.
         if(isPattern.Pattern is CatchAllPattern)
@@ -1970,6 +1992,22 @@ internal static partial class BodyEmitter
             return;
         }
 
+        var accessor = UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), union);
+
+        if(owned.Count > 0)
+        {
+            writer.Append("(");
+            EmitSubExpression(isPattern.Scrutinee, RelationalPrecedence, writer, diagnostics);
+            var bound = TemporaryName();
+            writer.Append($" is var {bound}");
+            using var prelude = EmitPrelude(owned, " && ", writer, diagnostics);
+            var (narrowed, tests) = RenderPattern(isPattern.Pattern, diagnostics);
+            writer.Append($" && {bound}.{accessor} is {narrowed}");
+            EmitHoistedTests(tests, " && ", writer, diagnostics);
+            writer.Append(")");
+            return;
+        }
+
         var (text, hoisted) = RenderPattern(isPattern.Pattern, diagnostics);
 
         if(hoisted.Count > 0)
@@ -1978,7 +2016,7 @@ internal static partial class BodyEmitter
         }
 
         EmitSubExpression(isPattern.Scrutinee, PrefixPrecedence, writer, diagnostics);
-        writer.Append($".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), union)} is {text}");
+        writer.Append($".{accessor} is {text}");
 
         if(hoisted.Count > 0)
         {
@@ -2030,34 +2068,49 @@ internal static partial class BodyEmitter
         SwitchArm arm, IMistType subject, UnionType? narrowed, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         using var scrutinee = Subject(subject);
+        var owned = Evaluated(arm.Pattern);
         var hoisted = new List<HoistedTest>();
+        var evaluating = owned.Count > 0 ? TemporaryName() : null;
+        var head = evaluating is null ? writer : new CSharpWriter();
+
+        if(evaluating is not null)
+        {
+            writer.Append($"var {evaluating} when ");
+        }
+
+        using var prelude = evaluating is null ? null : EmitPrelude(owned, "", writer, diagnostics);
 
         if(narrowed is { } union)
         {
-            EmitUnionArmPattern(arm.Pattern, union, hoisted, writer, diagnostics);
+            EmitUnionArmPattern(arm.Pattern, union, hoisted, head, diagnostics);
         }
         else if(EnumVariantTested(arm.Pattern) is { } variant)
         {
             var bound = TemporaryName();
-            writer.Append($"var {bound}");
+            head.Append($"var {bound}");
             hoisted.Add(new HoistedTest($"{bound} == {Render(variant, diagnostics)}"));
         }
         else
         {
             var (patternText, nested) = RenderPattern(arm.Pattern, diagnostics);
-            writer.Append(patternText);
+            head.Append(patternText);
             hoisted.AddRange(nested);
+        }
+
+        if(evaluating is not null)
+        {
+            writer.Append($" && {evaluating} is {head}");
         }
 
         if(hoisted.Count > 0)
         {
-            writer.Append(" when");
-            EmitHoistedTests(hoisted, " ", writer, diagnostics);
+            writer.Append(evaluating is null ? " when" : "");
+            EmitHoistedTests(hoisted, evaluating is null ? " " : " && ", writer, diagnostics);
         }
 
         if(arm.Guard is { } guard)
         {
-            writer.Append(hoisted.Count > 0 ? " && " : " when ");
+            writer.Append(hoisted.Count > 0 || evaluating is not null ? " && " : " when ");
             EmitSubExpression(guard, GetPrecedence(BinaryOperatorKind.LogicalAnd), writer, diagnostics);
         }
     }
@@ -2221,6 +2274,7 @@ internal static partial class BodyEmitter
     public static void ResetTemporaries()
     {
         temporaries = 0;
+        captureLocals = 0;
     }
 
     /// <summary>
@@ -2377,7 +2431,7 @@ internal static partial class BodyEmitter
 
         if(compared && hoisted is null)
         {
-            RefuseCombinedRuntimeTest(typeTest.NarrowedType, typeTest.Node, diagnostics);
+            EmissionDiagnostics.Report(diagnostics, "runtime slot comparison", TypeDisplay.Mist(typeTest.NarrowedType), typeTest.Node);
         }
         else if(compared)
         {
@@ -2601,7 +2655,7 @@ internal static partial class BodyEmitter
 
         if(hoisted is null)
         {
-            RefuseCombinedRuntimeTest(mergedTest.NarrowedType, property.Node, diagnostics);
+            EmissionDiagnostics.Report(diagnostics, "runtime slot comparison", TypeDisplay.Mist(mergedTest.NarrowedType), property.Node);
         }
         else
         {
@@ -2675,6 +2729,25 @@ internal static partial class BodyEmitter
         };
     }
 
+    private static void EmitStorage(string keyword, IMistType element, Expression size, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var stamp = StructStamp.Of(element, diagnostics);
+
+        if(stamp is not null)
+        {
+            writer.Append($"{ArrayLowering.Stamp()}(");
+        }
+
+        writer.Append($"{keyword} {TypeNameEmitter.Emit(element)}[");
+        EmitExpression(size, writer, diagnostics);
+        writer.Append("]");
+
+        if(stamp is not null)
+        {
+            writer.Append($", {stamp})");
+        }
+    }
+
     private static void EmitNew(NewExpression newExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         // A type-parameter construction uses its supplied factory; native static initialization
@@ -2684,25 +2757,6 @@ internal static partial class BodyEmitter
             writer.Append(
                 $"MistArray.Generate<{generated.Element}>({generated.Length}, "
                 + $"{Render(newExpression.Arguments[0], diagnostics)})");
-            return;
-        }
-
-        if(!ReferenceEquals(discarding, newExpression) && Unconsumed(newExpression).ToList() is { Count: > 0 } unconsumed)
-        {
-            var enclosing = discarding;
-            discarding = newExpression;
-
-            try
-            {
-                var scratch = new CSharpWriter();
-                EmitNew(newExpression, scratch, diagnostics);
-                writer.Append(WrapDiscarded(unconsumed, scratch.ToString(), diagnostics));
-            }
-            finally
-            {
-                discarding = enclosing;
-            }
-
             return;
         }
 

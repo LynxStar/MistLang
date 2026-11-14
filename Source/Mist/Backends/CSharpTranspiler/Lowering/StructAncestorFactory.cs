@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
@@ -91,6 +93,26 @@ internal static class StructAncestorFactory
         }
 
         return members.ToImmutable();
+    }
+
+    public static ImmutableArray<IMistType> MemberTypes(FlattenedStruct flattened)
+    {
+        var types = ImmutableArray.CreateBuilder<IMistType>();
+
+        foreach(var field in flattened.Fields)
+        {
+            types.Add(field.Type);
+        }
+
+        foreach(var property in flattened.Properties)
+        {
+            if(HoldsState(property))
+            {
+                types.Add(TypeSubstitution.ForPath(receiver: null, flattened.PropertyPaths.GetValueOrDefault(property) ?? [], interner: null).Apply(property.Type, interner: null));
+            }
+        }
+
+        return types.ToImmutable();
     }
 
     /// <summary>

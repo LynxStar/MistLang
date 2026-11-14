@@ -27,14 +27,24 @@ internal static class ArrayLowering
     [ThreadStatic]
     private static bool used;
 
+    [ThreadStatic]
+    private static bool stamped;
+
     public static void Reset()
     {
         used = false;
+        stamped = false;
     }
 
     public static bool Used()
     {
-        return used;
+        return used || stamped;
+    }
+
+    public static string Stamp()
+    {
+        stamped = true;
+        return "MistArray.Stamp";
     }
 
     /// <summary>
@@ -69,20 +79,48 @@ internal static class ArrayLowering
 
         using(writer.Block())
         {
-            writer.WriteLine("public static T[] Generate<T>(int length, System.Func<int, T> factory)");
-
-            using(writer.Block())
+            if(used)
             {
-                writer.WriteLine("var result = new T[length];");
-                writer.WriteBlankLine();
-                writer.WriteLine("for (var i = 0; i < length; i++)");
+                writer.WriteLine("public static T[] Generate<T>(int length, System.Func<int, T> factory)");
+
                 using(writer.Block())
                 {
-                    writer.WriteLine("result[i] = factory(i);");
+                    writer.WriteLine("var result = new T[length];");
+                    writer.WriteBlankLine();
+                    writer.WriteLine("for (var i = 0; i < length; i++)");
+                    using(writer.Block())
+                    {
+                        writer.WriteLine("result[i] = factory(i);");
+                    }
+
+                    writer.WriteBlankLine();
+                    writer.WriteLine("return result;");
+                }
+            }
+
+            if(used && stamped)
+            {
+                writer.WriteBlankLine();
+            }
+
+            if(stamped)
+            {
+                writer.WriteLine("public static T[] Stamp<T>(T[] storage, T stamp)");
+
+                using(writer.Block())
+                {
+                    writer.WriteLine("System.Array.Fill(storage, stamp);");
+                    writer.WriteLine("return storage;");
                 }
 
                 writer.WriteBlankLine();
-                writer.WriteLine("return result;");
+                writer.WriteLine("public static System.Span<T> Stamp<T>(System.Span<T> storage, T stamp)");
+
+                using(writer.Block())
+                {
+                    writer.WriteLine("storage.Fill(stamp);");
+                    writer.WriteLine("return storage;");
+                }
             }
         }
     }

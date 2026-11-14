@@ -13,23 +13,23 @@ public sealed class SlotDiagnosticDescriptorTests
             ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, null!,
             ProgramModelDiagnostics.SlotReadThroughUnknown, ProgramModelDiagnostics.SlotNotInferable,
             BackendDiagnostics.StaticStorageOnValueRoute, BackendDiagnostics.TypeValueOfValueRoutedClosing,
-            BackendDiagnostics.ValueRoutedAbstractAtTwoValues, BackendDiagnostics.RuntimeClosingTestUnderCombinator,
-            BackendDiagnostics.ValueRoutedConstructorConstraintClosure, BackendDiagnostics.ZeroedStorageOfValueRoutedStruct,
+            BackendDiagnostics.ValueRoutedAbstractAtTwoValues, null!,
+            BackendDiagnostics.ValueRoutedConstructorConstraintClosure, null!,
             BackendDiagnostics.CoincidingOverloads, BackendDiagnostics.InferredSlotNestedInArgument,
             BackendDiagnostics.ValueRoutedSlotOutOfReach, BackendDiagnostics.ValueRoutedParameterAsType,
             BackendDiagnostics.CoincidingUnionConstituents, BackendDiagnostics.SlotSensitiveClosingArgument,
-            BackendDiagnostics.ZeroedStorageHoldingValueRoutedStruct,
+            null!,
         ];
-        var retired = Assert.Single(DiagnosticRegistry.Index.Tombstones);
+        var retired = DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value).ToList();
         var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)
-            .Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
+            .Concat(retired)
             .Where(number => string.CompareOrdinal(number, minted[0].Number.Value) < 0)
             .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal("MIST0488", retired.Number.Value);
+        Assert.Equal(["MIST0488", "MIST0494", "MIST0496", "MIST0503"], retired);
         Assert.Equal(
             Enumerable.Range(1, minted.Length).Select(offset => $"MIST{issued + offset:D4}"),
-            minted.Select(descriptor => descriptor?.Number.Value ?? retired.Number.Value));
+            minted.Select((descriptor, i) => descriptor?.Number.Value ?? retired.Single(number => number == $"MIST{issued + i + 1:D4}")));
     }
 
     [Fact]

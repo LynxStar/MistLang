@@ -223,9 +223,8 @@ internal sealed class LocalLifetimes : IFlowLattice<Holdings>
     }
 
     /// <summary>
-    /// The with scopes a throw from this node leaves through, each of whose finally releases what its
-    /// holder still owns there -- so a throw is one more way out of the scope, judged like its exits. A
-    /// lambda's body is not inside: it throws when it is called, not where it is written.
+    /// A throw exits with scopes under the same ownership rules as other exits: finally releases what
+    /// their holders still own. Lambda bodies throw when called, so they are outside the written scope.
     /// </summary>
     private void Enclose(WithBlockStatement scope)
     {

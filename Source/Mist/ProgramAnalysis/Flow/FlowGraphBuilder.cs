@@ -7,15 +7,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
-/// Builds a <see cref="FlowGraph"/> over a body root. Every branch the language has is a branch here
-/// -- if, the loops, `&amp;&amp;`, `||`, `!`, `??`, `??=`, an `is` test, a switch's arms and guards, and
-/// each pattern's own match-or-not -- so that a rule reads a pattern's binding only on the path where
-/// it was bound, and a condition that is a literal `true` or `false` has one exit rather than two, as
-/// `while(true)` must for what follows its break to count. A `?.` is not a branch: nothing is bound on
-/// either side of it, and the chain it heads is one expression to every rule that reads it. Writing a
-/// field of a struct held in a local writes part of the local and reads none of it, so the receiver of
-/// such a target is not evaluated; through a class-typed local the same write dereferences the local
-/// and reads it.
+/// Branches expose bindings only on matching paths; literal conditions have only their reachable exit,
+/// so breaks from an unconditional loop count. Conditional access stays one expression because it
+/// binds nothing. A struct-field target writes storage without reading its local receiver; a class-field
+/// target dereferences and reads its receiver.
 /// </summary>
 internal sealed class FlowGraphBuilder
 {

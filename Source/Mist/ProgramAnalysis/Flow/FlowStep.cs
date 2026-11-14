@@ -3,19 +3,12 @@ using Mist.ProgramModel.Model;
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
-/// One event on a path. Evaluate carries an expression whose operands are already evaluated, or a
-/// statement that is reached -- a return, a break, one the binder left unsupported -- and an
-/// assignment's target is evaluated only for a coalescing read. IsStorageReceiver marks navigation
-/// through a value's storage, which does not require its sibling fields to be assigned. The other three
-/// each bring a <see cref="Variable"/> into being: Declare carries the LocalDeclarationStatement, whose local is
-/// assigned only when it has an initializer; Introduce carries the construct that gives its variable a
-/// value outright -- a foreach, a deconstruction, a with block, a lambda's parameter list; Bind
-/// carries a pattern, and sits only on the path where the pattern matched. Leave carries the block, or
-/// the for statement whose initializer declared a local, whose scope ends here, on every path out of it
-/// -- the fall-through, a return, a break -- so that
-/// whatever a declaration in it started, a lease or a drop obligation, has a step to end at. Assume
-/// carries a condition and sits at the head of each path out of it, <see cref="Holds"/> saying which:
-/// what a rule may take as true from here on, or as false.
+/// Evaluate follows its operands or marks a reached statement; an assignment target is evaluated only
+/// for a coalescing read. IsStorageReceiver navigates storage without requiring sibling fields assigned.
+/// Declare carries a LocalDeclarationStatement and assigns <see cref="Variable"/> only with an initializer;
+/// Introduce carries a construct that supplies its variable's value; Bind carries a pattern on its matched path.
+/// Leave carries the ending block or for-initializer scope on every exit path, so leases and drop obligations
+/// can end there. Assume carries a condition at each outgoing path's head; <see cref="Holds"/> gives its truth.
 /// </summary>
 internal readonly record struct FlowStep(
     FlowStepKind Kind, object Node, LocalVariable? Variable = null, bool Holds = true, bool IsStorageReceiver = false);

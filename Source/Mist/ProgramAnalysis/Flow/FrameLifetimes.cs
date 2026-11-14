@@ -7,11 +7,8 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Flow;
 
 /// <summary>
-/// The frame storage each local in scope refers to, in <see cref="LocalFrame"/>: a ref struct local's
-/// value and a ref local's referent, both fixed where the local comes into being and kept for as long
-/// as it lives -- read from its initializer, the collection a foreach walks, the value a with or a
-/// deconstruction is given, or the scrutinee a pattern binds from. A join keeps the narrower fact, so a
-/// local that one path ties to the frame is tied on every path that follows.
+/// A ref struct's value and a ref local's referent keep the frame origin fixed at introduction.
+/// Joins keep the narrower fact: a local tied to the frame on either path stays tied afterward.
 /// </summary>
 internal sealed class FrameLifetimes(IReadOnlyDictionary<Pattern, Expression> scrutinees)
     : IFlowLattice<ImmutableDictionary<LocalVariable, LocalFrame>>

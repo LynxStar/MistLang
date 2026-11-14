@@ -7,7 +7,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 
 /// <summary>
 /// Only <c>static</c> and <c>async</c> survive of its modifiers: an accessibility modifier is admitted
-/// by Mist and means nothing, since the function is visible exactly where a C# local function is.
+/// by Mist and means nothing, since the function is visible exactly where a C# local function is. A static one
+/// that reads a hidden slot value drops <c>static</c>, as a static lambda does, because the value is a C# local.
 /// </summary>
 internal static class LocalFunctionEmitter
 {
@@ -20,7 +21,7 @@ internal static class LocalFunctionEmitter
             return LocalNames.Of(statement.Parameters[function.ParametersList.IndexOf(parameter)]);
         }
 
-        var modifiers = (function.Modifiers.IsStatic ? "static " : "")
+        var modifiers = (function.Modifiers.IsStatic && !BodyEmitter.ReadsHiddenValues(statement) ? "static " : "")
             + (AsyncPromotion.EmitsAsync(function) ? "async " : "");
 
         writer.WriteLine(

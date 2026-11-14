@@ -17,7 +17,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// names, which <see cref="SlotReach"/> refuses where nothing carries them. A struct holds copies of its
 /// ancestors' statics, so a struct's own holder keeps them. The holder being built reaches its own members through
 /// itself, which is also the one place a readonly static is assigned. A hidden field or parameter is a C# local a
-/// static lambda may not capture, so a lambda written static keeps the modifier only where it reads none.
+/// static lambda or a static local function may not capture, so either written static keeps the modifier only where
+/// it reads none.
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -118,10 +119,10 @@ internal static partial class BodyEmitter
             && ConsumedByClosing(UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))), capture);
     }
 
-    private static bool ReadsHiddenValues(LambdaExpression lambda)
+    internal static bool ReadsHiddenValues(object body)
     {
         return SlotRoutes.ValueRouted(enclosingType).Count > 0
-            || BodyWalker.DescendantsAndSelf(lambda).Any(node => node switch
+            || BodyWalker.DescendantsAndSelf(body).Any(node => node switch
             {
                 TypeReferenceExpression reference => Mentions(reference.ReferencedType),
                 InvocationExpression invocation when CallTypeArguments(invocation) is var (arguments, _, _) && arguments.Any(Mentions) => true,

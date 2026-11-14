@@ -174,6 +174,31 @@ public sealed class ValueRouteStaticStorageEmissionTests
     }
 
     [Fact]
+    public void AStaticLocalFunctionDropsTheModifierOnlyWhereItReadsAHiddenValue()
+    {
+        var k = slots.Dependent("K");
+        counter.MethodsList.Add(StaticMethod("ViaLocal", counter, StaticLocalRead(new FieldReferenceExpression(HandBuiltModel.Node(), hits, slots.Int))));
+        var plain = HandBuiltModel.Class("Plain");
+        plain.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
+        var viaK = StaticMethod("ViaK", plain, StaticLocalRead(Through(k)));
+        viaK.TypeParametersList.Add(k);
+        plain.MethodsList.Add(viaK);
+        plain.MethodsList.Add(StaticMethod("ViaLiteral", plain, StaticLocalRead(Through(slots.Literal(7)))));
+        using var routes = SlotRoutes.Enter([n, k]);
+
+        var lines = TypeBody(counter);
+        var plainLines = TypeBody(plain);
+
+        Assert.Contains("return Probe.Counter.__StaticsOf(__N).hits;", lines);
+        Assert.Contains("int Read()", lines);
+        Assert.DoesNotContain("static int Read()", lines);
+        Assert.Contains("return Probe.Counter.__StaticsOf(__K).hits;", plainLines);
+        Assert.Contains("return Probe.Counter.__StaticsOf(7).hits;", plainLines);
+        Assert.Equal(1, plainLines.Count(line => line == "int Read()"));
+        Assert.Equal(1, plainLines.Count(line => line == "static int Read()"));
+    }
+
+    [Fact]
     public void AStaticHoldingAValueRoutedStructStartsFromItsStampInTheHolderAndInAnOrdinaryType()
     {
         var cell = Cell(slots, out var m);
@@ -231,6 +256,26 @@ public sealed class ValueRouteStaticStorageEmissionTests
     private Field Static(string name)
     {
         return new Field(name, slots.Int, OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true }) { DeclaringType = counter };
+    }
+
+    private Method StaticMethod(string name, MemberType owner, params Statement[] statements)
+    {
+        return new Method(name, new FunctionType([], slots.Int), [], new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true })
+        {
+            DeclaringType = owner,
+            Scope = owner.Scope,
+            Body = HandBuiltModel.Block(statements),
+        };
+    }
+
+    private Statement[] StaticLocalRead(Expression read)
+    {
+        var function = new Method("Read", slots.Int, [], new MemberModifiers { IsStatic = true })
+        {
+            Body = HandBuiltModel.Block(new ReturnStatement(read, slots.Int)),
+        };
+        var call = new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), function), [], slots.Int, function, null);
+        return [new LocalFunctionStatement(function, []), new ReturnStatement(call, slots.Int)];
     }
 
     private TypeReferenceExpression Slot()

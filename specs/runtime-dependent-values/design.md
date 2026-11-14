@@ -662,8 +662,8 @@ no static member. A static spread member's per-element projections are
 members of the holder. A static with no initializer that holds a value-routed
 struct by value starts from the struct's stamp, in the holder and in an
 ordinary type's C# static alike, as an array element does. A static lambda
-keeps its modifier only where it reads no hidden value, since C# lets it
-capture none.
+or a static local function keeps its modifier only where it reads no hidden
+value, since C# lets it capture none.
 
 ### Identity by value: unions and abstracts
 

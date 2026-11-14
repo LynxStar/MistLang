@@ -516,7 +516,7 @@ public sealed class ValueRouteEmissionTests
         var refusal = Assert.Single(Refused(Group(cap, UnknownType.Instance, slots.Closed(list, slots.Closed(box, UnknownType.Instance)))));
 
         Assert.Equal("MIST0498", refusal.Number.Value);
-        Assert.Contains("'Cap' cannot infer 'M' from 'List<Box<int>>'", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("'Cap' cannot infer 'M' from 'List<Box<unknown>>'", refusal.Message, StringComparison.Ordinal);
     }
 
     [Fact]

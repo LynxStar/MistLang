@@ -23,7 +23,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// on one side only would leave the member unimplemented. An extension block's own parameters are
 /// closed on a copy of the method at lookup rather than recorded with the call's type arguments, so
 /// each call and each method group is read for them; a group's own slot the target function type leaves
-/// <c>unknown</c> is inferred from it, as a call's is from its argument. Array and the spans are left
+/// <c>unknown</c> is inferred from it, as a call's is from its argument, and either is routed so the value
+/// is read back or the inference refused. Array and the spans are left
 /// out: <see cref="LengthErasure"/> drops their slot and the CLR object holds the value already.
 /// </summary>
 internal sealed class SlotRoutes : IDisposable
@@ -167,6 +168,11 @@ internal sealed class SlotRoutes : IDisposable
                     inferred.AddRange(InferredByGroup(reference));
                 }
 
+                if(node is InvocationExpression invocation)
+                {
+                    inferred.AddRange(InferredByCall(invocation));
+                }
+
                 if(ClosedThroughReceiver(node) is not var (block, arguments))
                 {
                     continue;
@@ -218,6 +224,24 @@ internal sealed class SlotRoutes : IDisposable
             if(reference.TypeArguments[i] is UnknownType or UnknownValueType)
             {
                 yield return (reference.Method, i);
+            }
+        }
+    }
+
+    public static IEnumerable<(IHasTypeParameters Definition, int Ordinal)> InferredByCall(InvocationExpression invocation)
+    {
+        var written = invocation.Receiver switch
+        {
+            MemberAccessExpression access => access.TypeArguments,
+            MethodReferenceExpression reference => reference.TypeArguments,
+            _ => [],
+        };
+
+        for(var i = 0; invocation.Method is { } method && i < written.Count && i < method.TypeParametersList.Count; i++)
+        {
+            if(written[i] is UnknownType or UnknownValueType)
+            {
+                yield return (method, i);
             }
         }
     }

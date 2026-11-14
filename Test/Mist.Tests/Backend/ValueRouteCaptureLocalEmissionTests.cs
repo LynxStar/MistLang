@@ -1,4 +1,6 @@
+using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -133,6 +135,24 @@ public sealed class ValueRouteCaptureLocalEmissionTests
         Assert.Equal(
             ["Probe.Ring r = new Probe.Ring(n);", "Size(r.__Capacity, r);"],
             Statements(new LocalDeclarationStatement(r, creation), HandBuiltRefinements.Evaluate(Call(size, [capture.Value], [HandBuiltRefinements.Read(r)], [closing]))));
+    }
+
+    [Fact]
+    public void ACallInferringASlotNestedUnderUnknownIsRefused()
+    {
+        var (len, n) = Len();
+        var unknown = new UnknownValueType(slots.Int);
+        var nested = slots.Closed(list, slots.Closed(ring, unknown));
+        using var routes = SlotRoutes.Enter([n, capacity]);
+        var diagnostics = new DiagnosticBag();
+        var call = Call(len, [unknown], [HandBuiltRefinements.Local(nested, "l")], [nested]);
+
+        BodyEmitter.EmitExpression(call, new CSharpWriter(), diagnostics);
+
+        Assert.Equal([(len, 0)], SlotRoutes.InferredByCall(call));
+        var refusal = Assert.Single(diagnostics.ToImmutableArray());
+        Assert.Equal("MIST0498", refusal.Number.Value);
+        Assert.Contains("'Len' cannot infer 'N' from 'List<Ring<int>>'", refusal.Message, StringComparison.Ordinal);
     }
 
     private (Method Len, TypeParameter N) Len()

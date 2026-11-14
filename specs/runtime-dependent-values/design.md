@@ -524,6 +524,21 @@ call or a member access that consumes none of its captures as a hidden
 argument evaluates them before its arguments, after a receiver written before
 the type, and a test, a switch arm and an `as` evaluate theirs between the
 scrutinee and the type test, so a failed test does not skip them (MIST-1369).
+What runs before the type is bound ahead of the capture, and a value-type
+receiver, an assignment's target and an argument passed by reference are
+bound by what locates them (the object holding the field, the index) and
+never copied, as `UnitHoisting` stores them. An owner written as a location,
+a property through a closed type that is assigned or a call that returns by
+reference, stays where it is written, and the expression or the statement
+holding it evaluates the capture. A call returning by reference runs in
+place, and a capture written after it is evaluated as it returns. A call
+that yields nothing has no value to wrap, so in a lambda body, an accessor
+body and a `for` clause its capture is a statement ahead of it. A lambda's
+result type holds `unknown` where its body closed a type with a capture
+(Requirement 1.6), so an inference from it outside the lambda is the slot
+nested under `unknown`: a call that infers a slot from `unknown` routes it,
+as a method group does, and is refused with MIST0498 where no receiver
+carries the value.
 The stamp of a struct element is `StructStamp`: the type's own default where
 the backend synthesizes one, so a struct holding the closing in a field, an
 auto-property or a nested struct starts from its default with the inner stamp

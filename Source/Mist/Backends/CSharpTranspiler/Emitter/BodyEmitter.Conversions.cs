@@ -27,20 +27,9 @@ internal static partial class BodyEmitter
     {
         var owned = asExpression.Captures.Where(Evaluates).ToList();
 
-        if(owned.Count > 0 && !ReferenceEquals(discarding, asExpression) && !CheckedAtRuntime(asExpression))
+        if(owned.Count > 0 && sequenced?.Contains(asExpression) != true && !CheckedAtRuntime(asExpression))
         {
-            var enclosing = discarding;
-            discarding = asExpression;
-
-            try
-            {
-                writer.Append(Evaluating(owned, asExpression.Operand, () => Render(asExpression, diagnostics), diagnostics));
-            }
-            finally
-            {
-                discarding = enclosing;
-            }
-
+            writer.Append(Evaluating(owned, asExpression, asExpression.Operand, () => Render(asExpression, diagnostics), diagnostics));
             return;
         }
 

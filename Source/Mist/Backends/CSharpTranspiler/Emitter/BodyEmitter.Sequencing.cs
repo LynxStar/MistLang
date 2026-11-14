@@ -67,7 +67,7 @@ internal static partial class BodyEmitter
 
     internal static bool NeedsStatements(Expression value, bool discarded)
     {
-        return !UnitHoisting.Plan(value, discarded).IsEmpty;
+        return !UnitHoisting.Plan(value, discarded).IsEmpty || (discarded && EvaluatesCaptures(value));
     }
 
     internal static UnitHoisting.Hoisting EmitHoisted(

@@ -357,6 +357,8 @@ internal static partial class BodyEmitter
     {
         using var emission = EmissionDiagnostics.Enter(diagnostics);
         DeclareKeptLocals(statement, writer);
+        using var evaluating = AtStatement((statement as ExpressionStatement)?.Expression, writer, diagnostics);
+
         switch(statement)
         {
             case ExpressionStatement { Expression: InvocationExpression { Receiver: MemberAccessExpression { IsConditional: true } } conditional }
@@ -379,7 +381,6 @@ internal static partial class BodyEmitter
 
             case ExpressionStatement exprStmt:
                 {
-                    using var evaluating = AtStatement(exprStmt.Expression, writer, diagnostics);
                     using var hoisted = EmitHoisted(exprStmt.Expression, writer, diagnostics, discarded: true);
 
                     if(hoisted.Consumes(exprStmt.Expression))
@@ -1353,7 +1354,7 @@ internal static partial class BodyEmitter
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
                 // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
-                writer.Append(Evaluating([.. cast.Captures.Where(Evaluates)], cast.Operand,
+                writer.Append(Evaluating([.. cast.Captures.Where(Evaluates)], cast, cast.Operand,
                     () => $"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))", diagnostics));
                 break;
 

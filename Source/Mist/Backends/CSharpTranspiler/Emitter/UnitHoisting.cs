@@ -184,7 +184,7 @@ internal static class UnitHoisting
         return new Operand(receiver, Reading: TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(receiver.Type)) ? Reading.Receiver : Reading.Value);
     }
 
-    private static bool IsStable(Expression expression)
+    internal static bool IsStable(Expression expression)
     {
         return expression is LiteralExpression
             or VoidLiteralExpression

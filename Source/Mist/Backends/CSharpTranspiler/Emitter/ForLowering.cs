@@ -24,6 +24,7 @@ internal static class ForLowering
             || !UnitHoisting.Plan(loop.Condition).IsEmpty
             || !UnitHoisting.Plan(loop.Iterator, discarded: true).IsEmpty
             || BodyEmitter.EvaluatesCaptures(loop.Iterator)
+            || (!initialized && loop.Initializer is ExpressionStatement && BodyEmitter.OwnsCaptures(loop.Initializer))
             ;
     }
 

@@ -19,7 +19,8 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// it twice; a capture no argument carries is read from the local its owner kept it in. An extension
 /// block's own parameter is read through the receiver that closed it, as its
 /// length or its hidden field. The hidden argument comes first in the C# call, so the receiver and every
-/// argument written before the carrier are bound with it, in source order, or they would run after it. A
+/// argument written before the carrier are bound with it, in source order, or they would run after it; a
+/// value-type receiver is bound by what locates it, never copied. A
 /// method group has no argument yet, so its lambda reads each slot from the delegate's parameter that
 /// carries it, or from the receiver bound when the group was formed. A value-routed type's deferred
 /// initializers run with the type as the enclosing one, so a static call they make finds its owner's
@@ -27,9 +28,6 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static partial class BodyEmitter
 {
-    [ThreadStatic]
-    private static Expression? discarding;
-
     [ThreadStatic]
     private static IMistType? patternSubject;
 
@@ -229,7 +227,7 @@ internal static partial class BodyEmitter
                     ?? ReadThroughArgument(invocation, captured)
                     ?? KeptLocal(captured.Capture)
                     ?? EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default"),
-                UnknownType or UnknownValueType => ReadThroughReceiver(invocation, slot) ?? Refuse(method, slot, BlockNesting(method, slot)),
+                UnknownType or UnknownValueType => ReadThroughReceiver(invocation, slot) ?? Refuse(method, slot, Nesting(invocation, method, slot)),
                 not null when SlotValue(argument, diagnostics) is { } value => value,
                 _ => EmissionDiagnostics.Fallback("slot value", $"{method.Name}.{slot.Name}", "default"),
             });
@@ -318,29 +316,25 @@ internal static partial class BodyEmitter
             return bindings;
         }
 
-        if(invocation.Receiver is MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression }
-            && !method.Modifiers.IsStatic
-            && !IsPlainRead(receiver))
+        var held = method.Modifiers.IsStatic ? null : (invocation.Receiver as MemberAccessExpression)?.Receiver;
+
+        if(held is not (null or TypeReferenceExpression))
         {
-            bindings.Add(receiver);
+            bindings.AddRange(carriers.Contains(held) && RunsInPlace(held) ? [held] : BoundAhead(held, Held(held)));
         }
 
         var last = carriers.Max(carrier => invocation.Arguments.ToList().FindIndex(argument => ReferenceEquals(argument, carrier)));
 
         for(var i = 0; i <= last; i++)
         {
-            var argument = invocation.Arguments[i];
             var byReference = invocation.Parameters is { } declared && i < declared.Count && ArgumentKeywords.For(declared[i]).Length > 0;
 
-            if(!IsPlainRead(argument) && !byReference && !bindings.Contains(argument))
-            {
-                bindings.Add(argument);
-            }
+            bindings.AddRange(BoundAhead(invocation.Arguments[i], byReference ? Reading.Reference : Reading.Value).Where(part => !bindings.Contains(part)));
         }
 
         foreach(var carrier in carriers)
         {
-            if(!IsPlainRead(carrier) && !bindings.Contains(carrier))
+            if(!ReferenceEquals(carrier, held) && !IsPlainRead(carrier) && !bindings.Contains(carrier) && boundParts?.ContainsKey(carrier) != true)
             {
                 bindings.Add(carrier);
             }
@@ -449,6 +443,24 @@ internal static partial class BodyEmitter
         return method.ParametersList.Select(parameter => parameter.Type).FirstOrDefault(type => Mentions(type, slot)) is { } nested
             ? TypeSubstitution.ForMethod(method, reference.TypeArguments).Apply(nested, interner: null)
             : null;
+    }
+
+    private static IMistType? Nesting(InvocationExpression invocation, Method method, TypeParameter slot)
+    {
+        if(BlockNesting(method, slot) is { } receiverType)
+        {
+            return receiverType;
+        }
+
+        for(var i = 0; i < method.ParametersList.Count && i < invocation.Arguments.Count; i++)
+        {
+            if(Mentions(method.ParametersList[i].Type, slot))
+            {
+                return invocation.ParameterTypes is { } types && i < types.Count ? types[i] : invocation.Arguments[i].Type;
+            }
+        }
+
+        return null;
     }
 
     private static IMistType? BlockNesting(Method method, TypeParameter slot)

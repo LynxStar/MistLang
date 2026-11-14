@@ -3,6 +3,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
@@ -17,8 +18,14 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// where the type is written (runtime-dependent-values design, <em>Identity by value: the first delivery</em>);
 /// which captures those are is decided over the whole body before any of it is written, because the owner is
 /// emitted before its readers. A capture nothing consumes is a discarded read where its initializer runs code,
-/// a receiver or an operand written before the type is bound ahead of it so source order survives, and a test
-/// evaluates its captures between the scrutinee and the type test so a failed test does not skip them.
+/// and what C# evaluates before the type is bound ahead of it so source order survives. A value-type receiver,
+/// an assignment's target and an argument passed by reference are locations, which a binding would copy: what
+/// is bound is what locates them, as <see cref="UnitHoisting"/> stores them, the owner stays where it is
+/// written, and the expression or statement holding it evaluates its capture. A call returning by reference
+/// cannot be bound either way, so it runs in place and a capture written after it rides the zero offset of
+/// <c>Unsafe.Add</c> over what it returned. A call yielding nothing has no value to wrap, so its capture is a
+/// statement ahead of it. A test evaluates its captures between the scrutinee and the type test so a failed
+/// test does not skip them.
 /// </summary>
 internal static partial class BodyEmitter
 {
@@ -30,6 +37,12 @@ internal static partial class BodyEmitter
 
     [ThreadStatic]
     private static int captureLocals;
+
+    [ThreadStatic]
+    private static HashSet<Expression>? sequenced;
+
+    [ThreadStatic]
+    private static Dictionary<Expression, List<SlotCapture>>? trailing;
 
     internal static IDisposable? EnterCaptureLocals(Block body)
     {
@@ -176,6 +189,11 @@ internal static partial class BodyEmitter
         }
     }
 
+    internal static bool OwnsCaptures(Statement statement)
+    {
+        return OwnersWithin(statement).SelectMany(SlotCapture.Of).Any(Evaluates);
+    }
+
     private static string Keyword(SlotCapture capture)
     {
         return DependentCarrierNames.Keyword(capture.Value.Domain) ?? TypeNameEmitter.Emit(capture.Value.Domain);
@@ -236,67 +254,258 @@ internal static partial class BodyEmitter
             && ReferenceEquals(captured.Capture, capture);
     }
 
-    private static Expression? FirstEvaluated(Expression expression)
+    private enum Reading
     {
-        return expression switch
+        Value,
+        Receiver,
+        Reference,
+        Target,
+    }
+
+    private readonly record struct Ahead(Expression? Part, SlotCapture? Capture, bool InPlace = false);
+
+    private sealed class Sequence
+    {
+        public List<Ahead> Steps { get; } = [];
+
+        public List<Expression> Owners { get; } = [];
+
+        public Dictionary<Expression, List<SlotCapture>> Trailing { get; } = new(ReferenceEqualityComparer.Instance);
+
+        public bool IsEmpty => Steps.Count == 0 && Trailing.Count == 0;
+    }
+
+    private static Sequence Leading(Expression expression)
+    {
+        var sequence = new Sequence();
+        Lead(expression, sequence);
+        var last = sequence.Steps.FindLastIndex(step => step.Capture is not null);
+        sequence.Steps.RemoveRange(last + 1, sequence.Steps.Count - last - 1);
+        sequence.Owners.Add(expression);
+        Expression? returned = null;
+
+        foreach(var step in sequence.Steps.ToList())
         {
-            InvocationExpression { Receiver: MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression } } => receiver,
-            MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression } => receiver,
-            CastExpression cast => cast.Operand,
-            AsExpression conversion => conversion.Operand,
-            _ => null,
+            if(step.InPlace)
+            {
+                returned = step.Part;
+                _ = sequence.Steps.Remove(step);
+            }
+            else if(step.Capture is { } capture && returned is not null)
+            {
+                _ = sequence.Steps.Remove(step);
+
+                if(!sequence.Trailing.TryGetValue(returned, out var trailing))
+                {
+                    sequence.Trailing[returned] = trailing = [];
+                }
+
+                trailing.Add(capture);
+            }
+        }
+
+        return sequence;
+    }
+
+    private static void Lead(Expression expression, Sequence sequence)
+    {
+        switch(expression)
+        {
+            case InvocationExpression invocation:
+                if(invocation.Receiver is MemberAccessExpression { Receiver: var receiver and not TypeReferenceExpression })
+                {
+                    Place(receiver, Held(receiver), sequence);
+                }
+
+                Own(invocation, sequence);
+                PlaceArguments(invocation.Arguments, invocation.Parameters, sequence);
+                break;
+
+            case NewExpression creation:
+                Own(creation, sequence);
+                PlaceArguments(creation.Arguments, creation.Constructor?.ParametersList, sequence);
+                break;
+
+            case MemberAccessExpression access:
+                if(access.Receiver is not TypeReferenceExpression)
+                {
+                    Place(access.Receiver, Held(access.Receiver), sequence);
+                }
+
+                Own(access, sequence);
+                break;
+
+            case AssignmentExpression assignment:
+                Place(assignment.Target, Reading.Target, sequence);
+                break;
+
+            case CompoundAssignmentExpression compound:
+                Place(compound.Target, Reading.Target, sequence);
+                break;
+        }
+    }
+
+    private static void Own(Expression owner, Sequence sequence)
+    {
+        var pending = sequenced?.Contains(owner) == true ? [] : Unconsumed(owner).Where(Evaluates).ToList();
+
+        if(pending.Count > 0)
+        {
+            sequence.Steps.AddRange(pending.Select(capture => new Ahead(null, capture)));
+            sequence.Owners.Add(owner);
+        }
+    }
+
+    private static void PlaceArguments(IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, Sequence sequence)
+    {
+        for(var i = 0; i < arguments.Count; i++)
+        {
+            var byReference = parameters is not null && i < parameters.Count && ArgumentKeywords.For(parameters[i]).Length > 0;
+            Place(arguments[i], byReference ? Reading.Reference : Reading.Value, sequence);
+        }
+    }
+
+    private static Reading Held(Expression receiver)
+    {
+        var type = TypeNameEmitter.Closed(receiver.Type);
+
+        return type is TypeParameter || TypeNameEmitter.IsValueKind(type) ? Reading.Receiver : Reading.Value;
+    }
+
+    private static void Place(Expression operand, Reading reading, Sequence sequence)
+    {
+        switch(operand)
+        {
+            case var _ when reading is Reading.Value:
+                sequence.Steps.Add(new Ahead(operand, null));
+                break;
+
+            case InvocationExpression { Signature.Modifiers: { IsRef: true } returned }:
+                Lead(operand, sequence);
+
+                if(!returned.ReturnsReadonlyRef)
+                {
+                    sequence.Steps.Add(new Ahead(operand, null, InPlace: true));
+                }
+
+                break;
+
+            case MemberAccessExpression { Receiver: TypeReferenceExpression }:
+            case MemberAccessExpression { Member: FieldResult }:
+            case MemberAccessExpression when reading is Reading.Target:
+                Lead(operand, sequence);
+                break;
+
+            case IndexExpression index:
+                Place(index.Receiver, Held(index.Receiver), sequence);
+
+                if(index.Index is not LiteralExpression)
+                {
+                    Place(index.Index, Reading.Value, sequence);
+                }
+
+                break;
+
+            case not FieldReferenceExpression when reading is Reading.Receiver:
+                sequence.Steps.Add(new Ahead(operand, null));
+                break;
+        }
+    }
+
+    private static bool Binds(Expression part)
+    {
+        return !IsPlainRead(part)
+            && !UnitHoisting.IsStable(part)
+            && part is not (ArrayLiteralExpression or FunctionReferenceExpression)
+            && boundParts?.ContainsKey(part) != true;
+    }
+
+    private static IEnumerable<Expression> BoundAhead(Expression operand, Reading reading)
+    {
+        var sequence = new Sequence();
+        Place(operand, reading, sequence);
+
+        return sequence.Steps.Where(step => !step.InPlace).Select(step => step.Part).OfType<Expression>().Where(part => !IsPlainRead(part) && boundParts?.ContainsKey(part) != true);
+    }
+
+    private static bool RunsInPlace(Expression receiver)
+    {
+        return Held(receiver) is Reading.Receiver && receiver switch
+        {
+            InvocationExpression { Signature.Modifiers.IsRef: true } => true,
+            MemberAccessExpression { Member: FieldResult } access => RunsInPlace(access.Receiver),
+            IndexExpression index => RunsInPlace(index.Receiver),
+            _ => false,
         };
     }
 
     private static bool EmitEvaluatingCaptures(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(ReferenceEquals(discarding, expression))
+        if(trailing is not null && trailing.Remove(expression, out var after))
+        {
+            writer.Append($"System.Runtime.CompilerServices.Unsafe.Add(ref {Render(expression, diagnostics)}, {WrapDiscarded(after, "0", diagnostics)})");
+            return true;
+        }
+
+        if(sequenced?.Contains(expression) == true
+            || expression is not (InvocationExpression or NewExpression or MemberAccessExpression or AssignmentExpression or CompoundAssignmentExpression))
         {
             return false;
         }
 
-        var pending = Unconsumed(expression).Where(Evaluates).ToList();
+        var sequence = Leading(expression);
 
-        if(pending.Count == 0)
+        if(sequence.IsEmpty)
         {
             return false;
         }
 
-        var enclosing = discarding;
-        discarding = expression;
-
-        try
-        {
-            writer.Append(Evaluating(pending, FirstEvaluated(expression), () => Render(expression, diagnostics), diagnostics));
-        }
-        finally
-        {
-            discarding = enclosing;
-        }
-
+        writer.Append(Evaluating(sequence, () => Render(expression, diagnostics), diagnostics));
         return true;
     }
 
-    private static string Evaluating(IReadOnlyList<SlotCapture> captures, Expression? first, Func<string> inner, DiagnosticBag diagnostics)
+    private static string Evaluating(IReadOnlyList<SlotCapture> captures, Expression owner, Expression first, Func<string> inner, DiagnosticBag diagnostics)
     {
         if(captures.Count == 0)
         {
             return inner();
         }
 
-        if(first is null || IsPlainRead(first))
-        {
-            return WrapDiscarded(captures, inner(), diagnostics);
-        }
+        var sequence = new Sequence();
+        sequence.Steps.Add(new Ahead(first, null));
+        sequence.Steps.AddRange(captures.Select(capture => new Ahead(null, capture)));
+        sequence.Owners.Add(owner);
 
-        var name = TemporaryName();
-        var rendered = RenderAt(first, SwitchPrecedence + 1, diagnostics);
+        return Evaluating(sequence, inner, diagnostics);
+    }
+
+    private static string Evaluating(Sequence sequence, Func<string> inner, DiagnosticBag diagnostics)
+    {
         var enclosing = boundParts;
-        boundParts = new Dictionary<Expression, string>(enclosing ?? [], ReferenceEqualityComparer.Instance) { [first] = name };
+        var opened = new System.Text.StringBuilder();
+        var depth = 0;
 
         try
         {
-            return $"({rendered} switch {{ var {name} => {WrapDiscarded(captures, inner(), diagnostics)} }})";
+            foreach(var step in sequence.Steps)
+            {
+                if(step.Capture is { } capture)
+                {
+                    _ = opened.Append($"({Evaluation(capture, SwitchPrecedence + 1, diagnostics)} switch {{ _ => ");
+                    depth++;
+                }
+                else if(step.Part is { } part && Binds(part))
+                {
+                    var name = TemporaryName();
+                    _ = opened.Append($"({RenderAt(part, SwitchPrecedence + 1, diagnostics)} switch {{ var {name} => ");
+                    boundParts = new Dictionary<Expression, string>(boundParts ?? [], ReferenceEqualityComparer.Instance) { [part] = name };
+                    depth++;
+                }
+            }
+
+            using var owners = new Sequenced(sequence);
+
+            return $"{opened}{inner()}{string.Concat(Enumerable.Repeat(" })", depth))}";
         }
         finally
         {
@@ -311,47 +520,81 @@ internal static partial class BodyEmitter
             top = conversion.Operand;
         }
 
-        if(top is null)
+        if(top is null || sequenced?.Contains(top) == true || Leading(top) is not { IsEmpty: false } sequence)
         {
             return null;
         }
 
-        var pending = Unconsumed(top).Where(Evaluates).ToList();
+        var enclosing = boundParts;
 
-        if(pending.Count == 0)
+        foreach(var step in sequence.Steps)
         {
-            return null;
+            if(step.Capture is { } capture)
+            {
+                writer.WriteLine($"{KeptLocal(capture) ?? "_"} = {Render(capture.Initializer, diagnostics)};");
+            }
+            else if(step.Part is { } part && Binds(part))
+            {
+                var name = TemporaryName();
+                writer.WriteLine($"{TypeNameEmitter.EmitInferable(part.Type)} {name} = {Render(part, diagnostics)};");
+                boundParts = new Dictionary<Expression, string>(boundParts ?? [], ReferenceEqualityComparer.Instance) { [part] = name };
+            }
         }
 
-        var first = FirstEvaluated(top);
-        var enclosingParts = boundParts;
-
-        if(first is not null && !IsPlainRead(first))
-        {
-            var name = TemporaryName();
-            writer.WriteLine($"{TypeNameEmitter.EmitInferable(first.Type)} {name} = {Render(first, diagnostics)};");
-            boundParts = new Dictionary<Expression, string>(enclosingParts ?? [], ReferenceEqualityComparer.Instance) { [first] = name };
-        }
-
-        EvaluateDiscarded(pending, writer, diagnostics);
-        var enclosing = discarding;
-        discarding = top;
-
-        return new StatementEvaluation(enclosing, enclosingParts);
+        return new StatementEvaluation(new Sequenced(sequence), enclosing);
     }
 
-    private sealed class StatementEvaluation(Expression? enclosing, Dictionary<Expression, string>? parts) : IDisposable
+    private sealed class StatementEvaluation(Sequenced owners, Dictionary<Expression, string>? parts) : IDisposable
     {
         public void Dispose()
         {
-            discarding = enclosing;
+            owners.Dispose();
             boundParts = parts;
+        }
+    }
+
+    private sealed class Sequenced : IDisposable
+    {
+        private readonly List<Expression> entered = [];
+        private readonly Sequence sequence;
+
+        public Sequenced(Sequence sequence)
+        {
+            this.sequence = sequence;
+            sequenced ??= new HashSet<Expression>(ReferenceEqualityComparer.Instance);
+            trailing ??= new Dictionary<Expression, List<SlotCapture>>(ReferenceEqualityComparer.Instance);
+
+            foreach(var owner in sequence.Owners)
+            {
+                if(sequenced.Add(owner))
+                {
+                    entered.Add(owner);
+                }
+            }
+
+            foreach(var (returned, captures) in sequence.Trailing)
+            {
+                trailing[returned] = captures;
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach(var owner in entered)
+            {
+                _ = sequenced?.Remove(owner);
+            }
+
+            foreach(var returned in sequence.Trailing.Keys)
+            {
+                _ = trailing?.Remove(returned);
+            }
         }
     }
 
     internal static bool EvaluatesCaptures(Expression? expression)
     {
-        return expression is not null && Unconsumed(expression is ImplicitConversionExpression conversion ? conversion.Operand : expression).Any(Evaluates);
+        return expression is not null && !Leading(expression is ImplicitConversionExpression conversion ? conversion.Operand : expression).IsEmpty;
     }
 
     private static List<SlotCapture> Evaluated(Pattern pattern)

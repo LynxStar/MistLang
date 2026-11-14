@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -23,6 +24,13 @@ namespace Mist.ProgramAnalysis.Rules;
 /// constituent equals, which is how value arms over an optional leave `void` missing; a partially covered
 /// constituent is not reported.
 /// </para>
+/// <para>
+/// A type test that differs from the type it meets only in a dependent slot compares the slot when the
+/// program runs, and is emitted as a `when` (runtime-dependent-values Requirement 9.2), so it is read as a
+/// guard: it covers that type only where the two slots are one value -- the same capture, literal or
+/// parameter, or two captures that read one holder its body never writes -- and otherwise leaves the type
+/// to the other arms, so `Ring&lt;n&gt;` over `Ring&lt;m&gt; | string` leaves `Ring&lt;m&gt;` missing.
+/// </para>
 /// </summary>
 internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 {
@@ -32,9 +40,12 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
+        var writes = new Dictionary<object, IReadOnlySet<object>>(ReferenceEqualityComparer.Instance);
+
         foreach(var node in context.Nodes)
         {
-            if(node is SwitchExpression switchExpression && Missing(switchExpression, context.Model.TypeInterner) is { Count: > 0 } missing)
+            if(node is SwitchExpression switchExpression
+                && Missing(switchExpression, context.Model.TypeInterner, Unwritten(context.RootOf(switchExpression), writes)) is { Count: > 0 } missing)
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.SwitchNotExhaustive,
@@ -50,10 +61,12 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
         return Missing(switchExpression, interner) is { Count: > 0 } ? ProgramAnalysisDiagnostics.SwitchNotExhaustive : null;
     }
 
-    internal static IReadOnlyList<string>? Missing(SwitchExpression switchExpression, TypeInterner? interner = null)
+    internal static IReadOnlyList<string>? Missing(
+        SwitchExpression switchExpression, TypeInterner? interner = null, Func<CapturedValue, CapturedValue, bool>? oneValue = null)
     {
         var scrutinee = switchExpression.Scrutinee.Type;
         var arms = switchExpression.Arms;
+        oneValue ??= (_, _) => false;
 
         if(arms.Any(arm => arm.Pattern.NarrowedType is ErrorType))
         {
@@ -62,7 +75,7 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 
         var unguarded = Flatten(arms.Where(arm => arm.Guard is null).Select(arm => arm.Pattern)).ToList();
 
-        if(unguarded.Any(pattern => CoversAll(pattern, scrutinee)))
+        if(unguarded.Any(pattern => CoversAll(pattern, scrutinee, oneValue)))
         {
             return null;
         }
@@ -71,35 +84,86 @@ internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
         {
             UnionType union
                 => [.. union.Constituents
-                    .Where(constituent => !Flatten(arms.Select(arm => arm.Pattern)).Any(pattern => MightMatch(pattern, constituent, interner)))
+                    .Where(constituent => !Flatten(arms.Select(arm => arm.Pattern)).Any(pattern => MightMatch(pattern, constituent, interner, oneValue)))
                     .Select(TypeDisplay.Mist)],
-            _ => FiniteCoverage.Missing(scrutinee, unguarded) ?? (OnlyConstants(arms) ? ["_"] : null),
+            _ => FiniteCoverage.Missing(scrutinee, unguarded) ?? (OnlyConstants(arms, scrutinee, oneValue) ? ["_"] : null),
         };
     }
 
-    private static bool CoversAll(Pattern pattern, IMistType scrutinee)
+    private static bool CoversAll(Pattern pattern, IMistType scrutinee, Func<CapturedValue, CapturedValue, bool> oneValue)
     {
         return pattern is CatchAllPattern
             || (pattern is TypeTestPattern { Refinement: null } test
-                && ConversionRelation.IsIdentity(test.NarrowedType, scrutinee));
+                && (ConversionRelation.IsIdentity(test.NarrowedType, scrutinee)
+                    || (ConversionClassifier.AgreesUpToProof(scrutinee, test.NarrowedType) && !SlotIdentity.Compares(scrutinee, test.NarrowedType, oneValue))));
     }
 
-    private static bool MightMatch(Pattern pattern, IMistType constituent, TypeInterner? interner)
+    private static bool MightMatch(Pattern pattern, IMistType constituent, TypeInterner? interner, Func<CapturedValue, CapturedValue, bool> oneValue)
     {
         return pattern switch
         {
-            TypeTestPattern test => ReferenceEquals(test.Constituent ?? test.NarrowedType, constituent)
-                || ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent),
+            TypeTestPattern test => (ReferenceEquals(test.Constituent ?? test.NarrowedType, constituent)
+                || ConversionRelation.IsIdentity(test.Constituent ?? test.NarrowedType, constituent))
+                && !SlotIdentity.Compares(constituent, test.NarrowedType, oneValue),
             TuplePattern { Constituent: { } selected } => ReferenceEquals(selected, constituent) || ConversionRelation.IsIdentity(selected, constituent),
             ComparisonPattern comparison => !OptionalUnion.IsVoid(constituent) && Comparability.Compares(comparison, constituent, interner),
             _ => true,
         };
     }
 
-    private static bool OnlyConstants(IReadOnlyList<SwitchArm> arms)
+    private static bool OnlyConstants(IReadOnlyList<SwitchArm> arms, IMistType scrutinee, Func<CapturedValue, CapturedValue, bool> oneValue)
     {
         return arms.All(arm => arm.Guard is not null
-            || Flatten([arm.Pattern]).All(pattern => pattern is ComparisonPattern { Kind: ComparisonKind.Equal }));
+            || Flatten([arm.Pattern]).All(pattern => pattern is ComparisonPattern { Kind: ComparisonKind.Equal }
+                || (pattern is TypeTestPattern test && SlotIdentity.Compares(scrutinee, test.NarrowedType, oneValue))));
+    }
+
+    private static Func<CapturedValue, CapturedValue, bool>? Unwritten(object? root, Dictionary<object, IReadOnlySet<object>> writes)
+    {
+        if(root is null)
+        {
+            return null;
+        }
+
+        if(!writes.TryGetValue(root, out var written))
+        {
+            var holders = new HashSet<object>(UnseenWrites.Of(root), ReferenceEqualityComparer.Instance);
+
+            foreach(var node in BodyWalker.DescendantsAndSelf(root))
+            {
+                Assigned(holders, node switch
+                {
+                    AssignmentExpression assignment => assignment.Target,
+                    CompoundAssignmentExpression compound => compound.Target,
+                    _ => null,
+                });
+            }
+
+            writes[root] = written = holders;
+        }
+
+        return (left, right) => SlotReads.Written(left.Capture.Initializer) is LocalReferenceExpression { Local: var holder }
+            && SlotReads.Written(right.Capture.Initializer) is LocalReferenceExpression { Local: var other }
+            && ReferenceEquals(holder, other)
+            && !written.Contains(holder);
+    }
+
+    private static void Assigned(HashSet<object> holders, Expression? target)
+    {
+        switch(target)
+        {
+            case LocalReferenceExpression local:
+                _ = holders.Add(local.Local);
+                break;
+
+            case TupleLiteralExpression tuple:
+                foreach(var element in tuple.Elements)
+                {
+                    Assigned(holders, element);
+                }
+
+                break;
+        }
     }
 
     private static IEnumerable<Pattern> Flatten(IEnumerable<Pattern> patterns)

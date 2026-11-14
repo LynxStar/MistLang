@@ -255,6 +255,7 @@ internal static partial class BodyEmitter
             {
                 CapturedValue captured => ReadThroughBoundReceiver(method, slot, receiver)
                     ?? ReadThroughDelegateArgument(method, slot, arguments)
+                    ?? evaluated?.GetValueOrDefault(captured.Capture)
                     ?? KeptLocal(captured.Capture)
                     ?? SlotValue(argument, diagnostics: null)
                     ?? EmissionDiagnostics.Fallback("inferred slot value", $"{method.Name}.{slot.Name}", "default"),

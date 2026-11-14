@@ -70,6 +70,14 @@ internal static class SlotIdentity
         return first;
     }
 
+    public static bool Compares(IMistType source, IMistType tested, Func<CapturedValue, CapturedValue, bool> oneValue)
+    {
+        return SlotReads.Plain(tested) is ConstructedType closing && SlotReads.Closing(source, closing.Definition) is { } reaching
+            && reaching.TypeArguments.Count == closing.TypeArguments.Count
+            && Pairs(reaching, closing).Any(pair => !Same(pair.Argument, pair.Slot)
+                && !(pair is { Argument: CapturedValue left, Slot: CapturedValue right } && oneValue(left, right)));
+    }
+
     public static bool Owes(Expression? value, IMistType? target)
     {
         return value is not null && Owes(SlotReads.Written(value).Type, target);

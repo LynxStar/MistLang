@@ -15,7 +15,10 @@ namespace Mist.Tests.Backend;
 /// once, where the type is written: a typed foreach variable and a typed deconstruction before their operand, a with
 /// binding before its value, <c>default(T)</c> and the element type of an array creation or a stack allocation as the
 /// stamp's hidden value or else ahead of the node, and a method group with stated arguments ahead of the reference. A
-/// later node that reads a capture its own type does not hold reads the C# local the owner assigned.
+/// later node that reads a capture its own type does not hold reads the C# local the owner assigned. That local is
+/// read by a nested struct closing's factory too. An array with a length that runs code assigns it before the length.
+/// An expression lambda declares it inside its own body. A method group's delegate reads the value bound for that
+/// evaluation.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ValueRouteBodySiteEmissionTests
@@ -110,6 +113,48 @@ public sealed class ValueRouteBodySiteEmissionTests
         var reference = new FunctionReferenceExpression(HandBuiltModel.Node(), null, first, target) { TypeArguments = [closing], Captures = [capture] };
 
         Assert.Equal("(p.Count switch { _ => ((System.Func<Probe.Bag<Probe.Ring>, Probe.Ring>)(First<Probe.Ring>)) })", Emit(reference));
+    }
+
+    [Fact]
+    public void AnExpressionLambdaKeepsItsMethodGroupsCaptureInsideItsOwnBodyAndTheDelegateReadsThatEvaluation()
+    {
+        var n = slots.Dependent("N");
+        var make = Inferring("Make", slots.Closed(ring, n), n);
+        using var routes = SlotRoutes.Enter([capacity, n]);
+        var target = slots.Refinements.Built.Interner.GetOrCreateFunctionType([], closing);
+        var reference = new FunctionReferenceExpression(HandBuiltModel.Node(), null, make, target) { TypeArguments = [capture.Value], Captures = [capture] };
+        var outer = slots.Refinements.Built.Interner.GetOrCreateFunctionType([], target);
+        var lambda = new LambdaExpression(HandBuiltModel.Node(), [], reference, null, false, outer);
+
+        Assert.Equal(
+            ["System.Func<System.Func<Probe.Ring>> f = () =>", "{", "int __c1;", "return ((__c1 = p.Count) switch { var __e1 => ((System.Func<Probe.Ring>)(((System.Func<Probe.Ring>)(() => Make(__e1))))) });", "}", ";"],
+            Statements(HandBuiltSlots.Declare(new LocalVariable("f", outer), lambda)));
+    }
+
+    [Fact]
+    public void ANestedStructClosingsFactoryReadsTheValueItsOwnerEvaluatedOnce()
+    {
+        using var routes = SlotRoutes.Enter([capacity, size]);
+        var duo = GenericStruct("Duo<>");
+        var nested = slots.Closed(duo, slots.Closed(cell, capture.Value));
+        var defaulted = new DefaultExpression(HandBuiltModel.Node(), nested) { Captures = [capture] };
+
+        Assert.Equal(
+            ["int __c1;", "__c1 = p.Count;", "Probe.Duo<Probe.Cell> d = Probe.Duo<Probe.Cell>.__CreateDefault(() => Probe.Cell.__CreateDefault(__c1));"],
+            Statements(HandBuiltSlots.Declare(new LocalVariable("d", nested), defaulted)));
+    }
+
+    [Fact]
+    public void AnArrayEvaluatesItsElementTypesCaptureBeforeALengthThatRunsCode()
+    {
+        using var routes = SlotRoutes.Enter([capacity, size]);
+        var cellOf = slots.Closed(cell, capture.Value);
+        var length = Count(slots, "q");
+        var array = new ArrayCreationExpression(HandBuiltModel.Node(), cellOf, length, slots.Closed(slots.Array, cellOf, UnknownType.Instance)) { Captures = [capture] };
+
+        Assert.Equal(
+            ["int __c1;", "__c1 = p.Count;", "Probe.Cell[] cells = MistArray.Stamp(new Probe.Cell[q.Count], Probe.Cell.__CreateDefault(__c1));"],
+            Statements(HandBuiltSlots.Declare(new LocalVariable("cells", array.Type), array)));
     }
 
     [Fact]

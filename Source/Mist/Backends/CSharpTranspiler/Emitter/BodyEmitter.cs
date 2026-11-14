@@ -1514,7 +1514,7 @@ internal static partial class BodyEmitter
             case FunctionReferenceExpression evaluating when sequenced?.Contains(evaluating) != true && evaluating.Captures.Any(Evaluates):
                 writer.Append(Evaluating(
                     [.. evaluating.Captures.Where(Evaluates)], evaluating, evaluating.Receiver ?? evaluating,
-                    () => $"(({TypeNameEmitter.Emit(evaluating.Type)})({Render(evaluating, diagnostics)}))", diagnostics));
+                    () => $"(({TypeNameEmitter.Emit(evaluating.Type)})({Render(evaluating, diagnostics)}))", diagnostics, fresh: true));
                 break;
 
             case FunctionReferenceExpression functionRef
@@ -1838,7 +1838,9 @@ internal static partial class BodyEmitter
 
             var slot = lambda.IsAsync ? TaskResult.Of(ResultTypeOf(lambda)) : ResultTypeOf(lambda);
 
-            if(!NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0 && discard is null)
+            var keeps = KeepsWithin(result);
+
+            if(!keeps && !NeedsStatements(result, discarded) && LentValues.Within(result).Count == 0 && discard is null)
             {
                 EmitEntering(result, slot, writer, diagnostics);
                 return;
@@ -1848,6 +1850,7 @@ internal static partial class BodyEmitter
 
             using(writer.Block())
             {
+                DeclareKeptLocals(result, writer);
                 List<(string?, string)> held = [.. LifetimeLowering.Lend(result, writer).Select(value => ((string?)value.Flag, Released(value.Temp, value.Type)))];
                 EmitWrapped(held, 0, () => EmitSequenced(result, discarded ? discard : "return ", writer, diagnostics, slot: slot), writer);
             }

@@ -17,7 +17,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// receiver or argument carries is kept in a C# local, declared before the statement that owns it and assigned
 /// where the type is written (runtime-dependent-values design, <em>Identity by value: the first delivery</em>);
 /// which captures those are is decided over the whole body before any of it is written, because the owner is
-/// emitted before its readers. A capture nothing consumes is a discarded read where its initializer runs code,
+/// emitted before its readers. A struct closing nested in another type's argument is one such reader, its factory
+/// built where the outer type is, and an element type's capture is kept where the length runs code, so the length
+/// is read after it as written. An expression lambda declares the locals its own captures are kept in inside its
+/// body, and a method group's delegate reads its value through a binding made each time the reference is
+/// evaluated, so a call made later never reads another evaluation's value. A capture nothing consumes is a discarded read where its initializer runs code,
 /// and what C# evaluates before the type is bound ahead of it so source order survives. A value-type receiver,
 /// an assignment's target and an argument passed by reference are locations, which a binding would copy: what
 /// is bound is what locates them, as <see cref="UnitHoisting"/> stores them, the owner stays where it is
@@ -99,7 +103,7 @@ internal static partial class BodyEmitter
                 break;
 
             case DefaultExpression defaulted:
-                foreach(var capture in ClosingCaptures(defaulted.Type).Where(capture => !defaulted.Captures.Contains(capture)))
+                foreach(var capture in ClosingCaptures(defaulted.Type).Where(capture => !defaulted.Captures.Contains(capture)).Concat(NestedCaptures(defaulted.Type)))
                 {
                     yield return capture;
                 }
@@ -107,7 +111,23 @@ internal static partial class BodyEmitter
                 break;
 
             case NewExpression creation:
-                foreach(var capture in ClosingCaptures(creation.Type).Where(capture => !creation.Captures.Contains(capture)))
+                foreach(var capture in ClosingCaptures(creation.Type).Where(capture => !creation.Captures.Contains(capture)).Concat(NestedCaptures(creation.Type)))
+                {
+                    yield return capture;
+                }
+
+                break;
+
+            case ArrayCreationExpression array:
+                foreach(var capture in StampCaptures(array.ElementType, array.Size, array.Captures))
+                {
+                    yield return capture;
+                }
+
+                break;
+
+            case StackallocExpression stack:
+                foreach(var capture in StampCaptures(stack.ElementType, stack.Size, stack.Captures))
                 {
                     yield return capture;
                 }
@@ -140,6 +160,23 @@ internal static partial class BodyEmitter
                 .OfType<CapturedValue>()
                 .Select(captured => captured.Capture)
             : [];
+    }
+
+    private static IEnumerable<SlotCapture> NestedCaptures(IMistType type)
+    {
+        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
+            ? constructed.TypeArguments.SelectMany(argument => (StructStamp.HeldByValue(Unaliased(TypeNameEmitter.Closed(argument))) is null ? [] : ClosingCaptures(argument))
+                .Concat(NestedCaptures(argument)))
+            : [];
+    }
+
+    private static IEnumerable<SlotCapture> StampCaptures(IMistType element, Expression size, IReadOnlyList<SlotCapture> owned)
+    {
+        var ahead = size is LiteralExpression || IsPlainRead(size)
+            ? []
+            : owned.Where(capture => !ReferenceEquals(capture.Initializer, size) && !IsPlainRead(capture.Initializer) && ConsumedByClosing(element, capture));
+
+        return ahead.Concat(NestedCaptures(element));
     }
 
     private static string? KeptLocal(SlotCapture capture)
@@ -191,14 +228,14 @@ internal static partial class BodyEmitter
         return inner;
     }
 
-    private static void DeclareKeptLocals(Statement statement, CSharpWriter writer)
+    private static void DeclareKeptLocals(object root, CSharpWriter writer)
     {
         if(kept is not { Count: > 0 })
         {
             return;
         }
 
-        foreach(var owner in OwnersWithin(statement))
+        foreach(var owner in OwnersWithin(root))
         {
             foreach(var capture in SlotCapture.Of(owner))
             {
@@ -210,10 +247,10 @@ internal static partial class BodyEmitter
         }
     }
 
-    private static IEnumerable<object> OwnersWithin(Statement statement)
+    private static IEnumerable<object> OwnersWithin(object root)
     {
         var pending = new Stack<object>();
-        pending.Push(statement);
+        pending.Push(root);
 
         while(pending.Count > 0)
         {
@@ -222,12 +259,17 @@ internal static partial class BodyEmitter
 
             foreach(var child in BodyWalker.ChildrenOf(node).Reverse())
             {
-                if(child is not (Statement or Block))
+                if(child is not (Statement or Block or LambdaExpression))
                 {
                     pending.Push(child);
                 }
             }
         }
+    }
+
+    private static bool KeepsWithin(Expression result)
+    {
+        return kept is { Count: > 0 } && OwnersWithin(result).SelectMany(SlotCapture.Of).Any(capture => KeptLocal(capture) is not null);
     }
 
     internal static bool OwnsCaptures(Statement statement)
@@ -246,8 +288,10 @@ internal static partial class BodyEmitter
         {
             NewExpression creation => creation.Captures.Where(capture => !ConsumedByClosing(creation.Type, capture)),
             DefaultExpression defaulted => defaulted.Captures.Where(capture => !ConsumedByClosing(defaulted.Type, capture)),
-            ArrayCreationExpression array => array.Captures.Where(capture => !ReferenceEquals(capture.Initializer, array.Size) && !ConsumedByClosing(array.ElementType, capture)),
-            StackallocExpression stack => stack.Captures.Where(capture => !ReferenceEquals(capture.Initializer, stack.Size) && !ConsumedByClosing(stack.ElementType, capture)),
+            ArrayCreationExpression array => array.Captures.Where(capture => !ReferenceEquals(capture.Initializer, array.Size)
+                && (!ConsumedByClosing(array.ElementType, capture) || KeptLocal(capture) is not null)),
+            StackallocExpression stack => stack.Captures.Where(capture => !ReferenceEquals(capture.Initializer, stack.Size)
+                && (!ConsumedByClosing(stack.ElementType, capture) || KeptLocal(capture) is not null)),
             InvocationExpression invocation => invocation.Captures.Where(capture => !ConsumedByCall(invocation, capture)),
             MemberAccessExpression access => access.Captures.Where(capture => !ConsumedByAccess(access, capture)),
             _ => [],
@@ -310,6 +354,8 @@ internal static partial class BodyEmitter
         public Dictionary<Expression, List<SlotCapture>> Trailing { get; } = new(ReferenceEqualityComparer.Instance);
 
         public bool IsEmpty => Steps.Count == 0 && Trailing.Count == 0;
+
+        public bool Fresh { get; init; }
     }
 
     private static Sequence Leading(Expression expression)
@@ -513,14 +559,15 @@ internal static partial class BodyEmitter
         return true;
     }
 
-    private static string Evaluating(IReadOnlyList<SlotCapture> captures, Expression owner, Expression first, Func<string> inner, DiagnosticBag diagnostics)
+    private static string Evaluating(
+        IReadOnlyList<SlotCapture> captures, Expression owner, Expression first, Func<string> inner, DiagnosticBag diagnostics, bool fresh = false)
     {
         if(captures.Count == 0)
         {
             return inner();
         }
 
-        var sequence = new Sequence();
+        var sequence = new Sequence { Fresh = fresh };
         sequence.Steps.Add(new Ahead(first, null));
         sequence.Steps.AddRange(captures.Select(capture => new Ahead(null, capture)));
         sequence.Owners.Add(owner);
@@ -533,14 +580,23 @@ internal static partial class BodyEmitter
         var enclosing = boundParts;
         var opened = new System.Text.StringBuilder();
         var depth = 0;
+        var bound = new List<SlotCapture>();
 
         try
         {
             foreach(var step in sequence.Steps)
             {
-                if(step.Capture is { } capture)
+                if(step.Capture is { } capture && sequence.Fresh && KeptLocal(capture) is not null && evaluated?.ContainsKey(capture) != true)
                 {
-                    _ = opened.Append($"({Evaluation(capture, SwitchPrecedence + 1, diagnostics)} switch {{ _ => ");
+                    var name = TemporaryName();
+                    _ = opened.Append($"({Evaluation(capture, SwitchPrecedence + 1, diagnostics)} switch {{ var {name} => ");
+                    (evaluated ??= new Dictionary<SlotCapture, string>(ReferenceEqualityComparer.Instance))[capture] = name;
+                    bound.Add(capture);
+                    depth++;
+                }
+                else if(step.Capture is { } discarded)
+                {
+                    _ = opened.Append($"({Evaluation(discarded, SwitchPrecedence + 1, diagnostics)} switch {{ _ => ");
                     depth++;
                 }
                 else if(step.Part is { } part && Binds(part))
@@ -559,6 +615,7 @@ internal static partial class BodyEmitter
         finally
         {
             boundParts = enclosing;
+            bound.ForEach(entry => evaluated?.Remove(entry));
         }
     }
 

@@ -146,6 +146,20 @@ or else ahead of the node, and a method group ahead of the reference. A later
 C# local its owner assigned. The union test compares the slot when the program
 runs, as any test against a closing does.
 
+Four rules keep that one evaluation correct wherever the value is read later.
+A struct closing nested in another type's argument, as in
+`default(Duo<Cell<s.Size>>)`, is built by a factory that reads the value its
+owner evaluated, not the initializer again. An array whose length runs code
+evaluates its element type's capture first, as written. An expression lambda
+declares the C# locals its own captures are kept in inside its body, so one
+call does not see another's value. And a method group's delegate reads the
+value as it stood when the reference was evaluated. A switch arm compares the
+slot as a `when` would, so exhaustiveness counts it as covering the constituent
+only where both slots are one value: the same capture, literal or parameter, or
+two captures that read one holder the body never writes. Otherwise MIST0148
+names the constituent, and a value that reaches no arm throws when the program
+runs, as it does for any switch that warning names.
+
 Two sites are the owner's to rule on, because each is a signature written
 inside a body and Requirement 8.1 was written for a method's own parameters:
 a local function's parameter and return types, and a typed lambda parameter.

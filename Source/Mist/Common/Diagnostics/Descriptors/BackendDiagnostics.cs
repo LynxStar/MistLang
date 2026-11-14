@@ -339,7 +339,7 @@ public static class BackendDiagnostics
         DiagnosticNumber.Mint("MIST0497"),
         Title: "Overloads coincide in emitted C#",
         Template: "'{member}' is declared again with C# parameters that coincide with '{earlier}': the two differ only in '{parameter}' of '{type}', which the C# backend does not carry in the type.",
-        Description: "Two overloads of one name differ in Mist by a slot value that the C# backend erases from the type, a length or a dependent parameter closed somewhere with a runtime value, so their emitted parameter lists are the same and C# refuses the second. Give the overloads different names or different parameter types, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Description: "Two members of one name differ in Mist only by a slot value that the C# backend erases from the type, a length or a dependent parameter closed somewhere with a runtime value, and neither can take another C# name because each answers a CLR slot or one abstract slot reached at two closings. Every other coinciding member is renamed apart; a CLR interface or base, or one generic abstract, implemented at two values of a slot is one C# type twice. Implement it at one value, or answer the second through a member of a different name.",
         Category: DiagnosticCategory.Bck,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction;
@@ -19,13 +20,20 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The C# names that keep apart members of one name whose emitted parameter lists coincide because a slot
 /// left the C# type (runtime-dependent-values design, <em>Identity by value: the first delivery</em>). The
 /// binder has already chosen the overload, so only the C# names have to differ. Decided once over the whole
-/// program because a member lands in more C# types than the one declaring it: a struct holds its flattened
+/// program, and keyed by declaration so a closed copy the binder makes of a member reads the same name,
+/// because a member lands in more C# types than the one declaring it: a struct holds its flattened
 /// ancestors' members, a conformer restates an abstract's defaults, and an interface sees the members of
-/// the interfaces it extends. An abstract's member and every member answering it are one name, since C#
-/// implements an interface member by name. A name is the member's Mist name with its own Mist signature
-/// appended, so adding or removing another overload never changes it, and it is taken only by a member
-/// that coincides with another of a different name group. A group holding a member a CLR slot names, or
-/// one with no Mist source, keeps its name, and the members it coincides with are renamed around it.
+/// the interfaces it extends. A class's base is left out, because a call to a base member a derived one
+/// hides is written through the base type. An abstract's member and every member answering it by name are
+/// one name group, since C# implements an interface member by name. A name is the group's root member's
+/// Mist name with that member's own Mist signature appended, so adding or removing another overload never
+/// changes it, and it is taken only by a group that coincides with another. A group holding a member a CLR
+/// slot names, or one with no Mist source, keeps its name and the others are renamed around it; two such
+/// groups coinciding is a CLR interface implemented at two values of a slot, which nothing can name apart,
+/// and stays <see cref="BackendDiagnostics.CoincidingOverloads"/>. C# cannot rename a constructor or an
+/// indexer: a renamed constructor takes an empty struct of its new name, nested in its type, as a hidden
+/// leading parameter that every call fills with its default, and a renamed indexer is emitted as accessor
+/// methods whose setter returns the value, so an assignment through it is still an expression.
 /// </summary>
 internal sealed class OverloadNames : IDisposable
 {
@@ -43,9 +51,19 @@ internal sealed class OverloadNames : IDisposable
         this.renamed = renamed;
     }
 
-    public static IDisposable Enter(ProgramModelClass model)
+    public static IDisposable Enter(ProgramModelClass model, DiagnosticBag diagnostics)
     {
-        return Enter(Decide(SourceTypes.Of(model).OfType<MemberType>(), SourceTypes.ExtensionsOf(model), model.TypeInterner));
+        return Enter(Decide(SourceTypes.Of(model).OfType<MemberType>(), SourceTypes.ExtensionsOf(model), model.TypeInterner), diagnostics);
+    }
+
+    public static IDisposable Enter(OverloadDecision decision, DiagnosticBag diagnostics)
+    {
+        foreach(var (earlier, later) in decision.Unnamed)
+        {
+            Report(earlier, later, diagnostics);
+        }
+
+        return Enter(decision.Renamed);
     }
 
     public static IDisposable Enter(IReadOnlyDictionary<SyntaxNode, string> renamed)
@@ -74,10 +92,6 @@ internal sealed class OverloadNames : IDisposable
         return Lookup(indexer.DeclarationNode);
     }
 
-    /// <summary>
-    /// A constructor cannot be renamed in C#, so a renamed one takes an empty struct of its new name, nested in
-    /// its type, as a hidden leading parameter, and every call passes that struct's default.
-    /// </summary>
     public static string? MarkerParameter(Constructor constructor)
     {
         return Renamed(constructor) is { } marker ? $"{marker} __overload" : null;
@@ -129,12 +143,9 @@ internal sealed class OverloadNames : IDisposable
         return node is not null && current is { } names && names.renamed.TryGetValue(node, out var name) ? name : null;
     }
 
-    /// <summary>
-    /// Every member that takes a new name, keyed by where it is declared, so a closed copy the binder makes of
-    /// it for a call reads the same name.
-    /// </summary>
-    internal static Dictionary<SyntaxNode, string> Decide(IEnumerable<MemberType> types, IEnumerable<ExtensionBlock> blocks, TypeInterner? interner)
+    internal static OverloadDecision Decide(IEnumerable<MemberType> types, IEnumerable<ExtensionBlock> blocks, TypeInterner? interner)
     {
+        using var oblivious = TypeNameEmitter.Oblivious();
         var declared = types.ToList();
         var groups = new NameGroups();
 
@@ -143,19 +154,22 @@ internal sealed class OverloadNames : IDisposable
             Link(concrete, groups, interner);
         }
 
-        var coinciding = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        var pairs = new List<(object Earlier, object Later)>();
+        var unnamed = new List<(Method Earlier, Method Later)>();
 
         foreach(var scope in declared.SelectMany(Scopes).Concat(blocks.Select(block => block.MethodsList.Cast<object>().ToList())))
         {
-            Mark(scope, groups, coinciding);
+            Mark(scope, groups, pairs, unnamed);
         }
 
         var renamed = new Dictionary<SyntaxNode, string>();
+        var pinned = new HashSet<object>(ReferenceEqualityComparer.Instance);
 
-        foreach(var group in groups.All(coinciding))
+        foreach(var group in groups.All(pairs.SelectMany(pair => new[] { pair.Earlier, pair.Later })))
         {
             if(group.Any(Pinned) || Root(group) is not { } root)
             {
+                pinned.UnionWith(group);
                 continue;
             }
 
@@ -167,7 +181,29 @@ internal sealed class OverloadNames : IDisposable
             }
         }
 
-        return renamed;
+        foreach(var (earlier, later) in pairs)
+        {
+            if(pinned.Contains(earlier) && pinned.Contains(later) && (earlier, later) is (Method first, Method second))
+            {
+                unnamed.Add((first, second));
+            }
+        }
+
+        return new OverloadDecision(renamed, unnamed);
+    }
+
+    private static void Report(Method earlier, Method later, DiagnosticBag diagnostics)
+    {
+        if((later.DeclarationNode ?? earlier.DeclarationNode) is not { } node || ValueRouteEmitter.ErasedDifference(earlier, later) is not var (slot, type))
+        {
+            return;
+        }
+
+        var typeParameters = earlier.TypeParametersList.Count == 0 ? "" : $"<{string.Join(", ", earlier.TypeParametersList.Select(parameter => parameter.Name))}>";
+        var display = $"{earlier.Name}{typeParameters}({string.Join(", ", earlier.ParametersList.Select(parameter => TypeDisplay.Mist(parameter.Type)))})";
+
+        diagnostics.ReportAtNodeTyped(
+            BackendDiagnostics.CoincidingOverloads, node, null, new NameValue(later.Name), new NameValue(display), new NameValue(slot.Name), type);
     }
 
     internal static string NameFor(object member)
@@ -234,12 +270,16 @@ internal sealed class OverloadNames : IDisposable
         }
 
         var fillers = ConformanceAnalyzer.Fillers(concrete).ToList();
+        var reached = ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, interner, concrete)
+            .Select(each => (each.Abstract, each.Substitution, Mappings: (ConformanceDeclaration?)null))
+            .Concat(concrete.ConformancesList.SelectMany(conformance => ConformanceAnalyzer.Reached([conformance.AbstractType], interner, concrete)
+                .Select(each => (each.Abstract, each.Substitution, Mappings: (ConformanceDeclaration?)conformance))));
 
-        foreach(var (definition, substitution) in ConformanceAnalyzer.Reached(concrete.BaseAbstractTypes, interner, concrete))
+        foreach(var (definition, substitution, mappings) in reached)
         {
             foreach(var slot in definition.MethodsList.Where(method => !method.Modifiers.IsStatic))
             {
-                if(ConformanceAnswers.Method(slot, substitution, fillers, mappings: null, interner) is { } answer && answer.Member.Name == slot.Name)
+                if(ConformanceAnswers.Method(slot, substitution, fillers, mappings, interner) is { } answer && answer.Member.Name == slot.Name)
                 {
                     groups.Join(slot, answer.Member.SourceDeclaration ?? answer.Member);
                 }
@@ -255,10 +295,6 @@ internal sealed class OverloadNames : IDisposable
         }
     }
 
-    /// <summary>
-    /// The members of each C# type a declaration emits, in the order the type writes them. A class's base
-    /// is left out, because a call to a member its derived class hides is written through the base type.
-    /// </summary>
     private static IEnumerable<List<object>> Scopes(MemberType type)
     {
         if(type.DeclarationNode is null)
@@ -287,8 +323,8 @@ internal sealed class OverloadNames : IDisposable
         }
 
         yield return [.. methods.Distinct<object>(ReferenceEqualityComparer.Instance)];
-        yield return [.. owners.SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance)];
-        yield return [.. owners.SelectMany(owner => owner.OperatorsList).Where(op => op.TypeParametersList.Count == 0)];
+        yield return [.. (type is AbstractType ? owners : [type]).SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance)];
+        yield return [.. type.OperatorsList.Where(op => op.TypeParametersList.Count == 0)];
 
         if(type is ConcreteType concrete)
         {
@@ -297,7 +333,7 @@ internal sealed class OverloadNames : IDisposable
         }
     }
 
-    private static void Mark(List<object> scope, NameGroups groups, HashSet<object> coinciding)
+    private static void Mark(List<object> scope, NameGroups groups, List<(object Earlier, object Later)> pairs, List<(Method Earlier, Method Later)> unnamed)
     {
         foreach(var named in scope.Where(member => Node(member) is not null).GroupBy(Key, StringComparer.Ordinal))
         {
@@ -314,12 +350,18 @@ internal sealed class OverloadNames : IDisposable
             {
                 for(var earlier = 0; earlier < later; earlier++)
                 {
-                    if(spelled[earlier] == spelled[later]
-                        && !groups.Same(members[earlier], members[later])
-                        && Erased(members[earlier], members[later]))
+                    if(spelled[earlier] != spelled[later] || !Erased(members[earlier], members[later]))
                     {
-                        _ = coinciding.Add(members[earlier]);
-                        _ = coinciding.Add(members[later]);
+                        continue;
+                    }
+
+                    if(!groups.Same(members[earlier], members[later]))
+                    {
+                        pairs.Add((members[earlier], members[later]));
+                    }
+                    else if((members[earlier], members[later]) is (Method { DeclaringType: ConcreteType } first, Method { DeclaringType: ConcreteType } second))
+                    {
+                        unnamed.Add((first, second));
                     }
                 }
             }
@@ -344,7 +386,7 @@ internal sealed class OverloadNames : IDisposable
             CastOperator conversion => $"{TypeNameEmitter.Emit(conversion.TargetType)}|{ValueRouteEmitter.Spelled(conversion)}",
             Method method => ValueRouteEmitter.Spelled(method),
             Indexer indexer => string.Join(",", indexer.ParametersList.Select(parameter =>
-                RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly) + ParameterEmitter.SpelledType(parameter, NativeSlotNullability.Declares(parameter)))),
+                RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly) + ParameterEmitter.SpelledType(parameter, slotDeclaresNullable: false))),
             _ => "",
         };
     }
@@ -438,3 +480,5 @@ internal sealed class OverloadNames : IDisposable
         }
     }
 }
+
+internal sealed record OverloadDecision(IReadOnlyDictionary<SyntaxNode, string> Renamed, IReadOnlyList<(Method Earlier, Method Later)> Unnamed);

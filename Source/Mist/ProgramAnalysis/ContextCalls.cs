@@ -10,29 +10,14 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The call graph structured-context Requirement 9 walks: every place a callable is run from, with the
-/// context keys ambient there. A callable is a method, a constructor, a local function, an operator, a
-/// conversion or a property or indexer accessor, and it is run from a call, a <c>new</c>, a constructor
-/// chain, a method named as a value, an operator applied, a conversion taken, a property or element read
-/// or written, a pattern's property test, a loop's enumerator calls, a collection element's Add, and the
-/// drop the language makes at the end of the scope that owns a value: a local's or a parameter's at its
-/// body's exit, a <c>with</c> block's value after its pop, a Drop's droppable fields at its own end. A key
-/// is HELD at a site by a <c>with</c> declaration or block whose body the site sits in, or by a <c>with</c>
-/// clause of the member the site is written in, which that member's own callers answer for. A site that
-/// holds no such key passes the question to whoever runs the callable it is in (9.3), and <see cref="Unmet"/>
-/// follows that to the first site where nobody can be asked: the entry point (9.2), a body that is no
-/// callable's -- a static initializer, an enum value -- or a member the runtime runs with no call written,
-/// a Clone or an answer to a slot Standard or the CLR declares. IDisposable's Dispose is the exception
-/// among those slots: the language disposes a value only where this graph records it, so a Dispose is
-/// transparent, and a value handed to a CLR API that disposes it is a run the program never shows. A
-/// callable nothing calls reaches no such site and is not refused. A lambda's body is judged where the
-/// lambda is written, and a method named as a value where it is named, a function value carrying no
-/// clause for its eventual caller to answer. A key naming a type parameter stops where it is, since
-/// what it becomes is each caller's type arguments' to say. Callers are followed breadth first and
-/// each callable once, which is what ends a cycle (9.8). An instance initializer and a default block
-/// entry are left out altogether: <see cref="PurityAnalyzer"/> judges each a pure scope with no
-/// inputs and refuses every ambient read reachable from one, so a finding here would be a second
-/// complaint about that mistake.
+/// Structured-context Requirement 9 follows ambient requirements through callers to an entry
+/// point, non-callable body, Clone or runtime-invoked Standard/CLR slot. IDisposable.Dispose
+/// is transparent because language disposal sites are recorded; CLR APIs that dispose values
+/// remain unseen callers. Uncalled members have no boundary to refuse.
+/// Lambdas are judged where written and method values where named: function values carry no
+/// context clause. Open keys stop at their declaration because callers determine their types.
+/// Instance initializers and default entries are excluded: <see cref="PurityAnalyzer"/>
+/// refuses their reachable ambient reads, so this graph would duplicate those findings.
 /// </summary>
 internal sealed partial class ContextCalls
 {

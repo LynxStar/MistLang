@@ -69,10 +69,8 @@ internal sealed class AnalysisContext(
     }
 
     /// <summary>
-    /// The type whose declaration a body node sits inside, or null for top-level statements, an
-    /// extension block, or a node that was never walked. What a rule about ACCESS needs and the node
-    /// cannot say: a body reaches its type only through a scope chain, which is the binder's, not the
-    /// model's.
+    /// The model has no binder scope chain. Use the walked root's owner; top-level statements,
+    /// extension blocks and unwalked nodes have none.
     /// </summary>
     public MistType? OwnerOf(object node)
     {

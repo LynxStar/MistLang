@@ -1,8 +1,7 @@
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Keyed by analyzer instance rather than by <see cref="IProgramAnalyzer.Id"/>: several distinct rules
-/// share an Id, and summing them under it would report one rule's time as another's.
+/// Distinct rules can share an <see cref="IProgramAnalyzer.Id"/>, so timings key by instance.
 /// </summary>
 internal sealed class AnalysisTimings
 {

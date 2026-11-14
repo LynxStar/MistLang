@@ -6,10 +6,8 @@ using Storm.Runtime;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Why a conversion run through a <c>Clone</c> body does not hold (newtypes spec Requirement 10.4), for the
-/// cast rule to report where a cast calls it. Each body is judged on its own by every rule, with what they
-/// find withheld: a finding there is a reason a cast is refused, not a mistake in code the program wrote,
-/// and a private member of either type is the body's to reach (10.2).
+/// Newtypes Requirements 10.4 and 10.2 require body findings to be withheld for the cast site
+/// and allow private access to either type: the cloned body is not code the program writes.
 /// </summary>
 internal static class CloneConversionRefusals
 {

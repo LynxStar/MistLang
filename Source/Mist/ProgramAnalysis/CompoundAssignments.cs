@@ -4,9 +4,7 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// <c>target = target op value</c>, the assignment a <see cref="CompoundAssignmentExpression"/> stands for,
-/// for a rule whose judgment of the node is exactly its judgment of that assignment. One instance per node, so
-/// a rule that keys anything by the operation sees the same object each time it asks.
+/// Cache one expansion per node so rules keyed by operation identity share it.
 /// </summary>
 internal static class CompoundAssignments
 {

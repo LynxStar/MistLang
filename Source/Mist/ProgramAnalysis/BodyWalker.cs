@@ -5,22 +5,11 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// Every node under a body root, in source order: expressions, statements, patterns, and the records
-/// that hold them.
-/// <para>
-/// A TABLE KEYED BY NODE TYPE, rather than reflection or a switch. Reflection is out because the CLI
-/// publishes trimmed, and a trimmed walker can lose the very properties it reads -- a shipped compiler
-/// that silently skips subtrees, which no test of the untrimmed build would ever see. A table rather
-/// than a switch because a table can be ENUMERATED: BodyWalkerCoverageTest holds its keys equal to
-/// every concrete node type in the model, so a new node kind cannot escape analysis unnoticed. An
-/// unknown node reaching the walker anyway is an internal error, thrown rather than skipped for the
-/// same reason.
-/// </para>
-/// <para>
-/// A refined type test's predicate is NOT a child. It is written once in its alias and reached from
-/// every test of that refinement, so walking it from a use site would visit one declaration's code once
-/// per use and report inside it as often.
-/// </para>
+/// Reflection can lose child properties in the trimmed CLI, silently skipping subtrees that
+/// untrimmed tests cover. A node-type table lets BodyWalkerCoverageTest require every concrete
+/// model kind; unknown kinds throw rather than escape analysis.
+/// A refined type test excludes its alias's predicate: walking it at each use duplicates
+/// analysis and diagnostics for the same declaration.
 /// </summary>
 internal static class BodyWalker
 {

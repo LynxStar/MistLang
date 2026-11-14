@@ -99,9 +99,8 @@ internal static class ContractImplication
         return source is null ? target is null : target is not null && InvariantRefinement(source, target, symbols);
     }
 
-    // A conjunction of intervals and named bounds implies another when its values fit and every bound demanded
-    // is supplied over the same symbol, as strictly or more: no arithmetic relates two symbols (refinement-types
-    // Requirement 13.4), so `< Count` never meets `<= Count - 1`, and a domain no value inhabits implies anything.
+    // Refinement-types Requirement 13.4 forbids arithmetic between symbolic bounds: implication needs
+    // the same symbol with equal or greater strictness. An empty domain implies anything.
     private static bool Implies(IMistType source, Admitted values, IMistType target, Requirement required, SymbolCorrespondence symbols)
     {
         if(values.IsSubsetOf(Admitted.Nothing))

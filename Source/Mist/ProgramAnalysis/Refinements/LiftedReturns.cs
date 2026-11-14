@@ -9,12 +9,9 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// What a member produces, read off its own returns rather than its declared type, as refinement-types
-/// Requirement 18 lifts it: `int Count { get { return 9; } }` produces `int 9` wherever it is read. Beside
-/// <see cref="ReadonlyInference"/> and for its reason -- a member proves its own signature, and a use asks
-/// the signature and never the body -- so a return that reads another member reads that member's lift,
-/// making this a fixed point over the call graph. Only a constant or a refined value lifts; what the flow
-/// narrowed does not, so the lift is exactly what the returned expressions' types already say.
+/// Refinement-types Requirement 18 lifts constant and refined returns, including other members' lifts,
+/// into a member's inferred signature. As with <see cref="ReadonlyInference"/>, uses read that signature;
+/// flow narrowing contributes nothing beyond the returned expressions' types.
 /// </summary>
 internal sealed class LiftedReturns(Func<object, FlowGraph>? graphOf = null)
 {

@@ -20,10 +20,8 @@ internal static partial class MatchedSpaces
         return Of(input, nullable: true);
     }
 
-    // A reference C# judges may be null, which no structural arm reaches, so a class or sequence read
-    // directly -- the scrutinee, a tuple element, a list element, a member -- keeps a slot only a catch-all
-    // or a negation fills: Covered refuses nothing C# would run. An optional's held value has no such
-    // slot, its absence being that null.
+    // Structural arms miss null references, so classes and sequences keep a catch-all/negation slot:
+    // Covered must allow everything C# can run. Optional held values omit it because absence is that null.
     private static ValueAlgebra<object>? Of(IMistType input, bool nullable)
     {
         if(MatchedValues.Scalar(input) is { } scalar)

@@ -29,8 +29,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// Mist name with that member's own Mist signature appended, so adding or removing another overload never
 /// changes it, and it is taken only by a group that coincides with another. A group holding a member a CLR
 /// slot names, or one with no Mist source, keeps its name and the others are renamed around it; two such
-/// groups coinciding is a CLR interface implemented at two values of a slot, which nothing can name apart,
-/// and stays <see cref="BackendDiagnostics.CoincidingOverloads"/>. C# cannot rename a constructor or an
+/// groups coinciding, or one slot answered at two closings, is one interface implemented at two values of a
+/// slot, which nothing can name apart, and stays <see cref="BackendDiagnostics.CoincidingOverloads"/>. C# cannot rename a constructor or an
 /// indexer: a renamed constructor takes an empty struct of its new name, nested in its type, as a hidden
 /// leading parameter that every call fills with its default, and a renamed indexer is emitted as accessor
 /// methods whose setter returns the value, so an assignment through it is still an expression.
@@ -212,7 +212,7 @@ internal sealed class OverloadNames : IDisposable
         {
             CastOperator conversion => (conversion.Name, 0, conversion.ParametersList, conversion.TargetType),
             Constructor constructor => ("__Ctor", constructor.TypeParametersList.Count, constructor.ParametersList, null),
-            Method method => (method.Name, method.TypeParametersList.Count, method.ParametersList, (IMistType?)null),
+            Method method => (method.Name, method.TypeParametersList.Count, method.ParametersList, null),
             Indexer indexer => ("Item", 0, indexer.ParametersList, null),
             _ => throw new InvalidOperationException($"ICE: '{member}' is not a member that can be renamed."),
         };
@@ -324,7 +324,7 @@ internal sealed class OverloadNames : IDisposable
 
         yield return [.. methods.Distinct<object>(ReferenceEqualityComparer.Instance)];
         yield return [.. (type is AbstractType ? owners : [type]).SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance)];
-        yield return [.. type.OperatorsList.Where(op => op.TypeParametersList.Count == 0)];
+        yield return [.. type.OperatorsList];
 
         if(type is ConcreteType concrete)
         {

@@ -581,7 +581,71 @@ with the hidden slot values filled in; `MistArray.Stamp` copies it into every
 element of the array or the span. MIST0498 stays for what the frontend does
 not infer: a slot stated as `unknown`, a method group converted against a
 type with a slot nested under `unknown`, and an extension block's receiver.
-Item 3 is MIST-1371.
+Item 3 is MIST-1371, below.
+
+### Identity by value: overloads that differ only in a slot
+
+Item 3 landed with MIST-1371. `OverloadNames`, a whole-program pass entered
+beside `SlotRoutes`, finds the members of one name whose emitted parameter
+lists coincide and that differ by a slot the C# type does not carry, the
+same test MIST0497 made. It reads every C# type a member lands in: a type's
+own members, a struct's flattened ancestors, a conformer's restatable
+defaults, and an interface's inherited interfaces. A class's base is not
+read, because a call to a base member a derived one hides is already written
+through the base type. Nullable annotations are ignored, as C# ignores them
+in a signature.
+
+An abstract's member and each member answering it by name are one name
+group. A group that coincides with another takes the name of its root, the
+abstract's member where there is one, as `{Name}__{signature}`, the root's
+own Mist signature spelled into an identifier. A name never depends on
+another overload, so adding a third leaves the first two as they were, and a
+program with no coinciding set emits the names it emits today. Every
+reference reads the name from the declaration, so the binder's closed copy of
+a member, a union-specialized copy and a monomorph spell it too.
+
+A constructor and an indexer keep the design's answer. A renamed constructor
+takes an empty struct of its new name, nested in its type, as a hidden
+leading parameter, and every call passes the struct's default. A renamed
+indexer is emitted as `get_` and `set_` methods; the setter returns its
+value, so an assignment through it is still an expression and a compound
+assignment binds the receiver and the index once. A renamed operator or
+conversion is a static method that every use calls, as `CarriedOperator`
+already did for a generic operator.
+
+A member that answers a CLR slot, or one with no Mist source, cannot be
+renamed. It keeps its name and the members it coincides with are renamed
+around it: `Equals(Ring<3>)` answering `IEquatable<Ring<3>>` beside
+`Equals(Ring<4>)`. Two such members coincide only where one interface is
+implemented at two values of the slot, `IEquatable<Ring<3>>` and
+`IEquatable<Ring<4>>`, which is one C# interface listed twice. That stays
+MIST0497; it is the CLR form of MIST0493.
+
+Every kind of member that can be overloaded:
+
+| Member | Disposition |
+|---|---|
+| Instance method, static method | Renamed. |
+| Extension block's method | Renamed; one block is one carrier class, so one scope. |
+| Constructor | Renamed through the marker parameter, at `new`, a `this` or `base` chain, a struct ancestor's initializer and its chain call, a constructor witness's factory, a constraint interface's `__New`, and a newtype restating the constructor. |
+| Indexer | Renamed as accessor methods, at a read, an assignment, `??=`, a compound assignment and an increment. |
+| Operator | Renamed as a static method, at a binary, unary and compound use. |
+| Conversion | Renamed as a static method, at a cast and an implicit conversion. A type's conversions are one scope with the target in the list, as C# keys a conversion by source and target. |
+| Abstract's member and each implementing member | Renamed as one group, including a member inherited from a base class and a `with` conformance's answer by name. A mapped answer, `Three as Name`, is not joined: its explicit implementation forwards by the source's own name. |
+| Default member restated into a conformer | Renamed; the restatement is the abstract's member, and a conformer's own member suppresses it by the C# name. |
+| Local function | Cannot coincide: two of one name in a scope are MIST0368, and a nested redeclaration is renamed apart by `LocalNames`. |
+
+Every place the emitter spells a member's name, each of which spells the new
+name: a call by name; a call through a receiver or `this`; a call to a hidden
+base member, written through the base type (Mist has no `base.` member
+access); an extension call through its carrier or as an extension; a method
+group, a respelled group's lambda and a group reached through an unsafe
+accessor, and with them a delegate creation; an explicit interface
+implementation and its forwarding call in each slot bridge; a flattened base
+struct's member; a union-specialized copy, whose own `__o{index}` names still
+win inside the copy; a monomorph; an `UnsafeAccessor` name; and the CLR name
+the program exports, which is the new name, with the marker parameter and the
+accessor methods visible to a C# consumer.
 
 ### Identity by value: static storage
 
@@ -883,7 +947,9 @@ cannot be answered:
   MIST0503. The elements start from the CLR zero, the hidden field with them.
   Both retired by item 4 of *Identity by value*.
 - Overloads that differ only in a slot the backend does not carry in the type,
-  MIST0497. `Name(int[3])` beside `Name(int[4])` is one of them.
+  MIST0497. `Name(int[3])` beside `Name(int[4])` is one of them. Item 3 of
+  *Identity by value* renames them apart; the number stays for two members
+  no C# name can part, one interface implemented at two values of a slot.
 - A method's slot inferred from a closing nested in another type's argument,
   MIST0498. No member reads the value back. Item 2 of *Identity by value*
   carries a capture in a local; the number stays for a slot nested under

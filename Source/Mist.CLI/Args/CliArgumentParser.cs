@@ -4,23 +4,13 @@ using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Args;
 
-/// <summary>
-/// Error produced during CLI argument parsing.
-/// </summary>
 public sealed record CliParseError(MistDiagnostic Descriptor, ImmutableArray<SlotValue> Arguments)
 {
     public string Message => DiagnosticRenderer.Render(Descriptor, Arguments);
 }
 
-/// <summary>
-/// Result of CLI argument parsing.
-/// </summary>
 public sealed record CliParseResult(CliArguments? Arguments, IReadOnlyList<CliParseError> Errors, DiagnosticControls? Diagnostics = null, string? DiagnosticError = null);
 
-/// <summary>
-/// Hand-rolled argument parser for the Mist CLI.
-/// Parses: <c>mist &lt;build|run|test|steering|inspect|restore&gt; [project-folder] [--backend &lt;id&gt;] [--output &lt;dir&gt;] [--bin &lt;dir&gt;] [--mode &lt;compile|lex&gt;] [--quiet] [--verbose]</c>
-/// </summary>
 public static class CliArgumentParser
 {
     public static CliParseResult Parse(string[] args)
@@ -181,15 +171,11 @@ public static class CliArgumentParser
             }
         }
 
-        // --verbose and --quiet are mutually exclusive
         if(verbose && quiet)
         {
             errors.Add(new CliParseError(CommandDiagnostics.ConflictingVerbosity, []));
         }
 
-        // Detect command verb from the first positional argument.
-        // If no positional arguments exist and no flags were provided,
-        // the command stays None (triggers help output).
         var command = CliCommand.None;
         string? inspectTypeName = null;
 
@@ -213,7 +199,6 @@ public static class CliArgumentParser
             command = CliCommand.Inspect;
             positionalArgs.RemoveAt(0);
 
-            // Capture the next positional argument as the type name
             if(positionalArgs.Count > 0)
             {
                 inspectTypeName = positionalArgs[0];
@@ -236,26 +221,21 @@ public static class CliArgumentParser
             positionalArgs.RemoveAt(0);
         }
 
-        // Validate run + lex mode combination
         if(command == CliCommand.Run && mode == CompilerMode.Lex)
         {
             errors.Add(new CliParseError(CommandDiagnostics.LexCommandIncompatible, [new EnumValue("run")]));
         }
 
-        // Validate test + lex mode combination
         if(command == CliCommand.Test && mode == CompilerMode.Lex)
         {
             errors.Add(new CliParseError(CommandDiagnostics.LexCommandIncompatible, [new EnumValue("test")]));
         }
 
-        // If no explicit command verb was given but there are positional args
-        // (a project folder path), treat it as an implicit `build` command.
         if(command == CliCommand.None && positionalArgs.Count > 0)
         {
             command = CliCommand.Build;
         }
 
-        // Version command needs no project folder or further validation.
         if(command == CliCommand.Version)
         {
             if(errors.Count > 0)
@@ -268,7 +248,6 @@ public static class CliArgumentParser
                 errors);
         }
 
-        // None command (bare `mist` with no args) needs no project folder.
         if(command == CliCommand.None)
         {
             if(errors.Count > 0)
@@ -281,7 +260,6 @@ public static class CliArgumentParser
                 errors);
         }
 
-        // Validate positional arguments
         string? projectFolder = null;
 
         if(positionalArgs.Count > 1)
@@ -315,7 +293,6 @@ public static class CliArgumentParser
             return new CliParseResult(null, errors);
         }
 
-        // Resolve default directories
         if(string.IsNullOrEmpty(outputDirectory))
         {
             outputDirectory = Path.Combine(projectFolder!, "out");

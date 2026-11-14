@@ -25,7 +25,6 @@ public sealed record SteeringInstallResult(
 
     public string? Error => FailureDiagnostic?.Occurrence.Message;
 
-    /// <summary>Creates a failure result carrying the supplied <paramref name="error"/> message.</summary>
     public static SteeringInstallResult Failure(Admission error)
     {
         return new(false, error, Empty, Empty, Empty, [], false);
@@ -71,33 +70,11 @@ public static class SteeringInstaller
         return Path.Combine(projectFolder, ".mist", "agents");
     }
 
-    /// <summary>
-    /// Installs the bundled reference files and block into <paramref name="projectFolder"/>.
-    /// </summary>
-    /// <param name="projectFolder">The project root. The reference directory is created if absent.</param>
-    /// <returns>
-    /// A result describing what was removed, installed, merged and skipped. On failure,
-    /// <see cref="SteeringInstallResult.Succeeded"/> is <c>false</c> and
-    /// <see cref="SteeringInstallResult.Error"/> carries the reason.
-    /// </returns>
     public static SteeringInstallResult Install(string projectFolder)
     {
         return InstallFrom(projectFolder, Path.Combine(AppContext.BaseDirectory, "Steering"));
     }
 
-    /// <summary>
-    /// Installs from an explicit <paramref name="sourceRoot"/> into <paramref name="projectFolder"/>.
-    /// The production entry point <see cref="Install(string)"/> anchors the source root at
-    /// <see cref="AppContext.BaseDirectory"/>; this overload lets callers (and tests)
-    /// supply an arbitrary bundled set.
-    /// </summary>
-    /// <param name="projectFolder">The project root. The reference directory is created if absent.</param>
-    /// <param name="sourceRoot">Directory containing the bundled <c>mist-*.md</c> files and <see cref="BlockTemplateFileName"/>.</param>
-    /// <returns>
-    /// A result describing what was removed, installed, merged and skipped. On failure,
-    /// <see cref="SteeringInstallResult.Succeeded"/> is <c>false</c> and
-    /// <see cref="SteeringInstallResult.Error"/> carries the reason.
-    /// </returns>
     public static SteeringInstallResult InstallFrom(string projectFolder, string sourceRoot)
     {
         string[] bundledFiles;

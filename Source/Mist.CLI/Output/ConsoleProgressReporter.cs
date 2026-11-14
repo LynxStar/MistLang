@@ -3,10 +3,6 @@ using Mist.Driver.Contracts;
 
 namespace Mist.CLI.Output;
 
-/// <summary>
-/// Writes human-readable compilation progress to a <see cref="TextWriter"/>.
-/// Accepts a <see cref="TextWriter"/> in the constructor for testability.
-/// </summary>
 public sealed class ConsoleProgressReporter : ICompilationProgressReporter
 {
     private readonly TextWriter @out;
@@ -29,7 +25,7 @@ public sealed class ConsoleProgressReporter : ICompilationProgressReporter
         }
 
         @out.WriteLine(string.Create(CultureInfo.InvariantCulture, $"    Took {elapsed.TotalSeconds:F2}s"));
-        @out.WriteLine(); // blank separator line
+        @out.WriteLine();
     }
 
     public void ReportBuildSummary(bool succeeded, int errorCount, int warningCount, TimeSpan totalElapsed)

@@ -40,7 +40,7 @@ public static class ManagedBlock
             return new(ManagedBlockOutcome.Appended, appended, null);
         }
 
-        // A lone or repeated marker means someone edited the fence; guessing which lines are ours could delete theirs.
+        // Ambiguous fences risk deleting user text, so merging refuses them.
         if(begins.Count != 1 || ends.Count != 1 || begins[0] > ends[0])
         {
             return new(

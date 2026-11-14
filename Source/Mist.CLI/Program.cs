@@ -83,7 +83,6 @@ internal partial class Program
             return null;
         }
 
-        // Stage 0: Cleaning
         reporter.ReportStageStart("0", "Cleaning");
         var cleanStopwatch = Stopwatch.StartNew();
 
@@ -141,8 +140,6 @@ internal partial class Program
                 output.Stream(diagnostic);
             }
 
-            // Build the output: hidden tokens render as their literal content,
-            // default-channel tokens render as [TokenKind: lexeme].
             var sb = new System.Text.StringBuilder();
             foreach(var token in tokenStream.AllTokens)
             {
@@ -166,7 +163,6 @@ internal partial class Program
             _ = Directory.CreateDirectory(Path.GetDirectoryName(artifacts.SourcePath)!);
             File.WriteAllText(artifacts.TokensPath, sb.ToString());
 
-            // Reconstruct source from token lexemes and write .mist file
             var reconstructed = string.Concat(
                 tokenStream.AllTokens
                     .Where(t => t.Kind != (int)Mist.Generated.TokenKind.EndOfFile)
@@ -174,7 +170,6 @@ internal partial class Program
 
             File.WriteAllText(artifacts.SourcePath, reconstructed);
 
-            // Round-trip check: reconstructed must match original
             if(reconstructed != source)
             {
                 hasErrors = true;
@@ -221,7 +216,6 @@ internal partial class Program
         IResolutionDiagnosticListener resolutionListener,
         ProjectConfiguration? configuration = null)
     {
-        // Parse the project file to get the project name
         var parseDiagnostics = new DiagnosticBag(output.Operation);
         var config = configuration ?? ProjectFileParser.ParseRoot(Path.GetFullPath(cliArgs.ProjectFolder), parseDiagnostics);
 
@@ -231,7 +225,6 @@ internal partial class Program
             return new CompilerResult(false, null, parseDiagnostics.ToImmutableArray());
         }
 
-        // Map CLI arguments to CompilerOptions
         var options = new CompilerOptions(
             ProjectFolder: Path.GetFullPath(cliArgs.ProjectFolder),
             SourcePaths: [.. sourceFiles],
@@ -261,7 +254,6 @@ internal partial class Program
 
         var driver = new CompilerDriver(new MistLexer(), new MistParser(), progressReporter, resolutionListener);
 
-        // Run compilation
         return driver.Compile(options);
     }
 
@@ -281,8 +273,7 @@ internal partial class Program
             return 1;
         }
 
-        // For `run`, timing/progress output is hidden by default (clean stdout for the program).
-        // Use --verbose to see it. --quiet still suppresses everything.
+        // Progress requires --verbose so the program keeps stdout to itself.
         ICompilationProgressReporter reporter = cliArgs.Verbose
             ? new ConsoleProgressReporter(Console.Out)
             : NullProgressReporter.Instance;
@@ -367,7 +358,6 @@ internal partial class Program
             return 1;
         }
 
-        // Parse the project file
         var parseDiagnostics = new DiagnosticBag(output.Operation);
         var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
@@ -393,7 +383,6 @@ internal partial class Program
             return 1;
         }
 
-        // Resolve SDK + package + framework assemblies (same as a build would use)
         var resolutionDiagnostics = new DiagnosticBag(output.Operation);
         var feedback = new InspectFeedback(output.Stream);
         var packageResult = PackageResolver.ResolvePackages(
@@ -414,12 +403,10 @@ internal partial class Program
             return 1;
         }
 
-        // Merge additional assembly paths from packages and framework references
         var additionalPaths = packageResult.AssemblyPaths
             .AddRange(frameworkResult.AssemblyPaths)
             .AddRange(references.ExternalAssemblies.Select(external => external.Path));
 
-        // Use the TypeInspector to resolve and print the inspection report
         var result = TypeInspector.Inspect(
             config.TargetFramework,
             additionalPaths,
@@ -440,7 +427,6 @@ internal partial class Program
             return 1;
         }
 
-        // Parse the project file
         var parseDiagnostics = new DiagnosticBag(output.Operation);
         var config = ProjectFileParser.ParseRoot(projectFolder, parseDiagnostics);
 
@@ -452,9 +438,6 @@ internal partial class Program
         return ChildProcessRunner.Run(new ProcessStartInfo("dotnet", [artifactPath]) { UseShellExecute = false }, output);
     }
 
-    /// <summary>
-    /// Deletes all files and subdirectories within a directory. No-op if the directory does not exist.
-    /// </summary>
     private static void CleanDirectory(string path)
     {
         if(!Directory.Exists(path))

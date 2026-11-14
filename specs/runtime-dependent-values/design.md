@@ -590,10 +590,14 @@ beside `SlotRoutes`, finds the members of one name whose emitted parameter
 lists coincide and that differ by a slot the C# type does not carry, the
 same test MIST0497 made. It reads every C# type a member lands in: a type's
 own members, a struct's flattened ancestors, a conformer's restatable
-defaults, and an interface's inherited interfaces. A class's base is not
-read, because a call to a base member a derived one hides is already written
-through the base type. Nullable annotations are ignored, as C# ignores them
-in a signature.
+defaults, an interface's inherited interfaces, and a class's base classes.
+A base class's members are read at the closing the class writes for each
+base, so `Name(T)` on `Base<T>` meets `Name(Ring<4>)` on a class written
+`: Base<Ring<3>>`. Mist has no virtual members, so in C# the derived member
+hides the base one. A direct call is cast to the base type and reaches it
+anyway, but a method group, an indexer read and an interface answered by the
+base member do not, so the two are renamed apart. Nullable annotations are
+ignored, as C# ignores them in a signature.
 
 An abstract's member and each member answering it by name are one name
 group. A group that coincides with another takes the name of its root, the
@@ -625,10 +629,10 @@ Every kind of member that can be overloaded:
 
 | Member | Disposition |
 |---|---|
-| Instance method, static method | Renamed. |
+| Instance method, static method | Renamed, also apart from a base class's member of the same parameters, which it would hide. |
 | Extension block's method | Renamed; one block is one carrier class, so one scope. |
 | Constructor | Renamed through the marker parameter, at `new`, a `this` or `base` chain, a struct ancestor's initializer and its chain call, a constructor witness's factory, a constraint interface's `__New`, and a newtype restating the constructor. |
-| Indexer | Renamed as accessor methods, at a read, an assignment, `??=`, a compound assignment and an increment. |
+| Indexer | Renamed as accessor methods, at a read, an assignment, `??=`, a compound assignment and an increment, also apart from a base class's indexer. |
 | Operator | Renamed as a static method, at a binary, unary and compound use. |
 | Conversion | Renamed as a static method, at a cast and an implicit conversion. A type's conversions are one scope with the target in the list, as C# keys a conversion by source and target. |
 | Abstract's member and each implementing member | Renamed as one group, including a member inherited from a base class and a `with` conformance's answer by name. A mapped answer, `Three as Name`, is not joined: its explicit implementation forwards by the source's own name. |

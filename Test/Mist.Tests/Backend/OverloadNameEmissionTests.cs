@@ -90,6 +90,46 @@ public sealed class OverloadNameEmissionTests
     }
 
     [Fact]
+    public void ABaseMemberADerivedOneWouldHideIsDeclaredReachedAndGroupedUnderItsNewName()
+    {
+        var baseClass = Declared("Base");
+        var three = Method(baseClass, "Name", Ring(3));
+        var derived = Declared("Derived");
+        derived.BaseType = baseClass;
+        _ = Method(derived, "Name", Ring(4));
+        var d = HandBuiltRefinements.Local(derived, "d");
+        var r = HandBuiltRefinements.Local(Ring(3), "r");
+        using var routes = SlotRoutes.Enter([capacity]);
+        using var names = Names(baseClass, derived);
+
+        Assert.Contains($"public int {Three}(Probe.Ring p0)", TypeBody(baseClass));
+        Assert.Contains($"public int {Four}(Probe.Ring p0)", TypeBody(derived));
+        Assert.EndsWith($".{Three}(r)", Emit(Through(d, three, r)), StringComparison.Ordinal);
+        Assert.Equal($"d.{Three}", Emit(new FunctionReferenceExpression(HandBuiltModel.Node(), d, three, new FunctionType([Ring(3)], slots.Int))));
+    }
+
+    [Fact]
+    public void ABaseIndexerADerivedOneWouldHideIsReadAndWrittenThroughItsAccessorsFromADerivedReceiver()
+    {
+        var baseClass = Declared("Base");
+        var three = AddIndexer(baseClass, 3);
+        var derived = Declared("Derived");
+        derived.BaseType = baseClass;
+        _ = AddIndexer(derived, 4);
+        var d = HandBuiltRefinements.Local(derived, "d");
+        var element = new IndexExpression(HandBuiltModel.Node(), d, HandBuiltRefinements.Local(Ring(3), "r"), slots.Int) { Indexer = three };
+        using var routes = SlotRoutes.Enter([capacity]);
+        using var names = Names(baseClass, derived);
+
+        Assert.Contains("public int get_Item__Probe_dRing_l3_r(Probe.Ring r)", TypeBody(baseClass));
+        Assert.Contains("public int get_Item__Probe_dRing_l4_r(Probe.Ring r)", TypeBody(derived));
+        Assert.Equal("d.get_Item__Probe_dRing_l3_r(r)", Emit(element));
+        Assert.Equal(
+            "d.set_Item__Probe_dRing_l3_r(r, 1)",
+            Emit(new AssignmentExpression(HandBuiltModel.Node(), element, HandBuiltModel.Literal(slots.Int, 1), slots.Int)));
+    }
+
+    [Fact]
     public void AnAbstractsPairAndTheImplementingTypesPairAreDeclaredUnderOneName()
     {
         var namer = new AbstractType("Namer", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public };

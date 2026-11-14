@@ -236,6 +236,86 @@ public sealed class OverloadNameDecisionTests
     }
 
     [Fact]
+    public void ABaseClassesMemberCoincidesWithTheDerivedClasses_AndEachIsNamedFromItsOwnSignature()
+    {
+        var baseClass = Declared("Base");
+        var inherited = Method(baseClass, "Name", Ring(3));
+        var derived = Declared("Derived");
+        derived.BaseType = baseClass;
+        var own = Method(derived, "Name", Ring(4));
+        var sibling = Declared("Sibling");
+        sibling.BaseType = baseClass;
+        var quiet = Method(sibling, "Name", slots.Int);
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var decision = OverloadNames.Decide([baseClass, derived, sibling], [], slots.Refinements.Built.Interner);
+
+        Assert.Equal("Name__Probe_dRing_l3_r", decision.Renamed[inherited.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", decision.Renamed[own.DeclarationNode!]);
+        Assert.False(decision.Renamed.ContainsKey(quiet.DeclarationNode!));
+        Assert.Equal(2, decision.Renamed.Count);
+        Assert.Empty(decision.Unnamed);
+    }
+
+    [Fact]
+    public void AGenericBasesMemberCoincidesOnlyAtTheClosingADerivedClassWrites_AndKeepsOneNameForEveryClosing()
+    {
+        var generic = Declared("Base<>");
+        var t = new TypeParameter("T", 0, generic.Scope, generic);
+        generic.TypeParametersList.Add(t);
+        var inherited = Method(generic, "Name", t);
+        var derived = Declared("Derived");
+        derived.BaseType = slots.Closed(generic, Ring(3));
+        var own = Method(derived, "Name", Ring(4));
+        var other = Declared("Other");
+        other.BaseType = slots.Closed(generic, slots.Int);
+        var apart = Method(other, "Name", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(generic, derived, other);
+
+        Assert.Equal(OverloadNames.NameFor(inherited), renamed[inherited.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+        Assert.False(renamed.ContainsKey(apart.DeclarationNode!));
+    }
+
+    [Fact]
+    public void ABaseClassesIndexerCoincidesWithTheDerivedClasses()
+    {
+        var baseClass = Declared("Base");
+        var inherited = AddIndexer(baseClass, 3);
+        var derived = Declared("Derived");
+        derived.BaseType = baseClass;
+        var own = AddIndexer(derived, 4);
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(baseClass, derived);
+
+        Assert.Equal("Item__Probe_dRing_l3_r", renamed[inherited.DeclarationNode!]);
+        Assert.Equal("Item__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+    }
+
+    [Fact]
+    public void ABaseMemberAnsweringASlotWithNoMistSourceKeepsItsName_AndTheDerivedMemberIsRenamedAroundIt()
+    {
+        var equatable = new AbstractType("IEquatable", "System", new Scope(null), null, null) { Modifiers = Public };
+        equatable.MethodsList.Add(new Method("Equals", slots.Int, [new Parameter("other", Ring(3))], Public) { DeclaringType = equatable, Scope = equatable.Scope });
+        var baseClass = Declared("Base");
+        baseClass.BaseAbstractTypes.Add(equatable);
+        var pinned = Method(baseClass, "Equals", Ring(3));
+        var derived = Declared("Derived");
+        derived.BaseType = baseClass;
+        var own = Method(derived, "Equals", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var decision = OverloadNames.Decide([equatable, baseClass, derived], [], slots.Refinements.Built.Interner);
+
+        Assert.False(decision.Renamed.ContainsKey(pinned.DeclarationNode!));
+        Assert.Equal("Equals__Probe_dRing_l4_r", decision.Renamed[own.DeclarationNode!]);
+        Assert.Empty(decision.Unnamed);
+    }
+
+    [Fact]
     public void AnExtensionBlocksPairIsRenamed()
     {
         var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "StringExtensions", ResolvedReceiverType = slots.Int };

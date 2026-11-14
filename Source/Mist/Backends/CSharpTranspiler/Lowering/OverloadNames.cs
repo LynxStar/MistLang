@@ -23,8 +23,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// program, and keyed by declaration so a closed copy the binder makes of a member reads the same name,
 /// because a member lands in more C# types than the one declaring it: a struct holds its flattened
 /// ancestors' members, a conformer restates an abstract's defaults, and an interface sees the members of
-/// the interfaces it extends. A class's base is left out, because a call to a base member a derived one
-/// hides is written through the base type. An abstract's member and every member answering it by name are
+/// the interfaces it extends. A class also meets its base classes' members, read at the closing it writes
+/// for each base, because C# hides a base member under a derived one with the same parameters, and a method
+/// group, an indexer read or an interface answer through the derived type would reach the wrong one. An abstract's member and every member answering it by name are
 /// one name group, since C# implements an interface member by name. A name is the group's root member's
 /// Mist name with that member's own Mist signature appended, so adding or removing another overload never
 /// changes it, and it is taken only by a group that coincides with another. A group holding a member a CLR
@@ -156,11 +157,15 @@ internal sealed class OverloadNames : IDisposable
 
         var pairs = new List<(object Earlier, object Later)>();
         var unnamed = new List<(Method Earlier, Method Later)>();
+        var closings = new Dictionary<object, object>(ReferenceEqualityComparer.Instance);
 
-        foreach(var scope in declared.SelectMany(Scopes).Concat(blocks.Select(block => block.MethodsList.Cast<object>().ToList())))
+        foreach(var scope in declared.SelectMany(type => Scopes(type, closings)).Concat(blocks.Select(block => block.MethodsList.Cast<object>().ToList())))
         {
-            Mark(scope, groups, pairs, unnamed);
+            Mark(scope, closings, groups, pairs, unnamed);
         }
+
+        pairs = [.. pairs.Distinct()];
+        unnamed = [.. unnamed.Distinct()];
 
         var renamed = new Dictionary<SyntaxNode, string>();
         var pinned = new HashSet<object>(ReferenceEqualityComparer.Instance);
@@ -295,7 +300,7 @@ internal sealed class OverloadNames : IDisposable
         }
     }
 
-    private static IEnumerable<List<object>> Scopes(MemberType type)
+    private static IEnumerable<List<object>> Scopes(MemberType type, Dictionary<object, object> closings)
     {
         if(type.DeclarationNode is null)
         {
@@ -303,6 +308,7 @@ internal sealed class OverloadNames : IDisposable
         }
 
         var owners = new List<MemberType> { type };
+        var inherited = type is ConcreteType and not StructType ? Inherited((ConcreteType)type, closings).ToList() : [];
 
         if(type is StructType flattened)
         {
@@ -322,8 +328,8 @@ internal sealed class OverloadNames : IDisposable
                 .Where(method => method.Body is not null && !method.Modifiers.IsStatic));
         }
 
-        yield return [.. methods.Distinct<object>(ReferenceEqualityComparer.Instance)];
-        yield return [.. (type is AbstractType ? owners : [type]).SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance)];
+        yield return [.. methods.Distinct<object>(ReferenceEqualityComparer.Instance), .. inherited.Where(member => member is Method)];
+        yield return [.. (type is AbstractType ? owners : [type]).SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance), .. inherited.Where(member => member is Indexer)];
         yield return [.. type.OperatorsList];
 
         if(type is ConcreteType concrete)
@@ -333,9 +339,76 @@ internal sealed class OverloadNames : IDisposable
         }
     }
 
-    private static void Mark(List<object> scope, NameGroups groups, List<(object Earlier, object Later)> pairs, List<(Method Earlier, Method Later)> unnamed)
+    private static IEnumerable<object> Inherited(ConcreteType type, Dictionary<object, object> closings)
     {
-        foreach(var named in scope.Where(member => Node(member) is not null).GroupBy(Key, StringComparer.Ordinal))
+        for(IMistType? written = type.BaseType; written is not null && Defaultability.DeclarationOf(written) is ConcreteType ancestor and not StructType;)
+        {
+            var closing = TypeSubstitution.ForReceiver(written as ConstructedType);
+            var restated = AbstractInheritance.Reached(ancestor.BaseAbstractTypes, interner: null)
+                .SelectMany(reached => reached.Definition.MethodsList)
+                .Where(method => method.Body is not null && !method.Modifiers.IsStatic);
+
+            foreach(var method in ancestor.MethodsList.Concat(restated).Distinct())
+            {
+                yield return written is ConstructedType ? Closed(method, closing, closings) : method;
+            }
+
+            foreach(var indexer in ancestor.IndexersList)
+            {
+                yield return written is ConstructedType ? Closed(indexer, closing, closings) : indexer;
+            }
+
+            written = ancestor.BaseType is { } next ? closing.Apply(next, interner: null) : null;
+        }
+    }
+
+    private static object Closed(Method method, TypeSubstitution closing, Dictionary<object, object> closings)
+    {
+        var closed = new Method(method.Name, closing.Apply(method.ReturnType, interner: null), Closed(method.ParametersList, closing), method.Modifiers)
+        {
+            DeclaringType = method.DeclaringType,
+            DeclaringBlock = method.DeclaringBlock,
+            DeclarationNode = method.DeclarationNode,
+            SourceDeclaration = method.SourceDeclaration ?? method,
+        };
+        closed.TypeParametersList.AddRange(method.TypeParametersList);
+        closed.AttributesList.AddRange(method.AttributesList);
+        closings[closed] = method;
+        return closed;
+    }
+
+    private static object Closed(Indexer indexer, TypeSubstitution closing, Dictionary<object, object> closings)
+    {
+        var closed = new Indexer(closing.Apply(indexer.Type, interner: null), Closed(indexer.ParametersList, closing), indexer.Modifiers)
+        {
+            DeclaringType = indexer.DeclaringType,
+            DeclarationNode = indexer.DeclarationNode,
+            SlotKind = indexer.SlotKind,
+        };
+        closings[closed] = indexer;
+        return closed;
+    }
+
+    private static List<Parameter> Closed(List<Parameter> parameters, TypeSubstitution closing)
+    {
+        return parameters.ConvertAll(parameter =>
+        {
+            var closed = new Parameter(parameter.Name, closing.Apply(parameter.Type, interner: null), parameter.Modifier)
+            {
+                IsFlattened = parameter.IsFlattened,
+                IsFailed = parameter.IsFailed,
+                HasNativeDefault = parameter.HasNativeDefault,
+            };
+            closed.AttributesList.AddRange(parameter.AttributesList);
+            closed.DeclaredAttributesList.AddRange(parameter.DeclaredAttributesList);
+            return closed;
+        });
+    }
+
+    private static void Mark(
+        List<object> scope, Dictionary<object, object> closings, NameGroups groups, List<(object Earlier, object Later)> pairs, List<(Method Earlier, Method Later)> unnamed)
+    {
+        foreach(var named in scope.Where(member => Node(member) is not null || closings.ContainsKey(member)).GroupBy(Key, StringComparer.Ordinal))
         {
             var members = named.ToList();
 
@@ -355,11 +428,13 @@ internal sealed class OverloadNames : IDisposable
                         continue;
                     }
 
-                    if(!groups.Same(members[earlier], members[later]))
+                    var (one, other) = (closings.GetValueOrDefault(members[earlier], members[earlier]), closings.GetValueOrDefault(members[later], members[later]));
+
+                    if(!groups.Same(one, other))
                     {
-                        pairs.Add((members[earlier], members[later]));
+                        pairs.Add((one, other));
                     }
-                    else if((members[earlier], members[later]) is (Method { DeclaringType: ConcreteType } first, Method { DeclaringType: ConcreteType } second))
+                    else if((one, other) is (Method { DeclaringType: ConcreteType } first, Method { DeclaringType: ConcreteType } second))
                     {
                         unnamed.Add((first, second));
                     }

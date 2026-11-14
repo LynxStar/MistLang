@@ -4,6 +4,7 @@ using Mist.ProgramModel.Model.Expressions;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
+/// Each block emits as one C# initializer, which cannot mix member assignments with collection elements.
 /// Unresolved initializer targets belong to the binder's refusal and do not count as assigned storage.
 /// </summary>
 internal sealed class InitializerAnalyzer : IProgramAnalyzer

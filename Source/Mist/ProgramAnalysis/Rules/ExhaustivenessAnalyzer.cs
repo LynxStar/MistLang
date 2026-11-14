@@ -10,19 +10,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A switch expression some value of its scrutinee reaches no arm of.
-/// <para>
-/// IT REPORTS ONLY WHAT THE MODEL PROVES: a case is named missing when no unguarded arm could match it,
-/// never merely because this rule cannot see how the arms cover it. Over a bool, an enum, an integral or a
-/// tuple of them, <see cref="FiniteCoverage"/> searches the arms' value sets for a cell they leave --
-/// samples/TuplePatternMatching switches over (int, int) with seven relational arms and no catch-all, and
-/// is proven exhaustive rather than merely unrefused -- and gives no verdict when an arm has no reading,
-/// which leaves anything unbounded reported only when every arm is guarded or a constant, since finitely
-/// many constants cannot cover it. A union's constituent is missing when no arm, guarded or not, could
-/// match a value of it: a type test of another constituent cannot, nor can a constant no value of the
-/// constituent equals, which is how value arms over an optional leave `void` missing; a partially covered
-/// constituent is not reported.
-/// </para>
+/// Report only proven missing values. <see cref="FiniteCoverage"/> gives no verdict for an unreadable arm;
+/// on unbounded inputs only guarded or constant arms prove a gap, since finitely many constants cannot cover it.
+/// A union constituent is missing only if no arm, even a guarded one, could match any of its values;
+/// partial coverage is not reported.
 /// </summary>
 internal sealed class ExhaustivenessAnalyzer : IProgramAnalyzer
 {

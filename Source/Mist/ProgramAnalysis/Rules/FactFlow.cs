@@ -182,9 +182,8 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         };
     }
 
-    // A failed comparison of binary reals may have met a NaN, which no fact over the order can say, so it states nothing;
-    // a successful one met none, and an equality carries a witness of that, since its own fact reads as a copy and
-    // cancels to nothing when both sides read alike.
+    // A failed binary-real comparison may involve NaN and proves no order fact. Success excludes NaN;
+    // equality needs a separate witness because identical copied terms cancel its own fact.
     private (Fact Fact, bool Deniable, IReadOnlyList<Fact>? Witness)? Compared(ref FactState state, BinaryExpression comparison, ComparisonKind kind)
     {
         var left = comparison.Left.Type;

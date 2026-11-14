@@ -9,21 +9,11 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A type that needs a default and has none, and a <c>default</c> of a class, struct or type parameter with none. A type
-/// needs one when it declares a default block or no constructor, its only value then being its default:
-/// it is refused at its declaration, naming each slot of storage and the base without one, and a
-/// <c>default</c> of it is not refused a second time. A generic declaration is refused only for what
-/// fails under every argument; an instantiation whose arguments leave it no default is refused where
-/// that default is needed, which for a constructorless declaration includes an implicit <c>new</c>.
-/// <see cref="Defaultability"/> is the decision.
-/// <para>
-/// One mistake, one complaint: a slot or base whose default would come from another type that needs a
-/// default and has none is left to that type's own refusal, which a chain of holders would otherwise
-/// repeat at every link. Two exceptions keep that sound. A type that holds no slot or base of its own to
-/// refuse -- one without a default only through a CLR base or a type parameter -- refuses nothing, so the
-/// holder is refused instead. And a type that reaches the holder again forms a cycle, which nothing below
-/// it explains, so each slot or base closing the cycle is refused.
-/// </para>
+/// Generic declarations are refused only for failures common to every closing; argument-dependent
+/// defaults are checked where needed, including implicit construction of constructorless types.
+/// A holder defers to a held type's own default refusal to avoid repeating it along the chain, except
+/// when that type has no slot or base of its own to report (only a CLR base or type parameter), or
+/// reaches the holder again in a cycle. <see cref="Defaultability"/> supplies the default decisions.
 /// </summary>
 internal sealed class DefaultabilityAnalyzer : IProgramAnalyzer
 {

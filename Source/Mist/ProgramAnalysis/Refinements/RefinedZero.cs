@@ -5,10 +5,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// Whether a refinement admits its base's zero, which is where storage of it starts when nothing is
-/// written: Defaultability gives a refinement its base's default without reading the predicate. Only an
-/// intrinsic base has a zero decided here, an enum's designated variant or a class's default being no
-/// constant the prover can test, so any other base is not admitted.
+/// Defaultability supplies the base default without checking the predicate, so storage needs a separate
+/// proof. Only intrinsic zeros are decidable here; enum designated variants and class defaults are not.
 /// </summary>
 internal static class RefinedZero
 {

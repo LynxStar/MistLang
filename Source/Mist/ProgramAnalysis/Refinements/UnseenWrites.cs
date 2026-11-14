@@ -8,11 +8,9 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// The holders of one body that can be written where its flow does not look: assigned inside a closure
-/// that captured them, which runs whenever it is called; handed to a `ref` or `out` parameter; or aliased
-/// by a ref local, the alias included. What the flow learned of such a holder may be stale at any later
-/// step, and there is no runtime guard behind a proof, so the flow keeps nothing of them and each is
-/// known only by its declared type -- which every write, wherever it sits, is still judged against.
+/// Captured writes, ref/out arguments and ref-local aliases can invalidate facts outside this body's flow.
+/// Proofs have no runtime guard, so these holders and aliases retain only declared types, which still
+/// constrain every write.
 /// </summary>
 internal static class UnseenWrites
 {

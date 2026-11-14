@@ -1,7 +1,5 @@
-// Structural guard over the fix for the suite-wide flake recorded in Carbonek as ARCH-135/ARCH-136. Asserted on the
-// SOURCE rather than on behaviour, because the thing it protects is unobservable at runtime: what the
-// fix removes is a race, so a run that passes proves nothing and a regression would reappear as
-// occasional unrelated failures in whichever tests happened to be reading the standard library.
+// Asserted on the SOURCE rather than on behaviour: the race behind ARCH-135/ARCH-136 is unobservable
+// at runtime, so a passing run proves nothing and a regression shows only as occasional unrelated failures.
 
 namespace Mist.Tests.Driver;
 

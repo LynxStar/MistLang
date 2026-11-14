@@ -1,9 +1,3 @@
-// Feature: csharp-interop-v2, Task 8.4
-// In-process tests for `mist restore`: DependencyRestore, the code the command runs, with its
-// output and error streams captured.
-//
-// Validates: Requirements 10.2, 13.2, 13.3, 13.4, 13.5, 13.7, 13.8
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Driver;

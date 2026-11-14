@@ -6,9 +6,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Integration;
 
-/// <summary>
-/// End-to-end integration tests that exercise the full CompilerDriver pipeline.
-/// </summary>
 [Trait("Tier", "4")]
 public sealed class EndToEndCompilationTests : IDisposable
 {

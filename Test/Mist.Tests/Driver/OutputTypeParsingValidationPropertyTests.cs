@@ -1,11 +1,3 @@
-// Feature: attributes-and-test-command, Property 4: Output Type Parsing Validation
-// **Validates: Requirements 14.1, 14.2, 14.3**
-//
-// For any string value used as the output_type field in a valid mist.toml:
-// - "executable" produces success with ProjectOutputType.Executable
-// - "library" produces success with ProjectOutputType.Library
-// - All other strings produce a diagnostic error containing MIST0059
-
 using FsCheck;
 using FsCheck.Fluent;
 using Mist.Common.Diagnostics;
@@ -14,30 +6,13 @@ using Mist.Driver.Contracts;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Property-based tests for <c>output_type</c> field validation in
-/// <see cref="ProjectFileParser"/>. Verifies that only "executable" and "library"
-/// are accepted, and all other strings produce an error diagnostic.
-/// All tests are pure in-process -- no process spawning.
-/// </summary>
 public sealed class OutputTypeParsingValidationPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates one of the two valid output_type values.
-    /// </summary>
     private static Gen<string> GenValidOutputType()
     {
         return Gen.Elements("executable", "library");
     }
 
-    /// <summary>
-    /// Generates strings that are NOT "executable" or "library".
-    /// Includes near-misses, case variants, empty strings, and random text.
-    /// </summary>
     private static Gen<string> GenInvalidOutputType()
     {
         var nearMisses = Gen.Elements(
@@ -57,9 +32,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
             (4, randomStrings));
     }
 
-    /// <summary>
-    /// Generates arbitrary output_type string values (mix of valid and invalid).
-    /// </summary>
     private static Gen<string> GenArbitraryOutputType()
     {
         return Gen.Frequency(
@@ -67,13 +39,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
             (5, GenInvalidOutputType()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Escapes a string for use in a TOML basic string.
-    /// </summary>
     private static string EscapeTomlString(string value)
     {
         return value
@@ -85,7 +50,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
     }
 
     /// <summary>
-    /// Determines whether a string can be represented as a TOML basic string.
     /// TOML basic strings cannot contain certain control characters.
     /// </summary>
     private static bool CanRepresentInToml(string value)
@@ -116,10 +80,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
         return true;
     }
 
-    /// <summary>
-    /// Verifies the property for a single candidate output_type value.
-    /// Returns true if the parser's acceptance/rejection matches the expected behavior.
-    /// </summary>
     private static bool VerifyOutputTypeValidation(string candidateValue)
     {
         if(candidateValue is null)
@@ -127,7 +87,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
             return true;
         }
 
-        // Skip strings that cannot be represented in TOML
         if(!CanRepresentInToml(candidateValue))
         {
             return true;
@@ -135,7 +94,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
 
         var isValid = candidateValue is "executable" or "library";
 
-        // Build a minimal TOML document with the output_type field
         var escapedValue = EscapeTomlString(candidateValue);
         var toml = $"name = \"TestProject\"\noutput_type = \"{escapedValue}\"\n";
 
@@ -152,7 +110,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
 
             if(isValid)
             {
-                // Should parse successfully with no output_type errors
                 if(result is null)
                 {
                     return false;
@@ -165,7 +122,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
                     return false;
                 }
 
-                // Verify the correct enum value
                 if(candidateValue == "executable" && result.OutputType != ProjectOutputType.Executable)
                 {
                     return false;
@@ -180,7 +136,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
             }
             else
             {
-                // Should produce an error diagnostic for the invalid output type
                 var hasOutputTypeError = diags.Any(d =>
                     d.Number.Value == "MIST0059" &&
                     d.Severity == DiagnosticSeverity.Error);
@@ -193,17 +148,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 4: Output Type Parsing Validation.
-    /// For any string value used as output_type: "executable" and "library" produce
-    /// success with the correct enum value; all other strings produce a diagnostic
-    /// error with MIST0059.
-    /// Uses FsCheck Gen.Sample to generate 200 random inputs and verify the property.
-    /// </summary>
     [Fact]
     public void OutputType_AcceptanceMatchesValidValues()
     {
@@ -225,9 +169,6 @@ public sealed class OutputTypeParsingValidationPropertyTests
         }
     }
 
-    /// <summary>
-    /// Verifies that when output_type is absent, the parser defaults to Executable.
-    /// </summary>
     [Fact]
     public void OutputType_AbsentDefaultsToExecutable()
     {

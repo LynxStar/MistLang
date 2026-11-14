@@ -6,12 +6,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Integration tests for <see cref="CompilerDriver"/> with project references.
-/// Validates that invalid references produce correct diagnostics.
-///
-/// Validates: Requirements 3.1, 3.2.
-/// </summary>
 [Trait("Tier", "4")]
 public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
 {
@@ -40,12 +34,6 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Creates a project directory with a mist.toml and optional source files.
-    /// Returns the absolute path to the project directory.
-    /// </summary>
     private string CreateProject(
         string name,
         string? namespaceRoot = null,
@@ -68,8 +56,6 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
             {
                 // Use forward slashes for TOML compatibility
                 var escapedPath = referencePaths[i].Replace("\\", "/");
-                // Derive a reference name from the directory name
-                // If the path ends with mist.toml, use the parent directory name
                 var trimmedPath = referencePaths[i].TrimEnd('/', '\\');
                 var fileName = Path.GetFileName(trimmedPath);
                 var refName = string.Equals(fileName, "mist.toml", StringComparison.OrdinalIgnoreCase)
@@ -92,13 +78,6 @@ public sealed class CompilerDriverReferenceIntegrationTests : IDisposable
         return projectDir;
     }
 
-    // ── Invalid reference → MIST0062 ─
-
-    /// <summary>
-    /// Project A declares a reference to a non-existent path. The
-    /// compilation should abort with a <c>MIST0062</c>
-    /// diagnostic.
-    /// </summary>
     [Fact]
     public void InvalidReference_ProducesNotFoundDiagnostic()
     {

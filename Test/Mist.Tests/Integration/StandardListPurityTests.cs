@@ -1,8 +1,7 @@
 // Tier 3 (Component): the REAL Standard/Experimental/List.mist carries the promises purity Requirement 9.3
 // names -- a pure constructor, local readonly readers, local mutators -- so the spec's own example programs
-// are built over the real Standard sources and judged by the rules: a pure scope owning a list it built, a
-// pure scope reading a frozen list, a constructorless type holding a list, and what they refuse. Each refusal
-// is also a PurityRefusalTests row over a hand-built list; this class proves the declaration, not the rule.
+// are built over the real Standard sources and judged by the rules. Each refusal is also a
+// PurityRefusalTests row over a hand-built list; this class proves the declaration, not the rule.
 // The samples in AllFeaturesV2 that use List<T> carry the runtime claim.
 
 using Mist.Common.Diagnostics;

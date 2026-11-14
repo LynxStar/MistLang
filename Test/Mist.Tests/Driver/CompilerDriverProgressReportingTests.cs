@@ -8,12 +8,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Driver;
 
-/// <summary>
-/// Integration tests verifying that <see cref="CompilerDriver"/> calls the
-/// <see cref="ICompilationProgressReporter"/> with correct stage data for the
-/// stages it runs itself: loading, lexing and parsing, and that a project with no
-/// dependencies skips Stage 1.5 without delivering anything.
-/// </summary>
 [Trait("Tier", "4")]
 public sealed class CompilerDriverProgressReportingTests : IDisposable
 {
@@ -80,18 +74,15 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
 
         var details = reporter.DetailsOf("1");
 
-        // Should have 3 detail lines: stdlib, referenced, user
         Assert.Equal(3, details.Count);
 
-        // Stdlib count > 0 (the test project copies stdlib files to output)
+        // The test project copies stdlib files to output.
         Assert.Matches(@"^\d+ stdlib files$", details[0]);
         var stdlibCount = int.Parse(details[0].Split(' ')[0]);
         Assert.True(stdlibCount > 0, "Expected stdlib file count > 0");
 
-        // Referenced project files == 0 (no project references in this test)
         Assert.Equal("0 referenced project files", details[1]);
 
-        // User file count == 1
         Assert.Equal("1 user files", details[2]);
     }
 

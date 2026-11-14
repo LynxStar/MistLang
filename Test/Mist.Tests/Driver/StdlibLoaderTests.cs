@@ -5,9 +5,6 @@ namespace Mist.Tests.Driver;
 
 public sealed class StdlibLoaderTests
 {
-    /// <summary>
-    /// Creates a fresh empty temp directory for the duration of a single test.
-    /// </summary>
     private sealed class TempDir : IDisposable
     {
         public string Path { get; }
@@ -61,7 +58,6 @@ public sealed class StdlibLoaderTests
         Assert.Contains(fileA, paths);
         Assert.Contains(fileB, paths);
 
-        // Contents must round-trip through SourceText unchanged.
         var alpha = units.Single(u => u.Source.Path == fileA);
         Assert.Equal(File.ReadAllText(fileA), alpha.Source.Contents);
     }

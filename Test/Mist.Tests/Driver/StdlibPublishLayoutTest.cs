@@ -1,29 +1,12 @@
 namespace Mist.Tests.Driver;
 
 /// <summary>
-/// Task 28.2 test for the Mist Standard Library spec.
-///
-/// Verifies the MSBuild <c>&lt;Content&gt;</c> item group added to
-/// <c>Source/Mist.CLI/Mist.CLI.csproj</c> and <c>Test/Mist.Tests/Mist.Tests.csproj</c>
-/// produces the layout required by <see cref="Mist.Driver.StdlibLoader.LoadFor"/>:
-/// every <c>.mist</c> file in <c>Source/Standard/</c> must appear under
-/// <c>AppContext.BaseDirectory/Standard/</c> with its relative directory
-/// structure preserved.
-///
-/// Runs against the test project's own build output (the same mechanism the
-/// CLI's publish output uses — a shared <c>&lt;Content&gt;</c> pattern with
-/// <c>CopyToOutputDirectory="PreserveNewest"</c>), so this test proves the
-/// <c>dotnet publish</c> layout indirectly while staying in a fast unit-test
-/// loop (Requirement 15.5).
-///
-/// Validates: Requirement 10.9, 15.5.
+/// Runs against the test project's build output, which copies Source/Standard with the same Content
+/// pattern the CLI publishes with, so it proves the layout <see cref="Mist.Driver.StdlibLoader.LoadFor"/>
+/// reads without running dotnet publish.
 /// </summary>
 public sealed class StdlibPublishLayoutTest
 {
-    /// <summary>
-    /// Walks up from the test assembly's output directory until a directory
-    /// containing <c>Mist.slnx</c> is found.
-    /// </summary>
     private static string FindRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
@@ -44,7 +27,6 @@ public sealed class StdlibPublishLayoutTest
     [Fact]
     public void BuildOutput_ContainsStdlibAtAppContextBaseDirectory_WithPreservedLayout()
     {
-        // ── Where the loader looks at runtime. ───────────────────────────
         var runtimeStdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
         Assert.True(
             Directory.Exists(runtimeStdlibRoot),
@@ -52,13 +34,11 @@ public sealed class StdlibPublishLayoutTest
                 + "Ensure the MSBuild <Content Include=\"..\\..\\Source\\Standard\\**\\*.mist\" ... /> "
                 + "item is declared in Mist.Tests.csproj (and Mist.CLI.csproj for publish).");
 
-        // ── Source of truth: the repo's stdlib source tree. ──────────────
         var sourceStdlibRoot = Path.Combine(FindRepoRoot(), "Source", "Standard");
         Assert.True(
             Directory.Exists(sourceStdlibRoot),
             $"Source stdlib root not found: {sourceStdlibRoot}.");
 
-        // ── Compare relative paths. ──────────────────────────────────────
         var expected = Directory
             .GetFiles(sourceStdlibRoot, "*.mist", SearchOption.AllDirectories)
             .Select(p => Path.GetRelativePath(sourceStdlibRoot, p).Replace('\\', '/'))
@@ -73,7 +53,6 @@ public sealed class StdlibPublishLayoutTest
 
         Assert.Equal(expected, actual);
 
-        // Sanity: we expect at least the 15 Bootstrap types plus Optional.mist.
         Assert.Contains("Bootstrap/Int32.mist", actual);
         Assert.Contains("Bootstrap/String.mist", actual);
         Assert.Contains("Optional.mist", actual);
@@ -82,9 +61,6 @@ public sealed class StdlibPublishLayoutTest
     [Fact]
     public void BuildOutput_StdlibFilesMatchSourceContentsByteForByte()
     {
-        // Files copied by <Content CopyToOutputDirectory="PreserveNewest" />
-        // should be byte-for-byte identical to the source tree (no
-        // transformation; TargetPath only preserves directory structure).
         var runtimeStdlibRoot = Path.Combine(AppContext.BaseDirectory, "Standard");
         var sourceStdlibRoot = Path.Combine(FindRepoRoot(), "Source", "Standard");
 
@@ -106,10 +82,7 @@ public sealed class StdlibPublishLayoutTest
     [Fact]
     public void CliCsproj_DeclaresStdlibContentItem()
     {
-        // Quick structural sanity: the Mist.CLI.csproj must declare the
-        // Content item that ships the stdlib alongside the compiler binary
-        // for `dotnet publish` (Requirement 15.5). Asserting on the XML is
-        // the cheapest way to prove the declaration without invoking
+        // Asserting on the XML is the cheapest way to prove the declaration without invoking
         // `dotnet publish` from a unit test.
         var cliCsproj = Path.Combine(
             FindRepoRoot(), "Source", "Mist.CLI", "Mist.CLI.csproj");

@@ -511,6 +511,27 @@ The delivery hands in, for each of the four, the list of every place its
 mechanism touches, each marked done, cannot occur, or left with its reason.
 Stage 4 had no such list until its fourth review.
 
+Items 1, 2 and 4 landed with MIST-1370, over ad262e7e. MIST0494, MIST0496 and
+MIST0503 are retired as tombstones. A test under a combinator goes through
+`BooleanPatternConditions`, which already rendered a regex or a promoted
+comparison under `not` or `or` as a boolean expression over the scrutinee
+bound once. The capture local is decided over the whole body before any of it
+is written (`BodyEmitter.CaptureLocals`): a capture some call or method group
+reads without a receiver or an argument that carries it is kept, declared
+before its owner's statement and assigned where the type is written. The same
+walk makes every owner evaluate an initializer that runs code exactly once: a
+call or a member access that consumes none of its captures as a hidden
+argument evaluates them before its arguments, after a receiver written before
+the type, and a test, a switch arm and an `as` evaluate theirs between the
+scrutinee and the type test, so a failed test does not skip them (MIST-1369).
+The stamp of a struct element is `StructStamp`: the type's own default where
+the backend synthesizes one, so a struct holding the closing in a field, an
+auto-property or a nested struct starts from its default with the inner stamp
+inside, and otherwise the struct built from its parts through `__FromParts`
+with the hidden slot values filled in; `MistArray.Stamp` copies it into every
+element of the array or the span. MIST0498 stays for a slot nested under
+`unknown`. Item 3 is MIST-1371.
+
 ### Identity by value: static storage
 
 Item 5. This is Requirement 10's own example. At afd43acab the declaration of
@@ -674,16 +695,20 @@ cannot be answered:
 
 - A test against a runtime closing under `not` or `or`, MIST0494. The
   comparison has no binding to read through and no guard to carry it.
+  Retired by item 1 of *Identity by value*.
 - A constructor constraint closed by a value-routed type, MIST0495. Neither
   C#'s `new()` nor the synthesized factory supplies the hidden constructor
   argument.
 - An array creation or a stack allocation whose element is a closing of a
-  value-routed struct, MIST0496. The elements start from the CLR zero, the
-  hidden field with them.
+  value-routed struct, MIST0496, or a struct that holds one by value,
+  MIST0503. The elements start from the CLR zero, the hidden field with them.
+  Both retired by item 4 of *Identity by value*.
 - Overloads that differ only in a slot the backend does not carry in the type,
   MIST0497. `Name(int[3])` beside `Name(int[4])` is one of them.
 - A method's slot inferred from a closing nested in another type's argument,
-  MIST0498. No member reads the value back.
+  MIST0498. No member reads the value back. Item 2 of *Identity by value*
+  carries a capture in a local; the number stays for a slot nested under
+  `unknown`, which has no value anywhere.
 - A read of a value-routed parameter where no value reaches, MIST0499: a
   conversion into the type, a nested type, an attribute argument, and a copy
   that union specialization makes with a closing of the parameter's owner in a

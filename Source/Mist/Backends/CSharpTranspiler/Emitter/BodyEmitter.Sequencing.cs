@@ -13,6 +13,8 @@ internal static partial class BodyEmitter
     {
         if(returnStmt.Value is { } value && OptionalUnion.IsVoid(value.Type))
         {
+            using var evaluating = AtStatement(value, writer, diagnostics);
+
             using(var hoisted = EmitHoisted(value, writer, diagnostics, discarded: true))
             {
                 if(value is InvocationExpression && !hoisted.Consumes(value))
@@ -49,6 +51,7 @@ internal static partial class BodyEmitter
         bool branchTaken = false,
         IMistType? slot = null)
     {
+        using var evaluating = AtStatement(value, writer, diagnostics);
         using var hoisted = EmitHoisted(value, writer, diagnostics, discarded: lead is null, branchTaken);
 
         if(hoisted.Consumes(value))
@@ -111,6 +114,7 @@ internal static partial class BodyEmitter
                 }
                 else
                 {
+                    using var evaluating = AtStatement(step.Expression, writer, diagnostics);
                     writer.WriteLine($"{Render(step.Expression, diagnostics)};");
                 }
 

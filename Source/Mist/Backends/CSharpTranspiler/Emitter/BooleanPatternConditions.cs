@@ -27,13 +27,15 @@ internal static class BooleanPatternConditions
         {
             RegexPattern => true,
             TypeTestPattern tested when UnknownUnions.Carrier(tested.NarrowedType) is not null => true,
+            TypeTestPattern tested when BodyEmitter.Compared(tested.NarrowedType) => true,
             ComparisonPattern comparison => PromotesSingle(comparison),
             NegatedPattern negated => ContainsCondition(negated.Operand),
             ConjunctionPattern conjunction => conjunction.Operands.Any(ContainsCondition),
             DisjunctionPattern disjunction => disjunction.Operands.Any(ContainsCondition),
             TypeTestPattern { Refinement: { } refinement } => ContainsCondition(refinement),
             PropertyPattern property => property.Subpatterns.Any(subpattern => ContainsCondition(subpattern.Pattern))
-                || (property.TypeTest?.Refinement is { } refinement && ContainsCondition(refinement)),
+                || (property.TypeTest?.Refinement is { } refinement && ContainsCondition(refinement))
+                || (property.TypeTest is { } compared && BodyEmitter.Compared(compared.NarrowedType)),
             TuplePattern tuple => tuple.Elements.Any(ContainsCondition),
             ListPattern list => list.Elements.Any(element => element.Subpattern is { } nested && ContainsCondition(nested)),
             _ => false,
@@ -67,7 +69,7 @@ internal static class BooleanPatternConditions
             NegatedPattern negated => $"!({Render(negated.Operand, value, structural, expression, tested)})",
             ConjunctionPattern conjunction => $"({string.Join(" && ", conjunction.Operands.Select(operand => Render(operand, value, structural, expression, tested)))})",
             DisjunctionPattern disjunction => $"({string.Join(" || ", disjunction.Operands.Select(operand => Render(operand, value, structural, expression, tested)))})",
-            TypeTestPattern { Refinement: { } refinement } typeTest => Refined(typeTest, refinement, value, structural, expression, tested),
+            TypeTestPattern { Refinement: { } refinement } typeTest when !BodyEmitter.Compared(typeTest.NarrowedType) => Refined(typeTest, refinement, value, structural, expression, tested),
             _ => structural(pattern, value),
         };
     }

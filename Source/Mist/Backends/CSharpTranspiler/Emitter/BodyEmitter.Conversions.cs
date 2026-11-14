@@ -25,6 +25,25 @@ internal static partial class BodyEmitter
     private static void EmitAs(
         AsExpression asExpression, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        var owned = asExpression.Captures.Where(Evaluates).ToList();
+
+        if(owned.Count > 0 && !ReferenceEquals(discarding, asExpression) && !CheckedAtRuntime(asExpression))
+        {
+            var enclosing = discarding;
+            discarding = asExpression;
+
+            try
+            {
+                writer.Append(Evaluating(owned, asExpression.Operand, () => Render(asExpression, diagnostics), diagnostics));
+            }
+            finally
+            {
+                discarding = enclosing;
+            }
+
+            return;
+        }
+
         if(asExpression.Kind is AsConversionKind.Identity)
         {
             EmitExpression(asExpression.Operand, writer, diagnostics);
@@ -54,15 +73,8 @@ internal static partial class BodyEmitter
             return;
         }
 
-        var accessor = asExpression.Constituent is { } constituent && TypeNameEmitter.Closed(asExpression.Operand.Type) is UnionType carrier
-            ? $".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), carrier)}"
-            : null
-            ;
-
-        var checkedAtRuntime = accessor is null
-            || (asExpression.Constituent is { } narrowedTo ? TypeNameEmitter.Closed(narrowedTo).FullyQualifiedName : null)
-                != TypeNameEmitter.Closed(asExpression.TargetType).FullyQualifiedName
-            ;
+        var accessor = Accessor(asExpression);
+        var checkedAtRuntime = CheckedAtRuntime(asExpression);
 
         if(checkedAtRuntime)
         {
@@ -75,7 +87,7 @@ internal static partial class BodyEmitter
             writer,
             diagnostics);
 
-        if(accessor is not null)
+        if(accessor is not null && owned.Count == 0)
         {
             writer.Append(accessor);
         }
@@ -87,19 +99,51 @@ internal static partial class BodyEmitter
 
         var tested = TestedType(asExpression.TargetType, asExpression.Node, diagnostics);
         var bound = $"__as{asExpression.Node.Span.Start}";
+        var subject = owned.Count > 0 ? TemporaryName() : null;
+
+        if(subject is not null)
+        {
+            writer.Append($" is var {subject}");
+        }
+
+        using var prelude = subject is null ? null : EmitPrelude(owned, " && ", writer, diagnostics);
         var compared = SlotSensitivity.AdmitsOnly(asExpression.Operand.Type, asExpression.TargetType)
             ? new List<string>()
             : RuntimeComparisons(asExpression.TargetType, bound, diagnostics);
+        var narrowed = subject is null ? "" : $" && {subject}{accessor}";
 
         if(!TypeNameEmitter.IsValueKind(TypeNameEmitter.Closed(asExpression.TargetType))
             && ErasedShape.Members(asExpression.TargetType).Count == 0
             && compared.Count == 0)
         {
-            writer.Append($" as {target})");
+            writer.Append(subject is null
+                ? $" as {target})"
+                : $" ? {subject}{accessor} as {target} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
             return;
         }
 
-        writer.Append($" is {tested} {bound}{string.Concat(compared.Select(test => $" && {test}"))} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
+        writer.Append($"{narrowed} is {tested} {bound}{string.Concat(compared.Select(test => $" && {test}"))} ? {bound} : default({TypeNameEmitter.EmitOptional(asExpression.TargetType)}))");
+    }
+
+    private static string? Accessor(AsExpression asExpression)
+    {
+        return asExpression.Constituent is { } constituent && TypeNameEmitter.Closed(asExpression.Operand.Type) is UnionType carrier
+            ? $".{UnionCarrierNames.NarrowingAccessor(TypeNameEmitter.Closed(constituent), carrier)}"
+            : null
+            ;
+    }
+
+    private static bool CheckedAtRuntime(AsExpression asExpression)
+    {
+        if(asExpression.Kind is AsConversionKind.Identity or AsConversionKind.Widening)
+        {
+            return false;
+        }
+
+        return Accessor(asExpression) is null
+            || (asExpression.Constituent is { } narrowedTo ? TypeNameEmitter.Closed(narrowedTo).FullyQualifiedName : null)
+                != TypeNameEmitter.Closed(asExpression.TargetType).FullyQualifiedName
+            ;
     }
 
     internal static void EmitCoerced(

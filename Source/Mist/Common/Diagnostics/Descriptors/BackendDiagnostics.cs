@@ -325,16 +325,6 @@ public static class BackendDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Type), new Slot("abstract", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
 
-    public static readonly MistDiagnostic RuntimeClosingTestUnderCombinator = new(
-        DiagnosticNumber.Mint("MIST0494"),
-        Title: "Runtime closing test under combinator",
-        Template: "A value cannot be tested against '{type}' under 'not' or 'or' yet: the comparison of '{parameter}' with a value known only when the program runs has no place in such a C# pattern.",
-        Description: "A type test against a closing whose dependent slot holds a runtime value compares the instance's slot with that value beside the C# pattern, as a guard the enclosing 'is' or switch arm carries. Under a negated or disjoint pattern there is no binding to compare through and no guard to carry it. Write the test on its own, or test against a closing whose slots are literals; the limit is the backend's, not the language's.",
-        Category: DiagnosticCategory.Bck,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
-
     public static readonly MistDiagnostic ValueRoutedConstructorConstraintClosure = new(
         DiagnosticNumber.Mint("MIST0495"),
         Title: "Value-routed type closes constructor constraint",
@@ -344,16 +334,6 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("signature", SlotKind.Sequence, SlotKind.Type)]);
-
-    public static readonly MistDiagnostic ZeroedStorageOfValueRoutedStruct = new(
-        DiagnosticNumber.Mint("MIST0496"),
-        Title: "Zeroed storage of a value-routed struct",
-        Template: "'{type}' cannot be the element of {storage}: its dependent parameter '{parameter}' is carried in each instance, and the elements start from zero with no value in them.",
-        Description: "An array creation or a stack allocation starts every element from the CLR zero. A struct whose dependent parameter is closed somewhere with a runtime value keeps that parameter's value in a hidden field of each instance, so a zeroed element reads the slot as zero whatever its type says. Build the elements one by one with an array literal or a generated array, or close the struct only with literals everywhere; the limit is the backend's, not the language's.",
-        Category: DiagnosticCategory.Bck,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("type", SlotKind.Type), new Slot("storage", SlotKind.Enum), new Slot("parameter", SlotKind.Name)]);
 
     public static readonly MistDiagnostic CoincidingOverloads = new(
         DiagnosticNumber.Mint("MIST0497"),
@@ -368,8 +348,8 @@ public static class BackendDiagnostics
     public static readonly MistDiagnostic InferredSlotNestedInArgument = new(
         DiagnosticNumber.Mint("MIST0498"),
         Title: "Inferred slot nested in an argument",
-        Template: "'{method}' cannot infer '{parameter}' from '{type}': the value is carried inside another type's argument, where the C# backend has no member to read it back from.",
-        Description: "A method's or an extension block's dependent parameter is inferred from a closing that sits inside another type's argument, such as the element type of a list, and that closing is filled somewhere with a value known only when the program runs. The backend reads such a value back through the receiver or the argument that carries it directly, as its hidden field or its length; a closing nested in another type's argument offers no such member, and a collection may hold no element to read. Pass the carrying value itself, or close the type only with literals everywhere; the limit is the backend's, not the language's.",
+        Template: "'{method}' cannot infer '{parameter}' from '{type}': the slot sits inside another type's argument with no value known, and nothing carries one for the C# backend to read back.",
+        Description: "A method's or an extension block's dependent parameter is inferred from a closing that sits inside another type's argument, such as the element type of a list, and the slot of that closing holds 'unknown'. A value known where the type was written travels with it, but a slot nested under 'unknown' has no value anywhere: the CLR container keeps nothing of its element's slots, and may hold no element to read one from. Test an element against a closing, state the argument between angle brackets, or hold the closing directly; the limit is the backend's, not the language's.",
         Category: DiagnosticCategory.Bck,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
@@ -414,14 +394,4 @@ public static class BackendDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("argument", SlotKind.Type), new Slot("parameter", SlotKind.Name), new Slot("declaration", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("slot", SlotKind.Name), new Slot("reason", SlotKind.Enum)]);
-
-    public static readonly MistDiagnostic ZeroedStorageHoldingValueRoutedStruct = new(
-        DiagnosticNumber.Mint("MIST0503"),
-        Title: "Zeroed storage holds a value-routed struct",
-        Template: "'{element}' cannot be the element of {storage}: it holds '{type}' by value, whose dependent parameter '{parameter}' is carried in each instance, and the elements start from zero with no value in them.",
-        Description: "An array creation or a stack allocation starts every element from the CLR zero, and a struct element's fields and tuple elements start from zero with it. A struct whose dependent parameter is closed somewhere with a runtime value keeps that parameter's value in a hidden field of each instance, so an element that holds such a struct by value, in a field, a property's backing field or a tuple element, reads the slot as zero whatever its type says. Build the elements one by one with an array literal or a generated array, hold the struct by reference, or close it only with literals everywhere; the limit is the backend's, not the language's.",
-        Category: DiagnosticCategory.Bck,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("element", SlotKind.Type), new Slot("storage", SlotKind.Enum), new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
 }

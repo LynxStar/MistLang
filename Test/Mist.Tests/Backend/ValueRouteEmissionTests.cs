@@ -520,42 +520,6 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
-    public void AnInferredSlotNestedInAnArgumentsTypeIsRefused()
-    {
-        var list = ListType();
-        var m = slots.Dependent("M");
-        var cap = new Method("Cap", slots.Int, [new Parameter("boxes", slots.Closed(list, slots.Closed(box, m)))], new MemberModifiers { IsStatic = true }) { Scope = new Scope(null) };
-        cap.TypeParametersList.Add(m);
-        m.DeclaringMethod = cap;
-        var capture = slots.Capture(new LocalVariable("n", slots.Int));
-        var boxes = slots.Closed(list, slots.Closed(box, capture.Value));
-        using var routes = SlotRoutes.Enter([m, box.TypeParametersList[0]]);
-
-        var refusal = Assert.Single(Refused(Call(cap, [capture.Value], [HandBuiltRefinements.Local(boxes, "boxes")], [boxes])));
-
-        Assert.Equal("MIST0498", refusal.Number.Value);
-        Assert.Contains("'Cap' cannot infer 'M' from 'List<Box<n>>'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AnInferredBlockSlotNestedInTheReceiversTypeIsRefused()
-    {
-        var list = ListType();
-        var n = slots.Dependent("N");
-        var (block, _) = BoxBlock(slots.Closed(list, slots.Closed(box, n)), n);
-        var cap = new Method("Cap", slots.Int, [], default) { DeclaringBlock = block, Scope = new Scope(null) };
-        block.MethodsList.Add(cap);
-        var capture = slots.Capture(new LocalVariable("n", slots.Int));
-        var boxes = slots.Closed(list, slots.Closed(box, capture.Value));
-        using var routes = SlotRoutes.Enter([n, box.TypeParametersList[0]]);
-
-        var refusal = Assert.Single(Refused(Through(HandBuiltRefinements.Local(boxes, "boxes"), Closed(cap, block, capture.Value), [], [], [])));
-
-        Assert.Equal("MIST0498", refusal.Number.Value);
-        Assert.Contains("'Cap' cannot infer 'N' from 'List<Box<n>>'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void AValueRoutedTypeClosingAParameterizedConstructorConstraintIsRefused()
     {
         var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
@@ -568,57 +532,6 @@ public sealed class ValueRouteEmissionTests
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST0495", refusal.Number.Value);
         Assert.Contains("'Counter' cannot close the constructor constraint 'new(int)'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AnArrayOrAStackAllocationOfAValueRoutedStructIsRefused()
-    {
-        var cell = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
-        using var routes = SlotRoutes.Enter([cell.TypeParametersList[0]]);
-        var element = slots.Closed(cell, slots.Literal(7));
-        var size = HandBuiltModel.Literal(slots.Int, 2L);
-
-        var array = Assert.Single(Refused(new ArrayCreationExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)))));
-        var allocation = Assert.Single(Refused(new StackallocExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)))));
-        Assert.Equal("MIST0496", array.Number.Value);
-        Assert.Equal("MIST0496", allocation.Number.Value);
-        Assert.Contains("'Cell<7>' cannot be the element of an array", array.Message, StringComparison.Ordinal);
-        Assert.Contains("'Cell<7>' cannot be the element of a stack allocation", allocation.Message, StringComparison.Ordinal);
-        Assert.Empty(Refused(new ArrayCreationExpression(HandBuiltModel.Node(), slots.Closed(ring, slots.Literal(7)), size, slots.Closed(slots.Array, slots.Closed(ring, slots.Literal(7)), slots.Literal(2)))));
-    }
-
-    [Fact]
-    public void AnArrayOrAStackAllocationOfAStructHoldingAValueRoutedStructByValueIsRefused()
-    {
-        var cell = (StructType)HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
-        using var routes = SlotRoutes.Enter([cell.TypeParametersList[0], capacity]);
-        var holder = HandBuiltModel.Struct("Holder<>");
-        var t = new TypeParameter("T", 0, holder.Scope, holder);
-        holder.TypeParametersList.Add(t);
-        holder.FieldsList.Add(new Field("item", t, default, new MemberModifiers()) { DeclaringType = holder });
-        var keep = HandBuiltModel.Struct("Keep<>");
-        var k = new TypeParameter("K", 0, keep.Scope, keep);
-        keep.TypeParametersList.Add(k);
-        keep.PropertiesList.Add(new Property("Item", slots.Closed(holder, k), new MemberModifiers()) { DeclaringType = keep, UsesBackingField = true });
-        var boxed = HandBuiltModel.Class("Boxed<>");
-        var b = new TypeParameter("B", 0, boxed.Scope, boxed);
-        boxed.TypeParametersList.Add(b);
-        boxed.FieldsList.Add(new Field("item", b, default, new MemberModifiers()) { DeclaringType = boxed });
-        var seven = slots.Closed(cell, slots.Literal(7));
-        var size = HandBuiltModel.Literal(slots.Int, 2L);
-
-        var direct = Assert.Single(Refused(Create(slots.Closed(holder, seven), size)));
-        var nested = Assert.Single(Refused(new StackallocExpression(HandBuiltModel.Node(), slots.Closed(keep, seven), size, slots.Closed(slots.Array, slots.Closed(keep, seven), slots.Literal(2)))));
-
-        Assert.Equal("MIST0503", direct.Number.Value);
-        Assert.Equal(
-            "'Holder<Cell<7>>' cannot be the element of an array: it holds 'Cell<7>' by value, whose dependent parameter 'N' is carried in each instance, "
-            + "and the elements start from zero with no value in them.",
-            direct.Message);
-        Assert.Equal("MIST0503", nested.Number.Value);
-        Assert.StartsWith("'Keep<Cell<7>>' cannot be the element of a stack allocation: it holds 'Cell<7>' by value", nested.Message, StringComparison.Ordinal);
-        Assert.Empty(Refused(Create(slots.Closed(boxed, seven), size)));
-        Assert.Empty(Refused(Create(slots.Closed(holder, slots.Closed(ring, slots.Literal(7))), size)));
     }
 
     [Theory]
@@ -792,17 +705,6 @@ public sealed class ValueRouteEmissionTests
         var refusal = Assert.Single(diagnostics.ToImmutableArray());
         Assert.Equal("MIST0493", refusal.Number.Value);
         Assert.Contains("implements 'ISized' at two values of 'N'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void ATestAgainstARuntimeClosingUnderNotIsRefused()
-    {
-        var capture = slots.Capture(new LocalVariable("n", slots.Int));
-        using var routes = SlotRoutes.Enter([capacity]);
-        var negated = new NegatedPattern(HandBuiltModel.Node(), UnknownType.Instance, Tested(slots.Closed(ring, capture.Value), "r"));
-
-        var refusal = Assert.Single(Refused(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), negated)));
-        Assert.Equal("MIST0494", refusal.Number.Value);
     }
 
     [Fact]
@@ -1095,11 +997,6 @@ public sealed class ValueRouteEmissionTests
     private static string Emit(Expression expression)
     {
         return PropertyPatternEmissionTests.Emit(expression);
-    }
-
-    private ArrayCreationExpression Create(IMistType element, Expression size)
-    {
-        return new ArrayCreationExpression(HandBuiltModel.Node(), element, size, slots.Closed(slots.Array, element, slots.Literal(2)));
     }
 
     private static IReadOnlyList<Diagnostic> Refused(Expression expression)

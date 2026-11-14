@@ -158,7 +158,7 @@ internal sealed class UnionSpecialization
 
     public static string Name(Method method, IReadOnlyList<IMistType> arguments)
     {
-        return Name(method.Name, Normalized(method, arguments));
+        return Name(OverloadNames.Of(method), Normalized(method, arguments));
     }
 
     public static string Name(string declaredName, IReadOnlyList<IMistType> arguments)

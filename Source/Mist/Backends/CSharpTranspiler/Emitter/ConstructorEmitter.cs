@@ -43,7 +43,8 @@ internal static class ConstructorEmitter
         var witnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : DefaultWitnesses.Stored(concrete);
         var constructionWitnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : ConstructorWitnesses.Stored(concrete);
         var routed = constructor.Modifiers.IsStatic || concrete is null ? [] : SlotRoutes.ValueRouted(concrete);
-        var parts = SlotRoutes.HiddenParameters(routed)
+        var marker = OverloadNames.MarkerParameter(constructor);
+        var parts = (marker is null ? [] : new[] { marker }).Concat(SlotRoutes.HiddenParameters(routed))
             .Concat(witnesses.Select(DefaultConstraintWitness.Parameter)).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
         parts.AddRange(ContextKeyWitnesses.Parameters(constructor));
         using var contextScope = ContextKeyWitnesses.Entering(constructor);
@@ -53,12 +54,19 @@ internal static class ConstructorEmitter
             parts.Add(parameters);
         }
 
+        if(OverloadNames.MarkerDeclaration(constructor) is { } declaration)
+        {
+            writer.WriteLine(declaration);
+            writer.WriteBlankLine();
+        }
+
         if((witnesses.Count > 0 || constructionWitnesses.Count > 0) && concrete is not null)
         {
-            var supplied = SlotRoutes.HiddenNames(routed).Concat(DefaultWitnesses.CompatibilityArguments(concrete, factory: false)).ToList();
+            var supplied = (marker is null ? [] : new[] { "__overload" }).Concat(SlotRoutes.HiddenNames(routed))
+                .Concat(DefaultWitnesses.CompatibilityArguments(concrete, factory: false)).ToList();
             supplied.AddRange(ContextKeyWitnesses.Erased(constructor));
             supplied.AddRange(constructor.ParametersList.Select(parameter => ArgumentKeywords.For(parameter) + IdentifierSpelling.Of(parameter.Name)));
-            var compatible = string.Join(", ", SlotRoutes.HiddenParameters(routed).Append(parameters).Where(part => part.Length > 0));
+            var compatible = string.Join(", ", (marker is null ? [] : new[] { marker }).Concat(SlotRoutes.HiddenParameters(routed)).Append(parameters).Where(part => part.Length > 0));
             writer.WriteLine($"{modifiers}{nameOverride ?? TypeEmitter.CleanName(declaringType)}({compatible}) : this({string.Join(", ", supplied)})");
             using(writer.Block())
             {
@@ -90,6 +98,14 @@ internal static class ConstructorEmitter
             forwarded?.InsertRange(0, constructor.ChainKind == ConstructorChainKind.This
                 ? SlotRoutes.HiddenNames(routed)
                 : BodyEmitter.SlotValues(targetType as ConstructedType, diagnostics));
+
+            if((constructor.ChainKind == ConstructorChainKind.This || targetType is null
+                ? OverloadNames.Marker(constructor.ChainedConstructor)
+                : OverloadNames.Marker(constructor.ChainedConstructor, targetType)) is { } chainedMarker)
+            {
+                forwarded ??= [];
+                forwarded.Insert(0, chainedMarker);
+            }
 
             if(forwarded is { Count: > 0 })
             {

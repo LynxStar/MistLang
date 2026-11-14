@@ -170,6 +170,7 @@ internal static class ConstructorWitnesses
         }
 
         supplied.AddRange(ArgumentNames(signature, depth));
+        supplied.InsertRange(0, OverloadNames.Marker(OverloadNames.ConstructorFor(product, signature), product) is { } marker ? [marker] : []);
         _ = visiting.Remove(key);
         return $"({LambdaParameters(signature, depth)}) => new {TypeNameEmitter.Emit(product)}({string.Join(", ", supplied)})";
     }

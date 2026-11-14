@@ -55,7 +55,7 @@ internal static class ConstraintSlotBridgeEmitter
 
                 using(TypeNameEmitter.Substituting(substitution))
                 {
-                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(slot.Name)}");
+                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(OverloadNames.Of(slot))}");
                 }
 
                 if(!bridged.Add(signature))
@@ -67,7 +67,7 @@ internal static class ConstraintSlotBridgeEmitter
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine(
-                    $"{signature} => {reference}this.{IdentifierSpelling.Of(source.Name)}{MethodEmitter.ForwardingTypeArguments(slot, source)}({MethodEmitter.ForwardingArguments(slot, source, renaming)});");
+                    $"{signature} => {reference}this.{IdentifierSpelling.Of(OverloadNames.Of(source))}{MethodEmitter.ForwardingTypeArguments(slot, source)}({MethodEmitter.ForwardingArguments(slot, source, renaming)});");
             }
         }
     }

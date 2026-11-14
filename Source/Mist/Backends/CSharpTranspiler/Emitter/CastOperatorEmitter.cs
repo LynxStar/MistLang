@@ -44,7 +44,9 @@ internal static class CastOperatorEmitter
             writer.WriteLine($"[return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(\"{source.Name}\")]");
         }
 
-        writer.WriteLine($"{modifiers}{kind} operator {targetType}({parameters})");
+        writer.WriteLine(OverloadNames.Renamed(castOperator) is { } renamed
+            ? $"public static {targetType} {renamed}({parameters})"
+            : $"{modifiers}{kind} operator {targetType}({parameters})");
         using(writer.Block())
         {
             if(castOperator.CopiesClone)

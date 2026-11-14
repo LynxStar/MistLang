@@ -13,7 +13,7 @@ internal static partial class BodyEmitter
     private static LambdaExpression? unitResult;
 
     [ThreadStatic]
-    private static bool returnsUnit;
+    private static string? bareReturn;
 
     private const string UnitReturn = "return Standard.Void.Instance;";
 
@@ -24,27 +24,37 @@ internal static partial class BodyEmitter
 
     private static void EmitReturningUnit(bool unit, Block body, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var enclosing = returnsUnit;
-        returnsUnit = unit;
+        EmitReturning(unit ? UnitReturn : null, body, [], writer, diagnostics);
+    }
+
+    internal static void EmitSetterBody(Block body, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        EmitReturning("return value;", body, ["value"], writer, diagnostics);
+    }
+
+    private static void EmitReturning(string? returning, Block body, IEnumerable<string> parameterNames, CSharpWriter writer, DiagnosticBag diagnostics)
+    {
+        var enclosing = bareReturn;
+        bareReturn = returning;
 
         try
         {
-            EmitBlock(body, writer, diagnostics);
+            EmitBlock(body, parameterNames, writer, diagnostics);
         }
         finally
         {
-            returnsUnit = enclosing;
+            bareReturn = enclosing;
         }
 
-        if(unit && body.Statements is not [.., ReturnStatement])
+        if(returning is not null && body.Statements is not [.., ReturnStatement])
         {
-            writer.WriteLine(UnitReturn);
+            writer.WriteLine(returning);
         }
     }
 
     private static string BareReturn()
     {
-        return returnsUnit ? UnitReturn : "return;";
+        return bareReturn ?? "return;";
     }
 
     private static bool EmitUnitResult(

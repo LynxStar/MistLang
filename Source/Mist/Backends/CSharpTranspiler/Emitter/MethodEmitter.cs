@@ -81,11 +81,11 @@ internal static class MethodEmitter
         // in its name, exactly as a specialized TYPE does -- and for the same reason: the widths
         // differ in what they declare, so they cannot be one C# method.
         var declared = Declared(method);
-        var name = IdentifierSpelling.Of(method.Name);
+        var name = IdentifierSpelling.Of(OverloadNames.Of(method));
 
         if(Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList))
         {
-            name = MonomorphSet.SpecializedName(method.Name, monomorph.Widths);
+            name = MonomorphSet.SpecializedName(OverloadNames.Of(method), monomorph.Widths);
         }
         else if(UnionSpecialization.CurrentMethod() is { } instance && ReferenceEquals(instance.Method, method))
         {

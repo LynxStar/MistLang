@@ -18,6 +18,12 @@ internal static class OperatorEmitter
             return;
         }
 
+        if(OverloadNames.Renamed(op) is not null)
+        {
+            CarriedOperator.Emit(op, writer, diagnostics);
+            return;
+        }
+
         using var reach = SlotReach.OfOperator(op);
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);
         var returnType = MethodEmitter.EmitReturnType(op);

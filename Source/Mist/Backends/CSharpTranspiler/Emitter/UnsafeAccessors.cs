@@ -56,12 +56,13 @@ internal sealed class UnsafeAccessors(MemberType home, string prefix, Diagnostic
     public string Indexer(Indexer indexer, IMistType owner, bool isSetter)
     {
         var declaring = indexer.DeclaringType!;
-        var accessor = $"{(isSetter ? "set" : "get")}_{IndexerMetadataName.Of(declaring)}";
+        var renamed = OverloadNames.Renamed(indexer);
+        var accessor = renamed is null ? $"{(isSetter ? "set" : "get")}_{IndexerMetadataName.Of(declaring)}" : isSetter ? OverloadNames.Setter(renamed) : OverloadNames.Getter(renamed);
         return Declare((indexer, isSetter), declaring, owner, accessor, (accessibility, name) =>
         [
             $"{Attribute}.Method, Name = \"{accessor}\")]",
             isSetter
-                ? $"{accessibility} static extern void {name}({Target(declaring, false)}, {ParameterEmitter.Emit(indexer.ParametersList, diagnostics)}, {TypeNameEmitter.Emit(indexer.Type)} value);"
+                ? $"{accessibility} static extern {(renamed is null ? "void" : TypeNameEmitter.Emit(indexer.Type))} {name}({Target(declaring, false)}, {ParameterEmitter.Emit(indexer.ParametersList, diagnostics)}, {TypeNameEmitter.Emit(indexer.Type)} value);"
                 : $"{accessibility} static extern {TypeNameEmitter.Emit(indexer.Type)} {name}({Target(declaring, false)}, {ParameterEmitter.Emit(indexer.ParametersList, diagnostics)});",
         ]);
     }
@@ -82,7 +83,7 @@ internal sealed class UnsafeAccessors(MemberType home, string prefix, Diagnostic
 
             string[] lines =
             [
-                $"{Attribute}.{kind}, Name = \"{UnionSpecialization.CollidingName(method, TypeNameEmitter.Closed(owner)) ?? method.Name}\")]",
+                $"{Attribute}.{kind}, Name = \"{UnionSpecialization.CollidingName(method, TypeNameEmitter.Closed(owner)) ?? OverloadNames.Of(method)}\")]",
                 $"{accessibility} static extern {MethodEmitter.EmitReturnType(method)} {name}{typeParameters}({Target(declaring, method.Modifiers.IsStatic)}{parameters})",
                 .. constraints.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.TrimEnd()),
             ];
@@ -97,7 +98,9 @@ internal sealed class UnsafeAccessors(MemberType home, string prefix, Diagnostic
         return Declare(constructor, declaring, created, "new", (accessibility, name) =>
         [
             $"{Attribute}.Constructor)]",
-            $"{accessibility} static extern {TypeNameEmitter.Emit(Itself(declaring))} {name}({ParameterEmitter.Emit(constructor.ParametersList, diagnostics)});",
+            $"{accessibility} static extern {TypeNameEmitter.Emit(Itself(declaring))} {name}("
+                + string.Join(", ", new[] { OverloadNames.MarkerParameter(constructor) is { } marker ? $"{TypeNameEmitter.Emit(Itself(declaring))}.{marker}" : "",
+                    ParameterEmitter.Emit(constructor.ParametersList, diagnostics) }.Where(part => part.Length > 0)) + ");",
         ]);
     }
 

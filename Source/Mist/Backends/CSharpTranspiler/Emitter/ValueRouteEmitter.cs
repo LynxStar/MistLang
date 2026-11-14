@@ -125,36 +125,7 @@ internal static class ValueRouteEmitter
         return [];
     }
 
-    public static void ReportCoincidingOverloads(IEnumerable<Method> methods, DiagnosticBag diagnostics)
-    {
-        foreach(var group in methods.Where(method => method.DeclarationNode is not null).GroupBy(method => method.Name, StringComparer.Ordinal))
-        {
-            var declared = group.ToList();
-
-            if(declared.Count < 2)
-            {
-                continue;
-            }
-
-            var spelled = declared.ConvertAll(Spelled);
-
-            for(var later = 1; later < declared.Count; later++)
-            {
-                var earlier = spelled.FindIndex(0, later, spelling => spelling == spelled[later]);
-
-                if(earlier < 0 || ErasedDifference(declared[earlier], declared[later]) is not var (slot, type))
-                {
-                    continue;
-                }
-
-                diagnostics.ReportAtNodeTyped(
-                    BackendDiagnostics.CoincidingOverloads, declared[later].DeclarationNode!, null,
-                    new NameValue(group.Key), new NameValue(Display(declared[earlier])), new NameValue(slot.Name), type);
-            }
-        }
-    }
-
-    private static string Spelled(Method method)
+    internal static string Spelled(Method method)
     {
         var block = method.DeclaringBlock;
         var declared = method.TypeParametersList;
@@ -179,7 +150,7 @@ internal static class ValueRouteEmitter
         return $"{carried.Count(parameter => !SlotRoutes.IsValueRouted(parameter))}:{string.Join(",", parts)}";
     }
 
-    private static (TypeParameter Slot, TypeValue Type)? ErasedDifference(Method earlier, Method later)
+    internal static (TypeParameter Slot, TypeValue Type)? ErasedDifference(Method earlier, Method later)
     {
         for(var i = 0; i < earlier.ParametersList.Count && i < later.ParametersList.Count; i++)
         {
@@ -208,7 +179,7 @@ internal static class ValueRouteEmitter
         return null;
     }
 
-    private static (TypeParameter Slot, ConstructedType Type)? Erased(IMistType earlier, IMistType later)
+    internal static (TypeParameter Slot, ConstructedType Type)? Erased(IMistType earlier, IMistType later)
     {
         if(TypeNameEmitter.Closed(earlier) is not ConstructedType first
             || TypeNameEmitter.Closed(later) is not ConstructedType second
@@ -266,13 +237,6 @@ internal static class ValueRouteEmitter
         return null;
     }
 
-    private static string Display(Method method)
-    {
-        var typeParameters = method.TypeParametersList.Count == 0 ? "" : $"<{string.Join(", ", method.TypeParametersList.Select(parameter => parameter.Name))}>";
-
-        return $"{method.Name}{typeParameters}({string.Join(", ", method.ParametersList.Select(parameter => TypeDisplay.Mist(parameter.Type)))})";
-    }
-
     public static void Report(MemberType type, DiagnosticBag diagnostics)
     {
         var node = type.DeclarationNode;
@@ -281,8 +245,6 @@ internal static class ValueRouteEmitter
         {
             return;
         }
-
-        ReportCoincidingOverloads(type.MethodsList, diagnostics);
 
         if(SlotRoutes.ValueRouted(type) is [var first, ..] && type is ConcreteType concrete)
         {

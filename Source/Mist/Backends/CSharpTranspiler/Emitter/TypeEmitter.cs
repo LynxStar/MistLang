@@ -455,11 +455,14 @@ internal static class TypeEmitter
         var self = EmitTypeName(type);
         var parameters = ConstructorConstraintInterfaces.Parameters(witness.Factory);
         var arguments = ConstructorConstraintInterfaces.Arguments(witness);
+        var marker = OverloadNames.Marker(OverloadNames.ConstructorFor(type, witness.Declared)) is { } hidden
+            ? hidden + (arguments.Length > 0 ? ", " : "")
+            : "";
 
         writer.WriteLine($"public static {self} {ConstructorConstraintInterfaces.MemberName}({parameters})");
         using(writer.Block())
         {
-            writer.WriteLine($"return new {self}({arguments});");
+            writer.WriteLine($"return new {self}({marker}{arguments});");
         }
     }
 

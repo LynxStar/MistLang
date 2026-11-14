@@ -28,14 +28,14 @@ internal static class CarriedOperator
     private static bool Applies(Operator? op)
     {
         return op is { Modifiers.IsIntrinsic: false }
-            && (op.DeclaringType is ConcreteType { IsIntrinsic: true } || op.TypeParametersList.Count > 0);
+            && (op.DeclaringType is ConcreteType { IsIntrinsic: true } || op.TypeParametersList.Count > 0 || OverloadNames.Renamed(op) is not null);
     }
 
     public static string Name(Operator op)
     {
         var prefix = op.DeclaringType is ConcreteType { IsIntrinsic: true } ? op.DeclaringType.Name + "_" : "";
         var instance = UnionSpecialization.CurrentMethod();
-        return prefix + (ReferenceEquals(instance?.Method, op) ? UnionSpecialization.Name(op, instance.Arguments) : op.Name);
+        return prefix + (ReferenceEquals(instance?.Method, op) ? UnionSpecialization.Name(op, instance.Arguments) : OverloadNames.Of(op));
     }
 
     public static string Call(BinaryExpression binary, string left, string right)
@@ -58,7 +58,7 @@ internal static class CarriedOperator
         var arguments = op.TypeParametersList.Select(parameter => closing.Apply(parameter, null)).ToArray();
         arguments = arguments.Select(TypeNameEmitter.Closed).ToArray();
 
-        var name = arguments.Length > 0 ? UnionSpecialization.Name(op, arguments) : op.Name;
+        var name = arguments.Length > 0 ? UnionSpecialization.Name(op, arguments) : OverloadNames.Of(op);
         var owner = op.DeclaringType is ConcreteType { IsIntrinsic: true }
             ? "MistIntrinsics." + op.DeclaringType.Name + "_" : TypeNameEmitter.Emit(op.DeclaringType!) + ".";
         return $"{owner}{name}({string.Join(", ", operands)})";

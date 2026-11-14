@@ -16,7 +16,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// Rust does it rather than inherited.
 /// </para>
 /// <para>
-/// SUPPRESSED ONLY BY THE CONFORMER'S OWN MEMBERS, matched on name and parameter count. A member
+/// SUPPRESSED ONLY BY THE CONFORMER'S OWN MEMBERS, matched on the name C# sees and parameter count. A member
 /// reached through a concrete BASE does not suppress it, so the restatement hides that base member.
 /// That reads wrong and is deliberate: it is what the classic pipeline does, and it is what Mist
 /// means, since conformance is the conformer's own claim and the default is the abstract's answer
@@ -47,8 +47,8 @@ internal static class DefaultMemberDuplication
 
                 var written = ValuePack.Expand(method.ParametersList, TypeSubstitution.ForPath(receiver: null, path, interner: null), interner: null);
 
-                if(!Claims(declared, method.Name, written.Count)
-                    && !Claims(restated.ConvertAll(entry => entry.Method), method.Name, method.ParametersList.Count))
+                if(!Claims(declared, OverloadNames.Of(method), written.Count)
+                    && !Claims(restated.ConvertAll(entry => entry.Method), OverloadNames.Of(method), method.ParametersList.Count))
                 {
                     restated.Add(new RestatedDefault(method, path));
                 }
@@ -62,7 +62,7 @@ internal static class DefaultMemberDuplication
     {
         foreach(var candidate in methods)
         {
-            if(candidate.Name == name && candidate.ParametersList.Count == parameterCount)
+            if(OverloadNames.Of(candidate) == name && candidate.ParametersList.Count == parameterCount)
             {
                 return true;
             }

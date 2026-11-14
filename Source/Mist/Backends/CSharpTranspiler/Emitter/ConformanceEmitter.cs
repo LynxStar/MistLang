@@ -53,8 +53,8 @@ internal static class ConformanceEmitter
         var completion = AsyncPromotion.IsPromoted(mapping.Source) ? ".GetAwaiter().GetResult()" : "";
 
         writer.WriteLine(
-            MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(slot.Name)}")
-            + $" => {aliased}this.{IdentifierSpelling.Of(mapping.Source.Name)}{typeParams}({arguments}){completion};");
+            MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(OverloadNames.Of(slot))}")
+            + $" => {aliased}this.{IdentifierSpelling.Of(OverloadNames.Of(mapping.Source))}{typeParams}({arguments}){completion};");
     }
 
     private static void EmitProperty(PropertyMapping mapping, string interfaceName, CSharpWriter writer)

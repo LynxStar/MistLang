@@ -33,6 +33,19 @@ internal static class CastLowering
             : Step(cast.Operand.Type, parameter, operand);
     }
 
+    public static string? Renamed(CastOperator? called, IMistType target, IMistType source, string argument)
+    {
+        if(called is not { DeclaringType: { } declaring } || OverloadNames.Renamed(called) is not { } renamed)
+        {
+            return null;
+        }
+
+        var owner = new[] { target, source }.Select(TypeNameEmitter.Closed)
+            .FirstOrDefault(type => ReferenceEquals(type is ConstructedType constructed ? constructed.Definition : type, declaring));
+
+        return $"{TypeNameEmitter.Emit(owner ?? declaring)}.{renamed}({argument})";
+    }
+
     public static string Implicit(ImplicitConversionExpression conversion, string operand)
     {
         if(conversion is not { Operator: { } called, ParameterType: { } parameter })
@@ -45,7 +58,7 @@ internal static class CastLowering
             : Step(conversion.Operand.Type, parameter, operand);
         var result = ReadsPattern(called, parameter)
             ? Pattern(argument)
-            : $"(({TypeNameEmitter.Emit(conversion.Type)})({argument}))";
+            : Renamed(called, conversion.Type, conversion.Operand.Type, argument) ?? $"(({TypeNameEmitter.Emit(conversion.Type)})({argument}))";
 
         if(conversion.TargetType is UnionType carrier && !OptionalUnion.IsOptional(carrier) && !ConversionRelation.IsIdentity(conversion.Type, carrier))
         {

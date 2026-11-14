@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -53,7 +54,7 @@ internal static class LocalNames
 
     public static string Of(Method function)
     {
-        return activeFunctions is { } map && map.TryGetValue(function, out var name) ? name : IdentifierSpelling.Of(function.Name);
+        return activeFunctions is { } map && map.TryGetValue(function, out var name) ? name : IdentifierSpelling.Of(OverloadNames.Of(function));
     }
 
     internal sealed class Body : IDisposable

@@ -45,7 +45,7 @@ internal static class PackSlotBridgeEmitter
 
                 using(TypeNameEmitter.Substituting(substitution))
                 {
-                    head = $"{MethodEmitter.EmitReturnType(slot)} {interfaceName}.{IdentifierSpelling.Of(slot.Name)}{typeParameters}"
+                    head = $"{MethodEmitter.EmitReturnType(slot)} {interfaceName}.{IdentifierSpelling.Of(OverloadNames.Of(slot))}{typeParameters}"
                         + $"({ParameterEmitter.Emit(slot.ParametersList, diagnostics)})";
                 }
 
@@ -53,7 +53,7 @@ internal static class PackSlotBridgeEmitter
                 {
                     TypeEmitter.SeparateMember(writer, ref anyEmitted);
                     var completion = AsyncPromotion.IsPromoted(source) ? ".GetAwaiter().GetResult()" : "";
-                    writer.WriteLine($"{head} => this.{IdentifierSpelling.Of(source.Name)}{typeParameters}({arguments}){completion};");
+                    writer.WriteLine($"{head} => this.{IdentifierSpelling.Of(OverloadNames.Of(source))}{typeParameters}({arguments}){completion};");
                 }
             }
         }

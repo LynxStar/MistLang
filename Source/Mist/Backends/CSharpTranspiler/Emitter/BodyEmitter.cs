@@ -125,9 +125,9 @@ internal static partial class BodyEmitter
         LocalFunctionStatement function, Func<Parameter, string> spell, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var enclosing = blockingAwaits;
-        var enclosingReturns = returnsUnit;
+        var enclosingReturns = bareReturn;
         blockingAwaits = false;
-        returnsUnit = false;
+        bareReturn = null;
 
         try
         {
@@ -136,7 +136,7 @@ internal static partial class BodyEmitter
         finally
         {
             blockingAwaits = enclosing;
-            returnsUnit = enclosingReturns;
+            bareReturn = enclosingReturns;
         }
     }
 
@@ -1357,8 +1357,12 @@ internal static partial class BodyEmitter
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
                 // a cast of a division, which C# would read back bare as a division of a cast; and C#
                 // reads `(Kelvin)-a` as a subtraction unless the type is a keyword.
-                writer.Append(Evaluating([.. cast.Captures.Where(Evaluates)], cast, cast.Operand,
-                    () => $"(({TypeNameEmitter.Emit(cast.Type)})({CastLowering.Argument(cast, Render(cast.Operand, diagnostics))}))", diagnostics));
+                writer.Append(Evaluating([.. cast.Captures.Where(Evaluates)], cast, cast.Operand, () =>
+                {
+                    var type = TypeNameEmitter.Emit(cast.Type);
+                    var argument = CastLowering.Argument(cast, Render(cast.Operand, diagnostics));
+                    return CastLowering.Renamed(cast.Operator, cast.Type, cast.Operand.Type, argument) ?? $"(({type})({argument}))";
+                }, diagnostics));
                 break;
 
             case ImplicitConversionExpression conversion:
@@ -1378,6 +1382,10 @@ internal static partial class BodyEmitter
                 writer.Append(CompoundAssignment(compound, diagnostics));
                 break;
 
+            case AssignmentExpression { Target: IndexExpression { Indexer: { } storedIndexer } } stored when OverloadNames.Renamed(storedIndexer) is not null:
+                writer.Append(Stored(stored, diagnostics));
+                break;
+
             case AssignmentExpression assignment:
                 if(assignment.Target is LocalReferenceExpression assigned)
                 {
@@ -1395,6 +1403,10 @@ internal static partial class BodyEmitter
             case IndexExpression elementAccess
                 when UnsafeReach.Index(elementAccess, operand => RenderAt(operand, PostfixPrecedence, diagnostics)) is { } reachedIndex:
                 writer.Append(reachedIndex);
+                break;
+
+            case IndexExpression { Indexer: { } readIndexer } renamedAccess when OverloadNames.Renamed(readIndexer) is { } accessors:
+                writer.Append($"{RenderAt(renamedAccess.Receiver, PostfixPrecedence, diagnostics)}.{OverloadNames.Getter(accessors)}({Render(renamedAccess.Index, diagnostics)})");
                 break;
 
             case IndexExpression elementAccess:
@@ -2818,6 +2830,13 @@ internal static partial class BodyEmitter
             ? SlotValues(Unaliased(TypeNameEmitter.Closed(newExpression.Type)), diagnostics)
             : []);
 
+        if(constructionFactory is null && newExpression.Type is not TypeParameter
+            && OverloadNames.Marker(newExpression.Constructor, newExpression.Type) is { } marker)
+        {
+            witnesses ??= [];
+            witnesses.Insert(0, marker);
+        }
+
         if(witnesses is { Count: > 0 })
         {
             writer.Append(string.Join(", ", witnesses));
@@ -2894,7 +2913,8 @@ internal static partial class BodyEmitter
             ? UnionSpecialization.Current()
             : closed;
 
-        return method is not null && receiver is not null ? UnionSpecialization.CollidingName(method, receiver) : null;
+        return (method is not null && receiver is not null ? UnionSpecialization.CollidingName(method, receiver) : null)
+            ?? (method is null ? null : OverloadNames.Renamed(method));
     }
 
     private static void EmitMemberAccess(

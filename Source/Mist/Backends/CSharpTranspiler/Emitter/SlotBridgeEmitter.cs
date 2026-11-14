@@ -60,8 +60,8 @@ internal static class SlotBridgeEmitter
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
                 writer.WriteLine(
                     $"{TypeNameEmitter.Emit(substitution.Apply(erased, interner: null))}"
-                    + $" {interfaceName}.{IdentifierSpelling.Of(method.Name)}({Parameters(method, substitution)})"
-                    + $" => this.{IdentifierSpelling.Of(method.Name)}({Arguments(method)}){completion};");
+                    + $" {interfaceName}.{IdentifierSpelling.Of(OverloadNames.Of(method))}({Parameters(method, substitution)})"
+                    + $" => this.{IdentifierSpelling.Of(OverloadNames.Of(method))}({Arguments(method)}){completion};");
             }
         }
     }

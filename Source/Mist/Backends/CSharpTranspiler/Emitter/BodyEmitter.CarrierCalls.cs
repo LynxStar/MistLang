@@ -9,20 +9,21 @@ internal static partial class BodyEmitter
     private static void EmitCarrierCall(
         InvocationExpression call, MemberAccessExpression callee, string carrier, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(call.Method, callee.TypeArguments);
-        writer.Append($"{carrier}.{CalleeName(call.Method!.Name, arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
-        if(!call.Method.Modifiers.IsStatic)
+        var method = call.Method!;
+        var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(method, callee.TypeArguments);
+        writer.Append($"{carrier}.{CalleeName(OverloadNames.Of(method), arguments, parameters)}{EmitTypeArguments(arguments, parameters)}(");
+        if(!method.Modifiers.IsStatic)
         {
             EmitExpression(callee.Receiver, writer, diagnostics);
 
-            if(ExtensionCalls.NeedsNonNullReceiver(callee.Receiver.Type, call.Method))
+            if(ExtensionCalls.NeedsNonNullReceiver(callee.Receiver.Type, method))
             {
                 writer.Append("!");
             }
         }
 
-        EmitWitnesses(call, writer, diagnostics, afterReceiver: !call.Method.Modifiers.IsStatic);
-        EmitArguments(call.Arguments, call.Method.ParametersList, call.ParameterTypes, writer, diagnostics, call.Method);
+        EmitWitnesses(call, writer, diagnostics, afterReceiver: !method.Modifiers.IsStatic);
+        EmitArguments(call.Arguments, method.ParametersList, call.ParameterTypes, writer, diagnostics, method);
         writer.Append(")");
     }
 }

@@ -96,7 +96,10 @@ internal static class StructInitEmitter
             TypeEmitter.SeparateMember(writer, ref anyEmitted);
 
             var parameters = ParameterEmitter.Emit(constructor.ParametersList, diagnostics);
-            writer.WriteLine($"private void {names[ancestor.Definition]}({parameters})");
+            var marker = OverloadNames.MarkerParameter(constructor) is { } hidden
+                ? $"{TypeNameEmitter.Emit(ancestor.Reference)}.{hidden}{(parameters.Length > 0 ? ", " : "")}"
+                : "";
+            writer.WriteLine($"private void {names[ancestor.Definition]}({marker}{parameters})");
 
             using(writer.Block())
             {
@@ -158,6 +161,14 @@ internal static class StructInitEmitter
             UnitHoisting.Plan(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList), writer, diagnostics))
         {
             writer.Write($"{name}(");
+
+            if((constructor.ChainKind == ConstructorChainKind.This || declaringStruct.BaseType is null
+                ? OverloadNames.Marker(constructor.ChainedConstructor)
+                : OverloadNames.Marker(constructor.ChainedConstructor, declaringStruct.BaseType)) is { } marker)
+            {
+                writer.Append(BodyEmitter.HasArguments(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList) ? $"{marker}, " : marker);
+            }
+
             BodyEmitter.EmitArguments(constructor.ChainArgumentsList, constructor.ChainedConstructor?.ParametersList,
                 constructor.ChainParameterTypes, writer, diagnostics, constructor.ChainedConstructor);
             writer.Append(");");

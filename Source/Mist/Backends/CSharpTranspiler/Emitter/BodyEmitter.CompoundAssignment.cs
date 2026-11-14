@@ -24,7 +24,7 @@ internal static partial class BodyEmitter
             return reached;
         }
 
-        if(CarriedOperator.Applies(compound))
+        if(CarriedOperator.Applies(compound) || RenamedIndexer(compound.Target) is not null)
         {
             return Carried(compound, diagnostics);
         }
@@ -63,11 +63,11 @@ internal static partial class BodyEmitter
             if(compound.IncrementForm == IncrementForm.Postfix)
             {
                 var old = TemporaryName();
-                written = $"({target} switch {{ var {old} => ({target} = {Operation(compound, old, diagnostics)}, {old}).Item2 }})";
+                written = $"({target} switch {{ var {old} => ({Assigned(compound.Target, target, Operation(compound, old, diagnostics), diagnostics)}, {old}).Item2 }})";
             }
             else
             {
-                written = $"{target} = {Operation(compound, target, diagnostics)}";
+                written = Assigned(compound.Target, target, Operation(compound, target, diagnostics), diagnostics);
             }
         }
         finally
@@ -81,6 +81,58 @@ internal static partial class BodyEmitter
             1 => $"({parts[0].Rendered} switch {{ var {parts[0].Name} => {written} }})",
             _ => $"(({string.Join(", ", parts.Select(part => part.Rendered))}) switch {{ ({string.Join(", ", parts.Select(part => "var " + part.Name))}) => {written} }})",
         };
+    }
+
+    private static string Stored(AssignmentExpression assignment, DiagnosticBag diagnostics)
+    {
+        var scratch = new CSharpWriter();
+        EmitEntering(assignment.Value, assignment.Target.Type, scratch, diagnostics);
+        var value = scratch.ToString();
+
+        if(!assignment.IsCoalescing)
+        {
+            return Assigned(assignment.Target, "", value, diagnostics);
+        }
+
+        var bound = BoundParts(assignment.Target).ToList();
+        var precedence = bound.Count == 1 ? SwitchPrecedence + 1 : AssignmentPrecedence;
+        var parts = bound.Select(part => (Part: part, Rendered: RenderAt(part, precedence, diagnostics), Name: TemporaryName())).ToList();
+        var enclosing = boundParts;
+        boundParts = new Dictionary<Expression, string>(enclosing ?? [], ReferenceEqualityComparer.Instance);
+
+        string written;
+        try
+        {
+            foreach(var (part, _, name) in parts)
+            {
+                boundParts[part] = name;
+            }
+
+            written = $"({Render(assignment.Target, diagnostics)} ?? {Assigned(assignment.Target, "", value, diagnostics)})";
+        }
+        finally
+        {
+            boundParts = enclosing;
+        }
+
+        return parts.Count switch
+        {
+            0 => written,
+            1 => $"({parts[0].Rendered} switch {{ var {parts[0].Name} => {written} }})",
+            _ => $"(({string.Join(", ", parts.Select(part => part.Rendered))}) switch {{ ({string.Join(", ", parts.Select(part => "var " + part.Name))}) => {written} }})",
+        };
+    }
+
+    private static string Assigned(Expression target, string rendered, string value, DiagnosticBag diagnostics)
+    {
+        return target is IndexExpression index && RenamedIndexer(index) is { } renamed
+            ? $"{RenderAt(index.Receiver, PostfixPrecedence, diagnostics)}.{OverloadNames.Setter(renamed)}({Render(index.Index, diagnostics)}, {value})"
+            : $"{rendered} = {value}";
+    }
+
+    private static string? RenamedIndexer(Expression target)
+    {
+        return target is IndexExpression { Indexer: { } indexer } ? OverloadNames.Renamed(indexer) : null;
     }
 
     private static IEnumerable<Expression> BoundParts(Expression target)
@@ -134,7 +186,7 @@ internal static partial class BodyEmitter
     private static string StatementLead(Expression expression)
     {
         return expression is ResultIdentityExpression
-            || (expression is CompoundAssignmentExpression compound && CarriedOperator.Applies(compound)
+            || (expression is CompoundAssignmentExpression compound && (CarriedOperator.Applies(compound) || RenamedIndexer(compound.Target) is not null)
                 && (compound.IncrementForm == IncrementForm.Postfix || BoundParts(compound.Target).Any()))
             ? "_ = " : "";
     }

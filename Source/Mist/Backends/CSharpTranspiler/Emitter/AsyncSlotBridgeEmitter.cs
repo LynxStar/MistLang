@@ -43,7 +43,7 @@ internal static class AsyncSlotBridgeEmitter
 
                 using(TypeNameEmitter.Substituting(substitution))
                 {
-                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(slot.Name)}");
+                    signature = MethodEmitter.EmitSignature(slot, diagnostics, $"{interfaceName}.{IdentifierSpelling.Of(OverloadNames.Of(slot))}");
                 }
 
                 if(!bridged.Add(signature))
@@ -55,7 +55,7 @@ internal static class AsyncSlotBridgeEmitter
                 var arguments = MethodEmitter.ForwardingArguments(slot, source, SlotSignatures.Closing(slot, source!, substitution));
 
                 TypeEmitter.SeparateMember(writer, ref anyEmitted);
-                writer.WriteLine($"{signature} => this.{IdentifierSpelling.Of(source!.Name)}{typeParameters}({arguments}).GetAwaiter().GetResult();");
+                writer.WriteLine($"{signature} => this.{IdentifierSpelling.Of(OverloadNames.Of(source!))}{typeParameters}({arguments}).GetAwaiter().GetResult();");
             }
         }
     }

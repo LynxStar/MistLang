@@ -25,8 +25,6 @@ internal static class ExtensionBlockEmitter
             return;
         }
 
-        ValueRouteEmitter.ReportCoincidingOverloads(block.MethodsList, diagnostics);
-
         if(anyEmitted)
         {
             writer.WriteBlankLine();
@@ -80,8 +78,8 @@ internal static class ExtensionBlockEmitter
         var declared = Monomorph.InScope()?.Parameters(method.TypeParametersList) ?? method.TypeParametersList;
         var typeParameters = block.TypeParametersList.Concat(declared).ToList();
         var name = Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
-            ? MonomorphSet.SpecializedName(method.Name, monomorph.Widths)
-            : IdentifierSpelling.Of(method.Name);
+            ? MonomorphSet.SpecializedName(OverloadNames.Of(method), monomorph.Widths)
+            : IdentifierSpelling.Of(OverloadNames.Of(method));
         var parameters = SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(typeParameters)).ToList();
         parameters.AddRange(DefaultConstraintWitness.Parameters(declared));
         parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));

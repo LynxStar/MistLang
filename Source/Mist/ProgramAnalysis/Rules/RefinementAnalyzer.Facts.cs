@@ -246,10 +246,8 @@ internal sealed partial class RefinementAnalyzer
                 value => details.GetValueOrDefault(value)?.Matches ?? [], matchLimit) ? new Proven() : null;
         }
 
-        // A member bound written through a local is read only when that local is the callee's own extension
-        // receiver or one of its parameters, whose member is read on the argument the call passes for it: a
-        // captured receiver is not the instance the call supplies, however it is named. A bound naming a
-        // sibling parameter reads what the call passes in that position.
+        // A member bound through a local rebases only through the callee's extension receiver or parameter;
+        // a captured receiver is a different instance. Sibling bounds read the corresponding call argument.
         private sealed class Reading(LocalVariable? receiver, Func<Parameter, Admitted?>? sibling, Func<Parameter, Expression?>? argument = null, Expression? instance = null, bool currentInstance = true)
         {
             public Expression? Argument(Parameter parameter)

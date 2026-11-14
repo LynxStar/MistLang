@@ -8,11 +8,8 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What ownership state attaches to: a local, or an owned field reached from one through owned fields
-/// (owned-fields Requirement 16). A field place exists only under a tracked holder, because a field read
-/// through a shared one is Requirement 2's question and <see cref="TierAnalyzer"/> answers it; and only
-/// for a field whose value can change and is not copied, since a struct or a string read out of a field
-/// leaves nothing behind to be in a state.
+/// Field state requires a tracked holder; shared field reads belong to <see cref="TierAnalyzer"/>.
+/// Copied or immutable field values leave no ownership state behind when read (owned-fields Requirement 16).
 /// </summary>
 internal sealed class Place : IEquatable<Place>
 {

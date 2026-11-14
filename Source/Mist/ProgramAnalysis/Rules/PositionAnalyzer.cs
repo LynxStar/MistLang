@@ -6,15 +6,6 @@ using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// The positions with one rule each: an assignment to something that is not storage, <c>??=</c> anywhere but statement position, a readonly local
-/// reassigned, a reference taken where one is taken -- a ref local, a by-ref argument, a ref return -- to
-/// something that is not a storage location or, writably, through a readonly reference, a readonly
-/// reference assigned to, a static lambda or local function reaching outside itself, and <c>?</c> applied
-/// to a type that already holds void. A static lambda's own names are its parameters and whatever its
-/// body declares -- a local, a loop or deconstruction variable, a pattern binding, a nested lambda's
-/// parameters -- and any other local, or any instance member, is a capture.
-/// </summary>
 internal sealed class PositionAnalyzer : IProgramAnalyzer
 {
     public string Id => "operator-and-positional-checks";

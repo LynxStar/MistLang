@@ -15,21 +15,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// Discharges a refinement where a value meets one: a constant against the predicate, a refined value
-/// against another refinement by implication, and anything else against what <see cref="FactFlow"/>
-/// has established about the local it is -- a condition assumed on the path, a constant it was given, an
-/// increment it took, a parameter's own `where`. What cannot be proven is refused where
-/// the value meets the refinement -- a declaration, an assignment, a return, an index into an array
-/// whose length is known or that a local or a field holds, an argument at a call, a construction or a
-/// constructor chain, an initializer entry -- a member's value, or a collection element as the argument
-/// to its selected Add, judged right after it is evaluated -- and the operand of a cast, which is an
-/// argument to its conversion function. A
-/// parameter's `where` IS the parameter's type, an anonymous refinement of the declared one, so the
-/// model has one way to say a value is narrowed and this rule one way to read it, and nothing is left
-/// to a runtime guard at the callee: refinement is type checking, and a call is where the type is
-/// met. Exact literal facts also decide supported real, string and regex predicates. A predicate with
-/// neither an interval nor a sound literal decision is met only by a value already of that refinement,
-/// so anything else must pass an `is` first; one refused at its declaration owes nothing more.
+/// A parameter's <c>where</c> is its anonymous refined type: checking belongs at the call, with no runtime
+/// callee guard. <see cref="FactFlow"/> supplies path knowledge; exact literals also decide supported real,
+/// string and regex predicates. A predicate with neither an interval nor a sound literal decision requires
+/// a value already of that refinement, or a preceding <c>is</c> test. A refused declaration owes no further proof.
 /// </summary>
 internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget budget, int alternativeCap = Bag.AlternativeCap) : IProgramAnalyzer
 {

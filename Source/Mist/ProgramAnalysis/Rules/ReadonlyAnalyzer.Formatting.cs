@@ -7,13 +7,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What a readonly context formats. A formatter it reaches is judged where it is reached, whether the
-/// context formats the value itself or calls an unmarked member that formats it through a closing. A type
-/// parameter it formats is a promise about whatever closes that parameter (readonly-contexts Requirement
-/// 12.6), so it is judged at every closing the binder recorded, at each call whose receiver closes a generic
-/// extension block, recorded only on the call's closed copy, and through a closing by another parameter:
-/// <c>Read(box)</c> is refused where it is written, not admitted because <c>Read</c> was proven for an open
-/// <c>T</c>.
+/// Formatting a parameter promises readonly formatting at every closing (readonly-contexts Requirement 12.6),
+/// including forwarded parameters and generic extension receivers whose closing exists only on the call's
+/// closed copy. An open-body proof cannot discharge these concrete formatter obligations.
 /// </summary>
 internal sealed partial class ReadonlyAnalyzer
 {

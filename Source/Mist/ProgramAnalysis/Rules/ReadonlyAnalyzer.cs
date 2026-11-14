@@ -11,23 +11,12 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What a readonly context admits, walked structurally because the context is not a property of a node:
-/// a readonly block turns one on part-way through a body, and which accessor a body belongs to decides
-/// whether the backing field is exempt. Three rules hold everywhere -- a write through a readonly
-/// parameter, a write to a readonly field outside a constructor, and a write inside a readonly member --
-/// and the readonly-contexts spec's base rules (Req 11) hold inside a readonly one: no field written, no
-/// setter called, no callee that is not readonly, no allocation through a constructor that is not.
-/// <para>
-/// Two privileges cut across them, both from the spec: a constructor may assign the fields of the
-/// instance it builds and call its readonly setters, and a readonly setter may write its backing field. A readonly
-/// BLOCK suspends the first for its extent (Req 11.13), which is the only reason the walk must be
-/// structural rather than a sweep over nodes. A third comes from the purity spec (its Req 11): what the
-/// context owns by <see cref="Origins"/> may be written, and a local member may be called on it. What
-/// counts as readonly or local is <see cref="PurityInference"/>'s answer, declared or inferred, never a
-/// second opinion. A member declared pure or local readonly is readonly too, but its body answers to
-/// <see cref="PurityAnalyzer"/>, whose judge refuses everything these rules would and more, so it is
-/// not a readonly context here: one mistake, one complaint.
-/// </para>
+/// Walk structurally: a readonly block suspends constructor privileges part-way through a body
+/// (readonly-contexts Requirement 11.13). Constructors can assign their instance fields and call readonly
+/// setters; a readonly setter can write its backing field. <see cref="Origins"/> also permits writes and
+/// local calls on owned values (purity Requirement 11). <see cref="PurityInference"/> alone supplies
+/// readonly/local promises. Pure and local-readonly bodies belong to <see cref="PurityAnalyzer"/> to avoid
+/// duplicate complaints from this weaker judge.
 /// </summary>
 internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
 {

@@ -4,11 +4,9 @@ using Mist.ProgramModel.Model.Scopes;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// The readonly value parameter a receiver is reached through, however many instance fields and properties
-/// deep: what a caller lends through a readonly parameter includes what its fields reach, so readonly-contexts
-/// Requirements 14.2-14.4 hold for <c>item.Nested.Bump()</c> as they do for <c>item.Bump()</c>. Only the
-/// syntactic chain is followed. A local copied from one, a call's result or an element is not, because
-/// tracking where such an alias flows is an escape analysis this rule deliberately does not make.
+/// A readonly parameter lends its reachable fields too (readonly-contexts Requirements 14.2-14.4).
+/// Follow only the syntactic member chain; copied locals, call results and elements require alias-flow
+/// analysis, which this rule deliberately omits.
 /// </summary>
 internal static class ReadonlyParameterReceivers
 {

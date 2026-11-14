@@ -652,6 +652,69 @@ enters, leaves and is tested in a union whose constituents coincide; and every
 way an abstract's member is declared, restated, implemented and called,
 through a literal closing, a capture, a dependent parameter and `unknown`.
 
+### Identity by value: conversions and nested types
+
+Item 7. Both programs were run at ad262e7e.
+
+**A conversion into the type.** The first cast runs today and reads back 5
+and 9. The second makes the conversion's body MIST0499.
+
+```mist
+public class Ring<Capacity:int>
+{
+    public int Tag;
+
+    public static explicit operator Ring<Capacity>(int x)
+    {
+        var made = new Ring<Capacity>();
+        made.Tag = x;
+        return made;
+    }
+}
+
+var five = (Ring<5>)9;
+var other = (Ring<n>)4;     // Capacity n, Tag 4
+```
+
+A C# conversion operator takes its operand and nothing else, and an `int`
+carries no slot (`SlotReach.OfOperator`). The cast names its target, so the
+place that writes the cast knows the closing's value. A conversion of a
+value-routed type whose operand does not carry the slot is emitted as a
+static method that takes the slot values as hidden leading parameters, and
+each cast calls it with its target's values. A cast is a call to a conversion
+function already, so nothing changes for the binder. An implicit conversion
+takes the values from the type it converts to.
+
+**A nested type that reads the enclosing slot.** With the last line this is
+MIST0499. Without it, closed only with literals, the generated C# does not
+compile, on main as well: the read is emitted as a name C# does not know.
+
+```mist
+public class Ring<Capacity:int>
+{
+    public class Node
+    {
+        public int Limit() { return Capacity; }
+    }
+
+    public Node Make() { return new Node(); }
+}
+
+new Ring<5>().Make().Limit()    // 5
+new Ring<n>().Make().Limit()    // n
+```
+
+A type nested in a generic type is a type of each closing of it, so it carries
+the enclosing type's value-routed slots as its own: a hidden field, set from a
+hidden constructor parameter, which the creation fills from the enclosing
+instance's field or from the closing that is written. The delivery fixes the
+literal case with it, since both are the same read.
+
+The delivery hands in two lists, each entry marked as above: every conversion
+and operator form whose operands may not carry the slot; and every way a
+nested type is declared, created, named and tested, at one and at two levels
+of nesting.
+
 ### Where the C# backend falls short
 
 These were this design's first answer, written before the ruling above. Until

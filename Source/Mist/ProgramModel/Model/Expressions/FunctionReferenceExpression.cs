@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -24,6 +25,16 @@ internal sealed class FunctionReferenceExpression(
     public Method Method { get; } = method;
 
     public IReadOnlyList<IMistType> TypeArguments { get; init; } = [];
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
+
+    /// <summary>
+    /// The method's parameter and return types under its closing, which differ from <see cref="Type"/>'s
+    /// where a slot pair waits on Stage 5 to prove the two one type.
+    /// </summary>
+    public IReadOnlyList<IMistType> ClosedParameterTypes { get; init; } = [];
+
+    public IMistType? ClosedReturnType { get; init; }
 
     public IReadOnlyList<IMistType> ContextTypes { get; init; } = ContextBinding.TypesOf(method);
 

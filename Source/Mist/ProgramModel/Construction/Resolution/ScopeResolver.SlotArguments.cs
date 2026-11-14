@@ -51,6 +51,11 @@ internal sealed partial class ScopeResolver
         return WithSlotValues(values, () => ResolveArguments(ArgumentNodes(syntax), scope, parameters));
     }
 
+    public T WithValues<T>(ISlotValueBinder values, Func<T> resolve)
+    {
+        return WithSlotValues(values, resolve);
+    }
+
     public static bool HasSlot(IReadOnlyList<TypeParameter> parameters, int written)
     {
         return Enumerable.Range(0, written).Any(position => SlotAt(parameters, written, position) is { IsDependent: true, IsPack: false });

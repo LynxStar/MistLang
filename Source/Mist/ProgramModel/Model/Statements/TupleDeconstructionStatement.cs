@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Statements;
 
@@ -19,6 +20,8 @@ internal sealed class TupleDeconstructionStatement(
     public IReadOnlyList<LocalVariable> Targets { get; } = targets;
 
     public Expression Initializer { get; } = initializer;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     public IReadOnlyList<ImplicitConversionExpression?> ElementConversions { get; } = elementConversions ?? [.. targets.Select(_ => (ImplicitConversionExpression?)null)];
 }

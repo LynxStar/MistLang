@@ -131,6 +131,7 @@ internal static class LifetimeLowering
 
         if(declaration.Initializer is null)
         {
+            BodyEmitter.EvaluateAhead(declaration.Captures, writer, diagnostics);
             writer.WriteLine($"{TypeNameEmitter.EmitInferable(local.Type)} {LocalNames.Of(local)} = default!;");
         }
         else

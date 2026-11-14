@@ -115,7 +115,7 @@ internal static class PostfixBinder
         {
             return StatedMethodArguments.Bind(
                 new MethodGroupExpression(node, null, name, group.Methods, null) { Paths = group.Paths },
-                node.TypeArgs, name, node, ctx, context, ownsCaptures: false);
+                node.TypeArgs, name, node, ctx, context);
         }
 
         var definition = context.Resolver.ResolveGenericDefinition(name, 1 + node.TypeArgs.TypeArguments.Length, ctx.Scope, node);
@@ -142,7 +142,7 @@ internal static class PostfixBinder
         {
             case GenericMethodGroupSuffixPostfixSuffixNode stated:
                 return StatedMethodArguments.Bind(
-                    BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context, ownsCaptures: false);
+                    BindMemberAccess(suffix, receiver, stated.Name.Lexeme, ctx, context), stated.TypeArgs, stated.Name.Lexeme, suffix, ctx, context);
 
             case InvocationSuffixPostfixSuffixNode invocation:
                 return BindInvocation(suffix, receiver, invocation.Arguments, null, ctx, context, captures: owed);

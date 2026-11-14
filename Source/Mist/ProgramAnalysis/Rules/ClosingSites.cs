@@ -138,6 +138,11 @@ internal sealed class ClosingSites
             TypeTestPattern test => [test.NarrowedType],
             CastExpression cast => [cast.TargetType],
             AsExpression conversion => [conversion.TargetType],
+            DefaultExpression defaulted => [defaulted.Type],
+            ForEachStatement loop => [loop.Variable.Type],
+            TupleDeconstructionStatement deconstruction => [.. deconstruction.Targets.Select(target => target.Type)],
+            WithBlockStatement ambient => [ambient.KeyType],
+            FunctionReferenceExpression reference => [.. reference.ClosedParameterTypes, .. reference.ClosedReturnType is { } returned ? [returned] : Array.Empty<IMistType>()],
             MemberAccessExpression { Receiver: TypeReferenceExpression typed } => [typed.ReferencedType],
             InvocationExpression call => [.. call.ParameterTypes ?? [], .. (call.Receiver as MemberAccessExpression)?.TypeArguments ?? []],
             _ => [],
@@ -147,6 +152,11 @@ internal sealed class ClosingSites
             && method.TypeParametersList.Count == receiver.TypeArguments.Count)
         {
             yield return (method.TypeParametersList, receiver.TypeArguments);
+        }
+
+        if(node is FunctionReferenceExpression { Method.TypeParametersList: { Count: > 0 } parameters, TypeArguments: var arguments } && parameters.Count == arguments.Count)
+        {
+            yield return (parameters, arguments);
         }
 
         foreach(var type in written)

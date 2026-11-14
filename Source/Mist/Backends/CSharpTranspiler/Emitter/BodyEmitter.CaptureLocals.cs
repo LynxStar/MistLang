@@ -36,6 +36,9 @@ internal static partial class BodyEmitter
     private static Dictionary<SlotCapture, string>? evaluated;
 
     [ThreadStatic]
+    private static HashSet<SlotCapture>? settled;
+
+    [ThreadStatic]
     private static int captureLocals;
 
     [ThreadStatic]
@@ -52,6 +55,7 @@ internal static partial class BodyEmitter
         }
 
         kept = new Dictionary<SlotCapture, string>(ReferenceEqualityComparer.Instance);
+        settled = new HashSet<SlotCapture>(ReferenceEqualityComparer.Instance);
 
         foreach(var node in BodyWalker.DescendantsAndSelf(body))
         {
@@ -72,6 +76,7 @@ internal static partial class BodyEmitter
         public void Dispose()
         {
             kept = null;
+            settled = null;
         }
     }
 
@@ -93,6 +98,22 @@ internal static partial class BodyEmitter
 
                 break;
 
+            case DefaultExpression defaulted:
+                foreach(var capture in ClosingCaptures(defaulted.Type).Where(capture => !defaulted.Captures.Contains(capture)))
+                {
+                    yield return capture;
+                }
+
+                break;
+
+            case NewExpression creation:
+                foreach(var capture in ClosingCaptures(creation.Type).Where(capture => !creation.Captures.Contains(capture)))
+                {
+                    yield return capture;
+                }
+
+                break;
+
             case FunctionReferenceExpression reference:
                 var (typeArguments, typeParameters, method) = CallTypeArguments(reference.Method, reference.TypeArguments);
 
@@ -108,6 +129,17 @@ internal static partial class BodyEmitter
 
                 break;
         }
+    }
+
+    private static IEnumerable<SlotCapture> ClosingCaptures(IMistType type)
+    {
+        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
+            ? SlotRoutes.ValueRouted(constructed.Definition)
+                .Where(slot => slot.Ordinal < constructed.TypeArguments.Count)
+                .Select(slot => constructed.TypeArguments[slot.Ordinal])
+                .OfType<CapturedValue>()
+                .Select(captured => captured.Capture)
+            : [];
     }
 
     private static string? KeptLocal(SlotCapture capture)
@@ -127,16 +159,25 @@ internal static partial class BodyEmitter
             return bound;
         }
 
-        return KeptLocal(capture) is { } local
-            ? $"({local} = {RenderAt(capture.Initializer, AssignmentPrecedence, diagnostics)})"
-            : RenderAt(capture.Initializer, precedence, diagnostics);
+        if(KeptLocal(capture) is not { } local)
+        {
+            return RenderAt(capture.Initializer, precedence, diagnostics);
+        }
+
+        return Settle(capture) ? $"({local} = {RenderAt(capture.Initializer, AssignmentPrecedence, diagnostics)})" : local;
     }
 
-    private static void EvaluateDiscarded(IEnumerable<SlotCapture> captures, CSharpWriter writer, DiagnosticBag diagnostics)
+    private static bool Settle(SlotCapture capture)
+    {
+        return settled?.Add(capture) != false;
+    }
+
+    internal static void EvaluateAhead(IReadOnlyList<SlotCapture> captures, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         foreach(var capture in captures.Where(Evaluates))
         {
             writer.WriteLine($"{KeptLocal(capture) ?? "_"} = {Render(capture.Initializer, diagnostics)};");
+            _ = Settle(capture);
         }
     }
 
@@ -208,13 +249,6 @@ internal static partial class BodyEmitter
             MemberAccessExpression access => access.Captures.Where(capture => !ConsumedByAccess(access, capture)),
             _ => [],
         };
-    }
-
-    private static bool ConsumesCapture(Expression? initializer, SlotCapture capture)
-    {
-        var inner = initializer is ImplicitConversionExpression conversion ? conversion.Operand : initializer;
-
-        return inner is DefaultExpression defaulted && ConsumedByClosing(defaulted.Type, capture);
     }
 
     private static bool ConsumedByClosing(IMistType type, SlotCapture capture)
@@ -539,6 +573,7 @@ internal static partial class BodyEmitter
             if(step.Capture is { } capture)
             {
                 writer.WriteLine($"{KeptLocal(capture) ?? "_"} = {Render(capture.Initializer, diagnostics)};");
+                _ = Settle(capture);
             }
             else if(step.Part is { } part && Binds(part))
             {
@@ -619,6 +654,7 @@ internal static partial class BodyEmitter
             {
                 writer.Append($"{lead}({local} = {RenderAt(capture.Initializer, AssignmentPrecedence, diagnostics)}) is var _");
                 evaluated[capture] = local;
+                _ = Settle(capture);
             }
             else
             {

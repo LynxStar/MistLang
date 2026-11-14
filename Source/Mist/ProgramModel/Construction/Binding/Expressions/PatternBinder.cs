@@ -631,7 +631,7 @@ internal static partial class PatternBinder
             }
         }
 
-        return null;
+        return union.Constituents.FirstOrDefault(constituent => ConversionClassifier.AgreesUpToProof(tested, constituent));
     }
 
     private static Pattern? BindConstant(

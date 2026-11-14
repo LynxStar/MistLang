@@ -129,8 +129,7 @@ internal static class ExpressionBinder
             TargetTypedNewExpressionNoArgsPrimaryNode initializerOnly => BindTargetTypedNew(
                 initializerOnly, null, initializerOnly.Initializer, ctx, context),
             FieldKeywordExpressionPrimaryNode fieldKeyword => BindFieldKeyword(fieldKeyword, ctx, context),
-            DefaultExpressionPrimaryNode named => new DefaultExpression(
-                named, context.Resolver.Resolve(named.Type, ctx.Scope)),
+            DefaultExpressionPrimaryNode named => BindDefault(named, ctx, context),
             DefaultLiteralExpressionPrimaryNode bare => BindBareDefault(bare, ctx, context),
 
             TypeLiteralExpressionPrimaryNode typeLiteral => BindTypeLiteral(typeLiteral, ctx, context),
@@ -178,6 +177,13 @@ internal static class ExpressionBinder
 
         return new TypeLiteralExpression(
             node, referenced, context.Resolver.LookupWellKnown(WellKnownTypes.Type));
+    }
+
+    private static DefaultExpression BindDefault(DefaultExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
+    {
+        var values = new SlotValueBinder(ctx, context);
+
+        return new DefaultExpression(node, context.Resolver.Resolve(node.Type, ctx.Scope, values)) { Captures = values.Captures };
     }
 
     private static Expression BindBareDefault(
@@ -510,11 +516,12 @@ internal static class ExpressionBinder
 
     private static Expression BindArrayCreation(ArrayCreationExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        var elementType = ResolveElementType(node.Type, ctx, context);
+        var values = new SlotValueBinder(ctx, context);
+        var elementType = context.Resolver.WithValues(values, () => ResolveElementType(node.Type, ctx, context));
         var size = SizeOf(node.Size, ctx, context);
         var (length, captures) = LengthOf(size, node.Size, WellKnownTypes.Array, context);
         var arrayType = context.Resolver.ConstructLengthIndexed(WellKnownTypes.Array, elementType, length);
-        return new ArrayCreationExpression(node, elementType, size, arrayType) { Captures = captures };
+        return new ArrayCreationExpression(node, elementType, size, arrayType) { Captures = [.. values.Captures, .. captures] };
     }
 
     private static (IMistType? Length, IReadOnlyList<SlotCapture> Captures) LengthOf(Expression size, ExpressionNode written, WellKnownType definition, BuilderContext context)
@@ -548,7 +555,8 @@ internal static class ExpressionBinder
     private static Expression BindStackalloc(
         StackallocExpressionPrimaryNode node, BindingContext ctx, BuilderContext context)
     {
-        var elementType = ResolveElementType(node.Type, ctx, context);
+        var values = new SlotValueBinder(ctx, context);
+        var elementType = context.Resolver.WithValues(values, () => ResolveElementType(node.Type, ctx, context));
         var size = SizeOf(node.Size, ctx, context);
 
         // Read off the DEFINITION rather than the target's own name, which carries its arguments and so
@@ -563,7 +571,7 @@ internal static class ExpressionBinder
 
         return new StackallocExpression(
             node, elementType, size, context.Resolver.ConstructLengthIndexed(definition, elementType, length))
-        { Captures = captures };
+        { Captures = [.. values.Captures, .. captures] };
     }
 
     private static IMistType ResolveElementType(ElementTypeRefNode elementTypeRef, BindingContext ctx, BuilderContext context)

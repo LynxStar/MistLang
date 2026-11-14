@@ -190,6 +190,10 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName);
                     break;
 
+                case { Kind: FlowStepKind.Evaluate, Node: FunctionReferenceExpression { Type: IFunctionType target } reference }:
+                    NeedSignature(state, reference, target);
+                    break;
+
                 case { Kind: FlowStepKind.Evaluate, Node: CastExpression cast } when CastAnalyzer.Converts(context, cast):
                     Need(state, cast.Operand, cast.ParameterType ?? cast.TargetType, cast);
                     break;

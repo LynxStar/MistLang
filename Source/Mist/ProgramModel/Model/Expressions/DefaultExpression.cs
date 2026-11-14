@@ -1,4 +1,5 @@
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -10,5 +11,7 @@ namespace Mist.ProgramModel.Model.Expressions;
 /// </summary>
 internal sealed class DefaultExpression(SyntaxNode node, IMistType type) : Expression(node)
 {
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
+
     public override IMistType Type { get; } = type;
 }

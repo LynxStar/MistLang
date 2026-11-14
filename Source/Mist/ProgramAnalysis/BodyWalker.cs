@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis;
@@ -66,7 +67,7 @@ internal static class BodyWalker
         }
 
         add<AnonymousObjectExpression>(e => [.. e.Values]);
-        add<ArrayCreationExpression>(e => [e.Size]);
+        add<ArrayCreationExpression>(e => [.. Written(e.Captures, e.Size), e.Size]);
         add<ArrayLiteralExpression>(e => [.. e.Elements]);
         add<AsExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), e.Operand]);
         add<AssignmentExpression>(e => [e.Target, e.Value]);
@@ -78,12 +79,12 @@ internal static class BodyWalker
         add<CloneExpression>(e => [e.Source]);
         add<CoalesceExpression>(e => [e.Left, e.Right]);
         add<CompoundAssignmentExpression>(e => [e.Target, e.Value]);
-        add<DefaultExpression>(_ => []);
+        add<DefaultExpression>(e => [.. e.Captures.Select(capture => capture.Initializer)]);
         add<ElementReadExpression>(_ => []);
         add<ErrorExpression>(e => [.. e.Children]);
         add<ExtensionPropertyAccessExpression>(e => [e.Receiver]);
         add<FieldReferenceExpression>(_ => []);
-        add<FunctionReferenceExpression>(e => [e.Receiver]);
+        add<FunctionReferenceExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), e.Receiver]);
         add<ImplicitConversionExpression>(e => [e.Operand]);
         add<IndexExpression>(e => [e.Receiver, e.Index]);
         add<InterpolatedStringExpression>(e => [.. e.Parts]);
@@ -107,7 +108,7 @@ internal static class BodyWalker
         add<ResultConstructionExpression>(e => [e.Payload]);
         add<ResultPropagationExpression>(e => [e.Operand, e.FailureReturn]);
         add<SpreadExpression>(e => [e.Operand]);
-        add<StackallocExpression>(e => [e.Size]);
+        add<StackallocExpression>(e => [.. Written(e.Captures, e.Size), e.Size]);
         add<SwitchExpression>(e => [e.Scrutinee, .. e.Arms]);
         add<SwitchArm>(a => [a.Pattern, a.Guard, a.Result]);
         add<ThisExpression>(_ => []);
@@ -123,16 +124,16 @@ internal static class BodyWalker
         add<Block>(b => [.. b.Statements]);
         add<BreakStatement>(_ => []);
         add<ExpressionStatement>(s => [s.Expression]);
-        add<ForEachStatement>(s => [s.Collection, s.ElementConversion, s.Body]);
+        add<ForEachStatement>(s => [.. s.Captures.Select(capture => capture.Initializer), s.Collection, s.ElementConversion, s.Body]);
         add<ForStatement>(s => [s.Initializer, s.Condition, s.Iterator, s.Body]);
         add<IfStatement>(s => [s.Condition, s.ThenBranch, s.ElseBranch]);
         add<LocalDeclarationStatement>(s => [.. s.Captures.Select(capture => capture.Initializer), s.Initializer]);
         add<LocalFunctionStatement>(s => [s.Body]);
         add<ReturnStatement>(s => [s.Value]);
-        add<TupleDeconstructionStatement>(s => [s.Initializer, .. s.ElementConversions]);
+        add<TupleDeconstructionStatement>(s => [.. s.Captures.Select(capture => capture.Initializer), s.Initializer, .. s.ElementConversions]);
         add<UnsupportedStatement>(_ => []);
         add<WhileStatement>(s => [s.Condition, s.Body]);
-        add<WithBlockStatement>(s => [s.Value, s.Body]);
+        add<WithBlockStatement>(s => [.. s.Captures.Select(capture => capture.Initializer), s.Value, s.Body]);
 
         add<CatchAllPattern>(_ => []);
         add<ComparisonPattern>(p => [p.Bound]);
@@ -148,5 +149,10 @@ internal static class BodyWalker
         add<TypeTestPattern>(p => [.. p.Captures.Select(capture => capture.Initializer)]);
 
         return table;
+    }
+
+    private static IEnumerable<Expression> Written(IReadOnlyList<SlotCapture> captures, Expression size)
+    {
+        return captures.Select(capture => capture.Initializer).Where(initializer => !ReferenceEquals(initializer, size));
     }
 }

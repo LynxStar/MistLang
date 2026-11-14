@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Statements;
 
@@ -19,6 +20,8 @@ internal sealed class ForEachStatement(
     public ImplicitConversionExpression? ElementConversion { get; } = elementConversion;
 
     public Block Body { get; } = body;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     /// <summary>
     /// The members the loop calls, recorded because the emitted foreach lets Roslyn resolve them

@@ -43,6 +43,11 @@ internal sealed class SlotCapture : LocalVariable
             MemberAccessExpression access => access.Captures,
             CastExpression cast => cast.Captures,
             AsExpression conversion => conversion.Captures,
+            DefaultExpression defaulted => defaulted.Captures,
+            FunctionReferenceExpression reference => reference.Captures,
+            ForEachStatement loop => loop.Captures,
+            TupleDeconstructionStatement deconstruction => deconstruction.Captures,
+            WithBlockStatement ambient => ambient.Captures,
             _ => [],
         };
     }

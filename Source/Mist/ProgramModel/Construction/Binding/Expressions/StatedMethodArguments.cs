@@ -15,7 +15,7 @@ internal sealed record StatedResolution(IReadOnlyList<IMistType> Arguments, IRea
 internal static class StatedMethodArguments
 {
     public static Expression Bind(
-        Expression member, TypeArgumentListNode stated, string name, SyntaxNode node, BindingContext ctx, BuilderContext context, bool ownsCaptures = true)
+        Expression member, TypeArgumentListNode stated, string name, SyntaxNode node, BindingContext ctx, BuilderContext context)
     {
         if(member is ErrorExpression)
         {
@@ -30,8 +30,8 @@ internal static class StatedMethodArguments
 
         var written = 1 + stated.TypeArguments.Length;
         var candidates = group.Candidates;
-        var perCandidate = ownsCaptures ? ResolvePerCandidate(candidates, stated, written, ctx, context) : null;
-        var values = ownsCaptures ? new SlotValueBinder(ctx, context) : null;
+        var perCandidate = ResolvePerCandidate(candidates, stated, written, ctx, context);
+        var values = new SlotValueBinder(ctx, context);
         IReadOnlyList<IMistType>? arguments = null;
         Withheld? shared = null;
         if(perCandidate is null)
@@ -88,16 +88,14 @@ internal static class StatedMethodArguments
             Paths = group.Paths,
             StatedTypeArguments = arguments ?? shape,
             StatedShared = shared,
-            StatedSharedCaptures = arguments is null ? [] : values?.Captures ?? [],
+            StatedSharedCaptures = arguments is null ? [] : values.Captures,
             StatedPerCandidate = perCandidate,
         };
     }
 
-    private static IReadOnlyList<IMistType> Shared(TypeArgumentListNode stated, SlotValueBinder? values, BindingContext ctx, BuilderContext context)
+    private static IReadOnlyList<IMistType> Shared(TypeArgumentListNode stated, SlotValueBinder values, BindingContext ctx, BuilderContext context)
     {
-        return values is null
-            ? context.Resolver.ResolveTypeArguments(stated, ctx.Scope)
-            : context.Resolver.ResolveTypeArguments(stated, ctx.Scope, values);
+        return context.Resolver.ResolveTypeArguments(stated, ctx.Scope, values);
     }
 
     /// <summary>
@@ -145,9 +143,8 @@ internal static class StatedMethodArguments
     /// <summary>
     /// Only a candidate says whether a written position is a dependent slot, so a list is resolved once
     /// per distinct shape of slots and shared by the candidates of that shape, with each resolution's
-    /// reports withheld for the call to settle once it has chosen. A candidate without a slot reads it
-    /// as the shared resolution does, every written position a type. Only a call owns the captures, so a
-    /// group named as a value reads no slot and takes the shared resolution alone.
+    /// reports withheld for the call or the conversion to settle once it has chosen. A candidate without a
+    /// slot reads it as the shared resolution does, every written position a type.
     /// </summary>
     private static Dictionary<Method, StatedResolution>? ResolvePerCandidate(
         IReadOnlyList<Method> candidates, TypeArgumentListNode stated, int written, BindingContext ctx, BuilderContext context)

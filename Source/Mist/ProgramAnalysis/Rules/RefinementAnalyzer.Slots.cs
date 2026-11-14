@@ -27,6 +27,25 @@ internal sealed partial class RefinementAnalyzer
             }
         }
 
+        private void NeedSignature(FactState state, FunctionReferenceExpression reference, IFunctionType target)
+        {
+            var pairs = target.ParameterTypes.Zip(reference.ClosedParameterTypes).Select(pair => (Source: pair.First, Target: pair.Second));
+
+            if(reference.ClosedReturnType is { } returned)
+            {
+                pairs = pairs.Append((returned, target.ReturnType));
+            }
+
+            foreach(var (source, met) in pairs)
+            {
+                if(source is not ErrorType && SlotIdentity.Judge(state, source, met, through: null, factReading, budget) is { } unproven)
+                {
+                    ReportClosing(unproven, reference.Node, [reference]);
+                    return;
+                }
+            }
+        }
+
         private void ReportClosing(UnprovenSlot unproven, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about)
         {
             context.Report(

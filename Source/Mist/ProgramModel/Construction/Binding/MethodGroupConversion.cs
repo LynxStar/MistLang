@@ -71,6 +71,11 @@ internal static class MethodGroupConversion
         {
             TypeArguments = match.TypeParametersList.ConvertAll(parameter => substitution.Apply(parameter, interner)),
             ContextTypes = ContextBinding.TypesOf(match, type => substitution.Apply(type, interner)),
+            Captures = group.StatedCapturesFor(match),
+            ClosedParameterTypes = [.. ValuePack.Expand(match.ParametersList, substitution, interner).Select(parameter => parameter.Type)],
+            ClosedReturnType = constructTask is null
+                ? substitution.Apply(match.ReturnType, interner)
+                : ClrCatch.Adapt(match, substitution.Apply(match.ReturnType, interner), constructTask, interner),
         };
     }
 
@@ -104,10 +109,20 @@ internal static class MethodGroupConversion
             return Receiver(group, candidate, interner);
         }
 
-        var closed = group.Candidates
-            .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedArgumentsFor(candidate), parameterTypes, returnType, substitutionOf(candidate), interner, constructTask)))
-            .Where(candidate => candidate.Substitution is not null)
-            .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
+        Dictionary<Method, TypeSubstitution> closedBy(bool proof)
+        {
+            return group.Candidates
+                .Select(candidate => (Candidate: candidate, Substitution: Closing(candidate, group.StatedArgumentsFor(candidate), parameterTypes, returnType, substitutionOf(candidate), interner, constructTask, proof)))
+                .Where(candidate => candidate.Substitution is not null)
+                .ToDictionary(candidate => candidate.Candidate, candidate => candidate.Substitution!);
+        }
+
+        var closed = closedBy(proof: false);
+
+        if(closed.Count == 0)
+        {
+            closed = closedBy(proof: true);
+        }
 
         var matches = OverloadResolution.WithoutHidden([.. closed.Keys], substitutionOf, interner);
 
@@ -122,6 +137,7 @@ internal static class MethodGroupConversion
         MethodGroupExpression group, IMistType? targetType, BuilderContext context, out bool ambiguous, Scope? boundIn = null)
     {
         var converted = Convert(group, targetType, context.ProgramModel.TypeInterner, out ambiguous, context.Resolver.ConstructTask);
+        group.SettleStated((converted as FunctionReferenceExpression)?.Method);
 
         if(converted is FunctionReferenceExpression { TypeArguments.Count: > 0 } reference)
         {
@@ -199,7 +215,8 @@ internal static class MethodGroupConversion
         IMistType? returnType,
         TypeSubstitution substitution,
         TypeInterner interner,
-        Func<IMistType, IMistType>? constructTask)
+        Func<IMistType, IMistType>? constructTask,
+        bool proof)
     {
         if(stated is not null && stated.Count != candidate.TypeParametersList.Count)
         {
@@ -216,7 +233,7 @@ internal static class MethodGroupConversion
             substitution = substitution.Extend(TypeSubstitution.ForMethod(candidate, closing));
         }
 
-        return SignatureIs(candidate, parameterTypes, returnType, substitution, interner, constructTask) ? substitution : null;
+        return SignatureIs(candidate, parameterTypes, returnType, substitution, interner, constructTask, proof) ? substitution : null;
     }
 
     private static bool SignatureIs(
@@ -225,7 +242,8 @@ internal static class MethodGroupConversion
         IMistType? returnType,
         TypeSubstitution substitution,
         TypeInterner interner,
-        Func<IMistType, IMistType>? constructTask)
+        Func<IMistType, IMistType>? constructTask,
+        bool proof)
     {
         var parameters = ValuePack.Expand(candidate.ParametersList, substitution, interner);
         if(candidate.Modifiers.IsRef || parameters.Count != parameterTypes.Count || parameters.Any(parameter => parameter.Modifier.IsRef))
@@ -235,7 +253,7 @@ internal static class MethodGroupConversion
 
         for(var i = 0; i < parameters.Count; i++)
         {
-            if(!IsTheSame(parameters[i].Type, parameterTypes[i]))
+            if(!IsTheSame(parameters[i].Type, parameterTypes[i]) && !(proof && ConversionClassifier.AgreesUpToProof(parameterTypes[i], parameters[i].Type)))
             {
                 return false;
             }
@@ -247,7 +265,7 @@ internal static class MethodGroupConversion
         var declaredReturn = substitution.Apply(candidate.ReturnType, interner);
         var effectiveReturn = constructTask is null ? declaredReturn : ClrCatch.Adapt(candidate, declaredReturn, constructTask, interner);
 
-        return returnType is null || IsTheSame(effectiveReturn, returnType);
+        return returnType is null || IsTheSame(effectiveReturn, returnType) || (proof && ConversionClassifier.AgreesUpToProof(effectiveReturn, returnType));
     }
 
     private static bool IsTheSame(IMistType declared, IMistType expected)

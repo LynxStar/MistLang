@@ -93,6 +93,7 @@ internal sealed class FlowGraphBuilder
                 return current;
 
             case TupleDeconstructionStatement deconstruction:
+                current = Captured(deconstruction, current);
                 current = Expression(deconstruction.Initializer, current);
 
                 foreach(var target in deconstruction.Targets)
@@ -165,6 +166,7 @@ internal sealed class FlowGraphBuilder
                 }
 
             case ForEachStatement forEach:
+                current = Captured(forEach, current);
                 current = Expression(forEach.Collection, current);
 
                 return Loop(
@@ -179,6 +181,7 @@ internal sealed class FlowGraphBuilder
                     iterator: null);
 
             case WithBlockStatement withBlock:
+                current = Captured(withBlock, current);
                 current = Expression(withBlock.Value, current);
 
                 if(withBlock.Binding is { } binding)

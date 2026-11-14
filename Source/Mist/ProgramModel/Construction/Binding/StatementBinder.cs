@@ -116,7 +116,7 @@ internal static class StatementBinder
                 rest,
                 ctx,
                 context,
-                context.Resolver.ResolveWithFailure(typed.WithTypedDeclaration.Type, ctx.Scope)),
+                WrittenKey(typed.WithTypedDeclaration.Type, ctx, context)),
 
             // The discard and push forms scope nothing, so they name no local; they differ only in
             // whether the key was written or is the value's own.
@@ -128,7 +128,7 @@ internal static class StatementBinder
                 rest,
                 ctx,
                 context,
-                context.Resolver.ResolveWithFailure(discard.WithDiscardDeclaration.Type, ctx.Scope)),
+                WrittenKey(discard.WithDiscardDeclaration.Type, ctx, context)),
 
             WithPushStatementStatementNode push => BindWithBinding(
                 push.WithPushStatement,
@@ -160,8 +160,9 @@ internal static class StatementBinder
         IReadOnlyList<StatementNode> body,
         BindingContext ctx,
         BuilderContext context,
-        TypeResolution? keyType = null)
+        (TypeResolution Resolution, IReadOnlyList<SlotCapture> Captures)? written = null)
     {
+        var keyType = written?.Resolution;
         var value = BindKeyed(initializer, keyType?.Type, ctx, context, keyType?.IsFailed == true);
         var scope = new BodyScope(ctx.Scope);
         LocalVariable? local = null;
@@ -173,7 +174,14 @@ internal static class StatementBinder
         }
 
         var block = BodyBinder.BindStatementList(bodyNode, body, scope, ctx, context);
-        return new WithBlockStatement(value, block, local, keyType?.Type);
+        return new WithBlockStatement(value, block, local, keyType?.Type) { Captures = written?.Captures ?? [] };
+    }
+
+    private static (TypeResolution Resolution, IReadOnlyList<SlotCapture> Captures) WrittenKey(TypeReferenceNode type, BindingContext ctx, BuilderContext context)
+    {
+        var values = new SlotValueBinder(ctx, context);
+
+        return (context.Resolver.ResolveWithFailure(type, ctx.Scope, values), values.Captures);
     }
 
     private static Expression BindKeyed(
@@ -360,8 +368,9 @@ internal static class StatementBinder
         var elementNodes = GrammarRepetition.TwoLeadsAndRepeated(
             node.First, node.Rest, node.TupleDeconstructionElements);
 
+        var values = new SlotValueBinder(ctx, context);
         var resolutions = elementNodes.ConvertAll(
-            element => context.Resolver.ResolveWithFailure(element.Type, ctx.Scope));
+            element => context.Resolver.ResolveWithFailure(element.Type, ctx.Scope, values));
         var declaredTypes = resolutions.ConvertAll(resolution => resolution.Type);
 
         Expression initializer;
@@ -393,7 +402,7 @@ internal static class StatementBinder
         var conversions = elementTypes.Select((element, i) => ImplicitConversions.At(
             new ElementReadExpression(node.Initializer, element), declaredTypes[i], interner) as ImplicitConversionExpression).ToList();
 
-        return new TupleDeconstructionStatement(targets, initializer, conversions);
+        return new TupleDeconstructionStatement(targets, initializer, conversions) { Captures = values.Captures };
     }
 
     /// <summary>
@@ -576,6 +585,7 @@ internal static class StatementBinder
     {
         var foreachScope = new BodyScope(ctx.Scope);
 
+        var values = new SlotValueBinder(ctx, context);
         IMistType variableType;
         Expression collection;
         StormToken variableName;
@@ -584,7 +594,7 @@ internal static class StatementBinder
         switch(node)
         {
             case TypedForeachForeachStatementNode typed:
-                var resolution = context.Resolver.ResolveWithFailure(typed.Type, foreachScope);
+                var resolution = context.Resolver.ResolveWithFailure(typed.Type, foreachScope, values);
                 variableType = resolution.Type;
                 collection = ExpressionBinder.BindExpression(typed.Collection, ctx, context);
                 failed = resolution.IsFailed || PriorFailure.Of(collection);
@@ -629,6 +639,7 @@ internal static class StatementBinder
 
         return new ForEachStatement(variable, collection, body, conversion)
         {
+            Captures = values.Captures,
             GetEnumerator = members.GetEnumerator,
             MoveNext = members.MoveNext,
             Current = members.Current,

@@ -627,7 +627,7 @@ internal static partial class BodyEmitter
 
     private static void EmitLocalDeclaration(LocalDeclarationStatement localDecl, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        EvaluateDiscarded(localDecl.Captures.Where(capture => !ConsumesCapture(localDecl.Initializer, capture)), writer, diagnostics);
+        EvaluateAhead(localDecl.Captures, writer, diagnostics);
         using var evaluating = AtStatement(localDecl.Initializer, writer, diagnostics);
         using var hoisted = EmitHoisted(localDecl.Initializer, writer, diagnostics);
         var local = localDecl.Local;
@@ -709,6 +709,7 @@ internal static partial class BodyEmitter
         // what it owes, those being different questions about the same instance.
         var keyed = ContextKeyWitnesses.Held(withBlock.KeyType);
         var type = keyed ?? TypeNameEmitter.EmitContextKey(withBlock.KeyType);
+        EvaluateAhead(withBlock.Captures, writer, diagnostics);
 
         EmitSequenced(withBlock.Value, $"var {bound} = ", writer, diagnostics);
         var plan = LifetimeLowering.Active;
@@ -815,6 +816,7 @@ internal static partial class BodyEmitter
     private static void EmitDeconstruction(
         TupleDeconstructionStatement deconstruction, CSharpWriter writer, DiagnosticBag diagnostics)
     {
+        EvaluateAhead(deconstruction.Captures, writer, diagnostics);
         using var hoisted = EmitHoisted(deconstruction.Initializer, writer, diagnostics);
 
         if(deconstruction.ElementConversions.All(conversion => conversion is null))
@@ -849,6 +851,7 @@ internal static partial class BodyEmitter
     {
         var conversion = loop.ElementConversion;
         var element = conversion is null ? LocalNames.Of(loop.Variable) : $"__element{conversion.Node.Span.Start}";
+        EvaluateAhead(loop.Captures, writer, diagnostics);
 
         using(EmitHoisted(loop.Collection, writer, diagnostics))
         {
@@ -953,7 +956,7 @@ internal static partial class BodyEmitter
         if(initializer is LocalDeclarationStatement declared)
         {
             DeclareKeptLocals(declared, writer);
-            EvaluateDiscarded(declared.Captures.Where(capture => !ConsumesCapture(declared.Initializer, capture)), writer, diagnostics);
+            EvaluateAhead(declared.Captures, writer, diagnostics);
         }
 
         writer.Write("for (");
@@ -1506,6 +1509,12 @@ internal static partial class BodyEmitter
                         methodRef.TypeArguments,
                         methodRef.Method.TypeParametersList)
                     + EmitTypeArguments(methodRef.TypeArguments, methodRef.Method.TypeParametersList));
+                break;
+
+            case FunctionReferenceExpression evaluating when sequenced?.Contains(evaluating) != true && evaluating.Captures.Any(Evaluates):
+                writer.Append(Evaluating(
+                    [.. evaluating.Captures.Where(Evaluates)], evaluating, evaluating.Receiver ?? evaluating,
+                    () => $"(({TypeNameEmitter.Emit(evaluating.Type)})({Render(evaluating, diagnostics)}))", diagnostics));
                 break;
 
             case FunctionReferenceExpression functionRef

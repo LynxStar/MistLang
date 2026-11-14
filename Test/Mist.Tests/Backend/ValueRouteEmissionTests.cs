@@ -273,7 +273,7 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
-    public void ADefaultThatConsumesTheDeclarationsCaptureLeavesNoDiscardedRead()
+    public void ADefaultThatReadsTheDeclarationsCaptureReadsItFromTheLocalTheDeclarationAssigns()
     {
         using var routes = SlotRoutes.Enter([capacity]);
         var count = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(UnknownType.Instance, "p"), "Count", slots.Int);
@@ -282,7 +282,7 @@ public sealed class ValueRouteEmissionTests
         var defaulted = HandBuiltSlots.Declare(new LocalVariable("r", closing), new DefaultExpression(HandBuiltModel.Node(), closing), capture);
         var copied = HandBuiltSlots.Declare(new LocalVariable("r", closing), HandBuiltRefinements.Local(closing, "other"), capture);
 
-        Assert.Equal(["Probe.Ring r = Probe.Ring.__CreateDefault(p.Count);"], Statements(defaulted));
+        Assert.Equal(["int __c1;", "__c1 = p.Count;", "Probe.Ring r = Probe.Ring.__CreateDefault(__c1);"], Body(defaulted));
         Assert.Equal(["_ = p.Count;", "Probe.Ring r = other;"], Statements(copied));
     }
 
@@ -952,6 +952,16 @@ public sealed class ValueRouteEmissionTests
     {
         var access = new MemberAccessExpression(HandBuiltModel.Node(), receiver, method.Name, method.ReturnType, typeArguments);
         return new InvocationExpression(HandBuiltModel.Node(), access, arguments, method.ReturnType, method, parameterTypes);
+    }
+
+    private static List<string> Body(params Statement[] statements)
+    {
+        var writer = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
+        BodyEmitter.ResetTemporaries();
+        BodyEmitter.EmitBlock(HandBuiltModel.Block(statements), writer, diagnostics);
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        return [.. writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())];
     }
 
     private static List<string> Statements(Statement statement)

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramModel.Model.Statements;
 
@@ -20,6 +21,8 @@ internal sealed class WithBlockStatement(
     public Expression Value { get; } = value;
 
     public Block Body { get; } = body;
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     /// <summary>
     /// The type the value is made ambient UNDER, which is the declared one where a form names it and

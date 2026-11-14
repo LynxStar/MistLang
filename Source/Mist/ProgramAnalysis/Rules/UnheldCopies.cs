@@ -8,13 +8,6 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// A newtype whose copy from its source cannot be field for field, because a field names the source
-/// and so stands for the newtype in the clone, and whose source defines no <c>Clone</c> to convert
-/// through instead (newtypes spec Requirement 10.3). Neither direction exists, so the refusal is owed
-/// wherever one was asked for -- a cast, and a position that expected the other type -- and it names
-/// the field, which is the only part of the declaration the author has to change.
-/// </summary>
 internal static class UnheldCopies
 {
     internal static bool Exists(IMistType from, IMistType to)

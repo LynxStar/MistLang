@@ -6,10 +6,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A regex the .NET engine refuses, wherever it is written: a literal or the string shorthand that binds as
-/// one, a regex pattern in a body, and a regex inside any predicate <see cref="DeclaredPredicates"/> finds.
-/// Each is judged where it is written and nowhere it is reached, so a refinement tested at many sites is one
-/// complaint, and <see cref="Refinements.LiteralPredicates.IsRefused"/> keeps its uses from being another.
+/// Judge each regex where written; <see cref="Refinements.LiteralPredicates.IsRefused"/> prevents
+/// repeated complaints when a refinement containing it is tested elsewhere.
 /// </summary>
 internal sealed class RegexAnalyzer : IProgramAnalyzer
 {

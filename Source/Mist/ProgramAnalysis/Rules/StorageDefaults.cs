@@ -5,8 +5,7 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A constructor starts from a slot's initializer or type default, independently of the owner's default
-/// block. Both construction and default synthesis refuse a refinement's zero when its predicate does.
+/// Construction uses the slot initializer or type default, independently of the owner's default block.
 /// </summary>
 internal static class StorageDefaults
 {

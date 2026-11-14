@@ -7,13 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-/// <summary>
-/// The two values a program cannot make of <c>unknown</c> (unknown-type Requirements 5.6, 5.7 and
-/// 10.5). A generic closed with <c>unknown</c> is a VIEW of some concrete instantiation, widened into
-/// it; constructing one would create storage typed by the top type, which the storage ban refuses
-/// everywhere else, so <c>new</c> is refused whatever constructor it names. And <c>unknown</c> has no
-/// default: no value is unknown and nothing more, so a slot defaulted to it would hold nothing at all.
-/// </summary>
 internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
 {
     public string Id => "unknown-closure-construction";
@@ -40,10 +33,6 @@ internal sealed class UnknownClosureAnalyzer : IProgramAnalyzer
         return UnknownViews.IsClosedWithUnknown(constructed) ? ProgramAnalysisDiagnostics.UnknownClosureConstructed : null;
     }
 
-    /// <summary>
-    /// The type parameters the construction binds to <c>unknown</c>, named for the diagnostic, which
-    /// has to say WHERE the top type sits in a long argument list.
-    /// </summary>
     internal static SequenceValue UnknownPositions(IMistType constructed)
     {
         var names = new List<SlotValue>();

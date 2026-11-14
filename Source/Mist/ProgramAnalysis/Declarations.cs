@@ -7,11 +7,8 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What a declaration says about itself, read uniformly across the kinds that say it differently. The
-/// EFFECTIVE accessibility of a type is the narrowest along its nesting, and of anything structural the
-/// narrowest of what it is built from: a public method returning <c>Box&lt;Hidden&gt;</c> exposes Hidden as
-/// surely as one returning Hidden. Internal and protected are incomparable, as C# has them, so each is
-/// at least as accessible only as itself and private.
+/// Effective accessibility includes enclosing types and structural parts, since signatures
+/// expose both. Internal and protected are incomparable, as in C#; neither admits the other.
 /// </summary>
 internal static class Declarations
 {

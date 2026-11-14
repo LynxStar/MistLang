@@ -4,13 +4,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The identity an ambient value is filed and found under, from structured-context Requirement 5, and
-/// the one place it is decided. An alias and a refinement key as what they stand for, a refinement
-/// narrowing which values may be offered and not where they are kept. A construction, a union, a tuple
-/// and a function type key as themselves, part by part, so a holder of int is not a holder of string,
-/// <c>int | bool</c> is not <c>int</c>, and a pure function type is not the plain one. Nothing is found
-/// through a base type. A type parameter is only ever itself: what it keys as is each caller's to say,
-/// so two that share a name are still two.
+/// Structured-context Requirement 5 erases aliases and refinements from key identity: a
+/// refinement restricts offered values, not storage. Structural types key part by part, without
+/// base-type lookup; type parameters keep declaration identity until each caller closes them.
 /// </summary>
 internal static class ContextKeys
 {

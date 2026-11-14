@@ -14,22 +14,11 @@ internal readonly record struct FormatStep(TypeParameter? Open, IMistType Format
 internal readonly record struct FormatUse(object Callee, MemberModifiers Declared, MistType? Scope, Expression At, TypeSubstitution Closing);
 
 /// <summary>
-/// The formatter callbacks a body sets off, followed through generic closings. A hole or a string
-/// concatenation operand whose type is a Mist <c>System.IFormattable</c> calls its two-argument
-/// <c>ToString</c>, as does each element of a tuple and the value of an optional, which the target formats
-/// in turn; a wider union is formatted as its carrier and calls nothing. Such a call is a
-/// <see cref="FormatStep"/> naming its <see cref="FormatStep.Formatter"/>. A value whose type is a type
-/// parameter is an <see cref="FormatStep.Open"/> step instead, since what it calls is decided where the
-/// parameter is closed, and so is a call into a generic member that formats one of its own parameters, a
-/// <see cref="FormatUse"/> whose closing says what that parameter is there. <see cref="Of"/> answers which
-/// type parameters a member formats, a least fixed point over the members it calls.
-/// <para>
-/// A callee or formatter that DECLARES readonly is not followed. Its promise is judged where its formatted
-/// parameters are closed, so following it as well would report one mistake twice. Only a type parameter in
-/// scope of the member is collected: one a use leaves unbound belongs to some other declaration, and
-/// promising it would judge closings the member never reaches. Only Mist types are judged, by their static
-/// type, exactly as for a concrete hole.
-/// </para>
+/// Runtime formatting reaches Mist IFormattable.ToString through tuple elements and optional
+/// values; wider unions format their carrier. Generic callbacks require a least fixed point
+/// over callees and their closings. Follow only the member's in-scope type parameters and
+/// Mist static types. Stop at declared readonly promises, which are judged at their closings;
+/// following their bodies here would report the same mistake twice.
 /// </summary>
 internal sealed class FormattingCallbacks
 {

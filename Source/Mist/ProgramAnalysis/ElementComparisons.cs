@@ -7,12 +7,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// The members the target's own comparers run on a scope's behalf: Standard's List compares its elements
-/// through the CLR's default equality in Contains, IndexOf and Remove and its default ordering in Sort, and
-/// the equality of two anonymous values compares member by member the same way. Each default dispatches to
-/// the element's IEquatable or IComparable when it has one, so the Mist member answering it is a callee of
-/// the scope that compared, whatever the list's own promise says. An answer of null means the comparison
-/// runs code the program cannot see -- a CLR type's, an abstract's, a type parameter's.
+/// CLR default comparers can call Mist IEquatable/IComparable members on behalf of List
+/// operations and anonymous equality, regardless of the container's promise. Null means the
+/// comparison reaches code outside the model; an empty result means no Mist callback.
 /// </summary>
 internal static class ElementComparisons
 {

@@ -5,10 +5,8 @@ using Mist.ProgramModel.Model;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What one project starts at, decided from what it declares and what its manifest asks for
-/// (top-level-statements Requirements 1.6 and 2 to 4, and attributes-and-test-command's library rule). The
-/// one place it is decided: <see cref="Rules.EntryPointAnalyzer"/> reports a refusal and the emitter emits
-/// the rest, so the two cannot disagree about which <c>Main</c> runs.
+/// Analysis and emission share this decision so they agree which Main runs
+/// (top-level-statements Requirements 1.6 and 2–4; attributes-and-test-command's library rule).
 /// </summary>
 internal abstract record EntryPointSelection
 {

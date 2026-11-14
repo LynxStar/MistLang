@@ -11,13 +11,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis;
 
 /// <summary>
-/// What a value or a reference may outlive, answered as the frame storage it refers to -- stackalloc
-/// memory, a local, a parameter passed by value, a struct member's receiver -- or null when nothing ties
-/// it to the frame; and where a stored ref struct would outlive the frame, with why. The scopes are C#'s
-/// ref-safety contexts, which the emitted program is judged by: a call's ref struct result is as narrow as
-/// the narrowest ref struct it is given or reference it is lent, and a ref struct local keeps the scope its
-/// declaration gave it whatever is assigned later, which is why a local declared from a heap value, or
-/// from nothing, may not take a stackalloc-backed one. A parameter's value belongs to its caller.
+/// These scopes follow emitted C# ref-safety: ref-struct results inherit the narrowest lent
+/// input, while a local keeps its declaration's scope across assignments. Null means no frame
+/// tie; parameter values belong to their caller.
 /// </summary>
 internal static class FrameScopes
 {

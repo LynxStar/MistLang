@@ -715,6 +715,71 @@ and operator form whose operands may not carry the slot; and every way a
 nested type is declared, created, named and tested, at one and at two levels
 of nesting.
 
+### Identity by value: a closing as a type argument
+
+Item 8. The four programs of *A closing as a type argument* printed wrong
+answers at 7926a184 and are refused as MIST0502 since ad262e7e. After this
+delivery they print the right ones, and so does a test forwarded through two
+generics, which runs today while its types are closed only with literals:
+
+| Program | After |
+|---|---|
+| `new Tester<Ring<5>>().Is(three)`, then `.Is(five)` | `False`, `True` |
+| `Counter<Ring<3>>.hits = 1; Counter<Ring<4>>.hits = 2;` and then both are read | `1`, `2` |
+| `Blank<Cell<7>>()[0].Size()` | `7` |
+| `Outer<Ring<5>>(three)`, where `Outer<T>` calls `Inner<T>`, which asks a `Tester<T>` | `False` |
+
+The backend already passes a hidden witness wherever the CLR erases what Mist
+tells apart. `DefaultConstraintWitness` passes a factory for
+`where T : default`, `ConstructorWitnesses` passes one for a constructor
+constraint, and `ContextKeyWitnesses` passes a `System.Type` for a `with` key
+because `string?` and `string` are one CLR type. A closing witness is the same
+answer for a slot.
+
+A type parameter gains a witness when `SlotSensitivity` marks it and some
+instantiation in the program fills it with a type that mentions a closing of a
+value-routed type. On a method the witness is a hidden leading parameter. On a
+type it is a hidden field set from a hidden constructor parameter. A
+declaration no such instantiation reaches is emitted as it is today.
+
+The place that writes the closing builds the witness, because it knows the
+slot's value: the literal, the capture or the parameter. The witness answers
+by the reason the parameter was marked:
+
+- A test against the parameter asks the witness. It holds the test the writer
+  would have emitted for the closing itself: the C# test and the slot
+  comparison.
+- `new T[k]` and a stack allocation copy the witness's stamp into every
+  element.
+- Static storage of the generic type uses the holder table of item 5, keyed by
+  the witness's key: the declaration and its slot values, compared by value.
+- A body that passes its parameter on passes its witness on. An abstract's
+  generic method slot declares the witness, and each method that answers the
+  slot takes it.
+
+Three things a witness cannot answer. They keep MIST0502, with their reason,
+until the owner rules on each:
+
+- The type value of the parameter. A CLR `Type` cannot carry the value.
+- A test against a type that nests the parameter in a CLR container,
+  `x is List<T>`. The list object has nowhere to keep it.
+- A CLR generic. No witness can be passed into a CLR body. A class closing is
+  safe there, since a CLR body that hands back a zeroed reference hands back
+  null. A struct closing is not: `ArrayPool<Cell<7>>.Shared.Rent(2)[0].Size()`
+  prints 0 once `Cell` is value-routed, and any CLR generic may hand back a
+  zeroed value.
+
+`new T[k]` in a generic body also zeroes an ordinary struct whose declared
+default is not zero: `Blank<Pt>()` with `X = 5` prints 0 at ad262e7e, against
+definite-assignment Requirement 4.1b. The stamp a witness carries would fix
+it, and it changes the C# of existing programs, so it is a delivery of its
+own.
+
+The delivery hands in the list `SlotSensitivity` already implies, each entry
+marked as above: every reason a parameter is marked, and for each the way its
+witness is built, stored, forwarded and asked. `SlotSensitivity.cs` is past
+700 lines and is split when it is next changed.
+
 ### Where the C# backend falls short
 
 These were this design's first answer, written before the ruling above. Until

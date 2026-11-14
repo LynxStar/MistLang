@@ -4,8 +4,7 @@ namespace GenericAbstractMembers;
 
 // A generic abstract's members reached through a conformer. Type-argument inference reads T off the
 // base an argument conforms to, and a default with a body is restated into the conformer with T
-// substituted in its signature and its body alike. Classic infers the first and emits the second with
-// `T held` where no T is in scope, so this sample is banked on AllFeaturesV2 alone.
+// substituted in its signature and its body alike.
 public abstract Holder<T>
 {
     T Item();

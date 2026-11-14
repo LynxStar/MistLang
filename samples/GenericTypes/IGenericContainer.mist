@@ -1,5 +1,3 @@
-// IGenericContainer<T> — Demonstrates a generic abstract type.
-
 using Standard;
 
 namespace GenericTypes;

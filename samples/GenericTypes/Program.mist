@@ -1,5 +1,3 @@
-// GenericTypes — Covers generic classes and generic abstract types.
-
 using Standard;
 
 namespace GenericTypes;
@@ -22,7 +20,6 @@ public class Program
         var gboxStr = new GenericBox<string>("hello");
         Console.WriteLine($"gboxStr={gboxStr.Describe()}");
 
-        // Generic abstract type-typed variable
         IGenericContainer<int> gc = new GenericBox<int>(99);
         Console.WriteLine($"gc.item={gc.GetItem()}");
     }

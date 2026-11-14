@@ -1,16 +1,7 @@
-// GenericOptionals -- An optional whose inner type is a TYPE PARAMETER, `K?` inside `Holder<K>`.
-//
 // `K?` is `K | void`, and which CLR shape that takes depends on what K turns out to be: Nullable
 // of K for a value kind, the bare reference with null for absence otherwise. The emitter answers
 // that from the parameter's CONSTRAINT, so a `where K : struct` holder really does hold absence at
-// a value instantiation. Without it the declaration lowers to a bare `K`, which cannot: on v2 the
-// class contradicts itself and fails to compile, and on classic it compiles and reports a fresh
-// `Holder<int>` as PRESENT, because the field is `default(int)` and `is K` matches a 0.
-//
-// V2-ONLY, and classic refuses it twice over (measured 2026-09-16). `v.Field = void;` is
-// MIST_TC_0070 there, the `void` literal reaching a field assignment where a local declaration
-// takes it; with that line removed it emits the bare `K` for both spellings and Roslyn refuses
-// the result, cannot convert 'int?' to 'int'.
+// a value instantiation, which a bare `K` cannot.
 //
 // An UNCONSTRAINED `K?` has no C# type at all -- Nullable needs the struct constraint, and C#'s own
 // unconstrained `T?` is an annotation -- so a generic writing one is emitted once per instantiation
@@ -20,7 +11,7 @@ using Standard;
 
 namespace GenericOptionals;
 
-// PROOF: a value-kind instantiation really holds absence, which is the whole of the fix.
+// PROOF: a value-kind instantiation really holds absence.
 public class ValueHolder<K> where K : struct
 {
     public K? Field;

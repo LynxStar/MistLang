@@ -1,4 +1,3 @@
-// samples/FullAccessibilityModel/UnitVector.mist
 using Standard;
 
 namespace FullAccessibilityModel;

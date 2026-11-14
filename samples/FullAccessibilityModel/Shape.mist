@@ -1,4 +1,3 @@
-// samples/FullAccessibilityModel/Shape.mist
 using Standard;
 
 namespace FullAccessibilityModel;

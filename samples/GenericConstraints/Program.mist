@@ -1,6 +1,3 @@
-// GenericConstraints — Demonstrates all generic constraint variants in Mist.
-// Each permutation prints labeled output to stdout for correctness verification.
-
 using Standard;
 
 namespace GenericConstraints;

@@ -1,6 +1,3 @@
-// LocalFunctions -- A function declared as a statement, callable from the block that declares it.
-//
-// This sample showcases:
 //   1. A call before the declaration (the name is hoisted to the block)
 //   2. Recursion and mutual recursion
 //   3. A capture written by the function and read after
@@ -10,9 +7,6 @@
 //   7. A local function inside a local function, and inside a lambda
 //   8. A local function converted to a function value
 //   9. A parameter `where` on a local function, proven at the call
-//
-// Runs on the experimental pipeline only: classic shares the parser and never binds a local
-// function, so this sample is referenced from AllFeaturesV2 and not from AllFeatures.
 
 using Standard;
 

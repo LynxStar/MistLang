@@ -5,7 +5,6 @@ namespace GenericSelfReceivers;
 // Inside a generic declaration's body, `this` is a value of the declaration applied to its own
 // parameters -- Tag<T>, Bundle<[Ts...]>, Outer<T>.Inner<U> -- so it reaches every parameter, operand,
 // local and conversion written for that construction, exactly as a parameter declared Tag<T> does.
-// Written 2026-10-15, after classic was retired, so this sample is banked on AllFeaturesV2 alone.
 public class Tag<T>
 {
     public T Held;

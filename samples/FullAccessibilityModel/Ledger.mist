@@ -1,4 +1,3 @@
-// samples/FullAccessibilityModel/Ledger.mist
 using Standard;
 
 namespace FullAccessibilityModel;

@@ -1,6 +1,3 @@
-// Enums — Demonstrates enum declaration features in Mist.
-//
-// This sample showcases:
 //   1. Explicit type annotation
 //   2. Inferred underlying type (homogeneous values)
 //   3. Name-only enum with auto-assigned byte values
@@ -44,7 +41,6 @@ public enum Permission : string {
 }
 
 // --- 21. String-backed enum with mixed explicit/inferred values ---
-// Some variants have explicit values, others auto-infer from name.
 public enum Environment : string {
     Development = "dev",
     Staging,
@@ -146,9 +142,6 @@ public enum Severity : Label {
 // NOTE: Enum with abstract type underlying types requires emitter fixes for:
 //   - Duplicate abstract type in abstract type list (class : AbstractType emits it twice)
 //   - Enum-to-abstract type implicit conversion
-// These features were previously silently dropped by the parser (which didn't
-// support modifiers on abstract type declarations). Now that the parser
-// correctly handles them, the emitter issues are exposed.
 
 public abstract IMessage {
     string GetText();

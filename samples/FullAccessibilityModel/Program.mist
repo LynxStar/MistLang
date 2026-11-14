@@ -1,4 +1,3 @@
-// samples/FullAccessibilityModel/Program.mist
 using Standard;
 
 namespace FullAccessibilityModel;
@@ -27,7 +26,6 @@ public class Program
         // PROOF: `internal` field readable from another type in the same compilation.
         Console.WriteLine($"currency (internal): {ledger.currency}");
 
-        // Struct demonstrations (Mist structs are inheritable).
         var unit = new UnitVector("north");
         Console.WriteLine(unit.Describe());
 

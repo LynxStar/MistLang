@@ -1,8 +1,5 @@
-// GenericExtensionMethods -- generic methods declared in extension blocks, and the constraints they
-// declare, generic block or not. A stated type argument that differs from the argument's own type is
-// printed beside the inferred one, since only the first shows the stated choice survived. Runs on the
-// experimental pipeline only: classic cannot resolve a generic block's type parameter
-// (the historical code MIST_UNDEFINED_TYPE_ARGUMENT), so this sample is referenced from AllFeaturesV2 and not AllFeatures.
+// A stated type argument that differs from the argument's own type is printed beside the inferred
+// one, since only the first shows the stated choice survived.
 
 using Standard;
 

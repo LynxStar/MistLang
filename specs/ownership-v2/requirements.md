@@ -277,7 +277,6 @@ using Standard;
 
 namespace Ownership;
 
-// Non-owned type — does NOT opt into cooperation contract
 public class Widget
 {
     public int Value;
@@ -289,19 +288,16 @@ public class Widget
         this.Label = label;
     }
 
-    // Readonly method — callable from owned binding
     public int GetValue()
     {
         return Value;
     }
 
-    // Readonly method — callable from owned binding
     public string Describe()
     {
         return $"Widget({Value}, {Label})";
     }
 
-    // Mutable method — HIDDEN from owned binding (not callable)
     public void SetValue(int v)
     {
         this.Value = v;
@@ -314,7 +310,6 @@ public class Widget
 // PROOF: The SAME type in an unrestricted binding retains full mutable access
 public class NonOwnedBindingDemo
 {
-    // Helper: returns an owned string (owned-returning function — valid provenance)
     public static owned string MakeLabel(int n)
     {
         return $"label-{n}";
@@ -324,36 +319,27 @@ public class NonOwnedBindingDemo
     {
         owned var w = new Widget(10, "alpha");
 
-        // Readonly methods are callable
         var val = w.GetValue();
         Console.WriteLine($"[non-owned-binding] readonly method={val}");
         Console.WriteLine($"[non-owned-binding] describe={w.Describe()}");
 
-        // Field assignment from an owned-returning method — provenance satisfied
         w.Label = MakeLabel(1);
         Console.WriteLine($"[non-owned-binding] field from method={w.Describe()}");
 
-        // Field assignment by moving a local owned string — provenance satisfied
         owned string moved = MakeLabel(2);
         w.Label = moved;
-        // moved is now dead
         Console.WriteLine($"[non-owned-binding] field from move={w.Describe()}");
 
-        // Field assignment from an IClonable source (shared string auto-clones) — provenance satisfied
         var sharedLabel = "shared-label";
-        w.Label = sharedLabel;  // string implements IClonable; compiler auto-inserts .Clone()
-        // sharedLabel is still usable — clone produced an independent value
+        w.Label = sharedLabel;
         Console.WriteLine($"[non-owned-binding] field from clone={w.Describe()}");
         Console.WriteLine($"[non-owned-binding] shared still usable={sharedLabel}");
 
-        // Move to another owned binding — proves move semantics work on non-owned types
         owned var w2 = w;
         Console.WriteLine($"[non-owned-binding] after move={w2.Describe()}");
 
-        // Contrast: an UNRESTRICTED binding of the same type CAN call mutable methods.
-        // The restriction only applies to owned bindings — shared bindings are unaffected.
         var shared = new Widget(50, "shared");
-        shared.SetValue(99);  // mutable method callable — not an owned binding
+        shared.SetValue(99);
         Console.WriteLine($"[non-owned-binding] unrestricted mutable call={shared.Describe()}");
     }
 }

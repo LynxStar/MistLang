@@ -205,8 +205,6 @@ This spec builds on the existing `default-keyword` spec and modifies its enforce
 #### Proof Code
 
 ```mist
-// OptionalDefaultability — Demonstrates the optional defaultability system.
-
 using Standard;
 
 namespace OptionalDefaultability;

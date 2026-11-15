@@ -486,13 +486,11 @@ public class Program
         Console.WriteLine("=== FirstClassFunctions Done ===");
     }
 
-    // Helper async method for concurrency demos
     public static async string AsyncLookup(int id)
     {
         return $"item-{id}";
     }
 
-    // Helper sync method for async functor demos
     public static int ComputeSync(int x)
     {
         return x * 2;

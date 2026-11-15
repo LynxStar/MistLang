@@ -1,7 +1,5 @@
-// Tier 2 (Functional): purity Requirement 12.2 -- a refinement predicate may read a property whose getter
-// is a pure member, declared or inferred, and still may not read one whose getter reads its instance's
-// current state, a local readonly member being not enough there. The declaration-shape rule judges a
-// hand-built alias whose predicate reads the getter, since a predicate is judged where it is declared.
+// Tier 2 (Functional): purity Requirement 12.2, judged by the declaration-shape rule on a hand-built alias
+// whose predicate reads the getter, since a predicate is judged where it is declared.
 
 using Mist.Tests.Helpers;
 

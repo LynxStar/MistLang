@@ -1,8 +1,6 @@
-// Tier 3 (Component): which generic declarations the backend emits once per instantiation because they
-// write a union over their own type parameters, at which instantiations, and what each instance spells.
-// A C# generic fills its parameters in by position, while Mist sorts a union and merges duplicates after
-// substitution, so no declaration written once agrees with every instantiation; see UnionSpecialization.
-// Asserted on the registry and on emitted text, because a correct instance and a lucky one print alike.
+// Tier 3 (Component): which declarations UnionSpecialization emits per instantiation, at which
+// instantiations, and what each instance spells. Asserted on the registry and on emitted text, because
+// a correct instance and a lucky one print alike.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

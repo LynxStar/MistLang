@@ -7,9 +7,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 1: SlotLift over hand-built abstracts inheriting `type Element;` -- which slots a derived abstract
-// lifts, in what order, and what its base list, a conformer's base list and a constrained method pass
-// for them.
 [Trait("Tier", "1")]
 public sealed class SlotLiftInheritanceTests
 {

@@ -1,6 +1,4 @@
-// Tier 3 (Component): what a `with` clause and the `with` declaration forms bind and emit. Two of these
-// pin bugs that came from one code path being quietly plainer than another, and neither was visible
-// until a name failed to resolve several statements away from the cause.
+// Tier 3 (Component): what a `with` clause and the `with` declaration forms bind and emit.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
@@ -56,9 +54,6 @@ public sealed class StructuredContextTests : ProgramModelProbe
 
     protected override string Preamble { get; } = "";
 
-    /// <summary>
-    /// A clause binds like a parameter and differs only in where the value comes from.
-    /// </summary>
     [Fact]
     public void AClauseIsReadableInTheBody()
     {
@@ -81,10 +76,6 @@ public sealed class StructuredContextTests : ProgramModelProbe
             StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// A constructor's body was emitted through a plainer entry than a method's, so its clauses were
-    /// silently undone -- the name simply did not exist in the generated C#.
-    /// </summary>
     [Fact]
     public void AConstructorClauseIsEmittedToo()
     {
@@ -111,8 +102,7 @@ public sealed class StructuredContextTests : ProgramModelProbe
 
     /// <summary>
     /// A `with` declaration takes the REST of its block as its body, and that tail is itself a
-    /// statement list which may declare another. Binding the tail through a loop that did not look for
-    /// them left every declaration after the first unrecognised.
+    /// statement list which may declare another.
     /// </summary>
     [Theory]
     [InlineData("with var a = \"x\";\nstring r = a;")]
@@ -153,10 +143,6 @@ public sealed class StructuredContextTests : ProgramModelProbe
         Assert.True(scope.Value.Type is IFunctionType { IsPure: true }, TypeDisplay.Mist(scope.Value.Type));
     }
 
-    /// <summary>
-    /// The discard and push forms scope no name, which is the whole of what distinguishes them from
-    /// the named ones.
-    /// </summary>
     [Theory]
     [InlineData("with Shape _ = new Circle();")]
     [InlineData("with new Circle();")]

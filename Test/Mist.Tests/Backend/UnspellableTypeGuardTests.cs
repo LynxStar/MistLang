@@ -9,9 +9,7 @@ namespace Mist.Tests.Backend;
 
 /// <summary>
 /// The backend's refusal of type shapes C# cannot spell. Asserted against the guard rather than
-/// against emitted source because the point is that emission never happens: before this existed,
-/// both shapes emitted a file that did not parse and produced no Mist diagnostic at all, so a test
-/// reading the output could only have asserted the broken spelling.
+/// against emitted source because the point is that emission never happens.
 /// </summary>
 public sealed class UnspellableTypeGuardTests : ProgramModelProbe
 {
@@ -116,9 +114,7 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A PACK keeps the refusal, and this is what stops the narrowing above from having quietly
-    /// un-refused both. Its domain is Type[], so carrying one means a witness per type LIST, which
-    /// this guard cannot spell as a C# type.
+    /// No specialization binds this pack; <see cref="UnspellableTypeGuard"/> states why that is refused.
     /// </summary>
     [Fact]
     public void TypePack_IsStillRefused()
@@ -126,10 +122,6 @@ public sealed class UnspellableTypeGuardTests : ProgramModelProbe
         AssertSingle(GuardOn("Packed"), "MIST0023");
     }
 
-    /// <summary>
-    /// The two negative cases that keep the guard from being a blanket refusal of generics or of
-    /// integer-typed members: an ordinary type parameter and an ordinary field both pass.
-    /// </summary>
     [Fact]
     public void PlainTypeParameter_IsNotRefused()
     {

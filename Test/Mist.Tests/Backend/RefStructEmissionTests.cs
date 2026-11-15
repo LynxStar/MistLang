@@ -1,7 +1,5 @@
-// Where `ref` on a struct survives emission. Asserted on the emitted TEXT because nothing downstream
-// can see it: a ref struct and a plain one holding the same values compile, run and print
-// identically, so AllFeaturesV2 cannot guard the modifier at all -- only its absence from a stack-
-// only guarantee would ever show, and not as output.
+// Where `ref` on a struct survives emission. Asserted on the emitted TEXT because a ref struct and a
+// plain one holding the same values compile, run and print identically, so AllFeaturesV2 cannot guard it.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
@@ -73,10 +71,9 @@ public sealed class RefStructEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// C# has no ref class, and Mist PARSES one -- classic reports MIST2001 for it while v2 declines
-    /// to emit and stays silent, refusing a program being analysis-phase work. So the flag really does
-    /// reach a class here, and dropping the struct guard really does spell a type that will not
-    /// compile. That is what this pins; the diagnostic is listed on the capability.
+    /// C# has no ref class, yet Mist parses one and emission reports nothing (refusing it is
+    /// analysis-phase work), so the flag reaches a class here and dropping the struct guard spells a
+    /// type that will not compile.
     /// </summary>
     [Fact]
     public void AClassNeverGainsIt()
@@ -86,8 +83,8 @@ public sealed class RefStructEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The layout attribute every struct carries is legal on a ByRefLike one, which is worth pinning
-    /// because it is emitted before the declaration and would refuse the whole type if it were not.
+    /// Every struct carries the layout attribute, emitted before the declaration, so it must stay legal
+    /// on a ByRefLike one or the whole type is refused.
     /// </summary>
     [Fact]
     public void TheLayoutAttributeStillApplies()

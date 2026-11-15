@@ -1,7 +1,6 @@
 // Tier 3 (Component): the shape of the task-combinator runtime, and of a call whose result is discarded.
-// Asserted on emitted text: the wrappers exist to supply the declared shape, so where nothing observes
-// it -- a statement-position await -- the CLR call is written directly and no wrapper is owed. No Roslyn
-// compile and no process spawning.
+// The wrappers exist to supply the declared shape, so where nothing observes it -- a statement-position
+// await -- the CLR call is written directly and no wrapper is owed.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

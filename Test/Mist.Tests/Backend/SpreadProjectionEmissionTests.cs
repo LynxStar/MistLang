@@ -6,11 +6,9 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 3: the projections a spread member's declaration emits. A field is assigned through, a property
-// hands back a copy so an element is written back whole, and a struct absorbing a variadic base carries
-// the base's projections itself, C# structs having no base to inherit them from. Asserted on the emitted
-// text, since an element assigned through a property's copy and a projection missing from the struct
-// both fail only in Roslyn.
+// Tier 3: C# structs have no base to inherit projections from, so a struct absorbing a variadic base
+// carries them itself. Asserted on the emitted text, since an element assigned through a property's
+// copy and a projection missing from the struct both fail only in Roslyn.
 [Trait("Tier", "3")]
 public sealed class SpreadProjectionEmissionTests : ProgramModelProbe
 {

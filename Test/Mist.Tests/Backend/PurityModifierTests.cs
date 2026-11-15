@@ -1,7 +1,6 @@
-// Tier 3 (Component): what the binder records for a purity spelling -- the modifiers a member, a type, an
-// accessor and a local function carry, the placements it refuses and the ones it admits -- read off the
-// real model builder over Standard's shells, since what a member records combines its own spelling with its
-// type's and, for an accessor, its declaration's, which is the builder's chain rather than one decision.
+// Tier 3 (Component): what the binder records for a purity spelling, read off the real model builder
+// because a member's record combines its own spelling with its type's and, for an accessor, its
+// declaration's -- the builder's chain rather than one decision.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Members;

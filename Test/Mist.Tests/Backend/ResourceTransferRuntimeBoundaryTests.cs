@@ -15,11 +15,9 @@ using static Mist.Tests.Helpers.LifetimeFragments;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// The boundary between the emitted releases and the runtime: each body runs once on the path its value
-/// is handed on and once on the path where something fails first -- a later argument, an absent
-/// receiver, the callee after entry, the body of a with or a for, a Drop's own code -- and every value
-/// it held must be released exactly once on both. A Mist program cannot catch, so only a harness that
-/// does can watch these paths.
+/// Each body runs once on the path its value is handed on and once on a path where something fails
+/// first, and every value it held must be released exactly once on both. A Mist program cannot catch,
+/// so only a harness that does can watch these paths.
 /// </summary>
 [Trait("Tier", "4")]
 public sealed class ResourceTransferRuntimeBoundaryTests

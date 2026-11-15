@@ -1,5 +1,4 @@
-// Tier 3 (Component): a dependently-typed Standard type answers its length from the type parameter
-// alone, built over the REAL Standard sources. No Roslyn and no process spawning.
+// Tier 3 (Component): built over the REAL Standard sources, so re-adding a second Length there fails here.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
@@ -11,7 +10,7 @@ namespace Mist.Tests.Backend;
 /// The length of a span and of an array is its dependent TYPE PARAMETER, and nothing else on the type
 /// may answer to that name. A second declaration -- a property Standard spells, or one a projection
 /// adds -- makes every read of it MIST0302, which is a whole feature area refused
-/// rather than a member degraded. Built over the real Standard sources, so re-adding one fails here.
+/// rather than a member degraded.
 /// </summary>
 public sealed class SpanLengthResolutionTests
 {

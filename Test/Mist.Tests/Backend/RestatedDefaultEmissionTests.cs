@@ -1,7 +1,6 @@
 // Tier 3 (Component): what a conformer emits for a GENERIC abstract's default. Asserted on the emitted
-// text because the failure the sample would see is Roslyn's: a default restated with the abstract's T
-// in a class where no T is in scope, in its body as much as its signature -- which is the defect
-// classic ships and this backend must not copy. See ProgramModelProbe for the harness.
+// text because the failure the sample would see is Roslyn's: a default restated with the abstract's T,
+// in its body or its signature, in a class where no T is in scope.
 
 using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.Emitter;

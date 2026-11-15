@@ -1,9 +1,6 @@
-// Where `readonly` survives emission and where it cannot. Asserted on the emitted TEXT rather than
-// on the model, because the model carries one flag for every position and the whole capability is
-// that the flag lands differently in each -- C# has no `readonly class`, refuses a writable instance
-// field on a readonly struct, and refuses `readonly` on a class method. None of that is observable
-// from program output either: a readonly field and a writable one holding the same value print
-// identically, so AllFeaturesV2 cannot guard any of it.
+// Where `readonly` survives emission and where it cannot. Asserted on the emitted TEXT: the model carries
+// one flag for every position while C# accepts it in only some, and a readonly field and a writable one
+// holding the same value print identically, so neither the model nor AllFeaturesV2 can guard it.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
@@ -69,8 +66,7 @@ public sealed class ReadonlyTypeEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// C# has no <c>readonly class</c>, so the keyword cannot survive on the declaration. Asserted as
-    /// an absence because emitting it would be rejected by Roslyn against a generated file.
+    /// C# has no <c>readonly class</c>.
     /// </summary>
     [Fact]
     public void AReadonlyClassDropsTheKeyword()
@@ -82,9 +78,8 @@ public sealed class ReadonlyTypeEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The one thing that carries a readonly class's discipline into the output. With the keyword gone
-    /// the fields are the only place left for it, so a readonly class whose fields emit writable has
-    /// had its readonly-ness erased entirely rather than relocated.
+    /// With the class keyword gone, the fields are the only place a readonly class's discipline reaches
+    /// the output.
     /// </summary>
     [Fact]
     public void BothReadonlyKindsPromoteTheirFields()
@@ -101,9 +96,8 @@ public sealed class ReadonlyTypeEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// A readonly method is a struct-only concept in C# (CS0106 on a class), and a readonly TYPE makes
-    /// its members readonly without either declaring it, so neither declaration needs the modifier on
-    /// its method and the class one must not have it.
+    /// C# refuses a readonly method on a class (CS0106), and a readonly TYPE already makes its members
+    /// readonly.
     /// </summary>
     [Fact]
     public void NeitherReadonlyKindPutsTheModifierOnItsMethod()
@@ -113,9 +107,8 @@ public sealed class ReadonlyTypeEmissionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The one position where readonly is carried by the model and cannot be carried by the output: C#
-    /// has no readonly parameter, so erasure is the only faithful emission. Both halves are asserted
-    /// together because erasure alone is equally consistent with the model never having recorded it.
+    /// C# has no readonly parameter. Both halves are asserted because erasure alone is equally consistent
+    /// with the model never recording it.
     /// </summary>
     [Fact]
     public void AReadonlyParameterIsModelledAndThenErased()

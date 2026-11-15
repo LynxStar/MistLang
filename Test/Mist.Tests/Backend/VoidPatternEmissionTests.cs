@@ -1,7 +1,6 @@
-// Tier 3 (Component): `void` in pattern position on the experimental pipeline. Against an optional it asks
-// whether the value is absent, which C# spells as a null test whichever way the optional is represented; a
-// carrier union keeps its tag test, and the literal entering a carrier is the unit value, `null` binding to
-// whichever reference constituent's conversion C# finds first.
+// Tier 3 (Component): `void` in pattern position. Against an optional, C# spells it as a null test however
+// the optional is represented; the literal entering a carrier is the unit value because `null` would bind
+// to whichever reference constituent's conversion C# finds first.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

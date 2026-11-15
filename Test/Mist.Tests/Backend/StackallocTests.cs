@@ -1,6 +1,5 @@
-// Tier 3 (Component): what `stackalloc T[n]` binds to and what it emits, built over the REAL Standard
-// sources because the spans it produces are Standard's own length-indexed declarations and their
-// one-argument aliases. No Roslyn and no process spawning.
+// Tier 3 (Component): built over the REAL Standard sources because the spans `stackalloc T[n]` produces
+// are Standard's own length-indexed declarations and their one-argument aliases.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
@@ -20,8 +19,7 @@ public sealed class StackallocTests
     }
 
     /// <summary>
-    /// The syntax says nothing about mutability, so the BINDING is what chooses. Both readings have to
-    /// be reachable from one spelling or the readonly one is unreachable.
+    /// The syntax says nothing about mutability, so only the BINDING can reach the readonly span.
     /// </summary>
     [Fact]
     public void AReadonlySpanBindingProducesTheReadonlySpan()
@@ -48,8 +46,7 @@ public sealed class StackallocTests
     }
 
     /// <summary>
-    /// The one thing output cannot tell apart from an array creation: a heap array and a stack buffer
-    /// print the same values, so only the emitted keyword distinguishes them.
+    /// A heap array and a stack buffer print the same values, so only the emitted keyword tells them apart.
     /// </summary>
     [Fact]
     public void TheStackAllocationIsEmittedAsOne()

@@ -1,6 +1,5 @@
-// Tier 3 (Component): the emitter's oracle-less readonly inference, a collaborator from the analysis phase it
-// builds for itself, agrees with the analysis on a struct method that sets an auto property on a fresh local,
-// which is what keeps C#'s readonly on the emitted member.
+// Tier 3 (Component): the emitter builds its own oracle-less instance of the analysis phase's readonly
+// inference, and this pins that it agrees with the analysis.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Model;

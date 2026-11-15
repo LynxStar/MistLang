@@ -1,6 +1,5 @@
-// Tier 3 (Component): where an inferred readonly lands in the emitted text. Only a plain struct's
-// instance members can carry C#'s `readonly`, and there Roslyn checks it and it spares a defensive
-// copy -- none of which program output shows, so AllFeaturesV2 cannot guard it.
+// Tier 3 (Component): where an inferred readonly lands in the emitted text (rules on ReadonlyEmission).
+// Program output never shows it, so AllFeaturesV2 cannot guard it.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

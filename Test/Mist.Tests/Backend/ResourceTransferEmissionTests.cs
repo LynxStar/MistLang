@@ -1,7 +1,4 @@
-// How the C# releases a linear value its plan gives to something other than a block declaration: a
-// parameter's or a Drop field's finally around the whole body, a for initializer's around the loop, a with
-// releasing its own saved instance after the pop, a lent value's around its statement, and a hand-off that waits for
-// its callee to be entered. Asserted on the whole emitted text, as the local emission is.
+// How the C# releases a linear value its plan gives to something other than a block declaration.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

@@ -1,8 +1,7 @@
 // Tier 3 (Component): arithmetic on byte, sbyte, short and ushort, which Standard types as the operand's own
 // type and C# as int, over the real Standard sources. Asserted on the emitted text because the Roslyn failure
 // is the visible half only: where no slot of the declared type forces the question, as an interpolation or a
-// comparison, C#'s int prints 300 for 200 + 100 where Mist's byte prints 44. No Roslyn compile and no process
-// spawning.
+// comparison, C#'s int prints 300 for 200 + 100 where Mist's byte prints 44.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

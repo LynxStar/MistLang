@@ -8,9 +8,9 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Backend;
 
 // Tier 3: a whole-pack clause naming its pack, emitted through each kind of owner a pack has -- a type
-// specialized per width and a method specialized per call -- beside a clause naming an ordinary sibling,
-// which already emitted and is the control. Asserted on the emitted declaration, since a clause naming
-// the pack fails only in Roslyn.
+// specialized per width and a method specialized per call -- beside a clause naming an ordinary sibling
+// as the control. Asserted on the emitted declaration, since a clause naming the pack fails only in
+// Roslyn.
 [Trait("Tier", "3")]
 public sealed class PackConstraintOwnerEmissionTests : ProgramModelProbe
 {

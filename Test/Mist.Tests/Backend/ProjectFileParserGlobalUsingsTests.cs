@@ -3,13 +3,8 @@ using Mist.Driver;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Unit tests for <see cref="ProjectFileParser"/> global usings parsing and validation.
-/// </summary>
 public sealed class ProjectFileParserGlobalUsingsTests
 {
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_unit_{Guid.NewGuid():N}");
@@ -26,8 +21,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
     {
         return Path.Combine(projectDir, ProjectFileParser.FileName);
     }
-
-    // ─── Valid parsing tests ─────────────────────────────────────────────
 
     [Fact]
     public void ValidGlobalUsings_WithMultipleNamespaces_ParsesCorrectly()
@@ -106,8 +99,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Error path tests ────────────────────────────────────────────────
 
     [Fact]
     public void MissingNamespacesField_ReportsMissingNamespacesError()
@@ -284,8 +275,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
         }
     }
 
-    // ─── Duplicate detection tests ───────────────────────────────────────
-
     [Fact]
     public void DuplicateEntries_ProducesWarningAndRemovesDuplicates()
     {
@@ -320,8 +309,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
         }
     }
 
-    // ─── Unknown fields test ─────────────────────────────────────────────
-
     [Fact]
     public void UnknownFieldsInGlobalUsingsSection_AreSilentlyDiscarded()
     {
@@ -346,7 +333,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Assert.Equal("System", result.GlobalUsings[0]);
             Assert.Equal("MyApp.Models", result.GlobalUsings[1]);
 
-            // No diagnostics at all — unknown fields are silently discarded
             var diags = diagnostics.ToImmutableArray();
             Assert.Empty(diags);
         }
@@ -355,8 +341,6 @@ public sealed class ProjectFileParserGlobalUsingsTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Diagnostic file path inclusion tests ────────────────────────────
 
     [Theory]
     [InlineData("MIST0079", """

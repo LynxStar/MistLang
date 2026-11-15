@@ -5,14 +5,8 @@ using Mist.Driver;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property-based tests for <see cref="ProjectFileParser"/> reference parsing.
-/// All tests are pure in-process — no process spawning.
-/// </summary>
 public sealed class ProjectFileParserPropertyTests
 {
-    // ── Helpers ───────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_pbt_{Guid.NewGuid():N}");
@@ -38,12 +32,6 @@ public sealed class ProjectFileParserPropertyTests
         }
     }
 
-    // ── Generators ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// Generates a valid path segment: 1–12 alphanumeric/hyphen/underscore characters,
-    /// starting with a letter.
-    /// </summary>
     private static Gen<string> GenPathSegment()
     {
         var validChars = "abcdefghijklmnopqrstuvwxyz0123456789-_".ToCharArray();
@@ -55,18 +43,12 @@ public sealed class ProjectFileParserPropertyTests
                     .Select(rest => first + new string(rest))));
     }
 
-    /// <summary>
-    /// Generates a relative path of 1–3 segments joined by '/'.
-    /// </summary>
     private static Gen<string> GenRelativePath()
     {
         return Gen.Choose(1, 3).SelectMany(depth =>
             Gen.ArrayOf(GenPathSegment(), depth)
                 .Select(segments => string.Join("/", segments)));
     }
-
-    // ── Property 1: mist.toml references round-trip ─────────────────
-    // Feature: project-references, Property 1: mist.toml references round-trip
 
     [Fact]
     public void P1_RoundTrip_ReferencePaths_PreservedAfterParsing()
@@ -80,7 +62,6 @@ public sealed class ProjectFileParserPropertyTests
             var projectDir = CreateTempProjectDir();
             try
             {
-                // Build mist.toml content with [references] named table entries
                 var toml = "name = \"TestProject\"\n\n[references]\n";
                 for(var i = 0; i < paths.Count; i++)
                 {
@@ -97,7 +78,6 @@ public sealed class ProjectFileParserPropertyTests
                     $"Parse reported errors: {string.Join("; ", diagnostics.ToImmutableArray().Select(d => d.Message))}");
                 Assert.Equal(paths.Count, result.References.Length);
 
-                // Each reference path should be the normalized absolute path
                 for(var i = 0; i < paths.Count; i++)
                 {
                     var expected = Path.GetFullPath(Path.Combine(projectDir, paths[i]));
@@ -116,14 +96,10 @@ public sealed class ProjectFileParserPropertyTests
         });
     }
 
-    // ── Property 2: Empty/whitespace reference paths are rejected ────
-    // Feature: project-references, Property 2: Empty/whitespace reference paths are rejected
-
     [Fact]
     public void P2_WhitespacePaths_AreRejected()
     {
-        // Generate strings of 1–64 space characters (tabs are tricky in TOML escaping,
-        // so we stick to spaces which are unambiguously whitespace)
+        // Spaces only: a tab is tricky to escape in TOML, and a space is unambiguously whitespace.
         var gen = Gen.Choose(1, 64)
             .Select(len => new string(' ', len));
 
@@ -151,9 +127,6 @@ public sealed class ProjectFileParserPropertyTests
         });
     }
 
-    // ── Property 3: Unknown fields in [[references]] entries are ignored ─
-    // Feature: project-references, Property 3: Unknown fields in [[references]] entries are ignored
-
     [Fact]
     public void P3_UnknownFields_AreIgnored()
     {
@@ -171,7 +144,6 @@ public sealed class ProjectFileParserPropertyTests
             var projectDir = CreateTempProjectDir();
             try
             {
-                // Build mist.toml with unknown fields in the [references.MyRef] entry
                 var toml = "name = \"TestProject\"\n\n[references.MyRef]\n";
                 toml += $"path = \"{path}\"\n";
                 var seenKeys = new HashSet<string>();
@@ -179,7 +151,7 @@ public sealed class ProjectFileParserPropertyTests
                 {
                     // Ensure key doesn't collide with "path" or "name"
                     var safeKey = "extra_" + key;
-                    // Skip duplicate keys (TOML rejects them)
+                    // TOML rejects a duplicate key.
                     if(!seenKeys.Add(safeKey))
                     {
                         continue;
@@ -199,7 +171,6 @@ public sealed class ProjectFileParserPropertyTests
                 Assert.NotNull(result);
                 _ = Assert.Single(result.References);
 
-                // The path should be preserved (after normalization)
                 var expected = Path.GetFullPath(Path.Combine(projectDir, path));
                 if(!Path.GetFileName(expected).Equals("mist.toml", StringComparison.Ordinal))
                 {

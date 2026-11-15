@@ -8,11 +8,8 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 1: the where clauses a specialization declares for one pack's elements, from a hand-built pack.
-// C# has only per-parameter constraints, so a whole-pack clause becomes one per element, and each names
-// ITS element where the clause names the pack (variadics 11.1): `where Ts : IRank<Ts>` at width two is
-// `where T1 : IRank<T1>` and `where T2 : IRank<T2>`. A clause still naming the pack names a type
-// parameter C# has nowhere in scope.
+// Tier 1: the where clauses a specialization declares for one pack's elements, from a hand-built pack
+// (variadics 11.1). A clause still naming the pack names a type parameter C# has nowhere in scope.
 [Trait("Tier", "1")]
 public sealed class PackConstraintEmissionTests
 {

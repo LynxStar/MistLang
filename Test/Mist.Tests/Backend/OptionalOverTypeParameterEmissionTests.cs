@@ -51,9 +51,9 @@ public sealed class OptionalOverTypeParameterEmissionTests : ProgramModelProbe
     protected override string Preamble { get; } = "";
 
     /// <summary>
-    /// The whole of the fix: C# reads `K?` as Nullable of K only under the struct constraint, and
-    /// Nullable of K at `ValueHolder&lt;int&gt;` IS the `int?` the closed side spells, so the two
-    /// representations coincide and nothing has to convert between them.
+    /// C# reads `K?` as Nullable of K only under the struct constraint, and Nullable of K at an int
+    /// instantiation IS the `int?` the closed side spells, so the two representations coincide and
+    /// nothing has to convert between them.
     /// </summary>
     [Fact]
     public void AStructConstrainedParameterTakesTheNullableSpelling()

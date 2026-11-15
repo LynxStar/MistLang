@@ -6,12 +6,6 @@ namespace Mist.Tests.Backend;
 
 /// <summary>
 /// Tier 3: which specializations a program actually asks for.
-/// <para>
-/// PER ARITY, NOT PER CONSTRUCTION. C# has no pack, so one variadic declaration becomes one type
-/// per arity -- and Box&lt;int, string&gt; and Box&lt;bool, char&gt; want the SAME one, a generic of
-/// two parameters, differing only in what they pass it. Specializing per construction would emit a
-/// type per distinct argument list and throw away genericity C# can express perfectly well.
-/// </para>
 /// </summary>
 public sealed class MonomorphSetTests : ProgramModelProbe
 {

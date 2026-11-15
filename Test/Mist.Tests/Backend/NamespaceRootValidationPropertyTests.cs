@@ -1,7 +1,3 @@
-// Feature: inferred-namespaces, Property 2: NamespaceRoot Validation
-// For any string value provided as namespace_root in mist.toml, parsing succeeds
-// iff the value is non-empty, non-whitespace, and contains only [a-zA-Z0-9\-_.].
-
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
@@ -11,17 +7,12 @@ using Mist.Driver;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property-based tests for NamespaceRoot validation in <see cref="ProjectFileParser"/>.
-/// </summary>
 public sealed class NamespaceRootValidationPropertyTests
 {
     private static readonly char[] ValidChars =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.".ToCharArray();
 
     private static readonly char[] WhitespaceChars = [' ', '\t', '\n', '\r'];
-
-    // ─── Wrapper types for FsCheck ───────────────────────────────────────
 
 #pragma warning disable CA1034
     public record ValidName(string Value)
@@ -48,8 +39,6 @@ public sealed class NamespaceRootValidationPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── Arbitrary factories ─────────────────────────────────────────────
 
     public static Arbitrary<ValidName> ArbitraryValidName()
     {
@@ -88,8 +77,6 @@ public sealed class NamespaceRootValidationPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_nsval_{Guid.NewGuid():N}");
@@ -112,12 +99,6 @@ public sealed class NamespaceRootValidationPropertyTests
             .Replace("\r", "\\r");
     }
 
-    // ─── Property 2a: Valid namespace_root values are accepted ───────────
-
-    /// <summary>
-    /// For any non-empty string of valid characters, namespace_root should be accepted.
-    /// **Validates: Requirements 1.4, 1.5, 1.6**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(NamespaceRootValidationPropertyTests) }, MaxTest = 100)]
     public bool ValidNamespaceRoot_IsAccepted(ValidName name, ValidName nsRoot)
     {
@@ -139,13 +120,6 @@ public sealed class NamespaceRootValidationPropertyTests
         }
     }
 
-    // ─── Property 2b: Whitespace-only namespace_root is rejected ─────────
-
-    /// <summary>
-    /// For any whitespace-only string as namespace_root, parsing should fail
-    /// with MIST0056.
-    /// **Validates: Requirements 1.4, 1.5, 1.6**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(NamespaceRootValidationPropertyTests) }, MaxTest = 100)]
     public bool WhitespaceOnlyNamespaceRoot_IsRejected(ValidName name, WhitespaceOnly ws)
     {
@@ -168,13 +142,6 @@ public sealed class NamespaceRootValidationPropertyTests
         }
     }
 
-    // ─── Property 2c: Invalid character namespace_root is rejected ───────
-
-    /// <summary>
-    /// For any string with at least one invalid character as namespace_root,
-    /// parsing should fail with MIST0057.
-    /// **Validates: Requirements 1.4, 1.5, 1.6**
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(NamespaceRootValidationPropertyTests) }, MaxTest = 100)]
     public bool InvalidNamespaceRoot_IsRejected(ValidName name, InvalidNsRoot nsRoot)
     {
@@ -188,8 +155,7 @@ public sealed class NamespaceRootValidationPropertyTests
             var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
             var diags = diagnostics.ToImmutableArray();
-            // Should be rejected with either INVALID_NAMESPACE_ROOT or EMPTY_NAMESPACE_ROOT
-            // (if the string happens to be whitespace-only after escaping)
+            // MIST0056 covers a value that is whitespace-only once escaped.
             return result is null
                 && diags.Any(d => d.Number.Value is "MIST0057"
                                or "MIST0056");

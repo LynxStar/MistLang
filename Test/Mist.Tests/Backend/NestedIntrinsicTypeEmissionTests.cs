@@ -1,10 +1,8 @@
-// Tier 3 (Component): how a nested type of a constructed generic is spelled in C#.
-// Foreach never names an enumerator's type, and a local holding
-// one had emitted the bare `Enumerator`. Built over the real Standard sources for the intrinsic cases and
-// a probe type for the user case; the emitted text is asserted because a program printing the right value
-// is equally consistent with `var`. The array case is a struct the backend generates: the CLR has no
-// Array.Enumerator, and what it does have allocates and aliases where Array.mist promised a value copy.
-// No Roslyn compile and no process spawning.
+// Tier 3 (Component): how a nested type of a constructed generic is spelled in C#. Foreach never names
+// an enumerator's type, so a local holding one is what spells it. Built over the real Standard sources
+// for the intrinsic cases and a probe type for the user case; the emitted text is asserted because a
+// program printing the right value is equally consistent with `var`. The array case is the struct
+// ArrayEnumeration generates.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

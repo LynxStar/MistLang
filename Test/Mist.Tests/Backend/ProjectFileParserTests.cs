@@ -3,13 +3,8 @@ using Mist.Driver;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Unit tests for <see cref="ProjectFileParser"/> error paths and boundary conditions.
-/// </summary>
 public sealed class ProjectFileParserTests
 {
-    // ─── Helpers ─────────────────────────────────────────────────────────
-
     private static string CreateTempProjectDir()
     {
         var dir = Path.Combine(Path.GetTempPath(), $"mist_unit_{Guid.NewGuid():N}");
@@ -22,15 +17,12 @@ public sealed class ProjectFileParserTests
         File.WriteAllText(Path.Combine(projectDir, ProjectFileParser.FileName), tomlContent);
     }
 
-    // ─── Error path tests ────────────────────────────────────────────────
-
     [Fact]
     public void MissingToml_ReportsFileNotFound()
     {
         var projectDir = CreateTempProjectDir();
         try
         {
-            // Do NOT create mist.toml — the directory is empty
             var diagnostics = new DiagnosticBag();
             var result = ProjectFileParser.Parse(projectDir, diagnostics);
 
@@ -137,8 +129,6 @@ public sealed class ProjectFileParserTests
             Directory.Delete(projectDir, recursive: true);
         }
     }
-
-    // ─── Reference-parsing tests ─────────────────────────────────────────
 
     [Fact]
     public void ReferenceMissingPath_ReportsMissingPath()
@@ -290,7 +280,7 @@ public sealed class ProjectFileParserTests
         try
         {
             var absolutePath = Path.Combine(targetDir, "mist.toml");
-            // Escape backslashes for TOML string on Windows
+            // A TOML basic string reads a backslash as an escape.
             var tomlPath = absolutePath.Replace("\\", "/");
 
             WriteToml(projectDir, $$"""
@@ -337,11 +327,9 @@ public sealed class ProjectFileParserTests
             Assert.False(diagnostics.HasErrors);
             _ = Assert.Single(result.References);
 
-            // The path should be canonicalized: ".." and "sub/.." resolved
             var expected = Path.GetFullPath(
                 Path.Combine(projectDir, "..", "sibling", "SharedLib", "mist.toml"));
             Assert.Equal(expected, result.References[0].Path);
-            // Verify no ".." segments remain in the resolved path
             Assert.DoesNotContain("..", result.References[0].Path);
         }
         finally

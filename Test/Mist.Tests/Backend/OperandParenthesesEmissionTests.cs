@@ -1,8 +1,8 @@
 // Tier 3 (Component): the parentheses an operand keeps in C#, over the real Standard sources. The model holds
 // the tree and parentheses written in source reach it as nothing, so every operand that binds more loosely
 // than its position in C# has to be parenthesized again on the way out. Asserted on the emitted text because
-// most of these compiled and printed a different number: `(maybe ?? b) + b` printed 250 where Mist, and
-// classic, print 260, and `a - (b - c)` printed 5 for 9. No Roslyn compile and no process spawning.
+// a lost pair still compiles and prints a different number: bare, `(maybe ?? b) + b` prints 250 for
+// 260 and `a - (b - c)` prints 5 for 9.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

@@ -112,7 +112,7 @@ internal static partial class BodyEmitter
     private static bool ConsumedByWitness(IMistType type, SlotCapture capture)
     {
         return WitnessConsumes(type, capture)
-            || (Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
+            || (KeptLocal(capture) is null && Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
                 && FactoredCaptures(constructed).Any(captured => ReferenceEquals(captured.Capture, capture)));
     }
 

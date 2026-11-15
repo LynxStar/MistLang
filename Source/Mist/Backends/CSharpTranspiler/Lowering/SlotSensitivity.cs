@@ -14,7 +14,8 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// fills them, decided once over the whole program beside <see cref="SlotRoutes"/> (runtime-dependent-values design,
 /// <em>A closing as a type argument</em>). Every closing of a value-routed type is one C# type, so a body tells closings
 /// apart only through a description of its argument: a test against a type that mentions the parameter, storage of such
-/// a type that starts from the CLR zero, static storage of the declaring type, a Mist generic whose closing a test
+/// a type that starts from the CLR zero, a static field, property or constructor of the declaring type, which C# runs with no
+/// hidden parameter, a Mist generic whose closing a test
 /// compares by value, a closing passed on to a parameter of another declaration that does one of these, or an abstract's
 /// method slot whose answer does, to a fixed point; <see cref="ClosingWitnesses"/> passes that description. Three
 /// reasons no description answers stay refused at the closing, until the owner rules: the parameter read as a type
@@ -96,7 +97,7 @@ internal sealed partial class SlotSensitivity
 
         foreach(var type in types)
         {
-            if(!HasStaticStorage(type))
+            if(!HasHeldStatics(type))
             {
                 continue;
             }
@@ -437,11 +438,13 @@ internal sealed partial class SlotSensitivity
             || ClrProjection.Projects(constructed.Definition);
     }
 
-    private static bool HasStaticStorage(MemberType type)
+    private static bool HasHeldStatics(MemberType type)
     {
-        if(type is ConcreteType concrete && concrete.FieldsList.Exists(field => field.Modifiers is { IsStatic: true, IsIntrinsic: false }))
+        if(type is ConcreteType concrete)
         {
-            return true;
+            return concrete.FieldsList.Exists(field => field.Modifiers is { IsStatic: true, IsIntrinsic: false })
+                || concrete.ConstructorsList.Exists(constructor => constructor.Modifiers.IsStatic)
+                || concrete.PropertiesList.Exists(property => property is { Modifiers: { IsStatic: true, IsIntrinsic: false }, ProjectedParameter: null });
         }
 
         return type.PropertiesList.Exists(property => property.Modifiers is { IsStatic: true, IsIntrinsic: false }

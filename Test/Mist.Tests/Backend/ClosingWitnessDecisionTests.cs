@@ -14,8 +14,8 @@ namespace Mist.Tests.Backend;
 /// Which type parameters <see cref="ClosingWitnesses"/> gives a witness, over hand-built sensitivity and closings
 /// (runtime-dependent-values design, <em>Identity by value: a closing as a type argument</em>): a marked parameter a
 /// closing of a value-routed type fills, one only plain types fill, a chain the closing reaches from its outermost
-/// writer, an abstract's method slot and its answer together, a reason no witness answers, and which <c>new()</c>
-/// parameters build only through their constructor witness.
+/// writer, an abstract's method slot and its answer together, a reason no witness answers, a static constructor or
+/// static property, and which <c>new()</c> parameters build only through their constructor witness.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class ClosingWitnessDecisionTests
@@ -155,6 +155,36 @@ public sealed class ClosingWitnessDecisionTests
 
         Assert.Contains(t, found);
         Assert.Contains(k, found);
+    }
+
+    [Fact]
+    public void AStaticConstructorOrStaticPropertyBuildingAFactoredParameterTakesAWitnessAndAStaticMethodNone()
+    {
+        var made = HandBuiltModel.Class("Made<>");
+        var m = Constructed(Parameter(made, "M"));
+        made.ConstructorsList.Add(new Constructor("Made", made, [], new MemberModifiers { IsStatic = true }) { DeclaringType = made });
+        var shown = HandBuiltModel.Class("Shown<>");
+        var s = Constructed(Parameter(shown, "S"));
+        shown.PropertiesList.Add(new Property("Fresh", s, new MemberModifiers { IsStatic = true }) { DeclaringType = shown });
+        var called = HandBuiltModel.Class("Called<>");
+        var c = Constructed(Parameter(called, "C"));
+        called.MethodsList.Add(new Method("Fresh", c, [], new MemberModifiers { IsStatic = true }) { DeclaringType = called, Scope = called.Scope });
+        using var routes = SlotRoutes.Enter([capacity]);
+        var filled = slots.Closed(tester, slots.Closed(ring, slots.Literal(5)));
+        var closings = new List<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)>
+        {
+            (tester, [slots.Closed(ring, slots.Literal(5))]), (made, [filled]), (shown, [filled]), (called, [filled]),
+        };
+
+        var found = ClosingWitnesses.Decide(SlotSensitivity.Discover([TestOf(t)], [made, shown, called], closings), closings, []);
+        var factored = ClosingWitnesses.Factored(closings, [], found);
+
+        Assert.Contains(m, found);
+        Assert.Contains(s, found);
+        Assert.DoesNotContain(c, found);
+        Assert.Contains(m, factored);
+        Assert.Contains(s, factored);
+        Assert.Contains(c, factored);
     }
 
     private static TypeParameter Constructed(TypeParameter parameter)

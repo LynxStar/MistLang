@@ -348,7 +348,7 @@ internal static partial class BodyEmitter
 
         if(RoutedCallSlots(arguments, parameters).Any(routed => routed.Argument is CapturedValue captured && ReferenceEquals(captured.Capture, capture))
             || WitnessedCallSlots(arguments, parameters).Any(witnessed => WitnessCaptures(witnessed.Argument).Any(captured => ReferenceEquals(captured.Capture, capture)))
-            || FactoredCallCaptures(arguments, parameters).Any(captured => ReferenceEquals(captured.Capture, capture)))
+            || (KeptLocal(capture) is null && FactoredCallCaptures(arguments, parameters).Any(captured => ReferenceEquals(captured.Capture, capture))))
         {
             return true;
         }

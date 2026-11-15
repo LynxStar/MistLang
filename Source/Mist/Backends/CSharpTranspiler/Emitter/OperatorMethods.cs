@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -37,14 +39,53 @@ internal static class OperatorMethods
             && (!signature.Exists(type => IsDeclaring(type, declaring)) || SlotRoutes.ValueRouted(declaring).Any(slot => BodyEmitter.OperandRead(op, slot) is null));
     }
 
+    /// <summary>
+    /// The method's name. C# keeps two conversions from one source apart by their target, but two methods only by
+    /// their parameters, so a conversion out of the declaring type, <c>explicit operator int(Ring&lt;1&gt; r)</c> beside
+    /// <c>explicit operator long(Ring&lt;1&gt; r)</c>, spells the target it was declared with. One into the declaring type
+    /// needs no more: its target erases to that type whatever the closing, so only its source tells it apart. The
+    /// declaration and every use read the declared member, whatever closing the use reached it through.
+    /// </summary>
     public static string Name(Method op)
     {
         return op switch
         {
-            CastOperator { IsImplicit: true } => "__Implicit",
-            CastOperator => "__Explicit",
+            CastOperator conversion => (conversion.IsImplicit ? "__Implicit" : "__Explicit") + TargetSuffix(Declared(conversion)),
             _ => $"__{IdentifierSpelling.Of(op.Name)}",
         };
+    }
+
+    private static string TargetSuffix(CastOperator conversion)
+    {
+        return BodyEmitter.Unaliased(conversion.TargetType) is var target
+            && ReferenceEquals(target is ConstructedType constructed ? constructed.Definition : target, conversion.DeclaringType)
+            ? ""
+            : $"_{Escaped(conversion.TargetType.FullyQualifiedName)}";
+    }
+
+    private static CastOperator Declared(CastOperator conversion)
+    {
+        return conversion is { DeclarationNode: { } node, DeclaringType: ConcreteType declaring }
+            ? declaring.CastOperatorsList.Find(declared => ReferenceEquals(declared.DeclarationNode, node)) ?? conversion
+            : conversion;
+    }
+
+    private static string Escaped(string name)
+    {
+        var escaped = new StringBuilder();
+
+        foreach(var character in name)
+        {
+            _ = character switch
+            {
+                _ when char.IsAsciiLetterOrDigit(character) => escaped.Append(character),
+                '_' => escaped.Append("_u"),
+                '.' => escaped.Append("_d"),
+                _ => escaped.Append(CultureInfo.InvariantCulture, $"_x{(int)character:x4}"),
+            };
+        }
+
+        return escaped.ToString();
     }
 
     public static string Call(Method op, IMistType owner, IEnumerable<string> arguments, DiagnosticBag? diagnostics)

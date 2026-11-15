@@ -157,6 +157,48 @@ public sealed class ValueRouteConversionEmissionTests
         }
     }
 
+    [Fact]
+    public void TwoConversionsOutOfAClosingAtAnotherValueThatDifferOnlyByTargetAreMethodsNamedApartByIt()
+    {
+        var one = slots.Closed(ring, slots.Literal(1));
+        var toInt = OutOfOne(one, slots.Int);
+        var toDouble = OutOfOne(one, slots.Refinements.Double);
+        var called = new ConversionFunction(toDouble, one, slots.Refinements.Double) { Closing = TypeSubstitution.ForReceiver(one) };
+        var cast = new CastExpression(HandBuiltModel.Node(), HandBuiltRefinements.Local(one, "o"), slots.Refinements.Double, [called], slots.Refinements.Double);
+
+        using(SlotRoutes.Enter([capacity]))
+        {
+            var intName = OperatorMethods.Name(toInt);
+            var doubleName = OperatorMethods.Name(toDouble);
+
+            Assert.NotEqual(intName, doubleName);
+            Assert.StartsWith("__Explicit_", intName, StringComparison.Ordinal);
+            Assert.Contains($"public static int {intName}(int __Capacity, Probe.Ring r)", Emitted(toInt));
+            Assert.Contains($"public static double {doubleName}(int __Capacity, Probe.Ring r)", Emitted(toDouble));
+            Assert.Equal($"Probe.Ring.{doubleName}(1, o)", Emit(cast));
+        }
+
+        using(SlotRoutes.Enter([]))
+        {
+            Assert.Contains($"public static double {OperatorMethods.Name(toDouble)}(Probe.Ring<Const_1> r)", Emitted(toDouble));
+            Assert.Equal($"Probe.Ring<Const_1>.{OperatorMethods.Name(toDouble)}(o)", Emit(cast));
+        }
+
+        Assert.Equal("__Implicit", OperatorMethods.Name(into));
+    }
+
+    private CastOperator OutOfOne(IMistType one, IMistType target)
+    {
+        var conversion = new CastOperator(target, new Parameter("r", one), isImplicit: false, Public())
+        {
+            DeclaringType = ring,
+            DeclarationNode = HandBuiltModel.Node(),
+            Body = HandBuiltModel.Block(new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), target)),
+        };
+        ring.CastOperatorsList.Add(conversion);
+        return conversion;
+    }
+
     private CastExpression Cast(IMistType argument, params SlotCapture[] captures)
     {
         return Cast(argument, HandBuiltModel.Literal(slots.Int, 4L), captures);

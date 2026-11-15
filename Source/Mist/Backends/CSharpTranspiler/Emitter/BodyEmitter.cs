@@ -2820,7 +2820,11 @@ internal static partial class BodyEmitter
         var declaration = ProgramModel.Construction.Defaultability.DeclarationOf(newExpression.Type);
         var witnesses = declaration is null ? [] : DefaultWitnesses.ConstructionArguments(declaration, newExpression.Type);
         witnesses?.AddRange(newExpression.Constructor is { } entered ? ContextKeyWitnesses.Arguments(entered, newExpression.ContextTypes) : []);
-        witnesses?.InsertRange(0, constructionFactory is null && newExpression.Type is not TypeParameter
+
+        // A creation with no semantic default witness calls the compatibility constructor, which still takes the
+        // hidden slot values first.
+        witnesses ??= [];
+        witnesses.InsertRange(0, constructionFactory is null && newExpression.Type is not TypeParameter
             ? SlotValues(Unaliased(TypeNameEmitter.Closed(newExpression.Type)), diagnostics)
             : []);
 

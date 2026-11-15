@@ -76,6 +76,22 @@ public sealed class ValueRouteNestedEmissionTests
     }
 
     [Fact]
+    public void ACreationWhoseDefaultWitnessIsMissingStillPassesTheEnclosingSlotToTheCompatibilityConstructor()
+    {
+        var item = new TypeParameter("T", 1, ring.Scope, ring);
+        ring.TypeParametersList.Add(item);
+        node.FieldsList.Add(new Field("Held", item, OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Public }) { DeclaringType = node });
+        ring.MethodsList.Add(Making("Make", isStatic: false));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var lines = TypeBody(ring);
+
+        Assert.Null(DefaultWitnesses.ConstructionArguments(node, Named()));
+        Assert.Contains("return new Probe.Ring<T>.Node(__Capacity);", lines);
+        Assert.Contains(TypeBody(node), line => line.StartsWith("public Node(int __Capacity) : this(__Capacity, ", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ACreationOutsideFillsTheParameterFromTheClosingWrittenAtOneAndAtTwoLevels()
     {
         var leaf = Nested(node, "Leaf");

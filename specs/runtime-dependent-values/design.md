@@ -830,9 +830,14 @@ argument and a union-specialized copy, neither of them item 7's.
 `OperatorMethods` decides which operators and conversions become methods. A
 conversion or operator of a value-routed type that some slot reaches through
 no operand (`BodyEmitter.OperandRead`) is a static method named `__Explicit`,
-`__Implicit` or `__op_{Name}`. It takes the slot values as the hidden leading
-parameters every static member takes, and its body reads them by their bare
-names. A cast passes the values of its target. An implicit conversion passes
+`__Implicit` or `__op_{Name}`. A conversion out of the declaring type also
+spells its declared target in the name, since C# keeps two conversions from
+one source apart by target but two methods only by parameters:
+`explicit operator int(Ring<1> r)` and `explicit operator long(Ring<1> r)`
+would otherwise both be `__Explicit(int, Ring)`. A conversion into the
+declaring type needs no more, because its target erases to that type at every
+closing. The method takes the slot values as the hidden leading parameters
+every static member takes, and its body reads them by their bare names. A cast passes the values of its target. An implicit conversion passes
 the values of the type it converts to. An operator passes the values of the
 closing it was found through. A cast's own capture is the hidden argument,
 evaluated after an operand that runs code, as the operator route evaluates
@@ -855,7 +860,9 @@ hidden getter and an implementer's answer, and the comparison a test appends.
 inside its enclosing type is that type's own closing (`SlotRoutes.Closing`),
 so its slot values are the reads of the enclosing slots where it is written:
 the enclosing instance's field, a static member's hidden parameter, or the
-nested type's own field. A nested type reaches the enclosing type's static
+nested type's own field. A creation with no semantic default witness to
+pass, of a nested type holding the enclosing `T`, calls the compatibility
+constructor, which takes the slot values all the same. A nested type reaches the enclosing type's static
 storage through the values it carries. Its own statics are held per value,
 as the carrier route's C# nesting holds them per closing.
 

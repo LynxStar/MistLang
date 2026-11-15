@@ -1,6 +1,6 @@
 namespace Mist.Tests.InteropFixtures;
 
-// Nine and more elements are the CLR's Rest encoding: ValueTuple`8 whose last argument is a further
+// Eight and more elements are the CLR's Rest encoding: ValueTuple`8 whose last argument is a further
 // ValueTuple, so Octet ends in ValueTuple`1 and Sixteen nests two levels deep.
 public static class TupleSignatures
 {

@@ -1,8 +1,5 @@
 namespace Mist.Tests.InteropFixtures;
 
-/// <summary>
-/// A simple public class for basic class projection testing.
-/// </summary>
 public class SimpleClass
 {
     public int Value { get; set; }
@@ -25,9 +22,6 @@ public class SimpleClass
     }
 }
 
-/// <summary>
-/// A simple public struct for basic struct projection testing.
-/// </summary>
 public struct SimpleStruct
 {
     public int X;
@@ -45,18 +39,12 @@ public struct SimpleStruct
     }
 }
 
-/// <summary>
-/// A simple public interface for basic interface projection testing.
-/// </summary>
 public interface ISimpleInterface
 {
     int Compute(int input);
     string Description { get; }
 }
 
-/// <summary>
-/// A simple public enum for basic enum projection testing.
-/// </summary>
 public enum SimpleEnum
 {
     None = 0,

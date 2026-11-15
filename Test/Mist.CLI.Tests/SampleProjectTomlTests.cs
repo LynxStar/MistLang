@@ -6,13 +6,11 @@ namespace Mist.CLI.Tests;
 public class SampleProjectTomlTests
 {
     /// <summary>
-    /// Resolves the repository root by navigating up from the test assembly output directory.
-    /// Test assembly is typically at Test/Mist.CLI.Tests/bin/Debug/net10.0/.
+    /// The test assembly typically runs from Test/Mist.CLI.Tests/bin/Debug/net10.0/.
     /// </summary>
     private static string GetRepoRoot()
     {
         var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        // Sanity check: the samples directory should exist at the repo root
         Assert.True(Directory.Exists(Path.Combine(repoRoot, "samples")),
             $"Could not locate 'samples' directory. Resolved repo root: {repoRoot}");
         return repoRoot;

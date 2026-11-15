@@ -2,11 +2,6 @@ using Mist.CLI.Steering;
 
 namespace Mist.CLI.Tests.Steering;
 
-/// <summary>
-/// Tests for <see cref="SteeringInstaller"/>. Each test builds an isolated temp
-/// "source" directory (the bundled set) and an isolated temp "project" directory,
-/// then exercises <see cref="SteeringInstaller.InstallFrom"/> against them.
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class SteeringInstallerTests : IDisposable
 {
@@ -40,21 +35,17 @@ public sealed class SteeringInstallerTests : IDisposable
 
     private string ClaudeMd => Path.Combine(projectFolder, "CLAUDE.md");
 
-    /// <summary>Writes a bundled (managed) steering file with the sentinel marker embedded.</summary>
     private void WriteBundled(string fileName, string body = "content")
     {
         var text = $"<!-- {SteeringInstaller.ManagedMarker} -->\n{body}\n";
         File.WriteAllText(Path.Combine(sourceRoot, fileName), text);
     }
 
-    /// <summary>Writes a file directly into the project's steering directory.</summary>
     private void WriteExisting(string fileName, string text)
     {
         _ = Directory.CreateDirectory(SteeringDir);
         File.WriteAllText(Path.Combine(SteeringDir, fileName), text);
     }
-
-    // ── Fresh install ────────────────────────────────────────────────────────
 
     [Fact]
     public void InstallFrom_FreshProject_CreatesDirectoryAndCopiesFiles()
@@ -88,8 +79,6 @@ public sealed class SteeringInstallerTests : IDisposable
         Assert.Contains("the language reference body", installed, StringComparison.Ordinal);
     }
 
-    // ── Idempotency ────────────────────────────────────────────────────────
-
     [Fact]
     public void InstallFrom_RunTwice_IsIdempotent()
     {
@@ -107,12 +96,9 @@ public sealed class SteeringInstallerTests : IDisposable
         Assert.Equal(2, second.Installed.Count);
         Assert.Empty(second.SkippedUserFiles);
 
-        // The directory contains exactly the bundled set — no duplicates, no leftovers.
         var present = Directory.GetFiles(SteeringDir, "*.md").Select(p => Path.GetFileName(p)!).OrderBy(n => n).ToArray();
         Assert.Equal(["mist-language.md", "mist-ownership.md"], present);
     }
-
-    // ── User-file safety ─────────────────────────────────────────────────────
 
     [Fact]
     public void InstallFrom_LeavesUserFilesUntouched()
@@ -144,12 +130,9 @@ public sealed class SteeringInstallerTests : IDisposable
         Assert.True(File.Exists(Path.Combine(SteeringDir, "notes.md")));
     }
 
-    // ── Cross-version cleanup ─────────────────────────────────────────────────
-
     [Fact]
     public void InstallFrom_RemovesStaleManagedFileNoLongerBundled()
     {
-        // A managed file from a previous version that the current bundle no longer ships.
         WriteExisting("mist-old-removed.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nold\n");
         WriteBundled("mist-language.md");
 
@@ -164,7 +147,6 @@ public sealed class SteeringInstallerTests : IDisposable
     [Fact]
     public void InstallFrom_OverwritesExistingManagedFileWithNewContent()
     {
-        // An out-of-date managed copy of a file that is still bundled.
         WriteExisting("mist-language.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nstale body\n");
         WriteBundled("mist-language.md", body: "fresh body");
 
@@ -192,13 +174,9 @@ public sealed class SteeringInstallerTests : IDisposable
         var present = Directory.GetFiles(SteeringDir, "*.md").Select(p => Path.GetFileName(p)!).OrderBy(n => n).ToArray();
         Assert.Equal(["mist-advanced-features.md", "mist-language.md", "my-rules.md"], present);
 
-        // User file preserved with its original content.
         Assert.Equal("user content", File.ReadAllText(Path.Combine(SteeringDir, "my-rules.md")));
-        // Stale managed file gone.
         Assert.False(File.Exists(Path.Combine(SteeringDir, "mist-old-removed.md")));
     }
-
-    // ── Failure cases ────────────────────────────────────────────────────────
 
     [Fact]
     public void InstallFrom_MissingSourceRoot_ReturnsFailure()
@@ -216,7 +194,7 @@ public sealed class SteeringInstallerTests : IDisposable
     [Fact]
     public void InstallFrom_EmptySourceRoot_ReturnsFailure()
     {
-        // _sourceRoot exists but contains no mist-*.md files.
+        // The constructor leaves sourceRoot holding only the block template, no mist-*.md file.
         var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
 
         Assert.False(result.Succeeded);
@@ -233,7 +211,6 @@ public sealed class SteeringInstallerTests : IDisposable
         var result = SteeringInstaller.InstallFrom(projectFolder, missing);
 
         Assert.False(result.Succeeded);
-        // The user's file must survive a failed run (failure occurs before any deletion).
         Assert.True(File.Exists(Path.Combine(SteeringDir, "my-rules.md")));
     }
 

@@ -1,12 +1,3 @@
-// Feature: attributes-and-test-command, Property 5: Test Package Warning Detection
-// **Validates: Requirements 6.3**
-//
-// For any Mist program where at least one method has an attribute whose unqualified
-// name ends in Fact, Theory, Test, or TestMethod, and the project's package list does
-// not contain any package name matching "Test" or "xunit" (case-insensitive substring),
-// the system SHALL emit warning diagnostic MIST0102. If the package list does
-// contain such a package, no warning SHALL be emitted.
-
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
@@ -17,13 +8,6 @@ namespace Mist.CLI.Tests;
 [Trait("Tier", "1")]
 public sealed class TestPackageWarningDetectionPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates attribute names that end in one of the test-matching suffixes.
-    /// </summary>
     private static Gen<string> GenTestAttributeName()
     {
         var suffixes = new[] { "Fact", "Theory", "Test", "TestMethod" };
@@ -34,9 +18,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
                select prefix + suffix;
     }
 
-    /// <summary>
-    /// Generates attribute names that do NOT match any test suffix.
-    /// </summary>
     private static Gen<string> GenNonTestAttributeName()
     {
         return Gen.Elements(
@@ -47,10 +28,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
             "MyCustom", "Facts", "Testing", "Theoretical");
     }
 
-    /// <summary>
-    /// Generates a Mist source file content string containing an attribute on a method.
-    /// The attribute name may or may not match the test-attribute pattern.
-    /// </summary>
     private static Gen<string> GenSourceWithAttribute(Gen<string> attributeNameGen)
     {
         return from attrName in attributeNameGen
@@ -59,9 +36,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
                select $"class MyTests\n{{\n    {attrSyntax}\n    public void SomeMethod()\n    {{\n    }}\n}}";
     }
 
-    /// <summary>
-    /// Generates package names that contain "Test" or "xunit" (case-insensitive).
-    /// </summary>
     private static Gen<string> GenTestFrameworkPackageName()
     {
         return Gen.Elements(
@@ -71,9 +45,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
             "Xunit", "XUNIT.Runner", "nunit.testing.extensions");
     }
 
-    /// <summary>
-    /// Generates package names that do NOT contain "Test" or "xunit".
-    /// </summary>
     private static Gen<string> GenNonTestPackageName()
     {
         return Gen.Elements(
@@ -84,9 +55,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
             "Moq", "BenchmarkDotNet", "Humanizer");
     }
 
-    /// <summary>
-    /// Generates a package list that contains at least one test framework package.
-    /// </summary>
     private static Gen<ImmutableArray<NuGetPackageReference>> GenPackagesWithTestFramework()
     {
         return from testPkg in GenTestFrameworkPackageName()
@@ -98,9 +66,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
                select allPkgs;
     }
 
-    /// <summary>
-    /// Generates a package list that does NOT contain any test framework package.
-    /// </summary>
     private static Gen<ImmutableArray<NuGetPackageReference>> GenPackagesWithoutTestFramework()
     {
         return from count in Gen.Choose(0, 4)
@@ -109,11 +74,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
                    .ToImmutableArray();
     }
 
-    // ─── Scenario model ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Represents a test scenario combining source content and package list.
-    /// </summary>
     private record Scenario(
         string SourceContent,
         ImmutableArray<NuGetPackageReference> Packages,
@@ -123,31 +83,20 @@ public sealed class TestPackageWarningDetectionPropertyTests
         public bool ExpectWarning => ExpectTestAttributes && !ExpectTestFrameworkPackage;
     }
 
-    /// <summary>
-    /// Generates scenarios covering all four quadrants:
-    /// (has test attrs, has framework pkg) => no warning
-    /// (has test attrs, no framework pkg) => WARNING
-    /// (no test attrs, has framework pkg) => no warning
-    /// (no test attrs, no framework pkg) => no warning
-    /// </summary>
     private static Gen<Scenario> GenScenario()
     {
-        // Quadrant 1: test attrs + framework pkg => no warning
         var q1 = from source in GenSourceWithAttribute(GenTestAttributeName())
                  from packages in GenPackagesWithTestFramework()
                  select new Scenario(source, packages, true, true);
 
-        // Quadrant 2: test attrs + no framework pkg => WARNING
         var q2 = from source in GenSourceWithAttribute(GenTestAttributeName())
                  from packages in GenPackagesWithoutTestFramework()
                  select new Scenario(source, packages, true, false);
 
-        // Quadrant 3: no test attrs + framework pkg => no warning
         var q3 = from source in GenSourceWithAttribute(GenNonTestAttributeName())
                  from packages in GenPackagesWithTestFramework()
                  select new Scenario(source, packages, false, true);
 
-        // Quadrant 4: no test attrs + no framework pkg => no warning
         var q4 = from source in GenSourceWithAttribute(GenNonTestAttributeName())
                  from packages in GenPackagesWithoutTestFramework()
                  select new Scenario(source, packages, false, false);
@@ -159,17 +108,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
             (2, q4));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Property 5: Test Package Warning Detection.
-    /// For any combination of method attribute names and package lists, the warning
-    /// presence/absence matches the expected condition:
-    /// - Warning emitted when test-attributed methods exist AND no test framework package
-    /// - No warning when no test-attributed methods exist OR test framework packages present
-    /// </summary>
     [Fact]
     public void Warning_PresenceMatchesExpectedCondition()
     {
@@ -198,10 +136,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
         }
     }
 
-    /// <summary>
-    /// Property 5 (regex sub-property): Test attribute names ending in the expected
-    /// suffixes always match the regex pattern, regardless of prefix or qualifier.
-    /// </summary>
     [Fact]
     public void TestAttributeNames_AlwaysMatchRegex()
     {
@@ -224,10 +158,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
         }
     }
 
-    /// <summary>
-    /// Property 5 (regex sub-property): Non-test attribute names never match
-    /// the test attribute regex pattern.
-    /// </summary>
     [Fact]
     public void NonTestAttributeNames_NeverMatchRegex()
     {
@@ -250,10 +180,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
         }
     }
 
-    /// <summary>
-    /// Property 5 (package sub-property): Package lists with at least one
-    /// test framework package are always detected as having a framework.
-    /// </summary>
     [Fact]
     public void PackagesWithTestFramework_AlwaysDetected()
     {
@@ -275,10 +201,6 @@ public sealed class TestPackageWarningDetectionPropertyTests
         }
     }
 
-    /// <summary>
-    /// Property 5 (package sub-property): Package lists without any test
-    /// framework package are never falsely detected.
-    /// </summary>
     [Fact]
     public void PackagesWithoutTestFramework_NeverDetected()
     {

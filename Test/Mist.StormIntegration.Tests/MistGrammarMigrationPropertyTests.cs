@@ -11,15 +11,9 @@ using Storm.SourceGenerator.Resolve;
 
 namespace Mist.StormIntegration.Tests;
 
-/// <summary>
-/// Property-based tests for Mist grammar migration from character classes to regex literals.
-/// Feature: regex-literals, Property 4: Mist grammar migration produces identical tokenization
-/// </summary>
 [Trait("Tier", "4")]
 public class MistGrammarMigrationPropertyTests
 {
-    // ── Grammar definitions ──────────────────────────────────────────
-
     private const string KeywordsGrammar = @"
 token NAMESPACE = ""namespace"";
 token USING     = ""using"";
@@ -90,7 +84,6 @@ token RIGHT_BRACKET         = ""]"";
 fragment ESCAPE_SEQUENCE   = ""\\\\"" | ""\\\"""" | ""\\n"" | ""\\r"" | ""\\t"" | ""\\0"" | ""\\'"";
 ";
 
-    /// <summary>Original Mist grammar using character classes (pre-migration).</summary>
     private const string OriginalGrammar = KeywordsGrammar + @"
 hidden token WHITESPACE   = [ \t\r\n]+;
 hidden token LINE_COMMENT = ""//"" [^\n]*;
@@ -112,7 +105,6 @@ token IDENTIFIER = [a-zA-Z_][a-zA-Z0-9_]*;
 rule Start = IDENTIFIER;
 ";
 
-    /// <summary>Migrated Mist grammar using regex literals (post-migration).</summary>
     private const string MigratedGrammar = KeywordsGrammar + @"
 hidden token WHITESPACE   = `\s+`;
 hidden token LINE_COMMENT = ""//"" `[^\n]*`;
@@ -133,8 +125,6 @@ token INTERPOLATED_STRING_END   = ""\"""";
 token IDENTIFIER = `[a-zA-Z_][a-zA-Z0-9_]*`;
 rule Start = IDENTIFIER;
 ";
-
-    // ── Helpers ──────────────────────────────────────────────────────
 
     private static Func<string, string?> InMemoryFileReader(Dictionary<string, string> files)
     {
@@ -183,8 +173,7 @@ rule Start = IDENTIFIER;
     }
 
     /// <summary>
-    /// Minimal stub for Mist.Common.Source.NodeOrigin so the emitted SyntaxNode compiles
-    /// without requiring a reference to the full Mist assembly.
+    /// Lets the emitted SyntaxNode compile without a reference to the Mist assembly.
     /// </summary>
     private const string NodeOriginStub = @"
 namespace Mist.Common.Source
@@ -263,8 +252,6 @@ namespace Mist.Common.Source
         return tokens;
     }
 
-    // ── FsCheck generators ──────────────────────────────────────────
-
     private static Gen<string> GenMistSourceSnippet()
     {
         var identifiers = new[] { "x", "foo", "Bar", "_test", "myVar123", "a_b_c", "_", "A" };
@@ -296,16 +283,6 @@ namespace Mist.Common.Source
                 string.Join("", tokens)));
     }
 
-    // ── Property test ───────────────────────────────────────────────
-
-    /// <summary>
-    /// **Validates: Requirements 8.4**
-    ///
-    /// Property 4: Mist grammar migration produces identical tokenization.
-    /// For any valid Mist source text, tokenizing with the migrated Mist.storm
-    /// (regex literals) SHALL produce a token sequence identical in token kinds
-    /// and lexemes to the original grammar (character classes).
-    /// </summary>
     private static readonly Lazy<(Assembly Original, Assembly Migrated)> Lexers = new(() =>
     {
         // Generate assemblies fresh to avoid thread-static interference

@@ -5,8 +5,7 @@ using Storm.SourceGenerator.Resolve;
 namespace Mist.StormIntegration.Tests;
 
 /// <summary>
-/// Integration test that parses the full Mist grammar through the source generator
-/// pipeline and verifies that all 7 @memo-annotated rules appear in the MemoizationPlan.
+/// <see cref="ExpectedMemoizedRules"/> are the seven rules Mist.storm annotates with @memo.
 /// </summary>
 [Trait("Tier", "4")]
 public class MistGrammarMemoizationPlanTests
@@ -22,10 +21,6 @@ public class MistGrammarMemoizationPlanTests
         "TopLevelItem",
     };
 
-    /// <summary>
-    /// Locates the Mist grammar directory by walking up from the test assembly's
-    /// output directory until we find the repository root (contains Mist.slnx).
-    /// </summary>
     private static string FindGrammarDirectory()
     {
         var dir = AppContext.BaseDirectory;
@@ -49,10 +44,6 @@ public class MistGrammarMemoizationPlanTests
             "Ensure the test is run from within the repository tree.");
     }
 
-    /// <summary>
-    /// Creates a file reader delegate that reads files from the filesystem,
-    /// resolving paths relative to the grammar directory.
-    /// </summary>
     private static Func<string, string?> FileSystemReader(string grammarDir)
     {
         return path =>
@@ -74,9 +65,6 @@ public class MistGrammarMemoizationPlanTests
         };
     }
 
-    /// <summary>
-    /// Processes the full Mist grammar through the pipeline and returns the MemoizationPlan.
-    /// </summary>
     private static MemoizationPlan BuildMistMemoizationPlan()
     {
         var grammarDir = FindGrammarDirectory();
@@ -122,7 +110,6 @@ public class MistGrammarMemoizationPlanTests
     {
         var plan = Plan.Value;
 
-        // All 7 rules should have ids in the range [0..Count-1]
         foreach(var ruleName in ExpectedMemoizedRules)
         {
             Assert.True(plan.RuleIds.ContainsKey(ruleName),
@@ -133,7 +120,6 @@ public class MistGrammarMemoizationPlanTests
                 $"Rule '{ruleName}' has id {id}, expected in range [0..{plan.Count - 1}].");
         }
 
-        // Verify dense assignment: ids should be 0..Count-1 with no gaps
         var allIds = plan.MemoizedRuleNames.Select((_, i) => i).ToHashSet();
         for(var i = 0; i < plan.Count; i++)
         {
@@ -146,8 +132,7 @@ public class MistGrammarMemoizationPlanTests
     {
         var plan = Plan.Value;
 
-        // The Plan should contain at least the 7 annotated rules (may also include
-        // rules from the cycle-based or multi-caller heuristics)
+        // Cycle-based and multi-caller heuristics may memoize further rules.
         Assert.True(plan.Count >= 7,
             $"Expected at least 7 memoized rules, but got {plan.Count}. " +
             $"Memoized rules: [{string.Join(", ", plan.MemoizedRuleNames)}]");

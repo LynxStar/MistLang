@@ -1,9 +1,5 @@
 namespace Mist.Tests.InteropFixtures;
 
-/// <summary>
-/// Fixture with public methods that have <c>ref</c> parameters of various types.
-/// These methods should pass through the VisibilityFilter now that ref params are supported.
-/// </summary>
 public class RefParamFixture
 {
     private int field;
@@ -29,29 +25,22 @@ public class RefParamFixture
         location = newValue;
     }
 
-    /// <summary>A method with ref int — CLR intrinsic element type.</summary>
     public void RefInt(ref int value)
     {
         value *= 2;
     }
 
-    /// <summary>A method with ref string — CLR intrinsic element type.</summary>
     public void RefString(ref string value)
     {
         value = value.ToUpper();
     }
 
-    /// <summary>A normal method without ref params that should remain visible.</summary>
     public int GetField()
     {
         return field;
     }
 }
 
-/// <summary>
-/// Fixture with public methods that have <c>in</c> parameters.
-/// These methods should pass through the VisibilityFilter and be projected as Mist ref parameters.
-/// </summary>
 public class InParamFixture
 {
     public int DoubleValue(in int value)
@@ -74,23 +63,17 @@ public class InParamFixture
         return value;
     }
 
-    /// <summary>A method mixing in and regular params.</summary>
     public int AddOffset(in int baseValue, int offset)
     {
         return baseValue + offset;
     }
 
-    /// <summary>A normal method without in params that should remain visible.</summary>
     public int Constant()
     {
         return 99;
     }
 }
 
-/// <summary>
-/// Fixture with public methods that have mutable <c>ref</c> return types.
-/// These methods should pass through the VisibilityFilter.
-/// </summary>
 public class MutableRefReturnFixture
 {
     private int intField = 10;
@@ -106,17 +89,12 @@ public class MutableRefReturnFixture
         return ref stringField;
     }
 
-    /// <summary>A normal method without ref return that should remain visible.</summary>
     public int GetIntValue()
     {
         return intField;
     }
 }
 
-/// <summary>
-/// Fixture with public methods that have <c>ref readonly</c> return types.
-/// These methods should remain filtered by the VisibilityFilter.
-/// </summary>
 public class RefReadonlyReturnFixture
 {
     private int intField = 20;
@@ -132,17 +110,12 @@ public class RefReadonlyReturnFixture
         return ref stringField;
     }
 
-    /// <summary>A normal method without ref return that should remain visible.</summary>
     public int GetIntValue()
     {
         return intField;
     }
 }
 
-/// <summary>
-/// Fixture with public methods that have <c>out</c> parameters.
-/// These methods should remain filtered by the VisibilityFilter (negative testing).
-/// </summary>
 public class OutParamFixture
 {
     public bool TryGetValue(string key, out int result)
@@ -165,17 +138,12 @@ public class OutParamFixture
     }
 #pragma warning restore IDE0060
 
-    /// <summary>A normal method without out params that should remain visible.</summary>
     public int GetLength(string input)
     {
         return input.Length;
     }
 }
 
-/// <summary>
-/// Fixture with public methods combining <c>ref</c> and <c>out</c> parameters.
-/// The entire method should be filtered when any <c>out</c> parameter is present.
-/// </summary>
 public class MixedRefOutFixture
 {
     public void RefAndOut(ref int source, out int copy)
@@ -193,7 +161,6 @@ public class MixedRefOutFixture
         doubled = source * 2;
     }
 
-    /// <summary>A normal method without ref/out params that should remain visible.</summary>
     public int Add(int a, int b)
     {
         return a + b;

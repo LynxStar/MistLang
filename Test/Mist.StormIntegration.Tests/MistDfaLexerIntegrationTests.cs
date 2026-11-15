@@ -7,13 +7,6 @@ namespace Mist.StormIntegration.Tests;
 [Trait("Tier", "4")]
 public class MistDfaLexerIntegrationTests
 {
-    //  Task 11.4 — Integration test: Mist grammar DFA lexer
-    // ---------------------------------------------------------------
-
-    /// <summary>
-    /// Locates the Mist grammar directory by walking up from the test assembly's
-    /// output directory until we find the repository root (contains Mist.slnx).
-    /// </summary>
     private static string FindGrammarDirectory()
     {
         var dir = AppContext.BaseDirectory;
@@ -100,7 +93,6 @@ public class MistDfaLexerIntegrationTests
     {
         var output = MistLexerOutput.Value;
 
-        // Key token kinds from the Mist grammar
         Assert.Contains("WHITESPACE,", output);
         Assert.Contains("LINE_COMMENT,", output);
         Assert.Contains("IDENTIFIER,", output);
@@ -114,7 +106,6 @@ public class MistDfaLexerIntegrationTests
         Assert.Contains("INTERPOLATION_OPEN,", output);
         Assert.Contains("INTERPOLATED_STRING_END,", output);
 
-        // Operators
         Assert.Contains("PLUS,", output);
         Assert.Contains("MINUS,", output);
         Assert.Contains("STAR,", output);
@@ -127,7 +118,6 @@ public class MistDfaLexerIntegrationTests
         Assert.Contains("IF,", output);
         Assert.Contains("RETURN,", output);
 
-        // EndOfFile and Error
         Assert.Contains("EndOfFile,", output);
         Assert.Contains("Error,", output);
     }
@@ -157,7 +147,6 @@ public class MistDfaLexerIntegrationTests
     {
         var output = MistLexerOutput.Value;
 
-        // Mist grammar has an Interpolation mode
         Assert.Contains("_trans_Interpolation", output);
         Assert.Contains("_accept_Interpolation", output);
         Assert.Contains("Mode_Interpolation", output);
@@ -168,7 +157,6 @@ public class MistDfaLexerIntegrationTests
     {
         var output = MistLexerOutput.Value;
 
-        // WHITESPACE and LINE_COMMENT are hidden
         Assert.Contains("(int)TokenKind.WHITESPACE", output);
         Assert.Contains("(int)TokenKind.LINE_COMMENT", output);
         Assert.Contains("IsHidden", output);
@@ -194,12 +182,9 @@ public class MistDfaLexerIntegrationTests
         Assert.Contains("public static int GetTokenMode(int tokenKind)", output);
     }
 
-    // ---------------------------------------------------------------
     [Fact]
     public void InterpolatedString_MistGrammar_HasCorrectModeActions()
     {
-        // Verify the full Mist grammar emits the correct mode actions
-        // for interpolated string tokens
         var output = MistLexerOutput.Value;
 
         // INTERPOLATED_STRING_START ($") pushes Interpolation mode
@@ -219,10 +204,8 @@ public class MistDfaLexerIntegrationTests
     {
         var output = MistLexerOutput.Value;
 
-        // The TokenModes array should map interpolation tokens to mode 1
         Assert.Contains("TokenModes", output);
 
-        // Verify mode-specific tokens exist in the enum
         Assert.Contains("INTERPOLATED_STRING_TEXT,", output);
         Assert.Contains("INTERPOLATION_OPEN,", output);
         Assert.Contains("INTERPOLATED_STRING_END,", output);

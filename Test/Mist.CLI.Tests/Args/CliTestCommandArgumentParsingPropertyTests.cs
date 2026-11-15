@@ -1,6 +1,3 @@
-// Feature: attributes-and-test-command, Property 3: CLI Test Command Argument Parsing
-// **Validates: Requirements 5.1, 5.2**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -8,23 +5,10 @@ using Mist.CLI.Args;
 
 namespace Mist.CLI.Tests.Args;
 
-/// <summary>
-/// Property-based tests verifying that for any valid combination of CLI arguments
-/// where the first positional argument is "test" and remaining arguments are drawn
-/// from the same flag set accepted by build (--backend, --output, --bin, --quiet,
-/// --verbose), the argument parser produces a CliArguments with Command == Test
-/// and all flags correctly populated.
-/// </summary>
 public class CliTestCommandArgumentParsingPropertyTests
 {
-    // ─── Scenario model ──────────────────────────────────────────────────
-
 #pragma warning disable CA1034
 
-    /// <summary>
-    /// Represents a randomly generated set of flags for the test command.
-    /// --quiet and --verbose are mutually exclusive, so only one may be true.
-    /// </summary>
     public record TestCommandScenario(
         string? BackendId,
         string? OutputDir,
@@ -63,9 +47,6 @@ public class CliTestCommandArgumentParsingPropertyTests
             return string.Join(" ", parts);
         }
 
-        /// <summary>
-        /// Builds the args array as it would be passed to CliArgumentParser.Parse.
-        /// </summary>
         public string[] ToArgs()
         {
             var args = new List<string> { "test" };
@@ -103,11 +84,8 @@ public class CliTestCommandArgumentParsingPropertyTests
 
 #pragma warning restore CA1034
 
-    // ─── FsCheck generators ─────────────────────────────────────────────
-
     /// <summary>
-    /// Generates valid test command scenarios with random subsets of flags.
-    /// Ensures --quiet and --verbose are never both true (mutually exclusive).
+    /// Never sets both --quiet and --verbose, which the parser rejects together.
     /// </summary>
     public static Arbitrary<TestCommandScenario> ArbitraryTestCommandScenario()
     {
@@ -132,20 +110,12 @@ public class CliTestCommandArgumentParsingPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Property tests ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 3: For any valid combination of CLI arguments with "test" as the
-    /// command verb and a random subset of flags, the parser produces Command == Test
-    /// and all flag values are correctly extracted.
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(CliTestCommandArgumentParsingPropertyTests) }, MaxTest = 100)]
     public bool Parse_TestCommand_ExtractsAllFlagsCorrectly(TestCommandScenario scenario)
     {
         var args = scenario.ToArgs();
         var result = CliArgumentParser.Parse(args);
 
-        // Should parse without errors
         if(result.Errors.Count > 0 || result.Arguments is null)
         {
             return false;
@@ -153,38 +123,32 @@ public class CliTestCommandArgumentParsingPropertyTests
 
         var parsed = result.Arguments;
 
-        // Command must be Test
         if(parsed.Command != CliCommand.Test)
         {
             return false;
         }
 
-        // Backend must match (default is "csharp" when not specified)
         var expectedBackend = scenario.BackendId ?? "csharp";
         if(parsed.BackendId != expectedBackend)
         {
             return false;
         }
 
-        // Output directory must match (when specified explicitly)
         if(scenario.OutputDir is not null && parsed.OutputDirectory != scenario.OutputDir)
         {
             return false;
         }
 
-        // Bin directory must match (when specified explicitly)
         if(scenario.BinDir is not null && parsed.BinDirectory != scenario.BinDir)
         {
             return false;
         }
 
-        // Quiet flag
         if(parsed.Quiet != scenario.Quiet)
         {
             return false;
         }
 
-        // Verbose flag
         if(parsed.Verbose != scenario.Verbose)
         {
             return false;
@@ -193,11 +157,6 @@ public class CliTestCommandArgumentParsingPropertyTests
         return true;
     }
 
-    /// <summary>
-    /// Property 3 (default directory variant): When no --output or --bin flags are
-    /// provided, the parser derives default directories from the project folder
-    /// (current directory since no project folder positional arg is given).
-    /// </summary>
     [Property(Arbitrary = new[] { typeof(CliTestCommandArgumentParsingPropertyTests) }, MaxTest = 100)]
     public bool Parse_TestCommand_DefaultDirectories_DerivedFromCwd(TestCommandScenario scenario)
     {
@@ -212,13 +171,11 @@ public class CliTestCommandArgumentParsingPropertyTests
         var parsed = result.Arguments;
         var cwd = Directory.GetCurrentDirectory();
 
-        // When output is not specified, it should default to <cwd>/out
         if(scenario.OutputDir is null && parsed.OutputDirectory != Path.Combine(cwd, "out"))
         {
             return false;
         }
 
-        // When bin is not specified, it should default to <cwd>/bin
         if(scenario.BinDir is null && parsed.BinDirectory != Path.Combine(cwd, "bin"))
         {
             return false;

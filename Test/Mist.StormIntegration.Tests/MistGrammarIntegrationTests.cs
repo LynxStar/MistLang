@@ -8,22 +8,9 @@ using Storm.SourceGenerator.Validate;
 
 namespace Mist.StormIntegration.Tests;
 
-/// <summary>
-/// Integration tests that parse the full Mist grammar through the source generator
-/// pipeline and verify the generated AST output for key node types affected by the
-/// repetition and optional-sequence bugfixes.
-/// </summary>
 [Trait("Tier", "4")]
 public class MistGrammarIntegrationTests
 {
-    // ---------------------------------------------------------------
-    //  Helpers
-    // ---------------------------------------------------------------
-
-    /// <summary>
-    /// Locates the Mist grammar directory by walking up from the test assembly's
-    /// output directory until we find the repository root (contains Mist.slnx).
-    /// </summary>
     private static string FindGrammarDirectory()
     {
         var dir = AppContext.BaseDirectory;
@@ -47,25 +34,18 @@ public class MistGrammarIntegrationTests
             "Ensure the test is run from within the repository tree.");
     }
 
-    /// <summary>
-    /// Creates a file reader delegate that reads files from the filesystem,
-    /// resolving paths relative to the grammar directory.
-    /// </summary>
     private static Func<string, string?> FileSystemReader(string grammarDir)
     {
         return path =>
         {
-            // The resolver uses canonical forward-slash paths.
-            // Map them back to the filesystem.
+            // The resolver hands over canonical forward-slash paths.
             var fsPath = path.Replace('/', Path.DirectorySeparatorChar);
 
-            // If the path is already absolute, try it directly
             if(Path.IsPathRooted(fsPath) && File.Exists(fsPath))
             {
                 return File.ReadAllText(fsPath);
             }
 
-            // Otherwise resolve relative to the grammar directory
             var fullPath = Path.GetFullPath(Path.Combine(grammarDir, fsPath));
             if(File.Exists(fullPath))
             {
@@ -77,8 +57,7 @@ public class MistGrammarIntegrationTests
     }
 
     /// <summary>
-    /// Processes the full Mist grammar through the source generator pipeline
-    /// and returns the EmissionContext (including trait IR, mirroring the real pipeline).
+    /// Includes the trait IR, as the real generator pipeline does.
     /// </summary>
     private static EmissionContext BuildMistEmissionContext()
     {
@@ -115,21 +94,14 @@ public class MistGrammarIntegrationTests
             ruleTraitBindings: traitBuildResult.RuleTraitBindings);
     }
 
-    // Cache the Context and AST output across tests in this class
     private static readonly Lazy<EmissionContext> Context = new(BuildMistEmissionContext);
     private static readonly Lazy<string> AstOutput = new(() => AstEmitter.EmitAstNodes(Context.Value));
-
-    // ---------------------------------------------------------------
-    //  7.1 — ParameterListNode has ImmutableArray<ParameterNode>
-    // ---------------------------------------------------------------
 
     [Fact]
     public void MistGrammar_ParameterListNode_ContainsImmutableArrayOfParameterNode()
     {
         var output = AstOutput.Value;
 
-        // ParameterList rule: Parameter (COMMA Parameter)*
-        // Should generate a list property for repeated Parameters
         Assert.Contains("ImmutableArray<ParameterNode>", output);
     }
 
@@ -141,17 +113,11 @@ public class MistGrammarIntegrationTests
         Assert.Contains("public sealed class ParameterListNode : SyntaxNode", output);
     }
 
-    // ---------------------------------------------------------------
-    //  7.2 — ArgumentListNode has ImmutableArray<ExpressionNode>
-    // ---------------------------------------------------------------
-
     [Fact]
     public void MistGrammar_ArgumentListNode_ContainsImmutableArrayOfExpressionNode()
     {
         var output = AstOutput.Value;
 
-        // ArgumentList rule: Expression (COMMA Expression)*
-        // Should generate a list property for repeated Expressions
         Assert.Contains("ImmutableArray<ExpressionNode>", output);
     }
 
@@ -163,17 +129,11 @@ public class MistGrammarIntegrationTests
         Assert.Contains("public sealed class ArgumentListNode : SyntaxNode", output);
     }
 
-    // ---------------------------------------------------------------
-    //  7.3 — QualifiedIdentifierNode has ImmutableArray<Token>
-    // ---------------------------------------------------------------
-
     [Fact]
     public void MistGrammar_QualifiedIdentifierNode_ContainsImmutableArrayOfToken()
     {
         var output = AstOutput.Value;
 
-        // QualifiedIdentifier rule: IDENTIFIER (DOT IDENTIFIER)*
-        // Should generate a list property for repeated IDENTIFIER tokens
         Assert.Contains("ImmutableArray<Token>", output);
     }
 
@@ -185,18 +145,11 @@ public class MistGrammarIntegrationTests
         Assert.Contains("public sealed class QualifiedIdentifierNode : SyntaxNode", output);
     }
 
-    // ---------------------------------------------------------------
-    //  7.4 — FieldDeclarationNode preserves ExpressionNode from
-    //         the optional initializer group
-    // ---------------------------------------------------------------
-
     [Fact]
     public void MistGrammar_FieldDeclarationNode_ContainsExpressionNodeNullableProperty()
     {
         var output = AstOutput.Value;
 
-        // FieldDeclaration rule: ... initializer:(EQUAL Expression)? SEMICOLON
-        // The labeled optional (EQUAL Expression)? should produce an ExpressionNode? property
         Assert.Contains("ExpressionNode?", output);
     }
 
@@ -205,12 +158,9 @@ public class MistGrammarIntegrationTests
     {
         var output = AstOutput.Value;
 
-        // The Initializer property should NOT be typed as Token? — it should be ExpressionNode?
-        // Extract the FieldDeclarationNode section to check
         var fieldNodeStart = output.IndexOf("public sealed class FieldDeclarationNode");
         Assert.True(fieldNodeStart >= 0, "Expected FieldDeclarationNode in AST output");
 
-        // Find the end of the class (next "public sealed class" or "public abstract class")
         var fieldNodeEnd = output.IndexOf("public sealed class", fieldNodeStart + 1);
         if(fieldNodeEnd < 0)
         {
@@ -224,7 +174,6 @@ public class MistGrammarIntegrationTests
 
         var fieldNodeSection = output[fieldNodeStart..fieldNodeEnd];
 
-        // The Initializer property should be ExpressionNode?, not Token?
         Assert.Contains("ExpressionNode?", fieldNodeSection);
         Assert.DoesNotContain("public Token? Initializer", fieldNodeSection);
     }
@@ -234,7 +183,6 @@ public class MistGrammarIntegrationTests
     {
         var output = AstOutput.Value;
 
-        // Extract the FieldDeclarationNode section
         var fieldNodeStart = output.IndexOf("public sealed class FieldDeclarationNode");
         Assert.True(fieldNodeStart >= 0, "Expected FieldDeclarationNode in AST output");
 
@@ -251,14 +199,9 @@ public class MistGrammarIntegrationTests
 
         var fieldNodeSection = output[fieldNodeStart..fieldNodeEnd];
 
-        // Children() should yield the Initializer when non-null
         Assert.Contains("if (Initializer != null)", fieldNodeSection);
         Assert.Contains("yield return Initializer", fieldNodeSection);
     }
-
-    // ---------------------------------------------------------------
-    //  11.2 — Delegate/FullDelegate trait interface emission
-    // ---------------------------------------------------------------
 
     [Fact]
     public void MistGrammar_IHasAttributesNode_InterfaceIsEmitted()
@@ -429,22 +372,10 @@ public class MistGrammarIntegrationTests
         Assert.Contains("IDelegateNode", classDecl);
     }
 
-    // ---------------------------------------------------------------
-    //  12.2 — Property 9: Zero downstream impact
-    //
-    //  **Validates: Requirement 14**
-    //
-    //  The Mist grammar, when processed through the Storm source
-    //  generator pipeline with traits enabled, SHALL continue to
-    //  produce a valid GrammarIR with zero trait validation errors
-    //  and emit parseable C# source code.
-    // ---------------------------------------------------------------
-
     [Fact]
     public void MistGrammar_ZeroDownstreamImpact_NoTraitValidationErrors()
     {
-        // BuildMistEmissionContext() asserts zero trait validation errors internally.
-        // If it throws, the pipeline has trait validation errors.
+        // BuildMistEmissionContext asserts there is no trait validation error.
         var context = Context.Value;
         Assert.NotNull(context);
     }
@@ -452,8 +383,7 @@ public class MistGrammarIntegrationTests
     [Fact]
     public void MistGrammar_ZeroDownstreamImpact_LoweringSucceeds()
     {
-        // BuildMistEmissionContext() asserts lowering succeeded internally.
-        // Verify the lowered grammar is present and has rules.
+        // BuildMistEmissionContext asserts that lowering succeeded.
         var context = Context.Value;
         Assert.NotNull(context.Grammar);
         Assert.True(context.Grammar.Rules.Count > 0,
@@ -473,7 +403,6 @@ public class MistGrammarIntegrationTests
     {
         var output = AstOutput.Value;
 
-        // Verify known node types that must always be present in the Mist grammar output
         Assert.Contains("IDelegateNode", output);
         Assert.Contains("IFullDelegateNode", output);
         Assert.Contains("MethodDeclarationNode", output);
@@ -497,12 +426,7 @@ public class MistGrammarIntegrationTests
             string.Join("\n", diagnostics.Select(d => d.ToString())));
     }
 
-    // ---------------------------------------------------------------
-    //  Helpers for trait integration tests
-    // ---------------------------------------------------------------
-
     /// <summary>
-    /// Extracts the body section of an interface from the emitted output.
     /// Tracks brace nesting to handle <c>{ get; }</c> inside properties.
     /// </summary>
     private static string ExtractInterfaceSection(string output, string interfaceName)
@@ -533,9 +457,6 @@ public class MistGrammarIntegrationTests
         return output[braceStart..i];
     }
 
-    /// <summary>
-    /// Extracts the class declaration line (up to the opening brace) for a given class name.
-    /// </summary>
     private static string ExtractClassDeclarationLine(string output, string className)
     {
         var marker = $"public sealed class {className}";

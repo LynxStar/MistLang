@@ -120,6 +120,63 @@ public sealed class UnknownViewFilteringTests : ProgramModelProbe
         Assert.Equal("unknown", TypeDisplay.Mist(look.Type));
     }
 
+    [Fact]
+    public void AWriterReachedThroughAnInitializerIsHiddenWhetherOrNotItsTypeDeclaresAConstructor()
+    {
+        const string types = """
+            public class Cell<T>
+            {
+                public T value;
+
+                public int Overwrite(T next)
+                {
+                    this.value = next;
+                    return 0;
+                }
+            }
+
+            public class Declared<T>
+            {
+                public static T seed;
+                public int tag = new Cell<T>().Overwrite(seed);
+
+                public Declared()
+                {
+                }
+            }
+
+            public class Implicit<T>
+            {
+                public static T seed;
+                public int tag = new Cell<T>().Overwrite(seed);
+            }
+
+            public class Outer<T>
+            {
+                public int MakeDeclared()
+                {
+                    var made = new Declared<T>();
+                    return 0;
+                }
+
+                public int MakeImplicit()
+                {
+                    var made = new Implicit<T>();
+                    return 0;
+                }
+            }
+            """;
+
+        var diagnostics = BuildRun(
+            "outer.MakeDeclared();\nouter.MakeImplicit();",
+            types,
+            "Outer<int> outerInts = new Outer<int>();\nOuter<unknown> outer = outerInts;");
+
+        Assert.Equal(
+            ["'MakeDeclared' cannot be called on 'Outer<unknown>'", "'MakeImplicit' cannot be called on 'Outer<unknown>'"],
+            Errors(diagnostics, Hidden).Select(diagnostic => diagnostic.Message[..diagnostic.Message.IndexOf(':', StringComparison.Ordinal)]));
+    }
+
     /// <summary>
     /// The site sits in a generic body declared BEFORE the type it closes, so its classification is
     /// demanded before that type's bodies are bound; the same program with the declarations swapped

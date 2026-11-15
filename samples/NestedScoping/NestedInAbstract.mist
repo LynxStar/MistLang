@@ -1,8 +1,3 @@
-// These declarations are in a separate file because having top-level
-// abstract types with nested types in the same file as the Program class
-// triggers the entry point detection bug (MIST_TC_0017). In a separate file,
-// they compile and emit correctly, proving the parser and C# emitter handle
-// these patterns.
 //   7. Class in abstract type
 //   8. Class in abstract type
 

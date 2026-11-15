@@ -3,7 +3,7 @@
 //   3. Abstract type in class
 //   4. Abstract type in class (was interface)
 //   5. Enum in class
-//   6. Class in struct (see NestedInStruct.mist — readonly emitter limitation)
+//   6. Class in struct (see NestedInStruct.mist)
 //   7. Class in abstract type (see NestedInAbstract.mist)
 //   8. Class in abstract type (see NestedInAbstract.mist)
 //   9. Deeply nested types (4 levels)
@@ -67,22 +67,33 @@ public class Outer
         return Inner.Hello();
     }
 
+    public class Move : IAction, Describable
+    {
+        private NestedPoint target;
+
+        public Move(NestedPoint target) { this.target = target; }
+
+        public string Execute() { return $"moved to ({target.x}, {target.y})"; }
+
+        public string Describe() { return $"Move by {target.x + target.y} steps"; }
+    }
+
     public static string DemoStructInClass()
     {
-        // Proves the struct is registered in the parent's scope
-        return "Outer.NestedPoint(x, y) struct nested in class";
+        NestedPoint p = new NestedPoint(3, 4);
+        return $"Outer.NestedPoint x={p.x}, y={p.y}";
     }
 
     public static string DemoAbstractInClass()
     {
-        // Proves the abstract type is registered in the parent's scope
-        return "Outer.IAction abstract type nested in class";
+        IAction action = new Move(new NestedPoint(1, 2));
+        return $"Outer.IAction.Execute() = {action.Execute()}";
     }
 
     public static string DemoDescribableInClass()
     {
-        // Proves the abstract type (formerly interface) is registered in the parent's scope
-        return "Outer.Describable abstract type nested in class";
+        Describable described = new Move(new NestedPoint(5, 6));
+        return $"Outer.Describable.Describe() = {described.Describe()}";
     }
 
     public static string DemoEnumInClass()
@@ -123,20 +134,25 @@ public class Level1
 }
 
 // ─── 10. Nested type inside generic parent accessing parent's type parameters ─
-// NOTE: Calling Box<int>.DemoWrapper() from outside triggers a pre-existing
-// entry point detection bug with constructed generic types. The nested type
-// is exercised from within the parent's own static method.
 
 public class Box<T>
 {
     public class Wrapper
     {
-        public static string Info() { return "Box<T>.Wrapper (nested in generic parent, T accessible via scope chain)"; }
+        private T held;
+
+        public Wrapper(T value) { held = value; }
+
+        public string Info()
+        {
+            Type parameter = T;
+            return $"Box<{parameter.Name}>.Wrapper holding {held}";
+        }
     }
 
-    public static string DemoWrapper()
+    public static string DemoWrapper(T value)
     {
-        return Wrapper.Info();
+        return new Wrapper(value).Info();
     }
 }
 
@@ -270,15 +286,15 @@ public class Program
 
         // 6. Class in struct — see NestedInStruct.mist
         Console.WriteLine("--- 6. Class in struct ---");
-        Console.WriteLine("  ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)");
+        Console.WriteLine($"  {new ContainerStruct("bolt").Held().Label()}");
 
         // 7. Class in abstract type — see NestedInAbstract.mist
         Console.WriteLine("--- 7. Class in abstract type ---");
-        Console.WriteLine("  IFactory.DefaultProduct declared (see NestedInAbstract.mist)");
+        Console.WriteLine($"  {IFactory.DefaultProduct.Label()}");
 
         // 8. Class in abstract type — see NestedInAbstract.mist
         Console.WriteLine("--- 8. Class in abstract type ---");
-        Console.WriteLine("  Serializable.Config declared (see NestedInAbstract.mist)");
+        Console.WriteLine($"  {Serializable.Config.Format()}");
 
         // 9. Deeply nested types (4 levels) — each level calls the next
         Console.WriteLine("--- 9. Deeply nested types (4 levels) ---");
@@ -286,7 +302,8 @@ public class Program
 
         // 10. Generic parent with nested type
         Console.WriteLine("--- 10. Generic parent type parameter access ---");
-        Console.WriteLine("  Box<T>.Wrapper nested in generic parent (exercised internally via DemoWrapper)");
+        Console.WriteLine($"  {Box<int>.DemoWrapper(42)}");
+        Console.WriteLine($"  {Box<string>.DemoWrapper("text")}");
 
         // 11. Multiple sibling nested types in same parent
         Console.WriteLine("--- 11. Multiple sibling nested types ---");
@@ -303,16 +320,18 @@ public class Program
 
         // 14. File-scoped namespace with nested types inside type declarations
         Console.WriteLine("--- 14. File-scoped namespace with nested types ---");
-        Console.WriteLine("  NestedScoping.Outer contains Inner, NestedPoint, IAction, Describable, Status");
-        Console.WriteLine($"  Verified via Outer.DemoClassInClass(): {Outer.DemoClassInClass()}");
+        Console.WriteLine($"  NestedScoping.Outer.Inner.Hello() = {NestedScoping.Outer.Inner.Hello()}");
+        Console.WriteLine($"  NestedScoping.Outer.Status.Pending = {NestedScoping.Outer.Status.Pending}");
 
         // 15. Referencing nested types by qualified name from outside the parent
-        Console.WriteLine("--- 15. Qualified name references from within parent ---");
-        Console.WriteLine("  Inner.Hello() called from Outer.DemoClassInClass()");
-        Console.WriteLine("  Status.Active called from Outer.DemoEnumInClass()");
-        Console.WriteLine("  Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()");
-        Console.WriteLine("  Level4.Depth() called from Level3.UseLevel4()");
-        Console.WriteLine($"  All verified: {Outer.DemoClassInClass()}");
+        Console.WriteLine("--- 15. Qualified name references from outside the parent ---");
+        Outer.NestedPoint corner = new Outer.NestedPoint(7, 8);
+        Outer.IAction move = new Outer.Move(corner);
+        Console.WriteLine($"  Outer.Inner.Hello() = {Outer.Inner.Hello()}");
+        Console.WriteLine($"  Outer.Status.Active = {Outer.Status.Active}");
+        Console.WriteLine($"  Outer.NestedPoint x={corner.x}, y={corner.y}; Outer.IAction {move.Execute()}");
+        Console.WriteLine($"  Registry.Entry.Kind() = {Registry.Entry.Kind()}, Registry.Category.Plugin = {Registry.Category.Plugin}");
+        Console.WriteLine($"  Level1.Level2.Level3.Level4.Depth() = {Level1.Level2.Level3.Level4.Depth()}");
 
         // 16. Nested types in type positions (return type, parameter type, field type, local variable type, new)
         //     Tested in: class (Factory), struct (Inventory)

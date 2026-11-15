@@ -1,3 +1,4 @@
+// Feature: unified-diagnostic-formatting, Property 7: Stored diagnostic location matches computed position
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

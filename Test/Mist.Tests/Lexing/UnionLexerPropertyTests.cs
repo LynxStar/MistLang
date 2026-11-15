@@ -1,3 +1,4 @@
+// type-unions Property 1, Requirements 1.2, 1.3.
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

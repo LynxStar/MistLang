@@ -1,3 +1,4 @@
+// binary-literals Property 2, Requirements 8.1, 8.2, 8.3, 8.9.
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;

@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -33,7 +34,7 @@ internal static class CastLowering
             : Step(cast.Operand.Type, parameter, operand);
     }
 
-    public static string Implicit(ImplicitConversionExpression conversion, string operand)
+    public static string Implicit(ImplicitConversionExpression conversion, string operand, DiagnosticBag? diagnostics = null)
     {
         if(conversion is not { Operator: { } called, ParameterType: { } parameter })
         {
@@ -43,8 +44,8 @@ internal static class CastLowering
         var argument = !called.Modifiers.IsIntrinsic && OverloadPinning.CastFor(conversion.Operand, parameter, overloaded: true) is { } pinned
             ? $"({pinned})({operand})"
             : Step(conversion.Operand.Type, parameter, operand);
-        var result = ReadsPattern(called, parameter)
-            ? Pattern(argument)
+        var result = ReadsPattern(called, parameter) ? Pattern(argument)
+            : OperatorMethods.Applies(called) ? OperatorMethods.Call(called, OperatorMethods.Owner(called, conversion.Type, conversion.OperatorClosing), [argument], diagnostics)
             : $"(({TypeNameEmitter.Emit(conversion.Type)})({argument}))";
 
         if(conversion.TargetType is UnionType carrier && !OptionalUnion.IsOptional(carrier) && !ConversionRelation.IsIdentity(conversion.Type, carrier))

@@ -1,7 +1,6 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
@@ -129,6 +128,14 @@ internal static partial class BodyEmitter
 
                 break;
 
+            case ImplicitConversionExpression conversion:
+                foreach(var capture in ConvertedCaptures(conversion))
+                {
+                    yield return capture;
+                }
+
+                break;
+
             case DefaultExpression defaulted:
                 foreach(var capture in ClosingCaptures(defaulted.Type).Where(capture => !defaulted.Captures.Contains(capture)).Concat(NestedCaptures(defaulted.Type)))
                 {
@@ -181,34 +188,6 @@ internal static partial class BodyEmitter
 
                 break;
         }
-    }
-
-    private static IEnumerable<SlotCapture> ClosingCaptures(IMistType type)
-    {
-        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
-            ? SlotRoutes.ValueRouted(constructed.Definition)
-                .Where(slot => slot.Ordinal < constructed.TypeArguments.Count)
-                .Select(slot => constructed.TypeArguments[slot.Ordinal])
-                .OfType<CapturedValue>()
-                .Select(captured => captured.Capture)
-            : [];
-    }
-
-    private static IEnumerable<SlotCapture> NestedCaptures(IMistType type)
-    {
-        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
-            ? constructed.TypeArguments.SelectMany(argument => (StructStamp.HeldByValue(Unaliased(TypeNameEmitter.Closed(argument))) is null ? [] : ClosingCaptures(argument))
-                .Concat(NestedCaptures(argument)))
-            : [];
-    }
-
-    private static IEnumerable<SlotCapture> StampCaptures(IMistType element, Expression size, IReadOnlyList<SlotCapture> owned)
-    {
-        var ahead = size is LiteralExpression || IsPlainRead(size)
-            ? []
-            : owned.Where(capture => !ReferenceEquals(capture.Initializer, size) && !IsPlainRead(capture.Initializer) && ConsumedByClosing(element, capture));
-
-        return ahead.Concat(NestedCaptures(element));
     }
 
     private static string? KeptLocal(SlotCapture capture)
@@ -312,66 +291,6 @@ internal static partial class BodyEmitter
     private static string Keyword(SlotCapture capture)
     {
         return DependentCarrierNames.Keyword(capture.Value.Domain) ?? TypeNameEmitter.Emit(capture.Value.Domain);
-    }
-
-    private static IEnumerable<SlotCapture> Unconsumed(Expression expression)
-    {
-        return expression switch
-        {
-            NewExpression creation => creation.Captures.Where(capture => !ConsumedByClosing(creation.Type, capture) && !ConsumedByWitness(creation.Type, capture)),
-            DefaultExpression defaulted => defaulted.Captures.Where(capture => !ConsumedByClosing(defaulted.Type, capture) && !ConsumedByWitness(defaulted.Type, capture)),
-            ArrayCreationExpression array => array.Captures.Where(capture => !ReferenceEquals(capture.Initializer, array.Size)
-                && (!ConsumedByClosing(array.ElementType, capture) || KeptLocal(capture) is not null)),
-            StackallocExpression stack => stack.Captures.Where(capture => !ReferenceEquals(capture.Initializer, stack.Size)
-                && (!ConsumedByClosing(stack.ElementType, capture) || KeptLocal(capture) is not null)),
-            InvocationExpression invocation => invocation.Captures.Where(capture => !ConsumedByCall(invocation, capture)),
-            MemberAccessExpression access => access.Captures.Where(capture => !ConsumedByAccess(access, capture)),
-            _ => [],
-        };
-    }
-
-    private static bool ConsumedByClosing(IMistType type, SlotCapture capture)
-    {
-        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
-            && SlotRoutes.ValueRouted(constructed.Definition).Any(slot =>
-                slot.Ordinal < constructed.TypeArguments.Count
-                && constructed.TypeArguments[slot.Ordinal] is CapturedValue captured
-                && ReferenceEquals(captured.Capture, capture));
-    }
-
-    private static bool ConsumedByCall(InvocationExpression invocation, SlotCapture capture)
-    {
-        if(CallTypeArguments(invocation) is not var (arguments, parameters, method))
-        {
-            return false;
-        }
-
-        if(RoutedCallSlots(arguments, parameters).Any(routed => routed.Argument is CapturedValue captured && ReferenceEquals(captured.Capture, capture))
-            || WitnessedCallSlots(arguments, parameters).Any(witnessed => WitnessCaptures(witnessed.Argument).Any(captured => ReferenceEquals(captured.Capture, capture)))
-            || (KeptLocal(capture) is null && FactoredCallCaptures(arguments, parameters).Any(captured => ReferenceEquals(captured.Capture, capture))))
-        {
-            return true;
-        }
-
-        return method is { Modifiers.IsStatic: true, DeclaringType: MemberType }
-            && invocation.Receiver is MemberAccessExpression { Receiver: TypeReferenceExpression reference }
-            && (ConsumedByClosing(reference.ReferencedType, capture) || ConsumedByWitness(reference.ReferencedType, capture));
-    }
-
-    private static bool ConsumedByAccess(MemberAccessExpression access, SlotCapture capture)
-    {
-        if(ConsumedByHolder(access, capture))
-        {
-            return true;
-        }
-
-        return ProjectedValueAccess.Declaring(access) is { } declaring
-            && access.Member is PropertyResult { Property.ProjectedParameter: { } parameter }
-            && SlotRoutes.IsValueRouted(parameter)
-            && Unaliased(TypeNameEmitter.Closed(declaring)) is ConstructedType closing
-            && parameter.Ordinal < closing.TypeArguments.Count
-            && closing.TypeArguments[parameter.Ordinal] is CapturedValue captured
-            && ReferenceEquals(captured.Capture, capture);
     }
 
     private static bool EmitEvaluatingCaptures(Expression expression, CSharpWriter writer, DiagnosticBag diagnostics)

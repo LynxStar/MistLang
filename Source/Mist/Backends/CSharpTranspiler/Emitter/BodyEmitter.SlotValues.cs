@@ -104,8 +104,8 @@ internal static partial class BodyEmitter
         return parameter is not null
             && SlotRoutes.IsValueRouted(parameter)
             && Unaliased(TypeNameEmitter.Closed(declaring)) is ConstructedType closing
-            && parameter.Ordinal < closing.TypeArguments.Count
-                ? SlotValue(closing.TypeArguments[parameter.Ordinal], diagnostics)
+            && SlotRoutes.Argument(closing, parameter) is { } argument
+                ? SlotValue(argument, diagnostics)
                     ?? EmissionDiagnostics.Fallback("slot value", $"{TypeDisplay.Mist(closing)}.{parameter.Name}", "default")
                 : null;
     }
@@ -114,7 +114,7 @@ internal static partial class BodyEmitter
     {
         var values = new List<string>();
 
-        if(closing is not ConstructedType constructed)
+        if(SlotRoutes.Closing(closing) is not { } constructed)
         {
             values.AddRange(ClosingWitnesses.Stored(closing).Select(SlotReach.Read));
             return values;
@@ -122,7 +122,7 @@ internal static partial class BodyEmitter
 
         foreach(var slot in SlotRoutes.ValueRouted(constructed.Definition))
         {
-            var argument = slot.Ordinal < constructed.TypeArguments.Count ? constructed.TypeArguments[slot.Ordinal] : null;
+            var argument = SlotRoutes.Argument(constructed, slot);
             values.Add(argument switch
             {
                 null => EmissionDiagnostics.Fallback("slot value", slot.Name, "default"),
@@ -165,16 +165,16 @@ internal static partial class BodyEmitter
     {
         var slots = new List<(TypeParameter, IMistType)>();
 
-        if(Unaliased(TypeNameEmitter.Closed(tested)) is not ConstructedType constructed)
+        if(SlotRoutes.Closing(Unaliased(TypeNameEmitter.Closed(tested))) is not { } constructed)
         {
             return slots;
         }
 
         foreach(var slot in SlotRoutes.ValueRouted(constructed.Definition))
         {
-            if(slot.Ordinal < constructed.TypeArguments.Count && constructed.TypeArguments[slot.Ordinal] is CapturedValue or TypeParameter)
+            if(SlotRoutes.Argument(constructed, slot) is (CapturedValue or TypeParameter) and var argument)
             {
-                slots.Add((slot, constructed.TypeArguments[slot.Ordinal]));
+                slots.Add((slot, argument));
             }
         }
 
@@ -488,7 +488,14 @@ internal static partial class BodyEmitter
     {
         for(var i = 0; i < method.ParametersList.Count; i++)
         {
-            if(Unaliased(TypeNameEmitter.Closed(method.ParametersList[i].Type)) is not ConstructedType closing || closing.Definition is not IHasTypeParameters generic)
+            var type = Unaliased(TypeNameEmitter.Closed(method.ParametersList[i].Type));
+
+            if(type is MemberType nested && SlotRoutes.ValueRouted(nested).FirstOrDefault(carried => ReferenceEquals(SlotRoutes.Argument(nested, carried), slot)) is { } own)
+            {
+                return (i, new ConstructedType(nested, nested.TypeParametersList), own);
+            }
+
+            if(type is not ConstructedType closing || closing.Definition is not IHasTypeParameters generic)
             {
                 continue;
             }
@@ -500,6 +507,11 @@ internal static partial class BodyEmitter
                 {
                     return (i, closing, generic.TypeParametersList[k]);
                 }
+            }
+
+            if(SlotRoutes.ValueRouted(closing).FirstOrDefault(carried => ReferenceEquals(SlotRoutes.Argument(closing, carried), slot)) is { } enclosing)
+            {
+                return (i, closing, enclosing);
             }
         }
 

@@ -89,7 +89,7 @@ internal static class ConstructorEmitter
                 : []);
             forwarded?.InsertRange(0, constructor.ChainKind == ConstructorChainKind.This
                 ? SlotRoutes.HiddenNames(routed)
-                : BodyEmitter.SlotValues(targetType as ConstructedType, diagnostics));
+                : BodyEmitter.SlotValues(targetType, diagnostics));
 
             if(forwarded is { Count: > 0 })
             {
@@ -199,7 +199,7 @@ internal static class ConstructorEmitter
             ? []
             : ContextKeyWitnesses.Arguments(reached, ContextBinding.TypesOf(reached, key => closing.Apply(key, interner: null))));
         var packs = reached?.ParametersList is [{ IsFlattened: true, Type: TupleType or NamedTupleType }];
-        forwarded.InsertRange(0, BodyEmitter.SlotValues(baseType as ConstructedType, diagnostics));
+        forwarded.InsertRange(0, BodyEmitter.SlotValues(baseType, diagnostics));
 
         if(forwarded.Count == 0 && !packs)
         {

@@ -78,7 +78,52 @@ internal sealed class SlotRoutes : IDisposable
     {
         var definition = type is ConstructedType constructed ? constructed.Definition : type;
 
-        return definition is IHasTypeParameters generic ? ValueRouted(generic.TypeParametersList) : [];
+        if(definition is not IHasTypeParameters generic)
+        {
+            return [];
+        }
+
+        var carried = new List<TypeParameter>();
+
+        for(var outer = (definition as MemberType)?.DeclaringType as MemberType; outer is not null; outer = outer.DeclaringType as MemberType)
+        {
+            carried.InsertRange(0, ValueRouted(outer.TypeParametersList));
+        }
+
+        return carried.Count == 0 ? ValueRouted(generic.TypeParametersList) : [.. carried, .. ValueRouted(generic.TypeParametersList)];
+    }
+
+    public static ConstructedType? Closing(IMistType? type)
+    {
+        return type switch
+        {
+            ConstructedType constructed => constructed,
+            MemberType { DeclaringType: MemberType } nested when ValueRouted(nested).Count > 0 => new ConstructedType(nested, nested.TypeParametersList),
+            _ => null,
+        };
+    }
+
+    public static IMistType? Argument(IMistType? closing, TypeParameter slot)
+    {
+        for(var level = closing as ConstructedType; level is not null; level = level.Enclosing)
+        {
+            if(level.Definition is IHasTypeParameters generic && generic.TypeParametersList.Exists(parameter => ReferenceEquals(parameter, slot)))
+            {
+                return slot.Ordinal < level.TypeArguments.Count ? level.TypeArguments[slot.Ordinal] : null;
+            }
+        }
+
+        var definition = closing is ConstructedType constructed ? constructed.Definition : closing;
+
+        for(var outer = definition as MemberType; outer is not null; outer = outer.DeclaringType as MemberType)
+        {
+            if(outer.TypeParametersList.Exists(parameter => ReferenceEquals(parameter, slot)))
+            {
+                return slot;
+            }
+        }
+
+        return null;
     }
 
     public static IReadOnlyList<TypeParameter> ValueRouted(IReadOnlyList<TypeParameter> parameters)

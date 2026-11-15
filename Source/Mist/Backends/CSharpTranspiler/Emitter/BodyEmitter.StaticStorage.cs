@@ -111,7 +111,7 @@ internal static partial class BodyEmitter
 
     private static bool IsOwnClosing(ConstructedType closing, MemberType owner)
     {
-        return SlotRoutes.Carried(owner).All(slot => slot.Ordinal < closing.TypeArguments.Count && ReferenceEquals(closing.TypeArguments[slot.Ordinal], slot));
+        return SlotRoutes.Carried(owner).All(slot => ReferenceEquals(SlotRoutes.Argument(closing, slot), slot));
     }
 
     private static bool ConsumedByHolder(MemberAccessExpression access, SlotCapture capture)

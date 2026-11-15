@@ -53,7 +53,7 @@ internal static class ValueRouteEmitter
         {
             foreach(var slot in SlotRoutes.Carried(closing.Definition))
             {
-                var argument = slot.Ordinal < closing.TypeArguments.Count ? closing.TypeArguments[slot.Ordinal] : null;
+                var argument = SlotRoutes.Argument(closing, slot);
                 var value = argument is null ? null : slot.IsDependent ? BodyEmitter.SlotValue(argument, diagnostics) : BodyEmitter.Witness(argument, diagnostics);
 
                 writer.WriteLine(
@@ -70,7 +70,7 @@ internal static class ValueRouteEmitter
     {
         var reached = type is AbstractType abstractType ? abstractType.BaseAbstractTypes : TypeSlots.Reached(type);
 
-        return reached.OfType<ConstructedType>().Where(closing => SlotRoutes.Carried(closing.Definition).Count > 0);
+        return reached.Select(SlotRoutes.Closing).OfType<ConstructedType>().Where(closing => SlotRoutes.Carried(closing.Definition).Count > 0);
     }
 
     public static void EmitAssignments(ConcreteType type, CSharpWriter writer)
@@ -298,7 +298,7 @@ internal static class ValueRouteEmitter
             foreach(var slot in SlotRoutes.ValueRouted(group.Key))
             {
                 var values = closings
-                    .Select(closing => slot.Ordinal < closing.TypeArguments.Count ? closing.TypeArguments[slot.Ordinal] : null)
+                    .Select(closing => SlotRoutes.Argument(closing, slot))
                     .Distinct(ReferenceEqualityComparer.Instance)
                     .ToList();
 

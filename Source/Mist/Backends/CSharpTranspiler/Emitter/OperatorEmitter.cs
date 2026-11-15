@@ -18,6 +18,21 @@ internal static class OperatorEmitter
             return;
         }
 
+        if(OperatorMethods.Applies(op))
+        {
+            AttributeEmitter.EmitLines(op.DeclaredAttributesList, writer, diagnostics);
+            writer.WriteLine($"{MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false)}{MethodEmitter.EmitSignature(op, diagnostics, OperatorMethods.Name(op))}");
+            using(writer.Block())
+            {
+                if(op.Body is not null)
+                {
+                    BodyEmitter.EmitMethodBody(op, op.Body, writer, diagnostics);
+                }
+            }
+
+            return;
+        }
+
         using var reach = SlotReach.OfOperator(op);
         var modifiers = MemberModifierEmitter.Emit(op.Modifiers, emitReadonly: false);
         var returnType = MethodEmitter.EmitReturnType(op);

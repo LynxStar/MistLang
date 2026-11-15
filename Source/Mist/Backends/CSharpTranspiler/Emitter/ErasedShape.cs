@@ -29,8 +29,8 @@ internal static class ErasedShape
 
             case ConstructedType constructed when SlotRoutes.ValueRouted(constructed.Definition) is { Count: > 0 } routed:
                 return [.. routed
-                    .Where(slot => slot.Ordinal < constructed.TypeArguments.Count && constructed.TypeArguments[slot.Ordinal] is LiftedType)
-                    .Select(slot => $"{SlotRoutes.Hidden(slot)}: {DependentCarrierNames.Literal(((LiftedType)constructed.TypeArguments[slot.Ordinal]).Value)}")];
+                    .Where(slot => SlotRoutes.Argument(constructed, slot) is LiftedType)
+                    .Select(slot => $"{SlotRoutes.Hidden(slot)}: {DependentCarrierNames.Literal(((LiftedType)SlotRoutes.Argument(constructed, slot)!).Value)}")];
 
             case ITupleType tuple:
                 var elements = TypeNameEmitter.Expand(tuple.ElementTypes);
@@ -100,7 +100,7 @@ internal static class ErasedShape
     {
         return Unwrapped(type) is ConstructedType constructed
             && SlotRoutes.ValueRouted(constructed.Definition).Any(slot =>
-                slot.Ordinal < constructed.TypeArguments.Count && constructed.TypeArguments[slot.Ordinal] is CapturedValue or TypeParameter);
+                SlotRoutes.Argument(constructed, slot) is CapturedValue or TypeParameter);
     }
 
     private static string? Subpattern(IMistType type)

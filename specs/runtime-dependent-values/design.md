@@ -450,6 +450,139 @@ comes:
   constants.
 - A dependent parameter written as a type, `x is N` (MIST0500, MIST-1363).
 
+### A type for every literal closing
+
+The owner adopted this on 2026-11-15 ("I agree to all of that"): a literal
+closing keeps its own C# type, the overloads task MIST-1371 is dropped, and
+the open items below are ruled one at a time before the task that meets each.
+The `T | void` rule at the .NET boundary is his proposal; its details are
+confirmed before its own task. No task builds from this section until its
+before-and-after programs have been shown to him.
+
+**What the value route costs literal closings.** The value route makes a
+declaration one C# class for every closing as soon as one closing anywhere is
+known only at run time. A closing written with a literal then loses its own
+C# type. Measured at 87d653d0, with `Ring` holding nothing but its slot:
+
+```mist
+var fives = ArrayPool<Ring<5>>.Shared.Rent(2);
+fives[0] = new Ring<5>();
+ArrayPool<Ring<5>>.Shared.Return(fives);
+
+var sevens = ArrayPool<Ring<7>>.Shared.Rent(2);
+unknown got = sevens[0];
+got is Ring<5>      // False; True once `new Ring<n>()` is added anywhere
+```
+
+Without a run-time closing the two are `Ring<Const_5>` and `Ring<Const_7>`,
+two C# types the CLR keeps apart. With one, both are `Ring`, and the CLR's
+pool hands the `Ring<5>` back as a `Ring<7>`. Overloads that differ only in a
+slot, static storage, unions of two closings, an abstract at two values and a
+closing as a type argument are refused or rebuilt for the same reason: items
+3, 5, 6 and 8 restore, for literal closings, what the carrier route gave them.
+
+**A type for every literal closing.** A closing whose value is known when the
+program is compiled keeps its carrier type, `Ring<Const_5>`, whatever else the
+program does. Only a closing known at run time uses a shared form:
+
+```csharp
+public abstract class Ring__Any { public abstract int __Capacity { get; } }
+public sealed class Ring<TCapacity> : Ring__Any where TCapacity : IConstIntegral { ... }
+public sealed class Ring__Run : Ring__Any { ... }   // a value no literal closing names
+```
+
+- A place whose type is `Ring<n>` is `Ring__Any` in C#.
+- `new Ring<n>()` chooses by the value among the literal closings the program
+  writes: `n == 5` makes a `Ring<Const_5>`, and a value no literal closing
+  names makes a `Ring__Run`. An object's C# class is therefore fixed by its
+  value, so `x is Ring<5>` is `x is Ring<Const_5>`, and a proven
+  `Ring<5> y = x` is a C# cast that cannot fail.
+- `Ring<n>.hits` reads `Ring<Const_5>.hits` when `n` is 5, and the holder
+  table of item 5 for a value no literal closing names. Requirement 10's one
+  storage per value holds.
+- `Foo(Ring<3>)` and `Foo(Ring<4>)` are different C# signatures again.
+- A struct has no base class. A literal closing is `Cell<Const_5>`; a run-time
+  closing is a `Cell__Run` struct that carries the value and a flag set when
+  Mist creates it. A proven assignment between the two copies, as struct
+  assignment does.
+
+**A run-time closing at the .NET boundary.** A CLR generic sees one type,
+`Ring__Any` or `Cell__Run`, for every value no literal closing names, and may
+hand back a zeroed struct or another value's object. The owner proposed
+treating such a value as Mist already treats a CLR reference
+(assembly-type-provider Requirement 14.2): a value whose type is a run-time
+closing, coming back from CLR code, has type `T | void`. Narrowing it to `T`
+checks that the value is present, that its carried value is the one the type
+names, and, for a struct, that Mist created it. A value that fails is `void`.
+
+```mist
+var cells = new List<Cell<n>>();
+cells.Add(new Cell<n>());
+
+var got = cells[0];                 // Cell<n> | void
+if (got is Cell<n> c)
+{
+    Console.WriteLine(c.Size());    // n
+}
+
+var rented = ArrayPool<Cell<n>>.Shared.Rent(2);
+rented[0] is Cell<n>                // false: zeroed, or another value's cell
+```
+
+A literal closing is unaffected: `List<Cell<5>>` hands back a `Cell<5>`, since
+`Cell<Const_5>` is its own CLR type. The check runs once per value that
+crosses back, not on reads in Mist code. This replaces MIST0502's third kept
+case and closes the class leak, which a presence check alone does not.
+
+**Left open.** Each is the owner's, with an example, before a task is written:
+
+- A Mist array or span of a run-time struct closing handed to CLR code that
+  writes into it, `Array.Resize(ref cells, 10)`. The new elements are zeroed
+  inside Mist's own array, with no boundary between them and the next read.
+- A proven assignment between arrays, `Cell<5>[] a = b` with `b` a
+  `Cell<n>[]`. `a` must alias `b`, and `Cell<Const_5>[]` and `Cell__Run[]` are
+  different CLR arrays.
+- A generic built from a run-time closing under proof, `Tester<Ring<5>> t = u`
+  with `u` a `Tester<Ring<n>>`. The CLR never casts `Tester<Ring__Any>` to
+  `Tester<Ring<Const_5>>`, so creation has to choose here as well, and a place
+  of that type needs a C# type both forms fit.
+
+### Where refinements are enough
+
+The owner's direction on 2026-11-15: "So it's both what you already wrote and
+the extra refinement improve could provide a way you don't need dependent
+typing for certain cases." The design above stands. Alongside it, three
+refinement facts let a program that only sizes arrays at run time prove what
+it needs without closing a type at run time; they are proposed to the
+refinement work in [runtime-length-facts](../runtime-length-facts/requirements.md).
+
+Measured with this feature's six gaps written without any run-time closing,
+on main at e2656913 (refinements, no run-time closings) and on this branch at
+1424a04b:
+
+| Gap | main | branch |
+|---|---|---|
+| 1. A value in a size or a constructor argument | works | works |
+| 2. Evaluated once, value kept | works | works |
+| 6. Member access and tests through a field | works | works |
+| 3. `a[i]` under `m == n` and `i < m` | MIST0275 | works |
+| 4. Two lengths related at a call by a `where` bound | MIST0277 | works |
+| 5. `a[i]` under `i < n` | MIST0275 | works |
+| 4. A length through a return, `int[] Zeroes(n)` | MIST0277 | MIST0277 |
+
+Rows 3 to 5 fail on main for one reason: `new int[n]` records no
+`a.Length == n`. The branch gets it from the type `int[n]`; the refinement
+proposal records it as a fact instead. The last row needs a return type that
+states a relation to its arguments, which neither compiler has.
+
+A CLR array keeps its own length, so a fact about it holds wherever the array
+goes. A user type's slot has no such keeper. A run-time closing of one stays
+with this design in every slot domain, integers included, and comes back from
+CLR code as `T | void` ("Cell<n> if you want a dependent runtime int will
+still need to be Cell<n>? when it crosses the barrier to be safe"). So do a
+relation stored inside data, identity by value, and a slot whose domain is a
+struct value.
+
 ### Identity by value: the first delivery
 
 Items 1 to 4. Each program was run at afd43acab and is refused there with the
@@ -655,8 +788,8 @@ and not only on a read of its storage. A read through a closing evaluates a
 capture's initializer once, as the argument of the lookup, and a compound
 assignment that C# cannot write in place binds the holder once. A bare name
 inside the type's members supplies the hidden field or parameter; inside an
-operator, the operand that carries the slot; inside a nested type, nothing,
-which is MIST0499 until item 7. A struct's static is held by the struct that
+operator, the operand that carries the slot; inside a nested type, the slot
+the nested type carries as its own (item 7). A struct's static is held by the struct that
 copies it, as its C# static is today, and a struct's ancestor factory carries
 no static member. A static spread member's per-element projections are
 members of the holder. A static with no initializer that holds a value-routed
@@ -791,7 +924,11 @@ takes the values from the type it converts to.
 
 **A nested type that reads the enclosing slot.** With the last line this is
 MIST0499. Without it, closed only with literals, the generated C# does not
-compile, on main as well: the read is emitted as a name C# does not know.
+compile, on main as well. Measured at 87d653d0, the read itself is fine: on the
+carrier route it is `((int)TCapacity.Value)`, which C# accepts inside a class
+nested in `Ring<TCapacity>`. What C# does not know is the nested type's name
+where `Make` spells it, `Probe.Ring<Capacity>.Node`, written with the Mist
+name of the parameter instead of its C# name `TCapacity`.
 
 ```mist
 public class Ring<Capacity:int>
@@ -811,13 +948,72 @@ new Ring<n>().Make().Limit()    // n
 A type nested in a generic type is a type of each closing of it, so it carries
 the enclosing type's value-routed slots as its own: a hidden field, set from a
 hidden constructor parameter, which the creation fills from the enclosing
-instance's field or from the closing that is written. The delivery fixes the
-literal case with it, since both are the same read.
+instance's field or from the closing that is written. The literal case is a
+spelling fix on the carrier route, which it keeps: a type closed only with
+literals has no value-routed slot to carry, and C# nesting already gives each
+closing its own nested type (operator ruling, 2026-11-14).
 
 The delivery hands in two lists, each entry marked as above: every conversion
 and operator form whose operands may not carry the slot; and every way a
 nested type is declared, created, named and tested, at one and at two levels
 of nesting.
+
+Item 7 landed with MIST-1435, over 87d653d0. MIST0499 stays for an attribute
+argument and a union-specialized copy, neither of them item 7's.
+`OperatorMethods` decides which operators and conversions become methods. A
+conversion or operator of a value-routed type that some slot reaches through
+no operand (`BodyEmitter.OperandRead`) is a static method named `__Explicit`,
+`__Implicit` or `__op_{Name}`. A conversion out of the declaring type also
+spells its declared target in the name, since C# keeps two conversions from
+one source apart by target but two methods only by parameters:
+`explicit operator int(Ring<1> r)` and `explicit operator long(Ring<1> r)`
+would otherwise both be `__Explicit(int, Ring)`. A conversion into the
+declaring type needs no more, because its target erases to that type at every
+closing. The method takes the slot values as the hidden leading parameters
+every static member takes, and its body reads them by their bare names. A cast passes the values of its target. An implicit conversion passes
+the values of the type it converts to. An operator passes the values of the
+closing it was found through. A cast's own capture is the hidden argument,
+evaluated after an operand that runs code, as the operator route evaluates
+it. An implicit conversion's target was written by another node, so it reads
+that node's capture from a kept local, never the variable's value at the time
+of the conversion. A conversion or operator none of whose operands, nor its
+target, is the declaring type as declared is a method on either route, since
+C# refuses it as an operator: `operator +(Ring<1> a, int b)` and
+`explicit operator int(Ring<1> r)` inside `Ring<Capacity>`. MIST-1371's
+renaming of coinciding conversions lands on the same static-method shape, so
+one name decides both.
+
+`SlotRoutes.ValueRouted` of a type nested in a value-routed type lists the
+enclosing slots before its own. Everything keyed by a type's value-routed
+slots follows from that list: the hidden fields and constructor parameters,
+the hidden parameters of its static members, its statics holder, an abstract's
+hidden getter and an implementer's answer, and the comparison a test appends.
+`SlotRoutes.Argument` finds a slot's value through a nested closing's
+`Enclosing` chain, `Ring<n>.Node.Leaf` included. A nested type named bare
+inside its enclosing type is that type's own closing (`SlotRoutes.Closing`),
+so its slot values are the reads of the enclosing slots where it is written:
+the enclosing instance's field, a static member's hidden parameter, or the
+nested type's own field. A creation with no semantic default witness to
+pass, of a nested type holding the enclosing `T`, calls the compatibility
+constructor, which takes the slot values all the same. A nested type reaches the enclosing type's static
+storage through the values it carries. Its own statics are held per value,
+as the carrier route's C# nesting holds them per closing.
+
+The frontend refuses or cannot write these forms from the two lists, and the
+backend sees none of them:
+
+- `new Ring<n>.Node()`. The grammar's object creation takes a qualified name
+  and its arguments, with no nested type through an instantiation. A
+  target-typed `Ring<n>.Node x = new();` works.
+- A static member reached through a nested type of a runtime closing,
+  `Ring<n>.Node.Twice()`, and an enum member, `Ring<n>.Mode.On`, are MIST0487.
+  The static member works through a literal or a dependent parameter.
+- A conversion from a closing of the same declaration into a runtime closing,
+  `(Ring<n>)one` with `one` a `Ring<1>`, is MIST0486. The binder judges it as
+  a conversion between closings, which needs a proof. With a literal target it
+  works.
+- A cast, or an implicit conversion, into a nullable target `Ring<n>?` is
+  MIST0149 or MIST0157, for literal closings too.
 
 ### Identity by value: a closing as a type argument
 
@@ -921,10 +1117,11 @@ cannot be answered:
   MIST0498. No member reads the value back. Item 2 of *Identity by value*
   carries a capture in a local; the number stays for a slot nested under
   `unknown`, which has no value anywhere.
-- A read of a value-routed parameter where no value reaches, MIST0499: a
-  conversion into the type, a nested type, an attribute argument, and a copy
-  that union specialization makes with a closing of the parameter's owner in a
-  type argument.
+- A read of a value-routed parameter where no value reaches, MIST0499: an
+  attribute argument, and a copy that union specialization makes with a
+  closing of the parameter's owner in a type argument. A conversion into the
+  type and a nested type were retired from it by item 7 of *Identity by
+  value*.
 - A value-routed parameter written as a type, MIST0500: `x is N`, `List<N>`.
 - A union that holds two closings of one value-routed type, MIST0501.
 

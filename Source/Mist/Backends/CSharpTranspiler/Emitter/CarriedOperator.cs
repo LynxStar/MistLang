@@ -28,7 +28,7 @@ internal static class CarriedOperator
     private static bool Applies(Operator? op)
     {
         return op is { Modifiers.IsIntrinsic: false }
-            && (op.DeclaringType is ConcreteType { IsIntrinsic: true } || op.TypeParametersList.Count > 0);
+            && (op.DeclaringType is ConcreteType { IsIntrinsic: true } || op.TypeParametersList.Count > 0 || OperatorMethods.Applies(op));
     }
 
     public static string Name(Operator op)
@@ -55,6 +55,11 @@ internal static class CarriedOperator
 
     private static string Call(Operator op, TypeSubstitution closing, IReadOnlyList<string> operands)
     {
+        if(OperatorMethods.Applies(op))
+        {
+            return OperatorMethods.Call(op, OperatorMethods.Owner(op, converted: null, closing), operands, diagnostics: null);
+        }
+
         var arguments = op.TypeParametersList.Select(parameter => closing.Apply(parameter, null)).ToArray();
         arguments = arguments.Select(TypeNameEmitter.Closed).ToArray();
 

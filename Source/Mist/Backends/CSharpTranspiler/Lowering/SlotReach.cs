@@ -12,11 +12,12 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// <summary>
 /// Where a value-routed slot's value reaches in the C# being written. A bare read names the hidden field or
 /// the hidden parameter of the member it sits in, which every member of the declaring type, of the method
-/// or block declaring the slot, and every local function and lambda inside them has. Five positions have
-/// neither, and each enters a reach around what it writes so that <see cref="DependentCarrierNames.ValueRead"/>
-/// finds the innermost: a C# operator or conversion takes no hidden parameter, so it reads the owner's
-/// slot from the first operand whose type carries it, and has no value when none does; a type nested in a
-/// value-routed type is no instance of it; an attribute argument is a constant; an abstract's default body
+/// or block declaring the slot, every type nested in that type, which carries the slot as its own, and every
+/// local function and lambda inside them has. Four positions have neither, and each enters a reach around
+/// what it writes so that <see cref="DependentCarrierNames.ValueRead"/> finds the innermost: a C# operator or
+/// conversion takes no hidden parameter, so it reads the owner's slot from the first operand whose type carries
+/// it (one that no operand carries is emitted as a method instead, see <see cref="OperatorMethods"/>); an
+/// attribute argument is a constant; an abstract's default body
 /// restated in an implementing type reads the abstract's slot as that type's closing supplies it; a
 /// declaration copied per instantiation (see <see cref="UnionSpecialization"/>) with a closing standing in
 /// a type argument, <c>Holder&lt;Ring&lt;N&gt;&gt;</c> or Ring's own <c>Same&lt;Ring&lt;N&gt;&gt;</c>, is one
@@ -96,21 +97,6 @@ internal sealed class SlotReach : IDisposable
         };
 
         return new SlotReach(sources, every: false, site);
-    }
-
-    public static IDisposable? OfNested(MemberType type)
-    {
-        var sources = new Dictionary<TypeParameter, string?>(ReferenceEqualityComparer.Instance);
-
-        for(var outer = type.DeclaringType as MemberType; outer is not null; outer = outer.DeclaringType as MemberType)
-        {
-            foreach(var slot in SlotRoutes.ValueRouted(outer))
-            {
-                sources[slot] = null;
-            }
-        }
-
-        return sources.Count == 0 ? null : new SlotReach(sources, every: false, $"the nested type '{TypeEmitter.DeclaredName(type)}'");
     }
 
     public static IDisposable OfAttributeArgument()

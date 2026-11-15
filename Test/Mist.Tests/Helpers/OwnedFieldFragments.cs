@@ -11,11 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Helpers;
 
-/// <summary>
-/// Bodies over an owned Pair of two owned Engine fields, built by hand: per-field moves, leases and
-/// restorations with the composite restrictions they put on the whole, `this` lent to a parameter, and
-/// an owned field read through a shared holder.
-/// </summary>
 internal sealed class OwnedFieldFragments
 {
     private readonly HandBuiltModel model = new();

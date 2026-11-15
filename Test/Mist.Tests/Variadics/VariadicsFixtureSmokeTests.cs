@@ -7,11 +7,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Variadics;
 
 /// <summary>
-/// Smoke tests validating the task 1.3 infrastructure itself: the shared parse-only
-/// <see cref="VariadicsCompilerFixture"/> and the <see cref="MistVariadicsGenerator"/>
-/// surface-form generators. These confirm that every representative and generated surface
-/// form is grammar-valid. Assertions about specific AST node kinds and print/parse
-/// round-trips belong to the dedicated parsing and pretty-printer tasks.
+/// Grammar validity only: AST node kinds and print/parse round-trips are asserted by the dedicated
+/// parsing and pretty-printer tests.
 /// </summary>
 [Trait("Tier", "3")]
 public sealed class VariadicsFixtureSmokeTests
@@ -49,11 +46,7 @@ public sealed class VariadicsFixtureSmokeTests
         }
     }
 
-    /// <summary>
-    /// Every generated variadic surface form parses without lex/parse errors. This
-    /// validates that the generators emit grammar-valid Mist source across all
-    /// categories, so downstream property tests can rely on them.
-    /// </summary>
+    /// <summary>Downstream property tests rely on these generators emitting grammar-valid source.</summary>
     [Property(Arbitrary = new[] { typeof(VariadicsFixtureSmokeTests) }, MaxTest = 200)]
     public bool Generators_ProduceParseableSource(VariadicSurfaceScenario scenario)
     {

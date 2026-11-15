@@ -28,11 +28,6 @@ internal static class StdlibTestHelper
             "Could not find repository root (Mist.slnx) from AppContext.BaseDirectory.");
     }
 
-    /// <summary>
-    /// Loads stdlib compilation units, lexes/parses them, and returns the
-    /// parsed units ready to be prepended to a test compilation.
-    /// Results are cached for the process lifetime.
-    /// </summary>
     public static ImmutableArray<CompilationUnit> LoadStdlib()
     {
         return Stdlib.Value;

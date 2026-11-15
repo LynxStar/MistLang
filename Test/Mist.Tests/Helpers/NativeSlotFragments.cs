@@ -10,9 +10,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Helpers;
 
-/// <summary>
-/// Projected classes whose members carry a slot kind, and source classes deriving them, built by hand.
-/// </summary>
 internal sealed class NativeSlotFragments
 {
     private int offset = 10;

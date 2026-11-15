@@ -20,9 +20,8 @@ namespace Mist.Tests.Helpers;
 internal static class StandardModelProbe
 {
     /// <summary>
-    /// Wraps <paramref name="statements"/> in a probe method, builds the model alongside Standard's own
-    /// sources, and hands back both. Standard needs an Exception.Message shell even when the probe
-    /// projects no foreign assemblies; callers judging CLR declarations supply their own provider.
+    /// Standard needs an Exception.Message shell even when the probe projects no foreign assemblies;
+    /// callers judging CLR declarations supply their own provider.
     /// </summary>
     public static ProgramModelClass Build(
         string statements, out ImmutableArray<Diagnostic> diagnostics, string extraTypes = "", IAmbientTypeProvider? ambient = null)

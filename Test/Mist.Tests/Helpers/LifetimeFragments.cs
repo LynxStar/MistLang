@@ -12,8 +12,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Tests.Helpers;
 
 /// <summary>
-/// Bodies over a linear Token built by hand, for the lifetime plan, the cleanup it lowers to and the
-/// exit drops analysis judges -- the three readers that must agree on one body.
+/// Shared by the lifetime plan, the cleanup it lowers to and exit-drop analysis: three readers that
+/// must agree on one body.
 /// </summary>
 internal sealed partial class LifetimeFragments
 {

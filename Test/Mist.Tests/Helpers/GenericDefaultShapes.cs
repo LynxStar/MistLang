@@ -9,11 +9,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Helpers;
 
-/// <summary>
-/// Hand-built generic declarations for the rows judging a constructed type's default: <c>Box</c> holds
-/// one slot of its type parameter, <c>Connection</c> has a constructor and no default block, and
-/// <c>Inner</c> has no constructor and an initialized slot.
-/// </summary>
 internal sealed class GenericDefaultShapes(List<MistType>? registry = null)
 {
     private static readonly MemberModifiers Public = new() { Accessibility = Accessibility.Public };

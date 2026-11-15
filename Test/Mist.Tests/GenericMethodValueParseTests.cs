@@ -1,6 +1,5 @@
-// Tier 1 (Unit): the parser alone. A generic method named as a value with its type arguments stated,
-// `Api.Same<int>` with no call after it, is one suffix or one primary exactly where `>` is followed by a
-// token that ends an expression; a comparison chain, a call and a declaration keep the parse they had.
+// Tier 1 (Unit): the parser alone. `Api.Same<int>` with no call after it is a method value exactly where
+// `>` is followed by a token that ends an expression.
 
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;

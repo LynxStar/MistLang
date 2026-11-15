@@ -1,6 +1,4 @@
-// Feature: readonly-contexts, Property 1: Readonly Modifier Parsing Preservation
-// Feature: readonly-contexts, Property 2: Readonly Block Parsing
-// Feature: readonly-contexts, Property 19: Round-Trip Parsing
+// readonly-contexts Properties 1, 2 and 19.
 
 using FsCheck;
 using FsCheck.Fluent;
@@ -13,11 +11,6 @@ using Mist.Parsing.Contracts;
 
 namespace Mist.Tests.ReadonlyContexts;
 
-// ─── Scenario types ─────────────────────────────────────────────────────────
-
-/// <summary>
-/// A generated Mist declaration with a readonly modifier for property testing.
-/// </summary>
 public sealed class ReadonlyModifierScenario
 {
     public string Source { get; }
@@ -37,9 +30,6 @@ public sealed class ReadonlyModifierScenario
     }
 }
 
-/// <summary>
-/// A generated Mist readonly block statement for property testing.
-/// </summary>
 public sealed class ReadonlyBlockScenario
 {
     public string Source { get; }
@@ -59,9 +49,6 @@ public sealed class ReadonlyBlockScenario
     }
 }
 
-/// <summary>
-/// A generated Mist readonly syntax construct for round-trip testing.
-/// </summary>
 public sealed class ReadonlyRoundTripScenario
 {
     public string Source { get; }
@@ -79,15 +66,8 @@ public sealed class ReadonlyRoundTripScenario
     }
 }
 
-// ─── Generators ─────────────────────────────────────────────────────────────
-
-/// <summary>
-/// FsCheck generators for readonly syntax constructs.
-/// </summary>
 public static class ReadonlyParsingGenerators
 {
-    // ─── Name pools ─────────────────────────────────────────────────────
-
     private static readonly string[] ClassNames = ["Foo", "Bar", "Baz", "Widget"];
     private static readonly string[] StructNames = ["Point", "Vector", "Cell"];
     private static readonly string[] AbstractNames = ["IReadable", "IService", "IStore"];
@@ -98,17 +78,11 @@ public static class ReadonlyParsingGenerators
     private static readonly string[] Types = ["int", "string", "bool", "float"];
     private static readonly string[] AccessModifiers = ["", "public ", "private "];
 
-    // ─── Modifier combination generators ────────────────────────────────
-
-    /// <summary>Generates a modifier string that always includes readonly.</summary>
     private static Gen<string> GenModifiersWithReadonly()
     {
         return Gen.Elements(AccessModifiers).Select(access => $"{access}readonly ");
     }
 
-    // ─── Property 1: Readonly Modifier Parsing Preservation ─────────────
-
-    /// <summary>Generates a readonly field declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyField()
     {
         return from className in Gen.Elements(ClassNames)
@@ -119,7 +93,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "field", $"readonly field: {className}.{fieldName}");
     }
 
-    /// <summary>Generates a readonly property declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyProperty()
     {
         return from className in Gen.Elements(ClassNames)
@@ -130,7 +103,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "property", $"readonly property: {className}.{propName}");
     }
 
-    /// <summary>Generates a readonly method declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyMethod()
     {
         return from className in Gen.Elements(ClassNames)
@@ -141,7 +113,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "method", $"readonly method: {className}.{methodName}");
     }
 
-    /// <summary>Generates a readonly constructor declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyConstructor()
     {
         return from className in Gen.Elements(ClassNames)
@@ -150,7 +121,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "constructor", $"readonly constructor: {className}");
     }
 
-    /// <summary>Generates a readonly class declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyClass()
     {
         return from className in Gen.Elements(ClassNames)
@@ -159,7 +129,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "class", $"readonly class: {className}");
     }
 
-    /// <summary>Generates a readonly struct declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyStruct()
     {
         return from structName in Gen.Elements(StructNames)
@@ -168,7 +137,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "struct", $"readonly struct: {structName}");
     }
 
-    /// <summary>Generates a readonly abstract type declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyAbstract()
     {
         return from abstractName in Gen.Elements(AbstractNames)
@@ -177,7 +145,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "abstract", $"readonly abstract type: {abstractName}");
     }
 
-    /// <summary>Generates a readonly indexer declaration.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyIndexer()
     {
         return from className in Gen.Elements(ClassNames)
@@ -187,7 +154,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyModifierScenario(source, "indexer", $"readonly indexer: {className}");
     }
 
-    /// <summary>Combined generator for all readonly modifier scenarios.</summary>
     public static Gen<ReadonlyModifierScenario> GenReadonlyModifierScenario()
     {
         return Gen.OneOf(
@@ -201,9 +167,6 @@ public static class ReadonlyParsingGenerators
             GenReadonlyIndexer());
     }
 
-    // ─── Property 2: Readonly Block Parsing ─────────────────────────────
-
-    /// <summary>Generates a readonly block with various statement counts.</summary>
     public static Gen<ReadonlyBlockScenario> GenReadonlyBlockScenario()
     {
         return from className in Gen.Elements(ClassNames)
@@ -217,9 +180,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyBlockScenario(source, stmtCount, $"readonly block({stmtCount} stmts): {className}.{methodName}");
     }
 
-    // ─── Property 19: Round-Trip Parsing ────────────────────────────────
-
-    /// <summary>Generates a readonly member declaration for round-trip testing.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyMemberRoundTrip()
     {
         return from className in Gen.Elements(ClassNames)
@@ -230,7 +190,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyRoundTripScenario(source, $"readonly member: {className}.{fieldName}");
     }
 
-    /// <summary>Generates a readonly type declaration for round-trip testing.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyTypeRoundTrip()
     {
         return Gen.OneOf(
@@ -242,7 +201,6 @@ public static class ReadonlyParsingGenerators
             select new ReadonlyRoundTripScenario(source, $"readonly struct: {name}"));
     }
 
-    /// <summary>Generates a readonly block statement for round-trip testing.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyBlockRoundTrip()
     {
         return from className in Gen.Elements(ClassNames)
@@ -251,7 +209,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyRoundTripScenario(source, $"readonly block: {className}.{methodName}");
     }
 
-    /// <summary>Generates a readonly parameter for round-trip testing.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyParameterRoundTrip()
     {
         return from className in Gen.Elements(ClassNames)
@@ -262,7 +219,6 @@ public static class ReadonlyParsingGenerators
                select new ReadonlyRoundTripScenario(source, $"readonly param: {className}.{methodName}({paramName})");
     }
 
-    /// <summary>Generates a readonly/mutable generic constraint for round-trip testing.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyConstraintRoundTrip()
     {
         return Gen.OneOf(
@@ -274,7 +230,6 @@ public static class ReadonlyParsingGenerators
             select new ReadonlyRoundTripScenario(source, $"mutable constraint: {className}<T>"));
     }
 
-    /// <summary>Combined generator for all round-trip scenarios.</summary>
     public static Gen<ReadonlyRoundTripScenario> GenReadonlyRoundTripScenario()
     {
         return Gen.OneOf(
@@ -286,19 +241,12 @@ public static class ReadonlyParsingGenerators
     }
 }
 
-// ─── Property Tests ─────────────────────────────────────────────────────────
-
-/// <summary>
-/// Property-based tests for readonly parsing.
-///
-/// Properties 1, 2, and 19 from the readonly-contexts design document.
-/// </summary>
 public class ReadonlyParsingPropertyTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
     private static readonly IParser Parser = new Mist.Parsing.MistParser();
 
-    // ─── Arbitrary registration ─────────────────────────────────────────
+    // Arbitrary registration
 
     public static Arbitrary<ReadonlyModifierScenario> ArbitraryReadonlyModifierScenario()
     {
@@ -314,8 +262,6 @@ public class ReadonlyParsingPropertyTests
     {
         return ReadonlyParsingGenerators.GenReadonlyRoundTripScenario().ToArbitrary();
     }
-
-    // ─── Helpers ────────────────────────────────────────────────────────
 
     private static CompilationUnitNode ParseOrFail(string source)
     {
@@ -338,9 +284,6 @@ public class ReadonlyParsingPropertyTests
             ?? throw new InvalidOperationException("Parse result root is not a CompilationUnitNode");
     }
 
-    /// <summary>
-    /// Recursively searches for a node of the specified type in the AST.
-    /// </summary>
     private static bool ContainsNodeOfType<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
         if(node is T)
@@ -359,9 +302,6 @@ public class ReadonlyParsingPropertyTests
         return false;
     }
 
-    /// <summary>
-    /// Finds the first node of the specified type in the AST.
-    /// </summary>
     private static T? FindFirstNode<T>(Storm.Runtime.SyntaxNode node) where T : Storm.Runtime.SyntaxNode
     {
         if(node is T match)
@@ -386,16 +326,6 @@ public class ReadonlyParsingPropertyTests
         return null;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 1: Readonly Modifier Parsing Preservation
-    //
-    // **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9**
-    //
-    // For any valid declaration with any combination of modifiers including
-    // `readonly`, parsing the source SHALL produce an AST node with a
-    // `ReadonlyModifier` node attached.
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ReadonlyParsingPropertyTests) })]
     public Property ReadonlyModifier_IsParsedAndPreservedInAst(ReadonlyModifierScenario scenario)
     {
@@ -406,16 +336,6 @@ public class ReadonlyParsingPropertyTests
         return hasReadonlyModifier.ToProperty()
             .Label($"No ReadonlyModifierModifierNode found in AST for {scenario.DeclarationKind}.\nSource:\n{scenario.Source}");
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 2: Readonly Block Parsing
-    //
-    // **Validates: Requirements 2.1**
-    //
-    // For any valid list of statements wrapped in a `readonly { ... }` block,
-    // parsing the source SHALL produce a `ReadonlyBlockStatement` node whose
-    // body contains AST nodes corresponding to the enclosed statements.
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ReadonlyParsingPropertyTests) })]
     public Property ReadonlyBlock_IsParsedWithCorrectBody(ReadonlyBlockScenario scenario)
@@ -436,23 +356,11 @@ public class ReadonlyParsingPropertyTests
             .Label($"Expected {scenario.ExpectedStatementCount} statements in readonly block body, got {actualStmtCount}.\nSource:\n{scenario.Source}");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property 19: Round-Trip Parsing
-    //
-    // **Validates: Requirements 20.1, 20.2**
-    //
-    // For any valid readonly syntax construct, parsing the source, printing
-    // the AST back to source, then parsing again SHALL produce an equivalent
-    // syntax tree (verified via idempotent pretty-print output).
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ReadonlyParsingPropertyTests) })]
     public Property RoundTrip_ReadonlySyntax_PrintParseIsIdempotent(ReadonlyRoundTripScenario scenario)
     {
-        // Step 1: Parse the generated source
         var ast1 = ParseOrFail(scenario.Source);
 
-        // Step 2: Pretty-print AST1 → printed1
         var printed1 = MistPrettyPrinter.Print(ast1, scenario.Source);
 
         if(string.IsNullOrWhiteSpace(printed1))
@@ -460,13 +368,10 @@ public class ReadonlyParsingPropertyTests
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 3: Parse printed1 → AST2
         var ast2 = ParseOrFail(printed1);
 
-        // Step 4: Pretty-print AST2 → printed2
         var printed2 = MistPrettyPrinter.Print(ast2, printed1);
 
-        // Step 5: Verify idempotence: printed1 == printed2
         return (printed1 == printed2).ToProperty()
             .Label($"Round-trip mismatch.\nSource: {scenario.Source}\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }

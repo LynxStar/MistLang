@@ -1,6 +1,5 @@
-// Tier 3 (Component) harness: builds a real ProgramModel over minimal source and hands back the bound
-// expression a test is about. Real ambient shells, real scope chain, real interner; no Roslyn and no
-// process spawning.
+// Tier 3 (Component) harness: real ambient shells, scope chain and interner; no Roslyn and no process
+// spawning.
 //
 // WHY TESTS BUILT ON THIS ASSERT ON THE MODEL RATHER THAN ON OUTPUT. Emission re-writes a construct the
 // way source spelled it and lets Roslyn resolve it again -- a call, and equally a cast, since C# will
@@ -29,11 +28,6 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Helpers;
 
-/// <summary>
-/// Wraps a statement under test in a probe method, builds the program model, and returns what was
-/// bound. A deriving class supplies the types the statement draws on and the locals declared ahead of
-/// it, so each test states only the construct it is about.
-/// </summary>
 public abstract class ProgramModelProbe : IDisposable
 {
     private readonly string outputDir;
@@ -44,14 +38,8 @@ public abstract class ProgramModelProbe : IDisposable
         _ = Directory.CreateDirectory(outputDir);
     }
 
-    /// <summary>
-    /// Types declared alongside the probe class, available to every statement.
-    /// </summary>
     protected abstract string Fixtures { get; }
 
-    /// <summary>
-    /// Statements run before the one under test, supplying the typed locals it draws on.
-    /// </summary>
     protected abstract string Preamble { get; }
 
     public void Dispose()
@@ -73,9 +61,6 @@ public abstract class ProgramModelProbe : IDisposable
         return diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error && d.Number.Value == id);
     }
 
-    /// <summary>
-    /// The initializer of the statement under test, asserted to be the expected bound kind.
-    /// </summary>
     private protected T InitializerOf<T>(string statement, string extraTypes = "", string extraPreamble = "")
         where T : Expression
     {
@@ -143,9 +128,8 @@ public abstract class ProgramModelProbe : IDisposable
     }
 
     /// <summary>
-    /// Lexes, parses and builds the program model, returning the BUILD diagnostics. Parsing is
-    /// asserted clean separately so a malformed fixture fails as itself rather than as a missing or
-    /// unexpected diagnostic.
+    /// Returns only the BUILD diagnostics: parsing is asserted clean separately so a malformed fixture
+    /// fails as itself rather than as a missing or unexpected diagnostic.
     /// </summary>
     private protected ProgramModelClass Build(
         string source, out ImmutableArray<Diagnostic> diagnostics, ProjectOutputType outputType = ProjectOutputType.Library)
@@ -154,9 +138,9 @@ public abstract class ProgramModelProbe : IDisposable
     }
 
     /// <summary>
-    /// As <see cref="Build(string, out ImmutableArray{Diagnostic}, ProjectOutputType)"/>, with <paramref name="referenced"/> compiled
-    /// alongside as a referenced project's file, which puts its declarations in an assembly of their own -- the
-    /// only way a probe can reach something another compilation declares internal.
+    /// <paramref name="referenced"/> compiles as a referenced project's file, putting its declarations in an
+    /// assembly of their own -- the only way a probe can reach something another compilation declares
+    /// internal.
     /// </summary>
     private protected ProgramModelClass Build(
         string source,
@@ -250,9 +234,8 @@ public abstract class ProgramModelProbe : IDisposable
         }
 
         /// <summary>
-        /// The shells carry no members, and this one is needed to state anything about a PRIMITIVE
-        /// scrutinee: <c>s is { Length: &gt; 3 }</c> resolves only because Standard.String really does
-        /// declare Length (Bootstrap/String.mist), so a fixture without it would make the claim
+        /// The shells carry no members. A property pattern over a string scrutinee needs Length, which
+        /// Standard.String really declares (Bootstrap/String.mist); without it such a claim would be
         /// untestable rather than false.
         /// </summary>
         private static void DeclareStringLength(ProgramModelClass programModel)

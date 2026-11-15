@@ -6,10 +6,9 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Helpers;
 
 /// <summary>
-/// An <see cref="IAmbientTypeSource"/> for seam tests: supplies Standard's foreign contract shell and answers
-/// the CLR type behind a Standard intrinsic from the test host's own runtime assemblies, which carry
-/// the public surface the emitter's intrinsic audit reads off the reference pack. A seam program that
-/// prints therefore compiles without an assembly being loaded.
+/// Answers CLR types from the test host's runtime assemblies, which carry the public surface the emitter's
+/// intrinsic audit reads off the reference pack, so a seam program that prints compiles without an
+/// assembly being loaded.
 /// </summary>
 internal sealed class StubAmbientTypeSource : IAmbientTypeSource
 {

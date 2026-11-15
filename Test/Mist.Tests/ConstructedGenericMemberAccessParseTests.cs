@@ -1,7 +1,5 @@
 // Tier 1 (Unit): the parser alone. A member named through an instantiation, `Task<int>.WhenAll(x)`, is
-// read as one primary rather than as a comparison chain, and a comparison or a generic call stays what
-// it was. In a TYPE position the same shape, `Box<int>.Wrapper`, is one type reference, where a plain
-// `Box<int>` keeps the node it always had. Nothing past the parser runs.
+// one primary rather than a comparison chain.
 
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;

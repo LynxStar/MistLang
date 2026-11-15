@@ -4,27 +4,14 @@ using Mist.Parsing;
 
 namespace Mist.Tests;
 
-/// <summary>
-/// Property-based tests for the parser and AST stages.
-/// The v1 parser is skeletal (returns null root), so these tests validate
-/// the property structure and will be fully exercised when the parser is complete.
-/// </summary>
 public class ParserAstPropertyTests
 {
     private static MistLexer lexer = new();
     private static MistParser parser = new();
 
-    // ---------------------------------------------------------------
-    //  27.1 — parser span coverage
-    //  **Validates: Correctness Property 4**
-    //  For any successfully parsed AST, the root node's Span covers
-    //  the entire default-channel token range.
-    // ---------------------------------------------------------------
-
     [Fact]
     public void ParserSpanCoverage_RootSpanCoversEntireTokenRange()
     {
-        // Test with a set of representative valid Mist inputs.
         var inputs = new[]
         {
             "",
@@ -45,11 +32,9 @@ public class ParserAstPropertyTests
 
             if(parseResult.Root is null)
             {
-                // parser returned null root (parse error). Skip.
                 continue;
             }
 
-            // When Root is non-null, verify span coverage
             var defaultTokens = tokenStream.DefaultChannelTokens;
             if(defaultTokens.Length == 0)
             {
@@ -66,17 +51,9 @@ public class ParserAstPropertyTests
         }
     }
 
-    // ---------------------------------------------------------------
-    //  27.2 — AST children consistency
-    //  **Validates: Correctness Property 5**
-    //  For any AST node, Children() returns the same sequence on
-    //  repeated calls, and every child's Span is within the parent's Span.
-    // ---------------------------------------------------------------
-
     [Fact]
     public void AstChildrenConsistency_ChildrenStableAndSpansContained()
     {
-        // Test with representative valid Mist inputs.
         var inputs = new[]
         {
             "",
@@ -96,18 +73,15 @@ public class ParserAstPropertyTests
 
             if(parseResult.Root is null)
             {
-                // Skeletal parser: Root is null. Expected for v1.
                 continue;
             }
 
-            // Recursively verify children consistency
             VerifyChildrenConsistency(parseResult.Root);
         }
     }
 
     private static void VerifyChildrenConsistency(Storm.Runtime.SyntaxNode node)
     {
-        // Children() should return the same sequence on repeated calls
         var children1 = node.Children().ToList();
         var children2 = node.Children().ToList();
 
@@ -117,12 +91,11 @@ public class ParserAstPropertyTests
             Assert.Same(children1[i], children2[i]);
         }
 
-        // Every child's span should be within the parent's span
         foreach(var child in children1)
         {
             if(child is null)
             {
-                continue; // Skip null children from generated AST nodes
+                continue;
             }
 
             Assert.True(child.Span.Start >= node.Span.Start,
@@ -130,7 +103,6 @@ public class ParserAstPropertyTests
             Assert.True(child.Span.End <= node.Span.End,
                 $"Child span end ({child.Span.End}) should be <= parent span end ({node.Span.End})");
 
-            // Recurse into children
             VerifyChildrenConsistency(child);
         }
     }

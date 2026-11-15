@@ -11,13 +11,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Helpers;
 
-/// <summary>
-/// Bodies built by hand over an owned Cell handed to a call -- the ordinary parameter of a static or
-/// instance method, a constructor, a local function, a function value or a wrapper, against a frozen,
-/// borrowed or readonly ref one -- followed by the owned claim the handoff forbids: a return, a binding,
-/// a parameter, a receiver or a field, on one path, in a loop, or after a fresh value replaced what was
-/// handed away.
-/// </summary>
 internal sealed class CallBoundaryFragments
 {
     private readonly HandBuiltModel model = new();

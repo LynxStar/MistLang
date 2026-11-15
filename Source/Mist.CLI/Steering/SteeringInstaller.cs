@@ -47,11 +47,13 @@ public sealed record InstructionFileUpdate(string Path, ManagedBlockOutcome Outc
 ///   run before anything is written.</item>
 ///   <item>Deletes every <c>*.md</c> in the reference directory, and in the <c>.kiro/steering/</c>
 ///   directory earlier versions installed into, that contains the marker.</item>
-///   <item>Copies the current bundled set in fresh.</item>
+///   <item>Copies the current bundled set in fresh, except a bundled file whose name an
+///   unmarked file already holds.</item>
 /// </list>
 /// <para>
-/// Files that do not contain the marker — the user's own — are never touched. Running the
-/// command repeatedly converges to exactly the bundled set plus whatever the user authored.
+/// Files that do not contain the marker — the user's own — are never touched, even when one
+/// shares a bundled file's name. Running the command repeatedly converges to exactly the bundled
+/// set plus whatever the user authored.
 /// </para>
 /// </summary>
 public static class SteeringInstaller
@@ -170,9 +172,17 @@ public static class SteeringInstaller
         foreach(var source in bundledFiles)
         {
             var destination = Path.Combine(referenceDir, Path.GetFileName(source));
+
+            // Every marked file is gone by now, so anything still holding a bundled name is an
+            // unmarked user file, already listed in skippedUserFiles. It keeps its name and content.
+            if(File.Exists(destination))
+            {
+                continue;
+            }
+
             try
             {
-                File.Copy(source, destination, overwrite: true);
+                File.Copy(source, destination, overwrite: false);
             }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {

@@ -26,7 +26,39 @@ internal static class StructStamp
             return $"{ClosingWitnesses.Name(parameter)}.Stamp()";
         }
 
-        return HeldByValue(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance)) is null ? null : Build(closed, diagnostics);
+        return HeldByValue(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance)) is null && !HoldsWitnessed(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance))
+            ? null
+            : Build(closed, diagnostics);
+    }
+
+    private static bool HoldsWitnessed(IMistType type, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            return false;
+        }
+
+        return BodyEmitter.Unaliased(type) switch
+        {
+            TypeParameter parameter => ClosingWitnesses.IsWitnessed(parameter),
+            ConstructedType { Definition: StructType definition } constructed => ClosingWitnesses.Stored(definition).Count > 0
+                || Members(definition, TypeSubstitution.ForReceiver(constructed)).Any(member => HoldsWitnessed(member, seen)),
+            TupleType tuple => tuple.ElementTypes.Any(element => HoldsWitnessed(element, seen)),
+            NamedTupleType named => named.ElementTypes.Any(element => HoldsWitnessed(element, seen)),
+            _ => false,
+        };
+    }
+
+    private static IEnumerable<IMistType> Members(StructType definition, TypeSubstitution closing)
+    {
+        return definition.FieldsList.Where(field => !field.Modifiers.IsStatic).Select(field => closing.Apply(field.Type, interner: null))
+            .Concat(definition.PropertiesList.Where(property => property.Modifiers is { IsStatic: false } && property.HasBackingStorage)
+                .Select(property => closing.Apply(property.Type, interner: null)));
+    }
+
+    public static bool Needed(IMistType type)
+    {
+        return HeldByValue(type) is not null || HoldsWitnessed(type, new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
     }
 
     public static ConstructedType? HeldByValue(IMistType type)
@@ -48,7 +80,12 @@ internal static class StructStamp
     {
         var closed = BodyEmitter.Unaliased(TypeNameEmitter.Closed(member));
 
-        return HeldByValue(closed) is not null
+        if(closed is TypeParameter parameter && ClosingWitnesses.IsWitnessed(parameter))
+        {
+            return $"{ClosingWitnesses.Name(parameter)}.Stamp()";
+        }
+
+        return HeldByValue(closed) is not null || HoldsWitnessed(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance))
             ? Build(closed, diagnostics)
             : DefaultSynthesis.StorageZero(closed) ?? $"default({TypeNameEmitter.Emit(closed)})";
     }

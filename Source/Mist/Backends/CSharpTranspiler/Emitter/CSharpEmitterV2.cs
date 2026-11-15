@@ -131,8 +131,8 @@ internal sealed partial class CSharpEmitterV2
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var routes = SlotRoutes.Enter((ProgramModel.Model.ProgramModel)programModel);
-        using var witnesses = ClosingWitnesses.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var witnesses = ClosingWitnesses.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);

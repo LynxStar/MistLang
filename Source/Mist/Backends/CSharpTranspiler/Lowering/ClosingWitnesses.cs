@@ -89,7 +89,7 @@ internal sealed class ClosingWitnesses : IDisposable
                 {
                     var parameter = definition.TypeParametersList[i];
 
-                    if(!found.Contains(parameter) && needing.Contains(parameter) && Carries(arguments[i], found))
+                    if(!found.Contains(parameter) && needing.Contains(parameter) && !Specialized(parameter) && Carries(arguments[i], found))
                     {
                         changed |= found.Add(parameter);
                     }
@@ -109,6 +109,11 @@ internal sealed class ClosingWitnesses : IDisposable
         }
 
         return found;
+    }
+
+    private static bool Specialized(TypeParameter parameter)
+    {
+        return parameter.DeclaringMethod is { } method ? UnionSpecialization.Specializes(method) : parameter.DeclaringType is { } owner && UnionSpecialization.Specializes(owner);
     }
 
     private static HashSet<TypeParameter> Needing(SlotSensitivity sensitivity)

@@ -57,7 +57,7 @@ internal static class ValueRouteEmitter
                 var value = argument is null ? null : slot.IsDependent ? BodyEmitter.SlotValue(argument, diagnostics) : BodyEmitter.Witness(argument, diagnostics);
 
                 writer.WriteLine(
-                    $"{SlotRoutes.Keyword(slot)} {TypeNameEmitter.Emit(closing)}.{SlotRoutes.Hidden(slot)} => "
+                    $"{(slot.IsDependent || argument is null ? SlotRoutes.Keyword(slot) : ClosingWitnesses.Of(TypeNameEmitter.Emit(argument)))} {TypeNameEmitter.Emit(closing)}.{SlotRoutes.Hidden(slot)} => "
                     + $"{value ?? EmissionDiagnostics.Fallback("slot value", $"{TypeDisplay.Mist(closing)}.{slot.Name}", "default")};");
                 written = true;
             }

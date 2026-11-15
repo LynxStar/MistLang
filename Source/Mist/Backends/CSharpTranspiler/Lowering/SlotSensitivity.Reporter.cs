@@ -71,8 +71,8 @@ internal sealed partial class SlotSensitivity
                 case Kind.Test when ContainedClosing(argument, contained: false) is { } nested:
                     return ($"tests a value against '{parameter.Name}', and the argument nests '{TypeDisplay.Mist(nested)}' in a CLR container, which has nowhere to keep the slot's value", nested);
 
-                case Kind.Clr when StructStamp.HeldByValue(Substituted(reason.Through!, parameter, argument)) is { } zeroed:
-                    return ($"passes a type that mentions '{parameter.Name}' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value", zeroed);
+                case Kind.Clr when Substituted(reason.Through!, parameter, argument) is var reached && StructStamp.Needed(reached):
+                    return ($"passes a type that mentions '{parameter.Name}' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value", StructStamp.HeldByValue(reached) ?? routed[0]);
 
                 case Kind.Forwarded:
                     if(Judge(reason.Target!, Substituted(reason.Through ?? parameter, parameter, argument), visited) is var (inner, closing))
@@ -369,7 +369,7 @@ internal sealed partial class SlotSensitivity
 
         private void RefuseClr(TypeParameter filled, IMistType argument, string declaration, SyntaxNode node)
         {
-            if(!reported.Contains((node, filled)) && StructStamp.HeldByValue(argument) is { } zeroed)
+            if(!reported.Contains((node, filled)) && StructStamp.Needed(argument) && (StructStamp.HeldByValue(argument) ?? RoutedClosings(argument).FirstOrDefault()) is { } zeroed)
             {
                 Report(filled, declaration, argument, zeroed, ClrReason(filled), node);
             }

@@ -143,6 +143,11 @@ internal sealed partial class SlotSensitivity
                         continue;
                     }
 
+                    if(found.ReasonsOf(filled).Any(reason => reason.Kind is Kind.Test or Kind.Nested))
+                    {
+                        changed |= found.MarkNested(arguments[i], new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
+                    }
+
                     foreach(var mentioned in Parameters(arguments[i]))
                     {
                         if(!ReferenceEquals(mentioned, filled))
@@ -367,6 +372,43 @@ internal sealed partial class SlotSensitivity
 
                 break;
         }
+    }
+
+    private bool MarkNested(IMistType type, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            return false;
+        }
+
+        var changed = false;
+
+        if(type is ConstructedType constructed)
+        {
+            if(IsContainer(constructed))
+            {
+                return false;
+            }
+
+            for(var i = 0; i < constructed.TypeArguments.Count; i++)
+            {
+                if(constructed.Definition is IHasTypeParameters generic && i < generic.TypeParametersList.Count && !generic.TypeParametersList[i].IsDependent)
+                {
+                    changed |= Add(new Reason(Kind.Nested, generic.TypeParametersList[i]));
+                }
+
+                changed |= MarkNested(constructed.TypeArguments[i], seen);
+            }
+
+            return changed;
+        }
+
+        foreach(var part in Parts(type))
+        {
+            changed |= MarkNested(part, seen);
+        }
+
+        return changed;
     }
 
     private void MarkEach(Kind kind, IMistType type)

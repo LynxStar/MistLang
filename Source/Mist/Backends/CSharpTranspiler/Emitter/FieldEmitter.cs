@@ -55,7 +55,8 @@ internal static class FieldEmitter
                 writer.WriteLine("[System.Diagnostics.CodeAnalysis.AllowNull]");
             }
 
-            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)};");
+            var stamp = modifiers.IsStatic && field.Initializer is null ? StructStamp.Of(type, diagnostics) : null;
+            writer.WriteLine($"{emittedModifiers}{typeName} {IdentifierSpelling.Of(field.Name)}{(stamp is null ? "" : $" = {stamp}")};");
             return;
         }
 

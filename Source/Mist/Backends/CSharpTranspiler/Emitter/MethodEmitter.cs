@@ -36,6 +36,11 @@ internal static class MethodEmitter
         ConstraintEmitter.Emit(Declared(method), writer, liftSlots: true, overriding: fills);
         using(writer.Block())
         {
+            if(method is { Modifiers.IsStatic: true, Body: not null } && (owner is null || ReferenceEquals(owner, method.DeclaringType)))
+            {
+                StaticHolderEmitter.Touch(method.DeclaringType, writer);
+            }
+
             if(method.Body is not null)
             {
                 BodyEmitter.EmitMethodBody(method, method.Body, writer, diagnostics, owner: owner);

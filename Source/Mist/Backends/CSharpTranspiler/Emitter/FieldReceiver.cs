@@ -21,6 +21,8 @@ internal static class FieldReceiver
         return new Scope(outer);
     }
 
+    public static ConcreteType? Emitting => holders?.Source;
+
     public static string Of(Field field)
     {
         if(ReceiverSpelling.Carries || field.DeclaringType is not { } declaring)

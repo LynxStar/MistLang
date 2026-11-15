@@ -12,7 +12,7 @@ public sealed class SlotDiagnosticDescriptorTests
         [
             ProgramAnalysisDiagnostics.ClosingNotProven, ProgramModelDiagnostics.SlotValueOutsideBody, null!,
             ProgramModelDiagnostics.SlotReadThroughUnknown, ProgramModelDiagnostics.SlotNotInferable,
-            BackendDiagnostics.StaticStorageOnValueRoute, BackendDiagnostics.TypeValueOfValueRoutedClosing,
+            null!, BackendDiagnostics.TypeValueOfValueRoutedClosing,
             BackendDiagnostics.ValueRoutedAbstractAtTwoValues, null!,
             BackendDiagnostics.ValueRoutedConstructorConstraintClosure, null!,
             BackendDiagnostics.CoincidingOverloads, BackendDiagnostics.InferredSlotNestedInArgument,
@@ -26,7 +26,7 @@ public sealed class SlotDiagnosticDescriptorTests
             .Where(number => string.CompareOrdinal(number, minted[0].Number.Value) < 0)
             .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal(["MIST0488", "MIST0494", "MIST0496", "MIST0503"], retired);
+        Assert.Equal(["MIST0488", "MIST0491", "MIST0494", "MIST0496", "MIST0503"], retired);
         Assert.Equal(
             Enumerable.Range(1, minted.Length).Select(offset => $"MIST{issued + offset:D4}"),
             minted.Select((descriptor, i) => descriptor?.Number.Value ?? retired.Single(number => number == $"MIST{issued + i + 1:D4}")));

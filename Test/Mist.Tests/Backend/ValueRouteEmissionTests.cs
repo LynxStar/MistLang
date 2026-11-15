@@ -535,21 +535,6 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
-    public void StaticStorageInAValueRoutedTypeIsRefused()
-    {
-        var counter = (ClassType)HandBuiltSlots.Generic(new ClassType("Counter<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()), "N", slots.Int);
-        counter.FieldsList.Add(new Field("hits", slots.Int, OwnershipKind.Unrestricted, new MemberModifiers { IsStatic = true }) { DeclaringType = counter });
-        using var routes = SlotRoutes.Enter([counter.TypeParametersList[0]]);
-        var diagnostics = new DiagnosticBag();
-
-        ValueRouteEmitter.Report(counter, diagnostics);
-
-        var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST0491", refusal.Number.Value);
-        Assert.StartsWith("'hits' is static storage of 'Counter'", refusal.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void ATypeValueOfAValueRoutedClosingIsRefused()
     {
         var capture = slots.Capture(new LocalVariable("n", slots.Int));

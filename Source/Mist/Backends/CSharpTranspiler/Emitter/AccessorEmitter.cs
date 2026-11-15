@@ -17,9 +17,10 @@ internal static class AccessorEmitter
         bool isReadonly,
         CSharpWriter writer,
         DiagnosticBag diagnostics,
-        IMistType? result = null)
+        IMistType? result = null,
+        string? narrowed = null)
     {
-        var header = Header(accessor, isSetter, isReadonly);
+        var header = Header(accessor, isSetter, isReadonly, narrowed);
 
         if(accessor.Body is { } body)
         {
@@ -56,14 +57,14 @@ internal static class AccessorEmitter
         writer.WriteLine($"{header};");
     }
 
-    public static string EmitBodiless(PropertyAccessor accessor, bool isSetter)
+    public static string EmitBodiless(PropertyAccessor accessor, bool isSetter, string? narrowed = null)
     {
-        return $"{Header(accessor, isSetter, isReadonly: false)};";
+        return $"{Header(accessor, isSetter, isReadonly: false, narrowed)};";
     }
 
-    public static void EmitOverStorage(PropertyAccessor accessor, bool isSetter, bool isReadonly, string storage, CSharpWriter writer)
+    public static void EmitOverStorage(PropertyAccessor accessor, bool isSetter, bool isReadonly, string storage, CSharpWriter writer, string? narrowed = null)
     {
-        writer.WriteLine($"{Header(accessor, isSetter, isReadonly)} => {(isSetter ? $"{storage} = value" : storage)};");
+        writer.WriteLine($"{Header(accessor, isSetter, isReadonly, narrowed)} => {(isSetter ? $"{storage} = value" : storage)};");
     }
 
     public static bool IsBodiless(PropertyAccessor? accessor)
@@ -71,14 +72,14 @@ internal static class AccessorEmitter
         return accessor is null or { Body: null, ExpressionBody: null };
     }
 
-    private static string Header(PropertyAccessor accessor, bool isSetter, bool isReadonly)
+    private static string Header(PropertyAccessor accessor, bool isSetter, bool isReadonly, string? narrowed)
     {
         var keyword = isSetter
             ? accessor.IsInit ? "init" : "set"
             : "get";
 
         // Public on an accessor means "whatever the member said", so only a narrowing is spelled.
-        var accessibility = accessor.Accessibility == Accessibility.Private ? "private " : "";
+        var accessibility = accessor.Accessibility == Accessibility.Private ? narrowed ?? "private " : "";
 
         return $"{accessibility}{(isReadonly ? "readonly " : "")}{keyword}";
     }

@@ -295,16 +295,6 @@ public static class BackendDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("kind", SlotKind.Enum), new Slot("detail", SlotKind.Name)]);
 
-    public static readonly MistDiagnostic StaticStorageOnValueRoute = new(
-        DiagnosticNumber.Mint("MIST0491"),
-        Title: "Static storage in a value-routed type",
-        Template: "'{member}' is static storage of '{type}', whose dependent parameter '{parameter}' is closed with a value known only when the program runs. The C# backend carries that value in each instance and has no storage keyed by it yet.",
-        Description: "A type with a dependent parameter is closed somewhere with a runtime value, so the backend carries the parameter's value in the instance rather than in the C# type, and a static field or property of the type has no closing to belong to. Each closing owns its own static storage (runtime-dependent-values Requirement 10), which needs a table keyed by the slot's value that the backend does not emit yet. Move the storage onto an instance, or close the type only with literals; the limit is the backend's, not the language's.",
-        Category: DiagnosticCategory.Bck,
-        Policy: PolicyClass.Fixed,
-        DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("member", SlotKind.Name), new Slot("type", SlotKind.Type), new Slot("parameter", SlotKind.Name)]);
-
     public static readonly MistDiagnostic TypeValueOfValueRoutedClosing = new(
         DiagnosticNumber.Mint("MIST0492"),
         Title: "Type value of a value-routed closing",

@@ -377,23 +377,24 @@ Done!
 --- 1. Class in class ---
   Outer.Inner (class in class)
 --- 2. Struct in class ---
-  Outer.NestedPoint(x, y) struct nested in class
+  Outer.NestedPoint x=3, y=4
 --- 3. Abstract type in class ---
-  Outer.IAction abstract type nested in class
+  Outer.IAction.Execute() = moved to (1, 2)
 --- 4. Abstract type in class ---
-  Outer.Describable abstract type nested in class
+  Outer.Describable.Describe() = Move by 11 steps
 --- 5. Enum in class ---
   Outer.Status: Active=Active, Inactive=Inactive, Pending=Pending
 --- 6. Class in struct ---
-  ContainerStruct.Item declared (see NestedInStruct.mist, readonly emitter limitation)
+  ContainerStruct.Item named bolt
 --- 7. Class in abstract type ---
-  IFactory.DefaultProduct declared (see NestedInAbstract.mist)
+  IFactory.DefaultProduct (class in abstract type)
 --- 8. Class in abstract type ---
-  Serializable.Config declared (see NestedInAbstract.mist)
+  Serializable.Config (class in abstract type)
 --- 9. Deeply nested types (4 levels) ---
   Level1.Level2.Level3.Level4 (4 levels deep)
 --- 10. Generic parent type parameter access ---
-  Box<T>.Wrapper nested in generic parent (exercised internally via DemoWrapper)
+  Box<Int32>.Wrapper holding 42
+  Box<String>.Wrapper holding text
 --- 11. Multiple sibling nested types ---
   Entry=Registry.Entry, Metadata=Registry.Metadata, Category.System=System, Category.User=User, Category.Plugin=Plugin
 --- 12. Nested block namespaces ---
@@ -402,14 +403,14 @@ Done!
   StringHelper.Upper("test") = test
   MathHelper.Add(3, 4) = 7
 --- 14. File-scoped namespace with nested types ---
-  NestedScoping.Outer contains Inner, NestedPoint, IAction, Describable, Status
-  Verified via Outer.DemoClassInClass(): Outer.Inner (class in class)
---- 15. Qualified name references from within parent ---
-  Inner.Hello() called from Outer.DemoClassInClass()
-  Status.Active called from Outer.DemoEnumInClass()
-  Entry.Kind(), Metadata.Kind(), Category.System called from Registry.DemoSiblings()
-  Level4.Depth() called from Level3.UseLevel4()
-  All verified: Outer.Inner (class in class)
+  NestedScoping.Outer.Inner.Hello() = Outer.Inner (class in class)
+  NestedScoping.Outer.Status.Pending = Pending
+--- 15. Qualified name references from outside the parent ---
+  Outer.Inner.Hello() = Outer.Inner (class in class)
+  Outer.Status.Active = Active
+  Outer.NestedPoint x=7, y=8; Outer.IAction moved to (7, 8)
+  Registry.Entry.Kind() = Registry.Entry, Registry.Category.Plugin = Plugin
+  Level1.Level2.Level3.Level4.Depth() = Level1.Level2.Level3.Level4 (4 levels deep)
 --- 16. Nested types in type positions ---
   class: Widget x5, Gadget x3
   struct: Bolt:100

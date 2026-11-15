@@ -1,1 +1,4 @@
 name = "ClrRefInterop"
+
+[references]
+"Mist.Tests.InteropFixtures" = { path = "../../Test/Mist.Tests.InteropFixtures/Mist.Tests.InteropFixtures.csproj" }

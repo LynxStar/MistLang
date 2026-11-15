@@ -6,6 +6,7 @@ using Standard;
 using System;
 using System.Threading;
 using System.Collections.Generic;
+using Mist.Tests.InteropFixtures;
 
 namespace ClrRefInterop;
 
@@ -25,9 +26,9 @@ public class Program
         int result = Interlocked.Add(ref counter, 5);
         Console.WriteLine($"[ref-param-add] result={result}, counter={counter}");
 
-        // [in-param] Call a method with in parameter (projected as ref)
+        // [in-param] Call InParamFixture.DoubleValue(in int) — projected as ref, emitter writes 'in'
         int x = 7;
-        int doubled = ReadAndDouble(ref x);
+        int doubled = new InParamFixture().DoubleValue(ref x);
         Console.WriteLine($"[in-param] doubled={doubled}, x={x}");
 
         // [out-param] Call Dictionary.TryGetValue(key, out value)
@@ -45,12 +46,6 @@ public class Program
         Console.WriteLine($"[out-param-miss] success={miss}, missing={missing}");
 
         Console.WriteLine("--- CLR Ref Interop Done ---");
-    }
-
-    // Helper that wraps a CLR 'in' parameter method for demonstration
-    private static int ReadAndDouble(ref int val)
-    {
-        return val * 2;
     }
 
     public static void Main()

@@ -1,8 +1,4 @@
 //   6. Class in struct
-// NOTE: The C# emitter incorrectly marks methods on nested classes inside
-// structs with the `readonly` modifier. To work around this, the nested class
-// only declares fields (no methods). The nested class is correctly parsed,
-// registered in the semantic model, and emitted inside the struct in C#.
 
 namespace NestedScoping;
 
@@ -13,5 +9,21 @@ public struct ContainerStruct
     public class Item
     {
         public string name;
+
+        public Item(string name) { this.name = name; }
+
+        public string Label() { return $"ContainerStruct.Item named {name}"; }
+    }
+
+    Item held;
+
+    public ContainerStruct(string name)
+    {
+        held = new Item(name);
+    }
+
+    public Item Held()
+    {
+        return held;
     }
 }

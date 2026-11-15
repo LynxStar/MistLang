@@ -476,7 +476,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
 
     /// <summary>
     /// The receiver's argument makes both a <c>Take(int?)</c>; the one fixed at the declaration is
-    /// chosen as a call would choose it.
+    /// chosen as a call would choose it (method-overloading Requirement 3.12).
     /// </summary>
     [Fact]
     public void AMethodGroupOfACoincidingPairConvertsToTheFixedOverload()

@@ -54,12 +54,12 @@ internal static partial class BodyEmitter
 
     internal static bool Compared(IMistType tested)
     {
-        return RuntimeSlots(tested).Count > 0 && !SlotSensitivity.AdmitsOnly(patternSubject, tested);
+        return (RuntimeSlots(tested).Count > 0 || WitnessAsked(tested)) && !SlotSensitivity.AdmitsOnly(patternSubject, tested);
     }
 
     internal static IDisposable? Within(MemberType type)
     {
-        return SlotRoutes.ValueRouted(type).Count > 0 ? new Enclosing(type) : null;
+        return SlotRoutes.Carried(type).Count > 0 ? new Enclosing(type) : null;
     }
 
     private sealed class Enclosing : IDisposable
@@ -80,6 +80,11 @@ internal static partial class BodyEmitter
 
     internal static string? SlotValue(IMistType argument, DiagnosticBag? diagnostics)
     {
+        if(StoredValue(argument) is { } stored)
+        {
+            return stored;
+        }
+
         return TypeNameEmitter.Closed(argument) switch
         {
             LiftedType lifted => DependentCarrierNames.Literal(lifted.Value),
@@ -111,6 +116,7 @@ internal static partial class BodyEmitter
 
         if(closing is not ConstructedType constructed)
         {
+            values.AddRange(ClosingWitnesses.Stored(closing).Select(ClosingWitnesses.Name));
             return values;
         }
 
@@ -126,7 +132,28 @@ internal static partial class BodyEmitter
             });
         }
 
+        foreach(var parameter in ClosingWitnesses.Stored(constructed.Definition))
+        {
+            var argument = WitnessArgument(constructed, parameter);
+            values.Add(receiver is not null && TypeNameEmitter.Closed(argument) is TypeParameter carried && ClosingWitnesses.IsWitnessed(carried)
+                ? $"{receiver}.{ClosingWitnesses.Name(carried)}"
+                : Witness(argument, diagnostics));
+        }
+
         return values;
+    }
+
+    private static IMistType WitnessArgument(ConstructedType closing, TypeParameter parameter)
+    {
+        for(ConstructedType? step = closing; step is not null; step = step.Enclosing)
+        {
+            if(ReferenceEquals(parameter.DeclaringType, step.Definition) && parameter.Ordinal < step.TypeArguments.Count)
+            {
+                return step.TypeArguments[parameter.Ordinal];
+            }
+        }
+
+        return parameter;
     }
 
     private static TypeParameter? RoutedTypeValue(IMistType type)
@@ -166,8 +193,10 @@ internal static partial class BodyEmitter
 
     private static List<string> RuntimeComparisons(IMistType tested, string bound, DiagnosticBag diagnostics)
     {
-        return RuntimeSlots(tested).ConvertAll(runtime =>
+        var comparisons = RuntimeSlots(tested).ConvertAll(runtime =>
             $"{bound}.{SlotRoutes.Hidden(runtime.Slot)} == {SlotValue(runtime.Argument, diagnostics)}");
+        comparisons.AddRange(WitnessComparisons(tested, bound, diagnostics));
+        return comparisons;
     }
 
     private static (IReadOnlyList<IMistType> Arguments, IReadOnlyList<TypeParameter> Parameters, Method Method)? CallTypeArguments(
@@ -233,7 +262,33 @@ internal static partial class BodyEmitter
             });
         }
 
+        foreach(var (_, argument) in WitnessedCallSlots(typeArguments, parameters))
+        {
+            hidden.Add(Witness(argument, diagnostics, captured => invocation.Captures.Contains(captured.Capture)
+                ? null
+                : ReadThroughArgument(invocation, captured) ?? KeptLocal(captured.Capture)));
+        }
+
         return hidden;
+    }
+
+    private static IEnumerable<(TypeParameter Parameter, IMistType Argument)> WitnessedCallSlots(
+        IReadOnlyList<IMistType> arguments, IReadOnlyList<TypeParameter> parameters)
+    {
+        for(var i = 0; i < parameters.Count && i < arguments.Count; i++)
+        {
+            if(!parameters[i].IsDependent && ClosingWitnesses.IsWitnessed(parameters[i]))
+            {
+                yield return (parameters[i], arguments[i]);
+            }
+        }
+    }
+
+    private static IEnumerable<CapturedValue> WitnessCaptures(IMistType argument)
+    {
+        var layout = new WitnessLayout();
+        layout.Walk(argument);
+        return layout.Parts.Select(part => part.Argument).OfType<CapturedValue>();
     }
 
     internal static bool CarriesSlots(FunctionReferenceExpression reference)
@@ -241,7 +296,8 @@ internal static partial class BodyEmitter
         var (typeArguments, parameters, method) = CallTypeArguments(reference.Method, reference.TypeArguments);
 
         return RoutedCallSlots(typeArguments, parameters).Any()
-            || (method is { Modifiers.IsStatic: true, DeclaringType: MemberType owner } && SlotRoutes.ValueRouted(owner).Count > 0);
+            || WitnessedCallSlots(typeArguments, parameters).Any()
+            || (method is { Modifiers.IsStatic: true, DeclaringType: MemberType owner } && SlotRoutes.Carried(owner).Count > 0);
     }
 
     internal static List<string> GroupSlotArguments(FunctionReferenceExpression reference, IReadOnlyList<string> arguments, string? receiver)
@@ -267,6 +323,11 @@ internal static partial class BodyEmitter
             });
         }
 
+        foreach(var (_, argument) in WitnessedCallSlots(typeArguments, parameters))
+        {
+            hidden.Add(Witness(argument, diagnostics: null, captured => evaluated?.GetValueOrDefault(captured.Capture) ?? KeptLocal(captured.Capture)));
+        }
+
         return hidden;
     }
 
@@ -274,7 +335,7 @@ internal static partial class BodyEmitter
     {
         var hidden = new List<string>();
 
-        if(method is not { Modifiers.IsStatic: true, DeclaringType: MemberType owner } || SlotRoutes.ValueRouted(owner).Count == 0)
+        if(method is not { Modifiers.IsStatic: true, DeclaringType: MemberType owner } || SlotRoutes.Carried(owner).Count == 0)
         {
             return hidden;
         }
@@ -286,11 +347,16 @@ internal static partial class BodyEmitter
             _ => null,
         };
 
-        hidden.AddRange(closing is null
-            ? SlotRoutes.ValueRouted(owner).Select(slot => DependentCarrierNames.ValueRead(slot) ?? EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
-            : SlotValues(closing, diagnostics));
+        hidden.AddRange(closing is null ? HiddenReads(owner) : SlotValues(closing, diagnostics));
 
         return hidden;
+    }
+
+    internal static IEnumerable<string> HiddenReads(MemberType owner)
+    {
+        return SlotRoutes.Carried(owner).Select(slot => slot.IsDependent
+            ? DependentCarrierNames.ValueRead(slot) ?? EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default")
+            : ClosingWitnesses.Name(slot));
     }
 
     internal static List<Expression> SlotBindings(InvocationExpression invocation)
@@ -307,6 +373,14 @@ internal static partial class BodyEmitter
         foreach(var (slot, argument) in RoutedCallSlots(typeArguments, parameters))
         {
             if(Carrier(invocation, slot, argument) is { } carrier && !carriers.Contains(carrier))
+            {
+                carriers.Add(carrier);
+            }
+        }
+
+        foreach(var captured in WitnessedCallSlots(typeArguments, parameters).SelectMany(witnessed => WitnessCaptures(witnessed.Argument)))
+        {
+            if(!invocation.Captures.Contains(captured.Capture) && CarryingArgument(invocation, captured)?.Argument is { } carrier && !carriers.Contains(carrier))
             {
                 carriers.Add(carrier);
             }

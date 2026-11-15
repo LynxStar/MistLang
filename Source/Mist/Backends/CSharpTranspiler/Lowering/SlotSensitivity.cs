@@ -1,35 +1,30 @@
-using Mist.Backends.CSharpTranspiler.Emitter;
-using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
-using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
-using SyntaxNode = Storm.Runtime.SyntaxNode;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// Which type parameters a shared C# body cannot fill with a closing of a value-routed type, decided once over
-/// the whole program beside <see cref="SlotRoutes"/> (runtime-dependent-values design, <em>A closing as a type
-/// argument</em>). Once a slot leaves the C# type, every closing of its type is one C# type, so a generic body
-/// shared by all closings of its parameter answers for the wrong one wherever it tells closings apart: a test
-/// against a type that mentions the parameter, storage of such a type that starts from the CLR zero, static
-/// storage of the declaring type, a type value, a closing passed on to a parameter of another declaration
-/// that does one of these, or an abstract's method slot whose parameter a call through the abstract fills
-/// while the body that runs is the answering method's, to a fixed point. A test is exempt when the value's
-/// own type admits only the tested closing, the parameter itself or a union holding it, because the C# test
-/// then decides the same question the slot would; the emitter writes no slot comparison for such a test
-/// either. The zeroed-storage reason refuses only a struct closing, a zeroed reference being null whichever
-/// closing it was declared as. Everything else a body does with its parameter holds, passes, returns or calls
-/// through an object that carries its own value.
+/// Which type parameters a shared C# body cannot answer for from the C# type once a closing of a value-routed type
+/// fills them, decided once over the whole program beside <see cref="SlotRoutes"/> (runtime-dependent-values design,
+/// <em>A closing as a type argument</em>). Every closing of a value-routed type is one C# type, so a body tells closings
+/// apart only through a description of its argument: a test against a type that mentions the parameter, storage of such
+/// a type that starts from the CLR zero, static storage of the declaring type, a Mist generic whose closing a test
+/// compares by value, a closing passed on to a parameter of another declaration that does one of these, or an abstract's
+/// method slot whose answer does, to a fixed point; <see cref="ClosingWitnesses"/> passes that description. Three
+/// reasons no description answers stay refused at the closing, until the owner rules: the parameter read as a type
+/// value, a test that nests it in a CLR container, and a CLR generic it reaches, for a struct closing. A test is exempt
+/// when the value's own type admits only the tested closing, the parameter itself or a union holding it, because the
+/// C# test then decides the same question the slot would.
 /// </summary>
-internal sealed class SlotSensitivity
+internal sealed partial class SlotSensitivity
 {
     public enum Kind
     {
@@ -39,9 +34,12 @@ internal sealed class SlotSensitivity
         TypeValue,
         Forwarded,
         Answered,
+        Nested,
+        Contained,
+        Clr,
     }
 
-    public sealed record Reason(Kind Kind, TypeParameter Parameter, TypeParameter? Target = null);
+    public sealed record Reason(Kind Kind, TypeParameter Parameter, TypeParameter? Target = null, IMistType? Through = null);
 
     private readonly Dictionary<TypeParameter, List<Reason>> reasons = new(ReferenceEqualityComparer.Instance);
 
@@ -115,6 +113,18 @@ internal sealed class SlotSensitivity
         }
 
         var fills = closings.ToList();
+
+        foreach(var (definition, arguments) in fills.Where(fill => IsClrGeneric(fill.Definition)))
+        {
+            foreach(var argument in arguments)
+            {
+                foreach(var parameter in Parameters(argument))
+                {
+                    _ = found.Add(new Reason(Kind.Clr, parameter, Through: argument));
+                }
+            }
+        }
+
         var answered = answers?.ToList() ?? [];
         var changed = true;
 
@@ -137,7 +147,7 @@ internal sealed class SlotSensitivity
                     {
                         if(!ReferenceEquals(mentioned, filled))
                         {
-                            changed |= found.Add(new Reason(Kind.Forwarded, mentioned, filled));
+                            changed |= found.Add(new Reason(Kind.Forwarded, mentioned, filled, arguments[i]));
                         }
                     }
                 }
@@ -158,100 +168,22 @@ internal sealed class SlotSensitivity
         return found;
     }
 
-    public static void Report(ProgramModelClass model, DiagnosticBag diagnostics)
+    public static bool IsClrGeneric(IHasTypeParameters definition)
     {
-        var sensitivity = Discover(model);
-
-        if(sensitivity.reasons.Count == 0)
+        return definition switch
         {
-            return;
-        }
-
-        sensitivity.Report(SourceBodies.Of(model), SourceDeclared(model), SourceTypes.ExtensionsOf(model), diagnostics);
+            Method method => (method.TypeParametersList.Count > 0 || method.DeclaringBlock?.TypeParametersList.Count > 0)
+                && (method.Modifiers.IsIntrinsic || ClrBodied(method.DeclaringType) || method.DeclaringBlock is { DeclarationNode: null }),
+            ClassType or StructType => definition is MemberType { TypeParametersList.Count: > 0 } type
+                && ClrBodied(type)
+                && !LengthErasure.IsLengthIndexed(new ConstructedType(type, type.TypeParametersList)),
+            _ => false,
+        };
     }
 
-    public void Report(IEnumerable<SourceRoot> bodies, IEnumerable<MemberType> types, IEnumerable<ExtensionBlock> blocks, DiagnosticBag diagnostics)
+    private static bool ClrBodied(IMistType? type)
     {
-        var reporter = new Reporter(this, diagnostics);
-
-        foreach(var root in bodies)
-        {
-            foreach(var node in BodyWalker.DescendantsAndSelf(root.Root))
-            {
-                reporter.Body(node);
-            }
-        }
-
-        foreach(var type in types)
-        {
-            reporter.Signatures(type);
-        }
-
-        foreach(var block in blocks)
-        {
-            reporter.Signatures(block);
-        }
-    }
-
-    internal (string Reason, ConstructedType Closing)? Judge(TypeParameter parameter, IMistType argument)
-    {
-        var routed = RoutedClosings(argument);
-
-        return routed.Count == 0 ? null : Judge(parameter, routed, new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance));
-    }
-
-    private (string Reason, ConstructedType Closing)? Judge(TypeParameter parameter, IReadOnlyList<ConstructedType> routed, HashSet<TypeParameter> visited)
-    {
-        if(!visited.Add(parameter) || !reasons.TryGetValue(parameter, out var found))
-        {
-            return null;
-        }
-
-        foreach(var reason in found)
-        {
-            switch(reason.Kind)
-            {
-                case Kind.Storage:
-                    if(routed.FirstOrDefault(closing => closing.Definition is StructType) is { } zeroed)
-                    {
-                        return ($"creates storage of a type that mentions '{parameter.Name}' from the CLR zero, which holds no value of the slot", zeroed);
-                    }
-
-                    break;
-
-                case Kind.Forwarded:
-                    if(Judge(reason.Target!, routed, visited) is var (inner, closing))
-                    {
-                        return ($"passes a type that mentions '{parameter.Name}' to '{reason.Target!.Name}' of '{SlotReach.Owner(reason.Target)}', which {inner}", closing);
-                    }
-
-                    break;
-
-                case Kind.Answered:
-                    if(Judge(reason.Target!, routed, visited) is var (answering, answered))
-                    {
-                        return ($"is answered by '{SlotReach.Owner(reason.Target!)}' of '{Host(reason.Target!)}', which {answering}", answered);
-                    }
-
-                    break;
-
-                case Kind.Test:
-                    return ($"tests a value against a type that mentions '{parameter.Name}', which the shared body cannot tell from another closing's", routed[0]);
-
-                case Kind.Static:
-                    return ("declares static storage, which every closing of it would share", routed[0]);
-
-                default:
-                    return ($"reads a type that mentions '{parameter.Name}' as a type value, which stands for every closing at once", routed[0]);
-            }
-        }
-
-        return null;
-    }
-
-    private static string Host(TypeParameter parameter)
-    {
-        return MistType.StripArity(parameter.DeclaringMethod?.DeclaringType?.Name ?? SlotReach.Owner(parameter));
+        return type is MemberType { Assembly.Kind: MistAssemblyKind.Ambient } or ConcreteType { IsIntrinsic: true, CloneSource: null };
     }
 
     private bool Add(Reason reason)
@@ -262,7 +194,7 @@ internal sealed class SlotSensitivity
             reasons[reason.Parameter] = found;
         }
 
-        if(found.Exists(existing => existing.Kind == reason.Kind && ReferenceEquals(existing.Target, reason.Target)))
+        if(found.Exists(existing => existing.Kind == reason.Kind && ReferenceEquals(existing.Target, reason.Target) && ReferenceEquals(existing.Through, reason.Through)))
         {
             return false;
         }
@@ -297,10 +229,6 @@ internal sealed class SlotSensitivity
 
             case StackallocExpression allocation:
                 MarkEach(Kind.Storage, allocation.ElementType);
-                break;
-
-            case DefaultExpression zero when !OptionalUnion.IsOptional(zero.Type):
-                MarkEach(Kind.Storage, zero.Type);
                 break;
 
             case TypeLiteralExpression literal:
@@ -377,7 +305,67 @@ internal sealed class SlotSensitivity
     {
         if(!AdmitsOnly(subject, tested))
         {
-            MarkEach(Kind.Test, tested);
+            MarkTested(tested, contained: false, new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
+        }
+    }
+
+    private void MarkTested(IMistType type, bool contained, HashSet<IMistType> seen)
+    {
+        if(!seen.Add(type))
+        {
+            return;
+        }
+
+        switch(type)
+        {
+            case TypeParameter parameter:
+                var filled = parameter is PackElementType element ? element.Pack : parameter;
+
+                if(!filled.IsDependent)
+                {
+                    _ = Add(new Reason(contained ? Kind.Contained : Kind.Test, filled));
+                }
+
+                break;
+
+            case ConstructedType constructed:
+                var container = contained || IsContainer(constructed);
+
+                for(var i = 0; i < constructed.TypeArguments.Count; i++)
+                {
+                    if(!container && constructed.Definition is IHasTypeParameters generic && i < generic.TypeParametersList.Count
+                        && !generic.TypeParametersList[i].IsDependent)
+                    {
+                        _ = Add(new Reason(Kind.Nested, generic.TypeParametersList[i]));
+                    }
+
+                    MarkTested(constructed.TypeArguments[i], container, seen);
+                }
+
+                if(constructed.Enclosing is { } enclosing)
+                {
+                    MarkTested(enclosing, contained, seen);
+                }
+
+                break;
+
+            case FunctionType function:
+                MarkTested(function.ReturnType, contained: true, seen);
+
+                foreach(var parameterType in function.ParameterTypes)
+                {
+                    MarkTested(parameterType, contained: true, seen);
+                }
+
+                break;
+
+            default:
+                foreach(var part in Parts(type))
+                {
+                    MarkTested(part, contained, seen);
+                }
+
+                break;
         }
     }
 
@@ -389,7 +377,7 @@ internal sealed class SlotSensitivity
         }
     }
 
-    private static IEnumerable<TypeParameter> Parameters(IMistType type)
+    internal static IEnumerable<TypeParameter> Parameters(IMistType type)
     {
         foreach(var parameter in TypeParameterReach.Collect(type))
         {
@@ -400,6 +388,13 @@ internal sealed class SlotSensitivity
                 yield return filled;
             }
         }
+    }
+
+    internal static bool IsContainer(ConstructedType constructed)
+    {
+        return LengthErasure.IsLengthIndexed(constructed)
+            || ClrBodied(constructed.Definition)
+            || ClrProjection.Projects(constructed.Definition);
     }
 
     private static bool HasStaticStorage(MemberType type)
@@ -413,357 +408,24 @@ internal sealed class SlotSensitivity
             && (property.UsesBackingField || property.Initializer is not null || property.Getter is { IsAuto: true } || property.Setter is { IsAuto: true }));
     }
 
-    private static IEnumerable<MemberType> SourceDeclared(ProgramModelClass model)
-    {
-        return model.TypesByFQN.Values.OfType<MemberType>().Where(type => type.DeclarationNode is not null && !ClrProjection.Projects(type));
-    }
-
-    private static IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> Closings(ProgramModelClass model, IReadOnlyList<object> roots)
-    {
-        foreach(var constructed in model.TypeInterner.ConstructedTypes)
-        {
-            if(constructed.Definition is IHasTypeParameters generic)
-            {
-                yield return (generic, constructed.TypeArguments);
-            }
-        }
-
-        foreach(var (method, typeArguments) in model.GenericCalls.All())
-        {
-            yield return (method, typeArguments);
-        }
-
-        foreach(var root in roots)
-        {
-            foreach(var node in BodyWalker.DescendantsAndSelf(root))
-            {
-                if(SlotRoutes.ClosedThroughReceiver(node) is var (block, arguments))
-                {
-                    yield return (block, arguments);
-                }
-            }
-        }
-    }
-
     private static IMistType Unaliased(IMistType type)
     {
         return type is TypeAlias { AliasedType: { } aliased } ? Unaliased(aliased) : type;
     }
 
-    private static List<ConstructedType> RoutedClosings(IMistType argument)
+    private static IEnumerable<IMistType> Parts(IMistType type)
     {
-        return [.. Constructed(argument).Where(closing => SlotRoutes.ValueRouted(closing.Definition).Count > 0)];
-    }
-
-    internal static IEnumerable<ConstructedType> Constructed(IMistType type)
-    {
-        var found = new List<ConstructedType>();
-        Collect(type, found, new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
-        return found;
-    }
-
-    private static void Collect(IMistType type, List<ConstructedType> found, HashSet<IMistType> seen)
-    {
-        if(!seen.Add(type))
+        return type switch
         {
-            return;
-        }
-
-        switch(type)
-        {
-            case TypeAlias { AliasedType: { } aliased }:
-                Collect(aliased, found, seen);
-                break;
-
-            case RefinedType refined:
-                Collect(refined.BaseType, found, seen);
-                break;
-
-            case ConstructedType constructed:
-                found.Add(constructed);
-
-                foreach(var argument in constructed.TypeArguments)
-                {
-                    Collect(argument, found, seen);
-                }
-
-                if(constructed.Enclosing is { } enclosing)
-                {
-                    Collect(enclosing, found, seen);
-                }
-
-                break;
-
-            case UnionType union:
-                CollectAll(union.Constituents, found, seen);
-                break;
-
-            case NamedTupleType named:
-                CollectAll(named.ElementTypes, found, seen);
-                break;
-
-            case TupleType tuple:
-                CollectAll(tuple.ElementTypes, found, seen);
-                break;
-
-            case FunctionType function:
-                Collect(function.ReturnType, found, seen);
-                CollectAll(function.ParameterTypes, found, seen);
-                break;
-
-            case LiftedType lifted:
-                Collect(lifted.Type, found, seen);
-
-                if(lifted.Value is TypePackValue pack)
-                {
-                    CollectAll(pack.Elements, found, seen);
-                }
-
-                break;
-
-            case SpreadType spread:
-                Collect(spread.Operand, found, seen);
-                break;
-        }
-    }
-
-    private static void CollectAll(IReadOnlyList<IMistType> types, List<ConstructedType> found, HashSet<IMistType> seen)
-    {
-        foreach(var type in types)
-        {
-            Collect(type, found, seen);
-        }
-    }
-
-    private sealed class Reporter(SlotSensitivity sensitivity, DiagnosticBag diagnostics)
-    {
-        private readonly HashSet<(SyntaxNode Node, TypeParameter Parameter)> reported = [];
-
-        public void Body(object node)
-        {
-            switch(node)
-            {
-                case NewExpression created:
-                    Check(created.Type, created.Node);
-                    break;
-
-                case TypeReferenceExpression reference:
-                    Check(reference.ReferencedType, reference.Node);
-                    break;
-
-                case TypeLiteralExpression literal:
-                    Check(literal.ReferencedType, literal.Node);
-                    break;
-
-                case ArrayCreationExpression array:
-                    Check(array.Type, array.Node);
-                    break;
-
-                case StackallocExpression allocation:
-                    Check(allocation.Type, allocation.Node);
-                    break;
-
-                case AsExpression conversion:
-                    Check(conversion.TargetType, conversion.Node);
-                    break;
-
-                case CastExpression cast:
-                    Check(cast.TargetType, cast.Node);
-                    break;
-
-                case DefaultExpression zero:
-                    Check(zero.Type, zero.Node);
-                    break;
-
-                case TypeTestPattern typeTest:
-                    Check(typeTest.NarrowedType, typeTest.Node);
-                    break;
-
-                case PropertyPattern property:
-                    Check(property.NarrowedType, property.Node);
-                    break;
-
-                case TuplePattern { TestedType: { } tested } tuple:
-                    Check(tested, tuple.Node);
-                    break;
-
-                case LambdaExpression lambda:
-                    foreach(var parameter in lambda.Parameters)
-                    {
-                        Check(parameter.Type, lambda.Node);
-                    }
-
-                    break;
-
-                case LocalDeclarationStatement { Initializer: { } initializer } declaration:
-                    Check(declaration.Local.Type, initializer.Node);
-                    break;
-
-                case LocalFunctionStatement { Function.DeclarationNode: { } at } local:
-                    Signature(local.Function, at);
-                    break;
-
-                case InvocationExpression { Method: { } method } invocation:
-                    Call(method, invocation.Receiver switch
-                    {
-                        MemberAccessExpression access => access.TypeArguments,
-                        MethodReferenceExpression reference => reference.TypeArguments,
-                        _ => [],
-                    }, invocation.Node);
-                    break;
-
-                case FunctionReferenceExpression group:
-                    Call(group.Method, group.TypeArguments, group.Node);
-                    break;
-            }
-        }
-
-        public void Signatures(MemberType type)
-        {
-            if(type.DeclarationNode is not { } node)
-            {
-                return;
-            }
-
-            if(type is ConcreteType { BaseType: { } baseType })
-            {
-                Check(baseType, node);
-            }
-
-            foreach(var abstractType in type.BaseAbstractTypes)
-            {
-                Check(abstractType, node);
-            }
-
-            if(type is ConcreteType concrete)
-            {
-                foreach(var conformance in concrete.ConformancesList)
-                {
-                    Check(conformance.AbstractType, conformance.DeclarationNode);
-                }
-
-                foreach(var field in concrete.FieldsList)
-                {
-                    Check(field.Type, field.DeclarationNode ?? node);
-                }
-            }
-
-            Constraints(type.TypeParametersList, node);
-
-            foreach(var method in type.EnumerateDelegates())
-            {
-                Signature(method, node);
-            }
-
-            foreach(var property in type.PropertiesList)
-            {
-                Check(property.Type, property.DeclarationNode ?? node);
-            }
-
-            foreach(var indexer in type.IndexersList)
-            {
-                var at = indexer.DeclarationNode ?? node;
-                Check(indexer.Type, at);
-
-                foreach(var parameter in indexer.ParametersList)
-                {
-                    Check(parameter.Type, parameter.DeclarationNode ?? at);
-                }
-            }
-        }
-
-        public void Signatures(ExtensionBlock block)
-        {
-            if(block.DeclarationNode is not { } node)
-            {
-                return;
-            }
-
-            if(block.ResolvedReceiverType is { } receiver)
-            {
-                Check(receiver, node);
-            }
-
-            Constraints(block.TypeParametersList, node);
-
-            foreach(var method in block.MethodsList)
-            {
-                Signature(method, node);
-            }
-
-            foreach(var property in block.PropertiesList)
-            {
-                Check(property.Type, property.DeclarationNode ?? node);
-            }
-        }
-
-        private void Signature(Method method, SyntaxNode fallback)
-        {
-            var at = method.DeclarationNode ?? fallback;
-            Check(method.ReturnType, at);
-            Constraints(method.TypeParametersList, at);
-
-            foreach(var parameter in method.ParametersList)
-            {
-                Check(parameter.Type, parameter.DeclarationNode ?? at);
-            }
-        }
-
-        private void Constraints(IReadOnlyList<TypeParameter> parameters, SyntaxNode node)
-        {
-            foreach(var parameter in parameters)
-            {
-                foreach(var constraint in parameter.ConstraintsList.OfType<TypeConstraint>())
-                {
-                    Check(constraint.ConstraintType, node);
-                }
-            }
-        }
-
-        private void Call(Method method, IReadOnlyList<IMistType> written, SyntaxNode node)
-        {
-            var (arguments, parameters) = ExtensionBlockEmitter.CallTypeArguments(method, written);
-            var filled = parameters ?? method.TypeParametersList;
-
-            for(var i = 0; i < arguments.Count; i++)
-            {
-                if(i < filled.Count)
-                {
-                    Refuse(filled[i], arguments[i], node);
-                }
-
-                Check(arguments[i], node);
-            }
-        }
-
-        private void Check(IMistType type, SyntaxNode node)
-        {
-            foreach(var constructed in Constructed(type))
-            {
-                if(constructed.Definition is not IHasTypeParameters generic)
-                {
-                    continue;
-                }
-
-                for(var i = 0; i < constructed.TypeArguments.Count && i < generic.TypeParametersList.Count; i++)
-                {
-                    Refuse(generic.TypeParametersList[i], constructed.TypeArguments[i], node);
-                }
-            }
-        }
-
-        private void Refuse(TypeParameter filled, IMistType argument, SyntaxNode node)
-        {
-            if(!sensitivity.IsSensitive(filled) || reported.Contains((node, filled)) || sensitivity.Judge(filled, argument) is not var (reason, closing))
-            {
-                return;
-            }
-
-            _ = reported.Add((node, filled));
-            diagnostics.ReportAtNodeTyped(
-                BackendDiagnostics.SlotSensitiveClosingArgument, node, null,
-                DiagnosticSnapshot.Type(argument), new NameValue(filled.Name), new NameValue(SlotReach.Owner(filled)),
-                DiagnosticSnapshot.Type(closing), new NameValue(SlotRoutes.ValueRouted(closing.Definition)[0].Name), new EnumValue(reason));
-        }
+            TypeAlias { AliasedType: { } aliased } => [aliased],
+            RefinedType refined => [refined.BaseType],
+            UnionType union => union.Constituents,
+            NamedTupleType named => named.ElementTypes,
+            TupleType tuple => tuple.ElementTypes,
+            LiftedType { Value: TypePackValue pack } lifted => pack.Elements.Prepend(lifted.Type),
+            LiftedType lifted => [lifted.Type],
+            SpreadType spread => [spread.Operand],
+            _ => [],
+        };
     }
 }

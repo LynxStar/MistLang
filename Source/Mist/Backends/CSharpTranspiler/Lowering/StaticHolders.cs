@@ -59,7 +59,7 @@ internal static class StaticHolders
 
     public static bool Keeps(MemberType? type)
     {
-        return type is ConcreteType && SlotRoutes.ValueRouted(type).Count > 0;
+        return type is ConcreteType && SlotRoutes.Carried(type).Count > 0;
     }
 
     public static bool HasStaticConstructor(MemberType? type)

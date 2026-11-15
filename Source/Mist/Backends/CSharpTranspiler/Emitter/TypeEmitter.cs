@@ -422,7 +422,7 @@ internal static class TypeEmitter
         var members = StructAncestorFactory.Members(flattened);
         var defaults = DefaultWitnesses.Stored(type);
         var constructors = ConstructorWitnesses.Stored(type);
-        var routed = SlotRoutes.ValueRouted(type);
+        var routed = SlotRoutes.Carried(type);
         var parameters = string.Join(", ", SlotRoutes.HiddenParameters(routed).Concat(defaults.Select(DefaultConstraintWitness.Parameter))
             .Concat(ConstructorWitnesses.Parameters(constructors)).Append(StructAncestorFactory.Parameters(members)));
         var arguments = string.Join(", ", SlotRoutes.HiddenNames(routed).Concat(defaults.Select(DefaultConstraintWitness.Name))

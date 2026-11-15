@@ -107,8 +107,8 @@ internal static class MethodEmitter
             .Concat(SlotLift.Synthesized(declared).Select(slot => slot.Name))
             .ToList();
         var typeParams = spelled.Count > 0 ? $"<{string.Join(", ", spelled)}>" : "";
-        var parts = SlotRoutes.HiddenParameters(method is { Modifiers.IsStatic: true, DeclaringType: MemberType declaring } ? SlotRoutes.ValueRouted(declaring) : [])
-            .Concat(SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(declared)))
+        var parts = SlotRoutes.HiddenParameters(method is { Modifiers.IsStatic: true, DeclaringType: MemberType declaring } ? SlotRoutes.Carried(declaring) : [])
+            .Concat(SlotRoutes.HiddenParameters(SlotRoutes.Carried(declared)))
             .Concat(DefaultWitnesses.StaticParameters(method).Select(DefaultConstraintWitness.Parameter)).ToList();
         parts.AddRange(DefaultConstraintWitness.Parameters(declared));
         parts.AddRange(method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner }
@@ -159,7 +159,7 @@ internal static class MethodEmitter
         var declared = Declared(slot);
         var answering = answer is null ? declared : Declared(answer);
         closing ??= TypeSubstitution.ForParameters(declared, [.. answering]);
-        var arguments = SlotRoutes.HiddenNames(SlotRoutes.ValueRouted(declared)).ToList();
+        var arguments = SlotRoutes.HiddenNames(SlotRoutes.Carried(declared)).ToList();
 
         for(var i = 0; i < declared.Count && i < answering.Count; i++)
         {

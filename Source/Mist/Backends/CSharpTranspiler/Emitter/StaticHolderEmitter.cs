@@ -26,7 +26,7 @@ internal static class StaticHolderEmitter
             return;
         }
 
-        var slots = SlotRoutes.ValueRouted(type);
+        var slots = SlotRoutes.Carried(type);
         var parameters = string.Join(", ", SlotRoutes.HiddenParameters(slots));
         using var building = StaticHolders.Building(type);
         using var within = BodyEmitter.Within(type);
@@ -106,7 +106,7 @@ internal static class StaticHolderEmitter
     {
         if(StaticHolders.HasStaticConstructor(type))
         {
-            var routed = SlotRoutes.ValueRouted(type);
+            var routed = SlotRoutes.Carried(type);
             writer.WriteLine($"_ = {StaticHolders.Through(TypeNameEmitter.Emit(new ConstructedType(type!, type!.TypeParametersList)), SlotRoutes.HiddenNames(routed))};");
         }
     }

@@ -4,6 +4,7 @@ using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -100,39 +101,40 @@ internal static partial class BodyEmitter
             return "this";
         }
 
-        var values = closing is null
-            ? SlotRoutes.ValueRouted(owner).Select(slot => DependentCarrierNames.ValueRead(slot) ?? EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default"))
-            : SlotValues(closing, diagnostics);
+        var values = closing is null ? HiddenReads(owner) : SlotValues(closing, diagnostics);
 
         return StaticHolders.Through(TypeNameEmitter.Emit(closing ?? new ConstructedType(owner, owner.TypeParametersList)), values);
     }
 
     private static bool IsOwnClosing(ConstructedType closing, MemberType owner)
     {
-        return SlotRoutes.ValueRouted(owner).All(slot => slot.Ordinal < closing.TypeArguments.Count && ReferenceEquals(closing.TypeArguments[slot.Ordinal], slot));
+        return SlotRoutes.Carried(owner).All(slot => slot.Ordinal < closing.TypeArguments.Count && ReferenceEquals(closing.TypeArguments[slot.Ordinal], slot));
     }
 
     private static bool ConsumedByHolder(MemberAccessExpression access, SlotCapture capture)
     {
         return access.Receiver is TypeReferenceExpression reference
             && HeldOwner(access) is { } owner
-            && ConsumedByClosing(UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))), capture);
+            && UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))) is var closed
+            && (ConsumedByClosing(closed, capture) || ConsumedByWitness(closed, capture));
     }
 
     internal static bool ReadsHiddenValues(object body)
     {
-        return SlotRoutes.ValueRouted(enclosingType).Count > 0
+        return SlotRoutes.Carried(enclosingType).Count > 0
             || BodyWalker.DescendantsAndSelf(body).Any(node => node switch
             {
                 TypeReferenceExpression reference => Mentions(reference.ReferencedType),
                 InvocationExpression invocation when CallTypeArguments(invocation) is var (arguments, _, _) && arguments.Any(Mentions) => true,
                 Expression expression => Mentions(expression.Type),
+                TypeTestPattern typeTest => Mentions(typeTest.NarrowedType),
+                PropertyPattern property => Mentions(property.NarrowedType),
                 _ => false,
             });
     }
 
     private static bool Mentions(IMistType type)
     {
-        return TypeParameterReach.Collect(type).Any(SlotRoutes.IsValueRouted);
+        return TypeParameterReach.Collect(type).Any(parameter => SlotRoutes.IsValueRouted(parameter) || ClosingWitnesses.IsWitnessed(parameter));
     }
 }

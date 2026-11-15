@@ -24,7 +24,7 @@ internal static class DefaultEmitter
         // The marker argument is TYPED rather than a bare `default`, which converts to every
         // one-parameter constructor and so leaves the call ambiguous on any type declaring one.
         var marker = $"default({DefaultSynthesis.MarkerType})";
-        var routed = SlotRoutes.ValueRouted(type);
+        var routed = SlotRoutes.Carried(type);
         var hidden = SlotRoutes.HiddenNames(routed).ToList();
         var hiddenParameters = SlotRoutes.HiddenParameters(routed).ToList();
         var baseValues = type is ClassType && type.BaseType is ConstructedType baseClosing ? BodyEmitter.SlotValues(baseClosing, diagnostics) : [];
@@ -121,7 +121,7 @@ internal static class DefaultEmitter
     public static void EmitImplicitConstruction(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics, ref bool anyEmitted)
     {
         var name = TypeEmitter.CleanName(type);
-        var routed = SlotRoutes.ValueRouted(type);
+        var routed = SlotRoutes.Carried(type);
         var parameters = SlotRoutes.HiddenParameters(routed).Concat(DefaultWitnesses.FactoryParameters(type)).ToList();
         SeparateMember(writer, ref anyEmitted);
         writer.WriteLine($"public {name}({string.Join(", ", SlotRoutes.HiddenParameters(routed))}) : this({string.Join(", ", SlotRoutes.HiddenNames(routed).Concat(DefaultWitnesses.CompatibilityArguments(type, factory: true)))})");

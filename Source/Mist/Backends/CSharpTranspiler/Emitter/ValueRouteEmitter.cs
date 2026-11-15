@@ -26,7 +26,7 @@ internal static class ValueRouteEmitter
     {
         var written = false;
 
-        foreach(var slot in SlotRoutes.ValueRouted(type))
+        foreach(var slot in SlotRoutes.Carried(type))
         {
             writer.WriteLine(type is AbstractType
                 ? $"{SlotRoutes.Keyword(slot)} {SlotRoutes.Hidden(slot)} {{ get; }}"
@@ -51,10 +51,10 @@ internal static class ValueRouteEmitter
 
         foreach(var closing in Answered(type))
         {
-            foreach(var slot in SlotRoutes.ValueRouted(closing.Definition))
+            foreach(var slot in SlotRoutes.Carried(closing.Definition))
             {
                 var argument = slot.Ordinal < closing.TypeArguments.Count ? closing.TypeArguments[slot.Ordinal] : null;
-                var value = argument is null ? null : BodyEmitter.SlotValue(argument, diagnostics);
+                var value = argument is null ? null : slot.IsDependent ? BodyEmitter.SlotValue(argument, diagnostics) : BodyEmitter.Witness(argument, diagnostics);
 
                 writer.WriteLine(
                     $"{SlotRoutes.Keyword(slot)} {TypeNameEmitter.Emit(closing)}.{SlotRoutes.Hidden(slot)} => "
@@ -70,12 +70,12 @@ internal static class ValueRouteEmitter
     {
         var reached = type is AbstractType abstractType ? abstractType.BaseAbstractTypes : TypeSlots.Reached(type);
 
-        return reached.OfType<ConstructedType>().Where(closing => SlotRoutes.ValueRouted(closing.Definition).Count > 0);
+        return reached.OfType<ConstructedType>().Where(closing => SlotRoutes.Carried(closing.Definition).Count > 0);
     }
 
     public static void EmitAssignments(ConcreteType type, CSharpWriter writer)
     {
-        foreach(var slot in SlotRoutes.ValueRouted(type))
+        foreach(var slot in SlotRoutes.Carried(type))
         {
             writer.WriteLine($"this.{SlotRoutes.Hidden(slot)} = {SlotRoutes.Hidden(slot)};");
         }
@@ -85,7 +85,7 @@ internal static class ValueRouteEmitter
 
     public static bool NeedsConstructor(ConcreteType type)
     {
-        return SlotRoutes.ValueRouted(type).Count > 0
+        return SlotRoutes.Carried(type).Count > 0
             && !type.ConstructorsList.Exists(constructor => !constructor.Modifiers.IsStatic)
             && !DefaultSynthesis.IsDefaultable(type)
             && (DefaultSynthesis.NeedsSentinel(type) || DefaultWitnesses.FactoryParameters(type).Count == 0);
@@ -93,7 +93,7 @@ internal static class ValueRouteEmitter
 
     public static void EmitConstructor(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        writer.Write($"public {TypeEmitter.CleanName(type)}({string.Join(", ", SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(type)))})");
+        writer.Write($"public {TypeEmitter.CleanName(type)}({string.Join(", ", SlotRoutes.HiddenParameters(SlotRoutes.Carried(type)))})");
 
         if(type is ClassType && type.BaseType is { } baseType)
         {
@@ -168,8 +168,8 @@ internal static class ValueRouteEmitter
             parts.Add(TypeNameEmitter.Emit(receiver));
         }
 
-        parts.AddRange(SlotRoutes.ValueRouted(method is { Modifiers.IsStatic: true, DeclaringType: MemberType declaring } ? declaring : null).Select(SlotRoutes.Keyword));
-        parts.AddRange(SlotRoutes.ValueRouted(carried).Select(SlotRoutes.Keyword));
+        parts.AddRange(SlotRoutes.Carried(method is { Modifiers.IsStatic: true, DeclaringType: MemberType declaring } ? declaring : null).Select(SlotRoutes.Keyword));
+        parts.AddRange(SlotRoutes.Carried(carried).Select(SlotRoutes.Keyword));
         parts.AddRange(DefaultWitnesses.StaticParameters(method).Select(DefaultConstraintWitness.Parameter));
         parts.AddRange(DefaultConstraintWitness.Parameters(declared));
         parts.AddRange(method is { Modifiers.IsStatic: true, DeclaringType: ConcreteType owner } ? ConstructorWitnesses.Parameters(ConstructorWitnesses.Stored(owner)) : []);

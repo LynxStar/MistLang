@@ -21,6 +21,11 @@ internal static class StructStamp
     {
         var closed = BodyEmitter.Unaliased(TypeNameEmitter.Closed(element));
 
+        if(closed is TypeParameter parameter && ClosingWitnesses.IsWitnessed(parameter))
+        {
+            return $"{ClosingWitnesses.Name(parameter)}.Stamp()";
+        }
+
         return HeldByValue(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance)) is null ? null : Build(closed, diagnostics);
     }
 

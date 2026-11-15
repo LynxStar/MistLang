@@ -42,7 +42,7 @@ internal static class ConstructorEmitter
         var concrete = declaringType as ConcreteType;
         var witnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : DefaultWitnesses.Stored(concrete);
         var constructionWitnesses = constructor.Modifiers.IsStatic || concrete is null ? [] : ConstructorWitnesses.Stored(concrete);
-        var routed = constructor.Modifiers.IsStatic || concrete is null ? [] : SlotRoutes.ValueRouted(concrete);
+        var routed = constructor.Modifiers.IsStatic || concrete is null ? [] : SlotRoutes.Carried(concrete);
         var parts = SlotRoutes.HiddenParameters(routed)
             .Concat(witnesses.Select(DefaultConstraintWitness.Parameter)).Concat(ConstructorWitnesses.Parameters(constructionWitnesses)).ToList();
         parts.AddRange(ContextKeyWitnesses.Parameters(constructor));

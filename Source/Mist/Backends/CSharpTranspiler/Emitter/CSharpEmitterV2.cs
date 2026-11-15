@@ -15,7 +15,7 @@ using CompilationUnit = Mist.ProgramModel.Model.CompilationUnit;
 
 namespace Mist.Backends.CSharpTranspiler.Emitter;
 
-internal sealed class CSharpEmitterV2
+internal sealed partial class CSharpEmitterV2
 {
     private readonly IProgramModel programModel;
 
@@ -123,6 +123,7 @@ internal sealed class CSharpEmitterV2
         ArrayLowering.Reset();
         ArrayEnumeration.Reset();
         StaticHolders.Reset();
+        ClosingWitnesses.Reset();
         TaskCombinators.Reset();
         InvariantCulture.Reset();
         BodyEmitter.ResetTemporaries();
@@ -130,7 +131,7 @@ internal sealed class CSharpEmitterV2
         using var promotion = AsyncPromotion.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var supply = IntrinsicSupply.Enter((ProgramModel.Model.ProgramModel)programModel, clrType);
         using var routes = SlotRoutes.Enter((ProgramModel.Model.ProgramModel)programModel);
-        SlotSensitivity.Report((ProgramModel.Model.ProgramModel)programModel, diagnostics);
+        using var witnesses = ClosingWitnesses.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var specialization = UnionSpecialization.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
@@ -179,12 +180,7 @@ internal sealed class CSharpEmitterV2
             }
         }
 
-        EmitContextRuntime(outputDir, emittedFiles);
-        EmitOwnershipRuntime(outputDir, emittedFiles);
-        EmitArrayRuntime(outputDir, emittedFiles);
-        EmitStaticsRuntime(outputDir, emittedFiles);
-        EmitTaskRuntime(outputDir, emittedFiles);
-        EmitInvariantRuntime(outputDir, emittedFiles);
+        EmitRuntimes(outputDir, emittedFiles);
         LocaleStartup.EmitFile(options, outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint, startup.MainTypeName);
@@ -450,120 +446,6 @@ internal sealed class CSharpEmitterV2
         }
 
         var path = Path.Combine(outputDir, "__Variadics.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitContextRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!ContextLowering.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        ContextLowering.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Context.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitOwnershipRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!LifetimeLowering.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        LifetimeLowering.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Ownership.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitTaskRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!TaskCombinators.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        TaskCombinators.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Tasks.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitInvariantRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!InvariantCulture.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        InvariantCulture.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Invariant.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitArrayRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!ArrayLowering.Used() && !ArrayEnumeration.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-
-        if(ArrayLowering.Used())
-        {
-            ArrayLowering.Emit(writer);
-        }
-
-        if(ArrayEnumeration.Used())
-        {
-            if(ArrayLowering.Used())
-            {
-                writer.WriteBlankLine();
-            }
-
-            ArrayEnumeration.Emit(writer);
-        }
-
-        var path = Path.Combine(outputDir, "__Array.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitStaticsRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!StaticHolders.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        StaticHolders.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Statics.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitVoidStandIn(string outputDir, List<string> emittedFiles)
-    {
-        var writer = new CSharpWriter();
-        VoidStandIn.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Void.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

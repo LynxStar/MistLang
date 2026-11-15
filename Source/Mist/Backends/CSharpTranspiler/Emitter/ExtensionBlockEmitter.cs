@@ -82,7 +82,7 @@ internal static class ExtensionBlockEmitter
         var name = Monomorph.InScope() is { } monomorph && monomorph.Owns(method.TypeParametersList)
             ? MonomorphSet.SpecializedName(method.Name, monomorph.Widths)
             : IdentifierSpelling.Of(method.Name);
-        var parameters = SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(typeParameters)).ToList();
+        var parameters = SlotRoutes.HiddenParameters(SlotRoutes.Carried(typeParameters)).ToList();
         parameters.AddRange(DefaultConstraintWitness.Parameters(declared));
         parameters.AddRange(ConstructorWitnesses.Parameters(ConstructorWitnesses.Of(declared)));
         parameters.AddRange(ContextKeyWitnesses.Parameters(method));

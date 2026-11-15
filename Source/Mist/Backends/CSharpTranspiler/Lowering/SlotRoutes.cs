@@ -86,13 +86,28 @@ internal sealed class SlotRoutes : IDisposable
         return current is null ? [] : [.. parameters.Where(IsValueRouted)];
     }
 
+    public static IReadOnlyList<TypeParameter> Carried(IMistType? type)
+    {
+        return [.. ValueRouted(type), .. ClosingWitnesses.Stored(type)];
+    }
+
+    public static IReadOnlyList<TypeParameter> Carried(IReadOnlyList<TypeParameter> parameters)
+    {
+        return [.. ValueRouted(parameters), .. ClosingWitnesses.Witnessed(parameters)];
+    }
+
     public static string Hidden(TypeParameter parameter)
     {
-        return $"__{parameter.Name}";
+        return parameter.IsDependent ? $"__{parameter.Name}" : ClosingWitnesses.Name(parameter);
     }
 
     public static string Keyword(TypeParameter parameter)
     {
+        if(!parameter.IsDependent)
+        {
+            return ClosingWitnesses.Type(parameter);
+        }
+
         return parameter.Domain is { } domain ? DependentCarrierNames.Keyword(domain) ?? TypeNameEmitter.Emit(domain) : "int";
     }
 

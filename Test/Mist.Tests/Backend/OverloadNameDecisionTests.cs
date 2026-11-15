@@ -316,6 +316,159 @@ public sealed class OverloadNameDecisionTests
     }
 
     [Fact]
+    public void AGenericAbstractsDefaultCoincidesAtTheClosingAConformerWrites_AndNotAtAnother()
+    {
+        var (namer, fallback) = GenericNamer();
+        var conformer = Declared("Conformer");
+        conformer.BaseAbstractTypes.Add(slots.Closed(namer, Ring(3)));
+        var own = Method(conformer, "Name", Ring(4));
+        var other = Declared("Other");
+        other.BaseAbstractTypes.Add(slots.Closed(namer, slots.Int));
+        var apart = Method(other, "Name", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(namer, conformer, other);
+
+        Assert.Equal(OverloadNames.NameFor(fallback), renamed[fallback.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+        Assert.False(renamed.ContainsKey(apart.DeclarationNode!));
+    }
+
+    [Fact]
+    public void AnAbstractMeetsTheMembersOfAClosedGenericAbstractItExtendsAtThatClosing()
+    {
+        var (three, fallback) = GenericNamer();
+        var four = new AbstractType("Four", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public };
+        four.BaseAbstractTypes.Add(slots.Closed(three, Ring(3)));
+        var own = Method(four, "Name", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(three, four);
+
+        Assert.Equal(OverloadNames.NameFor(fallback), renamed[fallback.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+    }
+
+    [Fact]
+    public void ADefaultAGenericBaseRestatesCoincidesAtTheClosingTheDerivedClassWrites()
+    {
+        var (namer, fallback) = GenericNamer();
+        var generic = Declared("Base<>");
+        var t = new TypeParameter("T", 0, generic.Scope, generic);
+        generic.TypeParametersList.Add(t);
+        generic.BaseAbstractTypes.Add(slots.Closed(namer, t));
+        var derived = Declared("Derived");
+        derived.BaseType = slots.Closed(generic, Ring(3));
+        var own = Method(derived, "Name", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(namer, generic, derived);
+
+        Assert.Equal(OverloadNames.NameFor(fallback), renamed[fallback.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+    }
+
+    [Fact]
+    public void AClosedIntrinsicOrClrBasesMemberKeepsItsName_AndTheDerivedMemberIsRenamedAroundIt()
+    {
+        var intrinsic = new ClassType("List<>", "Standard", new Scope(null), null, new BodyTypeTypeDeclarationNode())
+        {
+            Modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = true },
+        };
+        var clr = new ClassType("Collection<>", "System.Collections.ObjectModel", new Scope(null), null, null) { Modifiers = Public };
+        var bags = new List<(Method Pinned, Method Own)>();
+
+        foreach(var library in new[] { intrinsic, clr })
+        {
+            var t = new TypeParameter("T", 0, library.Scope, library);
+            library.TypeParametersList.Add(t);
+            var add = new Method("Add", slots.Int, [new Parameter("item", t)], new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = library.IsIntrinsic })
+            {
+                DeclaringType = library,
+                Scope = library.Scope,
+                DeclarationNode = library.DeclarationNode is null ? null : Node(),
+            };
+            library.MethodsList.Add(add);
+            var bag = Declared($"Bag{bags.Count}");
+            bag.BaseType = slots.Closed(library, Ring(3));
+            bags.Add((add, Method(bag, "Add", Ring(4))));
+        }
+
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var decision = OverloadNames.Decide([intrinsic, .. bags.Select(bag => bag.Own.DeclaringType!)], [], slots.Refinements.Built.Interner);
+
+        Assert.All(bags, bag => Assert.Equal("Add__Probe_dRing_l4_r", decision.Renamed[bag.Own.DeclarationNode!]));
+        Assert.False(decision.Renamed.ContainsKey(bags[0].Pinned.DeclarationNode!));
+        Assert.Equal(2, decision.Renamed.Count);
+        Assert.Empty(decision.Unnamed);
+    }
+
+    [Fact]
+    public void AGenericFlattenedAncestorsMemberCoincidesAtTheClosingTheStructWrites()
+    {
+        var baseStruct = HandBuiltModel.Struct("Base<>");
+        baseStruct.Modifiers = Public;
+        var t = new TypeParameter("T", 0, baseStruct.Scope, baseStruct);
+        baseStruct.TypeParametersList.Add(t);
+        var inherited = Method(baseStruct, "Name", t);
+        var derived = new StructType("Derived", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public, BaseType = slots.Closed(baseStruct, Ring(3)) };
+        var own = Method(derived, "Name", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(derived);
+
+        Assert.Equal(OverloadNames.NameFor(inherited), renamed[inherited.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[own.DeclarationNode!]);
+    }
+
+    [Fact]
+    public void ATypeParameterMeetsATypeCarryingAnErasedSlot_AndNotOneWithout()
+    {
+        var generic = Declared("Base<>");
+        var t = new TypeParameter("T", 0, generic.Scope, generic);
+        generic.TypeParametersList.Add(t);
+        var open = Method(generic, "Name", t);
+        var four = Method(generic, "Name", Ring(4));
+        var openItem = new Indexer(slots.Int, [new Parameter("r", t)], Public) { DeclaringType = generic, DeclarationNode = Node() };
+        generic.IndexersList.Add(openItem);
+        var fourItem = AddIndexer(generic, 4);
+        var plain = Declared("Plain<>");
+        var u = new TypeParameter("U", 0, plain.Scope, plain);
+        plain.TypeParametersList.Add(u);
+        var quiet = Method(plain, "Name", u);
+        var count = Method(plain, "Name", slots.Int);
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(generic, plain);
+
+        Assert.Equal(OverloadNames.NameFor(open), renamed[open.DeclarationNode!]);
+        Assert.Equal("Name__Probe_dRing_l4_r", renamed[four.DeclarationNode!]);
+        Assert.Equal(OverloadNames.NameFor(openItem), renamed[openItem.DeclarationNode!]);
+        Assert.Equal("Item__Probe_dRing_l4_r", renamed[fourItem.DeclarationNode!]);
+        Assert.False(renamed.ContainsKey(quiet.DeclarationNode!));
+        Assert.False(renamed.ContainsKey(count.DeclarationNode!));
+    }
+
+    [Fact]
+    public void AGenericMethodsOwnTypeParameterMeetsNothing_SinceEveryCallSpellsItsTypeArguments()
+    {
+        var program = Declared("Program");
+        var open = new Method("Foo", slots.Int, [], Public) { DeclaringType = program, Scope = program.Scope, DeclarationNode = Node() };
+        var u = new TypeParameter("U", 0, program.Scope, program) { DeclaringMethod = open };
+        open.TypeParametersList.Add(u);
+        open.ParametersList.Add(new Parameter("r", u));
+        program.MethodsList.Add(open);
+        var four = Method(program, "Foo", Ring(4));
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var renamed = Decide(program);
+
+        Assert.False(renamed.ContainsKey(open.DeclarationNode!));
+        Assert.False(renamed.ContainsKey(four.DeclarationNode!));
+    }
+
+    [Fact]
     public void AnExtensionBlocksPairIsRenamed()
     {
         var block = new ExtensionBlock("self", "Probe", new Scope(null), new ExtensionBlockDeclarationNode()) { CarrierName = "StringExtensions", ResolvedReceiverType = slots.Int };
@@ -332,6 +485,22 @@ public sealed class OverloadNameDecisionTests
     private ConstructedType Ring(int value)
     {
         return slots.Closed(ring, slots.Literal(value));
+    }
+
+    private (AbstractType Namer, Method Fallback) GenericNamer()
+    {
+        var namer = new AbstractType("Namer<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public };
+        var t = new TypeParameter("T", 0, namer.Scope, namer);
+        namer.TypeParametersList.Add(t);
+        var fallback = new Method("Name", slots.Int, [new Parameter("r", t)], Public)
+        {
+            DeclaringType = namer,
+            Scope = namer.Scope,
+            DeclarationNode = Node(),
+            Body = HandBuiltModel.Block(),
+        };
+        namer.MethodsList.Add(fallback);
+        return (namer, fallback);
     }
 
     private static ClassType Declared(string name)

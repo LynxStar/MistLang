@@ -23,9 +23,12 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// program, and keyed by declaration so a closed copy the binder makes of a member reads the same name,
 /// because a member lands in more C# types than the one declaring it: a struct holds its flattened
 /// ancestors' members, a conformer restates an abstract's defaults, and an interface sees the members of
-/// the interfaces it extends. A class also meets its base classes' members, read at the closing it writes
-/// for each base, because C# hides a base member under a derived one with the same parameters, and a method
-/// group, an indexer read or an interface answer through the derived type would reach the wrong one. An abstract's member and every member answering it by name are
+/// the interfaces it extends. A class also meets its base classes' members, Mist, intrinsic or CLR, because
+/// C# hides a base member under a derived one with the same parameters, and a method group, an indexer read
+/// or an interface answer through the derived type would reach the wrong one. Every member reached through a
+/// base, an ancestor or an abstract is read at the closing written for it, and a type's own type parameter
+/// meets a type carrying an erased slot, since at a closing to that type C# prefers the member that names it
+/// outright; a method's own type parameter meets nothing, because every call spells its type arguments. An abstract's member and every member answering it by name are
 /// one name group, since C# implements an interface member by name. A name is the group's root member's
 /// Mist name with that member's own Mist signature appended, so adding or removing another overload never
 /// changes it, and it is taken only by a group that coincides with another. A group holding a member a CLR
@@ -307,29 +310,37 @@ internal sealed class OverloadNames : IDisposable
             yield break;
         }
 
-        var owners = new List<MemberType> { type };
-        var inherited = type is ConcreteType and not StructType ? Inherited((ConcreteType)type, closings).ToList() : [];
+        var methods = new List<object>(type.MethodsList);
+        var indexers = new List<object>(type.IndexersList);
 
         if(type is StructType flattened)
         {
-            owners.AddRange(DefaultSynthesis.FlattenedAncestors(flattened).Select(ancestor => ancestor.Ancestor));
+            foreach(var (ancestor, path) in DefaultSynthesis.FlattenedAncestors(flattened))
+            {
+                var closing = TypeSubstitution.ForPath(null, path, interner: null);
+                methods.AddRange(ancestor.MethodsList.Select(method => Closed(method, closing, closings)));
+            }
         }
-        else if(type is AbstractType)
+        else if(type is ConcreteType concreteType)
         {
-            owners.AddRange(AbstractInheritance.Reached(type.BaseAbstractTypes, interner: null).Select(reached => reached.Definition));
+            var inherited = Inherited(concreteType, closings).ToList();
+            methods.AddRange(inherited.Where(member => member is Method));
+            indexers.AddRange(inherited.Where(member => member is Indexer));
         }
 
-        var methods = owners.SelectMany(owner => owner.MethodsList).ToList();
-
-        if(type is ConcreteType)
+        foreach(var (_, definition, substitution) in AbstractInheritance.Reached(type.BaseAbstractTypes, interner: null))
         {
-            methods.AddRange(AbstractInheritance.Reached(type.BaseAbstractTypes, interner: null)
-                .SelectMany(reached => reached.Definition.MethodsList)
-                .Where(method => method.Body is not null && !method.Modifiers.IsStatic));
+            methods.AddRange((type is AbstractType ? definition.MethodsList : Restated(definition))
+                .Select(method => Closed(method, substitution, closings)));
+
+            if(type is AbstractType)
+            {
+                indexers.AddRange(definition.IndexersList.Select(indexer => Closed(indexer, substitution, closings)));
+            }
         }
 
-        yield return [.. methods.Distinct<object>(ReferenceEqualityComparer.Instance), .. inherited.Where(member => member is Method)];
-        yield return [.. (type is AbstractType ? owners : [type]).SelectMany(owner => owner.IndexersList).Distinct<object>(ReferenceEqualityComparer.Instance), .. inherited.Where(member => member is Indexer)];
+        yield return [.. methods.Distinct(ReferenceEqualityComparer.Instance)];
+        yield return [.. indexers.Distinct(ReferenceEqualityComparer.Instance)];
         yield return [.. type.OperatorsList];
 
         if(type is ConcreteType concrete)
@@ -341,29 +352,47 @@ internal sealed class OverloadNames : IDisposable
 
     private static IEnumerable<object> Inherited(ConcreteType type, Dictionary<object, object> closings)
     {
-        for(IMistType? written = type.BaseType; written is not null && Defaultability.DeclarationOf(written) is ConcreteType ancestor and not StructType;)
+        var seen = new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance) { type };
+
+        for(IMistType? written = type.BaseType;
+            written is not null && (written is ConstructedType constructed ? constructed.Definition : written) is ConcreteType ancestor and not StructType && seen.Add(ancestor);)
         {
             var closing = TypeSubstitution.ForReceiver(written as ConstructedType);
-            var restated = AbstractInheritance.Reached(ancestor.BaseAbstractTypes, interner: null)
-                .SelectMany(reached => reached.Definition.MethodsList)
-                .Where(method => method.Body is not null && !method.Modifiers.IsStatic);
 
-            foreach(var method in ancestor.MethodsList.Concat(restated).Distinct())
+            foreach(var method in ancestor.MethodsList)
             {
-                yield return written is ConstructedType ? Closed(method, closing, closings) : method;
+                yield return Closed(method, closing, closings);
             }
 
             foreach(var indexer in ancestor.IndexersList)
             {
-                yield return written is ConstructedType ? Closed(indexer, closing, closings) : indexer;
+                yield return Closed(indexer, closing, closings);
+            }
+
+            foreach(var (_, definition, substitution) in AbstractInheritance.Reached(ancestor.BaseAbstractTypes.Select(each => closing.Apply(each, interner: null)), interner: null))
+            {
+                foreach(var method in Restated(definition))
+                {
+                    yield return Closed(method, substitution, closings);
+                }
             }
 
             written = ancestor.BaseType is { } next ? closing.Apply(next, interner: null) : null;
         }
     }
 
+    private static IEnumerable<Method> Restated(AbstractType definition)
+    {
+        return definition.MethodsList.Where(method => method.Body is not null && !method.Modifiers.IsStatic);
+    }
+
     private static object Closed(Method method, TypeSubstitution closing, Dictionary<object, object> closings)
     {
+        if(ReferenceEquals(closing, TypeSubstitution.Empty))
+        {
+            return method;
+        }
+
         var closed = new Method(method.Name, closing.Apply(method.ReturnType, interner: null), Closed(method.ParametersList, closing), method.Modifiers)
         {
             DeclaringType = method.DeclaringType,
@@ -379,6 +408,11 @@ internal sealed class OverloadNames : IDisposable
 
     private static object Closed(Indexer indexer, TypeSubstitution closing, Dictionary<object, object> closings)
     {
+        if(ReferenceEquals(closing, TypeSubstitution.Empty))
+        {
+            return indexer;
+        }
+
         var closed = new Indexer(closing.Apply(indexer.Type, interner: null), Closed(indexer.ParametersList, closing), indexer.Modifiers)
         {
             DeclaringType = indexer.DeclaringType,
@@ -423,12 +457,17 @@ internal sealed class OverloadNames : IDisposable
             {
                 for(var earlier = 0; earlier < later; earlier++)
                 {
-                    if(spelled[earlier] != spelled[later] || !Erased(members[earlier], members[later]))
+                    if(!(spelled[earlier] == spelled[later] ? Erased(members[earlier], members[later]) : Meets(members[earlier], members[later])))
                     {
                         continue;
                     }
 
                     var (one, other) = (closings.GetValueOrDefault(members[earlier], members[earlier]), closings.GetValueOrDefault(members[later], members[later]));
+
+                    if(ReferenceEquals(one, other) || (spelled[earlier] != spelled[later] && Pinned(one) && Pinned(other)))
+                    {
+                        continue;
+                    }
 
                     if(!groups.Same(one, other))
                     {
@@ -477,6 +516,112 @@ internal sealed class OverloadNames : IDisposable
                 .Any(pair => ValueRouteEmitter.Erased(pair.First.Type, pair.Second.Type) is not null),
             _ => false,
         };
+    }
+
+    private static bool Meets(object earlier, object later)
+    {
+        if(Plain(earlier) is not { } first || Plain(later) is not { } second || first.Count != second.Count)
+        {
+            return false;
+        }
+
+        var bound = new Dictionary<TypeParameter, IMistType>(ReferenceEqualityComparer.Instance);
+        var throughSlot = false;
+
+        for(var i = 0; i < first.Count; i++)
+        {
+            if(first[i].Modifier.IsRef != second[i].Modifier.IsRef || first[i].Modifier.IsReadonly != second[i].Modifier.IsReadonly
+                || !Unify(first[i].Type, second[i].Type, bound, ref throughSlot, depth: 0))
+            {
+                return false;
+            }
+        }
+
+        return throughSlot;
+    }
+
+    private static List<Parameter>? Plain(object member)
+    {
+        return member switch
+        {
+            CastOperator => null,
+            Method { DeclaringBlock: null } method when ValueRouteEmitter.Spelled(method) == $"{method.TypeParametersList.Count(parameter => !SlotRoutes.IsValueRouted(parameter))}:{string.Join(",", method.ParametersList.Select(parameter =>
+                RefKeywords.For(parameter.Modifier.IsRef, parameter.Modifier.IsReadonly) + ParameterEmitter.SpelledType(parameter, NativeSlotNullability.Declares(parameter))))}" => method.ParametersList,
+            Indexer indexer => indexer.ParametersList,
+            _ => null,
+        };
+    }
+
+    private static bool Unify(IMistType one, IMistType other, Dictionary<TypeParameter, IMistType> bound, ref bool throughSlot, int depth)
+    {
+        if(depth > 16)
+        {
+            return false;
+        }
+
+        if((Variable(one) ?? Variable(other)) is { } variable)
+        {
+            var (_, type) = ReferenceEquals(variable, Variable(one)) ? (one, other) : (other, one);
+
+            if(bound.TryGetValue(variable, out var earlier))
+            {
+                return Unify(earlier, type, bound, ref throughSlot, depth + 1);
+            }
+
+            if(Variable(type) is { } another)
+            {
+                return ReferenceEquals(another, variable);
+            }
+
+            bound[variable] = type;
+            throughSlot |= CarriesSlot(type, depth);
+            return true;
+        }
+
+        if(TypeNameEmitter.Closed(one) is ConstructedType first && TypeNameEmitter.Closed(other) is ConstructedType second
+            && ReferenceEquals(first.Definition, second.Definition) && first.Definition is IHasTypeParameters generic
+            && first.TypeArguments.Count == second.TypeArguments.Count)
+        {
+            foreach(var slot in generic.TypeParametersList.Where(slot => slot.Ordinal < first.TypeArguments.Count))
+            {
+                var (mine, theirs) = (first.TypeArguments[slot.Ordinal], second.TypeArguments[slot.Ordinal]);
+
+                if(!slot.IsDependent)
+                {
+                    if(!Unify(mine, theirs, bound, ref throughSlot, depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                else if(mine.FullyQualifiedName != theirs.FullyQualifiedName)
+                {
+                    if(!SlotRoutes.IsValueRouted(slot) && !LengthErasure.IsLengthIndexed(first))
+                    {
+                        return false;
+                    }
+
+                    throughSlot = true;
+                }
+            }
+
+            return true;
+        }
+
+        return TypeNameEmitter.Emit(one) == TypeNameEmitter.Emit(other);
+    }
+
+    private static TypeParameter? Variable(IMistType type)
+    {
+        return type is TypeParameter { IsDependent: false, IsPack: false, DeclaringMethod: null } variable and not PackElementType ? variable : null;
+    }
+
+    private static bool CarriesSlot(IMistType type, int depth)
+    {
+        return depth <= 16 && TypeNameEmitter.Closed(type) is ConstructedType constructed && constructed.Definition is IHasTypeParameters generic
+            && generic.TypeParametersList.Any(slot => slot.Ordinal < constructed.TypeArguments.Count
+                && (slot.IsDependent
+                    ? SlotRoutes.IsValueRouted(slot) || LengthErasure.IsLengthIndexed(constructed)
+                    : CarriesSlot(constructed.TypeArguments[slot.Ordinal], depth + 1)));
     }
 
     private static bool Pinned(object member)

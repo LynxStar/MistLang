@@ -590,13 +590,28 @@ beside `SlotRoutes`, finds the members of one name whose emitted parameter
 lists coincide and that differ by a slot the C# type does not carry, the
 same test MIST0497 made. It reads every C# type a member lands in: a type's
 own members, a struct's flattened ancestors, a conformer's restatable
-defaults, an interface's inherited interfaces, and a class's base classes.
-A base class's members are read at the closing the class writes for each
-base, so `Name(T)` on `Base<T>` meets `Name(Ring<4>)` on a class written
-`: Base<Ring<3>>`. Mist has no virtual members, so in C# the derived member
-hides the base one. A direct call is cast to the base type and reaches it
-anyway, but a method group, an indexer read and an interface answered by the
-base member do not, so the two are renamed apart. Nullable annotations are
+defaults, an interface's inherited interfaces, and a class's base classes,
+whether Mist, intrinsic (`Standard.List<T>`) or CLR. Every member reached
+through a base, a flattened ancestor or an abstract is read at the closing
+written for it, so `Name(T)` on `Base<T>` meets `Name(Ring<4>)` on a class
+written `: Base<Ring<3>>`, and a default `Name(T)` on `Namer<T>` meets it on
+a conformer or an abstract written `: Namer<Ring<3>>`. Mist has no virtual
+members, so in C# the derived member hides the base one. A direct call is
+cast to the base type and reaches it anyway, but a method group, an indexer
+read and an interface answered by the base member do not, so the two are
+renamed apart. An intrinsic or CLR base member keeps its name and the Mist
+member is renamed around it: `Add(Ring<4>)` on a class written
+`: List<Ring<3>>`.
+
+A type's own type parameter meets a type that carries an erased slot:
+`Name(T)` and `Name(Ring<4>)` on `Base<T>` are renamed apart, because at
+`Base<Ring<3>>` the two C# lists are both `Name(Ring)` and C# prefers the
+member that names the type outright. A parameter meets `string` or `int`
+nowhere, since no closing to them differs from the other member by a slot
+alone, so `Name(T)` beside `Name(string)` keeps its names. A generic
+method's own type parameter meets nothing, because every call spells its
+type arguments. Two type parameters, `Name(T)` beside `Name(U)`, are left:
+nothing in either declaration carries a slot. Nullable annotations are
 ignored, as C# ignores them in a signature.
 
 An abstract's member and each member answering it by name are one name
@@ -629,14 +644,14 @@ Every kind of member that can be overloaded:
 
 | Member | Disposition |
 |---|---|
-| Instance method, static method | Renamed, also apart from a base class's member of the same parameters, which it would hide. |
+| Instance method, static method | Renamed, also apart from a base class's member of the same parameters, which it would hide, read at the closing the class writes; an intrinsic or CLR base's member keeps its name. A member whose parameter is the type's own type parameter is renamed apart from one taking a type that carries an erased slot. |
 | Extension block's method | Renamed; one block is one carrier class, so one scope. |
 | Constructor | Renamed through the marker parameter, at `new`, a `this` or `base` chain, a struct ancestor's initializer and its chain call, a constructor witness's factory, a constraint interface's `__New`, and a newtype restating the constructor. |
-| Indexer | Renamed as accessor methods, at a read, an assignment, `??=`, a compound assignment and an increment, also apart from a base class's indexer. |
+| Indexer | Renamed as accessor methods, at a read, an assignment, `??=`, a compound assignment and an increment, also apart from a base class's indexer and, as for a method, through the type's own type parameter. |
 | Operator | Renamed as a static method, at a binary, unary and compound use. |
 | Conversion | Renamed as a static method, at a cast and an implicit conversion. A type's conversions are one scope with the target in the list, as C# keys a conversion by source and target. |
 | Abstract's member and each implementing member | Renamed as one group, including a member inherited from a base class and a `with` conformance's answer by name. A mapped answer, `Three as Name`, is not joined: its explicit implementation forwards by the source's own name. |
-| Default member restated into a conformer | Renamed; the restatement is the abstract's member, and a conformer's own member suppresses it by the C# name. |
+| Default member restated into a conformer | Renamed; the restatement is the abstract's member, read at the closing the conformer, a base class or an extending abstract writes, and a conformer's own member suppresses it by the C# name. |
 | Local function | Cannot coincide: two of one name in a scope are MIST0368, and a nested redeclaration is renamed apart by `LocalNames`. |
 
 Every place the emitter spells a member's name, each of which spells the new

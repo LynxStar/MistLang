@@ -130,6 +130,73 @@ public sealed class OverloadNameEmissionTests
     }
 
     [Fact]
+    public void AGenericTypesMemberMeetingAnErasedSlotThroughItsParameterIsDeclaredAndCalledUnderItsNewName()
+    {
+        var generic = Declared("Base<>");
+        var t = new TypeParameter("T", 0, generic.Scope, generic);
+        generic.TypeParametersList.Add(t);
+        var open = Method(generic, "Name", t);
+        _ = Method(generic, "Name", Ring(4));
+        var b = HandBuiltRefinements.Local(slots.Closed(generic, Ring(3)), "b");
+        using var routes = SlotRoutes.Enter([capacity]);
+        using var names = Names(generic);
+        var renamed = OverloadNames.NameFor(open);
+
+        var lines = TypeBody(generic);
+
+        Assert.Contains($"public int {renamed}(T p0)", lines);
+        Assert.Contains($"public int {Four}(Probe.Ring p0)", lines);
+        Assert.Equal($"b.{renamed}(r)", Emit(Through(b, open, HandBuiltRefinements.Local(Ring(3), "r"))));
+    }
+
+    [Fact]
+    public void AMemberMeetingAClosedClrBasesMemberIsRenamedAroundIt_AndTheBaseMemberIsCalledByItsOwnName()
+    {
+        var collection = new ClassType("Collection<>", "System.Collections.ObjectModel", new Scope(null), null, null) { Modifiers = Public };
+        var t = new TypeParameter("T", 0, collection.Scope, collection);
+        collection.TypeParametersList.Add(t);
+        var add = new Method("Add", slots.Int, [new Parameter("item", t)], Public) { DeclaringType = collection, Scope = collection.Scope };
+        collection.MethodsList.Add(add);
+        var bag = Declared("Bag");
+        bag.BaseType = slots.Closed(collection, Ring(3));
+        var own = Method(bag, "Add", Ring(4));
+        var b = HandBuiltRefinements.Local(bag, "b");
+        using var routes = SlotRoutes.Enter([capacity]);
+        using var names = Names(bag);
+
+        Assert.Contains("public int Add__Probe_dRing_l4_r(Probe.Ring p0)", TypeBody(bag));
+        Assert.Equal("b.Add__Probe_dRing_l4_r(r)", Emit(Through(b, own, HandBuiltRefinements.Local(Ring(4), "r"))));
+        Assert.EndsWith(".Add(r)", Emit(Through(b, add, HandBuiltRefinements.Local(Ring(3), "r"))), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AGenericAbstractsDefaultIsDeclaredUnderItsNewNameBesideAConformersMemberMeetingItAtTheClosing()
+    {
+        var namer = new AbstractType("Namer<>", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public };
+        var t = new TypeParameter("T", 0, namer.Scope, namer);
+        namer.TypeParametersList.Add(t);
+        var fallback = new Method("Name", slots.Int, [new Parameter("r", t)], Public)
+        {
+            DeclaringType = namer,
+            Scope = namer.Scope,
+            DeclarationNode = Node(),
+            Body = HandBuiltModel.Block(),
+        };
+        namer.MethodsList.Add(fallback);
+        var conformer = Declared("Conformer");
+        conformer.BaseAbstractTypes.Add(slots.Closed(namer, Ring(3)));
+        _ = Method(conformer, "Name", Ring(4));
+        var held = HandBuiltRefinements.Local(slots.Closed(namer, Ring(3)), "namer");
+        using var routes = SlotRoutes.Enter([capacity]);
+        using var names = Names(namer, conformer);
+        var renamed = OverloadNames.NameFor(fallback);
+
+        Assert.Contains(TypeBody(namer), line => line.Contains($" {renamed}(T r)", StringComparison.Ordinal));
+        Assert.Contains($"public int {Four}(Probe.Ring p0)", TypeBody(conformer));
+        Assert.Equal($"namer.{renamed}(r)", Emit(Through(held, fallback, HandBuiltRefinements.Local(Ring(3), "r"))));
+    }
+
+    [Fact]
     public void AnAbstractsPairAndTheImplementingTypesPairAreDeclaredUnderOneName()
     {
         var namer = new AbstractType("Namer", "Probe", new Scope(null), null, new BodyTypeTypeDeclarationNode()) { Modifiers = Public };

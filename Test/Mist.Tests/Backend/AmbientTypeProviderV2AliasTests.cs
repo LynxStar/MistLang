@@ -1,76 +1,27 @@
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Scopes;
-using Mist.ProgramModel.Model.Types;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
-[Trait("Tier", "1")]
+[Trait("Tier", "2")]
 public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 {
     private readonly ProgramModelClass programModel;
     private readonly AmbientTypeProviderV2 provider;
 
-    private IMistType? LookupType(string namespaceName, string typeName)
-    {
-        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
-        {
-            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
-            {
-                return stdType;
-            }
-
-            return null;
-        }
-
-        var mistName = typeName;
-        var backtickIndex = typeName.IndexOf('`');
-        if(backtickIndex >= 0)
-        {
-            var baseName = typeName[..backtickIndex];
-            var arityStr = typeName[(backtickIndex + 1)..];
-            if(int.TryParse(arityStr, out var arity) && arity >= 1)
-            {
-                var commas = new string(',', arity - 1);
-                mistName = $"{baseName}<{commas}>";
-            }
-        }
-
-        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
-        {
-            return type;
-        }
-
-        return null;
-    }
-
+    // No assembly is loaded: the aliases are the provider's own substitution, not anything it projects.
     public AmbientTypeProviderV2AliasTests()
     {
         programModel = new ProgramModelClass();
-        _ = programModel.GetOrAddNamespace("Standard");
-
-        var typeNames = new[]
-        {
-            "Int32", "Int64", "Int16", "Byte", "SByte",
-            "UInt32", "UInt64", "UInt16", "Single", "Double", "Decimal",
-            "String", "Boolean", "Char", "Void",
-            "Task", "Task<>", "ValueTask", "ValueTask<>"
-        };
-
-        var scope = new Scope(null);
-        foreach(var name in typeNames)
-        {
-            var type = new ClassType(name, "Standard", scope, null, null!);
-            _ = programModel.RegisterType(type);
-        }
+        AmbientProviderTestHelper.RegisterStandardTypes(programModel);
 
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
             null,
             new DiagnosticBag());
+        provider.BuildAndRegister(programModel);
     }
 
     public void Dispose()
@@ -78,94 +29,84 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         provider.Dispose();
     }
 
-    public static TheoryData<string, string, string> AliasEntries
+    /// <summary>
+    /// Every alias whose CLR type and Standard declaration share a simple name.
+    /// </summary>
+    public static TheoryData<string, string> AliasEntries => new()
     {
-        get
-        {
-            var data = new TheoryData<string, string, string>
-            {
-                { "System", "Int32", "Int32" },
-                { "System", "Int64", "Int64" },
-                { "System", "Int16", "Int16" },
-                { "System", "Byte", "Byte" },
-                { "System", "SByte", "SByte" },
-                { "System", "UInt32", "UInt32" },
-                { "System", "UInt64", "UInt64" },
-                { "System", "UInt16", "UInt16" },
-                { "System", "Single", "Single" },
-                { "System", "Double", "Double" },
-                { "System", "Decimal", "Decimal" },
-                { "System", "String", "String" },
-                { "System", "Boolean", "Boolean" },
-                { "System", "Char", "Char" },
-                { "System", "Void", "Void" },
-                { "System.Threading.Tasks", "Task", "Task" },
-                { "System.Threading.Tasks", "ValueTask", "ValueTask" },
-            };
+        { "System", "Int32" },
+        { "System", "Int64" },
+        { "System", "Int16" },
+        { "System", "Byte" },
+        { "System", "SByte" },
+        { "System", "UInt32" },
+        { "System", "UInt64" },
+        { "System", "UInt16" },
+        { "System", "Single" },
+        { "System", "Double" },
+        { "System", "Decimal" },
+        { "System", "String" },
+        { "System", "Boolean" },
+        { "System", "Char" },
+        { "System", "Void" },
+        { "System", "Index" },
+        { "System", "Range" },
+        { "System.Threading.Tasks", "Task" },
+        { "System.Threading.Tasks", "ValueTask" },
+    };
 
-            return data;
-        }
+    [Theory]
+    [MemberData(nameof(AliasEntries))]
+    public void AliasEntry_ProjectsAsTheReferenceEqualStandardInstance(string clrNamespace, string typeName)
+    {
+        var projected = provider.ProjectionOf(RuntimeType($"{clrNamespace}.{typeName}"));
+
+        Assert.Same(programModel.TypesByFQN[$"Standard.{typeName}"], projected);
     }
 
     [Theory]
     [MemberData(nameof(AliasEntries))]
-    public void ResolveType_AliasEntry_ReturnsReferenceEqualStandardInstance(
-        string clrNamespace, string clrTypeName, string expectedMistTypeName)
+    public void AliasEntry_IsNamedByItsClrName(string clrNamespace, string typeName)
     {
-        var resolved = LookupType(clrNamespace, clrTypeName);
+        var named = programModel.FindQualifiedType($"{clrNamespace}.{typeName}");
 
-        Assert.NotNull(resolved);
-
-        var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
-        Assert.True(
-            ReferenceEquals(resolved, expected),
-            $"ResolveType(\"{clrNamespace}\", \"{clrTypeName}\") should return the reference-equal " +
-            $"Standard Library instance for \"{expectedMistTypeName}\", but got a different object.");
+        Assert.Same(programModel.TypesByFQN[$"Standard.{typeName}"], named);
     }
 
     [Theory]
-    [MemberData(nameof(AliasEntries))]
-    public void ResolveType_ArityAwareOverload_ReturnsReferenceEqualStandardInstance(
-        string clrNamespace, string clrTypeName, string expectedMistTypeName)
+    [InlineData("Task")]
+    [InlineData("ValueTask")]
+    public void AnAliasWithAGenericSibling_ProjectsTheSiblingAsTheGenericStandardDeclaration(string typeName)
     {
-        var resolved = LookupType(clrNamespace, clrTypeName);
+        var projected = provider.ProjectionOf(RuntimeType($"System.Threading.Tasks.{typeName}`1"));
 
-        Assert.NotNull(resolved);
-
-        var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
-        Assert.True(
-            ReferenceEquals(resolved, expected),
-            $"ResolveType(\"{clrNamespace}\", \"{clrTypeName}\", 0) should return the reference-equal " +
-            $"Standard Library instance for \"{expectedMistTypeName}\".");
-    }
-
-    [Theory]
-    [MemberData(nameof(AliasEntries))]
-    public void ResolveType_ArityAwareOverload_WithNonZeroArity_ReturnsNull(
-        string clrNamespace, string clrTypeName, string expectedMistTypeName)
-    {
-        _ = expectedMistTypeName;
-
-        // Task and ValueTask have generic variants that ARE aliased (Task<> -> Standard.Task<>)
-        if(clrTypeName is "Task" or "ValueTask")
-        {
-            return;
-        }
-
-        var resolved = LookupType(clrNamespace, $"{clrTypeName}<>");
-
-        Assert.Null(resolved);
+        Assert.Same(programModel.TypesByFQN[$"Standard.{typeName}<>"], projected);
+        Assert.NotSame(programModel.TypesByFQN[$"Standard.{typeName}"], projected);
+        Assert.Null(programModel.FindQualifiedType($"System.Threading.Tasks.{typeName}`1"));
     }
 
     [Fact]
-    public void AliasMap_HasExactly17Entries()
+    public void AliasMap_SameNameEntriesAreExactlyTheAliasEntries()
     {
-        var count = 0;
-        foreach(var _ in AliasEntries)
-        {
-            count++;
-        }
+        var sameName = WellKnownTypeMap.Entries
+            .Where(entry => entry.Key.TypeName == entry.Value.MistTypeName)
+            .Select(entry =>
+            {
+                Assert.Equal("Standard", entry.Value.MistNamespace);
+                return (entry.Key.Namespace, entry.Key.TypeName);
+            })
+            .Order()
+            .ToList();
+        var aliasEntries = AliasEntries
+            .Select(row => ((string)row[0], (string)row[1]))
+            .Order()
+            .ToList();
 
-        Assert.Equal(17, count);
+        Assert.Equal(aliasEntries, sameName);
+    }
+
+    private static Type RuntimeType(string fullName)
+    {
+        return typeof(object).Assembly.GetType(fullName, throwOnError: true)!;
     }
 }

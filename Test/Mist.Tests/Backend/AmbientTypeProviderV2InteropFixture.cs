@@ -8,8 +8,6 @@ namespace Mist.Tests.Backend;
 
 public class AmbientTypeProviderV2InteropFixture : IDisposable
 {
-    private readonly AmbientTypeProviderV2 provider;
-
     public AmbientTypeProviderV2InteropFixture()
         : this([])
     {
@@ -19,12 +17,23 @@ public class AmbientTypeProviderV2InteropFixture : IDisposable
     {
         Model = new ProgramModelClass();
         AmbientProviderTestHelper.RegisterStandardTypes(Model);
-        provider = AmbientProviderTestHelper.ProviderOver(
+        Provider = AmbientProviderTestHelper.ProviderOver(
             new DiagnosticBag(), [typeof(TupleSignatures).Assembly.Location, .. besideTheFixture]);
-        provider.BuildAndRegister(Model);
+        Provider.BuildAndRegister(Model);
     }
 
     internal ProgramModelClass Model { get; }
+
+    internal AmbientTypeProviderV2 Provider { get; }
+
+    /// <summary>
+    /// The projection of the CLR type named <paramref name="clrFullName"/>, found the way the type
+    /// inspector finds it: the loaded assemblies name the CLR type, and the provider answers its projection.
+    /// </summary>
+    internal MistType? Projected(string clrFullName)
+    {
+        return Provider.FindClrType(clrFullName) is { } clrType ? Provider.ProjectionOf(clrType) : null;
+    }
 
     internal ClassType Type(string name)
     {
@@ -46,7 +55,7 @@ public class AmbientTypeProviderV2InteropFixture : IDisposable
     {
         if(disposing)
         {
-            provider.Dispose();
+            Provider.Dispose();
         }
     }
 }

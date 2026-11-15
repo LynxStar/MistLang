@@ -1,174 +1,139 @@
 // ambient-type-provider-v2 Property 3, Requirements 4.1, 4.2, 4.4.
 
-using System.Collections.Immutable;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
-using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Contracts.Types;
-using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using Family = Mist.Tests.InteropFixtures.DelegateFamily;
 
 namespace Mist.Tests.Backend;
 
-[Trait("Tier", "1")]
-public sealed class DelegateFamilyProjectionV2Tests : IDisposable
+[Trait("Tier", "2")]
+public sealed class DelegateFamilyProjectionV2Tests(AmbientTypeProviderV2InteropFixture fixture)
+    : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    private readonly ProgramModelClass programModel;
-    private readonly AmbientTypeProviderV2 provider;
-    private readonly IMistType funcArity2;
-    private readonly IMistType voidType;
+    private const string Signatures = "Mist.Tests.InteropFixtures.DelegateFamily." + nameof(Family.DelegateFamilySignatures);
 
-    private IMistType? LookupType(string namespaceName, string typeName)
+    public static TheoryData<int> FuncArities => [.. Enumerable.Range(1, 17)];
+
+    public static TheoryData<int> ActionArities => [.. Enumerable.Range(0, 17)];
+
+    [Theory]
+    [MemberData(nameof(FuncArities))]
+    public void SystemFuncOfEveryArity_ProjectsAsTheOneVariadicStandardFunc(int arity)
     {
-        if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
+        var projected = fixture.Provider.ProjectionOf(SystemDelegate("Func", arity));
+
+        Assert.Same(StandardType("Func<,>"), projected);
+    }
+
+    [Theory]
+    [MemberData(nameof(ActionArities))]
+    public void SystemActionOfEveryArity_ProjectsAsTheOneVariadicStandardAction(int arity)
+    {
+        var projected = fixture.Provider.ProjectionOf(SystemDelegate("Action", arity));
+
+        Assert.Same(StandardType("Action<>"), projected);
+    }
+
+    [Fact]
+    public void AClosedSystemFunc_ProjectsAsItsDefinitionsStandardFunc()
+    {
+        Assert.Same(StandardType("Func<,>"), fixture.Provider.ProjectionOf(typeof(Func<int, string>)));
+        Assert.Same(StandardType("Action<>"), fixture.Provider.ProjectionOf(typeof(Action<int, long>)));
+    }
+
+    // A generic family has no one name a written use could mean, so it is reached through Standard alone.
+    [Theory]
+    [InlineData("System.Func`1")]
+    [InlineData("System.Func`3")]
+    [InlineData("System.Action")]
+    [InlineData("System.Action`2")]
+    public void TheSystemDelegateFamily_IsNotNamedByItsClrName(string clrName)
+    {
+        Assert.Null(fixture.Model.FindQualifiedType(clrName));
+    }
+
+    [Fact]
+    public void ADelegateNamedFuncOutsideSystem_ProjectsAsItsOwnAmbientType()
+    {
+        var projected = fixture.Provider.ProjectionOf(typeof(Family.Func<>));
+
+        Assert.NotNull(projected);
+        Assert.NotSame(StandardType("Func<,>"), projected);
+        Assert.Equal("Mist.Tests.InteropFixtures.DelegateFamily.Func<>", projected!.FullyQualifiedName);
+        Assert.Equal(MistAssemblyKind.Ambient, projected.Assembly.Kind);
+    }
+
+    // Neither is in the family: with no assembly declaring them loaded, nothing projects them.
+    [Theory]
+    [InlineData(typeof(Delegate))]
+    [InlineData(typeof(MulticastDelegate))]
+    public void TheDelegateBaseTypes_AreNotProjectedAsTheFamily(Type clrType)
+    {
+        Assert.Null(fixture.Provider.ProjectionOf(clrType));
+    }
+
+    [Fact]
+    public void ASystemFuncParameter_ProjectsAsTheFunctionTypeOfItsArguments()
+    {
+        var produce = Assert.IsType<FunctionType>(ParameterOf("Produce"));
+        Assert.Empty(produce.ParameterTypes);
+        Assert.Same(StandardType("Int32"), produce.ReturnType);
+
+        var test = Assert.IsType<FunctionType>(ParameterOf("Test"));
+        AssertStandardTypes(test.ParameterTypes, "Int32", "Int64");
+        Assert.Same(StandardType("Boolean"), test.ReturnType);
+    }
+
+    [Fact]
+    public void ASystemActionParameter_ProjectsAsAFunctionTypeReturningVoid()
+    {
+        var run = Assert.IsType<FunctionType>(ParameterOf("Run"));
+        Assert.Empty(run.ParameterTypes);
+        Assert.Same(StandardType("Void"), run.ReturnType);
+
+        var feed = Assert.IsType<FunctionType>(ParameterOf("Feed"));
+        AssertStandardTypes(feed.ParameterTypes, "Int32", "Int64");
+        Assert.Same(StandardType("Void"), feed.ReturnType);
+    }
+
+    [Fact]
+    public void ASystemFuncReturn_ProjectsAsTheFunctionTypeOfItsArguments()
+    {
+        var positive = Assert.IsType<FunctionType>(MethodOf("Positive").ReturnType);
+
+        AssertStandardTypes(positive.ParameterTypes, "Int32");
+        Assert.Same(StandardType("Boolean"), positive.ReturnType);
+    }
+
+    private static Type SystemDelegate(string family, int arity)
+    {
+        var name = arity == 0 ? $"System.{family}" : $"System.{family}`{arity}";
+        return typeof(Action).Assembly.GetType(name, throwOnError: true)!;
+    }
+
+    private IMistType StandardType(string name)
+    {
+        return fixture.Model.TypesByFQN[$"Standard.{name}"];
+    }
+
+    private void AssertStandardTypes(IReadOnlyList<IMistType> actual, params string[] names)
+    {
+        Assert.Equal(names.Length, actual.Count);
+        for(var i = 0; i < names.Length; i++)
         {
-            if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
-            {
-                return stdType;
-            }
-
-            return null;
+            Assert.Same(StandardType(names[i]), actual[i]);
         }
-
-        var mistName = typeName;
-        var backtickIndex = typeName.IndexOf('`');
-        if(backtickIndex >= 0)
-        {
-            var baseName = typeName[..backtickIndex];
-            var arityStr = typeName[(backtickIndex + 1)..];
-            if(int.TryParse(arityStr, out var arity) && arity >= 1)
-            {
-                var commas = new string(',', arity - 1);
-                mistName = $"{baseName}<{commas}>";
-            }
-        }
-
-        if(programModel.TypesByFQN.TryGetValue($"{namespaceName}.{mistName}", out var type))
-        {
-            return type;
-        }
-
-        return null;
     }
 
-    public DelegateFamilyProjectionV2Tests()
+    private Method MethodOf(string name)
     {
-        programModel = new ProgramModelClass();
-        _ = programModel.GetOrAddNamespace("Standard");
-        var scope = new Scope(null);
-
-        // Register the single variadic Func<params TArgs, TResult> (arity 2)
-        funcArity2 = new ClassType("Func<,>", "Standard", scope, null, null);
-        voidType = new ClassType("Void", "Standard", scope, null, null);
-
-        _ = programModel.RegisterType(funcArity2);
-        _ = programModel.RegisterType(voidType);
-
-        // Register the single variadic Action<params TArgs> (arity 1)
-        var actionDef = new ClassType("Action<>", "Standard", scope, null, null);
-        _ = programModel.RegisterType(actionDef);
-
-        provider = new AmbientTypeProviderV2(
-            ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
-            null,
-            new DiagnosticBag());
+        var signatures = (MemberType)fixture.Model.TypesByFQN[Signatures];
+        return signatures.MethodsList.Single(method => method.Name == name);
     }
 
-    public void Dispose()
+    private IMistType ParameterOf(string methodName)
     {
-        provider.Dispose();
-    }
-
-    [Fact]
-    public void ResolveType_SystemFuncArity1_ReturnsStandardFuncDefinition()
-    {
-        var resolved = LookupType("System", "Func`1");
-
-        Assert.NotNull(resolved);
-        Assert.True(
-            ReferenceEquals(resolved, funcArity2),
-            "ResolveType(\"System\", \"Func`1\") should return the Standard.Func<,> definition.");
-    }
-
-    [Fact]
-    public void ResolveType_SystemFuncArity2_ReturnsStandardFuncDefinition()
-    {
-        var resolved = LookupType("System", "Func`2");
-
-        Assert.NotNull(resolved);
-        Assert.True(
-            ReferenceEquals(resolved, funcArity2),
-            "ResolveType(\"System\", \"Func`2\") should return the Standard.Func<,> definition.");
-    }
-
-    [Fact]
-    public void ResolveType_SystemFuncArity3_ReturnsStandardFuncDefinition()
-    {
-        var resolved = LookupType("System", "Func`3");
-
-        Assert.NotNull(resolved);
-        Assert.True(
-            ReferenceEquals(resolved, funcArity2),
-            "ResolveType(\"System\", \"Func`3\") should return the Standard.Func<,> definition.");
-    }
-
-    [Fact]
-    public void ResolveType_SystemAction_ReturnsStandardAction()
-    {
-        var resolved = LookupType("System", "Action");
-
-        Assert.NotNull(resolved);
-        var expected = programModel.TypesByFQN["Standard.Action<>"];
-        Assert.True(
-            ReferenceEquals(resolved, expected),
-            "ResolveType(\"System\", \"Action\") should return the Standard.Action<> definition.");
-    }
-
-    [Fact]
-    public void ResolveType_SystemActionArity1_ReturnsStandardActionArity1()
-    {
-        var resolved = LookupType("System", "Action`1");
-
-        Assert.NotNull(resolved);
-        var expected = programModel.TypesByFQN["Standard.Action<>"];
-        Assert.True(
-            ReferenceEquals(resolved, expected),
-            "ResolveType(\"System\", \"Action`1\") should return Standard.Action<>.");
-    }
-
-    [Fact]
-    public void ResolveType_SystemActionArity2_ReturnsStandardActionArity2()
-    {
-        var resolved = LookupType("System", "Action`2");
-
-        Assert.NotNull(resolved);
-        var expected = programModel.TypesByFQN["Standard.Action<>"];
-        Assert.True(
-            ReferenceEquals(resolved, expected),
-            "ResolveType(\"System\", \"Action`2\") should return Standard.Action<>.");
-    }
-
-    [Fact]
-    public void ResolveType_NonSystemNamespace_DoesNotProjectDelegateFamily()
-    {
-        var resolved = LookupType("MyApp", "Func`1");
-
-        Assert.Null(resolved);
-    }
-
-    [Fact]
-    public void ResolveType_SystemDelegate_FallsThrough()
-    {
-        var resolved = LookupType("System", "Delegate");
-
-        Assert.Null(resolved);
-    }
-
-    [Fact]
-    public void ResolveType_SystemMulticastDelegate_FallsThrough()
-    {
-        var resolved = LookupType("System", "MulticastDelegate");
-
-        Assert.Null(resolved);
+        return Assert.Single(MethodOf(methodName).ParametersList).Type;
     }
 }

@@ -268,6 +268,11 @@ internal sealed class StorageEffects(ProgramModelClass model)
                 Foreign(creation.Arguments.Select(argument => argument.Type).ToList(), into);
             }
         }
+        else if(ImplicitlyConstructed(creation.Type) is { } implicitlyConstructed
+            && Ancestry.SubstitutionTo(creation.Type, implicitlyConstructed, interner) is { } substitution)
+        {
+            into.Edges.Add(new StorageEdge(implicitlyConstructed, StorageAccess.Read, substitution));
+        }
 
         foreach(var entry in creation.Initializer)
         {
@@ -294,6 +299,20 @@ internal sealed class StorageEffects(ProgramModelClass model)
                     break;
             }
         }
+    }
+
+    private static ConcreteType? ImplicitlyConstructed(IMistType created)
+    {
+        var target = Ancestry.Unwrap(created);
+        var definition = (target as ConstructedType)?.Definition ?? target;
+
+        if(definition is Newtype { SourceType: { } source })
+        {
+            target = Ancestry.Unwrap(source);
+            definition = (target as ConstructedType)?.Definition ?? target;
+        }
+
+        return definition as ConcreteType;
     }
 
     private void Operator(Method declared, IReadOnlyList<IMistType> operandTypes, StorageEffect into)

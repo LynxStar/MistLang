@@ -8,12 +8,12 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
 /// The value every element of an array creation or a stack allocation starts from when the element holds a
-/// value-routed struct by value, at any depth: the type's own default where the backend synthesizes one, so a
-/// declared default is honoured as definite-assignment Requirement 4.1b asks, and otherwise the struct built
-/// from its parts, each part the CLR zero it would have had with the hidden slot fields filled in. Built once
-/// where the storage is made, with the closing written out in full, so no description of a type parameter is
-/// needed; the element's hidden fields are what make its stamp differ from the CLR zero the storage would
-/// otherwise keep.
+/// value-routed struct by value, at any depth, or a struct whose hidden fields keep a closing witness: the type's
+/// own default where the backend synthesizes one, so a declared default is honoured as definite-assignment
+/// Requirement 4.1b asks, and otherwise the struct built from its parts, each part the CLR zero it would have had
+/// with the hidden fields filled in. Built once where the storage is made, with the closing written out in full; a
+/// witnessed type parameter, whose closing the body cannot write, starts from its witness's stamp. The element's
+/// hidden fields are what make its stamp differ from the CLR zero the storage would otherwise keep.
 /// </summary>
 internal static class StructStamp
 {

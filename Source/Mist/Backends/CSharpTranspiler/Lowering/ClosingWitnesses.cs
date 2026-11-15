@@ -172,7 +172,7 @@ internal sealed class ClosingWitnesses : IDisposable
             return [];
         }
 
-        return [.. (member.DeclaringType is ConcreteType enclosing ? Stored(enclosing) : []), .. Witnessed(member.TypeParametersList)];
+        return [.. member.DeclaringType is ConcreteType enclosing ? Stored(enclosing) : [], .. Witnessed(member.TypeParametersList)];
     }
 
     public static string Name(TypeParameter parameter)

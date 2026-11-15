@@ -145,7 +145,7 @@ internal static partial class BodyEmitter
 
     private static IMistType WitnessArgument(ConstructedType closing, TypeParameter parameter)
     {
-        for(ConstructedType? step = closing; step is not null; step = step.Enclosing)
+        for(var step = closing; step is not null; step = step.Enclosing)
         {
             if(ReferenceEquals(parameter.DeclaringType, step.Definition) && parameter.Ordinal < step.TypeArguments.Count)
             {

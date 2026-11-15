@@ -44,7 +44,7 @@ internal static partial class BodyEmitter
         var values = layout.Parts.Select(part => part.Slot is { } slot
             ? $"({SlotRoutes.Keyword(slot)})({ReadValue(part.Argument!, diagnostics, read)})"
             : $"..{SlotReach.Read(part.Spread!)}.Values");
-        var test = WitnessTest(closed, "__v", layout, new WitnessCursor(), diagnostics);
+        var test = WitnessTest(closed, "__v", new WitnessCursor());
         var stamp = WitnessStamp(closed, layout, diagnostics);
         var modifier = layout.Parts.Any(part => part.Spread is not null) || test.Contains("__closing_", StringComparison.Ordinal) ? "" : "static ";
 
@@ -125,7 +125,7 @@ internal static partial class BodyEmitter
         return SlotValue(argument, diagnostics) ?? EmissionDiagnostics.Fallback("witness value", TypeDisplay.Mist(argument), "default");
     }
 
-    private static string WitnessTest(IMistType type, string value, WitnessLayout layout, WitnessCursor cursor, DiagnosticBag? diagnostics)
+    private static string WitnessTest(IMistType type, string value, WitnessCursor cursor)
     {
         var closed = Unaliased(TypeNameEmitter.Closed(type));
 
@@ -136,17 +136,17 @@ internal static partial class BodyEmitter
                 return $"{SlotReach.Read(parameter)}.Is({value})";
 
             case ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) && ClosingWitnesses.Carries(constructed):
-                return ConstructedTest(constructed, value, layout, cursor, diagnostics);
+                return ConstructedTest(constructed, value, cursor);
 
             case TupleType or NamedTupleType when ClosingWitnesses.Carries(closed):
                 var elements = closed is TupleType tuple ? tuple.ElementTypes : ((NamedTupleType)closed).ElementTypes;
                 var bound = $"__w{cursor.Next()}";
                 var spelled = $"System.ValueTuple<{string.Join(", ", elements.Select(TypeNameEmitter.Emit))}>";
-                var parts = elements.Select((element, i) => WitnessTest(element, $"{bound}.Item{i + 1}", layout, cursor, diagnostics)).ToList();
+                var parts = elements.Select((element, i) => WitnessTest(element, $"{bound}.Item{i + 1}", cursor)).ToList();
                 return $"({value} is {spelled} {bound} && {string.Join(" && ", parts)})";
 
             case UnionType when OptionalUnion.IsOptional(closed) && OptionalUnion.InnerType(closed) is { } inner && ClosingWitnesses.Carries(inner):
-                return $"({value} is null || {WitnessTest(inner, value, layout, cursor, diagnostics)})";
+                return $"({value} is null || {WitnessTest(inner, value, cursor)})";
 
             default:
                 cursor.Skip(closed);
@@ -154,7 +154,7 @@ internal static partial class BodyEmitter
         }
     }
 
-    private static string ConstructedTest(ConstructedType constructed, string value, WitnessLayout layout, WitnessCursor cursor, DiagnosticBag? diagnostics)
+    private static string ConstructedTest(ConstructedType constructed, string value, WitnessCursor cursor)
     {
         var bound = $"__w{cursor.Next()}";
         var checks = new List<string> { $"{value} is {TypeNameEmitter.Emit(constructed)} {bound}" };

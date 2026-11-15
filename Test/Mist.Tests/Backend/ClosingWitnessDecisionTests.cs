@@ -113,7 +113,7 @@ public sealed class ClosingWitnessDecisionTests
         Assert.Empty(ClosingWitnesses.Stored(HandBuiltModel.Class("Plain<>")));
     }
 
-    private HashSet<TypeParameter> Decide(IEnumerable<object> roots, IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> fills)
+    private static HashSet<TypeParameter> Decide(IEnumerable<object> roots, IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> fills)
     {
         var closings = fills.ToList();
         return ClosingWitnesses.Decide(SlotSensitivity.Discover(roots, [], closings), closings, []);

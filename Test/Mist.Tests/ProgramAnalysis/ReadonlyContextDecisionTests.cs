@@ -1,7 +1,4 @@
-// Tier 3 (Component): readonly-context admissions stated by ReadonlyAnalyzer. Every fixture is
-// analyzed: a constructor assigning its own fields, a readonly setter writing its backing field, an
-// inferred-readonly call, a readonly block reading into a local, and allocation through a readonly
-// constructor.
+// Tier 3 (Component): readonly-context admissions; ReadonlyAnalyzer states why each is admitted.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

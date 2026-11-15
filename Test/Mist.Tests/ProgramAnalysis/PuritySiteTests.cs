@@ -1,4 +1,4 @@
-// Tier 2 (Functional): each purity reporting site keeps its node -- the offending expression, a drop's declaration, a chain's constructor, a closing, a conforming type, a default entry and a subpattern.
+// Tier 2 (Functional): each purity reporting site keeps its node.
 
 using Mist.Tests.Helpers;
 

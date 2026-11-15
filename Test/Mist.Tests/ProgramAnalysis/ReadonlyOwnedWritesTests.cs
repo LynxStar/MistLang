@@ -1,6 +1,4 @@
-// Tier 2 (Functional): purity Requirement 11, the fifteenth readonly-contexts rule, over hand-built contexts --
-// a readonly context may write a field, an index or a setter of what it OWNS and may call a local member
-// on it, while a write through an unrestricted parameter and a call to an unmarked member stay refused.
+// Tier 2 (Functional): purity Requirement 11, the fifteenth readonly-contexts rule, over hand-built contexts.
 // The ids are the readonly analyzer's own, since the amendment changes what it admits, not what it says.
 
 using Mist.Tests.Helpers;

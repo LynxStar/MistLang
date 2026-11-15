@@ -10,9 +10,9 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 1: SlotSignatures, the one comparison of a slot with a member that might answer it, over methods,
-// indexers and types constructed directly. A slot is declared on the abstract IShape and a filler on the
-// class Thing, so each type parameter belongs to the declaration a real one would.
+// Tier 1: SlotSignatures over methods, indexers and types constructed directly. A slot is declared on the
+// abstract IShape and a filler on the class Thing, so each type parameter belongs to the declaration a real
+// one would.
 [Trait("Tier", "1")]
 public sealed class SlotSignatureDecisionTests
 {

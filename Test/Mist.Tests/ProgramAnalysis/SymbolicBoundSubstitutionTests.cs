@@ -12,8 +12,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.ProgramAnalysis;
 
 // Tier 2: RefinementAnalyzer over hand-built calls whose parameter `where` names something other than a
-// constant -- the receiver's Count, a sibling parameter, a dependent parameter the construction closes.
-// Each argument sits at column 10 times its position plus one.
+// constant. Each argument sits at column 10 times its position plus one.
 [Trait("Tier", "2")]
 public sealed class SymbolicBoundSubstitutionTests
 {

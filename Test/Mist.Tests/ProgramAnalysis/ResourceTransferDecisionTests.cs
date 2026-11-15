@@ -1,6 +1,4 @@
-// The single decisions a lifetime plan stands on, each called with inputs built directly: whether a call
-// is surely entered, whether an argument is a fresh value only lent to its callee, whether an expression
-// merely views a value someone else holds, and which types are tracked at all.
+// The single decisions a lifetime plan stands on, each called with inputs built directly.
 
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;

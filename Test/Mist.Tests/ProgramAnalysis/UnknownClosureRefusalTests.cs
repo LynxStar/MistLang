@@ -57,9 +57,9 @@ public sealed class UnknownClosureRefusalTests
     }
 
     /// <summary>
-    /// Every <c>Box&lt;int&gt;</c> and every <c>Box&lt;unknown&gt;</c> already widens to <c>Box&lt;unknown&gt;</c>, so testing
-    /// for it learns nothing; a bare <c>unknown</c> or an unrelated construction does not widen to it, so
-    /// the test is a real question and the narrowing recovers full access.
+    /// Refused as <see cref="ProgramAnalysisDiagnostics.PatternNarrowsToUnknownClosure"/>; a bare unknown or an
+    /// unrelated construction does not widen to the closure, so the test is a real question and the narrowing
+    /// recovers full access.
     /// </summary>
     [Fact]
     [Trait("Tier", "1")]

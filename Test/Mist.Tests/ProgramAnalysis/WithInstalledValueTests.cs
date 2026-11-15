@@ -1,8 +1,5 @@
 // Tier 2 (Functional): ownership flow over hand-built bodies proves that a with keeps the linear or
-// affine value it installs live for the scope -- refusing a drop, a move to an owned destination, an
-// owned return or any other consumption of it or an alias of it -- while admitting a non-consuming use,
-// a lease and a reassignment that gives the holder an independent fresh value. Relevant and unrestricted
-// values keep their ordinary rules.
+// affine value it installs live for the scope. Relevant and unrestricted values keep their ordinary rules.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;

@@ -1,8 +1,6 @@
-// Tier 2 (Functional): the judge's, the inference's and the readonly amendment's edge cases -- a struct copy's
-// owned field, a Clone returning this, an initializer under a pure constructor, captures as inputs, a
-// captured struct, an extension setter -- each a hand-built fragment judged where the promise is read. The
-// judge table is PurityJudgeTests; the linear drop, the frozen method group and the laundered write are
-// rows of PurityRefusalTests.
+// Tier 2 (Functional): the judge's, the inference's and the readonly amendment's edge cases, each a
+// hand-built fragment judged where the promise is read. The judge table is PurityJudgeTests; the linear
+// drop, the frozen method group and the laundered write are rows of PurityRefusalTests.
 
 using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;

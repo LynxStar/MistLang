@@ -1,7 +1,5 @@
-// Who releases a linear value that is not a block's own declaration -- a parameter, a Drop's field, a
-// for initializer, a with's value or binding, a pattern or deconstruction target -- and where the
-// obligation moves, over bodies built by hand. Each reference is matched by the binding it reaches, not
-// by its name.
+// Who releases a linear value that is not a block's own declaration, and where the obligation moves, over
+// bodies built by hand. Each reference is matched by the binding it reaches, not by its name.
 
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
@@ -57,10 +55,6 @@ public sealed class ResourceTransferPlanTests
         Assert.Equal([LifetimeRelease.None, LifetimeRelease.AtExit], [movedPlan.ReleaseOf(moving), movedPlan.ReleaseOf(destination)]);
     }
 
-    /// <summary>
-    /// The inner local shares the parameter's name and nothing else, so dropping it neither releases nor
-    /// moves the parameter.
-    /// </summary>
     [Fact]
     public void ALocalShadowingAParameterLeavesTheParameterReleasedAtExit()
     {
@@ -193,9 +187,6 @@ public sealed class ResourceTransferPlanTests
         Assert.Equal(LifetimeRelease.AtExit, plan.ReleaseOf(t));
     }
 
-    /// <summary>
-    /// A pattern binding views the value its scrutinee holds, so handing it on hands on the holder.
-    /// </summary>
     [Fact]
     public void HandingOnAPatternBindingHandsOnTheHolderItViews()
     {

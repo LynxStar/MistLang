@@ -1,8 +1,6 @@
-// Tier 2 (Functional): the promises a scope reads off something other than the body that keeps them -- a
-// struct copy's owned reference field, an abstract accessor or default body, an owned slot, an erased
-// type test, a readonly type's settable property, an initializer lambda, a params element, an implicit
-// clone and an implicit constructor -- each pinned by a hand-built fragment where the promise is judged.
-// The refused half of several of these rows is a row of PurityRefusalTests.
+// Tier 2 (Functional): the promises a scope reads off something other than the body that keeps them, each
+// pinned by a hand-built fragment where the promise is judged. The refused half of several of these rows is
+// a row of PurityRefusalTests.
 
 using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;

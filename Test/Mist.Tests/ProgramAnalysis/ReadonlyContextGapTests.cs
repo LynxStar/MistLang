@@ -1,9 +1,7 @@
 // Tier 2 (Functional): purity Requirement 4.1 read against the readonly analyzer over hand-built contexts --
 // a readonly member writes nothing External however the write is spelled, while what it OWNS stays
-// writable and a readonly field is assignable through this in a constructor of its own type. The refused
-// spellings -- a ref parameter, an array parameter's element, an initializer's setter, a property pattern's
-// getter, an explicit conversion, another instance's readonly field, a readonly field passed by ref -- are
-// rows of PurityRefusalTests; the ids are the readonly analyzer's own.
+// writable and a readonly field is assignable through this in a constructor of its own type. Further
+// refused spellings are rows of PurityRefusalTests; the ids are the readonly analyzer's own.
 
 using Mist.Common.Diagnostics;
 using Mist.Tests.Helpers;

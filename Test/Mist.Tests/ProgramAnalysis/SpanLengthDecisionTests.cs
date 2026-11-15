@@ -1,4 +1,4 @@
-// Tier 3: erased dependent lengths retain their runtime domain and reach the existing index prover.
+// Tier 3: erased dependent lengths retain their runtime domain and reach the index prover.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;

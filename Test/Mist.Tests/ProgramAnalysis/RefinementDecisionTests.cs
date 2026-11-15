@@ -1,6 +1,5 @@
-// Tier 3 (Component): constants that satisfy predicates, implications that hold, flow narrowings,
-// proven indices and discharged call arguments, plus model reach facts. RefinementAnalyzer and the
-// refinement proof components state why these uses are admitted.
+// Tier 3 (Component): RefinementAnalyzer and the refinement proof components state why these uses are
+// admitted.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -497,8 +496,6 @@ public sealed class RefinementDecisionTests : ProgramModelProbe
             "var pick = new Pick(); string r = pick[-1];",
             "public class Pick { public string this[long l] where l >= 0 { get { return \"long\"; } } public string this[int i] { get { return \"int\"; } } }");
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")
     {

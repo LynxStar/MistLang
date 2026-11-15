@@ -121,7 +121,7 @@ internal static partial class BodyEmitter
                 break;
 
             case MemberAccessExpression { Receiver: TypeReferenceExpression heldThrough } held when HeldOwner(held) is { } holderOwner:
-                foreach(var capture in ReadTwice(UnsafeReach.ClosedOwner(holderOwner, Unaliased(TypeNameEmitter.Closed(heldThrough.ReferencedType)))))
+                foreach(var capture in ReadTwice(WrittenClosing(holderOwner, heldThrough)))
                 {
                     yield return capture;
                 }

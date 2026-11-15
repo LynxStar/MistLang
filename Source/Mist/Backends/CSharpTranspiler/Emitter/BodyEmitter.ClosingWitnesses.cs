@@ -57,9 +57,7 @@ internal static partial class BodyEmitter
         return Unaliased(TypeNameEmitter.Closed(tested)) switch
         {
             TypeParameter parameter => ClosingWitnesses.IsWitnessed(parameter),
-            ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) && constructed.Definition is IHasTypeParameters generic
-                => constructed.TypeArguments.Where((argument, i) => i < generic.TypeParametersList.Count && !generic.TypeParametersList[i].IsDependent
-                    && ClosingWitnesses.IsWitnessed(generic.TypeParametersList[i]) && SlotSensitivity.Parameters(argument).Any(ClosingWitnesses.IsWitnessed)).Any(),
+            ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) => AskedWitnesses(constructed).Any(),
             TupleType tuple => tuple.ElementTypes.Any(WitnessAsked),
             NamedTupleType named => named.ElementTypes.Any(WitnessAsked),
             _ => false,
@@ -76,17 +74,8 @@ internal static partial class BodyEmitter
                 comparisons.Add($"{SlotReach.Read(parameter)}.Is({bound})");
                 break;
 
-            case ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) && constructed.Definition is IHasTypeParameters generic:
-                for(var i = 0; i < constructed.TypeArguments.Count && i < generic.TypeParametersList.Count; i++)
-                {
-                    var slot = generic.TypeParametersList[i];
-
-                    if(!slot.IsDependent && ClosingWitnesses.IsWitnessed(slot) && SlotSensitivity.Parameters(constructed.TypeArguments[i]).Any(ClosingWitnesses.IsWitnessed))
-                    {
-                        comparisons.Add($"{bound}.{ClosingWitnesses.Name(slot)}.Equals({Witness(constructed.TypeArguments[i], diagnostics)})");
-                    }
-                }
-
+            case ConstructedType constructed when !SlotSensitivity.IsContainer(constructed):
+                comparisons.AddRange(AskedWitnesses(constructed).Select(asked => $"{bound}.{ClosingWitnesses.Name(asked.Slot)}.Equals({Witness(asked.Argument, diagnostics)})"));
                 break;
 
             case TupleType tuple:
@@ -107,6 +96,22 @@ internal static partial class BodyEmitter
         }
 
         return comparisons;
+    }
+
+    private static IEnumerable<(TypeParameter Slot, IMistType Argument)> AskedWitnesses(ConstructedType constructed)
+    {
+        for(var level = constructed; level is not null; level = level.Enclosing)
+        {
+            for(var i = 0; level.Definition is IHasTypeParameters generic && i < level.TypeArguments.Count && i < generic.TypeParametersList.Count; i++)
+            {
+                var slot = generic.TypeParametersList[i];
+
+                if(!slot.IsDependent && ClosingWitnesses.IsWitnessed(slot) && SlotSensitivity.Parameters(level.TypeArguments[i]).Any(ClosingWitnesses.IsWitnessed))
+                {
+                    yield return (slot, level.TypeArguments[i]);
+                }
+            }
+        }
     }
 
     private static bool ConsumedByWitness(IMistType type, SlotCapture capture)
@@ -206,52 +211,57 @@ internal static partial class BodyEmitter
     {
         var bound = $"__w{cursor.Next()}";
         var checks = new List<string> { $"{value} is {TypeNameEmitter.Emit(constructed)} {bound}" };
-        var generic = constructed.Definition as IHasTypeParameters;
+        var carried = SlotRoutes.Carried(constructed.Definition);
 
-        for(var i = 0; i < constructed.TypeArguments.Count; i++)
+        for(var level = constructed; level is not null; level = level.Enclosing)
         {
-            var slot = generic is not null && i < generic.TypeParametersList.Count ? generic.TypeParametersList[i] : null;
-            var argument = constructed.TypeArguments[i];
+            var generic = level.Definition as IHasTypeParameters;
 
-            if(slot is not null && SlotRoutes.IsValueRouted(slot))
+            for(var i = 0; i < level.TypeArguments.Count; i++)
             {
-                checks.Add($"{bound}.{SlotRoutes.Hidden(slot)} == ({SlotRoutes.Keyword(slot)})__s[{cursor.Offset}]");
-                cursor.Value();
-            }
-            else if(slot is not null && ClosingWitnesses.IsWitnessed(slot))
-            {
-                var nested = new WitnessLayout();
-                nested.Walk(argument);
-                var reads = new List<string>();
+                var slot = generic is not null && i < generic.TypeParametersList.Count ? generic.TypeParametersList[i] : null;
+                var argument = level.TypeArguments[i];
 
-                foreach(var part in nested.Parts)
+                if(slot is null || !carried.Any(each => ReferenceEquals(each, slot)))
                 {
-                    if(part.Slot is not null)
-                    {
-                        reads.Add($"__s[{cursor.Offset}]");
-                        cursor.Value();
-                    }
-                    else
-                    {
-                        reads.Add($"..{SlotReach.Read(part.Spread!)}.Values");
-                        cursor.Spread(part.Spread!);
-                    }
+                    cursor.Skip(argument);
                 }
-
-                checks.Add($"{bound}.{ClosingWitnesses.Name(slot)}.Same([{string.Join(", ", reads)}])");
+                else if(SlotRoutes.IsValueRouted(slot))
+                {
+                    checks.Add($"{bound}.{SlotRoutes.Hidden(slot)} == ({SlotRoutes.Keyword(slot)})__s[{cursor.Offset}]");
+                    cursor.Value();
+                }
+                else
+                {
+                    checks.Add($"{bound}.{ClosingWitnesses.Name(slot)}.Same([{string.Join(", ", NestedReads(argument, cursor))}])");
+                }
             }
-            else
-            {
-                cursor.Skip(argument);
-            }
-        }
-
-        if(constructed.Enclosing is { } enclosing)
-        {
-            cursor.Skip(enclosing);
         }
 
         return $"({string.Join(" && ", checks)})";
+    }
+
+    private static List<string> NestedReads(IMistType argument, WitnessCursor cursor)
+    {
+        var nested = new WitnessLayout();
+        nested.Walk(argument);
+        var reads = new List<string>();
+
+        foreach(var part in nested.Parts)
+        {
+            if(part.Slot is not null)
+            {
+                reads.Add($"__s[{cursor.Offset}]");
+                cursor.Value();
+            }
+            else
+            {
+                reads.Add($"..{SlotReach.Read(part.Spread!)}.Values");
+                cursor.Spread(part.Spread!);
+            }
+        }
+
+        return reads;
     }
 
     private static string? WitnessStamp(IMistType type, WitnessLayout layout, DiagnosticBag? diagnostics)

@@ -93,7 +93,7 @@ internal static partial class BodyEmitter
         }
 
         var closing = receiver is TypeReferenceExpression reference
-            ? UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))) as ConstructedType
+            ? WrittenClosing(owner, reference) as ConstructedType
             : SlotRoutes.ClosingFrom(enclosingType ?? FieldReceiver.Emitting, owner);
 
         if(StaticHolders.IsBuilding(owner) && (closing is null || IsOwnClosing(closing, owner)))
@@ -109,6 +109,15 @@ internal static partial class BodyEmitter
         return StaticHolders.Through(TypeNameEmitter.Emit(closing ?? new ConstructedType(owner, owner.TypeParametersList)), values);
     }
 
+    private static IMistType WrittenClosing(MemberType owner, TypeReferenceExpression reference)
+    {
+        var written = Unaliased(TypeNameEmitter.Closed(reference.ReferencedType));
+
+        return written is ConstructedType { Enclosing: not null } nested && ReferenceEquals(nested.Definition, owner)
+            ? nested
+            : UnsafeReach.ClosedOwner(owner, written);
+    }
+
     private static bool IsOwnClosing(ConstructedType closing, MemberType owner)
     {
         return SlotRoutes.Carried(owner).All(slot => ReferenceEquals(SlotRoutes.Argument(closing, slot), slot));
@@ -118,7 +127,7 @@ internal static partial class BodyEmitter
     {
         return access.Receiver is TypeReferenceExpression reference
             && HeldOwner(access) is { } owner
-            && UnsafeReach.ClosedOwner(owner, Unaliased(TypeNameEmitter.Closed(reference.ReferencedType))) is var closed
+            && WrittenClosing(owner, reference) is var closed
             && (ConsumedByClosing(closed, capture) || ConsumedByWitness(closed, capture));
     }
 

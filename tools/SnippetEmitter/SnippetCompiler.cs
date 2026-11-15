@@ -32,6 +32,7 @@ internal sealed class SnippetCompiler
             timings.Attempts, new Dictionary<string, double>(timings.Stages));
     }
 
+    // Emitted temporaries are named by source offset, so a CRLF working copy would rename them.
     private static void CopyAsLf(string from, string to)
     {
         File.WriteAllText(to, File.ReadAllText(from).ReplaceLineEndings("\n"));
@@ -82,8 +83,6 @@ internal sealed class SnippetCompiler
         {
             var fileName = Path.GetFileName(mistPath);
 
-            // Copy the .mist file to a temp directory for compilation, as LF whatever the checkout: emitted
-            // temporaries are named by source offset, so a CRLF working copy would rename them.
             var tempMistPath = Path.Combine(scratchDir, fileName);
             CopyAsLf(mistPath, tempMistPath);
 

@@ -5,13 +5,8 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = $PSScriptRoot
 
-# =============================================================================
-# publish.ps1 — Build and install the Mist CLI tool (Windows)
-# =============================================================================
+# Builds and installs the Mist CLI tool on Windows.
 
-# ---------------------------------------------------------------------------
-# Prerequisite check for dotnet CLI
-# ---------------------------------------------------------------------------
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Write-Error "Error: .NET SDK is required but 'dotnet' was not found on PATH."
     exit 1
@@ -37,9 +32,6 @@ if (-not (Test-Path -LiteralPath $stormProject -PathType Leaf)) {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Platform RID auto-detection
-# ---------------------------------------------------------------------------
 Write-Host "Detecting platform..."
 
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
@@ -56,9 +48,6 @@ switch ($arch) {
 $rid = "win-$ridArch"
 Write-Host "Detected platform: $rid"
 
-# ---------------------------------------------------------------------------
-# dotnet publish invocation
-# ---------------------------------------------------------------------------
 Write-Host "Publishing Mist CLI (Release, $rid)..."
 
 $cliProject = Join-Path $repoRoot 'Source/Mist.CLI/Mist.CLI.csproj'
@@ -68,9 +57,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ---------------------------------------------------------------------------
-# Binary installation to ~/.mist/bin
-# ---------------------------------------------------------------------------
 $installDir = Join-Path $env:USERPROFILE '.mist/bin'
 $publishDir = Join-Path $repoRoot "Source/Mist.CLI/bin/Release/net10.0/$rid/publish"
 $binarySrc  = Join-Path $publishDir 'mist.exe'
@@ -88,8 +74,7 @@ if (-not (Test-Path $binaryDst)) {
     exit 1
 }
 
-# Copy the Standard Library source files alongside the binary so that
-# StdlibLoader can find them at AppContext.BaseDirectory/Standard/.
+# StdlibLoader looks for these at AppContext.BaseDirectory/Standard/.
 $stdlibSrc = Join-Path $publishDir 'Standard'
 $stdlibDst = Join-Path $installDir 'Standard'
 
@@ -115,9 +100,6 @@ if (Test-Path $steeringSrc) {
     Write-Warning "Steering files not found at $steeringSrc — 'mist steering' will not be available."
 }
 
-# ---------------------------------------------------------------------------
-# PATH configuration (User environment variable)
-# ---------------------------------------------------------------------------
 Write-Host "Configuring PATH..."
 
 $profileUpdated = $false
@@ -132,9 +114,6 @@ if ($currentUserPath -split ';' | Where-Object { $_ -eq $installDir }) {
     Write-Host "Added $installDir to User PATH."
 }
 
-# ---------------------------------------------------------------------------
-# Completion summary
-# ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "✓ Mist CLI installed to $binaryDst"
 

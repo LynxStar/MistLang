@@ -4,13 +4,8 @@ set -euo pipefail
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
-# =============================================================================
-# publish.sh — Build and install the Mist CLI tool
-# =============================================================================
+# Builds and installs the Mist CLI tool.
 
-# ---------------------------------------------------------------------------
-# Task 3.2: Prerequisite check for dotnet CLI
-# ---------------------------------------------------------------------------
 if ! command -v dotnet &>/dev/null; then
     echo "Error: .NET SDK is required but 'dotnet' was not found on PATH." >&2
     exit 1
@@ -35,9 +30,6 @@ if [[ ! -f "$STORM_PROJECT" ]]; then
     fi
 fi
 
-# ---------------------------------------------------------------------------
-# Task 3.3: Platform RID auto-detection
-# ---------------------------------------------------------------------------
 echo "Detecting platform..."
 
 OS_NAME="$(uname -s)"
@@ -65,9 +57,6 @@ esac
 RID="${RID_OS}-${RID_ARCH}"
 echo "Detected platform: ${RID}"
 
-# ---------------------------------------------------------------------------
-# Task 3.4: dotnet publish invocation
-# ---------------------------------------------------------------------------
 echo "Publishing Mist CLI (Release, ${RID})..."
 
 if ! dotnet publish Source/Mist.CLI/Mist.CLI.csproj -c Release -r "$RID" -p:TreatWarningsAsErrors=true; then
@@ -75,9 +64,6 @@ if ! dotnet publish Source/Mist.CLI/Mist.CLI.csproj -c Release -r "$RID" -p:Trea
     exit 1
 fi
 
-# ---------------------------------------------------------------------------
-# Task 3.5: Binary installation to ~/.mist/bin
-# ---------------------------------------------------------------------------
 INSTALL_DIR="$HOME/.mist/bin"
 PUBLISH_DIR="Source/Mist.CLI/bin/Release/net10.0/${RID}/publish"
 BINARY_SRC="${PUBLISH_DIR}/mist"
@@ -92,8 +78,7 @@ if ! cp "$BINARY_SRC" "$BINARY_DST"; then
     exit 1
 fi
 
-# Copy the Standard Library source files alongside the binary so that
-# StdlibLoader can find them at AppContext.BaseDirectory/Standard/.
+# StdlibLoader looks for these at AppContext.BaseDirectory/Standard/.
 STDLIB_SRC="${PUBLISH_DIR}/Standard"
 STDLIB_DST="${INSTALL_DIR}/Standard"
 
@@ -105,9 +90,8 @@ else
     echo "Warning: Standard Library not found at ${STDLIB_SRC} — stdlib will not be available." >&2
 fi
 
-# Copy the bundled steering files alongside the binary so that `mist steering`
-# can find them at AppContext.BaseDirectory/Steering/ and install them into a
-# project's .mist/agents/ directory and AGENTS.md.
+# `mist steering` installs these from AppContext.BaseDirectory/Steering/ into a project's
+# .mist/agents/ directory and AGENTS.md.
 STEERING_SRC="${PUBLISH_DIR}/Steering"
 STEERING_DST="${INSTALL_DIR}/Steering"
 
@@ -119,9 +103,6 @@ else
     echo "Warning: Steering files not found at ${STEERING_SRC} — 'mist steering' will not be available." >&2
 fi
 
-# ---------------------------------------------------------------------------
-# Task 3.6: PATH configuration with shell profile detection
-# ---------------------------------------------------------------------------
 echo "Configuring PATH..."
 
 PROFILE_UPDATED=""
@@ -129,7 +110,6 @@ PROFILE_UPDATED=""
 if echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.mist/bin"; then
     echo "PATH already contains ~/.mist/bin — skipping profile modification."
 else
-    # Detect shell profile file
     case "${SHELL:-}" in
         */zsh)
             PROFILE_FILE="$HOME/.zshrc"
@@ -150,7 +130,6 @@ else
 
     EXPORT_LINE='export PATH="$HOME/.mist/bin:$PATH"'
 
-    # Only append if the line is not already present in the profile
     if [[ -f "$PROFILE_FILE" ]] && grep -qF "$EXPORT_LINE" "$PROFILE_FILE"; then
         echo "PATH export already present in ${PROFILE_FILE} — skipping."
     else
@@ -160,9 +139,6 @@ else
     fi
 fi
 
-# ---------------------------------------------------------------------------
-# Task 3.7: Completion summary output
-# ---------------------------------------------------------------------------
 echo ""
 echo "✓ Mist CLI installed to ${BINARY_DST}"
 

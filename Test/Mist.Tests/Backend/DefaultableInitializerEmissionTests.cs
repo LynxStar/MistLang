@@ -1,7 +1,6 @@
-// Tier 3 (Component): what a constructorless, defaultable type emits for its field initializers. Purity
-// Requirement 12.1 holds them pure, so nothing observable at runtime can show how many times one runs; the
-// emitted text can: each initialized field is assigned exactly once, by its C# initializer, which both the
-// implicit constructor and __CreateDefault run.
+// A constructorless defaultable type's field initializers are pure (purity Requirement 12.1), so nothing
+// observable at runtime shows how many times one runs; the emitted text does: each initialized field is
+// assigned once, by its C# initializer, which both the implicit constructor and __CreateDefault run.
 
 using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.Emitter;

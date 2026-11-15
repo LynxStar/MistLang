@@ -8,8 +8,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 1: which clauses of a hand-built method gain a key parameter, and how a key is spelled inside a
-// body that holds one.
 [Trait("Tier", "1")]
 public sealed class ContextKeyWitnessTests
 {

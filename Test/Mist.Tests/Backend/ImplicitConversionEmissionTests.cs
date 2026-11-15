@@ -1,8 +1,8 @@
 // Tier 3 (Component): how an implicit conversion is spelled in C#, over the real Standard sources. Asserted on
-// the emitted text because each shape here compiled to a Roslyn error when the operand was written bare -- C#
-// has no implicit conversion from an enum to its value, would not apply a declared operator beside a second
-// user-defined one, and has no conversion from Regex to string at all. No sample can hold them: the baseline is shared
-// with classic, which cannot declare the first or run the rest. No Roslyn compile and no process spawning.
+// the emitted text because each shape here is a Roslyn error with the operand written bare -- C# has no implicit
+// conversion from an enum to its value, will not apply a declared operator beside a second user-defined one, and
+// has no conversion from Regex to string at all. No sample can hold them: the baseline is shared with classic,
+// which cannot declare the first or run the rest.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

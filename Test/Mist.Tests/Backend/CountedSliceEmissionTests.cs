@@ -12,8 +12,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// A slice through a user type's Slice is written as receiver[range], which Roslyn lowers onto the same count
-// and Slice the binder recorded. These are the places that writing needs what the model alone does not say.
 [Trait("Tier", "2")]
 public sealed class CountedSliceEmissionTests
 {

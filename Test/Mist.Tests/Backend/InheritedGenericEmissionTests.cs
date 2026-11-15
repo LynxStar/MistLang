@@ -1,8 +1,7 @@
 // Tier 3 (Component): what a struct absorbing a GENERIC base emits for the members it inherits.
 // Asserted on the emitted text because the sample cannot see the shape that matters: a base's T
 // spelled inside a struct where no T is in scope fails Roslyn, and one spelled as the derived
-// struct's own parameter or argument compiles -- the difference is the whole capability. See
-// ProgramModelProbe for the harness.
+// struct's own parameter or argument compiles -- the difference is the whole capability.
 
 using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.Emitter;

@@ -71,10 +71,6 @@ public sealed class ImplicitCloneTests : ProgramModelProbe
 
     protected override string Preamble { get; } = "var shared = new Config();";
 
-    /// <summary>
-    /// An owned binding promises an INDEPENDENT value, so a source something else still holds is
-    /// copied. Without this the two names alias and mutating either is visible through the other.
-    /// </summary>
     [Fact]
     public void ANonOwnedSourceIsClonedIntoAnOwnedBinding()
     {
@@ -87,9 +83,6 @@ public sealed class ImplicitCloneTests : ProgramModelProbe
         _ = Assert.IsType<LocalReferenceExpression>(InitializerOf("Config c = shared;"));
     }
 
-    /// <summary>
-    /// Four sources already hand over a value nothing else holds, so copying them buys nothing.
-    /// </summary>
     [Theory]
     [InlineData("owned Config c = new Config();")]
     [InlineData("owned Config c = shared.Clone();")]
@@ -103,11 +96,6 @@ public sealed class ImplicitCloneTests : ProgramModelProbe
         Assert.IsNotType<CloneExpression>(declaration.Initializer);
     }
 
-    /// <summary>
-    /// An owned PARAMETER is the same promise made across a call. The parameter's ownership was never
-    /// read at all, so a call handed over the caller's own instance and every later mutation of it was
-    /// visible through the callee.
-    /// </summary>
     [Theory]
     [InlineData("Sink.TakesOwned(shared);")]
     [InlineData("var v = new Vault(shared);")]

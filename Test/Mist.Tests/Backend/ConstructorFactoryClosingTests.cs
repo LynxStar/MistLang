@@ -11,8 +11,7 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// The factory a parameterized constructor constraint appends to a GENERIC closing definition, here
-// `Crate(X held)` on Crate of X and `Pair(X x, Y y)` on Pair of X and Y, over hand-built types.
+// The factory a parameterized constructor constraint appends to a GENERIC closing definition.
 public sealed class ConstructorFactoryClosingTests
 {
     private static readonly MistAssembly Source = new("Probe", MistAssemblyKind.Self);

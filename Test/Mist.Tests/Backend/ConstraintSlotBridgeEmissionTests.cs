@@ -11,10 +11,8 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 2: a generic slot `string Pick<T>(T value)` on the hand-built abstract IPicker and its answer
-// `Pick<U>(U value)` on Picker, each constrained as a case names: what the interface declares, and
-// whether an explicit implementation must forward to an answer whose constraints or hidden channels
-// -- witnesses, context keys -- C# would not match, passing on only what the answer requires.
+// An explicit implementation forwards to an answer whose constraints or hidden channels -- witnesses, context
+// keys -- C# would not match, passing on only what the answer requires.
 [Trait("Tier", "2")]
 public sealed class ConstraintSlotBridgeEmissionTests
 {

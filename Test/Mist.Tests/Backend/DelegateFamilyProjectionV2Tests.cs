@@ -1,9 +1,4 @@
-// ambient-type-provider-v2, Property 3: Delegate family projection
-//
-// **Validates: Requirements 4.1, 4.2, 4.4**
-//
-// For CLR Func/Action types at all arities, verify correct Standard.Func constructed type
-// with correct arguments. Uses [Theory] + [MemberData] (no process spawning).
+// ambient-type-provider-v2 Property 3, Requirements 4.1, 4.2, 4.4.
 
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
@@ -15,10 +10,6 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property test: for CLR Func/Action delegate family types, <see cref="AmbientTypeProviderV2.ResolveType"/>
-/// returns the correct Standard.Func definition or ConstructedType with proper type arguments.
-/// </summary>
 [Trait("Tier", "1")]
 public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 {
@@ -29,7 +20,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
 
     private IMistType? LookupType(string namespaceName, string typeName)
     {
-        // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
             if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
@@ -40,7 +30,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
             return null;
         }
 
-        // Handle CLR backtick arity notation → Mist angle-bracket notation.
         var mistName = typeName;
         var backtickIndex = typeName.IndexOf('`');
         if(backtickIndex >= 0)
@@ -93,7 +82,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemFuncArity1_ReturnsStandardFuncDefinition()
     {
-        // System.Func`1 (Func<TResult>) → Standard.Func<,> (the single variadic definition)
         var resolved = LookupType("System", "Func`1");
 
         Assert.NotNull(resolved);
@@ -105,7 +93,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemFuncArity2_ReturnsStandardFuncDefinition()
     {
-        // System.Func`2 (Func<T, TResult>) → Standard.Func<,> definition
         var resolved = LookupType("System", "Func`2");
 
         Assert.NotNull(resolved);
@@ -117,7 +104,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemFuncArity3_ReturnsStandardFuncDefinition()
     {
-        // System.Func`3 (Func<T1, T2, TResult>) → Standard.Func<,> (the single variadic definition)
         var resolved = LookupType("System", "Func`3");
 
         Assert.NotNull(resolved);
@@ -129,7 +115,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemAction_ReturnsStandardAction()
     {
-        // System.Action (non-generic) → Standard.Action<> (the single variadic definition)
         var resolved = LookupType("System", "Action");
 
         Assert.NotNull(resolved);
@@ -142,7 +127,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemActionArity1_ReturnsStandardActionArity1()
     {
-        // System.Action`1 (Action<T>) → Standard.Action<>
         var resolved = LookupType("System", "Action`1");
 
         Assert.NotNull(resolved);
@@ -155,7 +139,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemActionArity2_ReturnsStandardActionArity2()
     {
-        // System.Action`2 (Action<T1, T2>) → Standard.Action<> (the single variadic definition)
         var resolved = LookupType("System", "Action`2");
 
         Assert.NotNull(resolved);
@@ -168,7 +151,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_NonSystemNamespace_DoesNotProjectDelegateFamily()
     {
-        // Only System namespace triggers delegate family projection
         var resolved = LookupType("MyApp", "Func`1");
 
         Assert.Null(resolved);
@@ -177,8 +159,6 @@ public sealed class DelegateFamilyProjectionV2Tests : IDisposable
     [Fact]
     public void ResolveType_SystemDelegate_FallsThrough()
     {
-        // System.Delegate and System.MulticastDelegate should NOT be handled by delegate family
-        // They fall through to normal projection (which returns null because we have no assemblies)
         var resolved = LookupType("System", "Delegate");
 
         Assert.Null(resolved);

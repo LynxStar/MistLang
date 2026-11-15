@@ -9,9 +9,8 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-// Tier 1: the explicit implementation ConformanceEmitter forwards a with block's mapping through, over a
-// conformer and mapping constructed directly. It implements the interface member only when it repeats the
-// slot's signature, which Roslyn alone would otherwise judge.
+// The forwarder implements the interface member only when it repeats the slot's signature, which Roslyn alone
+// would otherwise judge.
 [Trait("Tier", "1")]
 public sealed class ConformanceForwarderEmissionTests
 {

@@ -1,7 +1,6 @@
-// Tier 3 (Component): purity Requirement 13.2. Each text conversion, text order, case mapping and regular
-// expression Mist performs is emitted naming the invariant culture, which a program run under one culture cannot
-// tell from a program that reads the current one. Built by hand and handed to the body emitter; no parser, no
-// Roslyn, no process.
+// Purity Requirement 13.2: each text conversion, text order, case mapping and regular expression Mist performs
+// is emitted naming the invariant culture, which a program run under one culture cannot tell from a program that
+// reads the current one.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;

@@ -6,14 +6,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Which of an enum's two emitted lookup chains reads identity and which reads the value.
-/// <para>
-/// THE SAMPLE WITNESSES THE NAMES BUT NOT THE PAIRING. AllFeaturesV2 goes red if ToString stops
-/// naming the right variant, so that half is guarded; nothing there can tell whether the conversion
-/// operator still matches on the VALUE, which it must -- it is handed a value and has nothing else
-/// to go on. Getting that one wrong the other way would make every conversion return null, and the
-/// two chains sit four lines apart.
-/// </para>
+/// AllFeaturesV2 witnesses the names but not the pairing <see cref="EnumEmitter"/> documents: nothing there
+/// tells whether the conversion operator still matches on the value.
 /// </summary>
 public sealed class EnumVariantIdentityTests : ProgramModelProbe
 {

@@ -1,5 +1,4 @@
-// Tier 3 (Component): the backend's defaultability predicate and the constructor it lowers a default
-// block into, over a real ProgramModel. No Roslyn and no process spawning.
+// Tier 3 (Component).
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

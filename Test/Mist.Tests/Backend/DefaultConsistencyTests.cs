@@ -1,7 +1,5 @@
-// Tier 2 (Functional): purity Requirement 12.1 and defaultability Requirement 6 -- a field initializer of a
-// DEFAULTABLE type and a default-block entry are pure scopes with no inputs, and a type with no default
-// (an argument-taking constructor and no block) leaves its initializers as ordinary construction-time
-// code. The purity rule judges each hand-built type's initializers and entries.
+// Purity Requirement 12.1 and defaultability Requirement 6. A type with no default (an argument-taking
+// constructor and no block) leaves its initializers as ordinary construction-time code.
 
 using Mist.Tests.Helpers;
 

@@ -9,9 +9,7 @@ namespace Mist.Tests.Backend;
 
 /// <summary>
 /// A C# assembly compiled against a composed Mist library, beside that library's stale standalone copy,
-/// as a referenced C# project's output directory holds them. Both are written with
-/// <see cref="SyntheticAssembly"/>: <c>Lib.dll</c> defines <c>Lib.Thing</c>, and <c>Bridge.dll</c>'s
-/// <c>Bridge.Runner</c> takes and returns one.
+/// as a referenced C# project's output directory holds them.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ExternalAssemblyShadowingTests : IDisposable

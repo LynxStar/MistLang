@@ -6,17 +6,10 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Tier 1 unit tests for <see cref="BodyEmitter.EmitLiteral"/>.
-/// Constructs <see cref="LiteralExpression"/> instances directly with the appropriate
-/// CLR value and resolved type, then asserts on the emitted C# string.
-/// No lexer, parser, ProgramModel builder, or Roslyn compilation involved.
+/// Tier 1 tests for <see cref="BodyEmitter.EmitLiteral"/>.
 /// </summary>
 public sealed class LiteralEmissionTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Integer literals — suffix requirements
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Theory]
     [InlineData(0L, "0")]
     [InlineData(42L, "42")]
@@ -59,10 +52,6 @@ public sealed class LiteralEmissionTests
         Assert.Equal(expected, BodyEmitter.EmitLiteral(literal));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Floating point literals — suffix requirements
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Theory]
     [InlineData(2.5f, "2.5f")]
     [InlineData(0f, "0f")]
@@ -94,10 +83,6 @@ public sealed class LiteralEmissionTests
         var literal = MakeLiteral(value, "Decimal");
         Assert.Equal(expected, BodyEmitter.EmitLiteral(literal));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Other literal types
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public void BoolTrue_EmitsTrue()
@@ -144,14 +129,9 @@ public sealed class LiteralEmissionTests
         Assert.Equal("null", BodyEmitter.EmitLiteral(literal));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Edge cases: values that would fail C# compilation without suffix
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public void UInt32_ExceedingIntMax_RequiresSuffix()
     {
-        // 3000000000 > int.MaxValue (2147483647). Without U, C# rejects it.
         var literal = MakeLiteral(3000000000L, "UInt32");
         Assert.Equal("3000000000U", BodyEmitter.EmitLiteral(literal));
     }
@@ -159,7 +139,6 @@ public sealed class LiteralEmissionTests
     [Fact]
     public void Int64_ExceedingIntMax_RequiresSuffix()
     {
-        // 5000000000 > int.MaxValue. Without L, C# interprets as int and rejects.
         var literal = MakeLiteral(5000000000L, "Int64");
         Assert.Equal("5000000000L", BodyEmitter.EmitLiteral(literal));
     }
@@ -167,14 +146,9 @@ public sealed class LiteralEmissionTests
     [Fact]
     public void UInt64_ExceedingIntMax_RequiresSuffix()
     {
-        // Without UL, C# can't determine the type.
         var literal = MakeLiteral(5000000000L, "UInt64");
         Assert.Equal("5000000000UL", BodyEmitter.EmitLiteral(literal));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
 
     private static LiteralExpression MakeLiteral(object? value, string typeName)
     {

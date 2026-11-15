@@ -12,11 +12,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// How a dependent parameter's value reaches C#: the property each projecting type declares, a read of
-/// it named through the construction that declares it, and a read of the parameter itself, all over
-/// hand-built types.
-/// </summary>
 public sealed class DependentValueEmissionTests
 {
     private readonly HandBuiltModel built = new();

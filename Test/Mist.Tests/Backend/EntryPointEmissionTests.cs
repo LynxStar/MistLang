@@ -8,9 +8,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// What the emitter does with the entry point that was selected, read off the sources it writes and
-/// the main type it would hand Roslyn, because a program that ran the wrong <c>Main</c> or dropped its
-/// statements still compiles. Stops short of the C# compile: <see cref="CSharpEmitterV2.Transpile"/>.
+/// Read off the sources <see cref="CSharpEmitterV2.Transpile"/> writes and the main type it would hand Roslyn,
+/// because a program that ran the wrong <c>Main</c> or dropped its statements still compiles.
 /// </summary>
 [Trait("Tier", "3")]
 public sealed class EntryPointEmissionTests : ProgramModelProbe

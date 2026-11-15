@@ -9,10 +9,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Tier 4, the boundary from the driver's project options to what the pipeline emits
-/// for a library: no entry point demanded, top-level statements refused as Mist's own error rather
-/// than Roslyn's, and the test SDK's generated entry point suppressed exactly when the sources carry
-/// a Main of their own. The project file is read back because nothing in the compiler does, and the
+/// The project file is read back because nothing in the compiler does, and the test SDK's entry-point
 /// suppression is invisible until `dotnet test` either finds two entry points or none.
 /// </summary>
 [Trait("Tier", "4")]

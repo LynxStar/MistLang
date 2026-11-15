@@ -1,8 +1,7 @@
-// Tier 3 (Component): purity Requirement 13.2 for the forms that reach a culture-reading member C# chooses rather
-// than one Mist names -- a method group, a conditional access, a list whose type is not written List, a CLR value's
-// own ToString, a Console argument C# converts to a number, or to a char, which it writes as a char, and a list of
-// newtype clones, for which C# finds no order at all. Built by hand and handed to the body emitter; no parser, no
-// Roslyn, no process.
+// Purity Requirement 13.2 for the forms that reach a culture-reading member C# chooses rather than one Mist
+// names -- a method group, a conditional access, a list whose type is not written List, a CLR value's own
+// ToString, a Console argument C# converts to a number, or to a char, which it writes as a char, and a list of
+// newtype clones, for which C# finds no order at all.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;

@@ -1,8 +1,5 @@
-// Tier 4 (Integration): the boundary between what Standard promises with `intrinsic` and what the C#
-// backend supplies. Every intrinsic declaration in the real Standard sources is classified against real
-// CLR metadata, so a promise the backend cannot keep fails here rather than as a Roslyn error in a
-// user's build. Metadata is read from the three runtime assemblies that back Standard's intrinsic types,
-// loaded and never projected; no Roslyn compile, no process.
+// Every intrinsic declaration in the real Standard sources is classified against real CLR metadata, so a
+// promise the backend cannot keep fails here rather than as a Roslyn error in a user's build.
 
 using System.Text.RegularExpressions;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;

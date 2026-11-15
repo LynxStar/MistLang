@@ -1,9 +1,4 @@
-// ambient-type-provider-v2, Property 11: Constructed type interning
-//
-// **Validates: Requirements 10.4**
-//
-// Verify same definition + type arguments from different resolution paths produce the same reference.
-// Uses TypeInterner.GetOrCreateConstructedType directly (no process spawning).
+// ambient-type-provider-v2 Property 11, Requirement 10.4.
 
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
@@ -12,10 +7,6 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property test: calling <see cref="TypeInterner.GetOrCreateConstructedType"/> multiple times
-/// with the same definition and type arguments returns reference-equal instances.
-/// </summary>
 public sealed class ConstructedTypeInterningV2Tests
 {
     [Fact]

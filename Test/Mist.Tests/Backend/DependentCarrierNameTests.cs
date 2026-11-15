@@ -6,18 +6,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Tier 1: the C# names a dependent value is carried under, and how a parameter reads it back.
-/// <para>
-/// A COLLISION HERE IS TWO TYPES SILENTLY BECOMING ONE, which is why this is asserted rather than
-/// eyeballed. The carrier struct is what distinguishes <c>FixedBuffer&lt;5&gt;</c> from
-/// <c>FixedBuffer&lt;6&gt;</c> once emitted, so two values sharing a name would make the two
-/// constructions the same C# type and nothing downstream would notice -- Roslyn sees one
-/// well-formed program either way. The converse matters as much: one value must have ONE carrier
-/// whatever slot it fills, or a long slot reached through an int parameter names a different type
-/// than the same long slot closed directly.
-/// </para>
-/// </summary>
 [Trait("Tier", "1")]
 public sealed class DependentCarrierNameTests
 {
@@ -62,8 +50,6 @@ public sealed class DependentCarrierNameTests
     [Fact]
     public void CharsDifferingOnlyInCase_DoNotCollide()
     {
-        // The spec's readable form names both of these Const_Char_X. Hex always is what keeps them
-        // two carriers, and two carriers is what keeps them two types.
         Assert.NotEqual(DependentCarrierNames.Carrier('x'), DependentCarrierNames.Carrier('X'));
         Assert.Equal("Const_Char_0x0078", DependentCarrierNames.Carrier('x'));
         Assert.NotEqual(DependentCarrierNames.Carrier(120L), DependentCarrierNames.Carrier('x'));

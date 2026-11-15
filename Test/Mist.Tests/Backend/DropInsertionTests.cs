@@ -20,10 +20,6 @@ public sealed class DropInsertionTests
 {
     private readonly LifetimeFragments f = new();
 
-    /// <summary>
-    /// Affine allows forgetting and unrestricted owes nothing, so a release there would be a call the
-    /// author declined to make; linear and relevant both owe one.
-    /// </summary>
     [Fact]
     public void OnlyLinearAndRelevantBindingsAreReleasedAtScopeExit()
     {
@@ -32,9 +28,6 @@ public sealed class DropInsertionTests
             new[] { f.Token, f.Shared, f.Once, f.Plain }.Select(type => Unplanned(f.Local("x", type))));
     }
 
-    /// <summary>
-    /// A linear local the plan covers is released as the plan says, whatever its remainder holds.
-    /// </summary>
     [Fact]
     public void ACoveredLinearLocalFollowsItsPlan()
     {
@@ -51,10 +44,6 @@ public sealed class DropInsertionTests
         Assert.Equal(LifetimeRelease.Guarded, DropInsertion.ReleaseOf(declaration, [], plan));
     }
 
-    /// <summary>
-    /// A relevant value is aliasable, so a local transfer leaves both holders releasing it; anything it
-    /// is handed to elsewhere still elides the release, which is the approximation a task's promotion reads.
-    /// </summary>
     [Fact]
     public void ARelevantLocalKeepsTheSubtreeApproximation()
     {
@@ -75,10 +64,6 @@ public sealed class DropInsertionTests
         Assert.Equal(LifetimeRelease.None, LifetimePlan.Empty.ReleaseOf(Declare(t, f.New(1))));
     }
 
-    /// <summary>
-    /// A mark is lowered only for a guarded local: an unconditional or absent release has no flag for
-    /// it to change.
-    /// </summary>
     [Fact]
     public void MarksAreReadOnlyForAGuardedLocal()
     {
@@ -112,19 +97,12 @@ public sealed class DropInsertionTests
         Assert.Same(assignment.Node, plan.AcquiredAt(declaration));
     }
 
-    /// <summary>
-    /// A drop that hands back what it held passes the obligation on with the value.
-    /// </summary>
     [Fact]
     public void ADropReturningADroppableValueChains()
     {
         Assert.Equal("(b.Drop()).Drop()", DropInsertion.DropChain("b", Box()));
     }
 
-    /// <summary>
-    /// A container under an obligation cannot honour it without releasing what it holds, and writing no
-    /// Drop is not declining -- there is nothing to write that the fields do not already say.
-    /// </summary>
     [Fact]
     public void AContainerWithDroppableFieldsGetsASynthesizedDropInDeclarationOrder()
     {
@@ -136,10 +114,6 @@ public sealed class DropInsertionTests
             DropInsertion.DroppableFields(pair).Select(DropInsertion.FieldDrop));
     }
 
-    /// <summary>
-    /// Writing a Drop does not discharge the obligation: what the author wrote happens IN ADDITION to
-    /// releasing what the type holds, and a field the declared drop hands back is moved instead.
-    /// </summary>
     [Fact]
     public void ADeclaredDropOwesEveryFieldItDoesNotHandBack()
     {
@@ -154,8 +128,7 @@ public sealed class DropInsertionTests
     }
 
     /// <summary>
-    /// A linear parameter is released as its plan says; a relevant one keeps the whole-body reading, with
-    /// a hand-off recognised by the binding it reaches and not by a local that shares its name.
+    /// A hand-off is recognised by the binding it reaches, not by a local that shares its name.
     /// </summary>
     [Fact]
     public void AParameterIsReleasedAsItsPlanSaysOrElseAsItsBodyReads()

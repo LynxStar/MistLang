@@ -25,6 +25,9 @@ public sealed class TemplateSyntaxTests
     [InlineData("format '{0:X}' specifier")]
     [InlineData("nested '{a?{b?x}}' conditional")]
     [InlineData("unclosed '{a? text' conditional")]
+    [InlineData("overflowing '{2147483648}' index")]
+    [InlineData("overflowing '{99999999999999999999}' index")]
+    [InlineData("overflowing '{2147483648? text}' conditional")]
     public void AMalformedTemplateIsRefused(string template)
     {
         Assert.False(TemplateSyntax.TryParse(template, out _, out var error));
@@ -33,6 +36,7 @@ public sealed class TemplateSyntaxTests
 
     [Theory]
     [InlineData("'{0}' and '{1}'", true)]
+    [InlineData("'{2147483647}'", true)]
     [InlineData("'{name}' and '{0}'", false)]
     [InlineData("no placeholders", false)]
     public void PositionalTemplatesUseOnlyIndices(string template, bool positional)

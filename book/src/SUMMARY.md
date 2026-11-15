@@ -14,6 +14,7 @@
 - [Intrinsic Types](basics/intrinsic-types.md)
 - [Void and Unit Type](basics/void-type.md)
 - [Variables](basics/variables.md)
+- [Compound Assignment and Increment](basics/compound-assignment.md)
 - [Namespaces](basics/namespaces.md)
 - [Control Flow](basics/control-flow.md)
 - [Methods](basics/functions.md)

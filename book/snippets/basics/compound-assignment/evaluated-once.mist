@@ -1,0 +1,39 @@
+using Standard;
+
+public class Picker
+{
+    public int Calls;
+    public string Log = "";
+
+    public int Next()
+    {
+        Calls++;
+        return Calls - 1;
+    }
+
+    public int Logged(string step, int result)
+    {
+        Log += step + " ";
+        return result;
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        var items = new List<int>();
+        items.Add(10);
+        items.Add(20);
+        items.Add(30);
+
+        var picker = new Picker();
+        items[picker.Next()] += 5;
+        items[picker.Next()] *= 3;
+        Console.WriteLine($"{items[0]}, {items[1]}, {items[2]}; Next ran {picker.Calls} times");
+
+        var order = new Picker();
+        items[order.Logged("index", 2)] += order.Logged("value", 100);
+        Console.WriteLine($"{order.Log}-> items[2] is {items[2]}");
+    }
+}

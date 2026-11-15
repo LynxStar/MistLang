@@ -1,0 +1,12 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        byte level = 250;
+        byte step = 10;
+        level += step;
+        Console.WriteLine($"level is {level}");
+    }
+}

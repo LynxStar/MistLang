@@ -1,0 +1,21 @@
+using Standard;
+
+public class Program
+{
+    public static int Divisor()
+    {
+        return 5;
+    }
+
+    public static void Main(string[] args)
+    {
+        int pool = 90;
+        int divisor = Divisor();
+        if (divisor > 0)
+        {
+            pool /= divisor;
+        }
+
+        Console.WriteLine($"pool is {pool}");
+    }
+}

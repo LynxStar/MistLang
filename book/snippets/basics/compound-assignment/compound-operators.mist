@@ -1,0 +1,29 @@
+using Standard;
+
+public class Counter
+{
+    public int Total { get; set; }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int total = 100;
+        total -= 10;
+        total *= 2;
+        total /= 4;
+        total %= 7;
+        Console.WriteLine($"total is {total}");
+
+        var text = "a";
+        text += "b";
+        text += 3;
+        Console.WriteLine($"text is {text}");
+
+        var counter = new Counter();
+        counter.Total += 7;
+        counter.Total *= 2;
+        Console.WriteLine($"Total is {counter.Total}");
+    }
+}

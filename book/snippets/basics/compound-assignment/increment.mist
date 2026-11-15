@@ -1,0 +1,29 @@
+using Standard;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        int i = 5;
+        int before = i++;
+        int after = ++i;
+        Console.WriteLine($"i++ gave {before}, ++i gave {after}, i is {i}");
+
+        var queue = new List<int>();
+        queue.Add(10);
+        queue.Add(20);
+        int k = 0;
+        int read = queue[k++];
+        Console.WriteLine($"queue[k++] read {read}, k is {k}");
+
+        var countdown = 3;
+        while (countdown-- > 0)
+        {
+            Console.WriteLine($"tick {countdown}");
+        }
+
+        double half = 0.5;
+        half++;
+        Console.WriteLine($"half is {half}");
+    }
+}

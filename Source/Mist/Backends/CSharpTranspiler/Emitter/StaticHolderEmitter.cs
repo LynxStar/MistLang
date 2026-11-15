@@ -27,7 +27,8 @@ internal static class StaticHolderEmitter
         }
 
         var slots = SlotRoutes.Carried(type);
-        var parameters = string.Join(", ", SlotRoutes.HiddenParameters(slots));
+        var factories = StaticHolders.Factories(type);
+        var parameters = string.Join(", ", SlotRoutes.HiddenParameters(slots).Concat(ConstructorWitnesses.Parameters(factories)));
         using var building = StaticHolders.Building(type);
         using var within = BodyEmitter.Within(type);
         using var construction = ConstructorWitnesses.NativeScope();
@@ -41,6 +42,11 @@ internal static class StaticHolderEmitter
             foreach(var slot in slots)
             {
                 writer.WriteLine($"public readonly {SlotRoutes.Keyword(slot)} {SlotRoutes.Hidden(slot)};");
+            }
+
+            foreach(var factory in factories)
+            {
+                writer.WriteLine($"private readonly {ConstructorWitnesses.Parameter(factory)};");
             }
 
             foreach(var field in held)
@@ -67,6 +73,11 @@ internal static class StaticHolderEmitter
                     writer.WriteLine($"this.{SlotRoutes.Hidden(slot)} = {SlotRoutes.Hidden(slot)};");
                 }
 
+                foreach(var factory in factories)
+                {
+                    writer.WriteLine($"this.{ConstructorWitnesses.Name(factory)} = {ConstructorWitnesses.Name(factory)};");
+                }
+
                 writer.WriteLine($"{StaticHolders.Table}.Enter({StaticHolders.Key(slots)}, this);");
 
                 foreach(var field in held)
@@ -91,14 +102,18 @@ internal static class StaticHolderEmitter
         var key = StaticHolders.KeyType(slots);
         var table = $"{StaticHolders.Runtime()}.Table<{key}, {StaticHolders.Holder}>";
 
+        var built = $"new {StaticHolders.Holder}({string.Join(", ", ConstructorWitnesses.Names(factories).Prepend(StaticHolders.Unpacked(slots, "key")))})";
+
         writer.WriteBlankLine();
-        writer.WriteLine($"private static readonly {table} {StaticHolders.Table} = new {table}(static key => new {StaticHolders.Holder}({StaticHolders.Unpacked(slots, "key")}));");
+        writer.WriteLine($"private static readonly {table} {StaticHolders.Table} = new {table}({(factories.Count == 0 ? $"static key => {built}" : "null!")});");
         writer.WriteBlankLine();
         writer.WriteLine($"public static {StaticHolders.Holder} {StaticHolders.Lookup}({parameters})");
 
         using(writer.Block())
         {
-            writer.WriteLine($"return {StaticHolders.Table}.Of({StaticHolders.Key(slots)});");
+            writer.WriteLine(factories.Count == 0
+                ? $"return {StaticHolders.Table}.Of({StaticHolders.Key(slots)});"
+                : $"return {StaticHolders.Table}.Of({StaticHolders.Key(slots)}, key => {built});");
         }
     }
 
@@ -107,7 +122,8 @@ internal static class StaticHolderEmitter
         if(StaticHolders.HasStaticConstructor(type))
         {
             var routed = SlotRoutes.Carried(type);
-            writer.WriteLine($"_ = {StaticHolders.Through(TypeNameEmitter.Emit(new ConstructedType(type!, type!.TypeParametersList)), SlotRoutes.HiddenNames(routed))};");
+            var factories = ConstructorWitnesses.Names(StaticHolders.Factories(type));
+            writer.WriteLine($"_ = {StaticHolders.Through(TypeNameEmitter.Emit(new ConstructedType(type!, type!.TypeParametersList)), SlotRoutes.HiddenNames(routed).Concat(factories))};");
         }
     }
 

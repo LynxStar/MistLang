@@ -106,6 +106,9 @@ internal static class ConstraintEmitter
                         liftSlots ? SlotLift.Constraint(typeConstraint.ConstraintType) : typeConstraint.ConstraintType));
                     break;
 
+                case ConstructorConstraint when ClosingWitnesses.IsFactored(parameter):
+                    break;
+
                 case ConstructorConstraint { ParameterTypes.Count: 0 }:
                     parameterless = true;
                     break;

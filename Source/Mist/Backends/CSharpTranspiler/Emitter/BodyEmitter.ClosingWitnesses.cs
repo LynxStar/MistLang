@@ -2,6 +2,7 @@ using System.Text;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
@@ -110,9 +111,56 @@ internal static partial class BodyEmitter
 
     private static bool ConsumedByWitness(IMistType type, SlotCapture capture)
     {
+        return WitnessConsumes(type, capture)
+            || (Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
+                && FactoredCaptures(constructed).Any(captured => ReferenceEquals(captured.Capture, capture)));
+    }
+
+    internal static List<string> FactoryWitnesses(IMistType product)
+    {
+        return Unaliased(TypeNameEmitter.Closed(product)) is ConstructedType constructed
+            ? [.. ClosingWitnesses.Stored(constructed.Definition).Select(parameter => Witness(WitnessArgument(constructed, parameter), null, captured => KeptLocal(captured.Capture)))]
+            : [.. ClosingWitnesses.Stored(product).Select(SlotReach.Read)];
+    }
+
+    private static bool WitnessConsumes(IMistType type, SlotCapture capture)
+    {
         return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
             && ClosingWitnesses.Stored(constructed.Definition).Any(parameter =>
                 WitnessCaptures(WitnessArgument(constructed, parameter)).Any(captured => ReferenceEquals(captured.Capture, capture)));
+    }
+
+    private static IEnumerable<SlotCapture> ReadTwice(IMistType type)
+    {
+        return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
+            ? FactoredCaptures(constructed).Select(captured => captured.Capture)
+                .Where(capture => ConsumedByClosing(constructed, capture) || WitnessConsumes(constructed, capture))
+            : [];
+    }
+
+    private static IEnumerable<CapturedValue> FactoredCaptures(ConstructedType closing)
+    {
+        if(ProgramModel.Construction.Defaultability.DeclarationOf(closing) is not { } declaration)
+        {
+            return [];
+        }
+
+        var substitution = TypeSubstitution.ForReceiver(closing);
+        return ConstructorWitnesses.Stored(declaration).Where(witness => ClosingWitnesses.IsFactored(witness.Parameter))
+            .SelectMany(witness => ProductCaptures(substitution.Apply(witness.Parameter, interner: null)));
+    }
+
+    private static IEnumerable<CapturedValue> ProductCaptures(IMistType product)
+    {
+        return Unaliased(TypeNameEmitter.Closed(product)) is ConstructedType constructed
+            ? ClosingWitnesses.Stored(constructed.Definition).SelectMany(parameter => WitnessCaptures(WitnessArgument(constructed, parameter)))
+                .Concat(FactoredCaptures(constructed))
+            : [];
+    }
+
+    private static IEnumerable<CapturedValue> FactoredCallCaptures(IReadOnlyList<IMistType> arguments, IReadOnlyList<TypeParameter> parameters)
+    {
+        return parameters.Zip(arguments).Where(pair => ClosingWitnesses.IsFactored(pair.First)).SelectMany(pair => ProductCaptures(pair.Second));
     }
 
     private static string ReadValue(IMistType argument, DiagnosticBag? diagnostics, Func<CapturedValue, string?>? read)

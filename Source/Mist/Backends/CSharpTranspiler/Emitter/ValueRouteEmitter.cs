@@ -111,6 +111,11 @@ internal static class ValueRouteEmitter
     public static IReadOnlyList<ConstructorWitness> ClosableConstraints(
         MemberType type, IReadOnlyList<ConstructorWitness> closedConstraints, DiagnosticBag diagnostics)
     {
+        if(ClosingWitnesses.Stored(type).Count > 0)
+        {
+            return [];
+        }
+
         if(closedConstraints.Count == 0 || SlotRoutes.ValueRouted(type) is not [var first, ..] || type.DeclarationNode is not { } node)
         {
             return closedConstraints;

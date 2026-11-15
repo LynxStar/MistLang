@@ -107,6 +107,26 @@ internal static partial class BodyEmitter
                     }
                 }
 
+                var witnessedCaptures = WitnessedCallSlots(arguments, parameters).SelectMany(witnessed => WitnessCaptures(witnessed.Argument)).ToList();
+
+                foreach(var captured in FactoredCallCaptures(arguments, parameters).Where(captured => witnessedCaptures.Exists(read => ReferenceEquals(read.Capture, captured.Capture))))
+                {
+                    yield return captured.Capture;
+                }
+
+                foreach(var capture in invocation.Receiver is MemberAccessExpression { Receiver: TypeReferenceExpression staticOwner } ? ReadTwice(staticOwner.ReferencedType) : [])
+                {
+                    yield return capture;
+                }
+
+                break;
+
+            case MemberAccessExpression { Receiver: TypeReferenceExpression heldThrough } held when HeldOwner(held) is { } holderOwner:
+                foreach(var capture in ReadTwice(UnsafeReach.ClosedOwner(holderOwner, Unaliased(TypeNameEmitter.Closed(heldThrough.ReferencedType)))))
+                {
+                    yield return capture;
+                }
+
                 break;
 
             case DefaultExpression defaulted:
@@ -118,7 +138,7 @@ internal static partial class BodyEmitter
                 break;
 
             case NewExpression creation:
-                foreach(var capture in ClosingCaptures(creation.Type).Where(capture => !creation.Captures.Contains(capture)).Concat(NestedCaptures(creation.Type)))
+                foreach(var capture in ClosingCaptures(creation.Type).Where(capture => !creation.Captures.Contains(capture)).Concat(NestedCaptures(creation.Type)).Concat(ReadTwice(creation.Type)))
                 {
                     yield return capture;
                 }
@@ -327,7 +347,8 @@ internal static partial class BodyEmitter
         }
 
         if(RoutedCallSlots(arguments, parameters).Any(routed => routed.Argument is CapturedValue captured && ReferenceEquals(captured.Capture, capture))
-            || WitnessedCallSlots(arguments, parameters).Any(witnessed => WitnessCaptures(witnessed.Argument).Any(captured => ReferenceEquals(captured.Capture, capture))))
+            || WitnessedCallSlots(arguments, parameters).Any(witnessed => WitnessCaptures(witnessed.Argument).Any(captured => ReferenceEquals(captured.Capture, capture)))
+            || FactoredCallCaptures(arguments, parameters).Any(captured => ReferenceEquals(captured.Capture, capture)))
         {
             return true;
         }

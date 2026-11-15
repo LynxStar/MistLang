@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Members;
@@ -19,7 +20,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// in a hidden field set from a hidden constructor parameter, and a static member takes the type's as a hidden
 /// parameter. Its runtime is <see cref="Runtime"/>, a closed C# type's description holding the slot values in order, a
 /// test and the stamp; two witnesses of one C# type are the same closing exactly when their values are equal. A
-/// declaration no such closing reaches keeps the C# it has always had.
+/// witnessed type has no constructor a C# constructor constraint could call, so a parameter some closing fills with
+/// one, or with a parameter so filled, declares none in C# and builds only through its constructor witness, whose
+/// factory supplies the witness. A declaration no such closing reaches keeps the C# it has always had.
 /// </summary>
 internal sealed class ClosingWitnesses : IDisposable
 {
@@ -33,9 +36,12 @@ internal sealed class ClosingWitnesses : IDisposable
 
     private readonly HashSet<TypeParameter> witnessed;
 
-    private ClosingWitnesses(HashSet<TypeParameter> witnessed)
+    private readonly HashSet<TypeParameter> factored;
+
+    private ClosingWitnesses(HashSet<TypeParameter> witnessed, HashSet<TypeParameter> factored)
     {
         this.witnessed = witnessed;
+        this.factored = factored;
     }
 
     public static IDisposable Enter(ProgramModelClass model, DiagnosticBag diagnostics)
@@ -43,13 +49,18 @@ internal sealed class ClosingWitnesses : IDisposable
         var sensitivity = SlotSensitivity.Discover(model);
         sensitivity.Report(SourceBodies.Of(model), SlotSensitivity.SourceDeclared(model), SourceTypes.ExtensionsOf(model), diagnostics);
         var roots = SourceBodies.Of(model).Select(root => root.Root).ToList();
+        var closings = SlotSensitivity.Closings(model, roots).ToList();
+        var answers = SlotRoutes.Answers(model, slot => slot.TypeParametersList.Count > 0).ToList();
+        var witnessed = Decide(sensitivity, closings, answers);
 
-        return Enter(Decide(sensitivity, SlotSensitivity.Closings(model, roots), SlotRoutes.Answers(model, slot => slot.TypeParametersList.Count > 0)));
+        return Enter(witnessed, Factored(closings, answers, witnessed));
     }
 
-    public static IDisposable Enter(IEnumerable<TypeParameter> parameters)
+    public static IDisposable Enter(IEnumerable<TypeParameter> parameters, IEnumerable<TypeParameter>? factoredParameters = null)
     {
-        current = new ClosingWitnesses(new HashSet<TypeParameter>(parameters, ReferenceEqualityComparer.Instance));
+        current = new ClosingWitnesses(
+            new HashSet<TypeParameter>(parameters, ReferenceEqualityComparer.Instance),
+            new HashSet<TypeParameter>(factoredParameters ?? [], ReferenceEqualityComparer.Instance));
         return current;
     }
 
@@ -89,7 +100,9 @@ internal sealed class ClosingWitnesses : IDisposable
                 {
                     var parameter = definition.TypeParametersList[i];
 
-                    if(!found.Contains(parameter) && needing.Contains(parameter) && !Specialized(parameter) && Carries(arguments[i], found))
+                    if(!found.Contains(parameter) && needing.Contains(parameter) && !Specialized(parameter)
+                        && (Carries(arguments[i], found) || (parameter.ConstraintsList.OfType<ConstructorConstraint>().Any()
+                            && Defaultability.DeclarationOf(arguments[i]) is { } built && StoresWitness(built, found))))
                     {
                         changed |= found.Add(parameter);
                     }
@@ -109,6 +122,61 @@ internal sealed class ClosingWitnesses : IDisposable
         }
 
         return found;
+    }
+
+    public static HashSet<TypeParameter> Factored(
+        IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> closings,
+        IEnumerable<(Method Slot, Method Answer)> answers,
+        IReadOnlySet<TypeParameter> witnessedParameters)
+    {
+        var found = new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance);
+        var fills = closings.Where(fill => !SlotSensitivity.IsClrGeneric(fill.Definition)).ToList();
+        var linked = answers.ToList();
+        var changed = true;
+
+        while(changed)
+        {
+            changed = false;
+
+            foreach(var (definition, arguments) in fills)
+            {
+                for(var i = 0; i < arguments.Count && i < definition.TypeParametersList.Count; i++)
+                {
+                    var parameter = definition.TypeParametersList[i];
+
+                    if(!found.Contains(parameter) && parameter.ConstraintsList.OfType<ConstructorConstraint>().Any()
+                        && (arguments[i] is TypeParameter forwarded ? found.Contains(forwarded)
+                            : Defaultability.DeclarationOf(arguments[i]) is { } declaration && StoresWitness(declaration, witnessedParameters)))
+                    {
+                        changed |= found.Add(parameter);
+                    }
+                }
+            }
+
+            foreach(var (slot, answer) in linked)
+            {
+                for(var i = 0; i < slot.TypeParametersList.Count && i < answer.TypeParametersList.Count; i++)
+                {
+                    if(found.Contains(slot.TypeParametersList[i]) || found.Contains(answer.TypeParametersList[i]))
+                    {
+                        changed |= found.Add(slot.TypeParametersList[i]) | found.Add(answer.TypeParametersList[i]);
+                    }
+                }
+            }
+        }
+
+        return found;
+    }
+
+    private static bool StoresWitness(MemberType declaration, IReadOnlySet<TypeParameter> witnessedParameters)
+    {
+        return declaration.TypeParametersList.Any(parameter => !parameter.IsDependent && witnessedParameters.Contains(parameter))
+            || (declaration.DeclaringType is MemberType enclosing && StoresWitness(enclosing, witnessedParameters));
+    }
+
+    public static bool IsFactored(TypeParameter parameter)
+    {
+        return current?.factored.Contains(parameter is PackElementType element ? element.Pack : parameter) == true;
     }
 
     private static bool Specialized(TypeParameter parameter)

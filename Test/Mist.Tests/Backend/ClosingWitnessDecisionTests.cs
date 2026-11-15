@@ -14,7 +14,8 @@ namespace Mist.Tests.Backend;
 /// Which type parameters <see cref="ClosingWitnesses"/> gives a witness, over hand-built sensitivity and closings
 /// (runtime-dependent-values design, <em>Identity by value: a closing as a type argument</em>): a marked parameter a
 /// closing of a value-routed type fills, one only plain types fill, a chain the closing reaches from its outermost
-/// writer, an abstract's method slot and its answer together, and a reason no witness answers.
+/// writer, an abstract's method slot and its answer together, a reason no witness answers, and which <c>new()</c>
+/// parameters build only through their constructor witness.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class ClosingWitnessDecisionTests
@@ -111,6 +112,55 @@ public sealed class ClosingWitnessDecisionTests
         Assert.Equal("__closing_T", SlotRoutes.Hidden(t));
         Assert.Equal("MistClosing<T>", SlotRoutes.Keyword(t));
         Assert.Empty(ClosingWitnesses.Stored(HandBuiltModel.Class("Plain<>")));
+    }
+
+    [Fact]
+    public void ANewConstrainedParameterAWitnessedTypeFillsIsFactoredAndSoIsOneItIsForwardedTo()
+    {
+        var creator = HandBuiltModel.Class("Creator<>");
+        var c = Constructed(Parameter(creator, "C"));
+        var holder = HandBuiltModel.Class("Holder<>");
+        var h = Constructed(Parameter(holder, "H"));
+        var plain = HandBuiltModel.Class("Plain<>");
+        var p = Constructed(Parameter(plain, "P"));
+        var bare = HandBuiltModel.Class("Bare<>");
+        var b = Parameter(bare, "B");
+        using var routes = SlotRoutes.Enter([capacity]);
+
+        var factored = ClosingWitnesses.Factored(
+            [(creator, [h]), (holder, [slots.Closed(tester, slots.Int)]), (plain, [slots.Closed(HandBuiltModel.Class("Widget"))]), (bare, [slots.Closed(tester, slots.Int)])],
+            [],
+            new HashSet<TypeParameter>([t], ReferenceEqualityComparer.Instance));
+
+        Assert.Equal(2, factored.Count);
+        Assert.Contains(h, factored);
+        Assert.Contains(c, factored);
+        Assert.DoesNotContain(p, factored);
+        Assert.DoesNotContain(b, factored);
+    }
+
+    [Fact]
+    public void ANewConstrainedParameterThatNeedsAWitnessTakesOneForAWitnessedTypeWithNoClosing()
+    {
+        var kept = HandBuiltModel.Class("Kept<>");
+        var k = Constructed(Parameter(kept, "K"));
+        using var routes = SlotRoutes.Enter([capacity]);
+        var closings = new List<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)>
+        {
+            (tester, [slots.Closed(ring, slots.Literal(5))]),
+            (kept, [slots.Closed(tester, slots.Int)]),
+        };
+
+        var found = ClosingWitnesses.Decide(SlotSensitivity.Discover([TestOf(t), TestOf(k)], [], closings), closings, []);
+
+        Assert.Contains(t, found);
+        Assert.Contains(k, found);
+    }
+
+    private static TypeParameter Constructed(TypeParameter parameter)
+    {
+        parameter.ConstraintsList.Add(new ConstructorConstraint([]));
+        return parameter;
     }
 
     private static HashSet<TypeParameter> Decide(IEnumerable<object> roots, IEnumerable<(IHasTypeParameters Definition, IReadOnlyList<IMistType> Arguments)> fills)

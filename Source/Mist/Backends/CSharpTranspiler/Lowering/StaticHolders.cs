@@ -78,6 +78,13 @@ internal static class StaticHolders
         return $"{type}.{Lookup}({string.Join(", ", values)})";
     }
 
+    public static IReadOnlyList<ConstructorFactoryWitness> Factories(MemberType? type)
+    {
+        return type is ConcreteType concrete && Keeps(concrete)
+            ? [.. ConstructorWitnesses.Stored(concrete).Where(witness => ClosingWitnesses.IsFactored(witness.Parameter))]
+            : [];
+    }
+
     public static IDisposable Building(MemberType type)
     {
         var previous = building;
@@ -137,6 +144,14 @@ internal static class StaticHolders
 
                 writer.WriteBlankLine();
                 writer.WriteLine("public THolder Of(TKey key)");
+
+                using(writer.Block())
+                {
+                    writer.WriteLine("return Of(key, create);");
+                }
+
+                writer.WriteBlankLine();
+                writer.WriteLine("public THolder Of(TKey key, System.Func<TKey, THolder> create)");
 
                 using(writer.Block())
                 {

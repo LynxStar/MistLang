@@ -97,13 +97,13 @@ internal static class ConstructorWitnesses
 
     public static ConstructorFactoryWitness? For(TypeParameter parameter, int arity)
     {
-        var matching = native ? [] : Of([parameter]).Where(witness => witness.Signature.Count == arity).ToList();
+        var matching = native && !ClosingWitnesses.IsFactored(parameter) ? [] : Of([parameter]).Where(witness => witness.Signature.Count == arity).ToList();
         return matching.Count == 1 ? matching[0] : null;
     }
 
     public static ConstructorFactoryWitness? For(TypeParameter parameter, IReadOnlyList<IMistType> argumentTypes)
     {
-        var matching = native ? [] : Of([parameter]).Where(witness => witness.Signature.Count == argumentTypes.Count).ToList();
+        var matching = native && !ClosingWitnesses.IsFactored(parameter) ? [] : Of([parameter]).Where(witness => witness.Signature.Count == argumentTypes.Count).ToList();
         var exact = matching.Where(witness => Same(witness.Signature, argumentTypes)).ToList();
 
         if(exact.Count == 1)
@@ -162,20 +162,39 @@ internal static class ConstructorWitnesses
         }
 
         var supplied = new List<string>();
+        var closings = new List<string>();
 
         if(Defaultability.DeclarationOf(product) is { } declaration)
         {
+            if(ClosingWitnesses.Stored(declaration).Count > 0)
+            {
+                closings.AddRange(BodyEmitter.FactoryWitnesses(product));
+            }
+
             supplied.AddRange(DefaultWitnesses.Arguments(DefaultWitnesses.ConstructionOf(declaration), product, witnessReceiver) ?? []);
             supplied.AddRange(Arguments(Stored(declaration), TypeSubstitution.ForReceiver(product as ConstructedType), visiting, depth + 1, witnessReceiver));
         }
 
         supplied.AddRange(ArgumentNames(signature, depth));
         _ = visiting.Remove(key);
-        return $"({LambdaParameters(signature, depth)}) => new {TypeNameEmitter.Emit(product)}({string.Join(", ", supplied)})";
+        var built = closings.Select((closing, index) => closing.StartsWith("new ", StringComparison.Ordinal) ? (Value: closing, Bound: $"__closing{depth}_{index}") : (Value: closing, Bound: closing)).ToList();
+        var factory = $"({LambdaParameters(signature, depth)}) => new {TypeNameEmitter.Emit(product)}({string.Join(", ", built.Select(closing => closing.Bound).Concat(supplied))})";
+
+        foreach(var (value, bound) in Enumerable.Reverse(built).Where(closing => !ReferenceEquals(closing.Value, closing.Bound)))
+        {
+            factory = $"(({value}) switch {{ var {bound} => {factory} }})";
+        }
+
+        return factory;
     }
 
     private static string Native(IMistType product, IReadOnlyList<IMistType> signature, int depth)
     {
+        if(product is TypeParameter factored && ClosingWitnesses.IsFactored(factored))
+        {
+            return $"({LambdaParameters(signature, depth)}) => throw new System.InvalidOperationException(\"{TypeNameEmitter.Emit(product)} is built only with its closing witness\")";
+        }
+
         var arguments = string.Join(", ", ArgumentNames(signature, depth));
         var target = product is TypeParameter && signature.Count > 0
             ? $"{TypeNameEmitter.Emit(product)}.{ConstructorConstraintInterfaces.MemberName}"

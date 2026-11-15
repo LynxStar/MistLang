@@ -102,6 +102,9 @@ internal static partial class BodyEmitter
         }
 
         var values = closing is null ? HiddenReads(owner) : SlotValues(closing, diagnostics);
+        var factories = StaticHolders.Factories(owner);
+        values = factories.Count == 0 ? values
+            : values.Concat(closing is null ? ConstructorWitnesses.Names(factories) : ConstructorWitnesses.Arguments(factories, closing));
 
         return StaticHolders.Through(TypeNameEmitter.Emit(closing ?? new ConstructedType(owner, owner.TypeParametersList)), values);
     }

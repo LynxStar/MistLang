@@ -149,13 +149,13 @@ internal static class DefaultWitnesses
     }
 
     /// <summary>
-    /// Every instance initializer of a value-routed type, whatever it reads: C# refuses an initializer that
-    /// names an instance member, and the hidden slot field is one, so they run in the constructors after it
-    /// is set (<see cref="EmitInitializers"/>). An ordinary type keeps its initializers where they stand.
+    /// Every instance initializer of a value-routed or witnessed type, whatever it reads: C# refuses an initializer
+    /// that names an instance member, and the hidden slot or witness field is one, so they run in the constructors
+    /// after it is set (<see cref="EmitInitializers"/>). An ordinary type keeps its initializers where they stand.
     /// </summary>
     public static bool Deferred(Expression expression, MemberType? declaring)
     {
-        return SlotRoutes.ValueRouted(declaring).Count > 0 || Deferred(expression);
+        return SlotRoutes.Carried(declaring).Count > 0 || Deferred(expression);
     }
 
     public static bool Deferred(Expression expression)
@@ -165,7 +165,9 @@ internal static class DefaultWitnesses
             DefaultExpression { Type: TypeParameter parameter } => IsWitnessed(parameter),
             NewExpression { Type: TypeParameter parameter } allocation => ConstructorWitnesses.For(parameter, allocation.Arguments.Select(argument => argument.Type).ToList()) is not null,
             NewExpression allocation when Defaultability.DeclarationOf(TypeNameEmitter.Closed(allocation.Type)) is { } declaration
-                => ConstructionOf(declaration).Count > 0 && TypeParameterReach.Collect(TypeNameEmitter.Closed(allocation.Type)).Any(IsWitnessed),
+                => (ConstructionOf(declaration).Count > 0 && TypeParameterReach.Collect(TypeNameEmitter.Closed(allocation.Type)).Any(IsWitnessed))
+                    || (ConstructorWitnesses.Stored(declaration).Count > 0
+                        && TypeParameterReach.Collect(TypeNameEmitter.Closed(allocation.Type)).Any(parameter => ConstructorWitnesses.Of([parameter]).Count > 0)),
             MethodReferenceExpression reference => reference.TypeArguments.Any(argument => TypeParameterReach.Collect(argument)
                 .Any(parameter => IsWitnessed(parameter) || ConstructorWitnesses.Of([parameter]).Count > 0)),
             MemberAccessExpression access => access.TypeArguments.Any(argument => TypeParameterReach.Collect(argument)

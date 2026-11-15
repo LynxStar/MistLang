@@ -4,20 +4,10 @@ using Mist.Lexing.Contracts;
 
 namespace Mist.Tests.Lexing;
 
-/// <summary>
-/// Unit tests verifying that the lexer correctly produces PIPE tokens for single `|`
-/// and LOGICAL_OR tokens for `||`.
-///
-/// Requirements: 1.2, 1.3
-/// </summary>
 public class PipeTokenTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
 
-    /// <summary>
-    /// Helper: lex a source string and return the default-channel tokens
-    /// (excluding hidden tokens like whitespace/comments), also excluding EOF.
-    /// </summary>
     private static IReadOnlyList<Storm.Runtime.Token> LexDefaultTokens(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);

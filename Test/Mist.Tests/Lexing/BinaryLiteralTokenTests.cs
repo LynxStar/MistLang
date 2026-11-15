@@ -3,20 +3,10 @@ using Mist.Generated;
 
 namespace Mist.Tests.Lexing;
 
-/// <summary>
-/// Unit tests for binary literal tokenization and digit separator support
-/// across all numeric literal types.
-///
-/// Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9
-/// </summary>
 public class BinaryLiteralTokenTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
 
-    /// <summary>
-    /// Helper: lex a source string and return the default-channel tokens
-    /// (excluding hidden tokens like whitespace/comments), also excluding EOF.
-    /// </summary>
     private static IReadOnlyList<Storm.Runtime.Token> LexDefaultTokens(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -26,8 +16,6 @@ public class BinaryLiteralTokenTests
             .Where(t => t.Kind != (int)TokenKind.EndOfFile)
             .ToList();
     }
-
-    // ─── Binary Literal Token Kind (Req 1.2) ────────────────────────────────
 
     [Fact]
     public void BinaryLiteral_LexesAsBinaryLiteralToken_NotIntegerLiteral()
@@ -39,8 +27,6 @@ public class BinaryLiteralTokenTests
         Assert.NotEqual((int)TokenKind.INTEGER_LITERAL, tokens[0].Kind);
         Assert.Equal("0b1010", tokens[0].Lexeme);
     }
-
-    // ─── Binary Literal Prefixes (Req 1.1) ──────────────────────────────────
 
     [Theory]
     [InlineData("0b1010")]
@@ -59,8 +45,6 @@ public class BinaryLiteralTokenTests
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
-
-    // ─── Binary Literal Suffixes (Req 1.1) ──────────────────────────────────
 
     [Theory]
     [InlineData("0b1010L")]
@@ -84,8 +68,6 @@ public class BinaryLiteralTokenTests
         Assert.Equal(literal, tokens[0].Lexeme);
     }
 
-    // ─── Binary Literal with Digit Separators (Req 1.3, 1.5) ────────────────
-
     [Theory]
     [InlineData("0b1111_0000")]
     [InlineData("0b1_0_1_0")]
@@ -99,8 +81,6 @@ public class BinaryLiteralTokenTests
         Assert.Equal((int)TokenKind.BINARY_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
-
-    // ─── Integer Literal with Digit Separators (Req 8.1) ────────────────────
 
     [Theory]
     [InlineData("1_000_000")]
@@ -117,8 +97,6 @@ public class BinaryLiteralTokenTests
         Assert.Equal(literal, tokens[0].Lexeme);
     }
 
-    // ─── Hex Literal with Digit Separators (Req 8.2) ────────────────────────
-
     [Theory]
     [InlineData("0xFF_FF")]
     [InlineData("0xAB_CD_EF")]
@@ -132,8 +110,6 @@ public class BinaryLiteralTokenTests
         Assert.Equal((int)TokenKind.HEX_LITERAL, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
     }
-
-    // ─── Float Literal with Digit Separators (Req 8.3) ──────────────────────
 
     [Theory]
     [InlineData("1_000.50_25f")]
@@ -149,19 +125,14 @@ public class BinaryLiteralTokenTests
         Assert.Equal(literal, tokens[0].Lexeme);
     }
 
-    // ─── Invalid Separator Placement (Req 1.4, 8.4, 8.5, 8.6, 8.7, 8.8) ───
-    // Invalid separator placement should NOT produce a single correct literal
-    // token. The exact tokenization depends on the Storm lexer's behavior,
-    // so we assert that the input does NOT lex as a single literal of the
-    // expected type.
+    // What a misplaced separator lexes to is left to the Storm lexer, so these tests only
+    // assert it is not a single literal of the expected kind.
 
     [Fact]
     public void InvalidSeparator_BinaryPrefixUnderscore_DoesNotProduceSingleBinaryLiteral()
     {
-        // 0b_1010 — underscore right after prefix is invalid (Req 1.4)
         var tokens = LexDefaultTokens("0b_1010");
 
-        // Should NOT be a single BINARY_LITERAL token
         var isSingleBinaryLiteral = tokens.Count == 1
             && tokens[0].Kind == (int)TokenKind.BINARY_LITERAL;
         Assert.False(isSingleBinaryLiteral,
@@ -171,7 +142,6 @@ public class BinaryLiteralTokenTests
     [Fact]
     public void InvalidSeparator_HexPrefixUnderscore_DoesNotProduceSingleHexLiteral()
     {
-        // 0x_FF — underscore right after prefix is invalid (Req 8.4)
         var tokens = LexDefaultTokens("0x_FF");
 
         var isSingleHexLiteral = tokens.Count == 1
@@ -183,7 +153,6 @@ public class BinaryLiteralTokenTests
     [Fact]
     public void InvalidSeparator_ConsecutiveUnderscores_DoesNotProduceSingleIntegerLiteral()
     {
-        // 1__000 — consecutive underscores are invalid (Req 8.8)
         var tokens = LexDefaultTokens("1__000");
 
         var isSingleIntegerLiteral = tokens.Count == 1
@@ -195,7 +164,6 @@ public class BinaryLiteralTokenTests
     [Fact]
     public void InvalidSeparator_BeforeSuffix_DoesNotProduceSingleIntegerLiteral()
     {
-        // 100_L — underscore before suffix is invalid (Req 8.5)
         var tokens = LexDefaultTokens("100_L");
 
         var isSingleIntegerLiteral = tokens.Count == 1
@@ -207,7 +175,6 @@ public class BinaryLiteralTokenTests
     [Fact]
     public void InvalidSeparator_BeforeDecimalPoint_DoesNotProduceSingleFloatLiteral()
     {
-        // 1_.0 — underscore before decimal point is invalid (Req 8.6)
         var tokens = LexDefaultTokens("1_.0");
 
         var isSingleFloatLiteral = tokens.Count == 1
@@ -219,7 +186,6 @@ public class BinaryLiteralTokenTests
     [Fact]
     public void InvalidSeparator_AfterDecimalPoint_DoesNotProduceSingleFloatLiteral()
     {
-        // 1._0 — underscore after decimal point is invalid (Req 8.7)
         var tokens = LexDefaultTokens("1._0");
 
         var isSingleFloatLiteral = tokens.Count == 1
@@ -228,14 +194,11 @@ public class BinaryLiteralTokenTests
             "1._0 should not lex as a single FLOAT_LITERAL token");
     }
 
-    // ─── Binary Prefix Alone (Req 1.4) ──────────────────────────────────────
-
     [Theory]
     [InlineData("0b")]
     [InlineData("0B")]
     public void BinaryPrefixAlone_DoesNotProduceBinaryLiteralToken(string input)
     {
-        // 0b or 0B with no digits should not produce a BINARY_LITERAL token
         var tokens = LexDefaultTokens(input);
 
         var hasBinaryLiteral = tokens.Any(t => t.Kind == (int)TokenKind.BINARY_LITERAL);

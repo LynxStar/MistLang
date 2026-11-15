@@ -4,21 +4,10 @@ using Mist.Lexing.Contracts;
 
 namespace Mist.Tests.Lexing;
 
-/// <summary>
-/// Unit tests verifying maximal-munch token priority for optional-type operators.
-/// Ensures that `??=` lexes as one token (not `??` + `=`), `??` lexes as one token
-/// (not `?` + `?`), and `?.` lexes as one token (not `?` + `.`).
-///
-/// Validates: Requirements 8.4
-/// </summary>
 public class OptionalOperatorTokenPriorityTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
 
-    /// <summary>
-    /// Helper: lex a source string and return the default-channel tokens
-    /// (excluding hidden tokens like whitespace/comments), also excluding EOF.
-    /// </summary>
     private static IReadOnlyList<Storm.Runtime.Token> LexDefaultTokens(string source)
     {
         var sourceText = new Mist.Common.Source.SourceText("test.mist", source);
@@ -85,7 +74,6 @@ public class OptionalOperatorTokenPriorityTests
     [Fact]
     public void QuestionQuestionEqualFollowedByIdentifier_LexesCorrectly()
     {
-        // "??=x" should be QUESTION_QUESTION_EQUAL + IDENTIFIER
         var tokens = LexDefaultTokens("??=x");
 
         Assert.Equal(2, tokens.Count);

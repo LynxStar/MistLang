@@ -131,6 +131,65 @@ public sealed class SteeringInstallerTests : IDisposable
     }
 
     [Fact]
+    public void InstallFrom_UnmarkedUserFileWithBundledName_IsLeftUntouched()
+    {
+        const string userText = "# My own notes\nuser content, no marker\n";
+        WriteBundled("mist-example.md", body: "bundled body");
+        WriteBundled("mist-language.md");
+        WriteExisting("mist-example.md", userText);
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(userText, File.ReadAllText(Path.Combine(SteeringDir, "mist-example.md")));
+        Assert.Empty(result.Removed);
+        var skipped = Assert.Single(result.SkippedUserFiles);
+        Assert.Equal("mist-example.md", Path.GetFileName(skipped));
+        var installed = Assert.Single(result.Installed);
+        Assert.Equal("mist-language.md", Path.GetFileName(installed));
+        Assert.True(File.Exists(Path.Combine(SteeringDir, "mist-language.md")));
+    }
+
+    [Fact]
+    public void InstallFrom_UnmarkedUserFileWithBundledName_SurvivesRepeatedRuns()
+    {
+        const string userText = "my version of the example";
+        WriteBundled("mist-example.md");
+        WriteBundled("mist-language.md");
+        WriteExisting("mist-example.md", userText);
+
+        var first = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+        var second = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(userText, File.ReadAllText(Path.Combine(SteeringDir, "mist-example.md")));
+        Assert.Equal("mist-language.md", Path.GetFileName(Assert.Single(second.Removed)));
+        Assert.Equal("mist-language.md", Path.GetFileName(Assert.Single(second.Installed)));
+        Assert.Equal("mist-example.md", Path.GetFileName(Assert.Single(second.SkippedUserFiles)));
+    }
+
+    [Fact]
+    public void InstallFrom_NameClash_StillRefreshesManagedFilesAndKeepsOtherUserFiles()
+    {
+        WriteExisting("mist-example.md", "user example");
+        WriteExisting("mist-language.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nstale body\n");
+        WriteExisting("my-rules.md", "user rules");
+        WriteBundled("mist-example.md", body: "bundled example");
+        WriteBundled("mist-language.md", body: "fresh body");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("user example", File.ReadAllText(Path.Combine(SteeringDir, "mist-example.md")));
+        Assert.Equal("user rules", File.ReadAllText(Path.Combine(SteeringDir, "my-rules.md")));
+        Assert.Equal(File.ReadAllText(Path.Combine(sourceRoot, "mist-language.md")), File.ReadAllText(Path.Combine(SteeringDir, "mist-language.md")));
+        Assert.Equal("mist-language.md", Path.GetFileName(Assert.Single(result.Removed)));
+        Assert.Equal("mist-language.md", Path.GetFileName(Assert.Single(result.Installed)));
+        Assert.Equal(["mist-example.md", "my-rules.md"], result.SkippedUserFiles.Select(p => Path.GetFileName(p)!).OrderBy(n => n, StringComparer.Ordinal).ToArray());
+    }
+
+    [Fact]
     public void InstallFrom_RemovesStaleManagedFileNoLongerBundled()
     {
         WriteExisting("mist-old-removed.md", $"<!-- {SteeringInstaller.ManagedMarker} -->\nold\n");

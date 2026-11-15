@@ -121,8 +121,6 @@ public sealed class ExhaustivenessDecisionTests : ProgramModelProbe
         _ = Assert.Single(reported);
     }
 
-    // ── Harness ─────────────────────────────────────────────────────────
-
     private void AssertSilent(string statement)
     {
         Assert.Empty(Analyse(statement));

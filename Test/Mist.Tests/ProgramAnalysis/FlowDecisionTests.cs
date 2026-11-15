@@ -234,8 +234,6 @@ public sealed class FlowDecisionTests : ProgramModelProbe
         AssertSilent(statement);
     }
 
-    // ── Harness ─────────────────────────────────────────────────────────
-
     private void AssertSilent(string statement, string extraTypes = "")
     {
         Assert.Empty(Analyse(statement, extraTypes));

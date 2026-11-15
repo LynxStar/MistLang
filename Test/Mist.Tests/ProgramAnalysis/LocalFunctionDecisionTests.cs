@@ -152,8 +152,6 @@ public sealed class LocalFunctionDecisionTests : ProgramModelProbe
         _ = Assert.Single(Analyse("int x; void Show() { var y = x; } Show(); Show(); x = 1;"));
     }
 
-    // ── Harness ─────────────────────────────────────────────────────────
-
     private void AssertAdmitted(string statement)
     {
         var model = BuildModel(statement, extraTypes: "", extraPreamble: "", out var diagnostics);

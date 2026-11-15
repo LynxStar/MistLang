@@ -37,8 +37,8 @@ public sealed class LocalLifetimeTests
     }
 
     /// <summary>
-    /// <c>b.Drop(); b = a;</c> -- the destination's first value is gone, so the second is a fresh lifetime
-    /// it owes, and the source owes nothing once it is taken, except across the throw that can come first.
+    /// The destination's first value is gone, so the second is a fresh lifetime it owes, and the source
+    /// owes nothing once it is taken, except across the throw that can come first.
     /// </summary>
     [Fact]
     public void AssigningIntoAConsumedDestinationGivesItTheSourcesObligation()
@@ -69,9 +69,6 @@ public sealed class LocalLifetimeTests
         Assert.Equal(LifetimeRelease.Guarded, plan.Release(r));
     }
 
-    /// <summary>
-    /// The first reproduction: a Drop on one branch cannot remove the release from the other.
-    /// </summary>
     [Fact]
     public void ADropOnOneBranchLeavesTheOtherBranchOwing()
     {
@@ -139,9 +136,6 @@ public sealed class LocalLifetimeTests
         Assert.Equal([new LifetimeMark(t, Owned: false)], plan.MarksAfter(passed));
     }
 
-    /// <summary>
-    /// A by-reference argument is a loan, so the caller keeps the obligation and it never varies.
-    /// </summary>
     [Fact]
     public void LendingLeavesTheReleaseUnconditional()
     {
@@ -150,9 +144,6 @@ public sealed class LocalLifetimeTests
         Assert.Equal(LifetimeRelease.AtExit, Plan(Declare(t, f.New(1)), Run(f.Call(f.Lend, Ref(t)))).Release(t));
     }
 
-    /// <summary>
-    /// The third reproduction: consuming the first value does not end the binding's obligations.
-    /// </summary>
     [Fact]
     public void AConsumedBindingOwesTheFreshValueAssignedToIt()
     {

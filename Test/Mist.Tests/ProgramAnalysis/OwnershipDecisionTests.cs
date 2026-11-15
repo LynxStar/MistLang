@@ -371,8 +371,7 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 
     /// <summary>
     /// Owned-fields Requirements 16.2 and 16.7: an owned field of a non-clonable type read out of an
-    /// owned holder into any binding is a move of that field, so the read after it is refused. These
-    /// rows were banked as classic's admissions before per-field state existed.
+    /// owned holder into any binding is a move of that field, so the read after it is refused.
     /// </summary>
     [Theory]
     [InlineData("owned var car = new Car(); owned var f = car.Front; Console.WriteLine(car.Front.Get());")]
@@ -444,8 +443,6 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
 
         Assert.True(TaskResult.IsTask(task), $"the task local bound to {task.Name} rather than a task");
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement)
     {

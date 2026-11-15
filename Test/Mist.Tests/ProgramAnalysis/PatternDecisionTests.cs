@@ -140,8 +140,6 @@ public sealed class PatternDecisionTests : ProgramModelProbe
         _ = Assert.Single(Analyse(statement));
     }
 
-    // ── Harness ─────────────────────────────────────────────────────────
-
     private void AssertSilent(string statement)
     {
         Assert.Empty(Analyse(statement));

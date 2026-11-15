@@ -79,9 +79,6 @@ public sealed class ExitDropReachabilityTests
         Assert.Equal(["t"], Dropped(Declare(t, f.New(1)), Run(Drop(t)), Run(Assign(t, f.New(2)))));
     }
 
-    /// <summary>
-    /// With no initializer the drop is filed where the binding first came to own a value.
-    /// </summary>
     [Fact]
     public void AnUninitializedBindingIsDroppedFromWhereItWasAssigned()
     {

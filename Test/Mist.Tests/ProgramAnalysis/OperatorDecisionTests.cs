@@ -23,10 +23,6 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
     {
     }
 
-    /// <summary>
-    /// A declared unary operator answers for itself, as a binary one does: Money's `!` is a bool, so the
-    /// expression is not typed as its Money operand.
-    /// </summary>
     [Fact]
     public void AUserUnaryOperatorTypesTheExpressionByItsReturnType()
     {
@@ -145,8 +141,6 @@ public sealed class OperatorDecisionTests : ProgramModelProbe
     {
         _ = Assert.Single(Analyse(statement));
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement)
     {

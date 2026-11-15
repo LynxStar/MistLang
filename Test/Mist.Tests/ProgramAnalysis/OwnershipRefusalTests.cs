@@ -420,8 +420,7 @@ public sealed class OwnershipRefusalTests
     }
 
     /// <summary>
-    /// A `this` lent past the tier its method declares is refused where it is lent and again where the
-    /// tier is declared, as a call through `this` already is: the site names the parameter, the
+    /// Refused twice, as a call through `this` already is: the site names the parameter, the
     /// declaration names what the body needs.
     /// </summary>
     [Theory]
@@ -435,10 +434,8 @@ public sealed class OwnershipRefusalTests
     }
 
     /// <summary>
-    /// The shapes whose release now follows the executed path stay admitted: a linear local dropped on
-    /// one branch, dropped and given a fresh value -- in a loop too -- or assigned a value after its own
-    /// was consumed. The lowering is only right if the rule lets these through and refuses a use after
-    /// the move, which the rows above hold.
+    /// A linear local's release follows the executed path, so the lowering is only right if the rule
+    /// admits these shapes and refuses a use after the move, which the rows above hold.
     /// </summary>
     [Fact]
     public void ALinearLocalConsumedAndReintroducedIsAdmitted()

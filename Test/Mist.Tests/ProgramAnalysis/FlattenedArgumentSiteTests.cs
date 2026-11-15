@@ -13,7 +13,6 @@ namespace Mist.Tests.ProgramAnalysis;
 // Tier 2: AssignabilityAnalyzer over hand-built calls to a callee with a `params` parameter (variadics
 // Requirement 13.7 and its value-pack sibling). The callee is `Take(Int32 head, params <slot>, Boolean
 // tail)`; each argument sits at column 10 times its position plus one, the call itself at column 91.
-// The `list` slot is a hand-built collection class, enumerable with an Add of its element.
 [Trait("Tier", "2")]
 public sealed class FlattenedArgumentSiteTests
 {

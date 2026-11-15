@@ -450,6 +450,103 @@ comes:
   constants.
 - A dependent parameter written as a type, `x is N` (MIST0500, MIST-1363).
 
+### A type for every literal closing
+
+The owner adopted this on 2026-11-15 ("I agree to all of that"): a literal
+closing keeps its own C# type, the overloads task MIST-1371 is dropped, and
+the open items below are ruled one at a time before the task that meets each.
+The `T | void` rule at the .NET boundary is his proposal; its details are
+confirmed before its own task. No task builds from this section until its
+before-and-after programs have been shown to him.
+
+**What the value route costs literal closings.** The value route makes a
+declaration one C# class for every closing as soon as one closing anywhere is
+known only at run time. A closing written with a literal then loses its own
+C# type. Measured at 87d653d0, with `Ring` holding nothing but its slot:
+
+```mist
+var fives = ArrayPool<Ring<5>>.Shared.Rent(2);
+fives[0] = new Ring<5>();
+ArrayPool<Ring<5>>.Shared.Return(fives);
+
+var sevens = ArrayPool<Ring<7>>.Shared.Rent(2);
+unknown got = sevens[0];
+got is Ring<5>      // False; True once `new Ring<n>()` is added anywhere
+```
+
+Without a run-time closing the two are `Ring<Const_5>` and `Ring<Const_7>`,
+two C# types the CLR keeps apart. With one, both are `Ring`, and the CLR's
+pool hands the `Ring<5>` back as a `Ring<7>`. Overloads that differ only in a
+slot, static storage, unions of two closings, an abstract at two values and a
+closing as a type argument are refused or rebuilt for the same reason: items
+3, 5, 6 and 8 restore, for literal closings, what the carrier route gave them.
+
+**A type for every literal closing.** A closing whose value is known when the
+program is compiled keeps its carrier type, `Ring<Const_5>`, whatever else the
+program does. Only a closing known at run time uses a shared form:
+
+```csharp
+public abstract class Ring__Any { public abstract int __Capacity { get; } }
+public sealed class Ring<TCapacity> : Ring__Any where TCapacity : IConstIntegral { ... }
+public sealed class Ring__Run : Ring__Any { ... }   // a value no literal closing names
+```
+
+- A place whose type is `Ring<n>` is `Ring__Any` in C#.
+- `new Ring<n>()` chooses by the value among the literal closings the program
+  writes: `n == 5` makes a `Ring<Const_5>`, and a value no literal closing
+  names makes a `Ring__Run`. An object's C# class is therefore fixed by its
+  value, so `x is Ring<5>` is `x is Ring<Const_5>`, and a proven
+  `Ring<5> y = x` is a C# cast that cannot fail.
+- `Ring<n>.hits` reads `Ring<Const_5>.hits` when `n` is 5, and the holder
+  table of item 5 for a value no literal closing names. Requirement 10's one
+  storage per value holds.
+- `Foo(Ring<3>)` and `Foo(Ring<4>)` are different C# signatures again.
+- A struct has no base class. A literal closing is `Cell<Const_5>`; a run-time
+  closing is a `Cell__Run` struct that carries the value and a flag set when
+  Mist creates it. A proven assignment between the two copies, as struct
+  assignment does.
+
+**A run-time closing at the .NET boundary.** A CLR generic sees one type,
+`Ring__Any` or `Cell__Run`, for every value no literal closing names, and may
+hand back a zeroed struct or another value's object. The owner proposed
+treating such a value as Mist already treats a CLR reference
+(assembly-type-provider Requirement 14.2): a value whose type is a run-time
+closing, coming back from CLR code, has type `T | void`. Narrowing it to `T`
+checks that the value is present, that its carried value is the one the type
+names, and, for a struct, that Mist created it. A value that fails is `void`.
+
+```mist
+var cells = new List<Cell<n>>();
+cells.Add(new Cell<n>());
+
+var got = cells[0];                 // Cell<n> | void
+if (got is Cell<n> c)
+{
+    Console.WriteLine(c.Size());    // n
+}
+
+var rented = ArrayPool<Cell<n>>.Shared.Rent(2);
+rented[0] is Cell<n>                // false: zeroed, or another value's cell
+```
+
+A literal closing is unaffected: `List<Cell<5>>` hands back a `Cell<5>`, since
+`Cell<Const_5>` is its own CLR type. The check runs once per value that
+crosses back, not on reads in Mist code. This replaces MIST0502's third kept
+case and closes the class leak, which a presence check alone does not.
+
+**Left open.** Each is the owner's, with an example, before a task is written:
+
+- A Mist array or span of a run-time struct closing handed to CLR code that
+  writes into it, `Array.Resize(ref cells, 10)`. The new elements are zeroed
+  inside Mist's own array, with no boundary between them and the next read.
+- A proven assignment between arrays, `Cell<5>[] a = b` with `b` a
+  `Cell<n>[]`. `a` must alias `b`, and `Cell<Const_5>[]` and `Cell__Run[]` are
+  different CLR arrays.
+- A generic built from a run-time closing under proof, `Tester<Ring<5>> t = u`
+  with `u` a `Tester<Ring<n>>`. The CLR never casts `Tester<Ring__Any>` to
+  `Tester<Ring<Const_5>>`, so creation has to choose here as well, and a place
+  of that type needs a C# type both forms fit.
+
 ### Identity by value: the first delivery
 
 Items 1 to 4. Each program was run at afd43acab and is refused there with the

@@ -252,9 +252,55 @@ public sealed class StorageWriteSummaryTests
         Assert.Empty(writes[(count, StorageAccess.Read)]);
     }
 
+    [Fact]
+    public void AnInitializerWritesForAConstructionWhetherOrNotItsTypeDeclaresAConstructor()
+    {
+        var cell = new Generic("Cell", "T");
+        var overwrite = cell.Method("Overwrite", [new Parameter("next", cell.T)], Body(Assign(cell.ValueOf(This(cell.Type)), Local("next", cell.T))));
+        var declared = new Generic("Declared", "D");
+        declared.Field("tag", Int32).Initializer = Call(Callee(New(cell, declared.T, constructor: null), overwrite), overwrite, Local("seed", declared.T));
+        var constructor = declared.Constructor([], Body());
+        var implicitly = new Generic("Implicit", "I");
+        implicitly.Field("tag", Int32).Initializer = Call(Callee(New(cell, implicitly.T, constructor: null), overwrite), overwrite, Local("seed", implicitly.T));
+        var plain = new Generic("Plain", "P");
+        plain.Field("tag", Int32).Initializer = HandBuiltModel.Literal(Int32, 0);
+        var outer = new Generic("Outer", "U");
+        var makeDeclared = outer.Method("MakeDeclared", [], Body(New(declared, outer.T, constructor)));
+        var makeImplicit = outer.Method("MakeImplicit", [], Body(New(implicitly, outer.T, constructor: null)));
+        var makePlain = outer.Method("MakePlain", [], Body(New(plain, outer.T, constructor: null)));
+
+        var writes = Gather(cell, declared, implicitly, plain, outer);
+
+        Assert.Equal(Set(outer.T), writes[(makeDeclared, StorageAccess.Read)]);
+        Assert.Equal(Set(outer.T), writes[(makeImplicit, StorageAccess.Read)]);
+        Assert.Empty(writes[(makePlain, StorageAccess.Read)]);
+    }
+
     private Dictionary<(object, StorageAccess), HashSet<TypeParameter>> Solve(IReadOnlyList<StorageWriteRoot> roots)
     {
         return StorageWriteSummaries.Solve(roots, fragments.Builder);
+    }
+
+    private Dictionary<(object, StorageAccess), HashSet<TypeParameter>> Gather(params Generic[] types)
+    {
+        var source = new MistAssembly("Probe", MistAssemblyKind.Self);
+        var complete = new HashSet<object>(ReferenceEqualityComparer.Instance);
+
+        foreach(var generic in types)
+        {
+            generic.Type.Assembly = source;
+            _ = fragments.Built.Model.RegisterType(generic.Type);
+            complete.UnionWith(generic.Type.MethodsList);
+            complete.UnionWith(generic.Type.ConstructorsList);
+            complete.UnionWith(generic.Type.FieldsList);
+        }
+
+        return Solve(StorageWriteRoots.Gather(fragments.Builder, complete));
+    }
+
+    private NewExpression New(Generic type, IMistType argument, Constructor? constructor)
+    {
+        return new NewExpression(Node(), Interner.GetOrCreateConstructedType(type.Type, [argument]), [], constructor, [], parameterTypes: null);
     }
 
     private static HashSet<TypeParameter> Set(params TypeParameter[] parameters)

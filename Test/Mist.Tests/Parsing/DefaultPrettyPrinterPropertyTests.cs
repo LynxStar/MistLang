@@ -215,7 +215,7 @@ public class DefaultPrettyPrinterPropertyTests
                            {
                                TypeBody = new TypeBodyDeclarationNode
                                {
-                                   Keyword = new ClassKeywordTypeKeywordNode(),
+                                   Keyword = new StructKeywordTypeKeywordNode(),
                                    Name = Tok(structName),
                                    Members = fields.Append(defaultBlock).ToImmutableArray(),
                                },

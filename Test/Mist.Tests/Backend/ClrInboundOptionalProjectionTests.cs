@@ -5,23 +5,13 @@ using Mist.Tests.InteropFixtures;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// The v2 half of the CLR null boundary: a reference-typed result the CLR says may be null projects
-/// as <c>T | void</c>, and one it declares non-null does not.
-/// <para>
-/// ASSERTED ON THE PROJECTED SIGNATURE rather than on a diagnostic, because v2 runs no analyzers.
-/// The refusal a user sees for a plain dot on one of these is an ordinary member-lookup miss, which
-/// would read the same if the union had been built for an unrelated reason -- only the projected
-/// type says the wrap happened and says which constituent it added.
-/// </para>
+/// Asserted on the projected signature rather than a diagnostic, because v2 runs no analyzers and a
+/// plain dot on one of these fails as an ordinary member-lookup miss, whatever built the union.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ClrInboundOptionalProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>
 {
-    /// <summary>
-    /// <c>GetNullableString</c> is annotated <c>string?</c>, which is the only reason this one wraps --
-    /// <c>ValueOrFallback</c> declares its result non-null.
-    /// </summary>
     [Fact]
     public void ANullableClrReferenceReturn_ProjectsAsAUnionWithVoid()
     {
@@ -32,9 +22,8 @@ public sealed class ClrInboundOptionalProjectionTests(AmbientTypeProviderV2Inter
     }
 
     /// <summary>
-    /// The other direction, and the one that makes the rule worth having. Wrapping a result the CLR
-    /// PROMISES is never null makes a caller narrow something that cannot be absent -- which is what
-    /// stopped a chained `xs.Skip(5).First()` resolving at all.
+    /// Wrapping a result the CLR promises is never null makes a caller narrow something that cannot be
+    /// absent, so a chained `xs.Skip(5).First()` would not resolve.
     /// </summary>
     [Fact]
     public void ANonNullClrReferenceReturn_IsNotWrapped()

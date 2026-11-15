@@ -8,15 +8,10 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Attributes written in Mist source, from declaration through to emitted C#.
-/// <para>
-/// ASSERTED HERE RATHER THAN BY samples/Attributes, WHICH CANNOT SEE THIS. That sample proves its
-/// attributes only by compiling -- no reflection, no output line reflecting any of them -- so its
-/// stdout reads identically whether all fourteen are emitted or all fourteen are dropped, which is
-/// what they were before this. The fixture declares its own Attribute base in namespace System so
-/// that the suffix filter has the fully qualified name it tests against, which keeps every case here
-/// free of any CLR assembly load.
-/// </para>
+/// Asserted here because samples/Attributes proves its attributes only by compiling, so its stdout
+/// reads the same whether they are emitted or dropped. The fixture declares its own Attribute base in
+/// namespace System so the suffix filter has the fully qualified name it tests against, which keeps
+/// every case free of any CLR assembly load.
 /// </summary>
 public sealed class AttributeEmissionTests : ProgramModelProbe
 {

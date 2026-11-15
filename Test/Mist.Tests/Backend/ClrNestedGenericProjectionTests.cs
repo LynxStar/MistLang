@@ -1,8 +1,6 @@
 // Tier 3 (Component): how a CLR nested generic type projects. The CLR repeats a declaring type's
 // parameters on the nested type, so Bag`1+Enumerator carries a T that is Bag's, exactly as
-// List`1+Enumerator does; projected as an argument of the nested type it spelled `List<int>.Enumerator<int>`,
-// and before that left Current typed as an unsubstituted T. Asserted on the projected signature and its
-// substitution, over compiled metadata. No Roslyn compile and no process spawning.
+// List`1+Enumerator does. Asserted on the projected signature and its substitution, over compiled metadata.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Construction.Binding;

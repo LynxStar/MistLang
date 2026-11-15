@@ -1,7 +1,5 @@
-// Tier 3 (Component): purity Requirement 1.5 in the model -- an accessor's own promise is recorded on
-// the accessor (PropertyAccessor.OwnModifiers), ahead of its accessibility, beside a declaration that
-// keeps its own -- read off the real model builder over Standard's shells; what the judge makes of the
-// promise is AccessorPromiseRefusalTests' claim.
+// Tier 3 (Component): purity Requirement 1.5 in the model, read off the real model builder over
+// Standard's shells. What the judge makes of the promise is AccessorPromiseRefusalTests' claim.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Enums;

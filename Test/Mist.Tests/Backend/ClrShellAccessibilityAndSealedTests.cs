@@ -1,5 +1,3 @@
-// Tier 1: a CLR type's shell carries its sealed state, with the static-class exception, and an accessibility that is never widened to Internal.
-
 using System.Reflection;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.ProgramModel.Model.Enums;

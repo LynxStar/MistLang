@@ -1,7 +1,7 @@
 // Tier 3 (Component): the one table from an intrinsic Standard type to the CLR name the emitter writes
 // for it, held against the real Standard sources so a new intrinsic type without a spelling fails here
 // rather than as a Roslyn error against generated code. The emitted text is asserted because a bare name
-// and a full one print the same. No Roslyn compile and no process spawning.
+// and a full one print the same.
 
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;

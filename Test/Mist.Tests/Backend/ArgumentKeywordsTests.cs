@@ -8,15 +8,8 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// The keyword an argument takes, one arm per by-ref direction. Mist has one by-ref spelling and C#
-/// has three, so this mapping is the whole of what a call site cannot say for itself.
-/// <para>
-/// Thin on purpose. Deciding what a parameter IS belongs upstream, where the evidence is -- see the
-/// truth table in AmbientTypeProviderV2AttributeProjectionTests, which drives the real projector
-/// over real metadata. An earlier version of this file inferred the direction here from the
-/// modifier flags, which cannot be done correctly: a genuine <c>in</c> and an <c>[In] ref</c> arrive
-/// as the same flags and need opposite keywords.
-/// </para>
+/// Thin on purpose: what a parameter IS is decided upstream, where the evidence is, and
+/// AmbientTypeProviderV2AttributeProjectionTests drives that projector over real metadata.
 /// </summary>
 public sealed class ArgumentKeywordsTests
 {

@@ -1,6 +1,3 @@
-// Feature: binary-literals, Property 6: Verbatim emission of numeric literals
-// **Validates: Requirements 5.1, 8.12**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -11,22 +8,11 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property-based tests for verbatim emission of numeric literals.
-///
-/// Property 6: Verbatim emission of numeric literals.
-/// For any numeric literal AST node (binary, hex, integer, or float, with or without
-/// digit separators and suffixes), the pretty printer SHALL output the token lexeme unchanged.
-///
-/// **Validates: Requirements 5.1, 8.12**
-/// </summary>
 [Trait("Tier", "3")]
 public sealed class BinaryLiteralVerbatimEmissionPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Suffix Constants ────────────────────────────────────────────────
 
     private static readonly string[] IntSuffixes =
         ["", "l", "L", "u", "U", "UL", "ul", "Ul", "uL", "Lu", "lU", "LU", "lu"];
@@ -36,8 +22,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests
 
     private static readonly string[] FloatSuffixesWithEmpty =
         ["", "f", "F", "d", "D", "m", "M"];
-
-    // ─── Shared Digit Group Generators ───────────────────────────────────
 
     private static Gen<string> GenDecimalDigitGroup()
     {
@@ -73,8 +57,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests
             from groups in Gen.ArrayOf(digitGroupGen, count)
             select string.Concat(groups.Select(g => "_" + g));
     }
-
-    // ─── Literal Generators ─────────────────────────────────────────────
 
     private static Gen<string> GenBinaryLiteral()
     {
@@ -142,12 +124,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests
             GenFloatSuffixLiteral());
     }
 
-    // ─── Test Scenario ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// A complete Mist program containing a numeric literal as a variable initializer,
-    /// paired with the literal string for verification.
-    /// </summary>
 #pragma warning disable CA1034
     public record VerbatimEmissionScenario(string Source, string Literal)
     {
@@ -168,8 +144,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests
         return gen.ToArbitrary();
     }
 
-    // ─── Helpers ────────────────────────────────────────────────────────
-
     private static CompilationUnitNode? ParseSource(string source)
     {
         var sourceText = new SourceText("test.mist", source);
@@ -184,17 +158,6 @@ public sealed class BinaryLiteralVerbatimEmissionPropertyTests
         return result.Root as CompilationUnitNode;
     }
 
-    // ─── Property 6 ─────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 6: Verbatim emission of numeric literals — Pretty Printer.
-    ///
-    /// For any numeric literal (binary, hex, integer, or float, with or without
-    /// digit separators and suffixes), the pretty printer SHALL output the token
-    /// lexeme unchanged.
-    ///
-    /// **Validates: Requirements 5.1, 8.12**
-    /// </summary>
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(BinaryLiteralVerbatimEmissionPropertyTests) })]

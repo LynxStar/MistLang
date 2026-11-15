@@ -2,8 +2,7 @@
 // means in each kind of context. `await task` is sugar for `task.Drop()` (drop-semantics Req 7.5), so
 // the three spellings -- written await, written Drop, and the drop a sync context inserts -- bind to
 // ONE node, the call to Standard's Drop, and the backend alone decides that the call is spelled
-// `await`. Built over the REAL Standard sources because every type here is Standard's Task. No Roslyn
-// and no process spawning.
+// `await`. Built over the REAL Standard sources because every type here is Standard's Task.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
@@ -29,9 +28,6 @@ public sealed class AsyncBindingTests
         }
         """;
 
-    /// <summary>
-    /// `async` is a return-type TRANSFORM: the declaration says int and every caller sees Task of int.
-    /// </summary>
     [Fact]
     public void AnAsyncMethodReturnsATask()
     {
@@ -54,10 +50,6 @@ public sealed class AsyncBindingTests
         Assert.Equal("Standard.Int32", ReturnDefinitionOf("ComputeSync"));
     }
 
-    /// <summary>
-    /// The same call site has two meanings depending only on where it sits, which is the whole of the
-    /// context distinction.
-    /// </summary>
     [Fact]
     public void ACallInSyncContextIsDroppedForYou()
     {
@@ -79,8 +71,8 @@ public sealed class AsyncBindingTests
     }
 
     /// <summary>
-    /// An explicit await asks for the task, so the drop the sync context inserted is undone rather than
-    /// stacked. Without this the operand is already an int and there is nothing left to drop.
+    /// An explicit await asks for the task, so the sync context's inserted drop is undone rather than
+    /// stacked on an operand that is already an int.
     /// </summary>
     [Fact]
     public void AnExplicitAwaitInSyncContextUndoesTheInsertedOne()
@@ -138,10 +130,6 @@ public sealed class AsyncBindingTests
         Assert.Equal("Standard.Task<>", DefinitionOf(lifted.Type));
     }
 
-    /// <summary>
-    /// Applied to a call that is already a task the functor lifts nothing -- it suppresses the await
-    /// the sync context would have inserted, which is the same idea seen from the other side.
-    /// </summary>
     [Fact]
     public void TheAsyncFunctorSuppressesTheInsertedAwait()
     {
@@ -182,10 +170,6 @@ public sealed class AsyncBindingTests
         return helpers.MethodsList.Single(method => method.Name == methodName);
     }
 
-    /// <summary>
-    /// The statement is placed in a probe method of the requested kind, since which kind it is is the
-    /// thing under test.
-    /// </summary>
     private static Expression InitializerIn(string statement, bool isAsync)
     {
         var kind = isAsync ? "async void" : "void";

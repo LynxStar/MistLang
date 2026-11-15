@@ -1,5 +1,5 @@
 // Tier 1 (Unit): an attribute whose type the loader cannot resolve counts as absent for nullability
-// rather than taking the projection down. A TestHost package exposed this shape through an undefined
+// rather than taking the projection down. A TestHost package carries this shape through an undefined
 // attribute type; it is reproduced with CustomAttributeData whose type throws on first touch, as a
 // metadata-only load does.
 

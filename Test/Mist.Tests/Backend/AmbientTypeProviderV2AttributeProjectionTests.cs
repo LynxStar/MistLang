@@ -96,20 +96,16 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(AmbientTypePro
         var refParameter = MethodParameter(target, nameof(AttributeProjectionTarget.Mutate));
         var valueParameter = MethodParameter(target, nameof(AttributeProjectionTarget.Transform));
 
-        // 'in' => readonly + ref. The convention lives entirely in the modifier.
         Assert.Equal(
             new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
             inParameter.Modifier);
 
-        // 'out' => mutable ref.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Out),
             outParameter.Modifier);
 
-        // THE TWO ROWS THAT DEFEAT A FLAG-ONLY READING. Both set the metadata In flag exactly as a
-        // real 'in' does, and both are mutable refs requiring 'ref' at a call site. Only a readonly
-        // MARKER separates them from the genuine article, which is why the direction is decided by
-        // the marker rather than by the flag.
+        // Both set the metadata In flag as a real 'in' does, yet are mutable refs. Only the readonly
+        // marker separates them, which is why the direction is decided by the marker, not the flag.
         var markedIn = MethodParameter(target, nameof(AttributeProjectionTarget.MutateMarkedIn));
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
@@ -126,12 +122,11 @@ public sealed class AmbientTypeProviderV2AttributeProjectionTests(AmbientTypePro
             new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.In),
             refReadonly.Modifier);
 
-        // Plain 'ref' => mutable ref.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: true, OwnershipKind.Unrestricted, ByRefDirection.Ref),
             refParameter.Modifier);
 
-        // By value => neither ref nor readonly. CLR never yields an ownership tier.
+        // CLR never yields an ownership tier.
         Assert.Equal(
             new ParameterModifier(IsReadonly: false, IsRef: false, OwnershipKind.Unrestricted),
             valueParameter.Modifier);

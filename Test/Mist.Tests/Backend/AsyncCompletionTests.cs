@@ -37,7 +37,7 @@ public sealed class AsyncCompletionTests
 
     /// <summary>
     /// C# has no await of a null, so a drop reached through `?.` narrows first: absent answers the
-    /// type's default, present is awaited. The statement form is a guarded await.
+    /// type's default, present is awaited.
     /// </summary>
     [Fact]
     public void AConditionalDropNarrowsBeforeAwaiting()
@@ -73,7 +73,7 @@ public sealed class AsyncCompletionTests
 
     /// <summary>
     /// A task nobody kept still has to complete, so it is bound to a temporary rather than left
-    /// running. Only reachable in an async context -- a sync one awaits the call where it stands.
+    /// running.
     /// </summary>
     [Fact]
     public void ADiscardedTaskIsBoundAndAwaited()
@@ -100,8 +100,7 @@ public sealed class AsyncCompletionTests
 
     /// <summary>
     /// An assignment hands the task to a field, which takes the obligation with it. Reading it as a
-    /// discard awaits a value the type is still holding -- and did, in a constructor no promotion had
-    /// made async, until the predicate was narrowed.
+    /// discard awaits a value the type is still holding.
     /// </summary>
     [Fact]
     public void AnAssignmentIsNotADiscard()
@@ -131,8 +130,8 @@ public sealed class AsyncCompletionTests
     }
 
     /// <summary>
-    /// A method owing nothing stays as Mist declared it. Without this the previous test passes on a
-    /// pass that promotes everything.
+    /// Keeps <see cref="AScopeExitAwaitPromotesTheMethodRetroactively"/> from passing on a pass that
+    /// promotes everything.
     /// </summary>
     [Fact]
     public void AMethodOwingNothingIsNotPromoted()

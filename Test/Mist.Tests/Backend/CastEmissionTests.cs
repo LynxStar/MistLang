@@ -1,7 +1,6 @@
 // Tier 3 (Component): how a cast's operand is spelled in C#, over the real Standard sources. Asserted on the
-// emitted text because each shape here failed quietly: `(double)(a / b)` emitted bare divides after the cast
-// and prints 3.5 where Mist, and classic, print 3; and a regex cast to a string had only a C# cast to spell
-// it, which Roslyn refuses. No Roslyn compile and no process spawning.
+// emitted text: `(double)(a / b)` without its parentheses divides after the cast and prints 3.5 where Mist
+// prints 3, and a regex reaches a string through ToString because Roslyn refuses a C# cast between them.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;

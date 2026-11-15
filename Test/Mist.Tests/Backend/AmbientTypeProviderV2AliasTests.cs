@@ -1,10 +1,3 @@
-// ambient-type-provider-v2, Property 1: Alias identity preservation
-//
-// **Validates: Requirements 3.1, 2.2, 7.4**
-//
-// For all 17 alias entries, verify ResolveType returns reference-equal Standard Library instance.
-// Uses [Theory] + [MemberData] over the finite alias set (no process spawning).
-
 using System.Collections.Immutable;
 using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Common.Diagnostics;
@@ -15,10 +8,6 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Property test: for all 17 alias entries, <see cref="AmbientTypeProviderV2.ResolveType"/>
-/// returns the reference-equal Standard Library instance from the ProgramModel.
-/// </summary>
 [Trait("Tier", "1")]
 public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 {
@@ -27,7 +16,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
 
     private IMistType? LookupType(string namespaceName, string typeName)
     {
-        // Check well-known type map first (aliases to Standard Library).
         if(WellKnownTypeMap.Entries.TryGetValue((namespaceName, typeName), out var mapping))
         {
             if(programModel.TypesByFQN.TryGetValue($"{mapping.MistNamespace}.{mapping.MistTypeName}", out var stdType))
@@ -38,7 +26,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
             return null;
         }
 
-        // Handle CLR backtick arity notation → Mist angle-bracket notation.
         var mistName = typeName;
         var backtickIndex = typeName.IndexOf('`');
         if(backtickIndex >= 0)
@@ -65,8 +52,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         programModel = new ProgramModelClass();
         _ = programModel.GetOrAddNamespace("Standard");
 
-        // Register all 17 expected Standard Library types as ClassType stubs.
-        // The alias map maps CLR types to these Standard namespace types.
         var typeNames = new[]
         {
             "Int32", "Int64", "Int16", "Byte", "SByte",
@@ -82,7 +67,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
             _ = programModel.RegisterType(type);
         }
 
-        // Create provider with empty assemblies and null metadata context
         provider = new AmbientTypeProviderV2(
             ImmutableArray<Mist.Driver.LoadedAssemblyInfo>.Empty,
             null,
@@ -94,16 +78,12 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
         provider.Dispose();
     }
 
-    /// <summary>
-    /// All 17 alias entries: (CLR namespace, CLR type name, expected Mist type name in Standard).
-    /// </summary>
     public static TheoryData<string, string, string> AliasEntries
     {
         get
         {
             var data = new TheoryData<string, string, string>
             {
-                // 11 numeric types
                 { "System", "Int32", "Int32" },
                 { "System", "Int64", "Int64" },
                 { "System", "Int16", "Int16" },
@@ -115,12 +95,10 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
                 { "System", "Single", "Single" },
                 { "System", "Double", "Double" },
                 { "System", "Decimal", "Decimal" },
-                // Primitives
                 { "System", "String", "String" },
                 { "System", "Boolean", "Boolean" },
                 { "System", "Char", "Char" },
                 { "System", "Void", "Void" },
-                // Async
                 { "System.Threading.Tasks", "Task", "Task" },
                 { "System.Threading.Tasks", "ValueTask", "ValueTask" },
             };
@@ -134,13 +112,10 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     public void ResolveType_AliasEntry_ReturnsReferenceEqualStandardInstance(
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
-        // Act
         var resolved = LookupType(clrNamespace, clrTypeName);
 
-        // Assert - resolved is not null
         Assert.NotNull(resolved);
 
-        // Assert - resolved is the exact same instance registered in Standard namespace
         var expected = programModel.TypesByFQN[$"Standard.{expectedMistTypeName}"];
         Assert.True(
             ReferenceEquals(resolved, expected),
@@ -153,7 +128,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     public void ResolveType_ArityAwareOverload_ReturnsReferenceEqualStandardInstance(
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
-        // Aliases are non-generic — resolving the bare name should return the Standard instance
         var resolved = LookupType(clrNamespace, clrTypeName);
 
         Assert.NotNull(resolved);
@@ -170,7 +144,7 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     public void ResolveType_ArityAwareOverload_WithNonZeroArity_ReturnsNull(
         string clrNamespace, string clrTypeName, string expectedMistTypeName)
     {
-        _ = expectedMistTypeName; // unused in this test variant
+        _ = expectedMistTypeName;
 
         // Task and ValueTask have generic variants that ARE aliased (Task<> -> Standard.Task<>)
         if(clrTypeName is "Task" or "ValueTask")
@@ -178,7 +152,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
             return;
         }
 
-        // All other aliases should NOT match when name has arity notation (generic variant)
         var resolved = LookupType(clrNamespace, $"{clrTypeName}<>");
 
         Assert.Null(resolved);
@@ -187,8 +160,6 @@ public sealed class AmbientTypeProviderV2AliasTests : IDisposable
     [Fact]
     public void AliasMap_HasExactly17Entries()
     {
-        // Verify we're testing all entries by checking the alias count matches our data.
-        // Count unique entries in our TheoryData — should be 17.
         var count = 0;
         foreach(var _ in AliasEntries)
         {

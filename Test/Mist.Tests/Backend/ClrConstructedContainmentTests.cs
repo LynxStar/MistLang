@@ -2,7 +2,7 @@
 // off compiled metadata (Mist.Tests.InteropFixtures.Bag<T>, declaring the chain List<T> does). The call
 // that needs it -- `Take(list)` over Take(IEnumerable<int>) and Take(string) -- cannot be a probe, whose
 // shell loads no CLR assembly, nor a sample, since Roslyn resolves the emitted call again whatever Mist
-// selected. No Roslyn compile and no process spawning.
+// selected.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Types;

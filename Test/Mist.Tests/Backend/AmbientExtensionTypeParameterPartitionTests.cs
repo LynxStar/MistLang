@@ -6,23 +6,10 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Tests.Backend;
 
-/// <summary>
-/// Verifies that projecting a CLR extension method splits its type parameters between the extension
-/// block and the method, as Mist models them.
-/// <para>
-/// The CLR has no extension blocks. <c>Select&lt;TSource, TResult&gt;(this IEnumerable&lt;TSource&gt;
-/// source, ...)</c> is a static method with one flat parameter list, and resugaring it has to decide
-/// which parameters were the block's. The receiver type is the evidence: a parameter it mentions was
-/// declared on the block, and the rest on the method.
-/// </para>
-/// </summary>
 [Trait("Tier", "2")]
 public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProviderV2LinqInteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2LinqInteropFixture>
 {
-    /// <summary>
-    /// Every projected extension block in a namespace, flattened across receiver types.
-    /// </summary>
     private List<ExtensionBlock> BlocksIn(string namespaceName)
     {
         var blocks = new List<ExtensionBlock>();
@@ -36,10 +23,6 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
         return blocks;
     }
 
-    /// <summary>
-    /// The projected blocks holding a method of the given name and remaining-parameter count. One
-    /// block per CLR method, so a name with overloads yields several.
-    /// </summary>
     private List<(ExtensionBlock Block, Method Method)> Overloads(string namespaceName, string methodName)
     {
         var found = new List<(ExtensionBlock, Method)>();
@@ -58,21 +41,11 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
         return found;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // The receiver decides
-    // ═══════════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// <c>Select&lt;TSource, TResult&gt;(this IEnumerable&lt;TSource&gt;, Func&lt;TSource,
-    /// TResult&gt;)</c>. The receiver mentions one of the two parameters, so that one is the block's
-    /// and the result is the method's -- one apiece, not two on either.
-    /// <para>
-    /// What the receiver MENTIONS is asserted rather than the parameter's name, for the same reason
-    /// <see cref="Where_PutsItsOnlyParameterOnTheBlock"/> asserts only placement: the name is the
-    /// declaring class's choice, not the partition's. Blocks are held in a dictionary keyed by
-    /// receiver type under reference equality, so which overload is reached first follows identity
-    /// hash codes and a name pinned to one of them holds only by luck of that order.
-    /// </para>
+    /// Asserts what the receiver mentions rather than names, as
+    /// <see cref="Where_PutsItsOnlyParameterOnTheBlock"/> does. Blocks are keyed by receiver type under
+    /// reference equality, so overload order follows identity hash codes and a pinned name holds only
+    /// by luck.
     /// </summary>
     [Fact]
     public void Select_PutsReceiverParameterOnBlockAndResultOnMethod()
@@ -96,10 +69,6 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
         });
     }
 
-    /// <summary>
-    /// Every type parameter named anywhere in a type expression, which is the evidence the partition
-    /// is built from.
-    /// </summary>
     private static void CollectTypeParameters(IMistType type, HashSet<string> into)
     {
         switch(type)
@@ -119,9 +88,8 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
     }
 
     /// <summary>
-    /// Every <c>Where</c> overload takes its sequence's element type and returns the same sequence
-    /// shape, so its single type parameter is always the receiver's and the method always gets none.
-    /// The name is the declaring class's choice, so only the placement is asserted.
+    /// Every <c>Where</c> overload's one type parameter is its receiver's element type, so the method
+    /// always gets none. The name is the declaring class's choice, so only the placement is asserted.
     /// </summary>
     [Fact]
     public void Where_PutsItsOnlyParameterOnTheBlock()
@@ -136,10 +104,6 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
         });
     }
 
-    /// <summary>
-    /// No parameter may land on both levels, for any extension System.Linq projects. This is the
-    /// invariant the partition exists to hold, checked across every method rather than a chosen few.
-    /// </summary>
     [Fact]
     public void NoTypeParameterAppearsAtBothLevels()
     {
@@ -185,9 +149,8 @@ public sealed class AmbientExtensionTypeParameterPartitionTests(AmbientTypeProvi
     }
 
     /// <summary>
-    /// A block-level parameter is reachable by name from the method's scope, since the method scope is
-    /// nested inside the block's. This is what lets a method signature mention the receiver's
-    /// parameter, as <c>Func&lt;TSource, TResult&gt;</c> does.
+    /// The method scope nests inside the block's, which is what lets a method signature mention the
+    /// receiver's type parameter.
     /// </summary>
     [Fact]
     public void BlockParameterIsVisibleFromTheMethodScope()

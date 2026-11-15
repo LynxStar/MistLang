@@ -2382,12 +2382,6 @@ internal static partial class BodyEmitter
             RegexLowering.IsFullMatch(bound, RegexLowering.Quote(regex.Pattern))));
     }
 
-    /// <summary>
-    /// A positional element threads <paramref name="hoisted"/> as a tuple element does, being the same
-    /// kind of binding site. A SLICE clears it: what a slice matches is a sub-sequence, so lifting an
-    /// enum variant out of one would compare a sub-sequence against a variant, and clearing sends the
-    /// variant to <see cref="EmitComparison"/> to be refused rather than emitting that.
-    /// </summary>
     private static void ReportUnreachedSlice(CountedSlice? slice, IMistType receiverType, Storm.Runtime.SyntaxNode node, DiagnosticBag diagnostics)
     {
         if(slice is not null && UnsafeReach.Unreached(slice, receiverType) is { } member)
@@ -2398,6 +2392,12 @@ internal static partial class BodyEmitter
         }
     }
 
+    /// <summary>
+    /// Only a positional element lifts an enum variant into a hoisted test, because it binds one item;
+    /// a slice binds a sub-sequence, which the frontend already refuses to compare with a variant. A
+    /// slice still threads <paramref name="hoisted"/>, so a test from a list nested inside it reaches
+    /// the guard: with null, <see cref="EmitRegexPattern"/> would drop its test.
+    /// </summary>
     private static void EmitListPattern(
         ListPattern list, List<HoistedTest>? hoisted, CSharpWriter writer, DiagnosticBag diagnostics)
     {

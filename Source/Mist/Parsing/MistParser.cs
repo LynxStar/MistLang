@@ -238,6 +238,7 @@ public sealed class MistParser : IParser
         var leftParenKind = (int)Generated.TokenKind.LEFT_PARENTHESIS;
         var semicolonKind = (int)Generated.TokenKind.SEMICOLON;
         var suchThatKind = (int)Generated.TokenKind.SUCH_THAT;
+        var operatorKind = (int)Generated.TokenKind.OPERATOR;
 
         var depth = 0;
 
@@ -281,9 +282,13 @@ public sealed class MistParser : IParser
                 continue;
             }
 
-            if(kind == leftParenKind || IsTypeDeclarationKeyword(kind))
+            if(kind == leftParenKind && !OpensParameterList(tokens, i))
             {
-                // A method (has a parameter list) or a nested type declaration.
+                // Outside operators, only a member name or its type parameters precede a parameter list, so this `(` opens a type such as `(int, int)`.
+                i = SkipParenthesizedType(tokens, i);
+            }
+            else if(kind == leftParenKind || kind == operatorKind || IsTypeDeclarationKeyword(kind))
+            {
                 memberIsMethodOrType = true;
             }
             else if(kind == suchThatKind && !memberIsMethodOrType)
@@ -296,6 +301,47 @@ public sealed class MistParser : IParser
                 memberIsMethodOrType = false;
             }
         }
+    }
+
+    private static bool OpensParameterList(
+        ImmutableArray<Storm.Runtime.Token> tokens,
+        int parenIndex)
+    {
+        var previous = tokens[parenIndex - 1].Kind;
+        return previous is ((int)Generated.TokenKind.IDENTIFIER)
+            or ((int)Generated.TokenKind.GREATER_THAN);
+    }
+
+    private static int SkipParenthesizedType(
+        ImmutableArray<Storm.Runtime.Token> tokens,
+        int parenIndex)
+    {
+        var parenDepth = 0;
+        for(var i = parenIndex; i < tokens.Length; i++)
+        {
+            var kind = tokens[i].Kind;
+
+            if(kind == (int)Generated.TokenKind.LEFT_PARENTHESIS)
+            {
+                parenDepth++;
+            }
+            else if(kind == (int)Generated.TokenKind.RIGHT_PARENTHESIS)
+            {
+                parenDepth--;
+                if(parenDepth == 0)
+                {
+                    return i;
+                }
+            }
+            else if(kind is ((int)Generated.TokenKind.LEFT_BRACE)
+                or ((int)Generated.TokenKind.RIGHT_BRACE)
+                or ((int)Generated.TokenKind.SEMICOLON))
+            {
+                return i - 1;
+            }
+        }
+
+        return tokens.Length - 1;
     }
 
     private static bool AccessorBlockHasBody(

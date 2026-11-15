@@ -206,8 +206,10 @@ internal static class StorageWriteRoots
     }
 
     /// <summary>
-    /// An initializer runs in every constructor, so its tree is a root of each; a type declaring none
-    /// has no member the initializer could be reached through.
+    /// An initializer runs in every instance constructor, so its tree is a root of each. A type declaring
+    /// none still runs it in its implicit constructor, which has no member to key, so the root is keyed
+    /// by the type itself -- the callee <see cref="StorageEffects"/> gives a construction that selected
+    /// no constructor.
     /// </summary>
     private static void GatherInitializer(
         object member,
@@ -219,7 +221,7 @@ internal static class StorageWriteRoots
         ISet<object> complete,
         List<StorageWriteRoot> roots)
     {
-        if(parked is null || owner.ConstructorsList.Count == 0)
+        if(parked is null)
         {
             return;
         }
@@ -231,7 +233,14 @@ internal static class StorageWriteRoots
             return;
         }
 
-        roots.AddRange(owner.ConstructorsList.Select(constructor => new StorageWriteRoot(constructor, StorageAccess.Read, bound, owner, scope)));
+        var constructors = owner.ConstructorsList.Where(constructor => !constructor.Modifiers.IsStatic).ToList<object>();
+
+        if(constructors.Count == 0)
+        {
+            constructors.Add(owner);
+        }
+
+        roots.AddRange(constructors.Select(constructor => new StorageWriteRoot(constructor, StorageAccess.Read, bound, owner, scope)));
     }
 
     private static void GatherAccessors(

@@ -52,7 +52,7 @@ The syntax is `readonly var x = 7;` (inferred type) or `readonly int x = 7;` (ex
 2. WHEN code assigns to a local variable whose ReadonlyStatus is not ExplicitReadonly, THE Type_Checker SHALL permit the assignment without reporting a readonly-related diagnostic.
 3. IF compound assignment operators (e.g., `+=`, `-=`, `*=`, `/=`, `%=`) are added to the language, THEN WHEN a readonly local variable is used as the target of a compound assignment operator, THE Type_Checker SHALL report a diagnostic error that includes the variable name and indicates the variable is readonly.
 4. IF prefix or postfix increment/decrement operators (e.g., `++`, `--`) are added to the language, THEN WHEN a readonly local variable is used as the operand of such an operator, THE Type_Checker SHALL report a diagnostic error that includes the variable name and indicates the variable is readonly.
-5. WHEN a readonly local variable is used as the expression in a `ref` argument at a call site (i.e., the argument matches the `RefArgument` grammar production with the readonly local as its expression), THE Type_Checker SHALL report a diagnostic error that includes the variable name and indicates the variable is readonly and cannot be passed by mutable reference.
+5. WHEN a readonly local variable is used as the expression in a `ref` or `out` argument at a call site (i.e., the argument matches the `RefArgument` grammar production with the readonly local as its expression), THE Type_Checker SHALL report a diagnostic error that includes the variable name and indicates the variable is readonly and cannot be passed by mutable reference.
 6. WHEN a readonly local variable declared via tuple deconstruction (where ReadonlyStatus is ExplicitReadonly on each introduced symbol) is subsequently assigned via simple assignment, THE Type_Checker SHALL report the same readonly reassignment diagnostic as criterion 1 for each affected variable.
 
 ### Requirement 4: Readonly Local Diagnostics
@@ -64,7 +64,7 @@ The syntax is `readonly var x = 7;` (inferred type) or `readonly int x = 7;` (ex
 1. WHEN a readonly local variable is reassigned, THE Type_Checker SHALL report an error-severity diagnostic whose message includes the variable name and states that the variable is readonly and cannot be reassigned.
 2. WHEN a readonly local variable is the target of a compound assignment, THE Type_Checker SHALL report an error-severity diagnostic whose message includes the variable name and states that the variable is readonly.
 3. WHEN a readonly local variable is the operand of an increment or decrement operator, THE Type_Checker SHALL report an error-severity diagnostic whose message includes the variable name and states that the variable is readonly.
-4. WHEN a readonly local variable is passed as a `ref` argument, THE Type_Checker SHALL report an error-severity diagnostic whose message includes the variable name and states that readonly variables cannot be passed by mutable reference.
+4. WHEN a readonly local variable is passed as a `ref` or `out` argument, THE Type_Checker SHALL report an error-severity diagnostic whose message includes the variable name and states that readonly variables cannot be passed by mutable reference.
 5. THE Type_Checker SHALL attach source location information (file path, line number, and column number of the violating expression) to every readonly-local diagnostic so that the formatted output follows the pattern `path(line,column): error ID: message`.
 
 ### Requirement 5: Readonly Local C# Emission

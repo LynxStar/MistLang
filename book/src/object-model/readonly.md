@@ -31,10 +31,10 @@ readonly var x = 7;
 var doubled = x * 2;       // reading x is fine
 Console.WriteLine(doubled); // prints 14
 
-x = 10;  // ERROR: Cannot reassign readonly local variable 'x'
+x = 10;  // ERROR: Readonly local variable 'x' cannot be reassigned.
 ```
 
-The variable works like any other — you can read it, pass it to functions, use it in expressions. The only thing you cannot do is point it at a different value.
+The variable works like any other — you can read it, pass it to functions, use it in expressions. The only thing you cannot do is give it a different value, whether by assigning it or by passing it as a `ref` or `out` argument to a method that could.
 
 This works with all variable declaration forms:
 

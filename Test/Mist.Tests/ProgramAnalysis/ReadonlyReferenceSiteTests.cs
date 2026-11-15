@@ -69,7 +69,7 @@ public sealed class ReadonlyReferenceSiteTests
         var assignment = new AssignmentExpression(HandBuiltModel.Node(37), View(), HandBuiltModel.Literal(Integer, 5L), Integer);
 
         var diagnostic = Assert.Single(model.Analyze(new PositionAnalyzer(), new ExpressionStatement(assignment)));
-        Assert.Equal(ProgramAnalysisDiagnostics.ReadonlyLocalReassigned.Number, diagnostic.Number);
+        Assert.Equal(ProgramAnalysisDiagnostics.ReadonlyVariableReassigned.Number, diagnostic.Number);
     }
 
     private IMistType Integer => model.Type("Int32");

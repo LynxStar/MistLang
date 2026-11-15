@@ -137,15 +137,15 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error);
 
-    public static readonly MistDiagnostic ReadonlyLocalReassigned = new(
+    public static readonly MistDiagnostic ReadonlyVariableReassigned = new(
         DiagnosticNumber.Mint("MIST0207"),
-        Title: "Readonly local reassigned",
-        Template: "Cannot reassign readonly local variable '{variable}'.",
-        Description: "A readonly local is bound once, and this statement assigns it again. Remove the assignment, or declare the local without 'readonly'.",
+        Title: "Readonly variable reassigned",
+        Template: "Readonly {kind} '{variable}' cannot be {action}.",
+        Description: "A readonly local keeps the value it was bound to, and a method cannot change its own readonly parameter: one passed by value keeps the value the caller passed, while a 'readonly ref' one may still change through its owner but not through this method. This code assigns it, or hands it by reference to code that may. Remove the write, copy the value into a local that is not readonly, or drop 'readonly'.",
         Category: DiagnosticCategory.Eff,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
-        Slots: [new Slot("variable", SlotKind.Name)]);
+        Slots: [new Slot("kind", SlotKind.Enum), new Slot("variable", SlotKind.Name), new Slot("action", SlotKind.Enum)]);
 
     public static readonly MistDiagnostic ReadonlyReferenceWritten = new(
         DiagnosticNumber.Mint("MIST0208"),

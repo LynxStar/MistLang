@@ -17,7 +17,17 @@ internal static class PositionDecision
 
     public static MistDiagnostic? Reassignment(LocalVariable target)
     {
-        return target.IsReadonly ? ProgramAnalysisDiagnostics.ReadonlyLocalReassigned : null;
+        return ReadonlyKind(target) is null ? null : ProgramAnalysisDiagnostics.ReadonlyVariableReassigned;
+    }
+
+    public static string? ReadonlyKind(LocalVariable target)
+    {
+        return target switch
+        {
+            { Parameter.Modifier.IsReadonly: true } => "parameter",
+            { IsReadonly: true } => "local variable",
+            _ => null,
+        };
     }
 
     public static string? ReadonlyReference(Expression expression)

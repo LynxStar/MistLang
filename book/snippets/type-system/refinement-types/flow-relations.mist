@@ -1,0 +1,25 @@
+using Standard;
+
+type Capacity = int >= 0 and <= 1_000_000;
+
+public class Program
+{
+    public static void Reserve(int needed, int available) where needed <= available
+    {
+        Console.WriteLine($"Reserved {needed} of {available}");
+    }
+
+    public static void Demo(int used, Capacity capacity)
+    {
+        if (used <= capacity)
+        {
+            var doubled = capacity * 2;
+            Reserve(used, doubled);
+        }
+    }
+
+    public static void Main(string[] args)
+    {
+        Demo(3, 4);
+    }
+}

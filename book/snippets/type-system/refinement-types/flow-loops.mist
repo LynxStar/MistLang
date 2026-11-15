@@ -1,0 +1,22 @@
+using Standard;
+
+public class Program
+{
+    public static void Fill(Span<int> items, int n) where n <= items.Length
+    {
+        var total = 0;
+        for (var i = 0; i < n; i++)
+        {
+            items[i] = i;
+            total += i;
+        }
+
+        Console.WriteLine($"Filled {n}, total {total}");
+    }
+
+    public static void Main(string[] args)
+    {
+        Span<int> items = stackalloc int[4];
+        Fill(items, 4);
+    }
+}

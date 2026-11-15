@@ -1,0 +1,37 @@
+using Standard;
+
+type AirportCode = string `^[A-Z]{3}$`;
+
+public class Program
+{
+    public static void Board(AirportCode code)
+    {
+        Console.WriteLine($"Boarding for {code}");
+    }
+
+    public static void Route(string text, AirportCode known)
+    {
+        if (text == "LHR")
+        {
+            Board(text);
+        }
+
+        if (text == known)
+        {
+            Board(text);
+        }
+
+        string code = "DEF";
+        if (text is `^[A-Z]{3}$`)
+        {
+            code = text;
+        }
+
+        Board(code);
+    }
+
+    public static void Main(string[] args)
+    {
+        Route("LHR", "LHR");
+    }
+}

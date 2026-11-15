@@ -4,27 +4,25 @@ namespace Snippet;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static void Admit(int userInput)
     {
-        int known = 20;
-        int userInput = 25;
         {
             if (userInput is int and >= 18 and var validAge)
             {
                 System.Console.WriteLine(System.FormattableString.Invariant($"Valid adult age: {validAge}"));
-            }
-        }
-        int childInput = 10;
-        {
-            if (childInput is int and >= 18 and var childAge)
-            {
-                System.Console.WriteLine("This won't print");
             }
             else
             {
                 System.Console.WriteLine("Not an adult age");
             }
         }
+    }
+
+    public static void Main(string[] args)
+    {
+        int known = 20;
+        Admit(25);
+        Admit(10);
     }
 
     public Program()

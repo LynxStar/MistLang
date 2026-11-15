@@ -4,6 +4,7 @@ using Standard;
 namespace FlowFacts;
 
 public type Capacity = int >= 0 and <= 1_000_000;
+public type AirportCode = string `^[A-Z]{3}$`;
 
 public class Program
 {
@@ -27,6 +28,10 @@ public class Program
         Console.WriteLine($"filled: {items[0]}, {items[1]}, {items[2]}, {items[3]}");
         Select(2, 5);
         Compare(-2.0, 3.0);
+        Route("LHR");
+        Forward("JFK", "JFK");
+        Depart(true);
+        Choose("SFO");
     }
 
     public static void Demo(int used, Capacity capacity)
@@ -133,5 +138,52 @@ public class Program
     public static void Ordered(double left, double right) where left < right
     {
         Console.WriteLine($"real: {left} < {right}");
+    }
+
+    public static void Route(string text)
+    {
+        if(text == "LHR")
+        {
+            Board(text, "from literal");
+        }
+    }
+
+    public static void Forward(string text, AirportCode known)
+    {
+        if(text == known)
+        {
+            Board(text, "from equality");
+        }
+    }
+
+    public static void Depart(bool north)
+    {
+        string code;
+        if(north)
+        {
+            code = "OSL";
+        }
+        else
+        {
+            code = "ROM";
+        }
+
+        Board(code, "from join");
+    }
+
+    public static void Choose(string text)
+    {
+        string code = "DEF";
+        if(text is `^[A-Z]{3}$`)
+        {
+            code = text;
+        }
+
+        Board(code, "from regex");
+    }
+
+    public static void Board(AirportCode code, string how)
+    {
+        Console.WriteLine($"code {how}: {code}");
     }
 }

@@ -2757,3 +2757,7 @@ fill total: 6
 filled: 0, 1, 2, 3
 selected: 2 < 5
 real: -2 < 3
+code from literal: LHR
+code from equality: JFK
+code from join: OSL
+code from regex: SFO

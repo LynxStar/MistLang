@@ -4,9 +4,8 @@ namespace Snippet;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static void Compute(int a)
     {
-        int a = 20;
         int sum = a + 5;
         int diff = a - 2;
         int negated = -a;
@@ -21,6 +20,11 @@ public class Program
                 System.Console.WriteLine(System.FormattableString.Invariant($"Still adult: {verified}"));
             }
         }
+    }
+
+    public static void Main(string[] args)
+    {
+        Compute(20);
     }
 
     public Program()

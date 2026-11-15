@@ -5,10 +5,8 @@ type Yes = bool true;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static void Compute(AdultAge a)
     {
-        AdultAge a = 20;
-
         // Computation can change a value enough to invalidate its input predicate.
         int sum = a + 5;
         int diff = a - 2;
@@ -24,5 +22,10 @@ public class Program
         {
             Console.WriteLine($"Still adult: {verified}");
         }
+    }
+
+    public static void Main(string[] args)
+    {
+        Compute(20);
     }
 }

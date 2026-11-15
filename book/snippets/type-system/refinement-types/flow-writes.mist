@@ -1,0 +1,23 @@
+using Standard;
+
+public class Program
+{
+    public static int Replacement()
+    {
+        return 7;
+    }
+
+    public static void NeedsTen(int value) where value 10
+    {
+        Console.WriteLine($"Still ten: {value}");
+    }
+
+    public static void Main(string[] args)
+    {
+        var x = 5;
+        var y = x * 2;
+        x = Replacement();
+        NeedsTen(y);
+        Console.WriteLine($"x is now {x}");
+    }
+}

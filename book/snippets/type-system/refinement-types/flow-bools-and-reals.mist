@@ -1,0 +1,37 @@
+using Standard;
+
+public class Program
+{
+    public static void Below(int i, int n) where i < n
+    {
+        Console.WriteLine($"{i} < {n}");
+    }
+
+    public static void Ordered(double left, double right) where left < right
+    {
+        Console.WriteLine($"{left} < {right}");
+    }
+
+    public static void Select(int i, int n)
+    {
+        var ok = i < n;
+        if (ok)
+        {
+            Below(i, n);
+        }
+    }
+
+    public static void Compare(double left, double right)
+    {
+        if (left < right)
+        {
+            Ordered(left, right);
+        }
+    }
+
+    public static void Main(string[] args)
+    {
+        Select(2, 5);
+        Compare(-2.0, 3.0);
+    }
+}

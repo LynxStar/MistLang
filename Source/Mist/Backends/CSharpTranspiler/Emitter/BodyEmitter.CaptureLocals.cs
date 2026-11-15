@@ -102,6 +102,14 @@ internal static partial class BodyEmitter
 
                 break;
 
+            case ImplicitConversionExpression conversion:
+                foreach(var capture in ConvertedCaptures(conversion))
+                {
+                    yield return capture;
+                }
+
+                break;
+
             case DefaultExpression defaulted:
                 foreach(var capture in ClosingCaptures(defaulted.Type).Where(capture => !defaulted.Captures.Contains(capture)).Concat(NestedCaptures(defaulted.Type)))
                 {
@@ -155,8 +163,7 @@ internal static partial class BodyEmitter
     {
         return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
             ? SlotRoutes.ValueRouted(constructed.Definition)
-                .Where(slot => slot.Ordinal < constructed.TypeArguments.Count)
-                .Select(slot => constructed.TypeArguments[slot.Ordinal])
+                .Select(slot => SlotRoutes.Argument(constructed, slot))
                 .OfType<CapturedValue>()
                 .Select(captured => captured.Capture)
             : [];
@@ -302,8 +309,7 @@ internal static partial class BodyEmitter
     {
         return Unaliased(TypeNameEmitter.Closed(type)) is ConstructedType constructed
             && SlotRoutes.ValueRouted(constructed.Definition).Any(slot =>
-                slot.Ordinal < constructed.TypeArguments.Count
-                && constructed.TypeArguments[slot.Ordinal] is CapturedValue captured
+                SlotRoutes.Argument(constructed, slot) is CapturedValue captured
                 && ReferenceEquals(captured.Capture, capture));
     }
 

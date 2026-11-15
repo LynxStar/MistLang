@@ -21,8 +21,8 @@ namespace Mist.Tests.Backend;
 /// The value route over hand-built declarations (runtime-dependent-values design, <em>The value
 /// route</em>): where a slot's value lives once it leaves the C# type parameter list, how a read, a
 /// test and a call reach it, the shapes the backend refuses rather than miscompiles, and the places a
-/// bare read of a slot lands where no hidden member carries it: an operator, a nested type, an attribute
-/// argument and a restated default, and the type positions a value-routed parameter's own name is refused in.
+/// bare read of a slot lands away from the owner's own members: an operator, a conversion, a nested type, an
+/// attribute argument and a restated default, and the type positions a value-routed parameter's own name is refused in.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ValueRouteEmissionTests
@@ -727,7 +727,7 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
-    public void AConversionReadsTheOwnersSlotFromItsOperandAndOneWhoseOperandDoesNotCarryItIsRefused()
+    public void AConversionReadsTheOwnersSlotFromItsOperandAndOneWhoseOperandDoesNotCarryItTakesTheValueAsAParameter()
     {
         using var routes = SlotRoutes.Enter([capacity]);
         var closing = slots.Closed(ring, capacity);
@@ -742,18 +742,17 @@ public sealed class ValueRouteEmissionTests
             Body = HandBuiltModel.Block(read()),
         };
         var writer = new CSharpWriter();
-        var kept = new DiagnosticBag();
-        var refused = new DiagnosticBag();
+        var method = new CSharpWriter();
+        var diagnostics = new DiagnosticBag();
 
-        CastOperatorEmitter.Emit(outOf, writer, kept);
-        CastOperatorEmitter.Emit(into, new CSharpWriter(), refused);
+        CastOperatorEmitter.Emit(outOf, writer, diagnostics);
+        CastOperatorEmitter.Emit(into, method, diagnostics);
 
-        Assert.False(kept.HasErrors, string.Join("\n", kept.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
         Assert.Contains("public static explicit operator int(Probe.Ring m)", Lines(writer));
         Assert.Contains("return m.__Capacity;", Lines(writer));
-        var refusal = Assert.Single(refused.ToImmutableArray());
-        Assert.Equal("MIST0499", refusal.Number.Value);
-        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the conversion from 'int', whose operand does not carry it", refusal.Message, StringComparison.Ordinal);
+        Assert.Contains("public static Probe.Ring __Implicit(int __Capacity, int v)", Lines(method));
+        Assert.Contains("return __Capacity;", Lines(method));
 
         ReturnStatement read()
         {
@@ -762,7 +761,7 @@ public sealed class ValueRouteEmissionTests
     }
 
     [Fact]
-    public void ANestedTypeReadingItsEnclosingTypesSlotIsRefusedAndItsNameDropsTheSlot()
+    public void ANestedTypeReadingItsEnclosingTypesSlotReadsItsOwnCarriedFieldAndItsNameDropsTheSlot()
     {
         using var routes = SlotRoutes.Enter([capacity]);
         var inner = new ClassType("Inner", "Probe", new Scope(ring.Scope), ring, new BodyTypeTypeDeclarationNode())
@@ -775,12 +774,13 @@ public sealed class ValueRouteEmissionTests
             Body = HandBuiltModel.Block(new ReturnStatement(new TypeReferenceExpression(HandBuiltModel.Node(), capacity), slots.Int)),
         });
         var diagnostics = new DiagnosticBag();
+        var writer = new CSharpWriter();
 
-        TypeEmitter.EmitTypeBody(inner, ConstraintClosureMap.Build(slots.Refinements.Built.Model, diagnostics), slots.Refinements.Built.Model.VariadicUses, new CSharpWriter(), diagnostics);
+        TypeEmitter.EmitTypeBody(inner, ConstraintClosureMap.Build(slots.Refinements.Built.Model, diagnostics), slots.Refinements.Built.Model.VariadicUses, writer, diagnostics);
 
-        var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST0499", refusal.Number.Value);
-        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the nested type 'Inner'", refusal.Message, StringComparison.Ordinal);
+        Assert.False(diagnostics.HasErrors, string.Join("\n", diagnostics.ToImmutableArray().Select(diagnostic => diagnostic.Message)));
+        Assert.Contains("public readonly int __Capacity;", Lines(writer));
+        Assert.Contains("return __Capacity;", Lines(writer));
         var pair = (ClassType)HandBuiltSlots.Generic(new ClassType("Pair<>", "Probe", new Scope(ring.Scope), ring, new BodyTypeTypeDeclarationNode()), "M", slots.Int);
         Assert.StartsWith("Probe.Ring.Pair<", TypeNameEmitter.Emit(slots.Closed(pair, slots.Literal(2))), StringComparison.Ordinal);
     }

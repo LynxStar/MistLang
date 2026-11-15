@@ -574,7 +574,7 @@ internal static class TypeNameEmitter
     {
         var carried = type is MemberType generic ? generic.TypeParametersList.Where(parameter => !SlotRoutes.IsValueRouted(parameter)).ToList() : [];
         var segment = carried.Count > 0
-            ? $"{IdentifierSpelling.Of(MistType.StripArity(type.Name))}<{string.Join(", ", carried.Select(p => IdentifierSpelling.Of(p.Name)))}>"
+            ? $"{IdentifierSpelling.Of(MistType.StripArity(type.Name))}<{string.Join(", ", carried.Select(DependentCarrierNames.Parameter))}>"
             : IdentifierSpelling.Of(MistType.StripArity(type.Name));
 
         if(type.DeclaringType is DeclaredType declaring)

@@ -841,7 +841,7 @@ internal static partial class BodyEmitter
         for(var i = 0; i < deconstruction.Targets.Count; i++)
         {
             var read = $"{tuple}.Item{i + 1}";
-            var value = deconstruction.ElementConversions[i] is { } conversion ? CastLowering.Implicit(conversion, read) : read;
+            var value = deconstruction.ElementConversions[i] is { } conversion ? CastLowering.Implicit(conversion, read, diagnostics) : read;
 
             writer.WriteLine($"{TypeNameEmitter.EmitInferable(deconstruction.Targets[i].Type)} {LocalNames.Of(deconstruction.Targets[i])} = {value};");
         }
@@ -865,7 +865,7 @@ internal static partial class BodyEmitter
         {
             if(conversion is not null)
             {
-                writer.WriteLine($"{TypeNameEmitter.EmitInferable(loop.Variable.Type)} {LocalNames.Of(loop.Variable)} = {CastLowering.Implicit(conversion, element)};");
+                writer.WriteLine($"{TypeNameEmitter.EmitInferable(loop.Variable.Type)} {LocalNames.Of(loop.Variable)} = {CastLowering.Implicit(conversion, element, diagnostics)};");
             }
 
             EmitBlock(loop.Body, writer, diagnostics);
@@ -1352,6 +1352,10 @@ internal static partial class BodyEmitter
                 writer.Append($"{entry}({Render(cast.Operand, diagnostics)})");
                 break;
 
+            case CastExpression cast when OperatorMethods.Applies(cast.Operator):
+                writer.Append(ConversionCall(cast, diagnostics));
+                break;
+
             case CastExpression cast:
                 // The operand is parenthesized whatever it is. Parentheses written in source bind the
                 // expression inside them and reach the model as nothing, so `(double)(a / b)` arrives as
@@ -1362,7 +1366,7 @@ internal static partial class BodyEmitter
                 break;
 
             case ImplicitConversionExpression conversion:
-                writer.Append(CastLowering.Implicit(conversion, Render(conversion.Operand, diagnostics)));
+                writer.Append(CastLowering.Implicit(conversion, Render(conversion.Operand, diagnostics), diagnostics));
                 break;
 
             case AsExpression asExpression:

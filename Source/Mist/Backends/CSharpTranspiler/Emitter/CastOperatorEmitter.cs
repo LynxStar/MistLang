@@ -28,7 +28,8 @@ internal static class CastOperatorEmitter
             return;
         }
 
-        using var reach = SlotReach.OfOperator(castOperator);
+        var method = OperatorMethods.Applies(castOperator);
+        using var reach = method ? null : SlotReach.OfOperator(castOperator);
         var modifiers = MemberModifierEmitter.Emit(castOperator.Modifiers, emitReadonly: false);
         var kind = castOperator.IsImplicit ? "implicit" : "explicit";
         var nullableCopy = castOperator.CopiesClone && TypeNameEmitter.IsReferenceKind(castOperator.TargetType);
@@ -38,13 +39,16 @@ internal static class CastOperatorEmitter
             ? AttributeEmitter.Inline(source.DeclaredAttributesList, diagnostics)
                 + $"{TypeNameEmitter.EmitOptional(source.Type)} {IdentifierSpelling.Of(source.Name)}"
             : ParameterEmitter.Emit(castOperator.ParametersList, diagnostics);
+        var hidden = method ? SlotRoutes.HiddenParameters(SlotRoutes.ValueRouted(castOperator.DeclaringType)).ToList() : [];
 
         if(nullableCopy)
         {
             writer.WriteLine($"[return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull(\"{source.Name}\")]");
         }
 
-        writer.WriteLine($"{modifiers}{kind} operator {targetType}({parameters})");
+        writer.WriteLine(method
+            ? $"{modifiers}{targetType} {OperatorMethods.Name(castOperator)}({string.Join(", ", hidden.Append(parameters))})"
+            : $"{modifiers}{kind} operator {targetType}({parameters})");
         using(writer.Block())
         {
             if(castOperator.CopiesClone)

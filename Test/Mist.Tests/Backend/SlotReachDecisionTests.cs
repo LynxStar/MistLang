@@ -13,9 +13,10 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Backend;
 
 /// <summary>
-/// Where <see cref="SlotReach"/> says a value-routed slot's bare read lands: the hidden name by default,
-/// an operand's member inside an operator, the closing's value inside a restated default, and a refusal
-/// where nothing carries it; and which declaration a refusal names as a slot's owner.
+/// Where <see cref="SlotReach"/> says a value-routed slot's bare read lands: the hidden name by default and
+/// inside a nested type, which carries the enclosing slots as its own, an operand's member inside an operator,
+/// the closing's value inside a restated default, and a refusal where nothing carries it; and which declaration
+/// a refusal names as a slot's owner.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class SlotReachDecisionTests
@@ -78,42 +79,33 @@ public sealed class SlotReachDecisionTests
     }
 
     [Fact]
-    public void AnOperatorReachWithNoCarryingOperandRefusesTheRead()
+    public void AConversionWithNoCarryingOperandTakesNoReachAndItsReadIsTheHiddenParameter()
     {
         using var routes = SlotRoutes.Enter([capacity]);
-        var diagnostics = new DiagnosticBag();
-        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
         var from = new CastOperator(slots.Closed(ring, capacity), new Parameter("v", slots.Int), isImplicit: true, new MemberModifiers { IsStatic = true }) { DeclaringType = ring };
 
-        using(SlotReach.OfOperator(from))
-        {
-            Assert.Equal("default", SlotReach.Read(capacity));
-        }
-
-        var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST0499", refusal.Number.Value);
-        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the conversion from 'int', whose operand does not carry it", refusal.Message, StringComparison.Ordinal);
+        Assert.True(OperatorMethods.Applies(from));
+        Assert.Equal("__Capacity", SlotReach.Read(capacity));
     }
 
     [Fact]
-    public void ANestedReachRefusesTheEnclosingTypesSlotAndLeavesTheNestedTypesOwn()
+    public void ATypeNestedInTheDeclaringTypeCarriesItsSlotsAndReadsThemAsItsOwn()
     {
         var inner = (ClassType)HandBuiltSlots.Generic(new ClassType("Inner<>", "Probe", new Scope(ring.Scope), ring, new BodyTypeTypeDeclarationNode()), "M", slots.Int);
         var m = inner.TypeParametersList[0];
         using var routes = SlotRoutes.Enter([capacity, m]);
-        var diagnostics = new DiagnosticBag();
-        using var emission = EmissionDiagnostics.Enter(diagnostics, new BodyTypeTypeDeclarationNode());
 
-        using(SlotReach.OfNested(inner))
-        {
-            Assert.Equal("__M", SlotReach.Read(m));
-            Assert.Equal("default", SlotReach.Read(capacity));
-        }
-
-        Assert.Null(SlotReach.OfNested(ring));
-        var refusal = Assert.Single(diagnostics.ToImmutableArray());
-        Assert.Equal("MIST0499", refusal.Number.Value);
-        Assert.StartsWith("'Capacity' of 'Ring' cannot be read in the nested type 'Inner'", refusal.Message, StringComparison.Ordinal);
+        Assert.Equal([capacity, m], SlotRoutes.ValueRouted(inner));
+        Assert.Equal("__M", SlotReach.Read(m));
+        Assert.Equal("__Capacity", SlotReach.Read(capacity));
+        Assert.Same(capacity, SlotRoutes.Argument(inner, capacity));
+        Assert.Same(m, SlotRoutes.Argument(inner, m));
+        var five = slots.Literal(5);
+        var two = slots.Literal(2);
+        var closing = new ConstructedType(inner, [two], slots.Closed(ring, five));
+        Assert.Same(five, SlotRoutes.Argument(closing, capacity));
+        Assert.Same(two, SlotRoutes.Argument(closing, m));
+        Assert.Null(SlotRoutes.Argument(slots.Closed(ring, five), m));
     }
 
     [Fact]

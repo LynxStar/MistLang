@@ -57,7 +57,7 @@ internal static class StructStamp
 
         var flattened = new StructFlattener(diagnostics).Flatten(definition);
         var closing = TypeSubstitution.ForReceiver(type as ConstructedType);
-        var arguments = BodyEmitter.SlotValues(type as ConstructedType, diagnostics);
+        var arguments = BodyEmitter.SlotValues(type, diagnostics);
         arguments.AddRange(DefaultWitnesses.Arguments(DefaultWitnesses.Stored(definition), type) ?? []);
         arguments.AddRange(ConstructorWitnesses.Arguments(ConstructorWitnesses.Stored(definition), type));
 

@@ -7,15 +7,10 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: a pack spread into a type-argument list expands in place.
-/// <para>
-/// SPREADING IS WHAT MAKES A VARIADIC ALIAS MEAN ANYTHING. `type A&lt;params TArgs&gt; =
-/// F&lt;TArgs..., void&gt;` is the standard library's own shape -- Action is written this way over
-/// Func -- and without expansion the spread resolves to the pack ITSELF, so A&lt;int, string&gt;
-/// becomes F with a slot holding a list holding a type parameter, rather than F over int and
-/// string. That resolves and emits and is wrong, which is why it is asserted against the direct
-/// spelling rather than against a shape.
-/// </para>
+/// Tier 3: a pack spread into a type-argument list expands in place. Fixture A spreads into F the way
+/// Standard's Action spreads into Func. Unexpanded, the spread resolves to the pack ITSELF, so F gets a
+/// slot holding a list holding a type parameter rather than the use site's arguments; that resolves and
+/// emits and is wrong, which is why it is asserted against the direct spelling rather than a shape.
 /// </summary>
 public sealed class PackSpreadTests : ProgramModelProbe
 {
@@ -143,9 +138,6 @@ public sealed class PackSpreadTests : ProgramModelProbe
                 .Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>
-    /// Bounded by the declared arity: a Type[2] pack has no third element to name.
-    /// </summary>
     [Fact]
     public void ProjectionPastAFixedArity_IsRefused()
     {

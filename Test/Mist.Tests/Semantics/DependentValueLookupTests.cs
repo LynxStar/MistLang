@@ -7,12 +7,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// The public static property a dependent parameter projects its value through, as member lookup finds it
-/// on hand-built types: by qualification on the type or anything deriving from it, never on an instance,
-/// and never in place of the parameter itself inside the declaring type's own body. An ordinary parameter
-/// projects nothing, and an intrinsic type keeps answering its parameter's name as its target does.
-/// </summary>
 [Trait("Tier", "1")]
 public sealed class DependentValueLookupTests
 {

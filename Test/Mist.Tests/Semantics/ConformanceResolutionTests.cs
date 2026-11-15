@@ -251,8 +251,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         Assert.Equal(2, mappings.Select(mapping => mapping.Declarer).Distinct().Count());
     }
 
-    // ── What construction refuses, and what it records anyway ────────────
-
     [Fact]
     public void AMappingNamingNoSlot_IsRefused()
     {
@@ -333,8 +331,6 @@ public sealed class ConformanceResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST0298"));
         Assert.Empty(Errors(diagnostics, "MIST0396"));
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private const string InheritedSlotTypes = """
         public abstract IBase

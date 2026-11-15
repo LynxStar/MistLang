@@ -15,10 +15,6 @@ namespace Mist.Tests.Semantics;
 
 public sealed class ConstructedTypeNamingTests
 {
-    /// <summary>
-    /// A generic definition is REGISTERED under an arity-bearing name (<c>Box&lt;&gt;</c>), so the
-    /// marker has to be replaced by the arguments rather than followed by them.
-    /// </summary>
     [Fact]
     public void AConstructedGeneric_IsNamedWithItsArgumentsInPlaceOfTheArityMarker()
     {
@@ -48,7 +44,7 @@ public sealed class ConstructedTypeNamingTests
 
     /// <summary>
     /// The qualified name carries the definition's namespace, which is what distinguishes two
-    /// <c>Box&lt;int&gt;</c> constructed from different namespaces' definitions.
+    /// constructions of same-named definitions from different namespaces.
     /// </summary>
     [Fact]
     public void AConstructedGeneric_IsQualifiedByItsDefinitionsNamespace()
@@ -58,10 +54,6 @@ public sealed class ConstructedTypeNamingTests
         Assert.Equal("Probe.Box<Int32>", constructed.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// A nested type reached through an instantiation is named under it, with no argument list of its
-    /// own to write -- <c>Box&lt;Int32&gt;.Wrapper</c>, never <c>Wrapper&lt;&gt;</c>.
-    /// </summary>
     [Fact]
     public void ANestedTypeThroughAnInstantiation_IsNamedUnderIt()
     {
@@ -89,9 +81,6 @@ public sealed class ConstructedTypeNamingTests
         Assert.Equal("Mask<-1>", wrapped.Name);
     }
 
-    /// <summary>
-    /// A non-generic definition has no marker to strip, so its name passes through whole.
-    /// </summary>
     [Fact]
     public void ADefinitionWithNoArityMarker_KeepsItsWholeName()
     {

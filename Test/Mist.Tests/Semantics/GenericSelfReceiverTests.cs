@@ -1,9 +1,5 @@
 // Tier 3 (Component): what `this` binds to inside a generic declaration's own body, asserted on the
-// model because the emitted call reads the same whether or not the binder chose anything. A call passing
-// `this` selects the same source method as one passing a parameter declared as the self construction,
-// with the same closed parameter type; an operator over `this` selects the operator a typed operand does;
-// and a pack-generic, nested, struct, constructed-base and abstract owner each type `this` as its own
-// construction. See ProgramModelProbe for the harness.
+// model because the emitted call reads the same whether or not the binder chose anything.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

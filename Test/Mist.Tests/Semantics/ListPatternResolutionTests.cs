@@ -1,7 +1,5 @@
-// List patterns and slice elements: what each element position is typed by, where the binders live,
-// and which shapes are refused. Asserted on the MODEL because the thing that makes the C# correct is
-// that a positional element and a slice scrutinee DIFFERENT types -- an element and a sub-sequence
-// -- and a slice element typed as an element still emits `.. var middle`, which Roslyn types
+// Asserted on the MODEL: a positional element and a slice scrutinee DIFFERENT types -- an element and a
+// sub-sequence -- yet a slice typed as an element still emits `.. var middle`, which Roslyn types
 // correctly by itself. The negatives are compile failures and so exist nowhere else.
 
 using Mist.ProgramModel.Model.Expressions;
@@ -72,9 +70,7 @@ public sealed class ListPatternResolutionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The claim this capability turns on: a slice is scrutineed by the SLICE type and not by the
-    /// element type, so one pattern narrows against two different types at once. Both are asserted
-    /// together because a slice typed as its element is the failure to rule out.
+    /// Both types are asserted together because a slice typed as its element is the failure to rule out.
     /// </summary>
     [Fact]
     public void ASliceIsTypedByTheSubsequence_NotByTheElement()

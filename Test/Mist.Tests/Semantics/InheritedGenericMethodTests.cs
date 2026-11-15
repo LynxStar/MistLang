@@ -1,8 +1,7 @@
 // Tier 3 (Component): what a call to a method inherited from a GENERIC base binds to, asserted on the
 // model because emission re-writes the call as spelled and lets Roslyn substitute again. The base's T
 // is bound by the derived declaration's base clause and only then by the receiver, so a closed base and
-// a renamed one are the two shapes that tell composition from a receiver-only substitution. See
-// ProgramModelProbe for the harness.
+// a renamed one are the two shapes that tell composition from a receiver-only substitution.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel.Model.Expressions;

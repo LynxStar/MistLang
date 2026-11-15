@@ -7,11 +7,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// A dependent parameter named in expression position is a value of its domain: its type is the domain,
-/// so a local, an array literal or an inferred type argument built from it is the domain rather than
-/// the parameter, and it answers its domain's instance members.
-/// </summary>
 public sealed class DependentValueReadTests
 {
     [Theory]

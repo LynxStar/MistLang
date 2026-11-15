@@ -164,8 +164,6 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
 
     protected override string Preamble { get; } = "var seed = 1;";
 
-    // ── Order 104: the type ──────────────────────────────────────────────
-
     [Fact]
     public void TheLastTypeArgumentIsTheResultAndTheRestAreParameters()
     {
@@ -272,8 +270,6 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST0362"));
     }
 
-    // ── Order 105: lambdas ──────────────────────────────────────────────
-
     [Fact]
     public void AnUntypedLambdaParameterIsTypedByTheTarget()
     {
@@ -353,8 +349,6 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         Assert.True(LambdaIn("func<int, int> f = static x => x;").IsStatic);
         Assert.False(LambdaIn("func<int, int> f = x => x;").IsStatic);
     }
-
-    // ── Order 108: method group conversion ──────────────────────────────
 
     [Fact]
     public void AMethodGroupConvertsToTheOverloadMatchingTheTarget()
@@ -482,7 +476,7 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
 
     /// <summary>
     /// The receiver's argument makes both a <c>Take(int?)</c>; the one fixed at the declaration is
-    /// chosen as a call would choose it (method-overloading Requirement 3.12).
+    /// chosen as a call would choose it.
     /// </summary>
     [Fact]
     public void AMethodGroupOfACoincidingPairConvertsToTheFixedOverload()
@@ -520,8 +514,6 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
         Assert.Equal("Twice", reference.Method.Name);
     }
 
-    // ── Order 110: aliases ──────────────────────────────────────────────
-
     [Fact]
     public void AnAliasOverAFunctionTypeClosesBothItsParametersAndItsResult()
     {
@@ -556,8 +548,6 @@ public sealed class FunctionTypeResolutionTests : ProgramModelProbe
 
         Assert.Equal("Standard.Int32", Assert.Single(inner.ParameterTypes).FullyQualifiedName);
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private IMistType TypeOfLocal(string statement, string extraTypes = "")
     {

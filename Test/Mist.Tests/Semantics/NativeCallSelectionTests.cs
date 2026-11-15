@@ -9,8 +9,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-// OverloadResolution.Select over hand-built candidates shaped like projected CLR members: trailing native
-// defaults, `params` arrays and spans, by-ref twins and System.Object targets.
 [Trait("Tier", "2")]
 public sealed class NativeCallSelectionTests
 {

@@ -62,8 +62,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         Box<int> bx = new Box<int>();
         """;
 
-    // ── What a subpattern resolves against ───────────────────────────────
-
     [Fact]
     public void ASubpatternName_ResolvesAsAMemberOfTheScrutineesType()
     {
@@ -117,8 +115,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         Assert.Equal("Standard.String", inner.NarrowedType.FullyQualifiedName);
         Assert.Equal("Standard.Int32", Assert.Single(inner.Subpatterns).Pattern.NarrowedType.FullyQualifiedName);
     }
-
-    // ── What the pattern itself proves ───────────────────────────────────
 
     [Fact]
     public void APropertyPattern_NarrowsToTheScrutineesOwnTypeAndKeepsNothing()
@@ -378,8 +374,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         _ = InitializerOf<ErrorExpression>("var ok = a is Nonexistent { Breed: var breed } whole;");
     }
 
-    // ── Several binders out of one pattern ───────────────────────────────
-
     [Fact]
     public void SeveralSubpatterns_EachKeepTheirOwnBinder()
     {
@@ -433,8 +427,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
-    // ── Where a binder may be introduced ─────────────────────────────────
-
     [Fact]
     public void ASubpatternBinderUnderOr_IsRefused()
     {
@@ -456,8 +448,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         BindsCleanly("var ok = a is { Age: > 3 } and { Name: var who };");
     }
-
-    // ── Names that answer nothing usable ─────────────────────────────────
 
     [Fact]
     public void ASubpatternNamingNoMember_ErrorsOnceAndDoesNotPark()
@@ -481,8 +471,7 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     /// AN UNKNOWN SCRUTINEE ANSWERS EVERY MEMBER NAME, with unknown. Nothing is known about its shape, so
     /// the member can be called neither present nor missing, and the pattern that asks for it is the only
     /// thing that could have said -- which is what matching an anonymous type held as unknown IS. The
-    /// subpattern therefore binds and takes unknown as its own scrutinee, rather than the whole <c>is</c>
-    /// parking as it did while no emission could read a member off an object.
+    /// subpattern therefore binds and takes unknown as its own scrutinee.
     /// </summary>
     [Fact]
     public void AScrutineeWithNoMembersToSpeakOf_AnswersWithUnknown()
@@ -499,8 +488,6 @@ public sealed class PropertyPatternResolutionTests : ProgramModelProbe
     {
         _ = Assert.IsType<UnknownType>(PatternOf("var ok = u is { };").NarrowedType);
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private Pattern PatternOf(string statement)
     {

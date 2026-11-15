@@ -54,8 +54,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         double d = 1.5;
         """;
 
-    // ── What matching proves ─────────────────────────────────────────────
-
     [Fact]
     public void ATypePatternBinding_HasTheTestedType()
     {
@@ -96,8 +94,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
 
         Assert.Equal("Standard.Boolean", local.Type.FullyQualifiedName);
     }
-
-    // ── Which forms keep a binding ───────────────────────────────────────
 
     [Fact]
     public void ANamedTypePattern_KeepsItsBinding()
@@ -145,11 +141,9 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         Assert.NotNull(PatternOf("var ok = u is var v;").Binding);
     }
 
-    // ── How far the binding reaches ──────────────────────────────────────
-
     /// <summary>
-    /// The case the classic pipeline cannot express. It emits the test as the condition and hoists the
-    /// binding into the branch, so the binding does not exist yet where this conjunction reads it.
+    /// An emission that writes the test as the condition and hoists the binding into the branch cannot
+    /// express this: the binding would not exist yet where this conjunction reads it.
     /// </summary>
     [Fact]
     public void ATypePatternBinding_IsReadableLaterInItsOwnCondition()
@@ -200,8 +194,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         Assert.Empty(Errors(diagnostics, "MIST0296"));
     }
 
-    // ── Comparing against a constant ─────────────────────────────────────
-
     [Fact]
     public void AConstantPattern_IsAnEqualityComparison()
     {
@@ -239,8 +231,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         Assert.Equal("Standard.Int32", PatternOf("var ok = n is > 5;").NarrowedType.FullyQualifiedName);
         Assert.Null(PatternOf("var ok = n is > 5;").Binding);
     }
-
-    // ── Combinators ──────────────────────────────────────────────────────
 
     /// <summary>
     /// Three operands, because two cannot catch the trap: the generated Right slot holds the LAST
@@ -316,8 +306,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         _ = Assert.IsType<DisjunctionPattern>(PatternOf("var ok = n is (1 or 2);"));
     }
 
-    // ── Where a binding may be introduced ────────────────────────────────
-
     [Fact]
     public void AConjunctionOperand_MayBind()
     {
@@ -369,8 +357,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST0296"));
     }
 
-    // ── Error recovery ───────────────────────────────────────────────────
-
     [Fact]
     public void AnUnresolvableTestedType_ErrorsOnceAndDoesNotPark()
     {
@@ -379,8 +365,6 @@ public sealed class PatternResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(diagnostics, "MIST0298"));
         _ = InitializerOf<ErrorExpression>("var ok = u is Nonexistent n;");
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private Pattern PatternOf(string statement)
     {

@@ -1,7 +1,5 @@
-// Anonymous types: the shape a literal resolves to, and what unifies two of them. Asserted on the
-// MODEL because C# identifies its own anonymous types by the same rule, so a program that runs
-// proves only that the two pipelines agreed -- whether Mist DECIDED the two literals were one type,
-// or merely emitted something C# then unified, is visible nowhere else.
+// Asserted on the MODEL: C# unifies its own anonymous types by the same rule, so a program that runs
+// cannot show whether Mist DECIDED two literals were one type or merely emitted something C# unified.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
@@ -88,8 +86,6 @@ public sealed class AnonymousTypeResolutionTests : ProgramModelProbe
 
         _ = Assert.Single(Errors(diagnostics, "MIST0416"));
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private AnonymousType TypeOf(string statement)
     {

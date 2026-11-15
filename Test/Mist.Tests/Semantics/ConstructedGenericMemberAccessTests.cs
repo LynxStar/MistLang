@@ -3,7 +3,7 @@
 // the instantiation named rather than at the alias's void. A nested type is carried UNDER the
 // instantiation -- `Box<int>.Wrapper` is a construction of the nested definition enclosed by `Box<int>`,
 // distinct from `Box<string>.Wrapper`, with Box's T bound in its members -- and the same type whether
-// inferred from a member or written in a type position. See ProgramModelProbe for the harness.
+// inferred from a member or written in a type position.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;

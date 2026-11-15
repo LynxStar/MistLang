@@ -5,7 +5,6 @@
 // its own type from the slot it fills. Asserted on the model, since emission lets Roslyn infer again.
 // The `Optional<T>` spelling of the same slot is banked in samples/OptionalTypeParameters instead:
 // the harness registers Standard's type shells without its aliases, so that one cannot resolve here.
-// See ProgramModelProbe for the harness.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;

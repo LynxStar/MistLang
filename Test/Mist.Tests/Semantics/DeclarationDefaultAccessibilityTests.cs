@@ -8,11 +8,6 @@ namespace Mist.Tests.Semantics;
 /// What a declaration that names no accessibility resolves to. Asserted on the model rather than on
 /// emitted C# because a defaulted `private` and a written `private` produce the same output, so
 /// reading the emitted text can only show the answer, never that the default is what supplied it.
-/// <para>
-/// No banked sample reaches this: all 45 spell every constructor `public`. samples/Attributes is the
-/// only source in the tree that leaves one bare, which is why the divergence survived 45 green
-/// samples.
-/// </para>
 /// </summary>
 public sealed class DeclarationDefaultAccessibilityTests : ProgramModelProbe
 {

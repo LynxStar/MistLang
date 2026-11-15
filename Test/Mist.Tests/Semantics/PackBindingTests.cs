@@ -5,14 +5,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: how a flat type-argument list is divided among slots when one of them absorbs.
-/// <para>
-/// THE COUNT NO LONGER DETERMINES THE DECLARATION, which is the whole difficulty. A family is
-/// registered under its SLOT count, so `Func&lt;,&gt;` is the only Func there is however many
-/// arguments a use site writes -- and the arity that happens to match is not privileged: binding
-/// applies to `Func&lt;int, int&gt;` exactly as it does to `Func&lt;int, int, int&gt;`, or the
-/// two-argument case would silently bind a bare type into a slot that holds a list.
-/// </para>
+/// Tier 3: how a flat type-argument list is divided among slots when one of them absorbs. A family is
+/// registered under its SLOT count, so one declaration serves every arity a use site writes.
 /// </summary>
 public sealed class PackBindingTests : ProgramModelProbe
 {
@@ -29,10 +23,6 @@ public sealed class PackBindingTests : ProgramModelProbe
 
     protected override string Preamble { get; } = "";
 
-    /// <summary>
-    /// The bound slots of the field's type, each rendered as either a plain type name or the
-    /// bracketed pack it holds.
-    /// </summary>
     private IReadOnlyList<string> Slots(string fieldType)
     {
         var model = BuildModel(
@@ -58,8 +48,7 @@ public sealed class PackBindingTests : ProgramModelProbe
     [Fact]
     public void ArityMatchingTheSlotCount_StillBinds()
     {
-        // The case that would pass by accident under the old one-for-one rule, with TArgs bound to
-        // a bare int rather than to a list holding one.
+        // TArgs is bound to a list holding int, not to a bare int, though the counts match.
         Assert.Equal(["[Int32]", "String"], Slots("F<int, string>"));
     }
 

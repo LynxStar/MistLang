@@ -1,6 +1,3 @@
-// Feature: abstracts, Property 1: Abstract declaration round-trip
-// **Validates: Requirements 1.2, 1.3, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
-
 using System.Collections.Immutable;
 using FsCheck;
 using FsCheck.Fluent;
@@ -11,23 +8,10 @@ using Mist.Parsing;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// Property-based tests for abstract declaration round-trip.
-///
-/// Property 1: For any valid Mist AST containing abstract declarations (with varying
-/// method counts, parameter lists, and abstract inheritance lists), class declarations
-/// with abstract lists (with or without a base class), and struct declarations with
-/// abstract lists, pretty-printing the AST and then parsing the result and pretty-printing
-/// again SHALL produce identical output.
-///
-/// **Validates: Requirements 1.2, 1.3, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
-/// </summary>
 public class AbstractRoundTripPropertyTests
 {
     private static readonly Mist.Lexing.MistLexer Lexer = new();
     private static readonly Mist.Parsing.MistParser Parser = new();
-
-    // ─── Token helper ────────────────────────────────────────────────────
 
     private static Storm.Runtime.Token Tok(string lexeme)
     {
@@ -50,12 +34,6 @@ public class AbstractRoundTripPropertyTests
         };
     }
 
-    // ─── Test data model ─────────────────────────────────────────────────
-
-    /// <summary>
-    /// Represents a generated test case: a compilation unit containing a mix of
-    /// abstract, class, and struct declarations with abstract-related features.
-    /// </summary>
 #pragma warning disable CA1034
     public record AbstractRoundTripTestCase(
         string Description,
@@ -67,8 +45,6 @@ public class AbstractRoundTripPropertyTests
         }
     }
 #pragma warning restore CA1034
-
-    // ─── AST construction helpers ────────────────────────────────────────
 
     private static MethodDeclarationNode MakeAbstractMethod(
         string name,
@@ -195,8 +171,6 @@ public class AbstractRoundTripPropertyTests
         };
     }
 
-    // ─── Type reference helpers ──────────────────────────────────────────
-
     private static readonly TypeReferenceNode VoidType = new() { First = new VoidSingleTypeRefSingleTypeRefNode() };
     private static readonly TypeReferenceNode IntType = new()
     {
@@ -205,8 +179,6 @@ public class AbstractRoundTripPropertyTests
             PrimitiveType = new IntTypePrimitiveTypeNode(),
         }
     };
-
-    // ─── FsCheck generators ─────────────────────────────────────────────
 
     private static readonly string[] AbstractNames =
         ["IAlpha", "IBeta", "IGamma", "IDelta", "IEpsilon", "IZeta"];
@@ -219,14 +191,8 @@ public class AbstractRoundTripPropertyTests
     private static readonly string[] ParamNames =
         ["x", "y", "value", "count", "name", "flag"];
 
-    /// <summary>
-    /// Generates a test case with a mix of abstract, class, and struct declarations.
-    /// </summary>
     private static Gen<AbstractRoundTripTestCase> GenTestCase()
     {
-        // Strategy: generate 1-3 abstracts, 0-2 classes, 0-1 structs.
-        // Some abstracts may inherit from earlier abstracts.
-        // Classes and structs may reference an abstract.
         var gen1 = from seed in Gen.Choose(0, 100000)
                    from abstractCount in Gen.Choose(1, 3)
                    from classCount in Gen.Choose(0, 2)
@@ -247,11 +213,9 @@ public class AbstractRoundTripPropertyTests
         var declaredAbstractNames = new List<string>();
         var descParts = new List<string>();
 
-        // Generate abstracts
         for(var i = 0; i < abstractCount; i++)
         {
             var abstractName = AbstractNames[i % AbstractNames.Length];
-            // Ensure unique names
             if(declaredAbstractNames.Contains(abstractName))
             {
                 abstractName += i + 1;
@@ -259,7 +223,6 @@ public class AbstractRoundTripPropertyTests
 
             declaredAbstractNames.Add(abstractName);
 
-            // Decide method count (0-3)
             var methodCount = rng.Next(0, 4);
             var methods = ImmutableArray.CreateBuilder<MethodDeclarationNode>();
             var usedMethodNames = new HashSet<string>();
@@ -294,7 +257,6 @@ public class AbstractRoundTripPropertyTests
                 });
             }
 
-            // Decide if this abstract inherits from a previously declared abstract
             string? parentName = null;
             if(i > 0 && rng.Next(3) == 0)
             {
@@ -308,7 +270,6 @@ public class AbstractRoundTripPropertyTests
             descParts.Add($"abstract {abstractName}{parentPart}({methods.Count} methods)");
         }
 
-        // Generate classes (some may reference an abstract)
         for(var c = 0; c < classCount; c++)
         {
             var className = ClassNames[c % ClassNames.Length];
@@ -316,14 +277,12 @@ public class AbstractRoundTripPropertyTests
                 ? ImmutableArray<ModifierNode>.Empty
                 : ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode());
 
-            // Decide if this class references an abstract (via BaseClause)
             string? baseOrAbstractName = null;
             if(declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
             {
                 baseOrAbstractName = declaredAbstractNames[rng.Next(declaredAbstractNames.Count)];
             }
 
-            // Add 0-2 members (fields and methods)
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             var memberCount = rng.Next(0, 3);
             for(var m = 0; m < memberCount; m++)
@@ -355,7 +314,6 @@ public class AbstractRoundTripPropertyTests
             descParts.Add($"class {className}{basePart}");
         }
 
-        // Generate structs (some may reference an abstract)
         for(var s = 0; s < structCount; s++)
         {
             var structName = StructNames[s % StructNames.Length];
@@ -363,14 +321,12 @@ public class AbstractRoundTripPropertyTests
                 ? ImmutableArray<ModifierNode>.Empty
                 : ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode());
 
-            // Decide if this struct references an abstract
             string? abstractName = null;
             if(declaredAbstractNames.Count > 0 && rng.Next(2) == 0)
             {
                 abstractName = declaredAbstractNames[rng.Next(declaredAbstractNames.Count)];
             }
 
-            // Add 0-1 field members
             var members = ImmutableArray.CreateBuilder<MemberDeclarationNode>();
             if(rng.Next(2) == 0)
             {
@@ -413,37 +369,22 @@ public class AbstractRoundTripPropertyTests
         };
     }
 
-    /// <summary>FsCheck Arbitrary registration for AbstractRoundTripTestCase.</summary>
     public static Arbitrary<AbstractRoundTripTestCase> ArbitraryAbstractRoundTripTestCase()
     {
         return GenTestCase().ToArbitrary();
     }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // Property 1: Abstract declaration round-trip
-    //
-    // **Validates: Requirements 1.2, 1.3, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4,
-    //              2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7**
-    //
-    // For any valid Mist AST containing abstract declarations, class
-    // declarations with abstract lists, and struct declarations with
-    // abstract lists, pretty-printing → parsing → pretty-printing
-    // SHALL produce identical source text.
-    // ═════════════════════════════════════════════════════════════════════
 
     [Property(
         MaxTest = 100,
         Arbitrary = new[] { typeof(AbstractRoundTripPropertyTests) })]
     public Property RoundTrip_PrintParsePreservesAbstractDeclarations(AbstractRoundTripTestCase testCase)
     {
-        // Step 1: Pretty-print the generated AST to source text
         var printed1 = MistPrettyPrinter.Print(testCase.Ast);
         if(string.IsNullOrWhiteSpace(printed1))
         {
             return false.ToProperty().Label("printed1 was empty");
         }
 
-        // Step 2: Parse the printed source text back to an AST
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -464,15 +405,11 @@ public class AbstractRoundTripPropertyTests
             return false.ToProperty().Label($"Reparsed root was null.\nSource:\n{printed1}");
         }
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);
 
-        // Step 4: Compare the two printed outputs — they must be identical
         return (printed1 == printed2).ToProperty()
             .Label($"Mismatch.\nPrinted1:\n{printed1}\nPrinted2:\n{printed2}");
     }
-
-    // ─── Targeted unit tests ─────────────────────────────────────────────
 
     [Fact]
     public void RoundTrip_EmptyAbstract()
@@ -573,7 +510,6 @@ public class AbstractRoundTripPropertyTests
     [Fact]
     public void RoundTrip_MixedDeclarations()
     {
-        // Abstract with methods
         var abstractDecl = MakeAbstractDecl("IShape",
             ImmutableArray.Create(
                 MakeAbstractMethod("Area", new TypeReferenceNode
@@ -585,7 +521,6 @@ public class AbstractRoundTripPropertyTests
                 }),
                 MakeAbstractMethod("Draw")));
 
-        // Class implementing abstract
         var classDecl = MakeClassDecl("Circle",
             ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode
@@ -595,7 +530,6 @@ public class AbstractRoundTripPropertyTests
             baseOrAbstractName: "IShape",
             modifiers: ImmutableArray.Create<ModifierNode>(new PublicModifierModifierNode()));
 
-        // Struct implementing abstract
         var structDecl = MakeStructDecl("Square",
             ImmutableArray.Create<MemberDeclarationNode>(
                 new FieldMemberMemberDeclarationNode
@@ -612,15 +546,11 @@ public class AbstractRoundTripPropertyTests
         AssertRoundTrip(ast);
     }
 
-    // ─── Round-trip assertion helper ─────────────────────────────────────
-
     private static void AssertRoundTrip(CompilationUnitNode ast)
     {
-        // Step 1: Pretty-print the AST
         var printed1 = MistPrettyPrinter.Print(ast);
         Assert.False(string.IsNullOrWhiteSpace(printed1), "Pretty-printed output should not be empty");
 
-        // Step 2: Parse the printed source
         var sourceText = new Mist.Common.Source.SourceText("test.mist", printed1);
         var bag = new DiagnosticBag();
         var tokens = Lexer.Lex(sourceText, bag);
@@ -634,10 +564,8 @@ public class AbstractRoundTripPropertyTests
         var reparsed = result.Root as CompilationUnitNode;
         Assert.NotNull(reparsed);
 
-        // Step 3: Pretty-print the reparsed AST
         var printed2 = MistPrettyPrinter.Print(reparsed);
 
-        // Step 4: Compare
         Assert.Equal(printed1, printed2);
     }
 }

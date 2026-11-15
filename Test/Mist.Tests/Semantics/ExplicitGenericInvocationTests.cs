@@ -8,13 +8,9 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: a call that states its type arguments on an UNQUALIFIED name.
-/// <para>
-/// A DIFFERENT AST NODE FROM THE QUALIFIED FORM, which is the whole reason it went unbound.
-/// `x.M&lt;int&gt;(...)` is a receiver plus a suffix and has always worked; `M&lt;int&gt;(...)` is
-/// one primary node, and a primary the binder did not handle resolves to nothing at all rather
-/// than to the wrong thing -- so nothing about the qualified form's tests could have caught it.
-/// </para>
+/// Tier 3: a call that states its type arguments on an UNQUALIFIED name. That is one primary node,
+/// not the qualified form's receiver plus suffix, and a primary the binder does not handle resolves
+/// to nothing at all, so the qualified form's tests cannot cover it.
 /// </summary>
 public sealed class ExplicitGenericInvocationTests : ProgramModelProbe
 {

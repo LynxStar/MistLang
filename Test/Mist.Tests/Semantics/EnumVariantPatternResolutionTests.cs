@@ -52,8 +52,6 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
         Animal a = new Animal();
         """;
 
-    // ── What a variant pattern is ────────────────────────────────────────
-
     [Fact]
     public void AnEnumVariantPattern_IsAnEqualityComparison()
     {
@@ -109,8 +107,6 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
         BindsCleanly("var ok = u is Direction.North;");
     }
 
-    // ── What the reading must NOT claim ──────────────────────────────────
-
     [Fact]
     public void AnUndottedTypeName_StaysATypeTest()
     {
@@ -138,8 +134,6 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
         _ = Assert.Single(Errors(BuildRun("var ok = d is Direction.Up;"), "MIST0298"));
     }
 
-    // ── The other position a pattern occupies ────────────────────────────
-
     [Fact]
     public void AVariantPattern_BindsInASwitchArm()
     {
@@ -159,8 +153,6 @@ public sealed class EnumVariantPatternResolutionTests : ProgramModelProbe
         Assert.Equal(2, disjunction.Operands.Count);
         BindsCleanly("var ok = d is Direction.North or Direction.South;");
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private Pattern PatternOf(string statement)
     {

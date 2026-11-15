@@ -8,7 +8,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-// Tier 2: PatternBinder's list chain over hand-built syntax, asserting the input each element is matched against.
 [Trait("Tier", "2")]
 public sealed class ListPatternInputBindingTests
 {

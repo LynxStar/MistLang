@@ -2,7 +2,7 @@
 // construction of the parameter's definition but whose base chain reaches one. `First<T>(Holder<T>)`
 // called with an IntHolder answers int only because IntHolder conforms to Holder<int>, and a generic
 // conformer answers through its receiver's arguments. Asserted on the model, since emission lets
-// Roslyn infer again. See ProgramModelProbe for the harness.
+// Roslyn infer again.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;

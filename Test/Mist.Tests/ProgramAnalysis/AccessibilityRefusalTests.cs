@@ -14,7 +14,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 1 for name decisions; Tier 2 for accessibility walks over direct model fragments.
 public sealed class AccessibilityRefusalTests
 {
     [Theory]

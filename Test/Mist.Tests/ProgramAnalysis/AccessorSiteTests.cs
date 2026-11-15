@@ -1,5 +1,3 @@
-// Tier 2 (Functional): accessor uses retain their direction, reporting site and enclosing construction context.
-
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;

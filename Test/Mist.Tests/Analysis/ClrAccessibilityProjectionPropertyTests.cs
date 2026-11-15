@@ -1,6 +1,3 @@
-// Feature: full-accessibility-model, Property 20: CLR accessibility projects to the four-level enum without broadening
-// **Validates: Requirements 16.6**
-
 using System.Reflection;
 using FsCheck;
 using FsCheck.Fluent;
@@ -12,23 +9,8 @@ using Property = FsCheck.Property;
 
 namespace Mist.Tests.Analysis;
 
-/// <summary>
-/// Property-based tests for CLR accessibility projection via <see cref="ClrAccessibilityMap"/>.
-///
-/// Property 20: For any CLR member or type accessibility value, the projected Mist Accessibility
-/// follows the fixed mapping -- public -> Public, family -> Protected, family-or-assembly -> Protected,
-/// and private, assembly, or family-and-assembly -> Private -- which never broadens access and never
-/// yields Mist Internal.
-///
-/// The test exercises the pure projection helper over real CLR reflection metadata from
-/// <see cref="AllAccessibilityLevels"/> which declares members at all six CLR accessibility forms.
-///
-/// **Validates: Requirements 16.6 (Property 20)**
-/// </summary>
 public class ClrAccessibilityProjectionPropertyTests
 {
-    // ─── Test data: real CLR members with known accessibility ─────────────
-
     private static readonly Type FixtureType = typeof(AllAccessibilityLevels);
 
     private static readonly FieldInfo[] AllFields = FixtureType
@@ -45,8 +27,6 @@ public class ClrAccessibilityProjectionPropertyTests
     private static readonly Type[] AllNestedTypes = FixtureType.GetNestedTypes(
         BindingFlags.Public | BindingFlags.NonPublic);
 
-    // ─── Expected mapping oracle ─────────────────────────────────────────
-
     private static Accessibility ExpectedForField(FieldInfo field)
     {
         if(field.IsPublic)
@@ -59,7 +39,6 @@ public class ClrAccessibilityProjectionPropertyTests
             return Accessibility.Protected;
         }
 
-        // private, assembly, family-and-assembly all map to Private
         return Accessibility.Private;
     }
 
@@ -121,13 +100,8 @@ public class ClrAccessibilityProjectionPropertyTests
         return method.IsFamily || method.IsFamilyOrAssembly;
     }
 
-    // ─── Scenario types ──────────────────────────────────────────────────
-
 #pragma warning disable CA1034
 
-    /// <summary>
-    /// A generated scenario that picks one CLR member and carries the expected Mist accessibility.
-    /// </summary>
     public sealed record ClrAccessibilityScenario(
         string MemberKind,
         string MemberName,
@@ -141,8 +115,6 @@ public class ClrAccessibilityProjectionPropertyTests
     }
 
 #pragma warning restore CA1034
-
-    // ─── Generators ──────────────────────────────────────────────────────
 
     private static Gen<ClrAccessibilityScenario> GenFieldScenario()
     {
@@ -177,21 +149,11 @@ public class ClrAccessibilityProjectionPropertyTests
             GenNestedTypeScenario());
     }
 
-    // ─── Arbitrary registration ──────────────────────────────────────────
-
     public static Arbitrary<ClrAccessibilityScenario> ArbitraryClrAccessibilityScenario()
     {
         return GenAnyScenario().ToArbitrary();
     }
 
-    // ─── Property Tests ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Property 20: CLR accessibility projects to the four-level enum without broadening.
-    ///
-    /// For any CLR member or nested type accessibility value, the projected Mist Accessibility
-    /// follows the fixed mapping table and never yields <see cref="Accessibility.Internal"/>.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ClrAccessibilityProjectionPropertyTests) })]
     public Property ClrAccessibility_ProjectsToCorrectMistLevel(ClrAccessibilityScenario scenario)
     {
@@ -205,13 +167,6 @@ public class ClrAccessibilityProjectionPropertyTests
                    $"Internal produced: {!neverInternal}");
     }
 
-    /// <summary>
-    /// Property 20 (Internal invariant): No CLR accessibility form ever projects to
-    /// <see cref="Accessibility.Internal"/>.
-    ///
-    /// This is the "never broadens" half of the property, tested independently to ensure
-    /// no mapping path can produce Internal.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(ClrAccessibilityProjectionPropertyTests) })]
     public Property ClrAccessibility_NeverProducesInternal(ClrAccessibilityScenario scenario)
     {
@@ -221,11 +176,6 @@ public class ClrAccessibilityProjectionPropertyTests
             .Label($"Internal was produced for {scenario}");
     }
 
-    // ─── Exhaustive deterministic tests ──────────────────────────────────
-
-    /// <summary>
-    /// Exhaustively verifies the mapping table for all six CLR field accessibility forms.
-    /// </summary>
     [Fact]
     public void FromField_MapsAllSixAccessibilityForms()
     {
@@ -239,9 +189,6 @@ public class ClrAccessibilityProjectionPropertyTests
         Assert.Equal(Accessibility.Private, fieldMap["privateProtectedField"]);
     }
 
-    /// <summary>
-    /// Exhaustively verifies the mapping table for all six CLR method accessibility forms.
-    /// </summary>
     [Fact]
     public void FromMethod_MapsAllSixAccessibilityForms()
     {
@@ -255,9 +202,6 @@ public class ClrAccessibilityProjectionPropertyTests
         Assert.Equal(Accessibility.Private, methodMap["PrivateProtectedMethod"]);
     }
 
-    /// <summary>
-    /// Exhaustively verifies the mapping table for all six CLR property accessibility forms.
-    /// </summary>
     [Fact]
     public void FromProperty_MapsAllSixAccessibilityForms()
     {
@@ -271,9 +215,6 @@ public class ClrAccessibilityProjectionPropertyTests
         Assert.Equal(Accessibility.Private, propMap["PrivateProtectedProp"]);
     }
 
-    /// <summary>
-    /// Exhaustively verifies the mapping table for all six CLR nested-type accessibility forms.
-    /// </summary>
     [Fact]
     public void FromNestedType_MapsAllSixAccessibilityForms()
     {
@@ -287,10 +228,6 @@ public class ClrAccessibilityProjectionPropertyTests
         Assert.Equal(Accessibility.Private, nestedMap["NestedPrivateProtected"]);
     }
 
-    /// <summary>
-    /// Verifies that no CLR accessibility form produces <see cref="Accessibility.Internal"/>
-    /// across all member kinds — exhaustive check over the entire fixture.
-    /// </summary>
     [Fact]
     public void AllMappings_NeverProduceInternal()
     {

@@ -1,5 +1,3 @@
-// Tier 2 (Functional): the analyzer walks bound fragments and reports at the value each kind of slot holds.
-
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;

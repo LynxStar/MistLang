@@ -12,7 +12,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: direct declaration builders consume hand-built syntax and models with stub ambient types.
 [Trait("Tier", "2")]
 public sealed class DeclarationBindingRefusalTests
 {

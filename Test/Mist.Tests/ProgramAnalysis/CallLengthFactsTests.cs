@@ -1,5 +1,3 @@
-// Tier 1: a call's declared result type carries its length as a typed local's does, and an unsized result invents none.
-
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;

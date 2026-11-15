@@ -11,7 +11,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: conformance obligations over declarations and member bodies constructed directly.
 [Trait("Tier", "2")]
 public sealed class ConformanceRefusalTests
 {

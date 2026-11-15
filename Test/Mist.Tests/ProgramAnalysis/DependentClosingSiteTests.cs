@@ -4,8 +4,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: dependent closings the registry holds -- a construction, a forwarding, an alias's and a type
-// named only for a static -- judged against their slot's domain by the analyzer, each at its own site.
 [Trait("Tier", "2")]
 public sealed class DependentClosingSiteTests
 {

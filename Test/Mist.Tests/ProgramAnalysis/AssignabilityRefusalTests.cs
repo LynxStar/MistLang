@@ -1,5 +1,3 @@
-// Tier 1 (Unit): each refused slot is judged from its bound types and constant, without upstream stages.
-
 using Mist.ProgramAnalysis.Rules;
 using Mist.Tests.Helpers;
 

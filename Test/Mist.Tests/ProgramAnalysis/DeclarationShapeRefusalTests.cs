@@ -10,7 +10,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: declaration checks over directly constructed members and inheritance paths.
 [Trait("Tier", "2")]
 public sealed class DeclarationShapeRefusalTests
 {

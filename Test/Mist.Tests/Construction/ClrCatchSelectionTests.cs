@@ -24,8 +24,8 @@ public sealed class ClrCatchSelectionTests
         Assert.True(MethodGroupConversion.Accepts(fixture.Group, adapted, fixture.Interner, fixture.ConstructTask));
         Assert.False(MethodGroupConversion.Accepts(fixture.Group, declared, fixture.Interner, fixture.ConstructTask));
 
-        // Without the task-construction seam the group is held to its declared Result<Task<T>, E>, the gap
-        // that let only task creation through; the adapted boundary is then the one position it misses.
+        // Without the task-construction seam the group is held to its declared Result<Task<T>, E>, which
+        // covers only task creation.
         Assert.False(MethodGroupConversion.Accepts(fixture.Group, adapted, fixture.Interner));
         Assert.True(MethodGroupConversion.Accepts(fixture.Group, declared, fixture.Interner));
     }

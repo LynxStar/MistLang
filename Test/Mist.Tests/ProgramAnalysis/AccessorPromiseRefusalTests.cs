@@ -1,4 +1,5 @@
-// Tier 2 (Functional): purity Requirement 1.5 at the judge -- an accessor's own promise replaces its declaration's wherever a promise is read, and is what its body is held to. The purity and readonly rules own every id these rows name, so each fragment is judged by both and an admitted row is silent under both.
+// Purity Requirement 1.5 at the judge. The purity and readonly rules own every id these rows name, so
+// each fragment is judged by both and an admitted row is silent under both.
 
 using Mist.Tests.Helpers;
 

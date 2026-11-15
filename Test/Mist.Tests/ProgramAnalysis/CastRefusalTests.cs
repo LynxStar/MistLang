@@ -1,5 +1,3 @@
-// Tier 1 decisions and Tier 2 report sites hold total conversion refusals without compiling programs.
-
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Rules;

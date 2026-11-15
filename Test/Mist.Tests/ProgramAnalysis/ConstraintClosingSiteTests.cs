@@ -7,7 +7,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: registered type, method and pack closings report on their written closing site.
 [Trait("Tier", "2")]
 public sealed class ConstraintClosingSiteTests
 {

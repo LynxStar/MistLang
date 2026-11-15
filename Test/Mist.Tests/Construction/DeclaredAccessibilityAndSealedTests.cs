@@ -1,5 +1,3 @@
-// Tier 1: a type declaration's written modifiers decide its accessibility and its sealed flag independently, and an unwritten accessibility is its scope's default.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Generated;

@@ -1,4 +1,4 @@
-// Tier 3: escaped literals supply runtime character counts across predicate and slice proofs.
+// Tier 3 (Component).
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;

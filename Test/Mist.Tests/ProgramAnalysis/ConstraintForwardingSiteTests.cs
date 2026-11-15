@@ -9,7 +9,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 2: registered open closings are judged by the analyzer at the site that forwards the parameter.
 [Trait("Tier", "2")]
 public sealed class ConstraintForwardingSiteTests
 {

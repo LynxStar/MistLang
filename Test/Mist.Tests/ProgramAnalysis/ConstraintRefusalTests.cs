@@ -11,7 +11,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 1: one closed constraint decision with directly constructed types and substitutions.
 [Trait("Tier", "1")]
 public sealed class ConstraintRefusalTests
 {

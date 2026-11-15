@@ -1,7 +1,5 @@
-// Tier 3 (Component): the conformance shapes ConformanceAnalyzer deliberately admits. Fixtures pin
-// defaults left unfilled or restated by a conformer, generic slots closed by the base list,
-// inherited fillers, diamonds filled once, and with blocks answered by mappings or the type's own
-// members. The analyzer states the slot/default/filler contract.
+// Tier 3 (Component): the conformance shapes ConformanceAnalyzer deliberately admits. The analyzer
+// states the slot/default/filler contract.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -188,8 +186,6 @@ public sealed class ConformanceDecisionTests : ProgramModelProbe
         Assert.Equal("MIST0189", finding.Number.Value);
         Assert.Contains("string", finding.Message);
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")
     {

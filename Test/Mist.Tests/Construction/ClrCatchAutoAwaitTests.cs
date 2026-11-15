@@ -71,8 +71,7 @@ public sealed class ClrCatchAutoAwaitTests
         var group = new MethodGroupExpression(Node(), null, "Catch", [method], null);
 
         // The value form carries the task-adapted Task<Result<T, E>> the direct call produces, not the
-        // declared Result<Task<T>, E> that covers only task creation: the adapted target converts and the
-        // unadapted one is refused rather than silently accepted.
+        // declared Result<Task<T>, E>, which covers only task creation.
         var converted = MethodGroupConversion.Convert(group, new FunctionType([operation], adapted), f.Builder, out _);
         var reference = Assert.IsType<FunctionReferenceExpression>(converted);
         Assert.Same(method, reference.Method);

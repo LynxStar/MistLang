@@ -1,7 +1,5 @@
-// Tier 3 (Component): the writes AccessorAnalyzer deliberately admits. Every fixture is analyzed in
-// every row: a get-only auto-property in its own constructor, an init-only one on this in a
-// constructor or init accessor of its type or derivation, and a private setter from its own type,
-// lambda or nested type. AccessorAnalyzer states the access and initialization privileges.
+// Tier 3 (Component): the writes AccessorAnalyzer deliberately admits; AccessorAnalyzer states the
+// access and initialization privileges. Every fixture is analyzed in every row.
 
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;

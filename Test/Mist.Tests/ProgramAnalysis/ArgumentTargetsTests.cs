@@ -8,11 +8,10 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 1: ArgumentTargets over directly built signatures. A signature is written as its parameters'
-// closed types with `params` on the flattened one and `=` after one with a native default, a call as its
-// argument types with `...` for a spread
-// the binder kept, and an answer as one type per argument with `-` where nothing pairs with it. `List<T>`
-// is a hand-built collection class, enumerable with an Add of T, standing for every params collection.
+// A signature is written as its parameters' closed types with `params` on the flattened one and `=`
+// after one with a native default, a call as its argument types with `...` for a spread the binder
+// kept, and an answer as one type per argument with `-` where nothing pairs with it. `List<T>` is a
+// hand-built collection class, enumerable with an Add of T, standing for every params collection.
 [Trait("Tier", "1")]
 public sealed class ArgumentTargetsTests
 {

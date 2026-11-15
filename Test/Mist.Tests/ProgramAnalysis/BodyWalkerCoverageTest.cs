@@ -1,6 +1,4 @@
-// Tier 1 (Unit): BodyWalker has a row for exactly the node kinds the model can hold. The walker is a
-// table so that this test can exist -- see the class comment on BodyWalker -- and a node kind added to
-// the model without a row is analysed by no rule at all, silently, until this fails.
+// Tier 1 (Unit).
 
 using System.Runtime.CompilerServices;
 using Mist.Generated;

@@ -1,5 +1,3 @@
-// Tier 1 (Unit): accessor existence, access domains and construction privileges decide each refusal directly.
-
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;

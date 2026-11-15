@@ -10,7 +10,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-// Tier 1: one open constraint decision, the forwarded parameter and the requirement built directly.
 [Trait("Tier", "1")]
 public sealed class ConstraintEntailmentTests
 {

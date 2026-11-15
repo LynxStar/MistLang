@@ -1,7 +1,5 @@
-// Tier 3 (Component): declaration and accessibility shapes deliberately admitted by the analyzers,
-// plus model reach facts. Fixtures pin private access from the declaring or nested type, protected
-// access from a derivation, internal access within a compilation, and a public class over an
-// internal abstract. AccessDomains and DeclarationShapeAnalyzer state the rules.
+// Tier 3 (Component): declaration and accessibility shapes the analyzers deliberately admit, plus
+// model reach facts. AccessDomains and DeclarationShapeAnalyzer state the rules.
 
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
@@ -762,8 +760,6 @@ public sealed class DeclarationShapeDecisionTests : ProgramModelProbe
         Assert.NotEmpty(expected);
         Assert.Equal(expected, Analyse(inferred, Closings).Select(d => d.Message));
     }
-
-    // ── Harness ─────────────────────────────────────────────────────────
 
     private void AssertSilent(string statement, string extraTypes = "")
     {

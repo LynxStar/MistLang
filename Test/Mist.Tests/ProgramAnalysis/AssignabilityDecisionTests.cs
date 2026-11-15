@@ -1,5 +1,3 @@
-// Tier 1 (Unit): admitted conversions and deliberate silences are decisions over directly constructed types.
-
 using Mist.ProgramAnalysis.Rules;
 using Mist.Tests.Helpers;
 

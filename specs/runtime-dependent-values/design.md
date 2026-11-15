@@ -547,6 +547,42 @@ case and closes the class leak, which a presence check alone does not.
   `Tester<Ring<Const_5>>`, so creation has to choose here as well, and a place
   of that type needs a C# type both forms fit.
 
+### Where refinements are enough
+
+The owner's direction on 2026-11-15: "So it's both what you already wrote and
+the extra refinement improve could provide a way you don't need dependent
+typing for certain cases." The design above stands. Alongside it, three
+refinement facts let a program that only sizes arrays at run time prove what
+it needs without closing a type at run time; they are proposed to the
+refinement work in [runtime-length-facts](../runtime-length-facts/requirements.md).
+
+Measured with this feature's six gaps written without any run-time closing,
+on main at e2656913 (refinements, no run-time closings) and on this branch at
+1424a04b:
+
+| Gap | main | branch |
+|---|---|---|
+| 1. A value in a size or a constructor argument | works | works |
+| 2. Evaluated once, value kept | works | works |
+| 6. Member access and tests through a field | works | works |
+| 3. `a[i]` under `m == n` and `i < m` | MIST0275 | works |
+| 4. Two lengths related at a call by a `where` bound | MIST0277 | works |
+| 5. `a[i]` under `i < n` | MIST0275 | works |
+| 4. A length through a return, `int[] Zeroes(n)` | MIST0277 | MIST0277 |
+
+Rows 3 to 5 fail on main for one reason: `new int[n]` records no
+`a.Length == n`. The branch gets it from the type `int[n]`; the refinement
+proposal records it as a fact instead. The last row needs a return type that
+states a relation to its arguments, which neither compiler has.
+
+A CLR array keeps its own length, so a fact about it holds wherever the array
+goes. A user type's slot has no such keeper. A run-time closing of one stays
+with this design in every slot domain, integers included, and comes back from
+CLR code as `T | void` ("Cell<n> if you want a dependent runtime int will
+still need to be Cell<n>? when it crosses the barrier to be safe"). So do a
+relation stored inside data, identity by value, and a slot whose domain is a
+struct value.
+
 ### Identity by value: the first delivery
 
 Items 1 to 4. Each program was run at afd43acab and is refused there with the

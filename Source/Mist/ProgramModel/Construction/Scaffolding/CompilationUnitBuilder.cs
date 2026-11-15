@@ -1,4 +1,3 @@
-using Mist.Driver.Contracts;
 using Mist.Generated;
 using Mist.ProgramModel.Construction.Types;
 using Mist.ProgramModel.Model;
@@ -21,12 +20,6 @@ internal sealed class CompilationUnitBuilder
         typeBuilder = new TypeBuilder(context);
     }
 
-    /// <summary>
-    /// Processes a compilation unit: creates the file scope, resolves namespaces
-    /// and imports, registers type declarations, and stashes a
-    /// <see cref="CompilationUnit"/> on the assembly.
-    /// Returns the file scope, or null if namespace validation produced fatal errors.
-    /// </summary>
     public Scope? Build(DriverCompilationUnit unit)
     {
         var ast = unit.Ast as CompilationUnitNode

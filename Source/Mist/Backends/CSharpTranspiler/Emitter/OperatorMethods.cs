@@ -15,9 +15,11 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// <em>Identity by value: conversions and nested types</em>). A C# operator takes its operands and nothing else, and
 /// must convert to or from, or take, the very type declaring it. A value-routed type's operator whose operands do not
 /// carry every slot takes the values as the hidden leading parameters every static member takes, and each use passes
-/// those of the closing it converts to or found the operator through, which is the one place that knows them. One
-/// none of whose operands, nor its target, is the declaring type as declared, <c>operator +(Ring&lt;1&gt; a, int b)</c>
-/// inside <c>Ring&lt;Capacity&gt;</c>, is a method on either route, because C# refuses it as an operator.
+/// those of the closing it converts to or found the operator through, which is the one place that knows them. One that
+/// names the declaring type only at another closing, such as an addition of a Ring at 1 and an int declared inside the
+/// Ring at Capacity, is a method on either route, because C# refuses it as an operator. C# keeps two conversions from
+/// one source apart by their target but two methods only by their parameters, so a conversion out of the declaring type
+/// spells the target it was declared with in its name; one into the declaring type erases to that type at every closing.
 /// </summary>
 internal static class OperatorMethods
 {
@@ -39,13 +41,6 @@ internal static class OperatorMethods
             && (!signature.Exists(type => IsDeclaring(type, declaring)) || SlotRoutes.ValueRouted(declaring).Any(slot => BodyEmitter.OperandRead(op, slot) is null));
     }
 
-    /// <summary>
-    /// The method's name. C# keeps two conversions from one source apart by their target, but two methods only by
-    /// their parameters, so a conversion out of the declaring type, <c>explicit operator int(Ring&lt;1&gt; r)</c> beside
-    /// <c>explicit operator long(Ring&lt;1&gt; r)</c>, spells the target it was declared with. One into the declaring type
-    /// needs no more: its target erases to that type whatever the closing, so only its source tells it apart. The
-    /// declaration and every use read the declared member, whatever closing the use reached it through.
-    /// </summary>
     public static string Name(Method op)
     {
         return op switch

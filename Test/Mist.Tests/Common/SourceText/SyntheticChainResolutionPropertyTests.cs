@@ -1,6 +1,3 @@
-// Feature: node-origin-tracking, Property 5: SyntheticOrigin Chain Resolves to Terminal ParsedOrigin
-// **Validates: Requirements 4.2, 7.3**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -10,23 +7,8 @@ using Mist.Generated;
 
 namespace Mist.Tests.Common.SourceText;
 
-/// <summary>
-/// Property-based tests for SyntheticOrigin chain resolution.
-///
-/// Property 5: SyntheticOrigin Chain Resolves to Terminal ParsedOrigin.
-/// For any chain of SyntheticOrigin records (depth 1 to N) whose terminal
-/// DerivedFrom is a ParsedOrigin, DiagnosticHelper.ResolveLocation SHALL
-/// return the path and location from that terminal ParsedOrigin's SourceText.
-/// </summary>
 public class SyntheticChainResolutionPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Input record for the property test: a synthetic chain with a terminal ParsedOrigin.
-    /// </summary>
 #pragma warning disable CA1034, CA1819 // CA1034: nested type, CA1819: array property in test input record
     public record SyntheticChainInput(
         Mist.Common.Source.SourceText TerminalSource,
@@ -42,9 +24,6 @@ public class SyntheticChainResolutionPropertyTests
     }
 #pragma warning restore CA1034, CA1819
 
-    /// <summary>
-    /// Generates non-empty source contents with newlines for multi-line coverage.
-    /// </summary>
     private static Gen<string> GenNonEmptyContents()
     {
         return Gen.Elements(
@@ -58,9 +37,6 @@ public class SyntheticChainResolutionPropertyTests
             "a\nb\nc\nd\ne\nf\ng\nh");
     }
 
-    /// <summary>
-    /// Generates a non-empty reason string for SyntheticOrigin.
-    /// </summary>
     private static Gen<string> GenReason()
     {
         return Gen.Elements(
@@ -76,11 +52,6 @@ public class SyntheticChainResolutionPropertyTests
             "closure capture");
     }
 
-    /// <summary>
-    /// Generates a SyntheticChainInput with a random chain depth (1-10),
-    /// random intermediate reasons, and a random terminal ParsedOrigin
-    /// with a valid span within content bounds.
-    /// </summary>
     private static Gen<SyntheticChainInput> GenSyntheticChainInput()
     {
         return from path in Gen.Elements("file.mist", "src/main.mist", "lib/utils.mist", "test.mist", "a/b/c.mist")
@@ -102,17 +73,8 @@ public class SyntheticChainResolutionPropertyTests
         return GenSyntheticChainInput().ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Builds a chain of SyntheticOrigin records with the given reasons,
-    /// terminating at the provided ParsedOrigin.
-    /// </summary>
     private static NodeOrigin BuildChain(ParsedOrigin terminal, string[] reasons)
     {
-        // Start from the terminal and wrap outward
         NodeOrigin current = terminal;
         for(var i = reasons.Length - 1; i >= 0; i--)
         {
@@ -122,14 +84,6 @@ public class SyntheticChainResolutionPropertyTests
         return current;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For any chain of SyntheticOrigin records whose terminal DerivedFrom is a ParsedOrigin,
-    /// DiagnosticHelper.ResolveLocation SHALL return the path from that terminal ParsedOrigin's SourceText.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SyntheticChainResolutionPropertyTests) })]
     public bool ResolveLocation_SyntheticChain_ReturnsTerminalParsedOriginPath(SyntheticChainInput input)
     {
@@ -145,11 +99,6 @@ public class SyntheticChainResolutionPropertyTests
         return DiagnosticHelper.ResolveLocation(node).Location.Path == input.TerminalSource.Path;
     }
 
-    /// <summary>
-    /// For any chain of SyntheticOrigin records whose terminal DerivedFrom is a ParsedOrigin,
-    /// DiagnosticHelper.ResolveLocation SHALL return a LinePositionSpan equal to
-    /// the terminal ParsedOrigin's SourceText.ToLinePositionSpan(node.Span).
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SyntheticChainResolutionPropertyTests) })]
     public bool ResolveLocation_SyntheticChain_ReturnsCorrectLinePositionSpan(SyntheticChainInput input)
     {
@@ -174,8 +123,7 @@ public class SyntheticChainResolutionPropertyTests
     }
 
     /// <summary>
-    /// For any chain of SyntheticOrigin records (depth >= 1),
-    /// DiagnosticHelper.ResolveLocation SHALL return one synthesis frame per link, outermost first.
+    /// One synthesis frame per link, outermost first, which is reasons[0] in <see cref="BuildChain"/>.
     /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SyntheticChainResolutionPropertyTests) })]
     public bool ResolveLocation_SyntheticChain_HasNonNullSyntheticContext(SyntheticChainInput input)

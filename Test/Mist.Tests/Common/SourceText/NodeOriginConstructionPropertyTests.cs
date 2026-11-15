@@ -1,6 +1,3 @@
-// Feature: node-origin-tracking, Property 1: NodeOrigin Constructor Invariants
-// **Validates: Requirements 1.2, 1.3**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -8,24 +5,8 @@ using Mist.Common.Source;
 
 namespace Mist.Tests.Common.SourceText;
 
-/// <summary>
-/// Property-based tests for NodeOrigin constructor invariants.
-///
-/// Property 1: NodeOrigin Constructor Invariants.
-/// For any valid SourceText instance, constructing a ParsedOrigin SHALL produce a record
-/// whose Source property is the same instance. For any valid NodeOrigin and non-empty string,
-/// constructing a SyntheticOrigin SHALL produce a record whose DerivedFrom is the same origin
-/// and whose Reason is the same string.
-/// </summary>
 public class NodeOriginConstructionPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates random SourceText instances with arbitrary path and contents.
-    /// </summary>
     private static Gen<Mist.Common.Source.SourceText> GenSourceText()
     {
         return from path in Gen.Elements("file.mist", "src/main.mist", "lib/utils.mist", "test.mist", "a.mist")
@@ -33,9 +14,6 @@ public class NodeOriginConstructionPropertyTests
                select new Mist.Common.Source.SourceText(path, contents);
     }
 
-    /// <summary>
-    /// Generates non-empty reason strings for SyntheticOrigin.
-    /// </summary>
     private static Gen<string> GenNonEmptyReason()
     {
         return Gen.Elements(
@@ -48,9 +26,6 @@ public class NodeOriginConstructionPropertyTests
             "type erasure");
     }
 
-    /// <summary>
-    /// Generates random NodeOrigin variants (ParsedOrigin, SyntheticOrigin, TestOrigin).
-    /// </summary>
     private static Gen<NodeOrigin> GenNodeOrigin()
     {
         var genParsed = GenSourceText().Select(s => (NodeOrigin)new ParsedOrigin(s));
@@ -91,14 +66,6 @@ public class NodeOriginConstructionPropertyTests
         .ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For any valid SourceText instance, constructing a ParsedOrigin SHALL produce
-    /// a record whose Source property is reference-equal to the original SourceText.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NodeOriginConstructionPropertyTests) })]
     public bool ParsedOrigin_Source_IsReferenceEqual(Mist.Common.Source.SourceText sourceText)
     {
@@ -106,11 +73,6 @@ public class NodeOriginConstructionPropertyTests
         return ReferenceEquals(origin.Source, sourceText);
     }
 
-    /// <summary>
-    /// For any valid NodeOrigin and non-empty string, constructing a SyntheticOrigin
-    /// SHALL produce a record whose DerivedFrom is the same origin and whose Reason
-    /// is the same string.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NodeOriginConstructionPropertyTests) })]
     public bool SyntheticOrigin_Fields_ArePreserved(SyntheticOriginInput input)
     {
@@ -119,9 +81,6 @@ public class NodeOriginConstructionPropertyTests
             && synthetic.Reason == input.Reason;
     }
 
-    /// <summary>
-    /// SyntheticOrigin SHALL throw ArgumentException when constructed with an empty reason.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(NodeOriginConstructionPropertyTests) })]
     public bool SyntheticOrigin_EmptyReason_ThrowsArgumentException(NodeOrigin origin)
     {

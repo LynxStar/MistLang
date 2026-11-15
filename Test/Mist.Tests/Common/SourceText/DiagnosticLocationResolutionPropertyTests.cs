@@ -1,6 +1,3 @@
-// Feature: node-origin-tracking, Property 4: ParsedOrigin Resolves to Correct Location
-// **Validates: Requirements 4.1**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -10,24 +7,8 @@ using Mist.Generated;
 
 namespace Mist.Tests.Common.SourceText;
 
-/// <summary>
-/// Property-based tests for ParsedOrigin location resolution.
-///
-/// Property 4: ParsedOrigin Resolves to Correct Location.
-/// For any node with a ParsedOrigin and a non-empty Span,
-/// DiagnosticHelper.ResolveLocation SHALL return a path equal to
-/// ParsedOrigin.Source.Path and a LinePositionSpan equal to
-/// ParsedOrigin.Source.ToLinePositionSpan(node.Span).
-/// </summary>
 public class DiagnosticLocationResolutionPropertyTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Input record pairing a SourceText with a valid span within its content bounds.
-    /// </summary>
 #pragma warning disable CA1034
     public record LocationInput(Mist.Common.Source.SourceText Source, int SpanStart, int SpanLength)
     {
@@ -38,9 +19,6 @@ public class DiagnosticLocationResolutionPropertyTests
     }
 #pragma warning restore CA1034
 
-    /// <summary>
-    /// Generates non-empty source contents (at least 1 character) with newlines for multi-line coverage.
-    /// </summary>
     private static Gen<string> GenNonEmptyContents()
     {
         return Gen.Elements(
@@ -54,10 +32,6 @@ public class DiagnosticLocationResolutionPropertyTests
             "a\nb\nc\nd\ne\nf\ng\nh");
     }
 
-    /// <summary>
-    /// Generates a LocationInput with a valid span within the content bounds.
-    /// Ensures SpanStart + SpanLength &lt;= Contents.Length.
-    /// </summary>
     private static Gen<LocationInput> GenLocationInput()
     {
         return from path in Gen.Elements("file.mist", "src/main.mist", "lib/utils.mist", "test.mist", "a/b/c.mist")
@@ -72,15 +46,6 @@ public class DiagnosticLocationResolutionPropertyTests
         return GenLocationInput().ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For any node with a ParsedOrigin and a valid Span within content bounds,
-    /// DiagnosticHelper.ResolveLocation SHALL return a path equal to
-    /// ParsedOrigin.Source.Path.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ReturnsCorrectPath(LocationInput input)
     {
@@ -93,11 +58,6 @@ public class DiagnosticLocationResolutionPropertyTests
         return DiagnosticHelper.ResolveLocation(node).Location.Path == input.Source.Path;
     }
 
-    /// <summary>
-    /// For any node with a ParsedOrigin and a valid Span within content bounds,
-    /// DiagnosticHelper.ResolveLocation SHALL return a LinePositionSpan equal to
-    /// source.ToLinePositionSpan(span).
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ReturnsCorrectLinePositionSpan(LocationInput input)
     {
@@ -118,10 +78,6 @@ public class DiagnosticLocationResolutionPropertyTests
             && location.End.Column == expectedLocation.End.Column;
     }
 
-    /// <summary>
-    /// For any node with a ParsedOrigin and a valid Span within content bounds,
-    /// DiagnosticHelper.ResolveLocation SHALL return no frames and a source range.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(DiagnosticLocationResolutionPropertyTests) })]
     public bool ResolveLocation_ParsedOrigin_HasNullSyntheticContext(LocationInput input)
     {

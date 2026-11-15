@@ -1,4 +1,3 @@
-// Feature: unified-diagnostic-formatting, Property 5: span-to-location resolution
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -6,27 +5,11 @@ using Mist.Common.Source;
 
 namespace Mist.Tests.Common.SourceText;
 
-/// <summary>
-/// Data record representing a random source text and a span within its bounds.
-/// </summary>
 public record SourceTextWithSpan(string Path, string Contents, int SpanStart, int SpanLength);
 
-/// <summary>
-/// Property-based tests for span-to-location resolution.
-///
-/// **Validates: Requirements 4.1, 4.2, 4.3**
-///
-/// Property 5: For any SourceText with non-empty content and any SourceSpan within that
-/// content with non-zero length, the LinePositionSpan produced by SourceText.ToLinePositionSpan()
-/// SHALL have Start.Line >= 1 and Start.Column >= 1.
-/// </summary>
 [Trait("Tier", "1")]
 public class SpanToLocationPropertyTests
 {
-    /// <summary>
-    /// Generates random SourceText content with a valid SourceSpan within bounds.
-    /// Content includes a mix of characters and newlines to exercise line/column computation.
-    /// </summary>
     public static Arbitrary<SourceTextWithSpan> ArbitrarySourceTextWithSpan()
     {
         var gen =
@@ -46,12 +29,6 @@ public class SpanToLocationPropertyTests
         return gen.ToArbitrary();
     }
 
-    /// <summary>
-    /// Property 5: ToLinePositionSpan produces 1-based line and column positions.
-    ///
-    /// For any SourceText with non-empty content and any SourceSpan within bounds
-    /// with non-zero length, Start.Line >= 1 and Start.Column >= 1.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SpanToLocationPropertyTests) })]
     public bool SpanToLocation_ProducesOneBasedPositions(SourceTextWithSpan data)
     {
@@ -63,12 +40,6 @@ public class SpanToLocationPropertyTests
         return linePositionSpan.Start.Line >= 1 && linePositionSpan.Start.Column >= 1;
     }
 
-    /// <summary>
-    /// Property 5: End position is also 1-based and >= Start position.
-    ///
-    /// For any valid span within source text, the End line/column should also
-    /// be 1-based and the end position should be at or after the start position.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(SpanToLocationPropertyTests) })]
     public bool SpanToLocation_EndPositionIsValid(SourceTextWithSpan data)
     {
@@ -77,19 +48,16 @@ public class SpanToLocationPropertyTests
 
         var linePositionSpan = sourceText.ToLinePositionSpan(span);
 
-        // End must also be 1-based
         if(linePositionSpan.End.Line < 1 || linePositionSpan.End.Column < 1)
         {
             return false;
         }
 
-        // End line must be >= Start line
         if(linePositionSpan.End.Line < linePositionSpan.Start.Line)
         {
             return false;
         }
 
-        // If on the same line, End column must be >= Start column
         if(linePositionSpan.End.Line == linePositionSpan.Start.Line
             && linePositionSpan.End.Column < linePositionSpan.Start.Column)
         {

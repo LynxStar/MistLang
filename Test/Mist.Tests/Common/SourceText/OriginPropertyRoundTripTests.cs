@@ -1,6 +1,3 @@
-// Feature: node-origin-tracking, Property 2: Origin Property Round-Trip
-// **Validates: Requirements 2.2**
-
 using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
@@ -10,22 +7,8 @@ using Storm.Runtime;
 
 namespace Mist.Tests.Common.SourceText;
 
-/// <summary>
-/// Property-based tests for Origin property round-trip on SyntaxNode.
-///
-/// Property 2: Origin Property Round-Trip.
-/// For any SyntaxNode and any NodeOrigin variant (ParsedOrigin, SyntheticOrigin, or TestOrigin),
-/// setting the Origin property and then reading it back SHALL return a value equal to what was set.
-/// </summary>
 public class OriginPropertyRoundTripTests
 {
-    // ═══════════════════════════════════════════════════════════════════════
-    // Generators
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Generates random SourceText instances with arbitrary path and contents.
-    /// </summary>
     private static Gen<Mist.Common.Source.SourceText> GenSourceText()
     {
         return from path in Gen.Elements("file.mist", "src/main.mist", "lib/utils.mist", "test.mist", "a.mist")
@@ -33,9 +16,6 @@ public class OriginPropertyRoundTripTests
                select new Mist.Common.Source.SourceText(path, contents);
     }
 
-    /// <summary>
-    /// Generates non-empty reason strings for SyntheticOrigin.
-    /// </summary>
     private static Gen<string> GenNonEmptyReason()
     {
         return Gen.Elements(
@@ -46,9 +26,6 @@ public class OriginPropertyRoundTripTests
             "default value insertion");
     }
 
-    /// <summary>
-    /// Generates random NodeOrigin variants (ParsedOrigin, SyntheticOrigin, or TestOrigin).
-    /// </summary>
     private static Gen<NodeOrigin> GenNodeOrigin()
     {
         var genParsed = GenSourceText().Select(s => (NodeOrigin)new ParsedOrigin(s));
@@ -61,10 +38,6 @@ public class OriginPropertyRoundTripTests
         return Gen.OneOf(genParsed, genTest, genSynthetic);
     }
 
-    /// <summary>
-    /// Generates concrete SyntaxNode subclass instances.
-    /// Uses several simple node types from the generated AST.
-    /// </summary>
     private static Gen<SyntaxNode> GenSyntaxNode()
     {
         return Gen.OneOf(
@@ -83,14 +56,6 @@ public class OriginPropertyRoundTripTests
         return GenSyntaxNode().ToArbitrary();
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Property tests
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// For any SyntaxNode and any NodeOrigin variant, setting the Origin property
-    /// and then reading it back SHALL return a value equal to what was set.
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OriginPropertyRoundTripTests) })]
     public bool Origin_SetThenGet_ReturnsEqualValue(SyntaxNode node, NodeOrigin origin)
     {
@@ -98,10 +63,6 @@ public class OriginPropertyRoundTripTests
         return node.Origin == origin;
     }
 
-    /// <summary>
-    /// For any SyntaxNode and any NodeOrigin variant, setting the Origin property
-    /// and then reading it back SHALL return a reference-equal value (same instance).
-    /// </summary>
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(OriginPropertyRoundTripTests) })]
     public bool Origin_SetThenGet_ReturnsSameReference(SyntaxNode node, NodeOrigin origin)
     {

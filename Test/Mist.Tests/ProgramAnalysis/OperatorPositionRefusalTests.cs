@@ -4,7 +4,9 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -28,6 +30,7 @@ public sealed class OperatorPositionRefusalTests
     [InlineData("foreach-variable-reassigned", "MIST0207")]
     [InlineData("readonly-local-coalesced", "MIST0207")]
     [InlineData("readonly-local-reassigned", "MIST0207")]
+    [InlineData("readonly-parameter-reassigned", "MIST0207")]
     [InlineData("optional-of-optional", "MIST0213")]
     public void RefusedExpressionKeepsItsDiagnostic(string caseName, string expected)
     {
@@ -55,6 +58,7 @@ public sealed class OperatorPositionRefusalTests
             "unknown-has-no-operators" => binary(BinaryOperatorKind.Add, UnknownType.Instance, integer),
             "coalescing-assignment-not-a-statement" => PositionDecision.Coalescing(false),
             "optional-of-optional" => PositionDecision.Optional(model.Interner.GetOrCreateUnionType([integer, model.Type("Void")])),
+            "readonly-parameter-reassigned" => PositionDecision.Reassignment(Binding(integer, "parameter", isReadonly: true, ByRefDirection.None)),
             _ => PositionDecision.Reassignment(new LocalVariable("each", caseName == "converted-foreach-variable-reassigned" ? HandBuiltModel.Class("Level") : integer) { IsReadonly = true }),
         };
 
@@ -72,6 +76,33 @@ public sealed class OperatorPositionRefusalTests
         Assert.Null(OperatorDecision.Conditional(model.Interner.GetOrCreateUnionType([integer, model.Type("Void")])));
         Assert.Null(PositionDecision.Coalescing(true));
         Assert.Null(PositionDecision.Reassignment(new LocalVariable("mutable", integer)));
+        Assert.Null(PositionDecision.Reassignment(Binding(integer, "parameter", isReadonly: false, ByRefDirection.None)));
         Assert.Null(PositionDecision.Optional(integer));
+    }
+
+    [Theory]
+    [InlineData("local", true, ByRefDirection.None, "local variable")]
+    [InlineData("parameter", true, ByRefDirection.None, "parameter")]
+    [InlineData("parameter", true, ByRefDirection.In, "parameter")]
+    [InlineData("local", false, ByRefDirection.None, null)]
+    [InlineData("parameter", false, ByRefDirection.None, null)]
+    [InlineData("parameter", false, ByRefDirection.Ref, null)]
+    public void AReadonlyBindingIsNamedByWhatItIs(string kind, bool isReadonly, ByRefDirection direction, string? expected)
+    {
+        var integer = new HandBuiltModel().Type("Int32");
+
+        Assert.Equal(expected, PositionDecision.ReadonlyKind(Binding(integer, kind, isReadonly, direction)));
+    }
+
+    private static LocalVariable Binding(IMistType type, string kind, bool isReadonly, ByRefDirection direction)
+    {
+        var isRef = direction != ByRefDirection.None;
+        if(kind == "local")
+        {
+            return new LocalVariable("total", type) { IsReadonly = isReadonly, IsRef = isRef };
+        }
+
+        var modifier = new ParameterModifier(isReadonly, isRef, OwnershipKind.Unrestricted, direction);
+        return new LocalVariable("count", type) { IsRef = isRef, Parameter = new Parameter("count", type, modifier) };
     }
 }

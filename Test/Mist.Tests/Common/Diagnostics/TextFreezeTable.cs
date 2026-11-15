@@ -363,7 +363,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.UnknownHasNoDefault"] = "'unknown' has no default value: no value is 'unknown' and nothing more. Give the slot a concrete type, or an explicit value.",
         ["ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional"] = "The optional chaining operator '?.' requires a receiver of the form 'T | void', but found 'arg0'.",
         ["ProgramAnalysisDiagnostics.CoalescingAssignmentNotAStatement"] = "The void-coalescing assignment '??=' is a statement and cannot be used as a sub-expression.",
-        ["ProgramAnalysisDiagnostics.ReadonlyLocalReassigned"] = "Cannot reassign readonly local variable 'arg0'.",
+        ["ProgramAnalysisDiagnostics.ReadonlyVariableReassigned"] = "Readonly arg0 'arg1' cannot be arg2.",
         ["ProgramAnalysisDiagnostics.ReadonlyReferenceWritten"] = "'arg0' is a readonly reference, so it cannot be arg1. Read its value, or bind it to a 'readonly ref' local.",
         ["ProgramAnalysisDiagnostics.ReferenceToNonLocation"] = "Cannot take a reference to arg0: it is not a storage location, so it cannot be arg1. Only a variable, a field, an array or span element, or a result returned by ref can be.",
         ["ProgramAnalysisDiagnostics.NotAssignable"] = "Cannot assign to arg0: the left-hand side of an assignment must be a variable, a field, a property, an indexer, an array or span element, or a result returned by ref.",

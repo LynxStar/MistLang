@@ -79,7 +79,7 @@ To prevent reassignment, prefix the declaration with `readonly`:
 
 ```mist
 readonly var name = "Alice";
-// name = "Bob";  // ERROR: Cannot reassign readonly local variable 'name'
+// name = "Bob";  // ERROR: Readonly local variable 'name' cannot be reassigned.
 ```
 
 For more on readonly locals and the broader readonly system, see the [Readonly](../object-model/readonly.md) chapter.

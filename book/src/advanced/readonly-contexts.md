@@ -114,6 +114,15 @@ error MIST0252: Cannot assign to field 'Level' of 'panel.Main', reached through 
 
 Only the chain written on the parameter is followed: a local that copies `panel.Main` is an ordinary local. A field written through a `readonly ref` parameter is refused at any depth too; its calls follow [`readonly ref` Parameters](./ref-parameters.md#readonly-ref-parameters).
 
+A method also cannot change its own `readonly` parameter. Assigning it, compound-assigning it, incrementing it, or passing it as a `ref` or `out` argument is refused. A `readonly` parameter passed by value is a copy, so every line of the method sees the value the caller passed. A `readonly ref` parameter is a live view of the caller's variable, so its value can still change through its owner while the method runs; only the method itself cannot change it:
+
+```text
+error MIST0207: Readonly parameter 'count' cannot be reassigned.
+error MIST0207: Readonly parameter 'count' cannot be passed as a ref argument.
+```
+
+To work with a changing value, copy the parameter into a local first.
+
 ## Readonly Generics and Formatting
 
 Interpolating a value, or concatenating it into a string, calls its `ToString(format, provider)` when its type implements `System.IFormattable`, and formatting an optional or a tuple calls it on the value inside. In a readonly context that call must be readonly too. When the value's type is a type parameter, the readonly member cannot know which `ToString` it will run, so the promise is checked where the parameter is given a type: at each call, and at each place a generic type is named with one.

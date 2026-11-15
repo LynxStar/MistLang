@@ -74,7 +74,7 @@ internal sealed class SlotReach : IDisposable
 
     public static IDisposable? OfOperator(Method op)
     {
-        var routed = SlotRoutes.ValueRouted(op.DeclaringType);
+        var routed = SlotRoutes.Carried(op.DeclaringType);
 
         if(routed.Count == 0)
         {
@@ -120,7 +120,7 @@ internal sealed class SlotReach : IDisposable
 
     public static IDisposable? OfRestated(Method method, IReadOnlyList<ConstructedType> path, DiagnosticBag diagnostics)
     {
-        var routed = SlotRoutes.ValueRouted(method.DeclaringType);
+        var routed = SlotRoutes.Carried(method.DeclaringType);
 
         if(routed.Count == 0)
         {
@@ -132,8 +132,9 @@ internal sealed class SlotReach : IDisposable
 
         foreach(var slot in routed)
         {
-            sources[slot] = BodyEmitter.SlotValue(closing.Apply(slot, interner: null), diagnostics)
-                ?? EmissionDiagnostics.Fallback("slot value", $"{Owner(slot)}.{slot.Name}", "default");
+            sources[slot] = slot.IsDependent
+                ? BodyEmitter.SlotValue(closing.Apply(slot, interner: null), diagnostics) ?? EmissionDiagnostics.Fallback("slot value", $"{Owner(slot)}.{slot.Name}", "default")
+                : BodyEmitter.Witness(closing.Apply(slot, interner: null), diagnostics);
         }
 
         return new SlotReach(sources, every: false, $"the restated default '{method.Name}'");

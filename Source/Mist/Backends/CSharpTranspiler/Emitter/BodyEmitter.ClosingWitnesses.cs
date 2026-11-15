@@ -29,7 +29,7 @@ internal static partial class BodyEmitter
 
         if(closed is TypeParameter parameter && ClosingWitnesses.IsWitnessed(parameter))
         {
-            return ClosingWitnesses.Name(parameter);
+            return SlotReach.Read(parameter);
         }
 
         var spelled = TypeNameEmitter.Emit(closed);
@@ -43,7 +43,7 @@ internal static partial class BodyEmitter
         layout.Walk(closed);
         var values = layout.Parts.Select(part => part.Slot is { } slot
             ? $"({SlotRoutes.Keyword(slot)})({ReadValue(part.Argument!, diagnostics, read)})"
-            : $"..{ClosingWitnesses.Name(part.Spread!)}.Values");
+            : $"..{SlotReach.Read(part.Spread!)}.Values");
         var test = WitnessTest(closed, "__v", layout, new WitnessCursor(), diagnostics);
         var stamp = WitnessStamp(closed, layout, diagnostics);
         var modifier = layout.Parts.Any(part => part.Spread is not null) || test.Contains("__closing_", StringComparison.Ordinal) ? "" : "static ";
@@ -72,7 +72,7 @@ internal static partial class BodyEmitter
         switch(Unaliased(TypeNameEmitter.Closed(tested)))
         {
             case TypeParameter parameter when ClosingWitnesses.IsWitnessed(parameter):
-                comparisons.Add($"{ClosingWitnesses.Name(parameter)}.Is({bound})");
+                comparisons.Add($"{SlotReach.Read(parameter)}.Is({bound})");
                 break;
 
             case ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) && constructed.Definition is IHasTypeParameters generic:
@@ -133,7 +133,7 @@ internal static partial class BodyEmitter
         {
             case TypeParameter parameter when ClosingWitnesses.IsWitnessed(parameter):
                 cursor.Spread(parameter);
-                return $"{ClosingWitnesses.Name(parameter)}.Is({value})";
+                return $"{SlotReach.Read(parameter)}.Is({value})";
 
             case ConstructedType constructed when !SlotSensitivity.IsContainer(constructed) && ClosingWitnesses.Carries(constructed):
                 return ConstructedTest(constructed, value, layout, cursor, diagnostics);
@@ -185,7 +185,7 @@ internal static partial class BodyEmitter
                     }
                     else
                     {
-                        reads.Add($"..{ClosingWitnesses.Name(part.Spread!)}.Values");
+                        reads.Add($"..{SlotReach.Read(part.Spread!)}.Values");
                         cursor.Spread(part.Spread!);
                     }
                 }
@@ -329,7 +329,7 @@ internal static partial class BodyEmitter
 
         public void Spread(TypeParameter parameter)
         {
-            _ = spreads.Append($" + {ClosingWitnesses.Name(parameter)}.Values.Length");
+            _ = spreads.Append($" + {SlotReach.Read(parameter)}.Values.Length");
         }
 
         public void Skip(IMistType type)

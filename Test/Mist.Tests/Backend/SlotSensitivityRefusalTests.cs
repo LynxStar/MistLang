@@ -18,11 +18,12 @@ namespace Mist.Tests.Backend;
 
 /// <summary>
 /// The refusal of a closing of a value-routed type as a slot-sensitive type argument over a hand-built model
-/// (runtime-dependent-values design, <em>A closing as a type argument</em>): one row per reason at a stated
-/// closing and one at a closing a call carries as the binder records it, a call through an abstract's method
-/// slot whose answer tests its parameter, the zeroed-storage reason meeting a class closing, a declaration that
-/// only holds and passes its parameter, and the test exemption written without a slot comparison in a copy
-/// union specialization makes.
+/// (runtime-dependent-values design, <em>Identity by value: a closing as a type argument</em>): a closing a witness
+/// answers for is admitted whether stated or carried by a call, and the three reasons no witness answers are refused
+/// at the closing, a type value, a test that nests the parameter or the argument's closing in a CLR container, and a
+/// CLR generic a struct closing reaches directly or through a declaration; a call through an abstract's method slot,
+/// a declaration that only holds and passes its parameter, and the test exemption written without a slot comparison
+/// in a copy union specialization makes.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class SlotSensitivityRefusalTests
@@ -50,47 +51,19 @@ public sealed class SlotSensitivityRefusalTests
     }
 
     [Fact]
-    public void ATestingDeclarationRefusesAStatedClosingOfAValueRoutedType()
+    public void AStatedClosingOfADeclarationAWitnessAnswersForIsAdmitted()
     {
         var (tester, _) = Tester();
-        var closing = New(slots.Closed(tester, slots.Closed(ring, slots.Literal(5))));
-
-        var refused = Assert.Single(Refuse([Body(tester), closing], [tester]));
-
-        Assert.Equal("MIST0502", refused.Number.Value);
-        Assert.Equal(
-            $"'Ring<5>' cannot fill 'T' of 'Tester': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Tester' tests a value "
-            + "against a type that mentions 'T', which the shared body cannot tell from another closing's.",
-            refused.Message);
-    }
-
-    [Fact]
-    public void AZeroingDeclarationRefusesAStatedStructClosingAndAdmitsAClassClosing()
-    {
-        var (blank, _) = Blank();
-
-        var refused = Assert.Single(Refuse([blank.Body!, Call(blank, [slots.Closed(cell, slots.Literal(7))]), Call(blank, [slots.Closed(ring, slots.Literal(7))])], []));
-
-        Assert.Equal(
-            "'Cell<7>' cannot fill 'B' of 'Blank': it mentions 'Cell<7>', whose dependent parameter 'N' is closed somewhere with a value known only "
-            + "when the program runs, so every closing of 'Cell<7>' is one C# type, and 'Blank' creates storage of a type that mentions 'B' from the CLR zero, "
-            + "which holds no value of the slot.",
-            refused.Message);
-    }
-
-    [Fact]
-    public void AStaticStorageDeclarationRefusesAStatedClosing()
-    {
+        var (holder, _) = Holder(tester);
         var (counter, _) = Counter();
+        var (blank, _) = Blank();
         var access = new MemberAccessExpression(
             HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), slots.Closed(counter, slots.Closed(ring, slots.Literal(3)))), "hits", slots.Int);
 
-        var refused = Assert.Single(Refuse([access], [counter]));
-
-        Assert.Equal(
-            $"'Ring<3>' cannot fill 'K' of 'Counter': it mentions 'Ring<3>', {Routed} 'Ring<3>' is one C# type, and 'Counter' declares static storage, "
-            + "which every closing of it would share.",
-            refused.Message);
+        Assert.Empty(Refuse(
+            [Body(tester), New(slots.Closed(tester, slots.Closed(ring, slots.Literal(5)))), New(slots.Closed(holder, slots.Closed(ring, slots.Literal(5)))), access,
+                blank.Body!, Call(blank, [slots.Closed(cell, slots.Literal(7))])],
+            [tester, holder, counter]));
     }
 
     [Fact]
@@ -100,37 +73,67 @@ public sealed class SlotSensitivityRefusalTests
 
         var refused = Assert.Single(Refuse([same.Body!, Call(same, [slots.Closed(ring, slots.Literal(3))])], []));
 
+        Assert.Equal("MIST0502", refused.Number.Value);
         Assert.Equal(
             $"'Ring<3>' cannot fill 'A' of 'Same': it mentions 'Ring<3>', {Routed} 'Ring<3>' is one C# type, and 'Same' reads a type that mentions 'A' "
-            + "as a type value, which stands for every closing at once.",
+            + "as a type value, and a CLR type cannot carry the slot's value.",
             refused.Message);
     }
 
     [Fact]
-    public void AForwardingDeclarationRefusesAStatedClosingAndNamesTheChain()
+    public void AContainerTestRefusesAStatedClosingAndATestOfTheParameterRefusesAnArgumentNestingOneInAContainer()
     {
+        var list = List();
+        var (inList, _) = Tester(t => slots.Closed(list, t), "InList<>");
         var (tester, _) = Tester();
-        var (holder, _) = Holder(tester);
-        var closing = New(slots.Closed(holder, slots.Closed(ring, slots.Literal(5))));
 
-        var refused = Assert.Single(Refuse([Body(tester), closing], [tester, holder]));
+        var contained = Assert.Single(Refuse([Body(inList), New(slots.Closed(inList, slots.Closed(ring, slots.Literal(5))))], [inList]));
+        var nested = Assert.Single(Refuse([Body(tester), New(slots.Closed(tester, slots.Closed(list, slots.Closed(ring, slots.Literal(5)))))], [tester]));
 
         Assert.Equal(
-            $"'Ring<5>' cannot fill 'U' of 'Holder': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Holder' passes a type that mentions 'U' "
-            + "to 'T' of 'Tester', which tests a value against a type that mentions 'T', which the shared body cannot tell from another closing's.",
-            refused.Message);
+            $"'Ring<5>' cannot fill 'T' of 'InList': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'InList' tests a value against a type "
+            + "that nests 'T' in a CLR container, which has nowhere to keep the slot's value.",
+            contained.Message);
+        Assert.Equal(
+            $"'List<Ring<5>>' cannot fill 'T' of 'Tester': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Tester' tests a value against 'T', "
+            + "and the argument nests 'Ring<5>' in a CLR container, which has nowhere to keep the slot's value.",
+            nested.Message);
+    }
+
+    [Fact]
+    public void AClrGenericRefusesAStructClosingDirectlyAndThroughADeclarationAndAdmitsAClassClosing()
+    {
+        var list = List();
+        var keeper = HandBuiltModel.Class("Keeper<>");
+        var u = new TypeParameter("U", 0, keeper.Scope, keeper);
+        keeper.TypeParametersList.Add(u);
+        keeper.FieldsList.Add(new Field("items", slots.Closed(list, u), default, new MemberModifiers()) { DeclaringType = keeper });
+
+        var direct = Assert.Single(Refuse([New(slots.Closed(list, slots.Closed(cell, slots.Literal(7)))), New(slots.Closed(list, slots.Closed(ring, slots.Literal(7))))], []));
+        var through = Assert.Single(Refuse([New(slots.Closed(keeper, slots.Closed(cell, slots.Literal(7)))), New(slots.Closed(keeper, slots.Closed(ring, slots.Literal(7))))], [keeper]));
+
+        Assert.Equal(
+            "'Cell<7>' cannot fill 'E' of 'List': it mentions 'Cell<7>', whose dependent parameter 'N' is closed somewhere with a value known only when the "
+            + "program runs, so every closing of 'Cell<7>' is one C# type, and 'List' is a CLR generic, whose body no description of the closing reaches and "
+            + "which may hand back a zeroed value for 'E'.",
+            direct.Message);
+        Assert.EndsWith(
+            "'Keeper' passes a type that mentions 'U' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value.",
+            through.Message);
     }
 
     [Theory]
-    [InlineData("test", "tests a value against a type that mentions 'P', which the shared body cannot tell from another closing's")]
-    [InlineData("storage", "creates storage of a type that mentions 'P' from the CLR zero, which holds no value of the slot")]
-    [InlineData("static", "passes a type that mentions 'P' to 'K' of 'Counter', which declares static storage, which every closing of it would share")]
-    [InlineData("type value", "reads a type that mentions 'P' as a type value, which stands for every closing at once")]
-    [InlineData("forwarded", "passes a type that mentions 'P' to 'T' of 'Tester', which tests a value against a type that mentions 'T', which the shared body cannot tell from another closing's")]
-    public void AClosingACallCarriesIsRefusedAtTheCallForEachReason(string kind, string reason)
+    [InlineData("test", null)]
+    [InlineData("storage", null)]
+    [InlineData("static", null)]
+    [InlineData("forwarded", null)]
+    [InlineData("type value", "reads a type that mentions 'P' as a type value, and a CLR type cannot carry the slot's value")]
+    [InlineData("contained", "tests a value against a type that nests 'P' in a CLR container, which has nowhere to keep the slot's value")]
+    public void AClosingACallCarriesIsRefusedAtTheCallOnlyForAReasonNoWitnessAnswers(string kind, string? reason)
     {
         var (tester, _) = Tester();
         var (counter, _) = Counter();
+        var list = List();
         var p = new TypeParameter("P", 0, new Scope(null), null);
         var argument = kind == "storage" ? slots.Closed(cell, slots.Literal(7)) : slots.Closed(ring, slots.Literal(5));
         var owner = HandBuiltModel.Class("Api");
@@ -141,6 +144,7 @@ public sealed class SlotSensitivityRefusalTests
             Body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(kind switch
             {
                 "test" => Is(HandBuiltRefinements.Local(UnknownType.Instance, "other"), Test(p)),
+                "contained" => Is(HandBuiltRefinements.Local(UnknownType.Instance, "other"), Test(slots.Closed(list, p))),
                 "storage" => new ArrayCreationExpression(HandBuiltModel.Node(), p, slots.Refinements.Literal(2L), slots.Closed(slots.Array, p, slots.Literal(2))),
                 "static" => new MemberAccessExpression(HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), slots.Closed(counter, p)), "hits", slots.Int),
                 "type value" => new TypeLiteralExpression(HandBuiltModel.Node(), p, slots.Refinements.Built.Type("Type")),
@@ -154,21 +158,24 @@ public sealed class SlotSensitivityRefusalTests
             HandBuiltModel.Node(9), new MethodReferenceExpression(HandBuiltModel.Node(), probe, [argument]),
             [HandBuiltRefinements.Local(argument, "value"), HandBuiltRefinements.Local(UnknownType.Instance, "other")], slots.Int, probe, [argument, UnknownType.Instance]);
         slots.Refinements.Built.Model.GenericCalls.Record(probe, [argument]);
-        var spelled = TypeDisplay.Mist(argument);
-        var slot = kind == "storage" ? "N" : "Capacity";
 
-        var refused = Assert.Single(Refuse([Body(tester), probe.Body!, call], [tester, counter]));
+        var refused = Refuse([Body(tester), probe.Body!, call], [tester, counter]);
 
-        Assert.Equal("MIST0502", refused.Number.Value);
+        if(reason is null)
+        {
+            Assert.Empty(refused);
+            return;
+        }
+
+        var only = Assert.Single(refused);
         Assert.Equal(
-            $"'{spelled}' cannot fill 'P' of 'Probe': it mentions '{spelled}', whose dependent parameter '{slot}' is closed somewhere with a value known only "
-            + $"when the program runs, so every closing of '{spelled}' is one C# type, and 'Probe' {reason}.",
-            refused.Message);
-        Assert.Equal(10, refused.Position().Start.Column);
+            $"'Ring<5>' cannot fill 'P' of 'Probe': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Probe' {reason}.",
+            only.Message);
+        Assert.Equal(10, only.Position().Start.Column);
     }
 
     [Fact]
-    public void ACallThroughAnAbstractsMethodSlotIsRefusedWhenTheMethodAnsweringItTestsItsParameter()
+    public void ACallThroughAnAbstractsMethodSlotIsRefusedOnlyWhenTheMethodAnsweringItReadsItsParameterAsATypeValue()
     {
         var checker = new AbstractType("IChecker", "Probe", new Scope(null), null, null);
         var s = new TypeParameter("S", 0, new Scope(null), null);
@@ -178,11 +185,13 @@ public sealed class SlotSensitivityRefusalTests
         checker.MethodsList.Add(slot);
         var answering = HandBuiltModel.Class("Checker");
         var a = new TypeParameter("A", 0, new Scope(null), null);
+        var tests = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Test(a))));
+        var reads = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(new TypeLiteralExpression(HandBuiltModel.Node(), a, slots.Refinements.Built.Type("Type"))));
         var answer = new Method("Is", slots.Refinements.Bool, [new Parameter("x", UnknownType.Instance)], new MemberModifiers())
         {
             DeclaringType = answering,
             Scope = answering.Scope,
-            Body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Test(a)))),
+            Body = reads,
         };
         answer.TypeParametersList.Add(a);
         a.DeclaringMethod = answer;
@@ -190,14 +199,13 @@ public sealed class SlotSensitivityRefusalTests
         var argument = slots.Closed(ring, slots.Literal(5));
         slots.Refinements.Built.Model.GenericCalls.Record(slot, [argument]);
 
-        var refused = Assert.Single(Refuse([answer.Body!, Call(slot, [argument])], [], [(slot, answer)]));
+        var refused = Assert.Single(Refuse([reads, Call(slot, [argument])], [], [(slot, answer)]));
 
-        Assert.Equal("MIST0502", refused.Number.Value);
         Assert.Equal(
             $"'Ring<5>' cannot fill 'S' of 'Is': it mentions 'Ring<5>', {Routed} 'Ring<5>' is one C# type, and 'Is' is answered by 'Is' of 'Checker', "
-            + "which tests a value against a type that mentions 'A', which the shared body cannot tell from another closing's.",
+            + "which reads a type that mentions 'A' as a type value, and a CLR type cannot carry the slot's value.",
             refused.Message);
-        Assert.Empty(Refuse([answer.Body!, Call(slot, [argument])], []));
+        Assert.Empty(Refuse([tests, Call(slot, [argument])], [], [(slot, answer)]));
     }
 
     [Fact]
@@ -265,9 +273,9 @@ public sealed class SlotSensitivityRefusalTests
         return diagnostics.ToImmutableArray();
     }
 
-    private (ClassType Tester, TypeParameter T) Tester()
+    private (ClassType Tester, TypeParameter T) Tester(Func<TypeParameter, IMistType>? tested = null, string name = "Tester<>")
     {
-        var tester = HandBuiltModel.Class("Tester<>");
+        var tester = HandBuiltModel.Class(name);
         tester.Modifiers = new MemberModifiers { Accessibility = Accessibility.Public };
         var t = new TypeParameter("T", 0, tester.Scope, tester);
         tester.TypeParametersList.Add(t);
@@ -275,9 +283,17 @@ public sealed class SlotSensitivityRefusalTests
         {
             DeclaringType = tester,
             Scope = tester.Scope,
-            Body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Test(t)))),
+            Body = HandBuiltModel.Block(HandBuiltRefinements.Evaluate(Is(HandBuiltRefinements.Local(UnknownType.Instance, "x"), Test(tested?.Invoke(t) ?? t)))),
         });
         return (tester, t);
+    }
+
+    private static ClassType List()
+    {
+        var list = HandBuiltModel.Class("List<>");
+        list.Modifiers = new MemberModifiers { IsIntrinsic = true };
+        list.TypeParametersList.Add(new TypeParameter("E", 0, list.Scope, list));
+        return list;
     }
 
     private (ClassType Holder, TypeParameter U) Holder(ClassType tester)

@@ -23,7 +23,7 @@ internal static class StructStamp
 
         if(closed is TypeParameter parameter && ClosingWitnesses.IsWitnessed(parameter))
         {
-            return $"{ClosingWitnesses.Name(parameter)}.Stamp()";
+            return $"{SlotReach.Read(parameter)}.Stamp()";
         }
 
         return HeldByValue(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance)) is null && !HoldsWitnessed(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance))
@@ -82,7 +82,7 @@ internal static class StructStamp
 
         if(closed is TypeParameter parameter && ClosingWitnesses.IsWitnessed(parameter))
         {
-            return $"{ClosingWitnesses.Name(parameter)}.Stamp()";
+            return $"{SlotReach.Read(parameter)}.Stamp()";
         }
 
         return HeldByValue(closed) is not null || HoldsWitnessed(closed, new HashSet<IMistType>(ReferenceEqualityComparer.Instance))

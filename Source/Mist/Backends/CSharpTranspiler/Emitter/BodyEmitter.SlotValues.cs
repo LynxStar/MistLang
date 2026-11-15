@@ -116,7 +116,7 @@ internal static partial class BodyEmitter
 
         if(closing is not ConstructedType constructed)
         {
-            values.AddRange(ClosingWitnesses.Stored(closing).Select(ClosingWitnesses.Name));
+            values.AddRange(ClosingWitnesses.Stored(closing).Select(SlotReach.Read));
             return values;
         }
 
@@ -356,7 +356,7 @@ internal static partial class BodyEmitter
     {
         return SlotRoutes.Carried(owner).Select(slot => slot.IsDependent
             ? DependentCarrierNames.ValueRead(slot) ?? EmissionDiagnostics.Fallback("slot value", $"{owner.Name}.{slot.Name}", "default")
-            : ClosingWitnesses.Name(slot));
+            : SlotReach.Read(slot));
     }
 
     internal static List<Expression> SlotBindings(InvocationExpression invocation)
@@ -496,7 +496,7 @@ internal static partial class BodyEmitter
             for(var k = 0; k < closing.TypeArguments.Count && k < generic.TypeParametersList.Count; k++)
             {
                 if(ReferenceEquals(closing.TypeArguments[k], slot)
-                    && (LengthErasure.IsLengthIndexed(closing) || SlotRoutes.IsValueRouted(generic.TypeParametersList[k])))
+                    && (LengthErasure.IsLengthIndexed(closing) || SlotRoutes.IsValueRouted(generic.TypeParametersList[k]) || ClosingWitnesses.IsWitnessed(generic.TypeParametersList[k])))
                 {
                     return (i, closing, generic.TypeParametersList[k]);
                 }

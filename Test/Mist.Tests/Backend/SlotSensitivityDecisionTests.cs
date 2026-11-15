@@ -14,9 +14,10 @@ namespace Mist.Tests.Backend;
 /// <summary>
 /// Which type parameters <see cref="SlotSensitivity"/> marks, one reason at a time over hand-built bodies and
 /// closings (runtime-dependent-values design, <em>A closing as a type argument</em>): each reason, each form
-/// of the test exemption, forwarding through two declarations, through a base or an implemented abstract and
-/// from an abstract's method slot to the method answering it, and a declaration that only holds, passes and
-/// calls through its parameter.
+/// of the test exemption, a Mist generic a test compares by value whether written or filled, a CLR container and a
+/// CLR generic, forwarding through two declarations, through a base or an implemented abstract and from an
+/// abstract's method slot to the method answering it, the three reasons judged at a closing, and a declaration that
+/// only holds, passes and calls through its parameter.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class SlotSensitivityDecisionTests
@@ -59,14 +60,55 @@ public sealed class SlotSensitivityDecisionTests
     }
 
     [Fact]
-    public void ATestAgainstATypeThatMentionsTheParameterMarksItWhenTheValueAdmitsMoreThanThatClosing()
+    public void ATestAgainstAMistGenericThatMentionsTheParameterMarksItAndTheGenericsParameterNested()
     {
         var holder = HandBuiltModel.Class("Holder<>");
-        _ = Parameter(holder, "U");
+        var u = Parameter(holder, "U");
 
         var found = Discover(Is(Local(Union(t, text)), Test(slots.Closed(holder, t))));
 
-        Assert.Equal([t], found.Sensitive);
+        Assert.Equal(SlotSensitivity.Kind.Test, Assert.Single(found.ReasonsOf(t)).Kind);
+        Assert.Equal(SlotSensitivity.Kind.Nested, Assert.Single(found.ReasonsOf(u)).Kind);
+    }
+
+    [Fact]
+    public void ATestAgainstAClrContainerThatMentionsTheParameterMarksItContainedAndTheContainerNothing()
+    {
+        var list = Intrinsic("List<>");
+        var e = Parameter(list, "E");
+
+        var found = Discover(Is(Local(UnknownType.Instance), Test(slots.Closed(list, t))));
+
+        Assert.Equal(SlotSensitivity.Kind.Contained, Assert.Single(found.ReasonsOf(t)).Kind);
+        Assert.False(found.IsSensitive(e));
+    }
+
+    [Fact]
+    public void ATestedParameterFilledWithAMistGenericMarksThatGenericsParameterNested()
+    {
+        var pair = HandBuiltModel.Class("Pair<>");
+        var a = Parameter(pair, "A");
+        var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
+
+        var found = SlotSensitivity.Discover([Is(Local(UnknownType.Instance), Test(t))], [], [(tester, [slots.Closed(pair, slots.Closed(ring, slots.Literal(5)))])]);
+
+        Assert.Equal(SlotSensitivity.Kind.Nested, Assert.Single(found.ReasonsOf(a)).Kind);
+        Assert.False(found.IsSensitive(ring.TypeParametersList[0]));
+    }
+
+    [Fact]
+    public void AParameterAClrGenericIsFilledWithIsMarkedWithWhatItFills()
+    {
+        var list = Intrinsic("List<>");
+        _ = Parameter(list, "E");
+        var holder = HandBuiltModel.Class("Holder<>");
+        var u = Parameter(holder, "U");
+
+        var found = SlotSensitivity.Discover([], [], [(list, [u])]);
+
+        var reason = Assert.Single(found.ReasonsOf(u));
+        Assert.Equal(SlotSensitivity.Kind.Clr, reason.Kind);
+        Assert.Same(u, reason.Through);
     }
 
     [Fact]
@@ -91,7 +133,6 @@ public sealed class SlotSensitivityDecisionTests
         [
             new ArrayCreationExpression(HandBuiltModel.Node(), t, slots.Refinements.Literal(2L), sized),
             new StackallocExpression(HandBuiltModel.Node(), t, slots.Refinements.Literal(2L), sized),
-            new DefaultExpression(HandBuiltModel.Node(), t),
         ];
 
         foreach(var root in roots)
@@ -101,6 +142,8 @@ public sealed class SlotSensitivityDecisionTests
             Assert.Equal(SlotSensitivity.Kind.Storage, Assert.Single(found.ReasonsOf(t)).Kind);
             Assert.Equal([t], found.Sensitive);
         }
+
+        Assert.Empty(Discover(new DefaultExpression(HandBuiltModel.Node(), t)).Sensitive);
     }
 
     [Fact]
@@ -141,7 +184,7 @@ public sealed class SlotSensitivityDecisionTests
         var v = Parameter(outer, "V");
         var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
 
-        var found = SlotSensitivity.Discover([Is(Local(UnknownType.Instance), Test(t))], [], [(tester, [u]), (holder, [v])]);
+        var found = SlotSensitivity.Discover([TypeValue(t)], [], [(tester, [u]), (holder, [v])]);
 
         var fromHolder = Assert.Single(found.ReasonsOf(u));
         var fromOuter = Assert.Single(found.ReasonsOf(v));
@@ -156,7 +199,7 @@ public sealed class SlotSensitivityDecisionTests
 
         Assert.Equal(
             "passes a type that mentions 'V' to 'U' of 'Holder', which passes a type that mentions 'U' to 'T' of 'Tester', "
-            + "which tests a value against a type that mentions 'T', which the shared body cannot tell from another closing's",
+            + "which reads a type that mentions 'T' as a type value, and a CLR type cannot carry the slot's value",
             reason);
         Assert.Same(ring, closing.Definition);
         Assert.Null(found.Judge(v, slots.Closed(holder, slots.Int)));
@@ -187,7 +230,7 @@ public sealed class SlotSensitivityDecisionTests
         var (slot, s) = Generic(new AbstractType("IChecker", "Probe", new Scope(null), null, null), "S");
         var (answer, a) = Generic(HandBuiltModel.Class("Checker"), "A");
         var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
-        var body = Is(Local(UnknownType.Instance), Test(a));
+        var body = TypeValue(a);
 
         var linked = SlotSensitivity.Discover([body], [], [], [(slot, answer)]);
         var unlinked = SlotSensitivity.Discover([body], [], []);
@@ -201,9 +244,41 @@ public sealed class SlotSensitivityDecisionTests
         var (text, closing) = Assert.NotNull(linked.Judge(s, slots.Closed(ring, slots.Literal(5))));
 
         Assert.Equal(
-            "is answered by 'Is' of 'Checker', which tests a value against a type that mentions 'A', which the shared body cannot tell from another closing's",
+            "is answered by 'Is' of 'Checker', which reads a type that mentions 'A' as a type value, and a CLR type cannot carry the slot's value",
             text);
         Assert.Same(ring, closing.Definition);
+    }
+
+    [Fact]
+    public void AClosingIsJudgedOnlyForTheThreeReasonsNoWitnessAnswers()
+    {
+        var ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
+        var cell = HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
+        var list = Intrinsic("List<>");
+        var e = Parameter(list, "E");
+        var holder = HandBuiltModel.Class("Holder<>");
+        var u = Parameter(holder, "U");
+        var counter = HandBuiltModel.Class("Counter<>");
+        var k = Parameter(counter, "K");
+        counter.FieldsList.Add(new Field("hits", slots.Int, default, new MemberModifiers { IsStatic = true }) { DeclaringType = counter });
+        var tested = SlotSensitivity.Discover([Is(Local(UnknownType.Instance), Test(t)), Is(Local(UnknownType.Instance), Test(slots.Closed(list, u)))], [counter], [(list, [k])]);
+        using var routes = SlotRoutes.Enter([ring.TypeParametersList[0], cell.TypeParametersList[0]]);
+        var ring5 = slots.Closed(ring, slots.Literal(5));
+        var cell7 = slots.Closed(cell, slots.Literal(7));
+
+        Assert.Null(tested.Judge(t, ring5));
+        Assert.Null(tested.Judge(t, slots.Closed(holder, ring5)));
+        Assert.Equal(
+            "tests a value against 'T', and the argument nests 'Ring<5>' in a CLR container, which has nowhere to keep the slot's value",
+            Assert.NotNull(tested.Judge(t, slots.Closed(list, ring5))).Reason);
+        Assert.Equal(
+            "tests a value against a type that nests 'U' in a CLR container, which has nowhere to keep the slot's value",
+            Assert.NotNull(tested.Judge(u, ring5)).Reason);
+        Assert.Equal(
+            "passes a type that mentions 'K' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value",
+            Assert.NotNull(tested.Judge(k, cell7)).Reason);
+        Assert.Null(tested.Judge(k, ring5));
+        Assert.False(tested.IsSensitive(e));
     }
 
     [Fact]
@@ -223,6 +298,18 @@ public sealed class SlotSensitivityDecisionTests
         var found = SlotSensitivity.Discover([body], [holder, list], [(list, [u])]);
 
         Assert.Empty(found.Sensitive);
+    }
+
+    private TypeLiteralExpression TypeValue(IMistType type)
+    {
+        return new TypeLiteralExpression(HandBuiltModel.Node(), type, slots.Refinements.Built.Type("Type"));
+    }
+
+    private static ClassType Intrinsic(string name)
+    {
+        var type = HandBuiltModel.Class(name);
+        type.Modifiers = new MemberModifiers { IsIntrinsic = true };
+        return type;
     }
 
     private static SlotSensitivity Discover(object root)

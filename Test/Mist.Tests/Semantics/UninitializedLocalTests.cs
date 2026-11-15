@@ -5,14 +5,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: <c>T x;</c> declares the local, so later assignments and reads resolve.
-/// <para>
-/// THE FAILURE WAS NOT A DIAGNOSTIC ABOUT THE DECLARATION. An unbound declaration reports nothing
-/// at all; what surfaces is MIST0296 at every LATER mention, which reads as
-/// the uses being wrong rather than the declaration never having happened. Whether the local holds
-/// a value before it is read is a judgement on the finished body -- the C# it becomes carries the
-/// same declaration and Roslyn makes that call itself.
-/// </para>
+/// Tier 3: <c>T x;</c> declares the local, so later assignments and reads resolve. Whether it holds a
+/// value before a read is left to Roslyn, since the C# it becomes carries the same declaration.
 /// </summary>
 public sealed class UninitializedLocalTests : ProgramModelProbe
 {

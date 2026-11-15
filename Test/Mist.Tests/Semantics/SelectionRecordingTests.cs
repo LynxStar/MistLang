@@ -1,8 +1,5 @@
-// Tier 3 (Component): what an operator expression and an index access RECORD, asserted against a real
-// ProgramModelBuilder run over minimal source. Emission re-writes both as source spelled them and lets
-// Roslyn resolve them again, so a rule about the member reached -- whether it is readonly -- can only
-// read it off the model. An intrinsic indexer is deliberately not recorded: an array's or a span's
-// element access has no accessor to judge. See ProgramModelProbe for the harness.
+// Tier 3 (Component): what an operator expression and an index access record. See ProgramModelProbe
+// for the harness and for why these assert on the model.
 
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;

@@ -223,9 +223,8 @@ public sealed class StorageWriteSummaryTests
     }
 
     /// <summary>
-    /// A generic method of a non-generic type is classified over its own parameter, and a call closes
-    /// that parameter with the call's type argument -- so a helper that stores into a list it is handed
-    /// writes the caller's T when the caller hands it a list of T.
+    /// A helper that stores into a list it is handed writes the caller's T when the caller hands it a
+    /// list of T.
     /// </summary>
     [Fact]
     public void AGenericMethodIsClassifiedOverItsOwnParameterAndClosedAtTheCall()
@@ -323,10 +322,6 @@ public sealed class StorageWriteSummaryTests
         return HandBuiltModel.Block(expressions.Select(expression => (Statement)new ExpressionStatement(expression)).ToArray());
     }
 
-    /// <summary>
-    /// A generic class with a <c>Value</c> field of its first parameter and an int <c>Count</c>, and the
-    /// members a test adds to it, each rooted with the type's parameters in scope.
-    /// </summary>
     private sealed class Generic
     {
         public Generic(string name, params string[] parameterNames)

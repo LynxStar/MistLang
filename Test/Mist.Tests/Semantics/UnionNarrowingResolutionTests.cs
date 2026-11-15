@@ -42,8 +42,6 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
         unknown u = 42;
         """;
 
-    // ── Which constituent a test goes through ────────────────────────────
-
     [Fact]
     public void ATypeTestOnAUnion_RecordsTheConstituentItNarrowsThrough()
     {
@@ -101,8 +99,6 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
         Assert.Equal("Probe.Dog", pattern.NarrowedType.FullyQualifiedName);
     }
 
-    // ── Scrutinees that need no carrier ──────────────────────────────────
-
     [Fact]
     public void ATypeTestOnANonUnion_RecordsNoConstituent()
     {
@@ -114,8 +110,6 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
     {
         Assert.Null(Assert.IsType<TypeTestPattern>(PatternOf("var ok = opt is int p;")).Constituent);
     }
-
-    // ── What the sample cannot show ──────────────────────────────────────
 
     [Fact]
     public void ANarrowedBinding_IsReadableLaterInItsOwnCondition()
@@ -139,8 +133,6 @@ public sealed class UnionNarrowingResolutionTests : ProgramModelProbe
 
         Assert.Equal("Standard.Int32", narrowed.Local.Type.FullyQualifiedName);
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private Pattern PatternOf(string statement)
     {

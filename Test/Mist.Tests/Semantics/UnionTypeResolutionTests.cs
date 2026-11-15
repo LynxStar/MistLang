@@ -1,5 +1,5 @@
-// Union canonicalization, widening and optional representation, asserted on the model: emitted
-// output cannot distinguish Mist's chosen conversion from one Roslyn re-derives.
+// Union canonicalization, widening and optional representation. See ProgramModelProbe for why these
+// assert on the model.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Contracts.Types;
@@ -176,8 +176,6 @@ public sealed class UnionTypeResolutionTests : ProgramModelProbe
         Assert.Equal("string?", TypeNameEmitter.Emit(TypeOf(locals, "referenceKind")));
         Assert.Equal("Union_Int32_String", TypeNameEmitter.Emit(TypeOf(locals, "carried")));
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private InvocationExpression SingleInvocation(string statement, string extraPreamble = "")
     {

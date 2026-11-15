@@ -1,6 +1,5 @@
-// Alias transparency, chain completion, cycle detection and constructible aliases, asserted on the
-// MODEL -- an alias that leaked nominal identity would still print the right answers, so only the
-// model can prove erasure.
+// Asserted on the model: an alias that leaked nominal identity would still print the right answers,
+// so only the model can prove erasure.
 
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -131,8 +130,6 @@ public sealed class TypeAliasResolutionTests : ProgramModelProbe
         Assert.NotNull(creation.Constructor);
         Assert.Equal("Probe.GenericBox<String>", creation.Type.FullyQualifiedName);
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private IReadOnlyList<LocalDeclarationStatement> Locals(string statement, string extraPreamble = "")
     {

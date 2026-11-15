@@ -5,10 +5,6 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Semantics;
 
-/// <summary>
-/// A member a receiver lacks is reported naming the receiver as Mist writes it -- the construction it is,
-/// never the definition's registered name with its arity marker.
-/// </summary>
 [Trait("Tier", "2")]
 public sealed class UnresolvedMemberNamingTests
 {

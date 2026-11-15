@@ -1,9 +1,3 @@
-// Tier 1 (Unit): the type a declaration's own body gives a value of itself, read off hand-built
-// definitions by SelfConstruction.Of. It has to be the interned construction the body's own type
-// references reach, a pack has to fill its slot as the spread the body writes, and a nested definition
-// is constructed over its own parameters with no enclosing instantiation, since that is how its own body
-// names it.
-
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Scopes;

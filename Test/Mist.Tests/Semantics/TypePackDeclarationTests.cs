@@ -6,14 +6,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: which declared type parameters are packs, and which of them the use site may supply
-/// bracket-free.
-/// <para>
-/// THE TWO SPELLINGS ARE NOT INTERCHANGEABLE AT THE POINT OF DECLARATION even though they mean the
-/// same thing, and that asymmetry is the whole of what is asserted here. `params TArgs` is always
-/// bracket-free; `Type[]:TArgs` is bracket-free only while it is the list's only pack, so adding a
-/// second pack silently changes how the FIRST one is written at every use site.
-/// </para>
+/// Tier 3: `params TArgs` is always bracket-free, but `Type[]:TArgs` only while it is the list's only
+/// pack, so adding a second pack changes how the first is written at every use site.
 /// </summary>
 public sealed class TypePackDeclarationTests : ProgramModelProbe
 {
@@ -94,9 +88,6 @@ public sealed class TypePackDeclarationTests : ProgramModelProbe
         Assert.Empty(diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>
-    /// The negative that keeps the above from being a blanket admission of any member on a pack.
-    /// </summary>
     [Fact]
     public void MemberThePackDomainDoesNotHave_IsStillRefused()
     {
@@ -119,8 +110,6 @@ public sealed class TypePackDeclarationTests : ProgramModelProbe
         var error = Assert.Single(Errors(diagnostics, "MIST0404"));
         Assert.Contains("'B' is a second bracket-free pack after 'A'", error.Message);
 
-        // The refusal is a verdict, not an abandonment: the second pack still lands as a bracketed
-        // one so nothing downstream has to cope with two absorbing slots.
         var type = Assert.IsAssignableFrom<IHasTypeParameters>(model.TypesByFQN["Probe.Bad<,>"]);
         Assert.Equal(TypePackKind.Bracketed, type.TypeParametersList[1].PackKind);
     }

@@ -1,7 +1,5 @@
-// Switch-expression binding: the result type every arm has to agree on, and the SCOPE of what an
-// arm's pattern introduces. The scope half is the part no sample can carry, for the reason given in
-// PatternResolutionTests -- a sample that compiles proves a binding is reachable somewhere, and the
-// claim is about where it stops.
+// The scope of what an arm's pattern introduces is asserted here because no sample can carry it, for
+// the reason PatternResolutionTests gives.
 
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
@@ -37,8 +35,6 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
         unknown u = 42;
         Animal a = new Dog();
         """;
-
-    // ── The type every arm agrees on ─────────────────────────────────────
 
     [Fact]
     public void ASwitchExpression_TakesTheTypeItsArmsAgreeOn()
@@ -81,8 +77,6 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
         Assert.Empty(Errors(diagnostics, "MIST0347"));
     }
 
-    // ── Arms ─────────────────────────────────────────────────────────────
-
     [Fact]
     public void ArmsAreKeptInSourceOrder()
     {
@@ -117,8 +111,6 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
     {
         _ = InitializerOf<UnresolvedExpression>("var label = u switch { (0, 0) => 1, _ => 0 };");
     }
-
-    // ── How far an arm's binding reaches ─────────────────────────────────
 
     [Fact]
     public void AnArmsBinding_IsReadableInItsOwnResult()
@@ -177,8 +169,6 @@ public sealed class SwitchExpressionResolutionTests : ProgramModelProbe
 
         _ = Assert.Single(Errors(diagnostics, "MIST0348"));
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private SwitchExpression SwitchIn(string statement)
     {

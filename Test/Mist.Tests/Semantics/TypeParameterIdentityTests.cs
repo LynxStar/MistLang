@@ -1,6 +1,4 @@
-// Tier 1 (Unit): the one containment an indeterminate type has. Before it, a method taking `T` was
-// never applicable to a `T` argument once a second overload existed, so `Forward(T v) { Set(v); }`
-// matched no overload the moment `Set(string)` was declared beside `Set(T)`.
+// Tier 1 (Unit): the one containment an indeterminate type has.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model.Scopes;

@@ -1,11 +1,6 @@
-// Tier 3 (Component): what `new(...)` binds to, asserted against a real ProgramModelBuilder run over
-// minimal source. No Roslyn and no process spawning.
-//
-// Asserted on the MODEL rather than on output for the reason OverloadSelectionTests gives at length:
-// emission re-spells a construction and lets Roslyn resolve it again, so a program printing the right
-// answer is equally consistent with Mist having chosen nothing. It bites harder here, because C# has
-// target-typed new of its own -- emitting the type we resolved is the only thing that distinguishes
-// our answer from Roslyn's.
+// Tier 3 (Component): what `new(...)` binds to, asserted on the model for the reason ProgramModelProbe
+// gives. C# has target-typed new of its own, so emitting the resolved type is the only thing that
+// distinguishes Mist's answer from Roslyn's.
 
 using System.Collections.Immutable;
 using Mist.Backends.Contracts;
@@ -161,11 +156,6 @@ public sealed class TargetTypedNewTests : IDisposable
         Assert.Equal("Probe.Pair<Int32>", creation.Type.FullyQualifiedName);
     }
 
-    /// <summary>
-    /// The nested case is what distinguishes a target type SCOPED to the argument slot from one merely
-    /// left in place: the outer target is Holder, and an inner new that inherited it would construct a
-    /// second Holder rather than the Tag its parameter asks for.
-    /// </summary>
     [Fact]
     public void ANestedTargetTypedNew_TakesTheParameterTypeNotTheOuterTarget()
     {
@@ -240,8 +230,6 @@ public sealed class TargetTypedNewTests : IDisposable
         Assert.Empty(Errors(diagnostics, NoTargetId));
         Assert.Empty(Errors(diagnostics, NotConstructibleId));
     }
-
-    // ── Harness ──────────────────────────────────────────────────────────
 
     private static IEnumerable<Diagnostic> Errors(ImmutableArray<Diagnostic> diagnostics, string id)
     {

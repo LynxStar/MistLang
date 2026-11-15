@@ -8,14 +8,8 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Semantics;
 
 /// <summary>
-/// Tier 3: the value side of a pack -- a flat argument list collapsing into one parameter slot, and
-/// the spread that puts one back.
-/// <para>
-/// ARITY STOPS BEING A NUMBER AND BECOMES A FLOOR, which is what every assertion here turns on.
-/// Overload resolution filtered candidates by an exact count, so a method taking a pack matched
-/// only at the one arity where its slots happened to equal its arguments -- and a spread, being one
-/// expression, counted as one argument however many it stood for.
-/// </para>
+/// The value side of a pack: a flat argument list collapsing into one parameter slot, and the spread
+/// that puts one back. Arity is a floor rather than a count, which every assertion here turns on.
 /// </summary>
 [Trait("Tier", "3")]
 public sealed class ValuePackTests : ProgramModelProbe
@@ -66,9 +60,6 @@ public sealed class ValuePackTests : ProgramModelProbe
                 .Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>
-    /// The floor still holds: a pack absorbing nothing does not excuse an unfilled fixed slot.
-    /// </summary>
     [Fact]
     public void TooFewForTheFixedParameters_IsStillRefused()
     {
@@ -85,7 +76,6 @@ public sealed class ValuePackTests : ProgramModelProbe
             .OfType<InvocationExpression>()
             .Single();
 
-        // Two arguments from one written expression, which is the whole of what a spread does.
         Assert.Equal(2, call.Arguments.Count);
     }
 
@@ -102,9 +92,8 @@ public sealed class ValuePackTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// The boundary the rule must not cross. A value PACK binds inward from both ends, so the
-    /// middle is exactly where the Binding_Rule expects it -- and MiddleCount, which the banked
-    /// sample runs, is declared that way.
+    /// A value pack binds inward from both ends, so the middle is exactly where the Binding_Rule expects
+    /// it, and MiddleCount, which the banked sample runs, is declared that way.
     /// </summary>
     [Theory]
     [InlineData("public static int M(params int[] xs) { return 0; }")]
@@ -235,10 +224,6 @@ public sealed class ValuePackTests : ProgramModelProbe
                 .Where(d => d.Severity == DiagnosticSeverity.Error));
     }
 
-    /// <summary>
-    /// One past the end names nothing, which keeps the family bounded by the pack rather than open
-    /// to any index a caller writes.
-    /// </summary>
     [Fact]
     public void ProjectionPastTheEndOfThePack_IsRefused()
     {

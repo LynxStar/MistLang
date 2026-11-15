@@ -1,5 +1,5 @@
-// Tier 3 (Component): which declaration a call reaches when two share a closed signature, asserted
-// on the recorded method because emission lets Roslyn resolve the call again.
+// Tier 3 (Component): which declaration a call reaches when two share a closed signature. See
+// ProgramModelProbe for why these assert on the model.
 // DeclarationShapeAnalyzer admits these inheritance fixtures except the row that pins a refused
 // hide: inherited declarations answer, while a conformer answering an abstract slot supplies the
 // implementation.

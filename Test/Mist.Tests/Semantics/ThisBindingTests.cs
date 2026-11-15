@@ -1,9 +1,3 @@
-// Tier 2 (Functional): what the binder makes of `this` over hand-built types and scopes. Inside a
-// generic declaration it is a value of the interned self construction -- Tag<T>, Bundle<[Ts...]>, or a
-// nested definition over its own parameter -- which is what lets it reach a parameter declared the same
-// way with no conversion manufactured; a receiver a scope supplies already typed is kept; and a static
-// member or a chain with no type is refused with its own diagnostic.
-
 using Mist.Common.Diagnostics;
 using Mist.Generated;
 using Mist.ProgramModel.Construction;

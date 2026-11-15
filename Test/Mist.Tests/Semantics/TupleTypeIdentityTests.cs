@@ -1,6 +1,5 @@
 // Tuple identity and assignability, asserted on the model: two declarations of the same shape print
-// the same whether or not they share an interned instance. Model assertions pin the conversion and
-// narrowing decisions independently of C# resolving emitted code.
+// the same whether or not they share an interned instance.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;

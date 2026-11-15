@@ -6,12 +6,6 @@ namespace Mist.Tests.Semantics;
 
 /// <summary>
 /// Tier 3: which domain a type parameter ranges over.
-/// <para>
-/// THE QUESTION USED TO HAVE NO ANSWER AT ALL. Domain was declared for exactly this and never
-/// populated, so a consumer could ask only WHETHER a parameter was dependent, never over what --
-/// which is why the emitter's refusal of dependent parameters had to be keyed on a syntactic flag.
-/// Asserting the domain by name is the cheapest thing that fails if the resolution is dropped.
-/// </para>
 /// </summary>
 public sealed class TypeParameterDomainTests : ProgramModelProbe
 {
@@ -64,8 +58,8 @@ public sealed class TypeParameterDomainTests : ProgramModelProbe
     [Fact]
     public void PackParameter_RangesOverAnArrayOfType()
     {
-        // The keystone spelled out: `params TArgs` is the dependent parameter `Type[]:TArgs`, so its
-        // domain has to be the array, not Type and not a kind of its own.
+        // `params TArgs` is the dependent parameter `Type[]:TArgs`, so its domain is the array, not Type
+        // and not a kind of its own.
         Assert.Equal(
             "Standard.Array<Type, unknown>",
             Domain("public class F<params TArgs, TResult> { }", "F<,>", ordinal: 0));

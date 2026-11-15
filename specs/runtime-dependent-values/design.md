@@ -655,8 +655,8 @@ and not only on a read of its storage. A read through a closing evaluates a
 capture's initializer once, as the argument of the lookup, and a compound
 assignment that C# cannot write in place binds the holder once. A bare name
 inside the type's members supplies the hidden field or parameter; inside an
-operator, the operand that carries the slot; inside a nested type, nothing,
-which is MIST0499 until item 7. A struct's static is held by the struct that
+operator, the operand that carries the slot; inside a nested type, the slot
+the nested type carries as its own (item 7). A struct's static is held by the struct that
 copies it, as its C# static is today, and a struct's ancestor factory carries
 no static member. A static spread member's per-element projections are
 members of the holder. A static with no initializer that holds a value-routed
@@ -791,7 +791,11 @@ takes the values from the type it converts to.
 
 **A nested type that reads the enclosing slot.** With the last line this is
 MIST0499. Without it, closed only with literals, the generated C# does not
-compile, on main as well: the read is emitted as a name C# does not know.
+compile, on main as well. Measured at 87d653d0, the read itself is fine: on the
+carrier route it is `((int)TCapacity.Value)`, which C# accepts inside a class
+nested in `Ring<TCapacity>`. What C# does not know is the nested type's name
+where `Make` spells it, `Probe.Ring<Capacity>.Node`, written with the Mist
+name of the parameter instead of its C# name `TCapacity`.
 
 ```mist
 public class Ring<Capacity:int>
@@ -811,13 +815,65 @@ new Ring<n>().Make().Limit()    // n
 A type nested in a generic type is a type of each closing of it, so it carries
 the enclosing type's value-routed slots as its own: a hidden field, set from a
 hidden constructor parameter, which the creation fills from the enclosing
-instance's field or from the closing that is written. The delivery fixes the
-literal case with it, since both are the same read.
+instance's field or from the closing that is written. The literal case is a
+spelling fix on the carrier route, which it keeps: a type closed only with
+literals has no value-routed slot to carry, and C# nesting already gives each
+closing its own nested type (operator ruling, 2026-11-14).
 
 The delivery hands in two lists, each entry marked as above: every conversion
 and operator form whose operands may not carry the slot; and every way a
 nested type is declared, created, named and tested, at one and at two levels
 of nesting.
+
+Item 7 landed with MIST-1435, over 87d653d0. MIST0499 stays for an attribute
+argument and a union-specialized copy, neither of them item 7's.
+`OperatorMethods` decides which operators and conversions become methods. A
+conversion or operator of a value-routed type that some slot reaches through
+no operand (`BodyEmitter.OperandRead`) is a static method named `__Explicit`,
+`__Implicit` or `__op_{Name}`. It takes the slot values as the hidden leading
+parameters every static member takes, and its body reads them by their bare
+names. A cast passes the values of its target. An implicit conversion passes
+the values of the type it converts to. An operator passes the values of the
+closing it was found through. A cast's own capture is the hidden argument,
+evaluated after an operand that runs code, as the operator route evaluates
+it. An implicit conversion's target was written by another node, so it reads
+that node's capture from a kept local, never the variable's value at the time
+of the conversion. A conversion or operator none of whose operands, nor its
+target, is the declaring type as declared is a method on either route, since
+C# refuses it as an operator: `operator +(Ring<1> a, int b)` and
+`explicit operator int(Ring<1> r)` inside `Ring<Capacity>`. MIST-1371's
+renaming of coinciding conversions lands on the same static-method shape, so
+one name decides both.
+
+`SlotRoutes.ValueRouted` of a type nested in a value-routed type lists the
+enclosing slots before its own. Everything keyed by a type's value-routed
+slots follows from that list: the hidden fields and constructor parameters,
+the hidden parameters of its static members, its statics holder, an abstract's
+hidden getter and an implementer's answer, and the comparison a test appends.
+`SlotRoutes.Argument` finds a slot's value through a nested closing's
+`Enclosing` chain, `Ring<n>.Node.Leaf` included. A nested type named bare
+inside its enclosing type is that type's own closing (`SlotRoutes.Closing`),
+so its slot values are the reads of the enclosing slots where it is written:
+the enclosing instance's field, a static member's hidden parameter, or the
+nested type's own field. A nested type reaches the enclosing type's static
+storage through the values it carries. Its own statics are held per value,
+as the carrier route's C# nesting holds them per closing.
+
+The frontend refuses or cannot write these forms from the two lists, and the
+backend sees none of them:
+
+- `new Ring<n>.Node()`. The grammar's object creation takes a qualified name
+  and its arguments, with no nested type through an instantiation. A
+  target-typed `Ring<n>.Node x = new();` works.
+- A static member reached through a nested type of a runtime closing,
+  `Ring<n>.Node.Twice()`, and an enum member, `Ring<n>.Mode.On`, are MIST0487.
+  The static member works through a literal or a dependent parameter.
+- A conversion from a closing of the same declaration into a runtime closing,
+  `(Ring<n>)one` with `one` a `Ring<1>`, is MIST0486. The binder judges it as
+  a conversion between closings, which needs a proof. With a literal target it
+  works.
+- A cast, or an implicit conversion, into a nullable target `Ring<n>?` is
+  MIST0149 or MIST0157, for literal closings too.
 
 ### Identity by value: a closing as a type argument
 
@@ -921,10 +977,11 @@ cannot be answered:
   MIST0498. No member reads the value back. Item 2 of *Identity by value*
   carries a capture in a local; the number stays for a slot nested under
   `unknown`, which has no value anywhere.
-- A read of a value-routed parameter where no value reaches, MIST0499: a
-  conversion into the type, a nested type, an attribute argument, and a copy
-  that union specialization makes with a closing of the parameter's owner in a
-  type argument.
+- A read of a value-routed parameter where no value reaches, MIST0499: an
+  attribute argument, and a copy that union specialization makes with a
+  closing of the parameter's owner in a type argument. A conversion into the
+  type and a nested type were retired from it by item 7 of *Identity by
+  value*.
 - A value-routed parameter written as a type, MIST0500: `x is N`, `List<N>`.
 - A union that holds two closings of one value-routed type, MIST0501.
 

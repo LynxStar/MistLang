@@ -83,17 +83,27 @@ public static class MistNestedScopingGenerator
         AllTypeKind.Enum,
     ];
 
+    // The TypeKeyword alternatives: only a TypeBodyDeclaration's members include NestedBodyTypeMember and NestedEnumMember.
+    public static readonly AllTypeKind[] ContainerKinds =
+    [
+        AllTypeKind.Class,
+        AllTypeKind.Struct,
+        AllTypeKind.Abstract,
+    ];
+
     public static Gen<AllTypeKind> GenAllTypeKind()
     {
         return Gen.Elements(AllKinds);
     }
 
+    public static Gen<AllTypeKind> GenContainerKind()
+    {
+        return Gen.Elements(ContainerKinds);
+    }
+
     public static Gen<NestedTypeSource> GenNestedTypeSource()
     {
-        // Only class and struct use MemberDeclaration which has the NestedTypeMember alternative
-        var containerKinds = new[] { AllTypeKind.Class, AllTypeKind.Struct };
-
-        return from containerKind in Gen.Elements(containerKinds)
+        return from containerKind in GenContainerKind()
                from nestedKind in GenAllTypeKind()
                let containerKeyword = AllTypeKindKeyword(containerKind)
                let nestedKeyword = AllTypeKindKeyword(nestedKind)
@@ -205,7 +215,7 @@ public static class MistNestedScopingGenerator
     public static Gen<NestedTypeDepthSource> GenNestedTypeDepthSource()
     {
         return from depth in Gen.Choose(1, 8)
-               from kinds in Gen.ArrayOf(Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct), depth)
+               from kinds in Gen.ArrayOf(GenContainerKind(), depth)
                let source = BuildNestedSourceAtDepth(kinds)
                select new NestedTypeDepthSource(source, depth);
     }
@@ -324,10 +334,7 @@ public static class MistNestedScopingGenerator
 
     public static Gen<TypeParamShadowingSource> GenTypeParamShadowingSource()
     {
-        // Container must be class or struct (supports MemberDeclaration with nested types)
-        var containerKinds = new[] { AllTypeKind.Class, AllTypeKind.Struct };
-
-        return from containerKind in Gen.Elements(containerKinds)
+        return from containerKind in GenContainerKind()
                from nestedKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct)
                from paramName in Gen.Elements(TypeParamNames)
                let source = BuildTypeParamShadowingSource(containerKind, nestedKind, paramName)
@@ -629,9 +636,7 @@ public static class MistNestedScopingGenerator
 
     private static Gen<CSharpNestingSource> GenCSharpNesting_NonGenericParent()
     {
-        var containerKinds = new[] { AllTypeKind.Class, AllTypeKind.Struct };
-
-        return from containerKind in Gen.Elements(containerKinds)
+        return from containerKind in GenContainerKind()
                from nestedKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct,
                    AllTypeKind.Abstract, AllTypeKind.Enum)
                let containerKeyword = AllTypeKindKeyword(containerKind)
@@ -647,9 +652,7 @@ public static class MistNestedScopingGenerator
 
     private static Gen<CSharpNestingSource> GenCSharpNesting_GenericParent()
     {
-        var containerKinds = new[] { AllTypeKind.Class, AllTypeKind.Struct };
-
-        return from containerKind in Gen.Elements(containerKinds)
+        return from containerKind in GenContainerKind()
                from nestedKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct,
                    AllTypeKind.Abstract, AllTypeKind.Enum)
                from parentParamCount in Gen.Choose(1, 3)
@@ -690,8 +693,7 @@ public static class MistNestedScopingGenerator
     private static Gen<RoundTripSource> GenRoundTripNestedTypes()
     {
         return from depth in Gen.Choose(1, 4)
-               from containerKinds in Gen.ArrayOf(
-                   Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct), depth)
+               from containerKinds in Gen.ArrayOf(GenContainerKind(), depth)
                from leafKind in GenAllTypeKind()
                from mods in GenModifierSubset()
                let source = BuildRoundTripNestedTypeSource(containerKinds, leafKind, mods)
@@ -760,7 +762,7 @@ public static class MistNestedScopingGenerator
     private static Gen<RoundTripSource> GenRoundTripNestedTypesInNamespace()
     {
         return from nsName in GenIdentifier()
-               from containerKind in Gen.Elements(AllTypeKind.Class, AllTypeKind.Struct)
+               from containerKind in GenContainerKind()
                from nestedKind in GenAllTypeKind()
                from mods in GenModifierSubset()
                let source = BuildRoundTripTypesInNamespaceSource(

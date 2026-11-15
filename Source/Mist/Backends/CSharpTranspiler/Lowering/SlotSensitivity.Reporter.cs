@@ -66,10 +66,10 @@ internal sealed partial class SlotSensitivity
                     return ($"reads a type that mentions '{parameter.Name}' as a type value, and a CLR type cannot carry the slot's value", routed[0]);
 
                 case Kind.Contained:
-                    return ($"tests a value against a type that nests '{parameter.Name}' in a CLR container, which has nowhere to keep the slot's value", routed[0]);
+                    return ($"tests a value against a type that nests '{parameter.Name}' in {Holding(reason.Through)}, which has nowhere to keep the slot's value", routed[0]);
 
-                case Kind.Test when ContainedClosing(argument, contained: false) is { } nested:
-                    return ($"tests a value against '{parameter.Name}', and the argument nests '{TypeDisplay.Mist(nested)}' in a CLR container, which has nowhere to keep the slot's value", nested);
+                case Kind.Test when ContainedClosing(argument, container: null) is var (nested, holding):
+                    return ($"tests a value against '{parameter.Name}', and the argument nests '{TypeDisplay.Mist(nested)}' in {Holding(holding)}, which has nowhere to keep the slot's value", nested);
 
                 case Kind.Clr when Substituted(reason.Through!, parameter, argument) is var reached && StructStamp.Needed(reached):
                     return ($"passes a type that mentions '{parameter.Name}' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value", StructStamp.HeldByValue(reached) ?? routed[0]);
@@ -105,19 +105,30 @@ internal sealed partial class SlotSensitivity
         return TypeSubstitution.ForParameters([parameter], [argument]).Apply(through, interner: null);
     }
 
-    private static ConstructedType? ContainedClosing(IMistType type, bool contained)
+    private static (ConstructedType Closing, IMistType Container)? ContainedClosing(IMistType type, IMistType? container)
     {
-        return Unaliased(type) switch
+        switch(Unaliased(type))
         {
-            ConstructedType constructed when SlotRoutes.ValueRouted(constructed.Definition).Count > 0 && contained => constructed,
-            ConstructedType constructed => constructed.TypeArguments
-                .Select(argument => ContainedClosing(argument, contained || IsContainer(constructed)))
-                .FirstOrDefault(found => found is not null),
-            FunctionType function => function.ParameterTypes.Append(function.ReturnType)
-                .Select(part => ContainedClosing(part, contained: true))
-                .FirstOrDefault(found => found is not null),
-            var other => Parts(other).Select(part => ContainedClosing(part, contained)).FirstOrDefault(found => found is not null),
-        };
+            case ConstructedType constructed when SlotRoutes.ValueRouted(constructed.Definition).Count > 0 && container is not null:
+                return (constructed, container);
+
+            case ConstructedType constructed:
+                var holding = container ?? (IsContainer(constructed) ? constructed : null);
+                return constructed.TypeArguments.Select(argument => ContainedClosing(argument, holding)).FirstOrDefault(found => found is not null);
+
+            case FunctionType function:
+                return function.ParameterTypes.Append(function.ReturnType).Select(part => ContainedClosing(part, container ?? function)).FirstOrDefault(found => found is not null);
+
+            case var other:
+                return Parts(other).Select(part => ContainedClosing(part, container)).FirstOrDefault(found => found is not null);
+        }
+    }
+
+    private static string Holding(IMistType? container)
+    {
+        return container is ConstructedType constructed && LengthErasure.IsLengthIndexed(constructed)
+            ? LengthErasure.IsSpan(constructed) ? "a span" : "an array"
+            : "a CLR container";
     }
 
     private static string Host(TypeParameter parameter)

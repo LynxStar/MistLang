@@ -101,6 +101,25 @@ public sealed class SlotSensitivityRefusalTests
     }
 
     [Fact]
+    public void ATestOfTheParameterRefusesAnArrayOfClosingsAndAGenericThatOnlyHoldsOneAdmitsIt()
+    {
+        var (tester, _) = Tester();
+        var holder = HandBuiltModel.Class("Keeper<>");
+        var v = new TypeParameter("V", 0, holder.Scope, holder);
+        holder.TypeParametersList.Add(v);
+        holder.FieldsList.Add(new Field("item", v, default, new MemberModifiers()) { DeclaringType = holder });
+        var rings = slots.Closed(slots.Array, slots.Closed(ring, slots.Capture(new LocalVariable("n", slots.Int)).Value), UnknownType.Instance);
+
+        var refused = Assert.Single(Refuse([Body(tester), New(slots.Closed(tester, rings))], [tester]));
+
+        Assert.Equal(
+            $"'Ring<n>[]' cannot fill 'T' of 'Tester': it mentions 'Ring<n>', {Routed} 'Ring<n>' is one C# type, and 'Tester' tests a value against 'T', "
+            + "and the argument nests 'Ring<n>' in an array, which has nowhere to keep the slot's value.",
+            refused.Message);
+        Assert.Empty(Refuse([New(slots.Closed(holder, rings))], [holder]));
+    }
+
+    [Fact]
     public void AClrGenericRefusesAStructClosingDirectlyAndThroughADeclarationAndAdmitsAClassClosing()
     {
         var list = List();

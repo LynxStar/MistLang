@@ -261,7 +261,12 @@ public sealed class SlotSensitivityDecisionTests
         var counter = HandBuiltModel.Class("Counter<>");
         var k = Parameter(counter, "K");
         counter.FieldsList.Add(new Field("hits", slots.Int, default, new MemberModifiers { IsStatic = true }) { DeclaringType = counter });
-        var tested = SlotSensitivity.Discover([Is(Local(UnknownType.Instance), Test(t)), Is(Local(UnknownType.Instance), Test(slots.Closed(list, u)))], [counter], [(list, [k])]);
+        var arrays = HandBuiltModel.Class("Arrays<>");
+        var w = Parameter(arrays, "W");
+        var tested = SlotSensitivity.Discover(
+            [Is(Local(UnknownType.Instance), Test(t)), Is(Local(UnknownType.Instance), Test(slots.Closed(list, u))), Is(Local(UnknownType.Instance), Test(slots.Closed(slots.Array, w, UnknownType.Instance)))],
+            [counter],
+            [(list, [k])]);
         using var routes = SlotRoutes.Enter([ring.TypeParametersList[0], cell.TypeParametersList[0]]);
         var ring5 = slots.Closed(ring, slots.Literal(5));
         var cell7 = slots.Closed(cell, slots.Literal(7));
@@ -272,8 +277,14 @@ public sealed class SlotSensitivityDecisionTests
             "tests a value against 'T', and the argument nests 'Ring<5>' in a CLR container, which has nowhere to keep the slot's value",
             Assert.NotNull(tested.Judge(t, slots.Closed(list, ring5))).Reason);
         Assert.Equal(
+            "tests a value against 'T', and the argument nests 'Ring<5>' in an array, which has nowhere to keep the slot's value",
+            Assert.NotNull(tested.Judge(t, slots.Closed(slots.Array, ring5, slots.Literal(2)))).Reason);
+        Assert.Equal(
             "tests a value against a type that nests 'U' in a CLR container, which has nowhere to keep the slot's value",
             Assert.NotNull(tested.Judge(u, ring5)).Reason);
+        Assert.Equal(
+            "tests a value against a type that nests 'W' in an array, which has nowhere to keep the slot's value",
+            Assert.NotNull(tested.Judge(w, ring5)).Reason);
         Assert.Equal(
             "passes a type that mentions 'K' to a CLR generic, whose body no description of the closing reaches and which may hand back a zeroed value",
             Assert.NotNull(tested.Judge(k, cell7)).Reason);

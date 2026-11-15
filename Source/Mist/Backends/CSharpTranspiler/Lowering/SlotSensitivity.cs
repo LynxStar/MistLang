@@ -18,7 +18,7 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// compares by value, a closing passed on to a parameter of another declaration that does one of these, or an abstract's
 /// method slot whose answer does, to a fixed point; <see cref="ClosingWitnesses"/> passes that description. Three
 /// reasons no description answers stay refused at the closing, until the owner rules: the parameter read as a type
-/// value, a test that nests it in a CLR container, and a CLR generic it reaches, for a struct closing. A test is exempt
+/// value, a test that nests it in a CLR container or an array, and a CLR generic it reaches, for a struct closing. A test is exempt
 /// when the value's own type admits only the tested closing, the parameter itself or a union holding it, because the
 /// C# test then decides the same question the slot would.
 /// </summary>
@@ -308,11 +308,11 @@ internal sealed partial class SlotSensitivity
     {
         if(!AdmitsOnly(subject, tested))
         {
-            MarkTested(tested, contained: false, new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
+            MarkTested(tested, container: null, new HashSet<IMistType>(ReferenceEqualityComparer.Instance));
         }
     }
 
-    private void MarkTested(IMistType type, bool contained, HashSet<IMistType> seen)
+    private void MarkTested(IMistType type, IMistType? container, HashSet<IMistType> seen)
     {
         if(!seen.Add(type))
         {
@@ -326,38 +326,38 @@ internal sealed partial class SlotSensitivity
 
                 if(!filled.IsDependent)
                 {
-                    _ = Add(new Reason(contained ? Kind.Contained : Kind.Test, filled));
+                    _ = Add(new Reason(container is null ? Kind.Test : Kind.Contained, filled, Through: container));
                 }
 
                 break;
 
             case ConstructedType constructed:
-                var container = contained || IsContainer(constructed);
+                var holding = container ?? (IsContainer(constructed) ? constructed : null);
 
                 for(var i = 0; i < constructed.TypeArguments.Count; i++)
                 {
-                    if(!container && constructed.Definition is IHasTypeParameters generic && i < generic.TypeParametersList.Count
+                    if(holding is null && constructed.Definition is IHasTypeParameters generic && i < generic.TypeParametersList.Count
                         && !generic.TypeParametersList[i].IsDependent)
                     {
                         _ = Add(new Reason(Kind.Nested, generic.TypeParametersList[i]));
                     }
 
-                    MarkTested(constructed.TypeArguments[i], container, seen);
+                    MarkTested(constructed.TypeArguments[i], holding, seen);
                 }
 
                 if(constructed.Enclosing is { } enclosing)
                 {
-                    MarkTested(enclosing, contained, seen);
+                    MarkTested(enclosing, container, seen);
                 }
 
                 break;
 
             case FunctionType function:
-                MarkTested(function.ReturnType, contained: true, seen);
+                MarkTested(function.ReturnType, container ?? function, seen);
 
                 foreach(var parameterType in function.ParameterTypes)
                 {
-                    MarkTested(parameterType, contained: true, seen);
+                    MarkTested(parameterType, container ?? function, seen);
                 }
 
                 break;
@@ -365,7 +365,7 @@ internal sealed partial class SlotSensitivity
             default:
                 foreach(var part in Parts(type))
                 {
-                    MarkTested(part, contained, seen);
+                    MarkTested(part, container, seen);
                 }
 
                 break;

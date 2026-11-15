@@ -248,4 +248,47 @@ public class AbstractDefaultMethodParsingTests
 
         Assert.Contains(diagnostics, d => d.Number.Value == "MIST0127");
     }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("abstract Shape { (int, int) Pair { get { return (1, 2); } } }")]
+    [InlineData("abstract Shape { (int, int) Pair { get => (1, 2); } }")]
+    [InlineData("abstract Shape { (int, int) Pair => (1, 2); }")]
+    [InlineData("abstract Shape { public (int x, (int, int) y) Pair { get => (1, (2, 3)); } }")]
+    [InlineData("abstract Shape { (int | string) Value { get { return 1; } } }")]
+    [InlineData("abstract Shape { (int, int)[] Pairs { get { return [(1, 2)]; } } }")]
+    [InlineData("abstract Shape { List<(int, int)> Pairs { get { return new List<(int, int)>(); } } }")]
+    public void ParenthesizedTypePropertyWithBody_EmitsDiagnostic(string source)
+    {
+        var (_, diagnostics) = Parse(source);
+
+        _ = Assert.Single(diagnostics, d => d.Number.Value == "MIST0127");
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("abstract Shape { (int, int) Pair { get; } }")]
+    [InlineData("abstract Shape { (int, int) Pair(); }")]
+    [InlineData("abstract Shape { (int, int) Pair() { return (1, 2); } }")]
+    [InlineData("abstract Shape { (T, T) Twice<T>(T value) { return (value, value); } }")]
+    [InlineData("abstract Shape { int Sum((int, int) pair) { return pair.Item1; } }")]
+    [InlineData("abstract Shape { (int, int) Pair { get; } class Helper { (int, int) Pair { get { return (1, 2); } } } }")]
+    public void ParenthesizedTypeSlotOrMethod_DoesNotEmitDiagnostic(string source)
+    {
+        var (_, diagnostics) = Parse(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Number.Value == "MIST0127");
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("abstract Shape { Shape operator +(Shape a, Shape b) { return a; } }")]
+    [InlineData("abstract Shape { implicit operator (int, int)(Shape s) { return (1, 2); } }")]
+    public void OperatorWithBody_InsideAbstract_IsNotFlagged(string source)
+    {
+        var (_, diagnostics) = Parse(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Number.Value == "MIST0127");
+    }
 }

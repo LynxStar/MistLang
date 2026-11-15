@@ -51,6 +51,24 @@ public sealed class RenderingTests
         Assert.Equal(2, admission.Occurrences.Count());
     }
 
+    [Theory]
+    [InlineData("'{2147483648}'.", "the template does not parse: placeholder '2147483648'")]
+    [InlineData("'{0}' and '{99999999999999999999}'.", "the template does not parse: placeholder '99999999999999999999'")]
+    [InlineData("'{2147483647}'.", "placeholder {2147483647} has no argument (1 supplied)")]
+    public void AnOutOfRangePositionalIndexIsABreachNotAThrow(string template, string reason)
+    {
+        var descriptor = DiagnosticFixtures.Descriptor("FIXTURE_POSITIONAL_RANGE", template);
+        ImmutableArray<SlotValue> arguments = [new TextValue("a")];
+
+        var admission = DiagnosticFactory.Create(descriptor, new Absent(AbsenceReason.Unavailable), PipelineStage.Parsing, arguments.AsSpan());
+
+        Assert.Equal(DiagnosticRenderer.Fallback(descriptor), admission.Occurrence.Message);
+        Assert.Equal(DiagnosticRenderer.Fallback(descriptor), DiagnosticRenderer.Render(descriptor, arguments));
+        var breach = Assert.Single(admission.Breaches);
+        Assert.Same(InternalDiagnostics.ArgumentSchemaBreach, breach.Descriptor);
+        Assert.Contains(reason, breach.Message);
+    }
+
     [Fact]
     public void NamedSubstitutionHonorsEscapesRepeatsAndOptionalSegments()
     {

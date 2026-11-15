@@ -8,6 +8,7 @@ using Mist.Lexing.Contracts;
 
 namespace Mist.Tests.Lexing;
 
+[Trait("Tier", "1")]
 public class LexerRoundTripPropertyTests
 {
     private static readonly ILexer Lexer = new MistLexer();
@@ -64,17 +65,11 @@ public class LexerRoundTripPropertyTests
         var concatenated = string.Concat(
             tokenStream.AllTokens.Select(t => t.Lexeme));
 
-        if(tokenStream.AllTokens.Length <= 1 &&
-            tokenStream.AllTokens.All(t => t.Kind == (int)Generated.TokenKind.EndOfFile))
-        {
-            return true;
-        }
-
         return concatenated == source;
     }
 
     [Property(MaxTest = 50, Arbitrary = new[] { typeof(LexerRoundTripPropertyTests) })]
-    public bool LexerProducesNonNegativeTokenCount(string source)
+    public bool Lexer_NonEmptySourceYieldsTokensThenOneEndOfFile(string source)
     {
         if(string.IsNullOrEmpty(source))
         {
@@ -86,6 +81,11 @@ public class LexerRoundTripPropertyTests
 
         var tokenStream = Lexer.Lex(sourceText, bag);
 
-        return tokenStream.AllTokens.Length >= 0;
+        var tokens = tokenStream.AllTokens;
+        var endOfFile = (int)Generated.TokenKind.EndOfFile;
+
+        return tokens.Length >= 2
+            && tokens[^1].Kind == endOfFile
+            && tokens.Count(t => t.Kind == endOfFile) == 1;
     }
 }

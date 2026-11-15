@@ -52,10 +52,6 @@ public sealed class NestedScopingPropertyTests
         return $"{containerKeyword} Container {{\n    {nestedKeyword} Nested {nestedBody}\n}}";
     }
 
-    /// <summary>
-    /// Extracts the MemberDeclaration members from a type declaration node.
-    /// Only class and struct use MemberDeclaration (which includes NestedTypeMember).
-    /// </summary>
     private static ImmutableArray<MemberDeclarationNode>? GetMembers(TypeDeclarationNode typeDecl)
     {
         return typeDecl switch
@@ -122,7 +118,7 @@ public sealed class NestedScopingPropertyTests
 
     /// **Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5**
     [Fact]
-    public void ParserNestingUniversality_All10Combinations_ProduceNestedTypeMemberNode()
+    public void ParserNestingUniversality_AllContainerCombinations_ProduceNestedTypeMemberNode()
     {
         var allKinds = new[]
         {
@@ -132,11 +128,9 @@ public sealed class NestedScopingPropertyTests
             AllTypeKind.Enum,
         };
 
-        var containerKinds = new[] { AllTypeKind.Class, AllTypeKind.Struct };
-
         var failures = new List<string>();
 
-        foreach(var containerKind in containerKinds)
+        foreach(var containerKind in MistNestedScopingGenerator.ContainerKinds)
         {
             foreach(var nestedKind in allKinds)
             {
@@ -167,7 +161,7 @@ public sealed class NestedScopingPropertyTests
         }
 
         Assert.True(failures.Count == 0,
-            $"Failed combinations ({failures.Count}/10):\n" + string.Join("\n", failures));
+            $"Failed combinations ({failures.Count}/{MistNestedScopingGenerator.ContainerKinds.Length * allKinds.Length}):\n" + string.Join("\n", failures));
     }
 
     /// **Validates: Requirements 1.6, 2.3, 5.3**

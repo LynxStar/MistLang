@@ -4,6 +4,7 @@ using Mist.Lexing.Contracts;
 
 namespace Mist.Tests.Lexing;
 
+[Trait("Tier", "1")]
 public class LexerTokenKindTests
 {
     private static readonly ILexer Lexer = new Mist.Lexing.MistLexer();
@@ -54,11 +55,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(keyword);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
@@ -83,11 +79,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(keyword);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.NotEqual((int)TokenKind.IDENTIFIER, tokens[0].Kind);
@@ -100,11 +91,6 @@ public class LexerTokenKindTests
         string keyword, TokenKind expectedKind)
     {
         var tokens = LexDefaultTokens(keyword);
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -120,11 +106,6 @@ public class LexerTokenKindTests
     {
         var source = $"int {keyword} = 0;";
         var tokens = LexDefaultTokens(source);
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         Assert.True(tokens.Count >= 2,
             $"Expected at least 2 tokens for source '{source}', got {tokens.Count}");
@@ -145,11 +126,6 @@ public class LexerTokenKindTests
         // Keyword matching needs a whole-word boundary: maximal munch takes the longer identifier.
         var tokens = LexDefaultTokens(identifier);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal(identifier, tokens[0].Lexeme);
@@ -166,11 +142,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(op);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
     }
@@ -179,11 +150,6 @@ public class LexerTokenKindTests
     public void MultiCharOperator_NotSplitIntoSingleCharTokens()
     {
         var tokens = LexDefaultTokens("&&");
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.LOGICAL_AND, tokens[0].Kind);
@@ -200,11 +166,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
@@ -217,11 +178,6 @@ public class LexerTokenKindTests
     public void HexLiteral_ProducesCorrectTokenKind(string literal, TokenKind expectedKind)
     {
         var tokens = LexDefaultTokens(literal);
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -237,11 +193,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
         Assert.Equal(literal, tokens[0].Lexeme);
@@ -254,11 +205,6 @@ public class LexerTokenKindTests
     public void StringLiteral_ProducesCorrectTokenKind(string literal, TokenKind expectedKind)
     {
         var tokens = LexDefaultTokens(literal);
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
@@ -273,11 +219,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens(literal);
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)expectedKind, tokens[0].Kind);
     }
@@ -286,11 +227,6 @@ public class LexerTokenKindTests
     public void Whitespace_IsHiddenToken()
     {
         var allTokens = LexAllTokens("   ");
-
-        if(allTokens.Count == 0)
-        {
-            return;
-        }
 
         var defaultTokens = LexDefaultTokens("   ");
 
@@ -303,11 +239,6 @@ public class LexerTokenKindTests
     public void LineComment_IsHiddenToken()
     {
         var allTokens = LexAllTokens("// this is a comment");
-
-        if(allTokens.Count == 0)
-        {
-            return;
-        }
 
         var defaultTokens = LexDefaultTokens("// this is a comment");
 
@@ -323,11 +254,6 @@ public class LexerTokenKindTests
         var allTokens = LexAllTokens(source);
         var defaultTokens = LexDefaultTokens(source);
 
-        if(allTokens.Count == 0)
-        {
-            return;
-        }
-
         Assert.True(allTokens.Count > defaultTokens.Count,
             "AllTokens should contain more tokens than DefaultChannelTokens due to hidden tokens");
 
@@ -340,11 +266,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens("className");
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("className", tokens[0].Lexeme);
@@ -355,11 +276,6 @@ public class LexerTokenKindTests
     {
         var tokens = LexDefaultTokens("_myVar");
 
-        if(tokens.Count == 0)
-        {
-            return;
-        }
-
         _ = Assert.Single(tokens);
         Assert.Equal((int)TokenKind.IDENTIFIER, tokens[0].Kind);
         Assert.Equal("_myVar", tokens[0].Lexeme);
@@ -369,11 +285,6 @@ public class LexerTokenKindTests
     public void InterpolatedStringStart_ProducesCorrectTokenKind()
     {
         var tokens = LexDefaultTokens("$\"");
-
-        if(tokens.Count == 0)
-        {
-            return;
-        }
 
         Assert.Contains(tokens, t => t.Kind == (int)TokenKind.INTERPOLATED_STRING_START);
     }

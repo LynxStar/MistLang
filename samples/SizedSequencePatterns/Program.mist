@@ -148,4 +148,9 @@ public class Program
         var pairMiss = Produce(5) as (int[3], string);
         Console.WriteLine($"[as] pair of three: {pairHit is void}, pair of five: {pairMiss is void}, produced {produced}");
     }
+
+    public static void Main(string[] args)
+    {
+        RunDemo();
+    }
 }

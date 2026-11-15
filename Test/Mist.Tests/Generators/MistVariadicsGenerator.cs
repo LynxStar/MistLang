@@ -257,7 +257,7 @@ public static class MistVariadicsGenerator
                let source =
                    $"public class {typeName} {{ public {generic}<[{argList}]> {field}; }}"
                select new VariadicSurfaceScenario(
-                   source, "bracketed-args", [], count, true,
+                   source, "bracketed-args", [], null, true,
                    $"bracketed-args({count}): {source}");
     }
 

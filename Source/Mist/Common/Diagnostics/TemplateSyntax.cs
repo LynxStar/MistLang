@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 
 namespace Mist.Common.Diagnostics;
 
@@ -173,9 +174,10 @@ internal static class TemplateSyntax
             return false;
         }
 
+        // The factory and renderer read a positional index with int.Parse, so an index beyond Int32 range is refused here.
         if(name.All(char.IsAsciiDigit))
         {
-            return true;
+            return int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out _);
         }
 
         return (char.IsAsciiLetter(name[0]) || name[0] == '_')

@@ -120,10 +120,11 @@ public class MistGrammarMemoizationPlanTests
                 $"Rule '{ruleName}' has id {id}, expected in range [0..{plan.Count - 1}].");
         }
 
-        var allIds = plan.MemoizedRuleNames.Select((_, i) => i).ToHashSet();
+        Assert.Equal(plan.Count, plan.RuleIds.Count);
+        Assert.Equal(Enumerable.Range(0, plan.Count), plan.RuleIds.Values.Order());
         for(var i = 0; i < plan.Count; i++)
         {
-            Assert.Contains(i, allIds);
+            Assert.Equal(i, plan.RuleIds[plan.MemoizedRuleNames[i]]);
         }
     }
 

@@ -79,7 +79,7 @@ public sealed class SnippetFilesTests : IDisposable
 
     private string Write(string relative, string content)
     {
-        var path = Path.Combine(root, relative);
+        var path = Path.Combine([root, .. relative.Split('/')]);
         _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
         return path;

@@ -2,16 +2,8 @@ using Mist.Common.Diagnostics;
 
 namespace Mist.CLI.Steering;
 
-/// <summary>
-/// Result of a steering installation run.
-/// </summary>
-/// <param name="Succeeded">Whether installation completed successfully.</param>
 /// <param name="Removed">Paths of previously-installed managed files that were deleted.</param>
-/// <param name="Installed">Paths of files written during this run.</param>
-/// <param name="SkippedUserFiles">
-/// Paths of files in the reference directory that were left untouched because
-/// they are not Mist-managed (the user's own files).
-/// </param>
+/// <param name="SkippedUserFiles">Paths of unmarked files left in the reference directory.</param>
 public sealed record SteeringInstallResult(
     bool Succeeded,
     Admission? FailureDiagnostic,
@@ -59,9 +51,7 @@ public sealed record InstructionFileUpdate(string Path, ManagedBlockOutcome Outc
 public static class SteeringInstaller
 {
     /// <summary>
-    /// Sentinel substring that identifies a Mist-managed reference file. Must match the
-    /// marker embedded in the distributed <c>mist-*.md</c> files. Any file containing
-    /// this substring is considered installer-owned and is eligible for deletion.
+    /// Must match the marker embedded in the distributed <c>mist-*.md</c> files.
     /// </summary>
     public const string ManagedMarker = "MIST-MANAGED-STEERING";
 
@@ -174,7 +164,7 @@ public static class SteeringInstaller
             var destination = Path.Combine(referenceDir, Path.GetFileName(source));
 
             // Every marked file is gone by now, so anything still holding a bundled name is an
-            // unmarked user file, already listed in skippedUserFiles. It keeps its name and content.
+            // unmarked user file, already listed in skippedUserFiles.
             if(File.Exists(destination))
             {
                 continue;

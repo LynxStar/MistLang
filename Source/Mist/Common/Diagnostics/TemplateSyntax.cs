@@ -174,7 +174,7 @@ internal static class TemplateSyntax
             return false;
         }
 
-        // The factory and renderer read a positional index with int.Parse, so an index beyond Int32 range is refused here.
+        // The factory and renderer read a positional index with int.Parse.
         if(name.All(char.IsAsciiDigit))
         {
             return int.TryParse(name, NumberStyles.None, CultureInfo.InvariantCulture, out _);

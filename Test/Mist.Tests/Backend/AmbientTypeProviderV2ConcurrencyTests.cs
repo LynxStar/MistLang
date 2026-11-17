@@ -3,8 +3,7 @@ using Mist.Tests.InteropFixtures.ConstraintProjection;
 
 namespace Mist.Tests.Backend;
 
-// ambient-type-provider-v2 Property 5, concurrent variant: lookups through the provider after projection
-// all answer the one registered instance, whichever thread asks.
+// ambient-type-provider-v2 Property 5, concurrent variant.
 [Trait("Tier", "2")]
 public sealed class AmbientTypeProviderV2ConcurrencyTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>

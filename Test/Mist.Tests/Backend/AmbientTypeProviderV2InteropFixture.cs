@@ -61,7 +61,7 @@ public class AmbientTypeProviderV2InteropFixture : IDisposable
 }
 
 /// <summary>
-/// System.Linq beside the fixture, for the claims that are about Enumerable's own signatures.
+/// For the claims about Enumerable's own signatures.
 /// </summary>
 public sealed class AmbientTypeProviderV2LinqInteropFixture : AmbientTypeProviderV2InteropFixture
 {

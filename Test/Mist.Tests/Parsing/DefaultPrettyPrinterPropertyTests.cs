@@ -187,9 +187,6 @@ public class DefaultPrettyPrinterPropertyTests
                };
     }
 
-    /// <summary>
-    /// Generates a struct with a default block member and optional fields.
-    /// </summary>
     private static Gen<CompilationUnitNode> GenStructWithDefaultBlock()
     {
         var genField = from fieldName in Gen.Elements(FieldNames)

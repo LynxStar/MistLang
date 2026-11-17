@@ -5,8 +5,7 @@ using Mist.Tests.InteropFixtures.ConstraintProjection;
 
 namespace Mist.Tests.Backend;
 
-// What BuildAndRegister leaves in the model, read back through the provider's own lookup: the loaded
-// assemblies name the CLR type and ProjectionOf answers its projection.
+// What BuildAndRegister leaves in the model, read back through the provider's own lookup.
 [Trait("Tier", "2")]
 public sealed class AmbientTypeProviderV2IntegrationProjectionTests(AmbientTypeProviderV2InteropFixture fixture)
     : IClassFixture<AmbientTypeProviderV2InteropFixture>
@@ -57,8 +56,6 @@ public sealed class AmbientTypeProviderV2IntegrationProjectionTests(AmbientTypeP
         Assert.Equal(MistAssemblyKind.Ambient, projected!.Assembly.Kind);
     }
 
-    // An alias answers the existing Standard instance, which keeps its standard library attribution rather
-    // than being re-attributed as an ambient projection -- asked for directly or met in a signature.
     [Fact]
     public void AnAliasedType_KeepsTheStandardInstanceAndAssembly()
     {

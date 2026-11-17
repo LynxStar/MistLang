@@ -117,7 +117,7 @@ public static class MistNestedScopingGenerator
         return from isPublic in Gen.Elements(true, false)
                from isPrivate in Gen.Elements(true, false)
                from isStatic in Gen.Elements(true, false)
-                   // Exclude public+private (mutually exclusive)
+                   // Mutually exclusive.
                where !(isPublic && isPrivate)
                select new ModifierSubset(isPublic, isPrivate, isStatic);
     }

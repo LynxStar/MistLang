@@ -58,9 +58,8 @@ public static class MistVariadicsGenerator
     private static readonly string[] ElementTypes =
         ["int", "string", "bool", "double", "long", "char", "float", "byte"];
 
-    // Generic type names used at a use site. Deliberately excludes `Func` so that
-    // the flat/bracketed argument-list forms exercise the ordinary named-type path
-    // rather than the dedicated `Func` type-reference form.
+    // Excludes `Func` so the flat and bracketed argument-list forms exercise the ordinary named-type
+    // path rather than the dedicated `Func` type-reference form.
     private static readonly string[] GenericTypeNames =
         ["Box", "Holder", "Bag", "Wrapper", "Container", "Pack"];
 

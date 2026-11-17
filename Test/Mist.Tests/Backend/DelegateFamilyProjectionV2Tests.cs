@@ -64,7 +64,7 @@ public sealed class DelegateFamilyProjectionV2Tests(AmbientTypeProviderV2Interop
         Assert.Equal(MistAssemblyKind.Ambient, projected.Assembly.Kind);
     }
 
-    // Neither is in the family: with no assembly declaring them loaded, nothing projects them.
+    // With no assembly declaring them loaded, nothing projects them.
     [Theory]
     [InlineData(typeof(Delegate))]
     [InlineData(typeof(MulticastDelegate))]

@@ -331,8 +331,7 @@ public sealed class NestedScopingPropertyTests
         return expectedTypes.SetEquals(actualTypes);
     }
 
-    /// Structural identity is verified by comparing the pretty-printed output of
-    /// both ASTs: if print(AST1) == print(AST2), the ASTs are structurally identical.
+    /// Equal pretty-printed output stands in for structural identity.
     ///
     /// **Validates: Requirements 1.8, 12.5, 13.3**
     [Property(Arbitrary = new[] { typeof(MistNestedScopingGenerator) }, MaxTest = 100)]

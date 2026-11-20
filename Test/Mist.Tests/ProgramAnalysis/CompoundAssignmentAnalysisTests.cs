@@ -158,6 +158,70 @@ public sealed class CompoundAssignmentAnalysisTests
     }
 
     [Theory]
+    [InlineData("line--")]
+    [InlineData("--line")]
+    [InlineData("++line")]
+    public void EveryIncrementFormOfTextIsRefusedNamingTheOperatorAsWritten(string written)
+    {
+        var text = model.Type("String");
+        var increment = new CompoundAssignmentExpression(HandBuiltModel.Node(37), Ref(new LocalVariable("line", text)),
+            written.Contains('-', StringComparison.Ordinal) ? BinaryOperatorKind.Subtract : BinaryOperatorKind.Add,
+            HandBuiltModel.Literal(Integer, 1L), text, null, written.StartsWith("line", StringComparison.Ordinal) ? IncrementForm.Postfix : IncrementForm.Prefix)
+        { ResultType = ErrorType.Instance };
+
+        var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), HandBuiltModel.Block(Run(increment))));
+
+        Assert.Equal("MIST0200", finding.Number.Value);
+        Assert.Equal($"Operator '{written.Replace("line", "", StringComparison.Ordinal)}' cannot be applied to operands of type 'string' and 'int'.", finding.Message);
+    }
+
+    [Fact]
+    public void SubtractingFromTextIsRefusedOnceNamingTheCompoundOperator()
+    {
+        var text = model.Type("String");
+        var compound = new CompoundAssignmentExpression(HandBuiltModel.Node(37), Ref(new LocalVariable("line", text)), BinaryOperatorKind.Subtract,
+            HandBuiltModel.Literal(text, "b"), text, null, IncrementForm.None)
+        { ResultType = ErrorType.Instance };
+
+        var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), HandBuiltModel.Block(Run(compound))));
+
+        Assert.Equal("MIST0200", finding.Number.Value);
+        Assert.Equal(38, finding.Position().Start.Column);
+        Assert.Equal("Operator '-=' cannot be applied to operands of type 'string' and 'string'.", finding.Message);
+    }
+
+    [Theory]
+    [InlineData("missing -= 1")]
+    [InlineData("missing++")]
+    public void ACompoundOverATargetTheBinderCouldNotTypeIsNotRefused(string written)
+    {
+        _ = model.Model.RegisterType(Integer);
+        var isIncrement = written.EndsWith("++", StringComparison.Ordinal);
+        var compound = new CompoundAssignmentExpression(HandBuiltModel.Node(37), HandBuiltModel.Literal(ErrorType.Instance),
+            isIncrement ? BinaryOperatorKind.Add : BinaryOperatorKind.Subtract, HandBuiltModel.Literal(Integer, 1L), ErrorType.Instance, null,
+            isIncrement ? IncrementForm.Postfix : IncrementForm.None);
+
+        Assert.Empty(model.Analyze(new OperatorAnalyzer(), HandBuiltModel.Block(Run(compound))));
+    }
+
+    [Fact]
+    public void ACompoundOverATargetAlreadyRefusedAddsNoSecondFinding()
+    {
+        var text = model.Type("String");
+        var dog = HandBuiltModel.Class("Dog");
+        dog.Assembly = new MistAssembly("Probe", MistAssemblyKind.Self);
+        var name = new MemberAccessExpression(HandBuiltModel.Node(11), HandBuiltModel.Literal(dog), "Name", text, isConditional: true);
+        var compound = new CompoundAssignmentExpression(HandBuiltModel.Node(37), name, BinaryOperatorKind.Subtract,
+            HandBuiltModel.Literal(text, "b"), text, null, IncrementForm.None)
+        { ResultType = ErrorType.Instance };
+
+        var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), HandBuiltModel.Block(Run(compound))));
+
+        Assert.Equal("MIST0205", finding.Number.Value);
+        Assert.Equal(12, finding.Position().Start.Column);
+    }
+
+    [Theory]
     [InlineData("i++", 4L)]
     [InlineData("++i", 4L)]
     [InlineData("i += 1", 4L)]
@@ -265,5 +329,17 @@ public sealed class CompoundAssignmentDecisionTests
     {
         Assert.Equal(admitted, ProgramModel.Construction.Binding.Expressions.CompoundAssignmentBinder.Increments(model.Type(type)));
         Assert.Equal(admitted ? null : "MIST0200", OperatorDecision.Increment(model.Type(type), BinaryOperatorKind.Add, wellKnown => model.Type(wellKnown.Name))?.Number.Value);
+    }
+
+    [Fact]
+    public void AnIncrementOfUnknownIsRefusedAsAnOperatorOnUnknown()
+    {
+        Assert.Equal("MIST0201", OperatorDecision.Increment(UnknownType.Instance, BinaryOperatorKind.Add, wellKnown => model.Type(wellKnown.Name))?.Number.Value);
+    }
+
+    [Fact]
+    public void AnIncrementOfATargetThatAlreadyFailedIsAdmitted()
+    {
+        Assert.Null(OperatorDecision.Increment(ErrorType.Instance, BinaryOperatorKind.Subtract, wellKnown => model.Type(wellKnown.Name)));
     }
 }

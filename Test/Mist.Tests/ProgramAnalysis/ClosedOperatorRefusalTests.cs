@@ -2,6 +2,7 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -69,6 +70,39 @@ public sealed class ClosedOperatorRefusalTests
     }
 
     [Fact]
+    public void ACompoundTie_IsRefusedOnceAtTheCompoundNamingTheOperatorAsWritten()
+    {
+        var (left, right, tied) = Tie(OperatorKind.Plus);
+
+        var finding = Assert.Single(model.Analyze(new OperatorAnalyzer(), Compound(left, right, tied)));
+
+        Assert.Equal("MIST0386", finding.Number.Value);
+        Assert.Equal(38, finding.Position().Start.Column);
+        var callee = Assert.IsType<SymbolValue>(finding.Arguments[0]);
+        Assert.Equal("operator '+='", callee.Spelling);
+        Assert.Contains("Left", callee.Identity, StringComparison.Ordinal);
+        Assert.Contains("Right", callee.Identity, StringComparison.Ordinal);
+        var candidates = Assert.IsType<SequenceValue>(finding.Arguments[1]);
+        Assert.Equal(2, candidates.Items.Length);
+        Assert.NotEqual(Assert.IsType<SymbolValue>(candidates.Items[0]).Identity, Assert.IsType<SymbolValue>(candidates.Items[1]).Identity);
+        Assert.Equal(
+            "The call to operator '+=' is ambiguous. These overloads are equally applicable: "
+            + "Left.operator +(Left, Right), Right.operator +(Left, Right). Cast an argument to choose one.",
+            finding.Message);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACompoundTieOverAFailedOperand_KeepsTheOperandsComplaint(bool targetFailed)
+    {
+        var (left, right, tied) = Tie(OperatorKind.Plus);
+        var compound = targetFailed ? Compound(ErrorType.Instance, right, tied) : Compound(left, ErrorType.Instance, tied);
+
+        Assert.Empty(model.Analyze(new OperatorAnalyzer(), compound));
+    }
+
+    [Fact]
     public void ATieOverAFailedOperand_KeepsTheOperandsComplaint()
     {
         var (_, right, tied) = Tie(OperatorKind.Plus);
@@ -102,6 +136,17 @@ public sealed class ClosedOperatorRefusalTests
         var right = HandBuiltModel.Class("Right");
 
         return (left, right, [Closed(left, kind, left, right), Closed(right, kind, left, right)]);
+    }
+
+    private static CompoundAssignmentExpression Compound(IMistType target, IMistType value, ClosedOperator[] tied)
+    {
+        return new CompoundAssignmentExpression(
+            HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("total", target)),
+            BinaryOperatorKind.Add, HandBuiltModel.Literal(value), target, null, IncrementForm.None)
+        {
+            ResultType = ErrorType.Instance,
+            AmbiguousOperators = tied,
+        };
     }
 
     private ClosedOperator Closed(ClassType owner, OperatorKind kind, params IMistType[] parameters)

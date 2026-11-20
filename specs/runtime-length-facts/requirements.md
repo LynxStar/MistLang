@@ -68,7 +68,7 @@ public static int Copy(int[] a, int[] b, int n) where n <= a.Length and <= b.Len
 var z1 = new int[n];
 var z2 = new int[n];
 Copy(z1, z2, n);    // today: MIST0277 (fails when z2.Length >= 0 and n >= 1)
-Copy(z1, new int[3], n);    // refused before and after; after: fails when n >= 4
+Copy(z1, new int[3], n);    // refused before and after; after: fails when new int[3].Length == 3 and n >= 4
 ```
 
 ## Requirement 2 A relation between two members (withdrawn)

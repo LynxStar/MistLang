@@ -47,7 +47,7 @@ internal static class Chain
                 }
 
                 runs++;
-                if(Pair(projected, contractValues, meter) is { } unproven)
+                if(Pair(projected, broken, contractValues, meter) is { } unproven)
                 {
                     return unproven with { Runs = runs };
                 }
@@ -80,7 +80,7 @@ internal static class Chain
         }
     }
 
-    private static Proof? Pair(Alternative projected, IReadOnlySet<Value> contractValues, ProofBudget meter)
+    private static Proof? Pair(Alternative projected, Alternative broken, IReadOnlySet<Value> contractValues, ProofBudget meter)
     {
         var contract = contractValues.OrderBy(value => value.Id).ToImmutableArray();
         var known = contract.IsEmpty ? null : Pairs.GetValue(contract[0], _ => new());
@@ -91,7 +91,7 @@ internal static class Chain
         }
 
         var start = meter.Derived;
-        var proof = Judged(projected, contractValues, meter);
+        var proof = Judged(projected, broken, contractValues, meter);
         if(known is not null && proof is not Exhausted)
         {
             known[key] = (proof, meter.Derived - start);
@@ -100,7 +100,7 @@ internal static class Chain
         return proof;
     }
 
-    private static Proof? Judged(Alternative projected, IReadOnlySet<Value> contractValues, ProofBudget meter)
+    private static Proof? Judged(Alternative projected, Alternative broken, IReadOnlySet<Value> contractValues, ProofBudget meter)
     {
         foreach(var expanded in Expand(projected.Facts, meter))
         {
@@ -112,7 +112,11 @@ internal static class Chain
 
             if(!remaining.Any(fact => fact.IsContradiction))
             {
-                var failing = Remove(expanded, contractValues, meter);
+                // The case is what bears on the contract the proof broke, stated over the use's own values. A bound only a type's
+                // width gives is set aside first: eliminating a value through one would trade the relation that explains the failure
+                // for a number at the width's end.
+                var bearing = Project(expanded.Where(fact => !FromWidth(fact)), broken.Facts.SelectMany(fact => fact.Term.Variables).ToHashSet(), meter);
+                var failing = Remove(bearing.Facts, contractValues, meter);
                 if(meter.Expired)
                 {
                     return new Exhausted();
@@ -125,6 +129,17 @@ internal static class Chain
         }
 
         return meter.Expired ? new Exhausted() : null;
+    }
+
+    private static bool FromWidth(Fact fact)
+    {
+        if(fact.Values is not null || fact.IsReal || fact.Term.Variables is not [var only] || IntegralTypes.Range(only.Type) is not { } range)
+        {
+            return false;
+        }
+
+        var width = new IntegralSet([range]);
+        return width.And(SingleValue([fact], only)).Equals(width);
     }
 
     internal static Alternative Project(IEnumerable<Fact> source, IReadOnlySet<Value> contractValues, ProofBudget meter)

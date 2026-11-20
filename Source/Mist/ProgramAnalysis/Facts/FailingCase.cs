@@ -13,7 +13,8 @@ internal static class FailingCase
         return shown.Count == 0 ? null : $"fails when {string.Join(" and ", shown.Distinct())}{(refuted.AfterMerge ? ", after merging paths" : "")}";
     }
 
-    // After projection to contract values, eliminate a value only if removing it adds information to the untouched facts.
+    // After projection to contract values, eliminate a value only if removing it adds information to the untouched facts, and
+    // only through relations or a pin the case keeps: through a one-sided bound it would trade an operand's relation for a number.
     // Set aside declared ranges: a type's own range cannot explain why a use fails.
     internal static List<Fact> Narrowed(IEnumerable<Fact> source)
     {
@@ -82,6 +83,12 @@ internal static class FailingCase
             .OrderBy(group => group.Count()).ThenBy(group => group.Key.Id).Select(group => group.Key);
         foreach(var value in mentions)
         {
+            var own = facts.Where(fact => fact.Term.Variables is [var only] && only == value).ToList();
+            if(own.Count > 0 && !Pinned(value, own))
+            {
+                continue;
+            }
+
             if(Chain.Eliminate(facts, value, meter) is not { } next || next.Any(fact => fact.IsContradiction))
             {
                 if(meter.Expired)
@@ -95,11 +102,17 @@ internal static class FailingCase
             next = Tightest([.. next.Where(fact => !Typical(fact))]);
             if(Adds(next, [.. facts.Where(fact => !fact.Term.Variables.Contains(value))]))
             {
-                return next;
+                return [.. own, .. next];
             }
         }
 
         return null;
+    }
+
+    private static bool Pinned(Value value, List<Fact> own)
+    {
+        return value.IsReal ? own.Any(fact => fact.Relation == Relation.Equal)
+            : Chain.SingleValue(own, value).Intervals is [{ Low: { } low, High: { } high }] && low == high;
     }
 
     private static bool Adds(List<Fact> next, List<Fact> untouched)

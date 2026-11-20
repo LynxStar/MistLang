@@ -104,7 +104,7 @@ When the operand types declare the operator, the compound form calls it.
 An increment inside a larger expression yields a value the compiler knows only by its type. That is enough to index a `List`, but an array or span index must be proven in bounds, so `items[k++]` on an array is refused:
 
 ```text
-error MIST0275: Index 'int' is not proven within the bounds of 'items', which needs >= 0 and <= 2 (fails when int <= -1 and items.Length == 3).
+error MIST0275: Index 'k++' is not proven within the bounds of 'items', which needs >= 0 and <= 2 (fails when k++ <= -1).
 ```
 
 Read with `items[k]` and increment `k` in its own statement. As a statement, `k++` records that `k` is one more than before whenever that cannot wrap, which is how a loop index stays proven; see [Loops](../type-system/refinement-types.md#loops).

@@ -81,7 +81,8 @@ internal sealed class TypeParameterDomainResolver
     /// </summary>
     public static void ProjectValues(MemberType type)
     {
-        if(type.Modifiers.IsIntrinsic)
+        if(type.Modifiers.IsIntrinsic
+            || (type.DeclarationNode is BodyTypeTypeDeclarationNode { TypeBody.Modifiers: var modifiers } && modifiers.Any(modifier => modifier is IntrinsicModifierModifierNode)))
         {
             return;
         }

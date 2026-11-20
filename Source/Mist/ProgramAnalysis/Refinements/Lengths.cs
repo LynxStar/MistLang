@@ -137,6 +137,18 @@ internal static class Lengths
             ;
     }
 
+    public static Expression? RunTimeSize(Expression expression)
+    {
+        var size = expression switch
+        {
+            ImplicitConversionExpression conversion => RunTimeSize(conversion.Operand),
+            ArrayCreationExpression creation => creation.Size,
+            StackallocExpression stack => stack.Size,
+            _ => null,
+        };
+        return size is not null && Requirement.Constant(size) is null ? size : null;
+    }
+
     private static Admitted? Constant(Expression expression)
     {
         return Requirement.Constant(expression) is { } value ? Admitted.Exactly(value) : null;

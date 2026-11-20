@@ -29,10 +29,12 @@ parameters of type `ZeroOrPositiveInt`.
 Flow-sensitive Requirement 2 item 6 records `a.Length == 7` for
 `new Array<int, 7>`. A length that is a run-time value records the same fact.
 
-1. `new int[e]`, `new Array<int, e>(fn)` and a stack allocation of length `e`
-   SHALL record `a.Length == e` when `e` is a value Requirement 2 of that spec
-   gives a fact to: a local, a parameter, a stable member read, or an
-   expression it records.
+1. `new int[e]` and a stack allocation of length `e` SHALL record
+   `a.Length == e`, and `a.Length >= 0`, when `e` is a value Requirement 2 of
+   that spec gives a fact to: a local, a parameter, a stable member read, or an
+   expression it records. `new Array<int, e>(fn)` with a run-time `e` is not
+   one: it closes `Array`'s length slot with a run-time value, which stays with
+   [runtime-dependent-values](../runtime-dependent-values/design.md).
 2. The array's type SHALL NOT change: it is the sized-by-unknown sequence it is
    today. The relation is a fact in the bag, not a type argument.
 3. The fact SHALL follow the value as every other fact does, under
@@ -64,7 +66,7 @@ public static int Copy(int[] a, int[] b, int n) where n <= a.Length and <= b.Len
 var z1 = new int[n];
 var z2 = new int[n];
 Copy(z1, z2, n);    // today: MIST0277 (fails when z2.Length >= 0 and n >= 1)
-Copy(z1, new int[3], n);    // refused before and after: fails when n >= 4
+Copy(z1, new int[3], n);    // refused before and after; after: fails when n >= 4
 ```
 
 ## Requirement 2 A relation between two members

@@ -118,7 +118,33 @@ internal sealed class FactReading(LiftedReturns lifted)
 
         var instance = expression is InvocationExpression call ? (call.Receiver as MemberAccessExpression)?.Receiver : null;
         AddSymbols(ref state, fresh, expression.Type, instance);
+        if(Lengths.RunTimeSize(expression) is { } size)
+        {
+            Measure(ref state, fresh, expression.Type, size, Evaluated(ref state, size));
+        }
+
         return new Term(fresh);
+    }
+
+    public static void CarryLength(ref FactState state, Term source, IMistType sourceType, Value target, IMistType targetType)
+    {
+        if(source is { Constant.IsZero: true, Variables: [var from] } && source.Multipliers[0].IsOne
+            && state.Bindings.Get(new MemberHolder(from, LengthMember(sourceType))) is { } length)
+        {
+            state = state with { Bindings = state.Bindings.Set(new MemberHolder(target, LengthMember(targetType)), length) };
+        }
+    }
+
+    private static void Measure(ref FactState state, Value sequence, IMistType type, Expression measured, Term size)
+    {
+        var length = size is { Constant.IsZero: true, Variables: [var named] } && size.Multipliers[0].IsOne
+            ? named
+            : Fresh(ref state, measured.Type, RefinementFindings.Display(measured), measured.Node);
+        state = state with
+        {
+            Bindings = state.Bindings.Set(new MemberHolder(sequence, LengthMember(type)), length),
+            Bag = state.Bag.Add(new Fact(new Term(length).Subtract(size), Relation.Equal)).Add(new Fact(new Term(length).Scale(-1))),
+        };
     }
 
     public Term Evaluated(ref FactState state, Expression expression)

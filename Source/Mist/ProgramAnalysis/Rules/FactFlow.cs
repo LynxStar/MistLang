@@ -123,6 +123,11 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var supplied = expression is null && local.Parameter is { } parameter ? state.Bindings.Get(parameter) : null;
         var value = supplied ?? Shared(local.Type, expression, term) ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
         state = state with { Bindings = state.Bindings.Set(local, value) };
+        if(term is not null && expression is not null)
+        {
+            FactReading.CarryLength(ref state, term, expression.Type, value, local.Type);
+        }
+
         if(term is not null && Shared(local.Type, expression, term) is null)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };
@@ -154,6 +159,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var value = Shared(assignment.Target.Type, assignment.Value, term)
             ?? FactReading.Fresh(ref state, assignment.Target.Type, RefinementFindings.Display(assignment.Target), assignment.Node, trusted);
         state = state with { Bindings = state.Bindings.Set(holder, value), StableHolders = state.StableHolders.Remove(holder), Results = state.Results.SetItem(assignment, new Term(value)) };
+        FactReading.CarryLength(ref state, term, assignment.Value.Type, value, assignment.Target.Type);
         if(!assignment.IsCoalescing)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };

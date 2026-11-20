@@ -185,6 +185,37 @@ public sealed class ConstraintEntailmentTests
         Assert.Equal(declaredOnTheOther ? null : Refused, Judge(Closing(parameter, forwarded), new TypeConstraint(shown)));
     }
 
+    [Theory]
+    [InlineData("its base", null)]
+    [InlineData("an interface of its base", null)]
+    [InlineData("an unrelated interface", Refused)]
+    public void RefinedBoundReachesWhatItsBaseReaches(string required, string? expected)
+    {
+        var comparable = Abstract("IComparable");
+        var text = built.Type("String");
+        text.BaseAbstractTypes.Add(comparable);
+        var forwarded = Parameter("U");
+        forwarded.ConstraintsList.Add(new TypeConstraint(HandBuiltModel.Refined(text, "NonEmpty")));
+        MistType wanted = required switch
+        {
+            "its base" => text,
+            "an interface of its base" => comparable,
+            _ => Abstract("IShow"),
+        };
+
+        Assert.Equal(expected, Judge(Closing(Parameter("T"), forwarded), new TypeConstraint(wanted)));
+    }
+
+    [Fact]
+    public void BaseBoundDoesNotReachARefinementOfIt()
+    {
+        var text = built.Type("String");
+        var forwarded = Parameter("U");
+        forwarded.ConstraintsList.Add(new TypeConstraint(text));
+
+        Assert.Equal(Refused, Judge(Closing(Parameter("T"), forwarded), new TypeConstraint(HandBuiltModel.Refined(text, "NonEmpty"))));
+    }
+
     [Fact]
     public void EachRequirementIsJudgedOnItsOwn()
     {

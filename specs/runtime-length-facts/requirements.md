@@ -5,8 +5,9 @@
 Proposed 2026-11-15 from the runtime-dependent-values exploration, for the
 refinement work to settle with the owner. It extends
 [flow-sensitive-refinement-inference](../flow-sensitive-refinement-inference/requirements.md):
-three facts that let a program size an array at run time and prove its
-indexes and its calls without closing any type at run time.
+facts that let a program size an array at run time and prove its indexes
+and its calls without closing any type at run time. Three were proposed;
+Requirement 2 is withdrawn.
 
 The owner's direction: the dependent-type design for run-time values stands,
 and these refinement improvements give a second way that needs no dependent
@@ -69,14 +70,24 @@ Copy(z1, z2, n);    // today: MIST0277 (fails when z2.Length >= 0 and n >= 1)
 Copy(z1, new int[3], n);    // refused before and after; after: fails when n >= 4
 ```
 
-## Requirement 2 A relation between two members
+## Requirement 2 A relation between two members (withdrawn)
 
-1. A `where` clause SHALL accept a member read on its left side, so that
-   `where a.Length <= b.Length` states the relation directly. Today it does not
-   parse (MIST0123), and the relation needs an extra bound parameter, as in
-   Requirement 1's `Copy`.
-2. It SHALL be proven at the call under flow-sensitive Requirement 6 item 2,
-   with each parameter bound to the value passed for it.
+Withdrawn by the owner on 2026-11-19. A `where` clause stays a target and a
+pattern, and the relation this requirement wanted is already written with a
+count whose bound names both members:
+
+```mist
+public static void CopyInto(int[] source, int[] target, int n)
+    where n <= source.Length and <= target.Length
+```
+
+With Requirement 1, a caller that creates its arrays from a run-time size
+proves the call, and a caller copying a whole array passes `source.Length` for
+`n` after creating `target` as `new int[source.Length]`. Neither other
+spelling is adopted: `where a.Length <= b.Length` is not a target and a
+pattern, and `where a { Length: <= b.Length }` could only be met by an
+argument already typed with that refinement under refinement-types
+Requirement 13.7, which stays as it is.
 
 ## Requirement 3 A relation between a result and the arguments
 

@@ -39,7 +39,7 @@ internal static class CompoundAssignmentBinder
     public static Expression BindIncrement(
         SyntaxNode node, Expression target, string lexeme, IncrementForm form, BindingContext ctx, BuilderContext context)
     {
-        var one = LiteralBinder.BindIntegerLiteral(node, "1", context);
+        var one = OwnOne(node, target.Type) ?? LiteralBinder.BindIntegerLiteral(node, "1", context);
         var op = lexeme == "++" ? BinaryOperatorKind.Add : BinaryOperatorKind.Subtract;
 
         if(!Increments(target.Type))
@@ -53,10 +53,21 @@ internal static class CompoundAssignmentBinder
         return Make(node, target, op, one, form, ctx, context);
     }
 
+    // `x++` is `x = x + one` through the type's own `T + T -> T`: Char declares no `+`, and Decimal's
+    // returns a Result, so neither has one to increment with.
     public static bool Increments(IMistType type)
     {
         var underlying = OperatorAdmissibility.Underlying(type);
-        return underlying is ErrorType or TypeParameter || OperatorAdmissibility.IsNumeric(underlying);
+        return underlying is ErrorType or TypeParameter
+            || (OperatorAdmissibility.IsNumeric(underlying)
+                && underlying.FullyQualifiedName != WellKnownTypes.Char.FullyQualifiedName
+                && underlying.FullyQualifiedName != WellKnownTypes.Decimal.FullyQualifiedName);
+    }
+
+    internal static LiteralExpression? OwnOne(SyntaxNode node, IMistType target)
+    {
+        var underlying = OperatorAdmissibility.Underlying(target);
+        return IntegralConstant.Box(1, underlying) is { } boxed ? new LiteralExpression(node, boxed, underlying) : null;
     }
 
     private static Expression Make(

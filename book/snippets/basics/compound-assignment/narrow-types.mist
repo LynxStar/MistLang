@@ -8,5 +8,9 @@ public class Program
         byte step = 10;
         level += step;
         Console.WriteLine($"level is {level}");
+
+        byte top = 255;
+        top++;
+        Console.WriteLine($"top is {top}");
     }
 }

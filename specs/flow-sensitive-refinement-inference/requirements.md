@@ -387,14 +387,21 @@ other requirement here applies to them unchanged.
    once, before `1` is evaluated, and the element it names is both read and
    written. Order: the target's receiver and index, then the value, then the
    operation, then the write.
-3. The language SHALL have `++` and `--`, prefix and postfix, on the integral
-   and real families, and as a statement `x++`, `++x`, `x--` and `--x` SHALL mean
-   `x += 1` and `x -= 1`.
+3. The language SHALL have `++` and `--`, prefix and postfix, on every type
+   whose own addition takes two of it and returns it: the integral types except
+   `char`, and `float` and `double`. As a statement, `x++` and `++x` SHALL mean
+   `x = x + one`, and `x--` and `--x` SHALL mean `x = x - one`, where `+` and `-`
+   are the type's own `T + T -> T` and `T - T -> T` and `one` is 1 of `x`'s type.
+   A narrow type wraps as its own addition does: a `byte` at 255 incremented is
+   0. `char` declares no `+` and `decimal`'s returns a `Result`, so neither has
+   `++` or `--`. `x += 1` is not changed by this item and follows item 1.
+   (Revised by the owner on 2026-11-20. As first written, `x++` meant `x += 1`,
+   and an `int` literal made that refused on every narrow type.)
 4. For the facts, `x op= e` SHALL be the assignment it stands for: the read of
    `x` is of the value it holds before the write (Requirement 3.2), the write
    begins a new value (Requirement 3.1), and `new == old op e` is recorded
    exactly when Requirement 2 would record it for `x = x op e`, no-wrap proof
-   included.
+   included. `x++` and `x--` are recorded as `x = x + one` and `x = x - one`.
 5. `x++`, `++x`, `x--` and `--x` MAY appear inside an expression, as in C#.
    Postfix yields the value before the write and prefix the value after it, and
    the write happens where C# makes it happen. `items[i++]` reads `items[i]` and

@@ -321,14 +321,42 @@ public sealed class CompoundAssignmentDecisionTests
     [Theory]
     [InlineData("Int32", true)]
     [InlineData("Int64", true)]
+    [InlineData("UInt64", true)]
     [InlineData("Double", true)]
+    [InlineData("Single", true)]
     [InlineData("Byte", true)]
+    [InlineData("SByte", true)]
+    [InlineData("Int16", true)]
+    [InlineData("UInt16", true)]
+    [InlineData("UInt32", true)]
+    [InlineData("Char", false)]
+    [InlineData("Decimal", false)]
     [InlineData("String", false)]
     [InlineData("Boolean", false)]
-    public void IncrementsAreDefinedOnTheIntegralAndRealFamiliesAlone(string type, bool admitted)
+    public void IncrementsAreDefinedOnTypesWhoseOwnAdditionReturnsTheirType(string type, bool admitted)
     {
         Assert.Equal(admitted, ProgramModel.Construction.Binding.Expressions.CompoundAssignmentBinder.Increments(model.Type(type)));
         Assert.Equal(admitted ? null : "MIST0200", OperatorDecision.Increment(model.Type(type), BinaryOperatorKind.Add, wellKnown => model.Type(wellKnown.Name))?.Number.Value);
+    }
+
+    [Theory]
+    [InlineData("Byte", (byte)1)]
+    [InlineData("UInt32", 1u)]
+    [InlineData("Int64", 1L)]
+    public void AnIncrementAddsAOneOfTheTargetsOwnType(string type, object one)
+    {
+        var target = model.Type(type);
+
+        var literal = ProgramModel.Construction.Binding.Expressions.CompoundAssignmentBinder.OwnOne(HandBuiltModel.Node(), target);
+
+        Assert.Same(target, literal?.Type);
+        Assert.Equal(one, literal?.Value);
+    }
+
+    [Fact]
+    public void ARealTargetKeepsTheIntegerOne()
+    {
+        Assert.Null(ProgramModel.Construction.Binding.Expressions.CompoundAssignmentBinder.OwnOne(HandBuiltModel.Node(), model.Type("Double")));
     }
 
     [Fact]

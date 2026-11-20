@@ -10,6 +10,9 @@ public class Program
         byte step = 10;
         level += step;
         System.Console.WriteLine(System.FormattableString.Invariant($"level is {level}"));
+        byte top = 255;
+        top++;
+        System.Console.WriteLine(System.FormattableString.Invariant($"top is {top}"));
     }
 
     public Program()

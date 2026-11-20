@@ -124,6 +124,14 @@ public class Program
         big--;
         Console.WriteLine($"double {half}, long {big}");
 
+        byte full = 255;
+        full++;
+        sbyte lowest = -128;
+        lowest--;
+        ushort counted = 7;
+        ++counted;
+        Console.WriteLine($"byte 255++ -> {full}, sbyte -128-- -> {lowest}, ++ushort 7 -> {counted}");
+
         Console.WriteLine("=== CompoundAssignment Done ===");
     }
 }

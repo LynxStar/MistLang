@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -170,6 +171,10 @@ internal sealed partial class OwnershipFlow
                         JudgeAction(state, source, entry.Value, Action.Move);
                     }
                 }
+                else if(entry.Member is FieldResult { Field: var field })
+                {
+                    JudgeNonOwningFieldStore(entry.Value, field);
+                }
 
                 break;
 
@@ -255,6 +260,15 @@ internal sealed partial class OwnershipFlow
                 JudgeAction(state, stored, value, Action.Move);
                 JudgeShared(state, value, destination, owned: true);
             }
+        }
+        else if((target switch
+        {
+            FieldReferenceExpression reference => reference.Field,
+            MemberAccessExpression { Member: FieldResult found } => found.Field,
+            _ => null,
+        }) is { } field)
+        {
+            JudgeNonOwningFieldStore(value, field);
         }
     }
 

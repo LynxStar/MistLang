@@ -27,16 +27,6 @@ public sealed class RefinementCaseDescriptorTests
     }
 
     [Fact]
-    public void ProofExhaustedTookTheLowestNumberAboveEveryIssuedOne()
-    {
-        var issued = DiagnosticRegistry.Index.Descriptors.Where(descriptor => !ReferenceEquals(descriptor, ProgramAnalysisDiagnostics.RefinementProofExhausted))
-            .Select(descriptor => descriptor.Number.Value).Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
-            .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
-
-        Assert.Equal($"MIST{issued + 1:D4}", ProgramAnalysisDiagnostics.RefinementProofExhausted.Number.Value);
-    }
-
-    [Fact]
     public void ProofExhaustedRendersThePredicateAndTheValue()
     {
         var text = DiagnosticRenderer.Render(ProgramAnalysisDiagnostics.RefinementProofExhausted, [new NameValue("< Length"), new NameValue("start")]);

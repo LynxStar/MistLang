@@ -17,11 +17,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// a holder's lease covers its fields, and a moved field prevents whole-holder use while siblings remain
 /// usable and the field can be restored. Leases end with the recipient's block. A slot write has no
 /// evaluation step, so its borrow is checked at the store; other actions report at the read.
-/// A plain field store or ordinary parameter may retain another holder (Requirement 18.9); borrowed,
+/// An ordinary parameter may retain another holder (Requirement 18.9); borrowed,
 /// frozen and readonly ref parameters return the loan. Shared holders stay usable but cannot move or
 /// return owned until the holder or affected field is assigned afresh. Joins remember either path's
 /// move; a reported use settles the place on that path. Linear and affine structs move like classes;
-/// ordinary structs copy even in owned bindings. Non-owned field stores keep rather than move.
+/// ordinary structs copy even in owned bindings. Non-owning fields cannot retain an owned alias.
 /// Calls that do not move linear values and frozen lenders lent borrowed by call remain under
 /// MIST-122 and MIST-061 in Carbonek.
 /// </summary>
@@ -262,9 +262,12 @@ internal sealed partial class OwnershipFlow(
                     return MoveArguments(state, [entry.Value], add.ParametersList);
                 }
 
-                return OwnedProvenance.OwnershipOf(entry.Member) == OwnershipKind.Owned
-                    ? LocalOwnership.Sources(entry.Value).Aggregate(state, (current, source) => Move(current, source, entry.Value))
-                    : Keep(state, entry.Value, $"'{entry.MemberName}'");
+                if(OwnedProvenance.OwnershipOf(entry.Member) == OwnershipKind.Owned)
+                {
+                    return LocalOwnership.Sources(entry.Value).Aggregate(state, (current, source) => Move(current, source, entry.Value));
+                }
+
+                return entry.Member is FieldResult && OwnedStoreSources(entry.Value).Any() ? state : Keep(state, entry.Value, $"'{entry.MemberName}'");
 
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
                 foreach(var element in literal.Elements)
@@ -300,6 +303,11 @@ internal sealed partial class OwnershipFlow(
         if(ThisTiers.OwnedSlot(target) is not null)
         {
             return LocalOwnership.Sources(value).Aggregate(state, (current, source) => Move(current, source, value));
+        }
+
+        if((target is FieldReferenceExpression or MemberAccessExpression { Member: FieldResult }) && OwnedStoreSources(value).Any())
+        {
+            return state;
         }
 
         return Keep(state, value, Path(target) is { } path ? $"'{path}'" : "a field");

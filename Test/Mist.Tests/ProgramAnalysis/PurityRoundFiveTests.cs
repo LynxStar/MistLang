@@ -81,12 +81,16 @@ public sealed class PurityRoundFiveTests
         Admitted("owned-field-read-into-a-local-restored-before-the-move");
     }
 
-    [Theory]
-    [InlineData("owned-binding-stored-into-a-field-then-moved", "'shelf.Plain'")]
-    [InlineData("owned-binding-stored-into-a-tuple-then-moved", "a tuple")]
-    public void OwnedBindingStoredIntoAFieldOrATupleIsNotMoved(string fragment, string named)
+    [Fact]
+    public void OwnedBindingStoredIntoANonOwningFieldIsRefusedAtTheStore()
     {
-        Refused(fragment, OwnedSourceNotOwned, named);
+        Refused("owned-binding-stored-into-a-field-then-moved", "MIST0486", "non-owning field 'Plain'");
+    }
+
+    [Fact]
+    public void OwnedBindingStoredIntoATupleIsNotMoved()
+    {
+        Refused("owned-binding-stored-into-a-tuple-then-moved", OwnedSourceNotOwned, "a tuple");
     }
 
     [Fact]

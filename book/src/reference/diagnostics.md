@@ -328,6 +328,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0374 | Ref local without initializer | A 'ref' local is declared without an initializer, but a reference binds to the storage it aliases at the point of declaration and cannot be left dangling. Initialize it with the variable or element it should refer to. | Error | Fixed | name: Name | None |
 | MIST0458 | Disciplined array element | An array is an unrestricted container with no drop of its own, so it can neither guarantee a linear element its single drop nor keep an affine element to one holder. Manage the disciplined values individually, or hold them in a container whose discipline enforces their rules. | Error | Fixed | discipline: Enum, type: Type | None |
 | MIST0479 | Installed value consumed | A with scope takes responsibility for the linear or affine value it installs until the scope ends, so that value may not be dropped, moved to an owned destination, returned, or otherwise consumed inside the scope. Use it without consuming it, or lend it, and let the scope release it on the way out. | Error | Fixed | action: Enum, variable: Name | None |
+| MIST0486 | Owned value stored in non-owning field | A non-owning field cannot retain a value held by an owned binding. Make the field owning, or explicitly clone the value before storing it. | Error | Fixed | value: Name, field: Name | None |
 
 ## EFF
 

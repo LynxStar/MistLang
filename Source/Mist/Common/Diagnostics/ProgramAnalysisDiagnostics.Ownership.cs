@@ -451,4 +451,14 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("action", SlotKind.Enum), new Slot("variable", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic OwnedValueInNonOwningField = new(
+        DiagnosticNumber.Mint("MIST0486"),
+        Title: "Owned value stored in non-owning field",
+        Template: "Cannot store owned value '{value}' in non-owning field '{field}': the field would retain an alias outside the value's ownership and lifetime guarantees.",
+        Description: "A non-owning field cannot retain a value held by an owned binding. Make the field owning, or explicitly clone the value before storing it.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("value", SlotKind.Name), new Slot("field", SlotKind.Name)]);
 }

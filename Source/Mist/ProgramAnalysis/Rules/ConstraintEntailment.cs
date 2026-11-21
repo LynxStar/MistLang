@@ -13,13 +13,11 @@ namespace Mist.ProgramAnalysis.Rules;
 /// A type bound may hold through a conversion and promises no keyword shape; every constructor signature
 /// must hold because the body may call each one. Stampable and default use <see cref="ConstraintAnalyzer.Decide"/>;
 /// stampability cannot follow through a bound. Compare substituted types structurally, with parameter
-/// identity, because distinct declarations may share a name. Revisited parameters and a depth beyond
-/// declared inheritance bound recursive searches.
+/// identity, because distinct declarations may share a name. Each search path visits a declaration
+/// once, so cyclic bases terminate even when substitution keeps growing their type arguments.
 /// </summary>
 internal static class ConstraintEntailment
 {
-    private const int Depth = 64;
-
     public static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
     {
         if(closing.Argument is not TypeParameter offered
@@ -41,7 +39,7 @@ internal static class ConstraintEntailment
         var entailed = required switch
         {
             TypeConstraint typed => Guarantees(
-                offered, ConversionClassifier.Normalized(typed.ConstraintType, interner), interner, new HashSet<TypeParameter>(ReferenceEqualityComparer.Instance), Depth),
+                offered, ConversionClassifier.Normalized(typed.ConstraintType, interner), interner),
             ConstructorConstraint constructor => GuaranteesConstructor(offered, constructor.ParameterTypes, interner),
             KeywordConstraint keyword => GuaranteesKeyword(offered, keyword.Kind),
             _ => true,
@@ -57,20 +55,55 @@ internal static class ConstraintEntailment
             : ProgramAnalysisDiagnostics.ConstraintNotSatisfied;
     }
 
-    private static bool Guarantees(TypeParameter offered, IMistType required, TypeInterner interner, HashSet<TypeParameter> entered, int depth)
+    private static bool Guarantees(TypeParameter offered, IMistType required, TypeInterner interner)
     {
         if(required is UnknownType)
         {
             return true;
         }
 
-        if(!entered.Add(offered))
+        var active = new HashSet<IMistType>(ReferenceEqualityComparer.Instance) { offered };
+        var pending = new Stack<(IMistType Type, bool Leaving)>();
+        foreach(var bound in Offered(offered, interner).OfType<TypeConstraint>())
         {
-            return false;
+            pending.Push((bound.ConstraintType, false));
         }
 
-        return Offered(offered, interner).OfType<TypeConstraint>()
-            .Any(bound => Reaches(bound.ConstraintType, required, interner, entered, depth));
+        while(pending.TryPop(out var step))
+        {
+            if(step.Leaving)
+            {
+                _ = active.Remove(step.Type);
+                continue;
+            }
+
+            var current = ConversionClassifier.Normalized(step.Type, interner);
+            if(Same(current, required))
+            {
+                return true;
+            }
+
+            var declaration = current is ConstructedType constructed ? constructed.Definition : current;
+            if(!active.Add(declaration))
+            {
+                continue;
+            }
+
+            pending.Push((declaration, true));
+            var bounds = current switch
+            {
+                TypeParameter parameter => Offered(parameter, interner).OfType<TypeConstraint>().Select(bound => bound.ConstraintType),
+                RefinedType refined => [refined.BaseType],
+                _ => ConversionRelation.Bases(current),
+            };
+
+            foreach(var bound in bounds)
+            {
+                pending.Push((bound, false));
+            }
+        }
+
+        return false;
     }
 
     private static IEnumerable<TypeParameterConstraint> Offered(TypeParameter offered, TypeInterner interner)
@@ -78,28 +111,6 @@ internal static class ConstraintEntailment
         var element = offered is PackElementType projected ? TypeSubstitution.Empty.With(projected.Pack, projected) : TypeSubstitution.Empty;
 
         return offered.ConstraintsList.Select(constraint => ConstraintAnalyzer.Closed(constraint, element, interner)).OfType<TypeParameterConstraint>();
-    }
-
-    private static bool Reaches(IMistType offered, IMistType required, TypeInterner interner, HashSet<TypeParameter> entered, int depth)
-    {
-        offered = ConversionClassifier.Normalized(offered, interner);
-
-        if(Same(offered, required))
-        {
-            return true;
-        }
-
-        if(depth == 0)
-        {
-            return false;
-        }
-
-        return offered switch
-        {
-            TypeParameter bound => Guarantees(bound, required, interner, entered, depth - 1),
-            RefinedType refined => Reaches(refined.BaseType, required, interner, entered, depth - 1),
-            _ => ConversionRelation.Bases(offered).Any(baseType => Reaches(baseType, required, interner, entered, depth - 1)),
-        };
     }
 
     private static bool GuaranteesConstructor(TypeParameter offered, IReadOnlyList<IMistType> required, TypeInterner interner)

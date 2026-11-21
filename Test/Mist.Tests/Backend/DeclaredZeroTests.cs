@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -15,10 +16,11 @@ public sealed class DeclaredZeroTests
 {
     private readonly GenericDefaultShapes shapes = new();
 
-    private readonly StructType integer = new("Int32", "Standard", new Scope(null), null, null)
-    {
-        Modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = true },
-    };
+    private readonly StructType integer = Intrinsic("Int32");
+
+    private readonly StructType boolean = Intrinsic("Boolean");
+
+    private readonly StructType real = Intrinsic("Double");
 
     [Fact]
     public void StructWithNoInitializerOrBlock_Holds()
@@ -114,6 +116,53 @@ public sealed class DeclaredZeroTests
     }
 
     [Theory]
+    [InlineData("!true")]
+    [InlineData("1 == 2")]
+    [InlineData("false && x")]
+    [InlineData("0.0 * 1.0")]
+    [InlineData("0.0 - 0.0")]
+    [InlineData("(double)(1 - 1)")]
+    [InlineData("2147483647 + 2147483647 + 2")]
+    public void ConstantComputingZero_Holds(string shape)
+    {
+        var (storage, value) = Computed(shape);
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", storage, value);
+
+        Assert.True(DeclaredZero.Holds(initialized));
+    }
+
+    [Theory]
+    [InlineData("!false")]
+    [InlineData("1 == 1")]
+    [InlineData("true || x")]
+    [InlineData("-(0.0)")]
+    [InlineData("0.0 * -1.0")]
+    [InlineData("1 / 0")]
+    [InlineData("x")]
+    public void ConstantSettingABitOrUnknown_DoesNotHold(string shape)
+    {
+        var (storage, value) = Computed(shape);
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", storage, value);
+
+        Assert.False(DeclaredZero.Holds(initialized));
+    }
+
+    [Theory]
+    [InlineData(0L, true)]
+    [InlineData(1L, false)]
+    public void TupleLiteral_HoldsExactlyWhenEveryElementIsZero(long second, bool zero)
+    {
+        var pair = new TupleType([integer, real]);
+        var tuple = new TupleLiteralExpression(HandBuiltModel.Node(), [Number(0), Convert(Number(second), real)], [null, null], pair);
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "T", pair, tuple);
+
+        Assert.Equal(zero, DeclaredZero.Holds(initialized));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void DefaultOfAStructField_HoldsExactlyWhenTheFieldsTypeDoes(bool zeroField)
@@ -182,6 +231,56 @@ public sealed class DeclaredZeroTests
             "(int)7" => Cast(Number(7)),
             "(int)(2 * 3 - 6)" => Cast(Binary(Binary(Number(2), BinaryOperatorKind.Multiply, Number(3)), BinaryOperatorKind.Subtract, Number(6))),
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+        };
+    }
+
+    private (IMistType Storage, Expression Value) Computed(string shape)
+    {
+        return shape switch
+        {
+            "!true" => (boolean, Not(HandBuiltModel.Literal(boolean, true))),
+            "!false" => (boolean, Not(HandBuiltModel.Literal(boolean, false))),
+            "1 == 2" => (boolean, new BinaryExpression(HandBuiltModel.Node(), Number(1), BinaryOperatorKind.Equal, Number(2), boolean)),
+            "1 == 1" => (boolean, new BinaryExpression(HandBuiltModel.Node(), Number(1), BinaryOperatorKind.Equal, Number(1), boolean)),
+            "false && x" => (boolean, new BinaryExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(boolean, false), BinaryOperatorKind.LogicalAnd, Unknown(boolean), boolean)),
+            "true || x" => (boolean, new BinaryExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(boolean, true), BinaryOperatorKind.LogicalOr, Unknown(boolean), boolean)),
+            "0.0 * 1.0" => (real, Real(0.0, BinaryOperatorKind.Multiply, 1.0)),
+            "0.0 - 0.0" => (real, Real(0.0, BinaryOperatorKind.Subtract, 0.0)),
+            "0.0 * -1.0" => (real, Real(0.0, BinaryOperatorKind.Multiply, -1.0)),
+            "-(0.0)" => (real, new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, HandBuiltModel.Literal(real, 0.0), real)),
+            "(double)(1 - 1)" => (real, new CastExpression(HandBuiltModel.Node(), Binary(Number(1), BinaryOperatorKind.Subtract, Number(1)), real, [], real)),
+            "2147483647 + 2147483647 + 2" => (integer, Binary(Binary(Number(int.MaxValue), BinaryOperatorKind.Add, Number(int.MaxValue)), BinaryOperatorKind.Add, Number(2))),
+            "1 / 0" => (integer, Binary(Number(1), BinaryOperatorKind.Divide, Number(0))),
+            "x" => (integer, Unknown(integer)),
+            _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+        };
+    }
+
+    private UnaryExpression Not(Expression operand)
+    {
+        return new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.LogicalNot, operand, boolean);
+    }
+
+    private BinaryExpression Real(double left, BinaryOperatorKind kind, double right)
+    {
+        return new BinaryExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(real, left), kind, HandBuiltModel.Literal(real, right), real);
+    }
+
+    private static CastExpression Convert(Expression operand, IMistType target)
+    {
+        return new CastExpression(HandBuiltModel.Node(), operand, target, [], target);
+    }
+
+    private static LocalReferenceExpression Unknown(IMistType type)
+    {
+        return new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("x", type));
+    }
+
+    private static StructType Intrinsic(string name)
+    {
+        return new StructType(name, "Standard", new Scope(null), null, null)
+        {
+            Modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsIntrinsic = true },
         };
     }
 

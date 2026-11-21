@@ -11,7 +11,11 @@ internal abstract record Proof
 }
 
 internal sealed record Proven : Proof;
-internal sealed record Refuted(Alternative FailingCase, bool AfterMerge) : Proof;
+internal sealed record Refuted(Alternative FailingCase, bool AfterMerge) : Proof
+{
+    public IReadOnlyDictionary<Value, string> Names { get; init; } = ImmutableDictionary<Value, string>.Empty;
+}
+
 internal sealed record Exhausted : Proof;
 
 internal static class Chain

@@ -128,7 +128,38 @@ internal sealed partial class RefinementAnalyzer
             var term = factReading.Read(ref state, expression);
             var denial = ContractReader.Denial(required, term, bound => ReadSymbol(ref state, bound, expression, reading, measured));
             var contractValues = term.Variables.Concat(denial?.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables) ?? []).ToHashSet();
-            return denial is null ? null : Chain.Prove(state.Bag, denial, contractValues, budget);
+            return denial is null ? null : Named(Chain.Prove(state.Bag, denial, contractValues, budget), state, Operands(expression, required, reading, measured));
+        }
+
+        private static Proof Named(Proof proof, FactState state, IEnumerable<string> operands)
+        {
+            return proof is Refuted refuted
+                ? refuted with { Names = HeldNames.Of(state.Bindings, refuted.FailingCase.Facts.SelectMany(fact => fact.Term.Variables), [.. operands]) }
+                : proof;
+        }
+
+        private static IEnumerable<string> Operands(Expression expression, Requirement required, Reading reading, Expression? measured)
+        {
+            if(measured is not null)
+            {
+                yield return $"{RefinementFindings.Display(measured)}.Length";
+            }
+
+            yield return RefinementFindings.Display(expression);
+            foreach(var bound in required.Bounds)
+            {
+                var operand = bound switch
+                {
+                    { Operand: MemberAccessExpression member, Named: Parameter owner } when reading.Argument(owner) is { } supplied => FactReading.Rebased(member, supplied),
+                    { Named: Parameter parameter } when reading.Argument(parameter) is { } argument => argument,
+                    { Member: { } through, Receiver.Parameter: { } receiver } when reading.Argument(receiver) is { } instance => FactReading.Through(instance, through),
+                    _ => bound.Operand,
+                };
+                if(operand is not null)
+                {
+                    yield return RefinementFindings.Display(operand);
+                }
+            }
         }
 
         private Term? ReadSymbol(ref FactState state, SymbolicBound bound, Expression expression, Reading reading, Expression? measured)
@@ -229,7 +260,7 @@ internal sealed partial class RefinementAnalyzer
             }
 
             var values = term.Variables.Concat(alternatives.SelectMany(alternative => alternative.Facts).SelectMany(fact => fact.Term.Variables)).ToHashSet();
-            return Chain.Prove(bag, alternatives, values, budget);
+            return Named(Chain.Prove(bag, alternatives, values, budget), state, Operands(expression, contract, reading, measured));
         }
 
         private Proof? ProvesMatch(FactState state, Expression expression, IMistType target)

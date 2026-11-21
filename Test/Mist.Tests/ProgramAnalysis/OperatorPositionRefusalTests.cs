@@ -74,6 +74,7 @@ public sealed class OperatorPositionRefusalTests
         Assert.Null(OperatorDecision.Binary(BinaryOperatorKind.Add, integer, integer, type => model.Type(type.Name)));
         Assert.Null(OperatorDecision.Binary(BinaryOperatorKind.Add, ErrorType.Instance, integer, type => model.Type(type.Name)));
         Assert.Null(OperatorDecision.Conditional(model.Interner.GetOrCreateUnionType([integer, model.Type("Void")])));
+        Assert.Null(OperatorDecision.Member(integer));
         Assert.Null(PositionDecision.Coalescing(true));
         Assert.Null(PositionDecision.Reassignment(new LocalVariable("mutable", integer)));
         Assert.Null(PositionDecision.Reassignment(Binding(integer, "parameter", isReadonly: false, ByRefDirection.None)));

@@ -108,6 +108,20 @@ public sealed class ReturnLengthProofFlowTests
     }
 
     [Fact]
+    public void AWriteToTheParameterTheLengthNamesIsRefusedByTheReadonlyParameterRule()
+    {
+        var sized = Sized(slots.ZeroOrPositive, out var n);
+        var local = new LocalVariable("n", n.Type) { Parameter = n };
+        var write = new ExpressionStatement(new AssignmentExpression(
+            HandBuiltModel.Node(37), new LocalReferenceExpression(HandBuiltModel.Node(), local), slots.Refinements.Literal(1L), n.Type));
+
+        var refused = Assert.Single(slots.Refinements.Built.Analyze(new PositionAnalyzer(), HandBuiltModel.Block(write), member: sized));
+
+        Assert.Equal("MIST0207", refused.Number.Value);
+        Assert.StartsWith("Readonly parameter 'n' cannot be reassigned.", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AWhereClauseThatBoundsTheParameterProvesTheLengthsContract()
     {
         Assert.Empty(AnalyzeSignature(Sized(slots.Refinements.Refine(slots.Int, ComparisonKind.GreaterThanOrEqual, 0L, name: null), out _)));

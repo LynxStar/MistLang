@@ -3,6 +3,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
+using Storm.Runtime;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -34,8 +35,9 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     context.Report(positional, coalescing.Node, [coalescing.Target]);
                     break;
 
-                case AssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } assignment:
-                    context.Report(PositionDecision.Reassignment(target.Local)!, assignment.Node, [target], new NameValue(target.Local.Name));
+                case AssignmentExpression { Target: LocalReferenceExpression target } assignment
+                    when PositionDecision.Reassignment(target.Local) is { } reassigned:
+                    ReportReadonly(context, reassigned, assignment.Node, target, "reassigned");
                     break;
 
                 case AssignmentExpression { Target: not LocalReferenceExpression and var target } assignment
@@ -47,8 +49,9 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
                     context.Report(ProgramAnalysisDiagnostics.NotAssignable, compound.Target.Node, [compound.Target], new NameValue(value));
                     break;
 
-                case CompoundAssignmentExpression { Target: LocalReferenceExpression { Local.IsReadonly: true } target } compound:
-                    context.Report(PositionDecision.Reassignment(target.Local)!, compound.Node, [target], new NameValue(target.Local.Name));
+                case CompoundAssignmentExpression { Target: LocalReferenceExpression target } compound
+                    when PositionDecision.Reassignment(target.Local) is { } reassigned:
+                    ReportReadonly(context, reassigned, compound.Node, target, "reassigned");
                     break;
 
                 case CompoundAssignmentExpression { Target: not LocalReferenceExpression and var target } compound
@@ -117,6 +120,17 @@ internal sealed class PositionAnalyzer : IProgramAnalyzer
         {
             context.Report(ProgramAnalysisDiagnostics.ReadonlyReferenceWritten, source.Node, [source], new NameValue(through), new EnumValue(position));
         }
+        else if(writable && source is LocalReferenceExpression { Local.IsRef: false } bound && PositionDecision.Reassignment(bound.Local) is { } reassigned)
+        {
+            ReportReadonly(context, reassigned, source.Node, bound, position);
+        }
+    }
+
+    private static void ReportReadonly(AnalysisContext context, MistDiagnostic descriptor, SyntaxNode at, LocalReferenceExpression target, string action)
+    {
+        context.Report(
+            descriptor, at, [target],
+            new EnumValue(PositionDecision.ReadonlyKind(target.Local)!), new NameValue(target.Local.Name), new EnumValue(action));
     }
 
     private static void JudgeCaptures(

@@ -220,6 +220,7 @@ This differs from C# `readonly` (which only prevents field reassignment) by exte
 5. WHEN a readonly type is passed as an argument, THE Type_Checker SHALL require that the corresponding parameter position is marked `readonly`.
 6. WHEN a non-readonly type is passed as an argument, THE Type_Checker SHALL accept both readonly and non-readonly parameter positions.
 7. WHEN a method has only readonly parameters and its body only accesses readonly sites on those parameters, THE Readonly_Inference_Engine SHALL consider the readonly parameters as contributing evidence toward inferring the method as readonly.
+8. WHEN a method body assigns to a readonly parameter, by simple or compound assignment or by an increment or decrement, or passes it as a `ref` or `out` argument, THE Readonly_Analyzer SHALL report an error. A method cannot change its own readonly parameter: one passed by value keeps the value the caller passed for the whole body, while a `readonly ref` parameter's value may still change through its owner while the method runs.
 
 ### Requirement 15: Readonly Allocation Restrictions
 

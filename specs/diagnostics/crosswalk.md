@@ -218,7 +218,7 @@ Rows: 430 fields; 421 numbered, 7 retired, 1 held back, 1 merged. Frozen history
 | `ProgramAnalysisDiagnostics.UnknownHasNoDefault` | `MIST_PA_UNKNOWN_HAS_NO_DEFAULT` | numbered | `MIST0204` | Unknown has no default | TYP |
 | `ProgramAnalysisDiagnostics.ConditionalAccessOnNonOptional` | `MIST_PA_CONDITIONAL_ACCESS_ON_NON_OPTIONAL` | numbered | `MIST0205` | Conditional access on non-optional | TYP |
 | `ProgramAnalysisDiagnostics.CoalescingAssignmentNotAStatement` | `MIST_PA_COALESCING_ASSIGNMENT_NOT_A_STATEMENT` | numbered | `MIST0206` | Coalescing assignment as expression | SYN |
-| `ProgramAnalysisDiagnostics.ReadonlyLocalReassigned` | `MIST_PA_READONLY_LOCAL_REASSIGNED` | numbered | `MIST0207` | Readonly local reassigned | EFF |
+| `ProgramAnalysisDiagnostics.ReadonlyVariableReassigned` | `MIST_PA_READONLY_LOCAL_REASSIGNED` | numbered | `MIST0207` | Readonly variable reassigned | EFF |
 | `ProgramAnalysisDiagnostics.ReadonlyReferenceWritten` | `MIST_PA_READONLY_REF_WRITTEN` | numbered | `MIST0208` | Write through readonly reference | EFF |
 | `ProgramAnalysisDiagnostics.ReferenceToNonLocation` | `MIST_PA_REF_NOT_A_LOCATION` | numbered | `MIST0209` | Reference to non-location | TYP |
 | `ProgramAnalysisDiagnostics.NotAssignable` | `MIST_PA_NOT_ASSIGNABLE` | numbered | `MIST0210` | Target not assignable | TYP |

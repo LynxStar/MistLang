@@ -569,18 +569,26 @@ A literal closing is unaffected: `List<Cell<5>>` hands back a `Cell<5>`, since
 crosses back, not on reads in Mist code. This replaces MIST0502's third kept
 case and closes the class leak, which a presence check alone does not.
 
+**Containers and generics, decided 2026-11-21 ("Choose by value").** An
+array or generic built from a run-time closing gets its C# type by value, as a
+single object does: with `n == 5`, `new Cell<n>[k]` makes a `Cell<Const_5>[]`
+and `new Tester<Ring<n>>()` a `Tester<Ring<Const_5>>`. A proven
+`Cell<5>[] a = b` with `b` a `Cell<n>[]` is then a cast that cannot fail, and
+`a` aliases `b`. `x is Ring<5>[]` is answered by the CLR type, and so is
+`Tester<Ring<5>> t = u` with `u` a `Tester<Ring<n>>`. A place typed with a
+run-time closing needs a C# type both forms fit. For a class closing's array
+that is an array of the shared base, which CLR array covariance allows at the
+price of a type check on each element write. A struct closing's array and a
+generic class need a wrapper or a base type the backend emits. My delivery
+order, not part of the ruling: class arrays first, then struct arrays and
+generic classes in their own task, refused as a backend stand-in until it
+lands.
+
 **Left open.** Each is the owner's, with an example, before a task is written:
 
 - A Mist array or span of a run-time struct closing handed to CLR code that
   writes into it, `Array.Resize(ref cells, 10)`. The new elements are zeroed
   inside Mist's own array, with no boundary between them and the next read.
-- A proven assignment between arrays, `Cell<5>[] a = b` with `b` a
-  `Cell<n>[]`. `a` must alias `b`, and `Cell<Const_5>[]` and `Cell__Run[]` are
-  different CLR arrays.
-- A generic built from a run-time closing under proof, `Tester<Ring<5>> t = u`
-  with `u` a `Tester<Ring<n>>`. The CLR never casts `Tester<Ring__Any>` to
-  `Tester<Ring<Const_5>>`, so creation has to choose here as well, and a place
-  of that type needs a C# type both forms fit.
 
 ### Where refinements are enough
 

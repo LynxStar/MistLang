@@ -203,9 +203,17 @@ output is the same.
    gives it to a variable and names the variable. The diagnostic of
    dependent-types Requirement 15.6 stays and says so.
 3. Whether a name in an argument list is a type or a value SHALL be decided by
-   the slot it fills. A dependent slot reads a value. Any other slot reads a
-   type.
-4. `new T[e]` and `stackalloc T[e]` SHALL keep taking any expression for `e`,
+   the slot it fills. Any slot that is not dependent reads a type. A dependent
+   slot reads a value, or a refinement of the slot's domain written as a type
+   name, `Cell<Range>`, which closes the type with that refinement under
+   Requirement 1.
+4. Where a name in a dependent slot is both a value in scope and a type, the
+   value SHALL win, as it does in an expression, where `var x = Size;` reads a
+   variable `Size` before the type literal `Size`. The type is then written by
+   its fully qualified name, `Cell<Probe.Size>`. Ruled on 2026-11-21 ("I'm
+   pretty sure variable wins"; "you need the FQN to disambiguate for the
+   type"), matching the compiler's existing expression rule.
+5. `new T[e]` and `stackalloc T[e]` SHALL keep taking any expression for `e`,
    as today. The value `e` produced closes `Length` under Requirement 1 and
    owes its contract under Requirement 4.
 

@@ -5,8 +5,10 @@
 Proposed 2026-11-15 from the runtime-dependent-values exploration, for the
 refinement work to settle with the owner. It extends
 [flow-sensitive-refinement-inference](../flow-sensitive-refinement-inference/requirements.md):
-three facts that let a program size an array at run time and prove its
-indexes and its calls without closing any type at run time.
+facts that let a program size an array at run time and prove its indexes
+and its calls without closing any type at run time. Three were proposed:
+Requirement 1 is this spec's, Requirement 2 is withdrawn, and Requirement 3
+moved to runtime-dependent-values.
 
 The owner's direction: the dependent-type design for run-time values stands,
 and these refinement improvements give a second way that needs no dependent
@@ -29,10 +31,12 @@ parameters of type `ZeroOrPositiveInt`.
 Flow-sensitive Requirement 2 item 6 records `a.Length == 7` for
 `new Array<int, 7>`. A length that is a run-time value records the same fact.
 
-1. `new int[e]`, `new Array<int, e>(fn)` and a stack allocation of length `e`
-   SHALL record `a.Length == e` when `e` is a value Requirement 2 of that spec
-   gives a fact to: a local, a parameter, a stable member read, or an
-   expression it records.
+1. `new int[e]` and a stack allocation of length `e` SHALL record
+   `a.Length == e`, and `a.Length >= 0`, when `e` is a value Requirement 2 of
+   that spec gives a fact to: a local, a parameter, a stable member read, or an
+   expression it records. `new Array<int, e>(fn)` with a run-time `e` is not
+   one: it closes `Array`'s length slot with a run-time value, which stays with
+   [runtime-dependent-values](../runtime-dependent-values/design.md).
 2. The array's type SHALL NOT change: it is the sized-by-unknown sequence it is
    today. The relation is a fact in the bag, not a type argument.
 3. The fact SHALL follow the value as every other fact does, under
@@ -64,49 +68,54 @@ public static int Copy(int[] a, int[] b, int n) where n <= a.Length and <= b.Len
 var z1 = new int[n];
 var z2 = new int[n];
 Copy(z1, z2, n);    // today: MIST0277 (fails when z2.Length >= 0 and n >= 1)
-Copy(z1, new int[3], n);    // refused before and after: fails when n >= 4
+Copy(z1, new int[3], n);    // refused before and after; after: fails when new int[3].Length == 3 and n >= 4
 ```
 
-## Requirement 2 A relation between two members
+## Requirement 2 A relation between two members (withdrawn)
 
-1. A `where` clause SHALL accept a member read on its left side, so that
-   `where a.Length <= b.Length` states the relation directly. Today it does not
-   parse (MIST0123), and the relation needs an extra bound parameter, as in
-   Requirement 1's `Copy`.
-2. It SHALL be proven at the call under flow-sensitive Requirement 6 item 2,
-   with each parameter bound to the value passed for it.
-
-## Requirement 3 A relation between a result and the arguments
-
-This is flow-sensitive's second stretch goal, needed here because a length
-made inside a method is lost at its return.
-
-1. A return type SHALL be able to state a relation between the result and the
-   parameters, and the caller SHALL record it under flow-sensitive
-   Requirement 6 item 1, with each parameter bound to the argument.
-2. The spelling is open. Three candidates:
-   - The owner's: `int[n] Zeroes(int n) where n >= 5`. The result is an array
-     whose length is the argument, and the caller also learns what the
-     parameter's refinement says (`>= 5` here, more than an array's own
-     `>= 0`). It reads the array's dependent slot with an ordinary parameter,
-     so it touches the dependent-types grammar, though no run-time closing.
-   - Flow-sensitive's: a dependent alias over an expression,
-     `type Doubled<int:x> = x * 2;` with `Doubled<x> Double(int x)`.
-   - A clause on the result, which stays within refinements' own spelling.
-
-Example. Refused today on main and on the runtime-dependent-values branch:
+Withdrawn by the owner on 2026-11-19. A `where` clause stays a target and a
+pattern, and the relation this requirement wanted is already written with a
+count whose bound names both members:
 
 ```mist
-public static int[] Zeroes(ZeroOrPositiveInt n)
+public static void CopyInto(int[] source, int[] target, int n)
+    where n <= source.Length and <= target.Length
+```
+
+With Requirement 1, a caller that creates its arrays from a run-time size
+proves the call, and a caller copying a whole array passes `source.Length` for
+`n` after creating `target` as `new int[source.Length]`. Neither other
+spelling is adopted: `where a.Length <= b.Length` is not a target and a
+pattern, and `where a { Length: <= b.Length }` could only be met by an
+argument already typed with that refinement under refinement-types
+Requirement 13.7, which stays as it is.
+
+## Requirement 3 A relation between a result and the arguments (moved)
+
+Moved to [runtime-dependent-values](../runtime-dependent-values/design.md) on
+2026-11-19, with the owner's ruling on its spelling. A return type may name an
+ordinary parameter in an array's length slot:
+
+```mist
+public static int[n] Zeroes(readonly ZeroOrPositiveInt n)
 {
     return new int[n];
 }
 
-Copy(Zeroes(n), Zeroes(n), n);    // MIST0277: the caller does not learn Length == n
+var a = Zeroes(count);    // the caller learns a.Length == count
+
+public static int[n] Ones(ZeroOrPositiveInt n)    // refused: n is named in the return type and is not readonly
 ```
 
-After this requirement, with the result's length stated in `Zeroes`'s
-signature, the call is proven.
+This replaces that spec's rule of 2026-11-11 that a type in a signature names
+only a dependent parameter in brackets, `int[N] Zeroes<N:ZeroOrPositiveInt>()`,
+which stays valid for a dependent parameter. A parameter named in the return
+type SHALL be declared `readonly`; naming one that is not is a compile-time
+error, not an implicit `readonly`. A `readonly` parameter refuses every write
+(readonly-contexts Requirement 14.8), so `n` is the value the caller passed for
+the whole body and the body must return an array of that length. Because
+`int[n]` with a run-time `n` closes `Array`'s length slot at run time, it is
+built under runtime-dependent-values, not here.
 
 ## What stays with dependent types
 

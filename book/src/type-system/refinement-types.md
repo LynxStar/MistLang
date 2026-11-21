@@ -263,7 +263,7 @@ A value that is neither a literal nor of a refined type can still meet a refinem
 - the `where` clauses of the enclosing method, constructor or indexer;
 - the conditions on the path: inside `if (used <= capacity)` the comparison holds, in its `else` the opposite holds, and a loop's condition holds in its body;
 - assignments: `var a = b;`, `var a = 7;` and `var doubled = capacity * 2;` each record what the new value equals;
-- the length of a sequence created with a known size.
+- the length of a sequence when it is created: `var a = new int[n];` records that `a.Length` equals `n`, whether `n` is a constant or a value known only when the program runs.
 
 A fact may relate several values, such as `used <= capacity` or `count <= items.Length - start`. To prove a contract, the compiler assumes it is broken, then combines that assumption with the facts it holds through the values they share, until it reaches a statement no value can satisfy.
 

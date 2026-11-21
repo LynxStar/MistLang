@@ -1,3 +1,4 @@
+using Mist.Generated;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -29,6 +30,19 @@ public sealed class DependentValueLookupTests
         var (box, size) = Declare("Box");
 
         Assert.Same(size, Assert.IsType<TypeResult>(Unqualified(box, "N")).Type);
+    }
+
+    [Fact]
+    public void AnIntrinsicDeclarationProjectsNoValueEvenBeforeItsModifiersAreBuilt()
+    {
+        var declaration = new BodyTypeTypeDeclarationNode { TypeBody = new TypeBodyDeclarationNode { Modifiers = [new IntrinsicModifierModifierNode()] } };
+        var array = new ClassType("Array<>", "Standard", new Scope(null), null, declaration);
+        var length = Dependent(array, "Length");
+
+        TypeParameterDomainResolver.ProjectValues(array);
+
+        Assert.Null(length.ValueProperty);
+        Assert.IsNotType<PropertyResult>(Qualified(array, "Length", MemberVisibility.StaticOnly));
     }
 
     [Fact]

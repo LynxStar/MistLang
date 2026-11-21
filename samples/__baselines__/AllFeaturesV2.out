@@ -2746,6 +2746,7 @@ squares = 0, 1, 4, 9
 countdown-- ticks 210, ends at -1
 property Total = 14, field Calls = 0
 double 4.5, long 9
+byte 255++ -> 0, sbyte -128-- -> 127, ++ushort 7 -> 8
 === CompoundAssignment Done ===
 === FlowFacts Sample ===
 reserve: 3 <= 8

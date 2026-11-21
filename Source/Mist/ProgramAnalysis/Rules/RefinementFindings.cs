@@ -173,25 +173,43 @@ internal static class RefinementFindings
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: not null } negated } => $"-{Display(negated)}",
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operator: null or { Modifiers.IsIntrinsic: true }, Operand: var negated } => $"-{Grouped(negated)}",
-            BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply, Operator: null or { Modifiers.IsIntrinsic: true } } binary
-                => $"{(binary.OperatorKind == BinaryOperatorKind.Multiply ? Grouped(binary.Left) : Display(binary.Left))} {Arithmetic(binary.OperatorKind)} {(binary.OperatorKind == BinaryOperatorKind.Add ? Display(binary.Right) : Grouped(binary.Right))}",
+            BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo, Operator: null or { Modifiers.IsIntrinsic: true } } binary
+                => $"{(binary.OperatorKind is BinaryOperatorKind.Add or BinaryOperatorKind.Subtract ? Display(binary.Left) : Grouped(binary.Left))} {Arithmetic(binary.OperatorKind)} {(binary.OperatorKind == BinaryOperatorKind.Add ? Display(binary.Right) : Grouped(binary.Right))}",
             RangeExpression range => $"{(range.Start is { } start ? Display(start) : "")}..{(range.End is { } end ? Display(end) : "")}",
+            InvocationExpression call => $"{(call.Receiver is MethodReferenceExpression callee ? callee.Method.Name : Display(call.Receiver))}({Listed(call.Arguments)})",
+            NewExpression created => $"new {TypeDisplay.Mist(created.Type)}({Listed(created.Arguments)})",
+            ArrayCreationExpression creation => $"new {TypeDisplay.Mist(creation.ElementType)}[{Display(creation.Size)}]",
+            StackallocExpression allocation => $"stackalloc {TypeDisplay.Mist(allocation.ElementType)}[{Display(allocation.Size)}]",
+            ArrayLiteralExpression literal => $"[{Listed(literal.Elements)}]",
+            CompoundAssignmentExpression { IncrementForm: IncrementForm.Postfix } step => $"{Display(step.Target)}{Arithmetic(step.OperatorKind)}{Arithmetic(step.OperatorKind)}",
+            CompoundAssignmentExpression { IncrementForm: IncrementForm.Prefix } step => $"{Arithmetic(step.OperatorKind)}{Arithmetic(step.OperatorKind)}{Display(step.Target)}",
+            CompoundAssignmentExpression compound => $"{Display(compound.Target)} {Arithmetic(compound.OperatorKind)}= {Display(compound.Value)}",
+            ImplicitConversionExpression conversion => Display(conversion.Operand),
+            CastExpression cast => $"({TypeDisplay.Mist(cast.TargetType)}){Grouped(cast.Operand)}",
             _ => TypeDisplay.Mist(expression.Type),
         };
     }
 
+    private static string Listed(IEnumerable<Expression> expressions)
+    {
+        return string.Join(", ", expressions.Select(Display));
+    }
+
     private static string Grouped(Expression operand)
     {
-        return operand is BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply } ? $"({Display(operand)})" : Display(operand);
+        return operand is BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply or BinaryOperatorKind.Divide or BinaryOperatorKind.Modulo }
+            ? $"({Display(operand)})" : Display(operand);
     }
 
     private static string Arithmetic(BinaryOperatorKind kind)
     {
         return kind switch
         {
-            BinaryOperatorKind.Add => "+",
             BinaryOperatorKind.Subtract => "-",
-            _ => "*",
+            BinaryOperatorKind.Multiply => "*",
+            BinaryOperatorKind.Divide => "/",
+            BinaryOperatorKind.Modulo => "%",
+            _ => "+",
         };
     }
 

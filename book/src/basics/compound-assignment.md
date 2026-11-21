@@ -1,6 +1,6 @@
 # Compound Assignment and Increment
 
-Mist has the compound assignment operators `+=`, `-=`, `*=`, `/=` and `%=`, and the increment and decrement operators `++` and `--`. Each is shorthand for an ordinary assignment: `x op= e` means `x = x op e`, and `x++` as a statement means `x += 1`. The shorthand selects the same operator, produces the same result type and follows the same rules as the long form, so whatever is valid for `x = x op e` is valid for `x op= e`, and nothing else is.
+Mist has the compound assignment operators `+=`, `-=`, `*=`, `/=` and `%=`, and the increment and decrement operators `++` and `--`. Each is shorthand for an ordinary assignment: `x op= e` means `x = x op e`, and `x++` as a statement means `x = x + 1`, with the 1 of `x`'s own type. The shorthand selects the same operator, produces the same result type and follows the same rules as the long form, so whatever is valid for `x = x op e` is valid for `x op= e`, and nothing else is.
 
 ## Compound Assignment
 
@@ -86,7 +86,7 @@ When the operand types declare the operator, the compound form calls it.
 
 ## Increment and Decrement
 
-`++` adds one and `--` subtracts one. As a statement, `x++`, `++x`, `x--` and `--x` mean `x += 1` and `x -= 1`. Inside an expression they behave as in C#: postfix yields the value before the write, and prefix yields the value after it.
+`++` adds one and `--` subtracts one, using the variable's own type for the one, as [Narrow Types](#narrow-types) shows. As a statement, `x++` and `++x` mean `x = x + 1`, and `x--` and `--x` mean `x = x - 1`. Inside an expression they behave as in C#: postfix yields the value before the write, and prefix yields the value after it.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -104,7 +104,7 @@ When the operand types declare the operator, the compound form calls it.
 An increment inside a larger expression yields a value the compiler knows only by its type. That is enough to index a `List`, but an array or span index must be proven in bounds, so `items[k++]` on an array is refused:
 
 ```text
-error MIST0275: Index 'int' is not proven within the bounds of 'items', which needs >= 0 and <= 2 (fails when int <= -1 and items.Length == 3).
+error MIST0275: Index 'k++' is not proven within the bounds of 'items', which needs >= 0 and <= 2 (fails when k++ <= -1).
 ```
 
 Read with `items[k]` and increment `k` in its own statement. As a statement, `k++` records that `k` is one more than before whenever that cannot wrap, which is how a loop index stays proven; see [Loops](../type-system/refinement-types.md#loops).
@@ -126,6 +126,6 @@ The short form means the long form on narrow integral types too. `byte + byte` i
 {{#endtab }}
 {{#endtabs }}
 
-`250 + 10` wraps to `4`. A literal operand is an `int`, though, so `level + 10` selects `int`'s operator, and `level += 10` is refused because an `int` does not fit back into a `byte` without a cast. The same holds for `sbyte`, `short`, `ushort` and `char`. On a `uint`, adding an `int` produces a `long`, with the same result.
+`250 + 10` wraps to `4`. A literal operand is an `int`, though, so `level + 10` selects `int`'s operator, and `level += 10` is refused because an `int` does not fit back into a `byte` without a cast. The same holds for `sbyte`, `short` and `ushort`. On a `uint`, adding an `int` produces a `long`, with the same result.
 
-> **Limitation:** `++` and `--` stand for `+= 1` and `-= 1`, so they are currently refused on `sbyte`, `byte`, `short`, `ushort`, `uint` and `char`, although the language design gives them to every integral type. On a `decimal` local they are refused too, because adding to it produces a `Result` until the compiler can prove the sum does not overflow. They work on `int`, `long`, `ulong`, `float` and `double`.
+`++` and `--` are different: they add or subtract 1 of the variable's own type through that type's own operator, so `top++` is `top = top + (byte)1`. They work on every integral type except `char`, and on `float` and `double`, and wrap as the type's own addition does: `top` goes from 255 to 0. `char` has no addition, and `decimal`'s addition produces a `Result`, so neither has `++` or `--`.

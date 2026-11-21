@@ -42,6 +42,29 @@ public sealed class SequenceLengthDecisionTests
     }
 
     [Theory]
+    [InlineData("array", true)]
+    [InlineData("stack", true)]
+    [InlineData("converted-stack", true)]
+    [InlineData("constant-array", false)]
+    [InlineData("local", false)]
+    public void ACreationSizedByARunTimeValueNamesItsSize(string form, bool named)
+    {
+        var h = new HandBuiltRefinements();
+        var size = HandBuiltRefinements.Local(h.Int, "n");
+        var stack = new StackallocExpression(HandBuiltModel.Node(), h.Int, size, h.Sequence("Span"));
+        var creation = form switch
+        {
+            "array" => new ArrayCreationExpression(HandBuiltModel.Node(), h.Int, size, h.Sequence()),
+            "stack" => stack,
+            "converted-stack" => new ImplicitConversionExpression(HandBuiltModel.Node(), stack, h.Sequence("Span"), []),
+            "constant-array" => h.Array(3),
+            _ => size,
+        };
+
+        Assert.Same(named ? size : null, Lengths.RunTimeSize(creation));
+    }
+
+    [Theory]
     [InlineData("an-unsized-source")]
     [InlineData("a-user-method")]
     [InlineData("an-offset-overload")]

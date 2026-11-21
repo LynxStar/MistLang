@@ -59,7 +59,7 @@ internal static partial class PatternBinder
             var (resolved, found) = lookup;
             var memberFailed = lookup.Reported;
 
-            var memberType = resolved ?? (matched is UnknownType ? UnknownType.Instance : matched is ErrorType ? ErrorType.Instance : null);
+            var memberType = resolved ?? DependentValue(found, alias => context.Resolver.ExpandAlias(alias, typeArgs: null)) ?? (matched is UnknownType ? UnknownType.Instance : matched is ErrorType ? ErrorType.Instance : null);
 
             if(memberType is null)
             {
@@ -88,6 +88,16 @@ internal static partial class PatternBinder
             ;
 
         return new PropertyPattern(node, narrowed, subpatterns, binding, typeTest) { IsFailed = scrutineeFailed || reported || typeTest?.IsFailed is true || subpatterns.Any(subpattern => subpattern.Pattern.IsFailed) };
+    }
+
+    internal static IMistType? DependentValue(LookupResult found, Func<TypeAlias, IMistType> expand)
+    {
+        return found switch
+        {
+            TypeResult { Type: TypeParameter { IsDependent: true, IsPack: false, Domain: TypeAlias alias } } => expand(alias),
+            TypeResult { Type: TypeParameter { IsDependent: true, IsPack: false, Domain: { } domain } } => domain,
+            _ => null,
+        };
     }
 
     private static bool ReportSubpatternNotStorage(

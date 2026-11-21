@@ -1,6 +1,7 @@
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -77,6 +78,59 @@ public sealed class DeclaredZeroTests
         Assert.True(DeclaredZero.Holds(blocked));
     }
 
+    [Theory]
+    [InlineData("default")]
+    [InlineData("-0")]
+    [InlineData("1 - 1")]
+    [InlineData("(int)0")]
+    [InlineData("(int)(2 * 3 - 6)")]
+    public void ConstantZeroInitializer_Holds(string shape)
+    {
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", integer, Constant(shape));
+
+        Assert.True(DeclaredZero.Holds(initialized));
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("3 + 4")]
+    [InlineData("(int)7")]
+    public void ConstantThatFoldsToNonZero_DoesNotHold(string shape)
+    {
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", integer, Constant(shape));
+
+        Assert.False(DeclaredZero.Holds(initialized));
+    }
+
+    [Fact]
+    public void DefaultBlockEntryFoldingToZero_Holds()
+    {
+        var blocked = Plain("Blocked");
+        Block(blocked, new DefaultValueEntry("Y", Constant("1 - 1")));
+
+        Assert.True(DeclaredZero.Holds(blocked));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DefaultOfAStructField_HoldsExactlyWhenTheFieldsTypeDoes(bool zeroField)
+    {
+        var inner = Plain("Inner");
+
+        if(!zeroField)
+        {
+            inner.FieldsList[0].Initializer = HandBuiltModel.Literal(integer, 7L);
+        }
+
+        var outer = shapes.Type("Outer", isStruct: true);
+        _ = Slot(outer, "Inner", inner, new DefaultExpression(HandBuiltModel.Node(), inner));
+
+        Assert.Equal(zeroField, DeclaredZero.Holds(outer));
+    }
+
     [Fact]
     public void FieldOfANonZeroStruct_DoesNotHold()
     {
@@ -113,6 +167,37 @@ public sealed class DeclaredZeroTests
     public void IntrinsicStruct_Holds()
     {
         Assert.True(DeclaredZero.Holds(integer));
+    }
+
+    private Expression Constant(string shape)
+    {
+        return shape switch
+        {
+            "default" => new DefaultExpression(HandBuiltModel.Node(), integer),
+            "-0" => new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, Number(0), integer),
+            "-1" => new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, Number(1), integer),
+            "1 - 1" => Binary(Number(1), BinaryOperatorKind.Subtract, Number(1)),
+            "3 + 4" => Binary(Number(3), BinaryOperatorKind.Add, Number(4)),
+            "(int)0" => Cast(Number(0)),
+            "(int)7" => Cast(Number(7)),
+            "(int)(2 * 3 - 6)" => Cast(Binary(Binary(Number(2), BinaryOperatorKind.Multiply, Number(3)), BinaryOperatorKind.Subtract, Number(6))),
+            _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+        };
+    }
+
+    private LiteralExpression Number(long value)
+    {
+        return HandBuiltModel.Literal(integer, value);
+    }
+
+    private BinaryExpression Binary(Expression left, BinaryOperatorKind kind, Expression right)
+    {
+        return new BinaryExpression(HandBuiltModel.Node(), left, kind, right, integer);
+    }
+
+    private CastExpression Cast(Expression operand)
+    {
+        return new CastExpression(HandBuiltModel.Node(), operand, integer, [], integer);
     }
 
     private ConcreteType Plain(string name)

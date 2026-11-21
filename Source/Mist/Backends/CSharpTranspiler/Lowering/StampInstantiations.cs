@@ -1,4 +1,5 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -12,7 +13,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The closed types each stampable type parameter is bound to anywhere in the program, read off its
 /// constructions and generic calls and carried through forwarding, so a generic body that passes a Box
 /// of its own parameter on binds the callee to a Box of whatever its caller chose, a construction no
-/// source names. Only stampable parameters are followed, because only a stampable argument reaches one.
+/// source names. A method answering an abstract slot is bound to whatever the slot is, since a call
+/// through the slot runs its body. Only stampable parameters are followed, because only a stampable
+/// argument reaches one.
 /// </summary>
 internal static class StampInstantiations
 {
@@ -92,6 +95,29 @@ internal static class StampInstantiations
                 yield return edge;
             }
         }
+
+        foreach(var edge in Answers(model))
+        {
+            yield return edge;
+        }
+    }
+
+    private static IEnumerable<(TypeParameter, IMistType)> Answers(ProgramModelClass model)
+    {
+        var types = SourceTypes.Of(model).ToList();
+        var slotted = types.OfType<AbstractType>()
+            .Where(abstractType => abstractType.MethodsList.Exists(slot => Stamped(slot.TypeParametersList, slot.TypeParametersList).Any()))
+            .ToHashSet(ReferenceEqualityComparer.Instance);
+
+        if(slotted.Count == 0)
+        {
+            return [];
+        }
+
+        return types.OfType<ConcreteType>()
+            .SelectMany(concrete => ContextCalls.Answers(concrete, model.TypeInterner))
+            .Where(answer => slotted.Contains(answer.Abstract))
+            .SelectMany(answer => Stamped(answer.Answer.Member.TypeParametersList, answer.Slot.TypeParametersList));
     }
 
     private static IEnumerable<(TypeParameter, IMistType)> Stamped(IReadOnlyList<TypeParameter> parameters, IReadOnlyList<IMistType> arguments)

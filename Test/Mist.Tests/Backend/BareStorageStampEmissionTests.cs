@@ -109,6 +109,22 @@ public sealed class BareStorageStampEmissionTests
     [Fact]
     public void PrivateNestedStruct_IsRegisteredByTheBodyThatNamesIt()
     {
+        var (emitted, _) = EmitHiddenBody(Creation);
+
+        Assert.StartsWith("MistDefault<Hidden>.Ensure(() => Hidden.__CreateDefault());", emitted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PrivateNestedStructRegistration_AsksForTheRuntimeThoughNothingIsAllocated()
+    {
+        var (emitted, used) = EmitHiddenBody(hidden => new DefaultExpression(HandBuiltModel.Node(), hidden));
+
+        Assert.StartsWith("MistDefault<Hidden>.Ensure(() => Hidden.__CreateDefault());", emitted, StringComparison.Ordinal);
+        Assert.True(used);
+    }
+
+    private (string Emitted, bool Used) EmitHiddenBody(Func<StructType, Expression> statement)
+    {
         var program = HandBuiltModel.Class("Program");
         var hidden = new StructType("Hidden", "Probe", new Scope(null), program, null)
         {
@@ -120,18 +136,15 @@ public sealed class BareStorageStampEmissionTests
         var main = new Method("Main", shapes.Integer, [], new MemberModifiers { IsStatic = true })
         {
             DeclaringType = program,
-            Body = HandBuiltModel.Block(new ExpressionStatement(Creation(hidden))),
+            Body = HandBuiltModel.Block(new ExpressionStatement(statement(hidden))),
         };
         var writer = new CSharpWriter();
 
         using(StorageStamping.Enter(model))
         {
             BodyEmitter.EmitMethodBody(main, main.Body, writer, new DiagnosticBag(), owner: program);
+            return (writer.ToString(), StorageStamping.Used());
         }
-
-        Assert.StartsWith(
-            "MistDefault<Hidden>.Ensure(() => Hidden.__CreateDefault());",
-            writer.ToString(), StringComparison.Ordinal);
     }
 
     private ConcreteType Seven()

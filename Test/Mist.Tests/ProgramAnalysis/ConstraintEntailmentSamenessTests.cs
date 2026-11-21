@@ -80,7 +80,20 @@ public sealed class ConstraintEntailmentSamenessTests
 
     [Theory]
     [InlineData("nothing", null)]
+    [InlineData("element order", Refused)]
+    public void UnionIsTheRequiredUnionWhenAConstituentBuiltApartHasTheSameStructure(string difference, string? expected)
+    {
+        var offered = difference == "element order"
+            ? new UnionType([new TupleType([Text, Integer]), Flag])
+            : new UnionType([new TupleType([Integer, Text]), Flag]);
+
+        Assert.Equal(expected, Entailed(offered, new UnionType([new TupleType([Integer, Text]), Flag])));
+    }
+
+    [Theory]
+    [InlineData("nothing", null)]
     [InlineData("purity", Refused)]
+    [InlineData("a promise the requirement lacks", Refused)]
     [InlineData("return type", Refused)]
     [InlineData("parameter order", Refused)]
     [InlineData("a missing parameter", Refused)]
@@ -95,7 +108,7 @@ public sealed class ConstraintEntailmentSamenessTests
             _ => new FunctionType([Integer, Text], Flag, isPure: true),
         };
 
-        Assert.Equal(expected, Entailed(offered, new FunctionType([Integer, Text], Flag, isPure: true)));
+        Assert.Equal(expected, Entailed(offered, new FunctionType([Integer, Text], Flag, isPure: difference != "a promise the requirement lacks")));
     }
 
     [Theory]

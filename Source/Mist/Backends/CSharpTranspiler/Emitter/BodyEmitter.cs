@@ -56,6 +56,7 @@ internal static partial class BodyEmitter
         using var names = LocalNames.Enter(block, parameterNames);
         using var lifetimes = LifetimeLowering.Enter(block);
         using var reach = UnitHoisting.Enter(block);
+        using var stamps = RegisterStamps(block, writer);
 
         foreach(var (temp, flag, type) in LifetimeLowering.Renewed(block))
         {
@@ -1421,15 +1422,11 @@ internal static partial class BodyEmitter
                 break;
 
             case ArrayCreationExpression arrayCreation:
-                writer.Append($"new {TypeNameEmitter.Emit(arrayCreation.ElementType)}[");
-                EmitExpression(arrayCreation.Size, writer, diagnostics);
-                writer.Append("]");
+                EmitBareStorage("new", arrayCreation.ElementType, arrayCreation.Size, writer, diagnostics);
                 break;
 
             case StackallocExpression allocation:
-                writer.Append($"stackalloc {TypeNameEmitter.Emit(allocation.ElementType)}[");
-                EmitExpression(allocation.Size, writer, diagnostics);
-                writer.Append("]");
+                EmitBareStorage("stackalloc", allocation.ElementType, allocation.Size, writer, diagnostics);
                 break;
 
             case ArrayLiteralExpression arrayLiteral:

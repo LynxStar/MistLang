@@ -132,6 +132,7 @@ internal sealed class CSharpEmitterV2
         using var ceiling = DelegateCeiling.Enter((ProgramModel.Model.ProgramModel)programModel, diagnostics);
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
+        using var stamping = StorageStamping.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 
@@ -176,11 +177,7 @@ internal sealed class CSharpEmitterV2
             }
         }
 
-        EmitContextRuntime(outputDir, emittedFiles);
-        EmitOwnershipRuntime(outputDir, emittedFiles);
-        EmitArrayRuntime(outputDir, emittedFiles);
-        EmitTaskRuntime(outputDir, emittedFiles);
-        EmitInvariantRuntime(outputDir, emittedFiles);
+        RuntimeFiles.Emit(outputDir, emittedFiles);
         LocaleStartup.EmitFile(options, outputDir, emittedFiles);
 
         var csprojContent = ProjectFileEmitter.Emit(options, carriesEntryPoint, startup.MainTypeName);
@@ -446,95 +443,6 @@ internal sealed class CSharpEmitterV2
         }
 
         var path = Path.Combine(outputDir, "__Variadics.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitContextRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!ContextLowering.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        ContextLowering.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Context.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitOwnershipRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!LifetimeLowering.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        LifetimeLowering.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Ownership.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitTaskRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!TaskCombinators.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        TaskCombinators.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Tasks.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitInvariantRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!InvariantCulture.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-        InvariantCulture.Emit(writer);
-
-        var path = Path.Combine(outputDir, "__Invariant.g.cs");
-        File.WriteAllText(path, writer.ToString());
-        emittedFiles.Add(path);
-    }
-
-    private static void EmitArrayRuntime(string outputDir, List<string> emittedFiles)
-    {
-        if(!ArrayLowering.Used() && !ArrayEnumeration.Used())
-        {
-            return;
-        }
-
-        var writer = new CSharpWriter();
-
-        if(ArrayLowering.Used())
-        {
-            ArrayLowering.Emit(writer);
-        }
-
-        if(ArrayEnumeration.Used())
-        {
-            if(ArrayLowering.Used())
-            {
-                writer.WriteBlankLine();
-            }
-
-            ArrayEnumeration.Emit(writer);
-        }
-
-        var path = Path.Combine(outputDir, "__Array.g.cs");
         File.WriteAllText(path, writer.ToString());
         emittedFiles.Add(path);
     }

@@ -319,6 +319,17 @@ keeps the parameter, as Requirement 8.4 states, and each later argument is
 then an ordinary argument against a parameter type, proven by `SlotIdentity`.
 
 **A regular parameter in the return type (Requirement 8 items 7 to 10).**
+The grammar comes first. `ArrayRankSuffix` (`Mist.storm:393-395`) sizes a
+rank only with an integer literal, so `int[n]` is MIST0123 in every type
+position on main and on this branch at 652d20d3, and so is `int[N]` for a
+dependent parameter, in a signature and in a body alike. Only the
+`Array<int, n>` spelling reaches the binder. `SizedArrayRank` takes a name or
+a dotted path of names as well as a literal, the forms Requirement 5.1 admits
+in a slot, in every type position. What the name may refer to stays the
+binder's: a capture in a body under Requirement 5, the return type's
+parameter under item 7, a dependent parameter anywhere, and MIST0487
+otherwise. `a[i]` stays an index wherever it is one today.
+
 `ScopeResolver.SlotValue` (`ScopeResolver.SlotArguments.cs`) reports MIST0487
 for a value's name in any slot outside a body. While it resolves a method's
 return type, it binds a name in the return type's own length slot, when the
@@ -1322,10 +1333,11 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    requirements revise in dependent-types, adhoc-refinement-constraints,
    stack-only-types, deep-ownership-types and
    flow-sensitive-refinement-inference.
-7. Requirement 8 items 7 to 10, revised on 2026-11-19: the return type's
-   length slot naming a `readonly` parameter, its refusals, the slot-contract
-   site, the call's capture, and the sample's lines for `Sized(count)`. It
-   needs stages 1 to 3 and nothing after them.
+7. Requirement 8 items 7 to 10, revised on 2026-11-19: a name in the
+   grammar's sized rank, the return type's length slot naming a `readonly`
+   parameter, its refusals, the slot-contract site and the call's capture. It
+   needs stages 1 to 3 and nothing after them. Its accepted programs join
+   stage 6's sample.
 
 ## Not in this design
 

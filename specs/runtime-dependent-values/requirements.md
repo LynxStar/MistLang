@@ -338,7 +338,7 @@ int[n] Wrong(readonly ZeroOrPositiveInt n)
 
 int[n] Loose(ZeroOrPositiveInt n)       // refused: n is named in the return type and is not readonly
 int[n] Signed(readonly int n)           // refused: fails when n <= -1
-Ring<n> Make(readonly PositiveInt n)    // refused: only an array's length slot may name a parameter
+Ring<n> Make(readonly ZeroOrPositiveInt n)   // refused: only an array's length slot may name a parameter
 
 void Caller(ZeroOrPositiveInt count)
 {

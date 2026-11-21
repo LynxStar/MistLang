@@ -282,3 +282,14 @@ The lift is inference, as readonly inference is (readonly-contexts Requirement 1
 6. WHEN computing a member's lift reaches the same member again, THE Type_Checker SHALL read that inner use at the declared return type, so that recursion settles rather than assuming its own answer.
 7. The lift SHALL NOT be written into the program: emission and every rule other than refinement proving read the declared return type.
 8. WHEN a change to a member's body changes its lift, THE Type_Checker SHALL judge each use of the member against the new lift, reporting at the use as it would for a declared refinement -- `ledger[^1]` becomes an error at `ledger[^1]` when `Count` starts returning 9 into an indexer whose parameter admits `< 3`.
+
+### Requirement 19: A Refinement That Admits No Value
+
+**User Story:** As a Mist developer, I want a refinement that no value can satisfy to be refused where I declare it, so that I find the mistake there rather than at every use, and so that every refinement that compiles has at least one member.
+
+#### Acceptance Criteria
+
+1. WHEN a refinement's predicate, read together with its base type's own range and with any refinement that base builds on, admits no value, THE Type_Checker SHALL report an error at the predicate (MIST0505). This applies to a named refinement, to each constituent of a union on its own, to a parameter's `where` clause and to a dependent parameter's predicate: `int > 10 and < 5`, `byte > 300`, `bool true and false`, `double > 10.5 and < 2.0` and `Positive < 0` over `type Positive = int > 0;` are each refused. (Decided by Arthur, 2026-11-21.)
+2. THE Type_Checker SHALL decide emptiness for every predicate it reads as a set of values: comparisons and constants over the integral types, `char`, `bool` and enums, and comparisons over `float`, `double` and `decimal`. A bound that names another value only narrows what the constant bounds admit, so a predicate whose constant bounds admit nothing is empty whatever such a bound says, and one whose constant bounds admit something is not reported.
+3. A predicate the Type_Checker does not read as a set of values -- a regex pattern, a property pattern, a string constant -- SHALL NOT be reported as empty, even when no value satisfies it.
+4. A predicate already refused as not comparable (MIST0173) or as comparing a mismatched constant (MIST0174) SHALL NOT also be reported as empty.

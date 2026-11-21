@@ -44,6 +44,14 @@ A compound refinement type combines multiple predicates using the `and` combinat
 
 The compound predicate `>= 0 and <= 100` constrains the value to the inclusive range [0, 100]. The compiler rejects literals outside this range at compile time — assigning `-1` or `101` to a `Percentage` variable would produce a diagnostic error.
 
+A predicate no value can satisfy is refused where it is declared, so every refinement that compiles has at least one member. The check reads the predicate together with the base type's own range and any refinement it builds on, so `byte > 300` is refused as surely as crossed bounds are:
+
+```text
+error MIST0505: The refinement '> 10 and < 5' on 'Never' admits no value of 'int'.
+```
+
+A predicate the compiler does not read as a set of values, such as a regex or a property pattern, is not checked this way.
+
 ## Union Types with Refinements
 
 A refinement type can use a union base type where each constituent has its own predicate. The value must satisfy at least one constituent's constraint to be valid.

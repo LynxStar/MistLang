@@ -27,13 +27,15 @@ public sealed class RefinementCaseDescriptorTests
     }
 
     [Fact]
-    public void ProofExhaustedTookTheLowestNumberAboveEveryIssuedOne()
+    public void ProofExhaustedTookTheLowestNumberAboveEveryOneIssuedBeforeIt()
     {
-        var issued = DiagnosticRegistry.Index.Descriptors.Where(descriptor => !ReferenceEquals(descriptor, ProgramAnalysisDiagnostics.RefinementProofExhausted))
-            .Select(descriptor => descriptor.Number.Value).Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
+        var own = ProgramAnalysisDiagnostics.RefinementProofExhausted.Number.Value;
+        var issued = DiagnosticRegistry.Index.Descriptors.Select(descriptor => descriptor.Number.Value)
+            .Concat(DiagnosticRegistry.Index.Tombstones.Select(tombstone => tombstone.Number.Value))
+            .Where(number => string.CompareOrdinal(number, own) < 0)
             .Max(number => int.Parse(number[4..], System.Globalization.CultureInfo.InvariantCulture));
 
-        Assert.Equal($"MIST{issued + 1:D4}", ProgramAnalysisDiagnostics.RefinementProofExhausted.Number.Value);
+        Assert.Equal($"MIST{issued + 1:D4}", own);
     }
 
     [Fact]

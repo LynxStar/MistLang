@@ -77,6 +77,87 @@ public sealed class PredicateDeclarationRefusalTests
     }
 
     [Theory]
+    [InlineData("alias")]
+    [InlineData("union-constituent")]
+    [InlineData("parameter")]
+    [InlineData("dependent-parameter")]
+    [InlineData("byte-past-its-range")]
+    public void ARefinementNoValueSatisfiesIsRefusedWhereItIsDeclared(string site)
+    {
+        var fragment = new DeclarationFragments();
+        var constrained = fragment.Built.Type(site == "byte-past-its-range" ? "Byte" : "Int32");
+        Pattern predicate = site == "byte-past-its-range"
+            ? Bound(constrained, ComparisonKind.GreaterThan, 300L, 30)
+            : new ConjunctionPattern(HandBuiltModel.Node(30), constrained,
+                [Bound(constrained, ComparisonKind.GreaterThan, 10L), Bound(constrained, ComparisonKind.LessThan, 5L)]);
+        Declare(fragment, site, constrained, predicate);
+
+        var diagnostic = Assert.Single(fragment.Run(new DeclarationShapeAnalyzer()));
+
+        Assert.Equal("MIST0505", diagnostic.Number.Value);
+        Assert.Equal(31, diagnostic.Position().Start.Column);
+    }
+
+    [Fact]
+    public void ARefinementWithOneValueIsSilent()
+    {
+        var fragment = new DeclarationFragments();
+        var integer = fragment.Built.Type("Int32");
+        Declare(fragment, "alias", integer, new ConjunctionPattern(HandBuiltModel.Node(30), integer,
+            [Bound(integer, ComparisonKind.GreaterThanOrEqual, 0L), Bound(integer, ComparisonKind.LessThanOrEqual, 0L)]));
+
+        Assert.Empty(fragment.Run(new DeclarationShapeAnalyzer()));
+    }
+
+    [Fact]
+    public void AnIncomparablePredicateIsRefusedForThatAlone()
+    {
+        var fragment = new DeclarationFragments();
+        var boolean = fragment.Built.Type("Boolean");
+        Declare(fragment, "alias", boolean, new ConjunctionPattern(HandBuiltModel.Node(30), boolean,
+            [Bound(boolean, ComparisonKind.GreaterThan, 10L), Bound(boolean, ComparisonKind.LessThan, 5L)]));
+
+        Assert.Equal("MIST0173", Assert.Single(fragment.Run(new DeclarationShapeAnalyzer())).Number.Value);
+    }
+
+    private static ComparisonPattern Bound(IMistType constrained, ComparisonKind kind, long value, int offset = 0)
+    {
+        return new ComparisonPattern(HandBuiltModel.Node(offset), constrained, kind, HandBuiltModel.Literal(constrained, value));
+    }
+
+    private static void Declare(DeclarationFragments fragment, string site, IMistType constrained, Pattern predicate)
+    {
+        switch(site)
+        {
+            case "alias" or "byte-past-its-range":
+                Alias(fragment, constrained, predicate);
+                break;
+
+            case "union-constituent":
+                Alias(fragment, constrained, predicate, union: true);
+                break;
+
+            case "parameter":
+                {
+                    var refined = HandBuiltModel.Refined(constrained);
+                    refined.Predicate = predicate;
+                    fragment.Class("Sink").MethodsList.Add(new Method("Take", constrained, [new Parameter("value", refined)], DeclarationFragments.Public));
+                    break;
+                }
+
+            default:
+                {
+                    var owner = fragment.Class("Sink");
+                    var parameter = DeclarationFragments.Parameter(owner, owner.Scope, "Size");
+                    parameter.Domain = (MistType)constrained;
+                    parameter.IsDependent = true;
+                    parameter.Refinement = predicate;
+                    break;
+                }
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void StableStoragePredicateIsSilent(bool field)

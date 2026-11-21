@@ -1,3 +1,4 @@
+using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Members;
@@ -34,13 +35,32 @@ internal sealed partial class RefinementAnalyzer
         };
     }
 
+    public static bool Admits(ParameterValue held, TypeParameter length)
+    {
+        return length.Domain is not { } domain || DependentDomains.Primitive(domain) is null
+            || DependentDomains.Forwards(OperatorAdmissibility.Underlying(held.Parameter.Type), domain);
+    }
+
     private sealed partial class Proving
     {
         public void NeedReturnLength(Method method)
         {
             if(HeldLength(method.ReturnType) is not { } held
-                || context.Model.TypesByFQN.GetValueOrDefault(WellKnownTypes.Array.FullyQualifiedName) is not IHasTypeParameters { TypeParametersList: [_, { IsDependent: true } length] }
-                || InstanceSlotRead.Contract(length) is not { } contract)
+                || context.Model.TypesByFQN.GetValueOrDefault(WellKnownTypes.Array.FullyQualifiedName) is not IHasTypeParameters { TypeParametersList: [_, { IsDependent: true } length] })
+            {
+                return;
+            }
+
+            if(!Admits(held, length))
+            {
+                context.Report(
+                    ProgramAnalysisDiagnostics.DependentArgumentNotAssignable, held.Written, [],
+                    new OptionalValue(SlotKind.Type, null), new OptionalValue(SlotKind.Name, new NameValue(held.Parameter.Name)),
+                    DiagnosticSnapshot.Type(held.Parameter.Type), new NameValue(length.Name), DiagnosticSnapshot.Type(length.Domain!));
+                return;
+            }
+
+            if(InstanceSlotRead.Contract(length) is not { } contract)
             {
                 return;
             }

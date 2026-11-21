@@ -86,6 +86,27 @@ public sealed class ReturnLengthProofFlowTests
         Assert.Contains("(fails when n <= -1)", refused.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Int64")]
+    [InlineData("String")]
+    [InlineData("Boolean")]
+    public void AParameterOfAnotherTypeIsRefusedAsTheLengthAtTheSignature(string type)
+    {
+        var refused = Assert.Single(AnalyzeSignature(Sized(slots.Refinements.Built.Type(type), out _)));
+
+        Assert.Equal("MIST0280", refused.Number.Value);
+        Assert.Contains("argument 'n' of type", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("is not assignable to dependent parameter", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AStringParametersLengthIsNotReadAsANumberAtTheReturn()
+    {
+        var sized = Sized(slots.Refinements.String, out _);
+
+        Assert.Empty(AnalyzeIn(sized, new ReturnStatement(slots.Refinements.Array(3), sized.ReturnType)));
+    }
+
     [Fact]
     public void AWhereClauseThatBoundsTheParameterProvesTheLengthsContract()
     {

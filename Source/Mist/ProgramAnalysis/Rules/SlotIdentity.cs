@@ -93,7 +93,7 @@ internal static class SlotIdentity
 
     private static Proof? Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget)
     {
-        if(ReadsItself(pair, through))
+        if(ReadsItself(pair, through) || Refused(pair.Argument, pair.Parameter) || Refused(pair.Slot, pair.Parameter))
         {
             return new Proven();
         }
@@ -140,6 +140,12 @@ internal static class SlotIdentity
             (LiftedType left, LiftedType right) => SlotReads.Constant(left) is { } mine && mine == SlotReads.Constant(right),
             _ => ReferenceEquals(argument, slot),
         };
+    }
+
+    // A length closed with a parameter of another type is refused once, at its method's signature.
+    private static bool Refused(IMistType closing, TypeParameter parameter)
+    {
+        return closing is ParameterValue held && !RefinementAnalyzer.Admits(held, parameter);
     }
 
     private sealed record Pair(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read, bool Nested = false);

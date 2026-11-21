@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
@@ -53,9 +54,9 @@ internal static class DeclaredPredicates
 
             foreach(var constituent in aliased is UnionType union ? union.Constituents : [aliased])
             {
-                if(constituent is RefinedType { Predicate: { } predicate })
+                if(constituent is RefinedType { Predicate: { } predicate } refined)
                 {
-                    yield return new DeclaredPredicate(predicate, TypeDisplay.Mist(alias), site);
+                    yield return new DeclaredPredicate(predicate, TypeDisplay.Mist(alias), site, refined.BaseType);
                 }
             }
         }
@@ -109,7 +110,7 @@ internal static class DeclaredPredicates
         {
             if(parameter.Refinement is { } predicate)
             {
-                yield return new DeclaredPredicate(predicate, parameter.Name, site);
+                yield return new DeclaredPredicate(predicate, parameter.Name, site, parameter.Domain);
             }
         }
     }
@@ -118,14 +119,14 @@ internal static class DeclaredPredicates
     {
         foreach(var parameter in parameters)
         {
-            if(parameter.Type is RefinedType { IsAnonymous: true, Predicate: { } predicate })
+            if(parameter.Type is RefinedType { IsAnonymous: true, Predicate: { } predicate } refined)
             {
-                yield return new DeclaredPredicate(predicate, parameter.Name, site);
+                yield return new DeclaredPredicate(predicate, parameter.Name, site, refined.BaseType);
             }
         }
     }
 }
 
-internal sealed record DeclaredPredicate(Pattern Predicate, string Constrained, PredicateSite Site);
+internal sealed record DeclaredPredicate(Pattern Predicate, string Constrained, PredicateSite Site, IMistType? Refines = null);
 
 internal sealed record PredicateSite(MistType? Owner, MistAssembly? Assembly, Accessibility Reach, string Kind, string Name);

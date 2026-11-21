@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -101,7 +102,7 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
         foreach(var declared in DeclaredPredicates.Of(context))
         {
-            CheckPredicate(context, declared.Predicate, declared.Constrained, purity);
+            CheckPredicate(context, declared.Predicate, declared.Constrained, declared.Refines, purity);
         }
     }
 
@@ -241,10 +242,12 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static void CheckPredicate(AnalysisContext context, Pattern? predicate, string constrained, PurityInference purity)
+    private static void CheckPredicate(AnalysisContext context, Pattern? predicate, string constrained, IMistType? refines, PurityInference purity)
     {
+        var refused = false;
         if(Comparability.Misordered(predicate) is { } comparison)
         {
+            refused = true;
             Report(
                 context, comparison.Node, ProgramAnalysisDiagnostics.RefinementNotComparable,
                 new NameValue(constrained), DiagnosticSnapshot.Type(comparison.NarrowedType));
@@ -252,9 +255,17 @@ internal sealed class DeclarationShapeAnalyzer : IProgramAnalyzer
 
         if(Comparability.Mismatched(predicate, context.Model.TypeInterner) is { } mismatched)
         {
+            refused = true;
             Report(
                 context, mismatched.Node, ProgramAnalysisDiagnostics.RefinementConstantMismatch,
                 new NameValue(constrained), DiagnosticSnapshot.Type(mismatched.Bound.Type), DiagnosticSnapshot.Type(mismatched.NarrowedType));
+        }
+
+        if(!refused && predicate is not null && refines is not null && EmptyRefinements.AdmitsNothing(predicate, refines))
+        {
+            Report(
+                context, predicate.Node, ProgramAnalysisDiagnostics.RefinementAdmitsNoValue,
+                new NameValue(RefinementFindings.Describe(predicate)), new NameValue(constrained), DiagnosticSnapshot.Type(refines));
         }
 
         foreach(var (read, refusal) in RefusedReads(predicate, purity))

@@ -218,6 +218,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.OperatorNotOnDeclaringType"] = "Operator 'arg0' must take 'arg1', the type declaring it, as a parameter; an operator is found only through its operands' types.",
         ["ProgramAnalysisDiagnostics.RefinementNotComparable"] = "A relational refinement predicate cannot constrain 'arg0': its type 'arg1' supports no comparison operators.",
         ["ProgramAnalysisDiagnostics.RefinementConstantMismatch"] = "The refinement predicate on 'arg0' compares a constant of type 'arg1' with a value of type 'arg2', which no value of 'arg2' can equal or be ordered against.",
+        ["ProgramAnalysisDiagnostics.RefinementAdmitsNoValue"] = "The refinement 'arg0' on 'arg1' admits no value of 'arg2'.",
         ["ProgramAnalysisDiagnostics.RefinementOverMutableMember"] = "The refinement predicate on 'arg0' reads 'arg1', which can answer differently after a value was proven. A predicate reads only a readonly field, or a property with no 'set' accessor whose getter is pure.",
         ["ProgramAnalysisDiagnostics.DuplicateSignature"] = "Type 'arg0' already declares arg1 with parameter types (arg2); neither the return type nor a parameter's name tells two declarations apart.",
         ["ProgramAnalysisDiagnostics.MemberRedeclaration"] = "'arg0' cannot redeclare member 'arg1' already defined in 'arg2'.",

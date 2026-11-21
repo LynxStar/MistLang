@@ -132,7 +132,7 @@ internal static class RefinementFindings
             : TypeDisplay.Mist(constituent);
     }
 
-    private static string Describe(Pattern? pattern)
+    internal static string Describe(Pattern? pattern)
     {
         return pattern switch
         {

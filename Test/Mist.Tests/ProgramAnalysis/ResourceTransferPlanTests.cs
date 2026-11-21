@@ -209,6 +209,66 @@ public sealed class ResourceTransferPlanTests
     }
 
     [Fact]
+    public void AnAffineWithBindingLeftOnlyByAReturnIsReleasedByItsScope()
+    {
+        var x = Bound("x");
+        var scope = With(f.New(1, f.Once), HandBuiltModel.Block(new ReturnStatement(null, null)), x);
+
+        Assert.Equal(Released(x), Plan(scope).ReleaseAt(scope));
+    }
+
+    /// <summary>
+    /// The loop never ends, so a throw from the call is the only way out of the scope and the only step
+    /// that can say the scope still owes its release.
+    /// </summary>
+    [Fact]
+    public void AnAffineWithBindingLeftOnlyByAThrowIsReleasedByItsScope()
+    {
+        var x = Bound("x");
+        var scope = With(f.New(1, f.Once), HandBuiltModel.Block(Forever(Run(f.Call(f.Risky)))), x);
+
+        Assert.Equal(Released(x), Plan(scope).ReleaseAt(scope));
+    }
+
+    [Fact]
+    public void NestedAffineWithBindingsAreEachReleasedByTheirOwnScope()
+    {
+        var x = Bound("x");
+        var y = Bound("y");
+        var inner = With(f.New(2, f.Once), HandBuiltModel.Block(), y);
+        var outer = With(f.New(1, f.Once), HandBuiltModel.Block(inner), x);
+        var plan = Plan(outer);
+
+        Assert.Equal([Released(x), Released(y)], [plan.ReleaseAt(outer), plan.ReleaseAt(inner)]);
+    }
+
+    [Fact]
+    public void AThrowInsideNestedWithsLeavesEachScopeReleasingItsOwnBinding()
+    {
+        var x = Bound("x");
+        var y = Bound("y");
+        var inner = With(f.New(2, f.Once), HandBuiltModel.Block(Forever(Run(f.Call(f.Risky)))), y);
+        var outer = With(f.New(1, f.Once), HandBuiltModel.Block(inner), x);
+        var plan = Plan(outer);
+
+        Assert.Equal([Released(x), Released(y)], [plan.ReleaseAt(outer), plan.ReleaseAt(inner)]);
+    }
+
+    [Fact]
+    public void APropagatedResultTakenFromAPropagatedResultTakesOverItsCarriersRelease()
+    {
+        var shapes = new ResultModel();
+        var inner = shapes.Result(f.Token, shapes.Text);
+        var made = new InvocationExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(f.Int32), [], shapes.Result(inner, shapes.Text), null, null);
+        var unwrapped = shapes.Propagate(made, inner);
+        var taken = f.Local("taken");
+        var plan = Plan(Declare(taken, shapes.Propagate(unwrapped, inner)));
+
+        Assert.Contains(plan.MarksAfter(unwrapped), mark => ReferenceEquals(mark.Owner, made) && !mark.Owned);
+        Assert.Equal(LifetimeRelease.AtExit, plan.ReleaseOf(taken));
+    }
+
+    [Fact]
     public void HandingOnAPatternBindingHandsOnTheHolderItViews()
     {
         var k = f.Local("k");
@@ -284,6 +344,21 @@ public sealed class ResourceTransferPlanTests
         var call = f.CallOn(new ThisExpression(HandBuiltModel.Node(), f.Box), conditional: false, Ref(t));
 
         Assert.Equal(LifetimeRelease.None, Plan(Declare(t, f.New(1)), Run(call)).ReleaseOf(t));
+    }
+
+    private LocalVariable Bound(string name)
+    {
+        return new LocalVariable(name, f.Once) { IsContextBound = true };
+    }
+
+    private WhileStatement Forever(params Statement[] body)
+    {
+        return new WhileStatement(HandBuiltModel.Literal(f.Boolean, true), HandBuiltModel.Block(body));
+    }
+
+    private static (object Owner, LifetimeRelease Release)? Released(LocalVariable binding)
+    {
+        return (binding, LifetimeRelease.AtExit);
     }
 
     private LifetimeRelease Release(Parameter parameter, Block body)

@@ -273,6 +273,16 @@ public static partial class ProgramAnalysisDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("declaration", SlotKind.Name), new Slot("constantType", SlotKind.Type), new Slot("type", SlotKind.Type)]);
 
+    public static readonly MistDiagnostic RefinementAdmitsNoValue = new(
+        DiagnosticNumber.Mint("MIST0505"),
+        Title: "Refinement admits no value",
+        Template: "The refinement '{predicate}' on '{declaration}' admits no value of '{type}'.",
+        Description: "No value of the refined type satisfies the predicate, alone or together with the type's own range and the refinement it builds on, so nothing could ever be stored in it. Widen the bounds, or remove the refinement.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("predicate", SlotKind.Name), new Slot("declaration", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+
     public static readonly MistDiagnostic RefinementOverMutableMember = new(
         DiagnosticNumber.Mint("MIST0175"),
         Title: "Refinement reads mutable member",

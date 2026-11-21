@@ -167,6 +167,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0483 | Propagation needs an error return destination | Use a Result-returning factory instead of a constructor, or declare a return type that accepts the propagated error. | Error | Fixed | None | None |
 | MIST0484 | Operation proven invalid | Arithmetic is proven at compile time to divide by zero or to overflow, including an unrepresentable signed integer quotient or decimal overflow. Return a Result failure explicitly, or establish operands that satisfy the operation's preconditions. | Error | Fixed | None | None |
 | MIST0485 | Refinement proof exhausted | The facts on this path interact in more ways than the compiler's proof budget allows it to combine, so the refinement was neither proven nor disproven. Test the value with a condition or pattern before this use, so the proof needs fewer facts. | Error | Fixed | predicate: Name, value: Name | None |
+| MIST0505 | Refinement admits no value | No value of the refined type satisfies the predicate, alone or together with the type's own range and the refinement it builds on, so nothing could ever be stored in it. Widen the bounds, or remove the refinement. | Error | Fixed | predicate: Name, declaration: Name, type: Type | None |
 
 ## DEC
 

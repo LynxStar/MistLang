@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -9,7 +10,7 @@ internal static class FailingCase
 {
     public static string? Describe(Refuted refuted)
     {
-        var shown = Spelled(Narrowed(refuted.FailingCase.Facts));
+        var shown = Spelled(Narrowed(refuted.FailingCase.Facts), refuted.Names);
         return shown.Count == 0 ? null : $"fails when {string.Join(" and ", shown.Distinct())}{(refuted.AfterMerge ? ", after merging paths" : "")}";
     }
 
@@ -35,8 +36,9 @@ internal static class FailingCase
             && other.Term.Multipliers.SequenceEqual(fact.Term.Multipliers)))];
     }
 
-    internal static List<string> Spelled(IReadOnlyList<Fact> facts)
+    internal static List<string> Spelled(IReadOnlyList<Fact> facts, IReadOnlyDictionary<Value, string>? names = null)
     {
+        names ??= ImmutableDictionary<Value, string>.Empty;
         var shown = new List<string>();
         foreach(var fact in facts.Where(fact => fact.Term.Variables.Length > 1))
         {
@@ -50,25 +52,25 @@ internal static class FailingCase
             {
                 if(fact.Term.Multipliers[0].Sign > 0)
                 {
-                    shown.Add(Compared(fact.Term, "=="));
+                    shown.Add(Compared(fact.Term, "==", names));
                 }
 
                 continue;
             }
 
-            shown.Add(Compared(fact.Term, fact.Relation switch { Relation.Equal => "==", Relation.LessThan => "<", _ => "<=" }));
+            shown.Add(Compared(fact.Term, fact.Relation switch { Relation.Equal => "==", Relation.LessThan => "<", _ => "<=" }, names));
         }
 
         foreach(var value in facts.Where(fact => fact.Term.Variables.Length == 1).Select(fact => fact.Term.Variables[0]).Distinct())
         {
             if(value.IsReal)
             {
-                shown.AddRange(facts.Where(fact => fact.Values is null && fact.Term.Variables is [var only] && only == value).Select(Bounded));
+                shown.AddRange(facts.Where(fact => fact.Values is null && fact.Term.Variables is [var only] && only == value).Select(fact => Bounded(fact, names)));
                 continue;
             }
 
             var known = Chain.SingleValue(facts.Where(fact => fact.Term.Variables.Length == 1), value);
-            if(Interval(value, known) is { Length: > 0 } interval)
+            if(Interval(value, known, names) is { Length: > 0 } interval)
             {
                 shown.Add(interval);
             }
@@ -137,9 +139,10 @@ internal static class FailingCase
             && range.And(Chain.SingleValue([fact], only)).Equals(range);
     }
 
-    private static string Bounded(Fact fact)
+    private static string Bounded(Fact fact, IReadOnlyDictionary<Value, string> names)
     {
         var value = fact.Term.Variables[0];
+        var name = Name(value, names);
         var multiplier = fact.Term.Multipliers[0];
         var bound = new Rational(-fact.Term.Constant * multiplier.Sign, BigInteger.Abs(multiplier));
         var relation = fact.Relation switch
@@ -155,11 +158,11 @@ internal static class FailingCase
                 : single ? float.BitDecrement((float)point) : double.BitDecrement(point);
             if(double.IsFinite(beyond) && Number(beyond, single).Length < Number(point, single).Length)
             {
-                return $"{value.DisplayName} {relation[..1]} {Number(beyond, single)}";
+                return $"{name} {relation[..1]} {Number(beyond, single)}";
             }
         }
 
-        return $"{value.DisplayName} {relation} {Shown(bound)}";
+        return $"{name} {relation} {Shown(bound)}";
     }
 
     private static double? Binary(Rational bound)
@@ -210,7 +213,7 @@ internal static class FailingCase
         return Requirement.ValuesOf(value.Type) is { } admitted ? range.And(IntegralSet.Of(admitted)) : range;
     }
 
-    private static string? Interval(Value value, IntegralSet known)
+    private static string? Interval(Value value, IntegralSet known, IReadOnlyDictionary<Value, string> names)
     {
         var declared = Declared(value);
         if(known.Equals(declared) || known.IsEmpty || declared.IsEmpty)
@@ -222,51 +225,51 @@ internal static class FailingCase
         var high = known.Intervals[^1].High;
         if(known.Intervals.Length > 1)
         {
-            return $"({string.Join(" or ", known.Intervals.Select(part => Between(value, part.Low, part.High, null, null)))})";
+            return $"({string.Join(" or ", known.Intervals.Select(part => Between(Name(value, names), part.Low, part.High, null, null)))})";
         }
 
-        return Between(value, low, high, declared.Intervals[0].Low, declared.Intervals[^1].High);
+        return Between(Name(value, names), low, high, declared.Intervals[0].Low, declared.Intervals[^1].High);
     }
 
-    private static string Between(Value value, BigInteger? low, BigInteger? high, BigInteger? lowest, BigInteger? highest)
+    private static string Between(string name, BigInteger? low, BigInteger? high, BigInteger? lowest, BigInteger? highest)
     {
         if(low is { } only && low == high)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"{value.DisplayName} == {only}");
+            return string.Create(CultureInfo.InvariantCulture, $"{name} == {only}");
         }
 
         var parts = new List<string>();
         if(low is { } floor && low != lowest)
         {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{value.DisplayName} >= {floor}"));
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{name} >= {floor}"));
         }
 
         if(high is { } ceiling && high != highest)
         {
-            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{value.DisplayName} <= {ceiling}"));
+            parts.Add(string.Create(CultureInfo.InvariantCulture, $"{name} <= {ceiling}"));
         }
 
         return string.Join(" and ", parts);
     }
 
-    private static string Compared(Term term, string relation)
+    private static string Compared(Term term, string relation, IReadOnlyDictionary<Value, string> names)
     {
         var lead = term.Variables[0];
         var multiplier = term.Multipliers[0];
         var rest = new Term(term.Variables.Skip(1).Zip(term.Multipliers.Skip(1), KeyValuePair.Create), term.Constant);
         var flipped = multiplier.Sign < 0 && relation != "==";
         var right = multiplier.Sign < 0 ? rest : rest.Scale(-1);
-        return $"{Sum(new Term([KeyValuePair.Create(lead, BigInteger.Abs(multiplier))]))} {(flipped ? relation.Replace('<', '>') : relation)} {Sum(right)}";
+        return $"{Sum(new Term([KeyValuePair.Create(lead, BigInteger.Abs(multiplier))]), names)} {(flipped ? relation.Replace('<', '>') : relation)} {Sum(right, names)}";
     }
 
-    private static string Sum(Term term)
+    private static string Sum(Term term, IReadOnlyDictionary<Value, string> names)
     {
         var text = new StringBuilder();
         for(var i = 0; i < term.Variables.Length; i++)
         {
             var multiplier = term.Multipliers[i];
             var magnitude = BigInteger.Abs(multiplier);
-            var name = magnitude.IsOne ? term.Variables[i].DisplayName : string.Create(CultureInfo.InvariantCulture, $"{magnitude} * {term.Variables[i].DisplayName}");
+            var name = magnitude.IsOne ? Name(term.Variables[i], names) : string.Create(CultureInfo.InvariantCulture, $"{magnitude} * {Name(term.Variables[i], names)}");
             _ = text.Append(i == 0 ? multiplier.Sign < 0 ? "-" : "" : multiplier.Sign < 0 ? " - " : " + ").Append(name);
         }
 
@@ -278,5 +281,10 @@ internal static class FailingCase
         }
 
         return text.ToString();
+    }
+
+    private static string Name(Value value, IReadOnlyDictionary<Value, string> names)
+    {
+        return names.GetValueOrDefault(value) ?? value.DisplayName;
     }
 }

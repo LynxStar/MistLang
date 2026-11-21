@@ -27,7 +27,7 @@ internal static class DiagnosticSnapshot
     {
         return type switch
         {
-            CapturedValue => true,
+            CapturedValue or ParameterValue => true,
             ConstructedType constructed => constructed.TypeArguments.Any(HoldsCapture)
                 || (constructed.Enclosing is { } enclosing && HoldsCapture(enclosing)),
             UnionType union => union.Constituents.Any(HoldsCapture),

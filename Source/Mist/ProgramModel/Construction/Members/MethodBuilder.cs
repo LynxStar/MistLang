@@ -52,7 +52,7 @@ internal sealed class MethodBuilder
         // `async` is a RETURN-TYPE TRANSFORM rather than a marker on the body: `async int` declares a
         // method producing Task<int>, and every caller sees that type. The body still returns the
         // int -- see BodyBinder.BindDelegate, which unwraps this again for the body's own target.
-        var declaredReturn = scopeResolver.Resolve(methodDecl.ReturnType, methodScope);
+        var declaredReturn = scopeResolver.ResolveReturnType(methodDecl.ReturnType, methodScope, common.Parameters);
         var returnType = common.Modifiers.IsAsync
             ? scopeResolver.ConstructTask(declaredReturn)
             : declaredReturn

@@ -79,7 +79,7 @@ internal static class BodyWalker
         add<InterpolatedStringExpression>(e => [.. e.Parts]);
         add<InterpolatedStringText>(_ => []);
         add<InterpolatedStringHole>(h => [h.Expression]);
-        add<InvocationExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), e.Receiver, .. e.Arguments]);
+        add<InvocationExpression>(e => [.. e.Captures.Select(capture => capture.Initializer).Where(initializer => !e.Arguments.Any(argument => ReferenceEquals(argument, initializer))), e.Receiver, .. e.Arguments]);
         add<IsPatternExpression>(e => [e.Scrutinee, e.Pattern]);
         add<LambdaExpression>(e => [e.Result, e.Body]);
         add<LiteralExpression>(_ => []);

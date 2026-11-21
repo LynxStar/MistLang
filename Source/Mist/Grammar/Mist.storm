@@ -62,7 +62,7 @@ rule TypeParameterList = LESS_THAN TypeParameter (COMMA TypeParameter)* GREATER_
 
 rule TypeParameter
     = PARAMS name:IDENTIFIER                                          as ParamsPackTypeParameter
-    | domainName:IDENTIFIER arrayRank:ArrayRankSuffix COLON name:IDENTIFIER  as ExplicitPackTypeParameter
+    | domainName:IDENTIFIER !NamedArrayLength arrayRank:ArrayRankSuffix COLON name:IDENTIFIER  as ExplicitPackTypeParameter
     | name:IDENTIFIER COLON valueType:PrimitiveType           as DependentTypeParameter
     | name:IDENTIFIER COLON constraintName:QualifiedIdentifier as NamedConstraintDependentTypeParameter
     | name:IDENTIFIER                                          as RegularTypeParameter
@@ -392,8 +392,29 @@ rule ArrayElementList = first:Expression (COMMA Expression)* COMMA?;
 
 rule ArrayRankSuffix
     = LEFT_BRACKET size:INTEGER_LITERAL RIGHT_BRACKET as SizedArrayRank
+    | LEFT_BRACKET length:QualifiedIdentifier RIGHT_BRACKET as NamedSizedArrayRank
     | LEFT_BRACKET RIGHT_BRACKET as UnsizedArrayRank
     ;
+
+// A type sized by a name is spelled as an element read, `a[i]`, so where a type and an expression are
+// both tried -- a cast, the type arguments of a call -- the element read keeps the tokens it had.
+rule IndexRead
+    = LEFT_PARENTHESIS IndexRead RIGHT_PARENTHESIS
+    | LEFT_PARENTHESIS TypeReference RIGHT_PARENTHESIS LEFT_BRACKET QualifiedIdentifier RIGHT_BRACKET
+    | QualifiedIdentifier TypeArgumentList DOT QualifiedIdentifier LEFT_BRACKET QualifiedIdentifier RIGHT_BRACKET
+    | QualifiedIdentifier LEFT_BRACKET QualifiedIdentifier RIGHT_BRACKET
+    ;
+
+rule ParenthesizedIndexRead = LEFT_PARENTHESIS IndexRead RIGHT_PARENTHESIS;
+
+rule IndexReadArgument = LESS_THAN IndexReadArguments;
+
+rule IndexReadArguments
+    = IndexRead (COMMA | GREATER_THAN)
+    | TypeArgument COMMA IndexReadArguments
+    ;
+
+rule NamedArrayLength = LEFT_BRACKET QualifiedIdentifier RIGHT_BRACKET;
 
 // TypeReference without ArrayRankSuffix, so the brackets in `new int[3]` are always the size, never a
 // sized element type.
@@ -575,7 +596,7 @@ rule Range
 
 @memo
 rule Unary
-    = LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
+    = !ParenthesizedIndexRead LEFT_PARENTHESIS targetType:TypeReference RIGHT_PARENTHESIS operand:Unary  as CastExpression
     // An `async` lambda is taken by Expression's LambdaExpression alternative before Unary is reached;
     // a non-lambda such as `async foo()` falls through to the ASYNC alternatives here.
     | primary:Postfix              as PostfixExpression
@@ -593,9 +614,9 @@ rule Unary
 rule Postfix = target:Primary suffix:PostfixSuffix*;
 
 rule PostfixSuffix
-    = QUESTION_DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as OptionalMethodCallSuffix
+    = QUESTION_DOT name:IDENTIFIER !IndexReadArgument typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as OptionalMethodCallSuffix
     | QUESTION_DOT name:IDENTIFIER                                                as OptionalMemberAccessSuffix
-    | DOT name:IDENTIFIER typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
+    | DOT name:IDENTIFIER !IndexReadArgument typeArgs:TypeArgumentList? LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS  as MethodCallSuffix
     // A generic method named as a VALUE with its type arguments stated, `Api.Same<int>` with no call.
     // Committed to only where `>` is followed by a token that ends an expression, which no comparison
     // chain can be -- `>` needs a right operand -- so `Use(a.b < c, d > e)` stays two comparisons. `>`
@@ -643,8 +664,8 @@ rule Primary
     | DEFAULT LEFT_PARENTHESIS type:TypeReference RIGHT_PARENTHESIS               as DefaultExpression
     | DEFAULT                                                                      as DefaultLiteralExpression
     | LEFT_BRACKET elements:ArrayElementList? RIGHT_BRACKET                         as ArrayLiteralExpression
-    | name:IDENTIFIER typeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericInvocationExpression
-    | type:QualifiedIdentifier typeArgs:TypeArgumentList DOT member:IDENTIFIER methodTypeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericTypeMethodCallExpression
+    | name:IDENTIFIER !IndexReadArgument typeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericInvocationExpression
+    | type:QualifiedIdentifier typeArgs:TypeArgumentList DOT member:IDENTIFIER !IndexReadArgument methodTypeArgs:TypeArgumentList LEFT_PARENTHESIS arguments:ArgumentList? RIGHT_PARENTHESIS as GenericTypeMethodCallExpression
     // A member named through a constructed generic, `Task<int>.WhenAll(...)`. Committed to only when
     // `>` is followed by `.name`, which no comparison chain can be, so `a < b > .c` is never read as
     // one -- the same token that disambiguates the two readings in C#.

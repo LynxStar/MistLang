@@ -458,13 +458,21 @@ internal sealed class FlowGraphBuilder
 
             default:
                 var captures = SlotCapture.Of(expression);
-                current = Captured(expression, current);
+                IReadOnlyList<Expression> operands = expression is InvocationExpression call ? call.Arguments : [];
+                current = Captured(expression, current, operands);
 
                 foreach(var child in BodyWalker.ChildrenOf(expression))
                 {
-                    if(!captures.Any(capture => ReferenceEquals(capture.Initializer, child)))
+                    var operand = operands.Any(argument => ReferenceEquals(argument, child));
+
+                    if(operand || !captures.Any(capture => ReferenceEquals(capture.Initializer, child)))
                     {
                         current = Child(child, current);
+                    }
+
+                    foreach(var capture in captures.Where(capture => operand && ReferenceEquals(capture.Initializer, child)))
+                    {
+                        current.Steps.Add(new FlowStep(FlowStepKind.Declare, capture.Declaration, capture));
                     }
                 }
 
@@ -475,9 +483,9 @@ internal sealed class FlowGraphBuilder
         return current;
     }
 
-    private FlowBlock Captured(object owner, FlowBlock current)
+    private FlowBlock Captured(object owner, FlowBlock current, IReadOnlyList<Expression>? operands = null)
     {
-        foreach(var capture in SlotCapture.Of(owner))
+        foreach(var capture in SlotCapture.Of(owner).Where(capture => operands?.Any(argument => ReferenceEquals(argument, capture.Initializer)) != true))
         {
             current = Expression(capture.Initializer, current);
             current.Steps.Add(new FlowStep(FlowStepKind.Declare, capture.Declaration, capture));

@@ -50,7 +50,8 @@ internal static partial class BodyEmitter
                 && (!ConsumedByClosing(array.ElementType, capture) || KeptLocal(capture) is not null)),
             StackallocExpression stack => stack.Captures.Where(capture => !ReferenceEquals(capture.Initializer, stack.Size)
                 && (!ConsumedByClosing(stack.ElementType, capture) || KeptLocal(capture) is not null)),
-            InvocationExpression invocation => invocation.Captures.Where(capture => !ConsumedByCall(invocation, capture)),
+            InvocationExpression invocation => invocation.Captures.Where(capture => !ConsumedByCall(invocation, capture)
+                && (KeptLocal(capture) is not null || !invocation.Arguments.Any(argument => ReferenceEquals(argument, capture.Initializer)))),
             MemberAccessExpression access => access.Captures.Where(capture => !ConsumedByAccess(access, capture)),
             _ => [],
         };

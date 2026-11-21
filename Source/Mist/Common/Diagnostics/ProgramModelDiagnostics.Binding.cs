@@ -496,7 +496,7 @@ public static partial class ProgramModelDiagnostics
         DiagnosticNumber.Mint("MIST0487"),
         Title: "Slot value outside a body",
         Template: "A type written here cannot name the value '{name}'. Declare a dependent parameter and pass '{name}' between angle brackets.",
-        Description: "A dependent slot takes a value's name only where a type is written in a body, which is where the value is read. A field type, a signature, a base clause, an alias target and a constraint take a literal or a dependent parameter in scope. Declare a dependent parameter on the enclosing declaration and close the type with it.",
+        Description: "A dependent slot takes a value's name only where a type is written in a body, which is where the value is read. A field type, a signature, a base clause, an alias target and a constraint take a literal or a dependent parameter in scope. The one exception is the length of an array a method returns, which may name one of that method's readonly value parameters. Declare a dependent parameter on the enclosing declaration and close the type with it.",
         Category: DiagnosticCategory.Typ,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
@@ -521,4 +521,14 @@ public static partial class ProgramModelDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("parameter", SlotKind.Name), new Slot("type", SlotKind.Type)]);
+
+    public static readonly MistDiagnostic ReturnLengthNotReadonly = new(
+        DiagnosticNumber.Mint("MIST0504"),
+        Title: "Return length not readonly",
+        Template: "'{parameter}' is named in the return type, so it must be declared as a readonly value parameter.",
+        Description: "The length of an array a method returns may name one of the method's parameters, which must then be declared 'readonly' and passed by value, so that in the body it is the value the caller passed. A plain parameter can be written, and a 'readonly ref' one can change through its owner while the method runs. Declare the parameter 'readonly', or state the length as a dependent parameter between angle brackets.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("parameter", SlotKind.Name)]);
 }

@@ -3,6 +3,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -33,6 +34,41 @@ internal sealed partial class RefinementAnalyzer
                     || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType),
                 _ => false,
             });
+        }
+
+        public void NeedArguments(
+            FactState state, IReadOnlyList<Expression> arguments,
+            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null)
+        {
+            if(parameterTypes is null)
+            {
+                return;
+            }
+
+            var flattened = parameters is not null && ValuePack.FlattenedSlot(parameters) is not null;
+            var reading = Reading.Of(state, arguments, callee?.SourceDeclaration ?? callee, flattened, this, receiver);
+            var targets = flattened
+                ? ArgumentTargets.Of(
+                    parameters, parameterTypes, [.. arguments.Select(argument => argument is SpreadExpression ? null : argument.Type)],
+                    context.Model.TypeInterner)
+                : parameterTypes;
+
+            for(var i = 0; targets is not null && i < arguments.Count && i < targets.Count; i++)
+            {
+                var slot = flattened ? ValuePack.SlotOf(parameters!, arguments.Count, i) : i;
+                var parameter = parameters is not null && slot < parameters.Count ? parameters[slot] : null;
+
+                if(parameter is { Modifier.Direction: ByRefDirection.Out }
+                    || targets[i] is not { } target
+                    || (flattened && arguments[i] is SpreadExpression))
+                {
+                    continue;
+                }
+
+                Need(
+                    state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
+                    reading: reading);
+            }
         }
 
         private static bool Owed(IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? types)

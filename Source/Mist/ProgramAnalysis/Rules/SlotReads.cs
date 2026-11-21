@@ -93,6 +93,7 @@ internal static class SlotReads
             LiftedType lifted when Constant(lifted) is { } constant => new Term(constant),
             CapturedValue captured => reading.Read(ref state, new LocalReferenceExpression(captured.Capture.Initializer.Node, captured.Capture)),
             TypeParameter { IsDependent: true } dependent => reading.Symbol(ref state, new SymbolicBound(dependent.Name, ComparisonKind.Equal) { Named = dependent }),
+            ParameterValue held => reading.Symbol(ref state, new SymbolicBound(held.Parameter.Name, ComparisonKind.Equal) { Named = held.Parameter }),
             UnknownType or UnknownValueType when through is not null && parameter.DeclaringType is ClassType or StructType => reading.Read(ref state, Read(through, parameter)),
             _ => null,
         };

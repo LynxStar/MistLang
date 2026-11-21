@@ -189,6 +189,7 @@ internal static class SlotIdentity
         {
             CapturedValue captured => SlotReads.Known(state, captured) is { } known ? Spell(captured.Domain, known) : captured.WrittenName,
             LiftedType lifted => lifted.Name,
+            ParameterValue held => held.Parameter.Name,
             UnknownType or UnknownValueType when through is not null => $"{RefinementFindings.Display(through)}.{parameter.Name}",
             _ => TypeDisplay.Mist(slot),
         };

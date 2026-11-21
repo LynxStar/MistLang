@@ -110,6 +110,7 @@ internal static class ConversionClassifier
             LiftedType lifted => Normalize(lifted.Type),
             UnknownValueType value => Normalize(value.Domain),
             CapturedValue captured => Normalize(captured.Domain),
+            ParameterValue held => Normalize(held.Domain),
             _ => type,
         };
     }
@@ -246,7 +247,7 @@ internal static class ConversionClassifier
 
     private static bool IsRuntimeValue(IMistType value)
     {
-        return value is CapturedValue or TypeParameter { IsDependent: true, IsPack: false };
+        return value is CapturedValue or ParameterValue or TypeParameter { IsDependent: true, IsPack: false };
     }
 
     private static bool IsNamedValue(IMistType value)
@@ -256,7 +257,7 @@ internal static class ConversionClassifier
 
     private static bool ErasesDependentValue(IMistType argument, IMistType slot, IMistType definition, int ordinal)
     {
-        if(argument is not (LiftedType or UnknownValueType or CapturedValue))
+        if(argument is not (LiftedType or UnknownValueType or CapturedValue or ParameterValue))
         {
             return false;
         }

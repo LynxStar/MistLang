@@ -9,7 +9,7 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramModel.Construction.Binding.Expressions;
 
-internal static class PostfixBinder
+internal static partial class PostfixBinder
 {
     internal static Expression BindPostfix(PostfixNode node, BindingContext ctx, BuilderContext context)
     {
@@ -195,92 +195,6 @@ internal static class PostfixBinder
         }
     }
 
-    private static Expression BindSwitch(
-        SwitchExpressionSuffixPostfixSuffixNode node, Expression scrutinee, BindingContext ctx, BuilderContext context)
-    {
-        if(node.Arms is null)
-        {
-            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchExpressionNeedsAnArm, node, null);
-            return new ErrorExpression(node);
-        }
-
-        var armNodes = new List<SwitchArmNode>(1 + node.Arms.SwitchArms.Length) { node.Arms.SwitchArm };
-        armNodes.AddRange(node.Arms.SwitchArms);
-
-        var arms = new List<SwitchArm>(armNodes.Count);
-        foreach(var armNode in armNodes)
-        {
-            if(BindArm(armNode, scrutinee.Type, ctx, context, PriorFailure.Of(scrutinee), ResultTransfers.IsOwned(scrutinee)) is not { } arm)
-            {
-                return new UnresolvedExpression(node);
-            }
-
-            arms.Add(arm);
-        }
-
-        var resultType = ctx.TargetType ?? CommonArmType(arms, node, context);
-
-        if(resultType is null || arms.All(arm => PriorFailure.Of(arm.Result)))
-        {
-            return new ErrorExpression(node, [new SwitchExpression(node, scrutinee, arms, resultType ?? ErrorType.Instance)]);
-        }
-
-        var converted = arms.ConvertAll(arm => new SwitchArm(
-            arm.Node, arm.Pattern, arm.Guard, ImplicitConversions.At(arm.Result, resultType, context.ProgramModel.TypeInterner)));
-
-        return new SwitchExpression(node, scrutinee, converted, resultType);
-    }
-
-    /// <summary>
-    /// A scope of its own, so the bindings the pattern introduces reach this arm's guard and result and
-    /// nothing else. As for a <see cref="StatementBinder"/> branch, the scope exists before the pattern
-    /// binds into it.
-    /// </summary>
-    private static SwitchArm? BindArm(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed, bool ownsPayload)
-    {
-        var enclosing = ctx.Scope;
-        ctx.Scope = new BodyScope(enclosing);
-        var arm = BindArmParts(node, scrutineeType, ctx, context, scrutineeFailed, ownsPayload);
-        ctx.Scope = enclosing;
-
-        return arm;
-    }
-
-    private static SwitchArm? BindArmParts(
-        SwitchArmNode node, IMistType scrutineeType, BindingContext ctx, BuilderContext context, bool scrutineeFailed, bool ownsPayload)
-    {
-        if(PatternBinder.Bind(node.Pattern, scrutineeType, ctx, context, scrutineeFailed, ownsPayload) is not { } pattern)
-        {
-            return null;
-        }
-
-        Expression? guard = null;
-        if(node.Guard is { } when)
-        {
-            using(ctx.PushTargetType(null))
-            {
-                guard = StatementBinder.AsCondition(OperatorBinder.BindVoidCoalescing(when.Condition, ctx, context), context);
-            }
-        }
-
-        return new SwitchArm(node, pattern, guard, ExpressionBinder.BindExpression(node.Result, ctx, context));
-    }
-
-    private static IMistType? CommonArmType(
-        IReadOnlyList<SwitchArm> arms, Storm.Runtime.SyntaxNode node, BuilderContext context)
-    {
-        var values = arms.Select(arm => arm.Result).ToList();
-        var common = CommonTypeInference.Infer(values, context.Resolver.LookupWellKnown, context.ProgramModel.TypeInterner);
-        if(common is null)
-        {
-            var (first, other) = CommonTypeInference.Disagreement(values);
-            context.Diagnostics.ReportAtNodeTyped(ProgramModelDiagnostics.SwitchArmsNoCommonType, node, null, DiagnosticSnapshot.Type(first), DiagnosticSnapshot.Type(other));
-        }
-
-        return common;
-    }
-
     internal static Expression BindInvocation(
         Storm.Runtime.SyntaxNode node,
         Expression receiver,
@@ -368,6 +282,10 @@ internal static class PostfixBinder
             context.ProgramModel.TaskDrops.RecordDrop(ctx.EnclosingMethod);
         }
 
+        var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
+        var placed = OwnedProvenance.AtParameters(ImplicitConversions.AtParameters(bound, selected, parameterTypes, interner), selected.ParametersList);
+        (returnType, var lengths) = ReturnLengths.Close(returnType, placed, selected, arguments?.GetAllExpressions() ?? [], context);
+
         var callee = group.Receiver is null
             ? new MethodReferenceExpression(node, selected, methodTypeArguments)
             : (Expression)new MemberAccessExpression(
@@ -375,16 +293,11 @@ internal static class PostfixBinder
 
         context.ProgramModel.TaskDrops.RecordCall(ctx.EnclosingMethod, selected);
 
-        var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
-        var invocation = new InvocationExpression(
-            node, callee,
-            OwnedProvenance.AtParameters(
-                ImplicitConversions.AtParameters(bound, selected, parameterTypes, interner), selected.ParametersList),
-            returnType, selected, parameterTypes)
+        var invocation = new InvocationExpression(node, callee, placed, returnType, selected, parameterTypes)
         {
             IsImplicit = isImplicit,
             ContextTypes = ContextBinding.TypesOf(selected, type => choice.Substitution.Apply(type, interner)),
-            Captures = [.. captures ?? [], .. group.StatedCapturesFor(selected), .. slots.CapturesOf(selected)],
+            Captures = [.. captures ?? [], .. group.StatedCapturesFor(selected), .. slots.CapturesOf(selected), .. lengths],
         };
 
         return TaskResult.IsDrop(selected) ? invocation : AutoDrop(invocation, ctx, context);

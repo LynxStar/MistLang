@@ -92,6 +92,7 @@ internal static class TypeDisplay
         {
             LiftedType { Value: not TypePackValue } lifted => lifted.Name,
             CapturedValue captured => mist(captured.Domain),
+            ParameterValue held => mist(held.Domain),
             UnknownValueType unknownValue => mist(unknownValue.Domain),
 
             // Before the general constructed case: an array is spelled with a rank suffix, not as
@@ -116,6 +117,7 @@ internal static class TypeDisplay
         {
             LiftedType lifted => lifted.Name,
             CapturedValue captured => captured.WrittenName,
+            ParameterValue held => held.Parameter.Name,
             _ => Render(argument, spell),
         };
     }
@@ -210,6 +212,7 @@ internal static class TypeDisplay
         {
             LiftedType lifted => $"[{lifted.Name}]",
             CapturedValue captured => $"[{captured.WrittenName}]",
+            ParameterValue held => $"[{held.Parameter.Name}]",
             TypeParameter { IsDependent: true } parameter => $"[{Render(parameter, spell)}]",
             _ => "[]",
         };

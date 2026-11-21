@@ -404,6 +404,13 @@ question and the recommendation.
 5. **May a signature's types name the method's regular parameters?** Decided
    2026-11-11: no. A relation crosses a signature through a dependent
    parameter only. Requirement 8.
+
+   Revised 2026-11-19: the length slot of an array return type may name a
+   `readonly` value parameter, `int[n] Zeroes(readonly ZeroOrPositiveInt n)`,
+   and naming one that is not `readonly` is a compile-time error. Nowhere
+   else may a signature's types name one. It came from
+   [runtime-length-facts](../runtime-length-facts/requirements.md)
+   Requirement 3. Requirement 8 items 7 to 10.
 6. **Is a type test against a runtime closing a comparison at run time?**
    Decided 2026-11-11: yes, and a test may name a dependent parameter in scope.
    Requirement 9.

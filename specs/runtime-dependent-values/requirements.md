@@ -4,6 +4,9 @@
 
 Requirements are settled with the owner one decision at a time, developed from
 [proposal.md](proposal.md). Settled so far: Requirements 1 to 11, on 2026-11-11.
+Requirement 8 was revised on 2026-11-19, when
+[runtime-length-facts](../runtime-length-facts/requirements.md) Requirement 3
+moved here.
 The proposal lists the decisions still open, and a requirement is added here
 when its decision is made. This is a language contract, not a claim that the
 current compiler implements it.
@@ -253,8 +256,10 @@ void Show(Ring<unknown> ring, PositiveInt n)
 ## Requirement 8 A relation through a signature
 
 1. A relation between a value and the types of a signature SHALL be stated
-   through a dependent parameter, of the method or of the enclosing type. A
-   type in a signature SHALL NOT name one of the method's regular parameters.
+   through a dependent parameter, of the method or of the enclosing type, or,
+   for the length of an array the method returns, through a regular parameter
+   under items 7 to 10. Nowhere else SHALL a type in a signature name one of
+   the method's regular parameters.
 2. A method's dependent parameter SHALL take a runtime value under
    Requirements 1 and 5, as `Zeroes<count>()`. It is evaluated once, before
    the regular arguments, and inside the method it is a value fixed for the
@@ -271,6 +276,27 @@ void Show(Ring<unknown> ring, PositiveInt n)
    the first line, and each `return` SHALL be proven against the return type.
    No body is read at a call, as flow-sensitive-refinement-inference
    Requirement 6 states.
+7. Where the return type is an array, its length slot MAY name one of the
+   method's regular parameters: `int[n] Zeroes(readonly ZeroOrPositiveInt n)`,
+   called as `Zeroes(count)`. A slot nested inside the return type, as in
+   `List<int[n]>`, and the slot of any other type, as in `Ring<n>`, SHALL NOT.
+   The bracket form of item 2 stays valid for a dependent parameter.
+8. A parameter named under item 7 SHALL be a value parameter declared
+   `readonly`. Naming one that is not is a compile-time error, not an implicit
+   `readonly`. A `readonly` value parameter refuses every write
+   (readonly-contexts Requirement 14.8), so in the body it is the value the
+   caller passed, and each `return` is proven against the return type under
+   item 6. A `readonly ref` parameter does not qualify: its value can change
+   through its owner while the method runs.
+9. The parameter's type and the method's `where` clause SHALL prove the
+   slot's contract under Requirement 4. `int[n] Zeroes(readonly int n)` is
+   refused: it fails when `n <= -1`.
+10. At a call, the result SHALL be closed with the value passed for that
+    parameter, evaluated once, as the argument, under Requirement 1. The
+    argument is an argument and not a slot, so Requirement 5 does not limit
+    it: `Zeroes(count)` is an `Array<int, count>`, and `Zeroes(count + 1)` is
+    closed with the value `count + 1` produced, which is identical to another
+    closing's value only as far as the facts recorded for it prove.
 
 Example.
 
@@ -294,6 +320,31 @@ void Caller(ZeroOrPositiveInt count)
     var b = Zeroes<count>();
     Blit(a, b);                 // N is inferred from a, and b is proven to match
     Blit(a, new int[3]);        // refused: fails when count <= 2 or count >= 4
+}
+```
+
+The same relation through a regular parameter, under items 7 to 10:
+
+```mist
+int[n] Sized(readonly ZeroOrPositiveInt n)
+{
+    return new int[n];
+}
+
+int[n] Wrong(readonly ZeroOrPositiveInt n)
+{
+    return new int[3];          // refused: fails when n <= 2 or n >= 4
+}
+
+int[n] Loose(ZeroOrPositiveInt n)       // refused: n is named in the return type and is not readonly
+int[n] Signed(readonly int n)           // refused: fails when n <= -1
+Ring<n> Make(readonly PositiveInt n)    // refused: only an array's length slot may name a parameter
+
+void Caller(ZeroOrPositiveInt count)
+{
+    var a = Sized(count);       // Array<int, count>
+    var b = Sized(count);
+    Blit(a, b);                 // proven: both are closed with count's value
 }
 ```
 

@@ -318,6 +318,30 @@ values as one because `Normalize` strips them to their domain. The first bound
 keeps the parameter, as Requirement 8.4 states, and each later argument is
 then an ordinary argument against a parameter type, proven by `SlotIdentity`.
 
+**A regular parameter in the return type (Requirement 8 items 7 to 10).**
+`ScopeResolver.SlotValue` (`ScopeResolver.SlotArguments.cs`) reports MIST0487
+for a value's name in any slot outside a body. While it resolves a method's
+return type, it binds a name in the return type's own length slot, when the
+return type is an array, to the method's regular parameter of that name
+instead. Every other slot in a signature keeps MIST0487. The binder checks the
+parameter where the name resolves: a parameter that is not a `readonly` value
+parameter is refused there, and the return type is not built.
+
+The slot holds the parameter, not a capture. Inside the body it reads the
+parameter's value, which nothing can write, so `return new int[n]` is proven
+at the existing return site by `SlotIdentity`: the creation's capture holds
+`n`'s value. The slot's own contract, item 9, gets a new Stage 5 site that
+reads the facts a body starts with, the parameters' types and the method's
+`where` clause (flow-sensitive Requirement 2 items 4.1 and 4.2).
+
+At a call, substitution puts a capture on the invocation in the parameter's
+place. Its initializer is the argument bound to that parameter after named and
+default arguments are placed, as inference already does for an `unknown`
+slot. The argument is evaluated once, as an argument. Array's slot is erased
+(`LengthErasure`), and a read of it through the value is the array's `Length`
+(Requirement 7), so the capture is never emitted, and the method's C#
+signature is `int[] Zeroes(int n)`.
+
 ## What may close a type (Requirement 6)
 
 `DependentDomains.Primitive` and `KindOf` (`DependentDomains.cs:17-43`) gain a
@@ -552,9 +576,12 @@ case and closes the class leak, which a presence check alone does not.
 The owner's direction on 2026-11-15: "So it's both what you already wrote and
 the extra refinement improve could provide a way you don't need dependent
 typing for certain cases." The design above stands. Alongside it, three
-refinement facts let a program that only sizes arrays at run time prove what
-it needs without closing a type at run time; they are proposed to the
-refinement work in [runtime-length-facts](../runtime-length-facts/requirements.md).
+refinement facts were proposed to the refinement work in
+[runtime-length-facts](../runtime-length-facts/requirements.md), so that a
+program that only sizes arrays at run time proves what it needs without
+closing a type at run time. Its Requirement 1 was delivered on main at
+1742180d3, its Requirement 2 was withdrawn, and its Requirement 3 moved here
+as Requirement 8 items 7 to 10.
 
 Measured with this feature's six gaps written without any run-time closing,
 on main at e2656913 (refinements, no run-time closings) and on this branch at
@@ -574,6 +601,11 @@ Rows 3 to 5 fail on main for one reason: `new int[n]` records no
 `a.Length == n`. The branch gets it from the type `int[n]`; the refinement
 proposal records it as a fact instead. The last row needs a return type that
 states a relation to its arguments, which neither compiler has.
+
+Measured again on main at fdd6dc74e on 2026-11-20: rows 3 to 5 are proven
+there, and the last row is still refused there, since `int[n] Zeroes(readonly
+ZeroOrPositiveInt n)` does not parse (MIST0123). It is built here, stage 7 of
+*Sequencing*.
 
 A CLR array keeps its own length, so a fact about it holds wherever the array
 goes. A user type's slot has no such keeper. A run-time closing of one stays
@@ -1201,11 +1233,15 @@ New, numbered from MIST0486 in the order they land:
   Test it with an 'is' pattern instead."
 - `SlotNotInferable`, Stage 4: "'{parameter}' cannot be inferred from an
   argument of type '{type}'. State it between angle brackets."
+- `ReturnLengthNotReadonly`, Stage 4, at the name in the return type:
+  "'{parameter}' is named in the return type, so it must be declared as a
+  readonly value parameter."
 - The backend refusals of *Where the C# backend falls short*, MIST0491 to
   MIST0501, and one more for *A closing as a type argument*.
 
-Changed: MIST0298 is no longer reported for a value's name in a dependent
-slot. MIST0301 is no longer reported for a slot read through an instance.
+Changed: MIST0487 is not reported for a `readonly` value parameter named in an
+array return type's own length slot, and its description says so. MIST0298 is
+no longer reported for a value's name in a dependent slot. MIST0301 is no longer reported for a slot read through an instance.
 MIST0193 is no longer reported across a slot that is not two literals.
 MIST0407 states the domain rule of Requirement 6. A runtime argument that
 breaks its slot's contract is reported by the MIST0271 family at the capture.
@@ -1217,7 +1253,10 @@ Every test declares its tier with `[Trait("Tier", "N")]`.
 
 Tier 1, the bulk: the classifier over two hand-built closings for each slot
 pair (two literals, a capture and a literal, two captures, a parameter and a
-literal, `unknown` on a class and on an abstract); `SlotIdentity.Judge` over a
+literal, `unknown` on a class and on an abstract); `SlotValue` over a return
+type's length slot naming a `readonly` value parameter, a parameter that is
+not `readonly`, a `readonly ref` parameter, a nested slot and another type's
+slot; `SlotIdentity.Judge` over a
 hand-built state for each requirement example and its refusal twin with the
 expected failing case; `SlotReads.Value` for each of its four cases;
 `DependentDomains` over a readonly stampable struct, a mutable one, a class, a
@@ -1228,7 +1267,9 @@ Tier 2: `RefinementAnalyzer` over bodies built with `HandBuiltModel`, one
 admit and one refuse for each of: reassignment of the named variable after a
 capture; `if(n == m)`; `new T[e]` with and without `e >= 0`; a field typed by
 the enclosing parameter indexed under a bound on that parameter; a test that
-selects a branch; a return against a dependent return type; a second argument
+selects a branch; a return against a dependent return type; a return against
+`int[n]` naming a `readonly` parameter, and its slot contract with and
+without `n >= 0`; two results of one such call proven identical; a second argument
 that binds the same parameter; a capture inside a loop. Emission over a
 hand-built model for the value route's class, struct, method, test and
 `unknown` spelling, beside the existing `ErasedShape` tests.
@@ -1281,6 +1322,10 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    requirements revise in dependent-types, adhoc-refinement-constraints,
    stack-only-types, deep-ownership-types and
    flow-sensitive-refinement-inference.
+7. Requirement 8 items 7 to 10, revised on 2026-11-19: the return type's
+   length slot naming a `readonly` parameter, its refusals, the slot-contract
+   site, the call's capture, and the sample's lines for `Sized(count)`. It
+   needs stages 1 to 3 and nothing after them.
 
 ## Not in this design
 

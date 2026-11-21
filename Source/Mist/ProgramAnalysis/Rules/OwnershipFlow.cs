@@ -32,7 +32,8 @@ internal sealed partial class OwnershipFlow(
     WithScopes scopes,
     IReadOnlyDictionary<object, object> parents,
     Method? owning,
-    LocalOwnership? inferred = null) : IFlowLattice<OwnershipFlow.State>
+    LocalOwnership? inferred = null,
+    bool ownedReceiver = false) : IFlowLattice<OwnershipFlow.State>
 {
     private readonly LocalOwnership locals = inferred ?? LocalOwnership.Empty;
 
@@ -190,6 +191,11 @@ internal sealed partial class OwnershipFlow(
                 };
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false, Target: LocalReferenceExpression target } assignment }:
+                if(RefusedAliasStore(target, assignment.Value) is not null)
+                {
+                    return state;
+                }
+
                 if(Tracked(Place.Of(target.Local)))
                 {
                     state = BindValue(state, target.Local, assignment.Value, assignment, assignment: true);

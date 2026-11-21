@@ -1,8 +1,10 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -37,7 +39,39 @@ internal sealed partial class OwnershipFlow
             {
                 yield return held;
             }
+            else if(ownedReceiver && selected is ThisExpression)
+            {
+                yield return "this";
+            }
         }
+    }
+
+    // A write through a ref local is a write to the storage it stands for. When that storage is a
+    // non-owning field and the value is owned, the store is refused like one that names the field, and
+    // nothing moves. A ref local over any other storage, an owned field included, stays a local write.
+    private Field? RefusedAliasStore(LocalReferenceExpression target, Expression value)
+    {
+        return AliasedField(target.Local, []) is { } field && !ThisTiers.IsOwned(field) && OwnedStoreSources(value).Any() ? field : null;
+    }
+
+    // Read from the declaration that made the alias, through any ref local it was itself taken from. A
+    // ref parameter has no declaration here, so what it stands for is the caller's and stays unknown.
+    private Field? AliasedField(LocalVariable alias, HashSet<LocalVariable> seen)
+    {
+        if(!alias.IsRef || !seen.Add(alias) || !declaringBlocks.TryGetValue(alias, out var home))
+        {
+            return null;
+        }
+
+        var declaration = home.Statements.OfType<LocalDeclarationStatement>().First(candidate => ReferenceEquals(candidate.Local, alias));
+
+        return declaration.Initializer is not { } aliased ? null : OwnershipAnalyzer.Unwrapped(aliased) switch
+        {
+            FieldReferenceExpression reference => reference.Field,
+            MemberAccessExpression { Member: FieldResult found } => found.Field,
+            LocalReferenceExpression { Local: var through } => AliasedField(through, seen),
+            _ => null,
+        };
     }
 
     // The receiver's own fields have no local root for a Place to name, so a chain of owned fields from

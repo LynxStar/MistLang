@@ -27,7 +27,8 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = context.GraphOf(root);
             var owning = OwningMethod(root);
-            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root)).Judge(graph, OwnershipFlow.Nothing);
+            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root),
+                ownedReceiver: root.Member is Method { DeclaredThisTier: ThisTier.Owned }).Judge(graph, OwnershipFlow.Nothing);
 
             if(owning is { Body: { } body })
             {

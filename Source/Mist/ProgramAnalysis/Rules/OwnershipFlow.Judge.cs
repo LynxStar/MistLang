@@ -114,9 +114,15 @@ internal sealed partial class OwnershipFlow
                 break;
 
             // A coalescing assignment stores on its absent branch only, which is where the builder puts this step.
-            // A local target moves nothing there, so only a store into other storage is judged.
+            // A local target moves nothing there, so only a store into other storage is judged: a field named
+            // outright here, and one a ref local stands for in the case after.
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: true, Target: not LocalReferenceExpression } coalescing }:
                 JudgeWrite(state, coalescing.Target, coalescing.Value);
+                break;
+
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: true, Target: LocalReferenceExpression alias } coalescing }
+                when RefusedAliasStore(alias, coalescing.Value) is { } aliased:
+                JudgeNonOwningFieldStore(coalescing.Value, aliased);
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression target } }
@@ -196,7 +202,7 @@ internal sealed partial class OwnershipFlow
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals).Judge(nested, state);
+                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals, ownedReceiver).Judge(nested, state);
                 break;
         }
     }
@@ -229,6 +235,12 @@ internal sealed partial class OwnershipFlow
         {
             if(target is LocalReferenceExpression written)
             {
+                if(RefusedAliasStore(written, value) is { } aliased)
+                {
+                    JudgeNonOwningFieldStore(value, aliased);
+                    continue;
+                }
+
                 foreach(var moved in LocalOwnership.Sources(value).Where(Tracked))
                 {
                     JudgeAction(state, moved, value, Action.Move);

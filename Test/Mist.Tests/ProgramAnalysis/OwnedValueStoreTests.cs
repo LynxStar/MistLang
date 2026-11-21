@@ -152,6 +152,107 @@ public sealed class OwnedValueStoreTests
     [InlineData("initializer")]
     [InlineData("member")]
     [InlineData("coalescing")]
+    public void AnOwnedReceiverCannotEscapeIntoANonOwningField(string store)
+    {
+        var f = new Stores();
+        var body = HandBuiltModel.Block(f.Store(store, new ThisExpression(HandBuiltModel.Node(37), f.Item)));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body, member: f.Method(ThisTier.Owned)));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains("'this'", diagnostic.Message);
+        Assert.Contains("'Value'", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("initializer", "undeclared")]
+    [InlineData("member", "undeclared")]
+    [InlineData("initializer", "struct")]
+    [InlineData("member", "struct")]
+    [InlineData("initializer", "owning")]
+    [InlineData("member", "owning")]
+    public void AReceiverThatLeavesNoOwnedAliasIsAdmitted(string store, string receiver)
+    {
+        var f = new Stores(owning: receiver == "owning", type: receiver == "struct" ? HandBuiltModel.Struct("Point") : null);
+        var body = HandBuiltModel.Block(f.Store(store, new ThisExpression(HandBuiltModel.Node(37), f.Item)));
+
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body, member: f.Method(receiver == "undeclared" ? null : ThisTier.Owned)));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void AnOwnedBindingCannotEscapeThroughARefLocalOverANonOwningField(bool coalescing, bool chained)
+    {
+        var f = new Stores();
+        var local = new LocalVariable("value", f.Item) { Ownership = OwnershipKind.Owned };
+        var holder = new LocalVariable("holder", f.Holder);
+        var slot = new LocalVariable("slot", f.Item) { IsRef = true };
+        var statements = new List<Statement>
+        {
+            new LocalDeclarationStatement(local, Stores.Fresh(f.Item)),
+            new LocalDeclarationStatement(holder, Stores.Fresh(f.Holder)),
+            new LocalDeclarationStatement(slot, f.Access(new LocalReferenceExpression(HandBuiltModel.Node(), holder), f.Field)),
+        };
+        if(chained)
+        {
+            var again = new LocalVariable("again", f.Item) { IsRef = true };
+            statements.Add(new LocalDeclarationStatement(again, new LocalReferenceExpression(HandBuiltModel.Node(), slot)));
+            slot = again;
+        }
+
+        // The refused store moves nothing, so the owned move after it is not a second complaint.
+        statements.Add(Stores.Write(slot, new LocalReferenceExpression(HandBuiltModel.Node(37), local), coalescing));
+        statements.Add(new LocalDeclarationStatement(new LocalVariable("moved", f.Item) { Ownership = OwnershipKind.Owned }, new LocalReferenceExpression(HandBuiltModel.Node(73), local)));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), HandBuiltModel.Block([.. statements])));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains("'value'", diagnostic.Message);
+        Assert.Contains("'Value'", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("local", false)]
+    [InlineData("local", true)]
+    [InlineData("ref-local", false)]
+    [InlineData("ref-local", true)]
+    [InlineData("ref-owning-field", false)]
+    [InlineData("ref-owning-field", true)]
+    public void AWriteToALocalThatStandsForNoNonOwningFieldIsAdmitted(string target, bool coalescing)
+    {
+        var f = new Stores(owning: true);
+        var local = new LocalVariable("value", f.Item) { Ownership = OwnershipKind.Owned };
+        var other = new LocalVariable("other", f.Item) { Ownership = OwnershipKind.Owned };
+        var holder = new LocalVariable("holder", f.Holder) { Ownership = OwnershipKind.Owned };
+        var slot = new LocalVariable("slot", f.Item) { IsRef = true };
+        var statements = new List<Statement>
+        {
+            new LocalDeclarationStatement(local, Stores.Fresh(f.Item)),
+            new LocalDeclarationStatement(other, Stores.Fresh(f.Item)),
+            new LocalDeclarationStatement(holder, Stores.Fresh(f.Holder)),
+        };
+        if(target != "local")
+        {
+            Expression aliased = target == "ref-local"
+                ? new LocalReferenceExpression(HandBuiltModel.Node(), other)
+                : f.Access(new LocalReferenceExpression(HandBuiltModel.Node(), holder), f.Field);
+            statements.Add(new LocalDeclarationStatement(slot, aliased));
+        }
+
+        statements.Add(Stores.Write(target == "local" ? other : slot, new LocalReferenceExpression(HandBuiltModel.Node(37), local), coalescing));
+
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), HandBuiltModel.Block([.. statements])));
+    }
+
+    [Theory]
+    [InlineData("initializer")]
+    [InlineData("member")]
+    [InlineData("coalescing")]
     public void AnOwningFieldTakesTheValueAndMakesALaterReadFail(string store)
     {
         var f = new Stores(owning: true);
@@ -239,6 +340,16 @@ public sealed class OwnedValueStoreTests
         public static NewExpression Fresh(IMistType type)
         {
             return new NewExpression(HandBuiltModel.Node(), type, [], null, [], []);
+        }
+
+        public Method Method(ThisTier? receiver)
+        {
+            return new Method("Store", Model.Type("Void"), [], default) { DeclaringType = Holder, DeclaredThisTier = receiver };
+        }
+
+        public static ExpressionStatement Write(LocalVariable target, Expression value, bool coalescing)
+        {
+            return new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), target), value, target.Type, isCoalescing: coalescing));
         }
 
         public MemberAccessExpression Access(Expression receiver, Field field, int offset = 0)

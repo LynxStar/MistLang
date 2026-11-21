@@ -279,6 +279,63 @@ public sealed class OwnedValueStoreTests
     }
 
     [Theory]
+    [InlineData("local", "member")]
+    [InlineData("local", "initializer")]
+    [InlineData("local", "coalescing")]
+    [InlineData("chained", "member")]
+    [InlineData("chained", "initializer")]
+    [InlineData("owning-field", "member")]
+    [InlineData("owning-field", "initializer")]
+    [InlineData("nested", "member")]
+    [InlineData("nested", "initializer")]
+    public void AnOwnedFieldReadThroughARefLocalReceiverCannotEscapeIntoANonOwningField(string aliased, string store)
+    {
+        var (outer, middle) = Nested(middleOwned: true);
+        var f = new Stores(type: middle.Item);
+        var top = aliased is "owning-field" or "nested";
+        var holder = new LocalVariable("owner", top ? outer.Holder : middle.Holder) { Ownership = OwnershipKind.Owned };
+        var slot = new LocalVariable("slot", aliased == "nested" ? outer.Holder : middle.Holder) { IsRef = true };
+        Expression named = new LocalReferenceExpression(HandBuiltModel.Node(), holder);
+        var inner = new List<Statement> { new LocalDeclarationStatement(slot, aliased == "owning-field" ? outer.Access(named, outer.Field) : named) };
+        if(aliased == "chained")
+        {
+            var again = new LocalVariable("again", middle.Holder) { IsRef = true };
+            inner.Add(new LocalDeclarationStatement(again, new LocalReferenceExpression(HandBuiltModel.Node(), slot)));
+            slot = again;
+        }
+
+        Expression receiver = new LocalReferenceExpression(HandBuiltModel.Node(), slot);
+        inner.Add(f.Store(store, middle.Access(aliased == "nested" ? outer.Access(receiver, outer.Field) : receiver, middle.Field, 37)));
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, Stores.Fresh(holder.Type)),
+            HandBuiltModel.Block([.. inner]),
+            new LocalDeclarationStatement(new LocalVariable("moved", holder.Type) { Ownership = OwnershipKind.Owned }, new LocalReferenceExpression(HandBuiltModel.Node(73), holder)));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains(top ? "'owner.Value.Value'" : "'owner.Value'", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("shared-holder", "member")]
+    [InlineData("shared-holder", "initializer")]
+    [InlineData("non-owning-field", "member")]
+    [InlineData("non-owning-field", "initializer")]
+    public void AFieldReadThroughARefLocalReceiverThatLeavesNoOwnedAliasIsAdmitted(string aliased, string store)
+    {
+        var source = new Stores(owning: aliased == "shared-holder");
+        var f = new Stores(type: source.Item);
+        var holder = new LocalVariable("owner", source.Holder) { Ownership = aliased == "shared-holder" ? OwnershipKind.Unrestricted : OwnershipKind.Owned };
+        var slot = new LocalVariable("slot", source.Holder) { IsRef = true };
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, Stores.Fresh(source.Holder)),
+            new LocalDeclarationStatement(slot, new LocalReferenceExpression(HandBuiltModel.Node(), holder)),
+            f.Store(store, source.Access(new LocalReferenceExpression(HandBuiltModel.Node(), slot), source.Field, 37)));
+
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
+    }
+
+    [Theory]
     [InlineData("local", false)]
     [InlineData("local", true)]
     [InlineData("ref-local", false)]

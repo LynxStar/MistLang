@@ -42,6 +42,16 @@ internal sealed partial class OwnershipFlow
                 continue;
             }
 
+            if(HeldThroughAlias(selected) is { Receiver: var receiver, Member: FieldResult { Field: var read } })
+            {
+                foreach(var holder in OwnedStoreSources(receiver, seen))
+                {
+                    yield return $"{holder}.{read.Name}";
+                }
+
+                continue;
+            }
+
             foreach(var source in LocalOwnership.Sources(selected).Where(Tracked))
             {
                 if(LeaseOf(source.Root) is null && (source.Root.Ownership == OwnershipKind.Owned || source.Root.InfersOwnership))
@@ -85,6 +95,13 @@ internal sealed partial class OwnershipFlow
         return alias.IsRef && declaringBlocks.TryGetValue(alias, out var home)
             && home.Statements.OfType<LocalDeclarationStatement>().FirstOrDefault(candidate => ReferenceEquals(candidate.Local, alias)) is { Initializer: { } aliased }
             ? OwnershipAnalyzer.Unwrapped(aliased) : null;
+    }
+
+    private MemberAccessExpression? HeldThroughAlias(Expression expression)
+    {
+        return OwnershipAnalyzer.Unwrapped(expression) is MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } access && Place.Holds(field)
+            && (OwnershipAnalyzer.Unwrapped(receiver) is LocalReferenceExpression { Local: var alias } ? Aliased(alias) is not null : HeldThroughAlias(receiver) is not null)
+            ? access : null;
     }
 
     private static string? OwnedPathOfThis(Expression expression)

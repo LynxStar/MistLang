@@ -1,5 +1,6 @@
 grammar Mist;
 import "tokens/tokens";
+import "rules/patterns";
 
 // ─── Parser Rules — Top Level ────────────────────────────────────────────────
 
@@ -678,109 +679,4 @@ rule Primary
 rule TupleLiteralElement
     = name:IDENTIFIER COLON value:Expression  as NamedTupleLiteralElement
     | value:Expression                         as UnnamedTupleLiteralElement
-    ;
-
-// ─── Parser Rules — Lambda Expressions ──────────────────────────────────────
-// The block-bodied alternative comes first so a `{` body parses as a Block, not through Expression.
-
-rule LambdaExpression
-    = modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Block       as BlockLambda
-    | modifiers:LambdaModifier* params:LambdaParameterList SUCH_THAT body:Expression   as ExpressionLambda
-    ;
-
-rule LambdaModifier
-    = STATIC as StaticLambdaModifier
-    | ASYNC  as AsyncLambdaModifier
-    | PURE   as PureLambdaModifier
-    | LOCAL  as LocalLambdaModifier
-    ;
-
-rule LambdaParameterList
-    = LEFT_PARENTHESIS params:LambdaParamList? RIGHT_PARENTHESIS  as ParenthesizedLambdaParams
-    | name:IDENTIFIER                                              as SingleImplicitParam
-    ;
-
-rule LambdaParamList = LambdaParam (COMMA LambdaParam)*;
-
-rule LambdaParam
-    = type:TypeReference name:IDENTIFIER  as TypedLambdaParam
-    | name:IDENTIFIER                      as UntypedLambdaParam
-    ;
-
-rule InterpolatedString = INTERPOLATED_STRING_START parts:InterpolatedPart* INTERPOLATED_STRING_END;
-
-rule InterpolatedPart
-    = text:INTERPOLATED_STRING_TEXT  as TextPart
-    | INTERPOLATION_OPEN expression:Expression RIGHT_BRACE      as ExpressionPart
-    ;
-
-// ─── Parser Rules — Anonymous Type Properties ───────────────────────────────
-
-rule AnonymousPropertyList = AnonymousProperty (COMMA AnonymousProperty)* COMMA?;
-
-rule AnonymousProperty
-    = name:IDENTIFIER EQUAL value:Expression   as ExplicitAnonymousProperty
-    | projection:Postfix                        as ProjectedAnonymousProperty
-    ;
-
-// ─── Parser Rules — Property Initializers ───────────────────────────────────
-
-rule PropertyInitializerBlock = LEFT_BRACE assignments:PropertyAssignmentList? RIGHT_BRACE;
-
-rule PropertyAssignmentList = PropertyAssignment (COMMA PropertyAssignment)* COMMA?;
-
-rule PropertyAssignment
-    = name:IDENTIFIER EQUAL value:Expression   as NamedPropertyAssignment
-    | value:Expression                          as CollectionElementAssignment
-    ;
-
-// ─── Parser Rules — Patterns ────────────────────────────────────────────────
-// Precedence: or < and < not < primary.
-
-rule Pattern = OrPattern;
-
-rule OrPattern = left:AndPattern (OR right:AndPattern)*;
-
-rule AndPattern = left:UnaryPattern (AND right:UnaryPattern)*;
-
-rule UnaryPattern
-    = NOT operand:PrimaryPattern   as NotPattern
-    | primary:PrimaryPattern       as DirectPattern
-    ;
-
-rule PrimaryPattern
-    = type:TypeReference name:(IDENTIFIER | DISCARD)                         as TypePattern
-    | LEFT_PARENTHESIS first:Pattern COMMA rest:Pattern (COMMA additional:Pattern)* RIGHT_PARENTHESIS  as TuplePositionalPattern
-    | LEFT_PARENTHESIS inner:Pattern RIGHT_PARENTHESIS                      as ParenthesizedPattern
-    | typeName:QualifiedIdentifier? LEFT_BRACE subpatterns:PropertySubpatternList? RIGHT_BRACE name:(IDENTIFIER | DISCARD)?  as PropertyPattern
-    | type:TypeReference                                                    as BareTypePattern
-    | VAR name:(IDENTIFIER | DISCARD)                                       as VarPattern
-    | DISCARD                                                               as DiscardPattern
-    | LESS_THAN constant:VoidCoalescing                                     as LessThanRelationalPattern
-    | GREATER_THAN constant:VoidCoalescing                                  as GreaterThanRelationalPattern
-    | LESS_THAN_OR_EQUAL constant:VoidCoalescing                            as LessThanOrEqualRelationalPattern
-    | GREATER_THAN_OR_EQUAL constant:VoidCoalescing                         as GreaterThanOrEqualRelationalPattern
-    | LEFT_BRACKET elements:ListPatternElementList? RIGHT_BRACKET           as ListPattern
-    | literal:ConstantLiteral                                               as ConstantPattern
-    ;
-
-rule ConstantLiteral
-    = value:INTEGER_LITERAL   as IntegerConstant
-    | value:FLOAT_LITERAL     as FloatConstant
-    | value:STRING_LITERAL    as StringConstant
-    | value:CHAR_LITERAL      as CharConstant
-    | value:REGEX_LITERAL     as RegexConstant
-    | TRUE                    as TrueConstant
-    | FALSE                   as FalseConstant
-    ;
-
-rule PropertySubpatternList = PropertySubpattern (COMMA PropertySubpattern)*;
-
-rule PropertySubpattern = name:IDENTIFIER COLON pattern:Pattern;
-
-rule ListPatternElementList = ListPatternElement (COMMA ListPatternElement)*;
-
-rule ListPatternElement
-    = pattern:Pattern                          as PatternElement
-    | DOTDOT subpattern:Pattern?               as SliceElement
     ;

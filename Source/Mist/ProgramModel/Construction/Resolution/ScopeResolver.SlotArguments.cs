@@ -118,15 +118,19 @@ internal sealed partial class ScopeResolver
 
     private IMistType? SlotValue(TypeArgumentNode argument, TypeParameter slot, Scope scope)
     {
-        return argument is TypeReferenceTypeArgumentTypeArgumentNode
+        if(argument is not TypeReferenceTypeArgumentTypeArgumentNode
             {
                 Type: { SingleTypeRefs.Length: 0, First: NamedSingleTypeRefSingleTypeRefNode { TypeArgs: null, ArrayRank: null, Optional: null, Pure: null } named }
-            }
-            ? SlotValue(named.Name, named, slot, scope, rank: null)
-            : null;
+            })
+        {
+            return null;
+        }
+
+        return SlotValue(named.Name, named, slot, scope, returnParameters: null);
     }
 
-    private IMistType? SlotValue(QualifiedIdentifierNode name, Storm.Runtime.SyntaxNode written, TypeParameter slot, Scope scope, NamedSizedArrayRankArrayRankSuffixNode? rank)
+    internal IMistType? SlotValue(
+        QualifiedIdentifierNode name, Storm.Runtime.SyntaxNode written, TypeParameter slot, Scope scope, IReadOnlyList<Parameter>? returnParameters)
     {
         var first = name.IDENTIFIER.Lexeme;
 
@@ -145,20 +149,13 @@ internal sealed partial class ScopeResolver
             return null;
         }
 
-        if(rank is not null && ReturnLengthParameter(rank) is { } named)
+        if(name.IDENTIFIERs.Length == 0 && returnParameters?.FirstOrDefault(parameter => string.Equals(parameter.Name, first, StringComparison.Ordinal)) is { } named)
         {
             return ReturnLength(named, slot, name);
         }
 
         ReportResolutionFailure(ProgramModelDiagnostics.SlotValueOutsideBody, written, null, new NameValue(stem));
         return ErrorType.Instance;
-    }
-
-    private Parameter? ReturnLengthParameter(NamedSizedArrayRankArrayRankSuffixNode rank)
-    {
-        return returnLength is { } own && ReferenceEquals(own.Rank, rank) && rank.Length.IDENTIFIERs.Length == 0
-            ? own.Parameters.FirstOrDefault(parameter => string.Equals(parameter.Name, rank.Length.IDENTIFIER.Lexeme, StringComparison.Ordinal))
-            : null;
     }
 
     private IMistType ReturnLength(Parameter parameter, TypeParameter slot, QualifiedIdentifierNode name)
@@ -182,9 +179,11 @@ internal sealed partial class ScopeResolver
             return ErrorType.Instance;
         }
 
-        var length = SlotValue(rank.Length, rank.Length, slot, scope, rank) ?? ResolveNamed(rank.Length, null, scope, rank.Length);
+        var parameters = returnLength is { } own && ReferenceEquals(own.Rank, rank) ? own.Parameters : null;
+        var length = SlotValue(rank.Length, rank.Length, slot, scope, parameters) ?? ResolveNamed(rank.Length, null, scope, rank.Length);
 
-        if(length is ErrorType && ReturnLengthParameter(rank) is not null)
+        if(length is ErrorType && rank.Length.IDENTIFIERs.Length == 0
+            && parameters?.Any(parameter => string.Equals(parameter.Name, rank.Length.IDENTIFIER.Lexeme, StringComparison.Ordinal)) == true)
         {
             return ErrorType.Instance;
         }

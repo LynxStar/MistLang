@@ -43,6 +43,7 @@
     <AdditionalFiles Include="Grammar\tokens\keywords.storm" />
     <AdditionalFiles Include="Grammar\tokens\operators.storm" />
     <AdditionalFiles Include="Grammar\tokens\literals.storm" />
+    <AdditionalFiles Include="Grammar\rules\patterns.storm" />
   </ItemGroup>
 
 </Project>

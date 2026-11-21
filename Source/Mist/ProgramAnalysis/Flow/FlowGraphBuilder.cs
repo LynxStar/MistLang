@@ -458,7 +458,7 @@ internal sealed class FlowGraphBuilder
 
             default:
                 var captures = SlotCapture.Of(expression);
-                IReadOnlyList<Expression> operands = expression is InvocationExpression call ? call.Arguments : [];
+                var operands = expression is InvocationExpression call ? call.Arguments : [];
                 current = Captured(expression, current, operands);
 
                 foreach(var child in BodyWalker.ChildrenOf(expression))

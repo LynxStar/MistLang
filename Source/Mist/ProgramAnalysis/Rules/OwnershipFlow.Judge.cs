@@ -113,6 +113,12 @@ internal sealed partial class OwnershipFlow
                 JudgeAssignment(state, assignment);
                 break;
 
+            // A coalescing assignment stores on its absent branch only, which is where the builder puts this step.
+            // A local target moves nothing there, so only a store into other storage is judged.
+            case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: true, Target: not LocalReferenceExpression } coalescing }:
+                JudgeWrite(state, coalescing.Target, coalescing.Value);
+                break;
+
             case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression target } }
                 when Place.Of(target) is { } read:
                 JudgeRead(state, target, read);

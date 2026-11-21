@@ -21,8 +21,11 @@ public sealed class OwnedValueStoreTests
     [InlineData("member", false)]
     [InlineData("direct", false)]
     [InlineData("static", false)]
+    [InlineData("coalescing", false)]
+    [InlineData("direct-coalescing", false)]
     [InlineData("initializer", true)]
     [InlineData("member", true)]
+    [InlineData("coalescing", true)]
     public void AnOwnedBindingCannotEscapeIntoANonOwningField(string store, bool inferred)
     {
         var f = new Stores();
@@ -55,6 +58,7 @@ public sealed class OwnedValueStoreTests
     [Theory]
     [InlineData("initializer")]
     [InlineData("member")]
+    [InlineData("coalescing")]
     public void ARejectedStoreDoesNotMakeALaterOwnedMoveLookShared(string store)
     {
         var f = new Stores();
@@ -73,6 +77,7 @@ public sealed class OwnedValueStoreTests
     [Theory]
     [InlineData("initializer")]
     [InlineData("member")]
+    [InlineData("coalescing")]
     public void AnOwnedFieldCannotEscapeIntoANonOwningField(string store)
     {
         var f = new Stores(owning: true);
@@ -92,6 +97,8 @@ public sealed class OwnedValueStoreTests
     [InlineData("member", false)]
     [InlineData("initializer", true)]
     [InlineData("member", true)]
+    [InlineData("coalescing", false)]
+    [InlineData("coalescing", true)]
     public void AnOwnedFieldOfThisCannotEscapeIntoANonOwningField(string store, bool explicitThis)
     {
         var f = new Stores(owning: true);
@@ -108,8 +115,43 @@ public sealed class OwnedValueStoreTests
     }
 
     [Theory]
+    [InlineData("initializer", false)]
+    [InlineData("member", false)]
+    [InlineData("coalescing", false)]
+    [InlineData("initializer", true)]
+    [InlineData("member", true)]
+    [InlineData("coalescing", true)]
+    public void AnOwnedFieldNestedUnderThisCannotEscapeIntoANonOwningField(string store, bool explicitThis)
+    {
+        var (owner, middle) = Nested(middleOwned: true);
+        var target = new Stores(type: middle.Item);
+        var body = HandBuiltModel.Block(target.Store(store, middle.Access(Receiver(owner, explicitThis), middle.Field, 37)));
+
+        var diagnostic = Assert.Single(target.Model.Analyze(new OwnershipAnalyzer(), body));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains("Value.Value", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("initializer", false)]
+    [InlineData("member", false)]
+    [InlineData("initializer", true)]
+    [InlineData("member", true)]
+    public void AnOwnedFieldReachedThroughANonOwningFieldOfThisIsAdmitted(string store, bool explicitThis)
+    {
+        var (owner, middle) = Nested(middleOwned: false);
+        var target = new Stores(type: middle.Item);
+        var body = HandBuiltModel.Block(target.Store(store, middle.Access(Receiver(owner, explicitThis), middle.Field, 37)));
+
+        Assert.Empty(target.Model.Analyze(new OwnershipAnalyzer(), body));
+    }
+
+    [Theory]
     [InlineData("initializer")]
     [InlineData("member")]
+    [InlineData("coalescing")]
     public void AnOwningFieldTakesTheValueAndMakesALaterReadFail(string store)
     {
         var f = new Stores(owning: true);
@@ -162,6 +204,20 @@ public sealed class OwnedValueStoreTests
         Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
     }
 
+    // An owner whose field holds a middle object, whose own owned field holds the item.
+    private static (Stores Owner, Stores Middle) Nested(bool middleOwned)
+    {
+        var middle = new Stores(owning: true);
+        return (new Stores(owning: middleOwned, type: middle.Holder), middle);
+    }
+
+    private static Expression Receiver(Stores owner, bool explicitThis)
+    {
+        return explicitThis
+            ? owner.Access(new ThisExpression(HandBuiltModel.Node(), owner.Holder), owner.Field)
+            : new FieldReferenceExpression(HandBuiltModel.Node(), owner.Field);
+    }
+
     private sealed class Stores
     {
         public Stores(bool owning = false, IMistType? type = null)
@@ -199,8 +255,8 @@ public sealed class OwnedValueStoreTests
             }
 
             var field = store == "static" ? new Field(Field.Name, Item, OwnershipKind.Unrestricted, new MemberModifiers { IsStatic = true }) { DeclaringType = Holder } : Field;
-            Expression target = store is "direct" or "static" ? new FieldReferenceExpression(HandBuiltModel.Node(), field) : Access(Fresh(Holder), field);
-            return new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), target, value, Field.Type));
+            Expression target = store is "direct" or "static" or "direct-coalescing" ? new FieldReferenceExpression(HandBuiltModel.Node(), field) : Access(Fresh(Holder), field);
+            return new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), target, value, Field.Type, isCoalescing: store.EndsWith("coalescing", StringComparison.Ordinal)));
         }
     }
 }

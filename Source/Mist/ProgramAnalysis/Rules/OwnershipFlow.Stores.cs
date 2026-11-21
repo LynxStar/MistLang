@@ -33,17 +33,24 @@ internal sealed partial class OwnershipFlow
                 }
             }
 
-            var held = selected switch
+            if(OwnedPathOfThis(selected) is { } held)
             {
-                FieldReferenceExpression reference when ThisTiers.IsOwned(reference.Field) => reference.Field,
-                MemberAccessExpression { Receiver: ThisExpression, Member: FieldResult found } when ThisTiers.IsOwned(found.Field) => found.Field,
-                _ => null,
-            };
-
-            if(held is not null)
-            {
-                yield return held.Name;
+                yield return held;
             }
         }
+    }
+
+    // The receiver's own fields have no local root for a Place to name, so a chain of owned fields from
+    // 'this', written or implied, is read here. A link that is not owned ends the chain: what lies beyond
+    // it is storage other references already reach.
+    private static string? OwnedPathOfThis(Expression expression)
+    {
+        return OwnershipAnalyzer.Unwrapped(expression) switch
+        {
+            FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => field.Name,
+            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } when ThisTiers.IsOwned(field)
+                => OwnershipAnalyzer.Unwrapped(receiver) is ThisExpression ? field.Name : OwnedPathOfThis(receiver) is { } holder ? $"{holder}.{field.Name}" : null,
+            _ => null,
+        };
     }
 }

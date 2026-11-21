@@ -31,41 +31,56 @@ general `const` declaration.
 A slot is the position of a dependent type parameter in an argument list. A
 closing is a type with its slots filled.
 
-## Requirement 1 A slot takes a value
+## Requirement 1 A slot takes what is provable about a value
 
 A dependent slot is one more generic argument. Its value may not be known until
-the program runs, and the compiler reasons about it all the same.
+the program runs. The compiler types it by what it can prove about that value,
+and the object carries the value itself. Revised on 2026-11-21 under the
+owner's direction ([design.md](design.md), *Direction of 2026-11-21*); item 4
+was ruled "The second one, whatever is provable."
 
-1. A dependent type argument SHALL be a value. A literal is a value known when
-   the program is compiled. Any other argument is a value known when the
-   program runs. Both close the type: `new int[n]` is an `Array<int, n>` as
-   `new int[3]` is an `Array<int, 3>`.
-2. The argument SHALL be evaluated once, where the type is written, and the
-   type SHALL be closed with the value it produced. A later write to a variable
-   the argument read SHALL NOT change the type. The type holds the value, as
+1. A dependent type argument SHALL be a value. Where the type is written, the
+   type SHALL be closed with the refinement the facts in hand prove for that
+   value, and an object created there SHALL be closed with the exact value. A
+   literal is the refinement with one member, so `new int[3]` is an
+   `Array<int, 3>` both ways.
+2. The argument SHALL be evaluated once, where the type is written. The object
+   holds the value it produced. A later write to a variable the argument read
+   SHALL change neither the object nor the type already written, as
    flow-sensitive-refinement-inference Requirement 3 states of every fact.
 3. An object's type SHALL be fixed when the object is created. Nothing changes
    the value a slot of its type was closed with.
-4. Where the facts in hand know the value as a literal, the closing SHALL be the
-   closing with that literal. After `var n = 7;`, `new int[n]` is an
-   `Array<int, 7>`.
+4. The refinement SHALL be everything the facts in hand prove about that one
+   value at that point: its bounds, a constant, and the values it is known not
+   to be, including what a condition on the current path adds. After
+   `var n = 7;`, `new int[n]` is an `Array<int, 7>`. A relation to another name,
+   such as `n < m` or `a.Length == n`, SHALL stay a fact and SHALL NOT enter the
+   type.
 5. This revises dependent-types Requirements 2, 5, 11.4 and 15.1, which admit
    only a compile-time constant.
 6. The body of a lambda or a local function runs many times, and a value
-   captured inside it is a new value each time. A type closed with such a value
-   SHALL NOT appear in the result type the compiler infers for that body. The
-   slot is `unknown` there. This follows from item 2 and was not decided
-   separately. It refuses nothing that compiles today: `k => new int[n]`
-   returns an `int[]` today and still does.
+   captured inside it is a new value each time, but what is provable about it
+   is the same each time. The result type the compiler infers for that body
+   SHALL keep the refinement: with `n : Range`, `k => new int[n]` returns an
+   `int[Range]`. This replaces the earlier rule that the slot is `unknown`
+   there.
 
 Example.
 
 ```mist
-var n = 7;                  // int, known to be 7
-var a = new int[n];         // Array<int, 7>
+type Range = int > 10 and < 30;
 
-var p = GetPositiveInt();   // int > 0
-var b = new int[p];         // Array<int, p>, and p > 0 is known
+void Foo(Range n)
+{
+    var a = new int[n];         // Array<int, Range>; the object is exactly Array<int, 15> when n is 15
+    if(n > 20)
+    {
+        var b = new int[n];     // Array<int, int > 20 and < 30>
+    }
+
+    var seven = 7;
+    var c = new int[seven];     // Array<int, 7>
+}
 ```
 
 ## Requirement 2 One type when the values are proven identical

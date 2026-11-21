@@ -30,6 +30,27 @@ public sealed class ResourceTransferPlanTests
     }
 
     [Fact]
+    public void AConsumedParameterOwesCleanupOnlyWhenAssignedAFreshValue()
+    {
+        var parameter = Owned("t", f.Token);
+        var flag = new Parameter("replace", f.Boolean);
+        var dropped = Ref(parameter);
+        var condition = Ref(flag);
+        var replacement = Assign(dropped.Local, f.New(2));
+        var body = HandBuiltModel.Block(
+            Run(DropOf(dropped)),
+            new IfStatement(condition, HandBuiltModel.Block(Run(replacement)), null));
+        var method = f.Function("ReplaceIf", body, parameter, flag);
+
+        var plan = LocalLifetimes.Plan(body, method);
+
+        Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(parameter));
+        Assert.Equal([new LifetimeMark(parameter, Owned: false)], plan.MarksAfter(dropped));
+        Assert.Empty(plan.MarksAfter(condition));
+        Assert.Equal([new LifetimeMark(parameter, Owned: true)], plan.MarksAfter(replacement));
+    }
+
+    [Fact]
     public void APlainParameterIsReleasedExactlyWhereItIsStillHeld()
     {
         var kept = new Parameter("t", f.Token);

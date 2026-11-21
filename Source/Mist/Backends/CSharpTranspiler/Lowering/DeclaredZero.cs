@@ -1,16 +1,19 @@
 using Mist.Backends.CSharpTranspiler.Emitter;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
 /// Whether a type's declared default is the zero C# already writes into bare storage: no initializer
-/// and no default block entry anywhere in its instance storage, recursively through substituted field
-/// types. An open type parameter does not hold, its argument's default being unknown here, and neither
-/// does recursive storage, which the analyzers refuse before emission.
+/// and no default block entry that changes a field anywhere in its instance storage, recursively through
+/// substituted field types. A literal zero written into an intrinsic field changes nothing. An open type
+/// parameter does not hold, its argument's default being unknown here, and neither does recursive
+/// storage, which the analyzers refuse before emission.
 /// </summary>
 internal static class DeclaredZero
 {
@@ -37,7 +40,21 @@ internal static class DeclaredZero
 
     private static bool Declares(StructType declaration)
     {
-        return DefaultSynthesis.Assignments(declaration).Exists(assignment => assignment.Value is not null || assignment.Binding is not null);
+        return DefaultSynthesis.Assignments(declaration).Exists(assignment => assignment.Binding is not null
+            || (assignment.Value is { } value && !WritesZero(assignment.Storage.Type, value)));
+    }
+
+    private static bool WritesZero(IMistType storage, Expression value)
+    {
+        return storage is StructType { IsIntrinsic: true } && value is LiteralExpression { Value: { } constant } && constant switch
+        {
+            bool flag => !flag,
+            char character => character == '\0',
+            double real => BitConverter.DoubleToInt64Bits(real) == 0,
+            float real => BitConverter.SingleToInt32Bits(real) == 0,
+            decimal number => decimal.GetBits(number).All(part => part == 0),
+            _ => IntegralConstant.Of(constant) == 0,
+        };
     }
 
     private static bool StorageHolds(IMistType type, HashSet<IMistType> visiting)

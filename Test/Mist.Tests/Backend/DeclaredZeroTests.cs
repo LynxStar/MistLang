@@ -43,6 +43,40 @@ public sealed class DeclaredZeroTests
         Assert.False(DeclaredZero.Holds(blocked));
     }
 
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(false)]
+    [InlineData(0.0)]
+    [InlineData('\0')]
+    public void LiteralZeroInitializer_Holds(object zero)
+    {
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", integer, HandBuiltModel.Literal(integer, zero));
+
+        Assert.True(DeclaredZero.Holds(initialized));
+    }
+
+    [Theory]
+    [InlineData(-0.0)]
+    [InlineData(true)]
+    [InlineData('a')]
+    public void LiteralThatSetsABit_DoesNotHold(object constant)
+    {
+        var initialized = shapes.Type("Initialized", isStruct: true);
+        _ = Slot(initialized, "Y", integer, HandBuiltModel.Literal(integer, constant));
+
+        Assert.False(DeclaredZero.Holds(initialized));
+    }
+
+    [Fact]
+    public void DefaultBlockEntryOfZero_Holds()
+    {
+        var blocked = Plain("Blocked");
+        Block(blocked, new DefaultValueEntry("Y", HandBuiltModel.Literal(integer, 0L)));
+
+        Assert.True(DeclaredZero.Holds(blocked));
+    }
+
     [Fact]
     public void FieldOfANonZeroStruct_DoesNotHold()
     {

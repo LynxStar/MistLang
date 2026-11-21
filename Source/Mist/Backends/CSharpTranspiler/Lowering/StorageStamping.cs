@@ -75,9 +75,13 @@ internal static class StorageStamping
 
         var mentioned = StampVisibility.Mentioned(body);
 
-        return hidden
+        var registrations = hidden
             .Where(type => StampVisibility.Hidden(type) is var parts && parts.Any(mentioned.Contains) && parts.All(part => StampVisibility.Reaches(enclosing, part)))
-            .Select(type => $"MistDefault<{TypeNameEmitter.Emit(type)}>.Ensure(() => {DefaultSynthesis.Expression(type)});");
+            .Select(type => $"MistDefault<{TypeNameEmitter.Emit(type)}>.Ensure(() => {DefaultSynthesis.Expression(type)});")
+            .ToList();
+
+        used |= registrations.Count > 0;
+        return registrations;
     }
 
     public static void Emit(CSharpWriter writer)

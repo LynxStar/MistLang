@@ -113,6 +113,18 @@ public sealed class TypeSlotThroughTypeParameterTests
     }
 
     [Fact]
+    public void ANamespaceQualifiedNameBesideAConstrainedTypeParameterStillNamesItsType()
+    {
+        parameter.ConstraintsList.Add(new TypeConstraint(producer));
+
+        var resolution = Resolve(Reference("Standard", "Int32"));
+
+        Assert.Empty(f.Diagnostics.Admitted);
+        Assert.False(resolution.IsFailed);
+        Assert.Same(f.Built.Type("Int32"), resolution.Type);
+    }
+
+    [Fact]
     public void ASlotIsNotATypeParameterToNameItsBoundsSlotThrough()
     {
         output.ConstraintsList.Add(new TypeConstraint(other));

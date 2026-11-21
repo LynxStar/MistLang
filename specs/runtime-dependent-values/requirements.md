@@ -83,35 +83,46 @@ void Foo(Range n)
 }
 ```
 
-## Requirement 2 One type when the values are proven identical
+## Requirement 2 A closing fits where what is provable about it fits
 
-There is no weak typing. A value is of one closing, and it is used as another
-only when the two are proven to be the same.
+There is no weak typing. A value of one closing is used as another only where
+what is provable about its slots lies inside the other's. Revised on 2026-11-21
+under the owner's direction; item 2 was ruled "Yes, facts narrow".
 
-1. Two closings of one declaration SHALL be the same type exactly when, for
-   every slot, the facts in hand prove the two values identical. Two literals
-   are identical when they are the same value, as dependent-types Requirement
-   8.1 states. That is the case that needs no facts.
-2. Where a value meets a type that differs from its own only in the values of
-   slots, at an initializer, an assignment, an argument or a return, the
-   compiler SHALL prove the values identical under
-   flow-sensitive-refinement-inference Requirement 1. It SHALL refuse the use
-   when the proof is not reached, and the diagnostic SHALL state the failing
-   case in the program's own names.
-3. No check SHALL be made when the program runs.
-4. What `unknown` in a slot means is not changed by this requirement.
+1. A value of a closing SHALL be usable where another closing of the same
+   declaration is expected when, for every slot, what is provable about its
+   value lies inside the expected refinement. `Cell<15>` fits where `Cell<Range>`
+   is expected, and two `Cell<Range>` values fit each other whatever their
+   values. Two literals fit exactly when they are the same value, as
+   dependent-types Requirement 8.1 states.
+2. What is provable about a slot SHALL include the facts in hand at the use,
+   not only the type written. An object created as `new Cell<n>()` records that
+   its slot holds the value `n` had there, as `new int[n]` records
+   `Length == n`, so where the facts prove `n == 15` that object is a
+   `Cell<15>`.
+3. Where the proof is not reached, at an initializer, an assignment, an
+   argument or a return, the compiler SHALL refuse the use, and the diagnostic
+   SHALL state the failing case in the program's own names. A program that
+   needs the narrower closing tests for it with `is` (Requirement 9).
+4. No check SHALL be made when the program runs other than a test the program
+   writes.
 
 Example.
 
 ```mist
-var n = GetPositiveInt();
-var m = GetPositiveInt();
-var a = new int[n];         // Array<int, n>
-a = new int[m];             // refused: fails when m <= n - 1 or m >= n + 1
+type Range = int > 10 and < 30;
 
-if(n == m)
+void Foo(Range n, Range m)
 {
-    a = new int[m];         // proven by the condition
+    var a = new int[n];         // Array<int, Range>
+    a = new int[m];             // accepted: both are Array<int, Range>
+
+    var cell = new Cell<n>();   // Cell<Range>
+    Cell<15> x = cell;          // refused: fails when n <= 14 or n >= 16
+    if(n == 15)
+    {
+        Cell<15> y = cell;      // proven: cell's slot holds n, and n == 15
+    }
 }
 ```
 
@@ -242,19 +253,23 @@ type, two slots are identical only when they hold the same value.
 
 ## Requirement 7 Reading the slot through a value
 
+Revised on 2026-11-21 to follow Requirements 1 and 2 under the owner's
+direction.
+
 1. Every type SHALL answer its dependent parameters through an instance.
-   `ring.Capacity` is the value `ring`'s type was closed with, as `a.Length`
-   is for an array. Requirement 11 states the one read that has no answer.
+   `ring.Capacity` is the exact value the object was created with, as
+   `a.Length` is for an array. Requirement 11 states the one read that has no
+   answer.
 2. The read SHALL yield the same value for the life of the object and SHALL
    NOT be assignable.
-3. The compiler SHALL know the read to be identical to the value the type was
-   closed with, whether that is a literal, a runtime value or a dependent
-   parameter of the enclosing declaration. `new int[n]` has `Length == n`, and
-   a field `Array<int, Capacity> slots` has `slots.Length == Capacity`.
-4. A value whose type is a class or a struct closed with `unknown` carries a
-   value all the same, because an object is exactly one closing of its own
-   class or struct. It SHALL be usable as a named closing where the facts
-   prove its read identical to that closing's value, under Requirement 2.
+3. The read's type SHALL be what the value's type proves about the slot. Where
+   the compiler sees the object created, it SHALL also record the read as equal
+   to the value the object was created with: `new int[n]` has `Length == n`,
+   `new Ring<n>()` has `Capacity == n`, and a field `Array<int, Capacity> slots`
+   has `slots.Length == Capacity`.
+4. A slot written `unknown` SHALL mean the slot's whole domain. A value of such
+   a closing narrows like any other under Requirement 2: after
+   `if(ring.Capacity == n)`, the facts prove the slot holds `n`'s value.
 5. The read through the type, `Ring<4>.Capacity`, stays. This revises
    dependent-types Requirement 7.3, which refuses the read through an
    instance.
@@ -264,10 +279,10 @@ Example.
 ```mist
 void Show(Ring<unknown> ring, PositiveInt n)
 {
-    Ring<n> first = ring;       // refused: nothing says ring.Capacity == n
-    if(ring.Capacity == n)
+    Ring<4> first = ring;       // refused: nothing proves ring.Capacity == 4
+    if(ring.Capacity == 4)
     {
-        Ring<n> same = ring;    // proven by the condition
+        Ring<4> same = ring;    // proven by the condition
     }
 }
 ```

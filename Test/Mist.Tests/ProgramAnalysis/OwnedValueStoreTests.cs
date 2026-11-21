@@ -424,6 +424,119 @@ public sealed class OwnedValueStoreTests
         Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
     }
 
+    [Theory]
+    [InlineData("alias", "member")]
+    [InlineData("alias", "initializer")]
+    [InlineData("alias", "coalescing")]
+    [InlineData("shared", "member")]
+    [InlineData("shared", "initializer")]
+    public void AnOwnedFieldReadThroughASelectedReceiverCannotEscapeIntoANonOwningField(string other, string store)
+    {
+        var source = new Stores(owning: true);
+        var f = new Stores(type: source.Item);
+        var holder = new LocalVariable("owner", source.Holder) { Ownership = OwnershipKind.Owned };
+        var slot = new LocalVariable("slot", source.Holder) { IsRef = other == "alias" };
+        var receiver = new CoalesceExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), slot), new LocalReferenceExpression(HandBuiltModel.Node(), holder), source.Holder);
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, Stores.Fresh(source.Holder)),
+            HandBuiltModel.Block(new LocalDeclarationStatement(slot, other == "alias" ? new LocalReferenceExpression(HandBuiltModel.Node(), holder) : Stores.Fresh(source.Holder)),
+                f.Store(store, source.Access(receiver, source.Field, 37))),
+            new LocalDeclarationStatement(new LocalVariable("moved", source.Holder) { Ownership = OwnershipKind.Owned }, new LocalReferenceExpression(HandBuiltModel.Node(73), holder)));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains("'owner.Value'", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("member")]
+    [InlineData("initializer")]
+    public void AFieldReadThroughASelectedReceiverThatLeavesNoOwnedAliasIsAdmitted(string store)
+    {
+        var source = new Stores(owning: true);
+        var f = new Stores(type: source.Item);
+        var first = new LocalVariable("first", source.Holder);
+        var second = new LocalVariable("second", source.Holder);
+        var receiver = new CoalesceExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), first), new LocalReferenceExpression(HandBuiltModel.Node(), second), source.Holder);
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(first, Stores.Fresh(source.Holder)),
+            new LocalDeclarationStatement(second, Stores.Fresh(source.Holder)),
+            f.Store(store, source.Access(receiver, source.Field, 37)));
+
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
+    }
+
+    [Theory]
+    [InlineData("local", "member")]
+    [InlineData("local", "initializer")]
+    [InlineData("local", "coalescing")]
+    [InlineData("ref-local", "member")]
+    [InlineData("ref-local", "initializer")]
+    [InlineData("selected", "member")]
+    [InlineData("selected", "initializer")]
+    [InlineData("nested", "member")]
+    [InlineData("nested", "initializer")]
+    [InlineData("this", "member")]
+    [InlineData("this", "initializer")]
+    [InlineData("implicit-this", "member")]
+    [InlineData("implicit-this", "initializer")]
+    [InlineData("backing-field", "member")]
+    [InlineData("backing-field", "initializer")]
+    public void AnOwnedAutoPropertyCannotEscapeIntoANonOwningField(string receiver, string store)
+    {
+        var source = new Stores(owning: true);
+        var f = new Stores(type: source.Item);
+        var child = source.Property("Child", source.Item);
+        var holder = new LocalVariable("owner", source.Holder) { Ownership = OwnershipKind.Owned };
+        var slot = new LocalVariable("slot", source.Holder) { IsRef = true };
+        Expression named = new LocalReferenceExpression(HandBuiltModel.Node(), holder);
+        Expression aliased = new LocalReferenceExpression(HandBuiltModel.Node(), slot);
+        Expression value = receiver switch
+        {
+            "implicit-this" => new PropertyReferenceExpression(HandBuiltModel.Node(37), child),
+            "backing-field" => new BackingFieldReferenceExpression(HandBuiltModel.Node(37), child),
+            "this" => source.Read(new ThisExpression(HandBuiltModel.Node(), source.Holder), child, 37),
+            "ref-local" => source.Read(aliased, child, 37),
+            "selected" => source.Read(new CoalesceExpression(HandBuiltModel.Node(), aliased, named, source.Holder), child, 37),
+            "nested" => source.Access(source.Read(aliased, source.Property("Next", source.Holder)), source.Field, 37),
+            _ => source.Read(named, child, 37),
+        };
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, Stores.Fresh(source.Holder)),
+            HandBuiltModel.Block(new LocalDeclarationStatement(slot, new LocalReferenceExpression(HandBuiltModel.Node(), holder)), f.Store(store, value)),
+            new LocalDeclarationStatement(new LocalVariable("moved", source.Holder) { Ownership = OwnershipKind.Owned }, new LocalReferenceExpression(HandBuiltModel.Node(73), holder)));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains(receiver switch { "this" or "implicit-this" or "backing-field" => "'Child'", "nested" => "'owner.Next.Value'", _ => "'owner.Child'" }, diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("computed", "member")]
+    [InlineData("computed", "initializer")]
+    [InlineData("computed-this", "member")]
+    [InlineData("computed-this", "initializer")]
+    [InlineData("unowned", "member")]
+    [InlineData("unowned", "initializer")]
+    [InlineData("shared-holder", "member")]
+    [InlineData("shared-holder", "initializer")]
+    [InlineData("struct", "member")]
+    [InlineData("struct", "initializer")]
+    public void APropertyReadThatLeavesNoOwnedAliasIsAdmitted(string kind, string store)
+    {
+        var source = new Stores(owning: true, type: kind == "struct" ? HandBuiltModel.Struct("Point") : null);
+        var f = new Stores(type: source.Item);
+        var child = source.Property("Child", source.Item, owned: kind != "unowned", auto: !kind.StartsWith("computed", StringComparison.Ordinal));
+        var holder = new LocalVariable("owner", source.Holder) { Ownership = kind == "shared-holder" ? OwnershipKind.Unrestricted : OwnershipKind.Owned };
+        var value = kind == "computed-this"
+            ? new PropertyReferenceExpression(HandBuiltModel.Node(37), child)
+            : (Expression)source.Read(new LocalReferenceExpression(HandBuiltModel.Node(), holder), child, 37);
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, Stores.Fresh(source.Holder)), f.Store(store, value));
+
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
+    }
+
     private static (Stores Owner, Stores Middle) Nested(bool middleOwned)
     {
         var middle = new Stores(owning: true);
@@ -473,6 +586,16 @@ public sealed class OwnedValueStoreTests
         public MemberAccessExpression Access(Expression receiver, Field field, int offset = 0)
         {
             return new MemberAccessExpression(HandBuiltModel.Node(offset), receiver, field.Name, field.Type, member: new FieldResult(field, Holder, []));
+        }
+
+        public Property Property(string name, IMistType type, bool owned = true, bool auto = true)
+        {
+            return new Property(name, type, new MemberModifiers { IsOwned = owned }) { DeclaringType = Holder, Getter = new PropertyAccessor { IsAuto = auto }, Setter = new PropertyAccessor { IsAuto = auto } };
+        }
+
+        public MemberAccessExpression Read(Expression receiver, Property property, int offset = 0)
+        {
+            return new MemberAccessExpression(HandBuiltModel.Node(offset), receiver, property.Name, property.Type, member: new PropertyResult(property, Holder, []));
         }
 
         public ExpressionStatement Store(string store, Expression value)

@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -23,18 +24,18 @@ internal sealed partial class OwnershipFlow
         return OwnedStoreSources(value, []);
     }
 
-    private IEnumerable<string> OwnedStoreSources(Expression value, HashSet<LocalVariable> seen)
+    private IEnumerable<string> OwnedStoreSources(Expression value, HashSet<LocalVariable> seen, bool holder = false)
     {
         foreach(var selected in OwnershipAnalyzer.Selected(value))
         {
-            if(ThisTiers.IsValue(selected.Type) || Origins.IsUnchangeable(selected.Type))
+            if(!holder && (ThisTiers.IsValue(selected.Type) || Origins.IsUnchangeable(selected.Type)))
             {
                 continue;
             }
 
             if(OwnershipAnalyzer.Unwrapped(selected) is LocalReferenceExpression { Local: var alias } && Aliased(alias) is { } aliased)
             {
-                foreach(var source in seen.Add(alias) ? OwnedStoreSources(aliased, seen) : [])
+                foreach(var source in seen.Add(alias) ? OwnedStoreSources(aliased, seen, holder) : [])
                 {
                     yield return source;
                 }
@@ -42,20 +43,13 @@ internal sealed partial class OwnershipFlow
                 continue;
             }
 
-            if(HeldThroughAlias(selected) is { Receiver: var receiver, Member: FieldResult { Field: var read } })
-            {
-                foreach(var holder in OwnedStoreSources(receiver, seen))
-                {
-                    yield return $"{holder}.{read.Name}";
-                }
-
-                continue;
-            }
+            var placed = false;
 
             foreach(var source in LocalOwnership.Sources(selected).Where(Tracked))
             {
                 if(LeaseOf(source.Root) is null && (source.Root.Ownership == OwnershipKind.Owned || source.Root.InfersOwnership))
                 {
+                    placed = true;
                     yield return source.Display;
                 }
             }
@@ -67,6 +61,13 @@ internal sealed partial class OwnershipFlow
             else if(ownedReceiver && selected is ThisExpression)
             {
                 yield return "this";
+            }
+            else if(!placed && HeldStorage(selected) is var (receiver, member))
+            {
+                foreach(var owner in OwnedStoreSources(receiver, seen, holder: true).Distinct(StringComparer.Ordinal))
+                {
+                    yield return $"{owner}.{member}";
+                }
             }
         }
     }
@@ -97,11 +98,19 @@ internal sealed partial class OwnershipFlow
             ? OwnershipAnalyzer.Unwrapped(aliased) : null;
     }
 
-    private MemberAccessExpression? HeldThroughAlias(Expression expression)
+    private static (Expression Receiver, string Member)? HeldStorage(Expression expression)
     {
-        return OwnershipAnalyzer.Unwrapped(expression) is MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } access && Place.Holds(field)
-            && (OwnershipAnalyzer.Unwrapped(receiver) is LocalReferenceExpression { Local: var alias } ? Aliased(alias) is not null : HeldThroughAlias(receiver) is not null)
-            ? access : null;
+        return OwnershipAnalyzer.Unwrapped(expression) switch
+        {
+            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } when Place.Holds(field) => (receiver, field.Name),
+            MemberAccessExpression { Receiver: var receiver, Member: PropertyResult { Property: var property } } when Holds(property) => (receiver, property.Name),
+            _ => null,
+        };
+    }
+
+    private static bool Holds(Property property)
+    {
+        return OwnedProvenance.IsOwned(property) && property.Getter is { IsAuto: true } && !ThisTiers.IsValue(property.Type) && !Origins.IsUnchangeable(property.Type);
     }
 
     private static string? OwnedPathOfThis(Expression expression)
@@ -109,9 +118,16 @@ internal sealed partial class OwnershipFlow
         return OwnershipAnalyzer.Unwrapped(expression) switch
         {
             FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => field.Name,
-            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } when ThisTiers.IsOwned(field)
-                => OwnershipAnalyzer.Unwrapped(receiver) is ThisExpression ? field.Name : OwnedPathOfThis(receiver) is { } holder ? $"{holder}.{field.Name}" : null,
+            PropertyReferenceExpression { Property: var property } when Holds(property) => property.Name,
+            BackingFieldReferenceExpression { Property: var backed } when OwnedProvenance.IsOwned(backed) => backed.Name,
+            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } } when ThisTiers.IsOwned(field) => PathUnderThis(receiver, field.Name),
+            MemberAccessExpression { Receiver: var receiver, Member: PropertyResult { Property: var property } } when Holds(property) => PathUnderThis(receiver, property.Name),
             _ => null,
         };
+    }
+
+    private static string? PathUnderThis(Expression receiver, string member)
+    {
+        return OwnershipAnalyzer.Unwrapped(receiver) is ThisExpression ? member : OwnedPathOfThis(receiver) is { } holder ? $"{holder}.{member}" : null;
     }
 }

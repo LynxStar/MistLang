@@ -9,6 +9,57 @@ changes the proof engine: every proof is `Chain.Prove` over the bag
 number is the next free one at this revision and is taken when the change that
 needs it lands.
 
+## Direction of 2026-11-21: a run-time closing is typed by what is provable
+
+The owner set this direction on 2026-11-21, picking up his idea of 2026-11-15:
+"Type of a runtime dependent is whatever is provable about it." It replaces the
+value meaning this document and the requirements were written for. Sections
+below that assume the value meaning are revised as their requirements are; until
+then this section governs where they differ.
+
+- **The variable's type is what is provable; the object's type is exact.** With
+  `x : Range`, `new Cell<x>()` gives a variable of type `Cell<Range>` and an object
+  that is exactly `Cell<15>` when `x` is 15. The object carries its value.
+  `cell is Cell<15> c` tests that value and narrows, as `x is 15` narrows an `int`.
+  A literal closing, `Cell<15>`, is the refinement with one member.
+- **Arrays.** `new int[x]` gives a variable of type `int[Range]`, with the length
+  unknown but within `Range`, and an object of exact length. The length facts on
+  main (runtime-length-facts Requirement 1) tie this array to this `x`, and
+  `int[n]` returns (Requirement 8 items 7 to 10) carry the relation through a
+  signature.
+- **A slot's domain must be stampable.** This keeps the ruling of 2026-11-12. The
+  argument of a closing may be a refinement of that domain; the refinement itself
+  need not be stampable.
+- **A closing's default is the closing with its own slot value** (ruled
+  2026-11-21, "Agree"). `new Cell<x>[5]` with `x` equal to 15 stamps five
+  `Cell<15>`, and `default(Cell<x>)` is `Cell<15>`. A closing with no value to hand,
+  `default(Cell<Range>)` written with the refinement itself, has no default, as
+  `default(Range)` has none. In generic code the captured value travels with the
+  closing witness, so `Blank<Cell<x>>()` stamps `Cell<15>`.
+- **.NET writing zeros into Mist storage (open item B).** A closing's slot is
+  stored relative to an anchor, a member of its refinement that is a constant of
+  the refinement's C# type, so all-zero bits read as the anchor: after a .NET call
+  clears a `Cell<Range>[]`, its elements are valid `Cell<11>` values. The anchor is
+  a backend detail and never appears in a value Mist itself creates (ruled
+  2026-11-21, "Agree"). The owner rejected refusing to hand such arrays to .NET,
+  putting `| void` on their elements afterwards, and passing copies. A refinement
+  no member of which can be named (regex, cross-member patterns, string constants,
+  bounds that name another value) falls back to `T?` at the boundary. A refinement
+  that no value satisfies is MIST0505 on main since 74a6640b (refinement-types
+  Requirement 19).
+- **Superseded.** The containers ruling of the same morning ("Choose by value",
+  under *A type for every literal closing*) was made under the value meaning.
+  Under this direction `new Cell<x>[k]` is a `Cell<Range>[]`, and `Cell<15>[] a = b`
+  with `b` a `Cell<Range>[]` is not a valid program.
+
+To revise under this direction, one at a time with the owner: Requirements 1, 2,
+7, 9, 10 and 11, Requirement 8 items 1 to 6, the sections *Identity by value* and
+*A type for every literal closing*, and whether every refined field of a Mist
+struct, and not only a closing's slot, is stored relative to an anchor. Related
+on main: bare `new T[n]`, `stackalloc` and a generic `new T[k]` zero-fill instead
+of stamping a struct's declared default (MIST-1547, branch
+`stamp-declared-default`).
+
 ## Shape of the change
 
 Today a slot argument is one of three model types: a `LiftedType` for a
@@ -569,7 +620,8 @@ A literal closing is unaffected: `List<Cell<5>>` hands back a `Cell<5>`, since
 crosses back, not on reads in Mist code. This replaces MIST0502's third kept
 case and closes the class leak, which a presence check alone does not.
 
-**Containers and generics, decided 2026-11-21 ("Choose by value").** An
+**Containers and generics, decided 2026-11-21 ("Choose by value"), superseded
+the same day by *Direction of 2026-11-21* above.** An
 array or generic built from a run-time closing gets its C# type by value, as a
 single object does: with `n == 5`, `new Cell<n>[k]` makes a `Cell<Const_5>[]`
 and `new Tester<Ring<n>>()` a `Tester<Ring<Const_5>>`. A proven

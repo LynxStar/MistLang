@@ -6,7 +6,11 @@ Requirements are settled with the owner one decision at a time, developed from
 [proposal.md](proposal.md). Settled so far: Requirements 1 to 11, on 2026-11-11.
 Requirement 8 was revised on 2026-11-19, when
 [runtime-length-facts](../runtime-length-facts/requirements.md) Requirement 3
-moved here.
+moved here. On 2026-11-21 the owner set a new direction: a run-time closing is
+typed by what is provable about its value, not by the value
+([design.md](design.md), *Direction of 2026-11-21*). Requirements written for
+the value meaning are revised one at a time; until then that section governs
+where they differ.
 The proposal lists the decisions still open, and a requirement is added here
 when its decision is made. This is a language contract, not a claim that the
 current compiler implements it.

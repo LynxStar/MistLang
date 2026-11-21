@@ -3,7 +3,10 @@ using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LifetimeFragments;
 
@@ -145,6 +148,41 @@ public sealed class LocalLifetimeTests
     }
 
     [Fact]
+    public void AnOwnedConstructorParameterTakesOverTheRelease()
+    {
+        var t = f.Local("t");
+        var h = f.Local("h", f.Holder);
+        var plan = Plan(Declare(t, f.New(1)), Declare(h, Construct(f.Holder, Owned("first", f.Token), Ref(t))));
+
+        Assert.Equal([LifetimeRelease.None, LifetimeRelease.AtExit], [plan.Release(t), plan.Release(h)]);
+    }
+
+    [Theory]
+    [InlineData(OwnershipKind.Frozen, false)]
+    [InlineData(OwnershipKind.Borrowed, false)]
+    [InlineData(OwnershipKind.Unrestricted, true)]
+    public void AConstructorParameterThatOnlyBorrowsLeavesTheReleaseWithTheCaller(OwnershipKind ownership, bool byReference)
+    {
+        var t = f.Local("t");
+        var seen = new Parameter("seen", f.Token, new ParameterModifier(IsReadonly: byReference, IsRef: byReference, ownership));
+        var plan = Plan(Declare(t, f.New(1)), Run(Construct(HandBuiltModel.Class("Viewer"), seen, Ref(t))));
+
+        Assert.Equal(LifetimeRelease.AtExit, plan.Release(t));
+    }
+
+    [Fact]
+    public void AnInitializerStoringIntoALinearFieldHandsTheValueToTheNewObject()
+    {
+        var t = f.Local("t");
+        var h = f.Local("h", f.Holder);
+        var stored = new ObjectInitializerAssignment(HandBuiltModel.Node(), f.First.Name, Ref(t), f.Token, member: new FieldResult(f.First, f.Holder, []));
+        var made = new NewExpression(HandBuiltModel.Node(), f.Holder, [HandBuiltModel.Literal(f.Int32, 2)], f.Holder.ConstructorsList[0], [stored], [f.Int32]);
+        var plan = Plan(Declare(t, f.New(1)), Declare(h, made));
+
+        Assert.Equal([LifetimeRelease.None, LifetimeRelease.AtExit], [plan.Release(t), plan.Release(h)]);
+    }
+
+    [Fact]
     public void AConsumedBindingOwesTheFreshValueAssignedToIt()
     {
         var t = f.Local("t");
@@ -246,6 +284,13 @@ public sealed class LocalLifetimeTests
         Assert.False(LocalLifetimes.IsTracked(f.Once));
         Assert.False(LocalLifetimes.IsTracked(f.Plain));
         Assert.False(LocalLifetimes.IsTracked(f.Model.Interner.GetOrCreateConstructedType(task, [f.Int32])));
+    }
+
+    private static NewExpression Construct(ClassType type, Parameter parameter, Expression argument)
+    {
+        var constructor = new Constructor(type.Name, type, [parameter], default) { DeclaringType = type };
+        type.ConstructorsList.Add(constructor);
+        return new NewExpression(HandBuiltModel.Node(), type, [argument], constructor, [], [parameter.Type]);
     }
 
     private static Planned Plan(params Statement[] statements)

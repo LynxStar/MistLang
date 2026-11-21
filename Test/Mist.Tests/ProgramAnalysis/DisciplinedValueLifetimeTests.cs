@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Flow;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Members;
 using Mist.Tests.Helpers;
@@ -81,5 +82,22 @@ public sealed class DisciplinedValueLifetimeTests
         Assert.Null(plan.ReleaseAt(scope));
         Assert.Empty(plan.MarksAfter(passed));
         Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(source));
+    }
+
+    [Theory]
+    [InlineData("struct")]
+    [InlineData("ref-struct")]
+    [InlineData("constructed-struct")]
+    [InlineData("class")]
+    public void AFreshAffineValueBoundByAWithIsReleasedByThatScopeAlone(string shape)
+    {
+        var f = new LifetimeFragments();
+        var type = f.DisciplinedValue(shape, SubstructuralDiscipline.Affine);
+        var bound = new LocalVariable("bound", type) { IsContextBound = true };
+        var scope = With(Fresh(type), HandBuiltModel.Block(), bound);
+        var plan = LocalLifetimes.Plan(HandBuiltModel.Block(scope));
+
+        Assert.Equal<(object, LifetimeRelease)?>((bound, LifetimeRelease.AtExit), plan.ReleaseAt(scope));
+        Assert.Equal(LifetimeRelease.None, plan.ReleaseOf(bound));
     }
 }

@@ -20,10 +20,25 @@ internal sealed partial class OwnershipFlow
 
     private IEnumerable<string> OwnedStoreSources(Expression value)
     {
+        return OwnedStoreSources(value, []);
+    }
+
+    private IEnumerable<string> OwnedStoreSources(Expression value, HashSet<LocalVariable> seen)
+    {
         foreach(var selected in OwnershipAnalyzer.Selected(value))
         {
             if(ThisTiers.IsValue(selected.Type) || Origins.IsUnchangeable(selected.Type))
             {
+                continue;
+            }
+
+            if(OwnershipAnalyzer.Unwrapped(selected) is LocalReferenceExpression { Local: var alias } && Aliased(alias) is { } aliased)
+            {
+                foreach(var source in seen.Add(alias) ? OwnedStoreSources(aliased, seen) : [])
+                {
+                    yield return source;
+                }
+
                 continue;
             }
 
@@ -46,26 +61,14 @@ internal sealed partial class OwnershipFlow
         }
     }
 
-    // A write through a ref local is a write to the storage it stands for. When that storage is a
-    // non-owning field and the value is owned, the store is refused like one that names the field, and
-    // nothing moves. A ref local over any other storage, an owned field included, stays a local write.
     private Field? RefusedAliasStore(LocalReferenceExpression target, Expression value)
     {
         return AliasedField(target.Local, []) is { } field && !ThisTiers.IsOwned(field) && OwnedStoreSources(value).Any() ? field : null;
     }
 
-    // Read from the declaration that made the alias, through any ref local it was itself taken from. A
-    // ref parameter has no declaration here, so what it stands for is the caller's and stays unknown.
     private Field? AliasedField(LocalVariable alias, HashSet<LocalVariable> seen)
     {
-        if(!alias.IsRef || !seen.Add(alias) || !declaringBlocks.TryGetValue(alias, out var home))
-        {
-            return null;
-        }
-
-        var declaration = home.Statements.OfType<LocalDeclarationStatement>().First(candidate => ReferenceEquals(candidate.Local, alias));
-
-        return declaration.Initializer is not { } aliased ? null : OwnershipAnalyzer.Unwrapped(aliased) switch
+        return !seen.Add(alias) ? null : Aliased(alias) switch
         {
             FieldReferenceExpression reference => reference.Field,
             MemberAccessExpression { Member: FieldResult found } => found.Field,
@@ -74,9 +77,16 @@ internal sealed partial class OwnershipFlow
         };
     }
 
-    // The receiver's own fields have no local root for a Place to name, so a chain of owned fields from
-    // 'this', written or implied, is read here. A link that is not owned ends the chain: what lies beyond
-    // it is storage other references already reach.
+    // A ref local stands for the storage its declaration names, so a store through it or of it is judged
+    // as a store to or of that storage. A ref parameter has no declaration here: what it stands for is
+    // the caller's and stays unknown.
+    private Expression? Aliased(LocalVariable alias)
+    {
+        return alias.IsRef && declaringBlocks.TryGetValue(alias, out var home)
+            && home.Statements.OfType<LocalDeclarationStatement>().FirstOrDefault(candidate => ReferenceEquals(candidate.Local, alias)) is { Initializer: { } aliased }
+            ? OwnershipAnalyzer.Unwrapped(aliased) : null;
+    }
+
     private static string? OwnedPathOfThis(Expression expression)
     {
         return OwnershipAnalyzer.Unwrapped(expression) switch

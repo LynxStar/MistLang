@@ -52,13 +52,15 @@ then this section governs where they differ.
   Under this direction `new Cell<x>[k]` is a `Cell<Range>[]`, and `Cell<15>[] a = b`
   with `b` a `Cell<Range>[]` is not a valid program.
 
-To revise under this direction, one at a time with the owner: Requirements 1, 2,
-7, 9, 10 and 11, Requirement 8 items 1 to 6, the sections *Identity by value* and
-*A type for every literal closing*, and whether every refined field of a Mist
-struct, and not only a closing's slot, is stored relative to an anchor. Related
-on main: bare `new T[n]`, `stackalloc` and a generic `new T[k]` zero-fill instead
-of stamping a struct's declared default (MIST-1547, branch
-`stamp-declared-default`).
+The requirements were revised under this direction on 2026-11-21 and
+2026-11-22. Still to revise here: every section below written for the value
+meaning, among them *Identity by value*, *A type for every literal closing*,
+*Testing against a closing*, *Static storage* and *Reading the slot through a
+value*. Whether a refined field of a Mist struct, and not only a closing's slot,
+is stored relative to an anchor is out of this spec's scope: a cleared
+`Range[]` reads 0 with no dependent slot involved, so it belongs to refinement
+types. Bare `new T[n]`, `stackalloc` and a generic `new T[k]` stamp a struct's
+declared default on main since 5258398d (MIST-1547).
 
 ## Shape of the change
 

@@ -8,9 +8,9 @@ Requirement 8 was revised on 2026-11-19, when
 [runtime-length-facts](../runtime-length-facts/requirements.md) Requirement 3
 moved here. On 2026-11-21 the owner set a new direction: a run-time closing is
 typed by what is provable about its value, not by the value
-([design.md](design.md), *Direction of 2026-11-21*). Requirements written for
-the value meaning are revised one at a time; until then that section governs
-where they differ.
+([design.md](design.md), *Direction of 2026-11-21*). Requirements 1 to 3 and 5
+to 11 were revised for it on 2026-11-21 and 2026-11-22; Requirements 4 and 6
+read the same under either meaning.
 The proposal lists the decisions still open, and a requirement is added here
 when its decision is made. This is a language contract, not a claim that the
 current compiler implements it.
@@ -25,8 +25,11 @@ a requirement below says so.
 
 Out of scope: the proof engine, which is
 [flow-sensitive-refinement-inference](../flow-sensitive-refinement-inference/requirements.md)
-Requirements 1 to 8 as delivered; Array's operations and allocators; and a
-general `const` declaration.
+Requirements 1 to 8 as delivered; Array's operations and allocators; a
+general `const` declaration; and what .NET writes into a refined field of a
+Mist struct or into an array of a refinement, such as a cleared `Range[]`
+reading 0. That hole belongs to refinements handed to .NET, with or without a
+dependent slot, and so to refinement types.
 
 A slot is the position of a dependent type parameter in an argument list. A
 closing is a type with its slots filled.

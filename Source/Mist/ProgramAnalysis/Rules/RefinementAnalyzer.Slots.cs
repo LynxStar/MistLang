@@ -13,7 +13,7 @@ internal sealed partial class RefinementAnalyzer
     {
         private void NeedClosing(FactState state, Expression value, IMistType target)
         {
-            if(value.Type is not ErrorType && SlotIdentity.Judge(state, value, target, factReading, budget) is { } unproven)
+            if(value.Type is not ErrorType && SlotIdentity.Judge(state, value, target, factReading, budget, Met(null)) is { } unproven)
             {
                 ReportClosing(unproven, value.Node, [value]);
             }
@@ -21,7 +21,7 @@ internal sealed partial class RefinementAnalyzer
 
         private void NeedClosing(FactState state, IMistType source, IMistType target, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about, SlotMeeting? meeting = null)
         {
-            if(source is not ErrorType && SlotIdentity.Judge(state, source, target, through: null, factReading, budget, meeting) is { } unproven)
+            if(source is not ErrorType && SlotIdentity.Judge(state, source, target, through: null, factReading, budget, Met(meeting)) is { } unproven)
             {
                 ReportClosing(unproven, at, about);
             }
@@ -29,21 +29,27 @@ internal sealed partial class RefinementAnalyzer
 
         private void NeedSignature(FactState state, FunctionReferenceExpression reference, IFunctionType target)
         {
-            var pairs = target.ParameterTypes.Zip(reference.ClosedParameterTypes).Select(pair => (Source: pair.First, Target: pair.Second));
+            var taking = new SlotMeeting(reference.Captures, Receiver: reference.Receiver) { Inner = SlotMeeting.Inside(reference.Captures, reference.TypeArguments) };
+            var pairs = target.ParameterTypes.Zip(reference.ClosedParameterTypes).Select(pair => (Source: pair.First, Target: pair.Second, Meeting: taking));
 
             if(reference.ClosedReturnType is { } returned)
             {
-                pairs = pairs.Append((returned, target.ReturnType));
+                pairs = pairs.Append((returned, target.ReturnType, SlotMeeting.Fit));
             }
 
-            foreach(var (source, met) in pairs)
+            foreach(var (source, met, meeting) in pairs)
             {
-                if(source is not ErrorType && SlotIdentity.Judge(state, source, met, through: null, factReading, budget) is { } unproven)
+                if(source is not ErrorType && SlotIdentity.Judge(state, source, met, through: null, factReading, budget, Met(meeting)) is { } unproven)
                 {
                     ReportClosing(unproven, reference.Node, [reference]);
                     return;
                 }
             }
+        }
+
+        private SlotMeeting Met(SlotMeeting? meeting)
+        {
+            return (meeting ?? SlotMeeting.Fit) with { Values = sites.Values };
         }
 
         private void ReportClosing(UnprovenSlot unproven, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about)

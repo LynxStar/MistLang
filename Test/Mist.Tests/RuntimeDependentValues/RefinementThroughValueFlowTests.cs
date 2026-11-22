@@ -16,7 +16,8 @@ namespace Mist.Tests.RuntimeDependentValues;
 /// Where a slot stands for one value rather than a refinement, judged by the refinement analyzer over
 /// hand-built bodies: a <c>ref</c> argument against a call's own capture (runtime-dependent-values
 /// Requirements 2.5 and 8.4), and a member reached through a value, a call's result, an element or an
-/// indexer, read or written, whose signature reads that value's own slot (Requirement 7.6).
+/// indexer, read or written, or a method group converted to a function type, whose signature reads that
+/// value's own slot (Requirement 7.6).
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class RefinementThroughValueFlowTests
@@ -211,5 +212,37 @@ public sealed class RefinementThroughValueFlowTests
 
         Assert.Empty(Analyze(declared, write(m)));
         Refused(Analyze(declared, write(n)), "'n' and 'q.Capacity' are not proven identical (fails when n <= m - 1)");
+    }
+
+    [Fact]
+    public void AMethodGroupReachedThroughAValueConvertsOnlyToATypeWhoseSlotIsThatValuesOwn()
+    {
+        var (q, declared) = RingOfM();
+        var load = new Method("Load", Void, [new Parameter("items", slots.ArrayOf(capacity))], new MemberModifiers()) { DeclaringType = ring };
+
+        LocalDeclarationStatement group(Expression receiver, IMistType taken, IMistType expected, SlotCapture[] captures, params SlotCapture[] written)
+        {
+            var target = slots.Refinements.Built.Interner.GetOrCreateFunctionType([slots.ArrayOf(expected)], Void);
+            var reference = new FunctionReferenceExpression(HandBuiltModel.Node(), receiver, load, target)
+            {
+                Captures = captures,
+                ClosedParameterTypes = [slots.ArrayOf(taken)],
+                ClosedReturnType = Void,
+            };
+
+            return HandBuiltSlots.Declare(new LocalVariable("g", target), reference, written);
+        }
+
+        var own = Own(q, capacity, slots.Int, 95);
+        var fifteen = slots.Refinements.Binary(HandBuiltRefinements.Read(m), BinaryOperatorKind.Equal, slots.Refinements.Literal(15L));
+        var ofM = slots.Capture(m, slots.Int);
+
+        Assert.Empty(Analyze(declared, HandBuiltRefinements.If(fifteen, group(HandBuiltRefinements.Read(q), own.Value, slots.Literal(15), [own]))));
+        Refused(Analyze(declared, group(HandBuiltRefinements.Read(q), own.Value, slots.Literal(15), [own])), "'15' and 'q.Capacity' are not proven identical (fails when m <= 14");
+        Refused(Analyze(declared, group(HandBuiltRefinements.Read(q), own.Value, ofM.Value, [own], ofM)), "'m' and 'q.Capacity' are not proven identical");
+
+        var (element, written) = ElementOfN();
+
+        Refused(Analyze(group(element, written.Value, written.Value, [])), "'n' and 'Ring<n>.Capacity' are not proven identical");
     }
 }

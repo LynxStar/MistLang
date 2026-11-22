@@ -67,15 +67,18 @@ internal static class MethodGroupConversion
             return null;
         }
 
+        List<IMistType> closedParameters = [.. ValuePack.Expand(match.ParametersList, substitution, interner).Select(parameter => parameter.Type)];
+        var closedReturn = constructTask is null
+            ? substitution.Apply(match.ReturnType, interner)
+            : ClrCatch.Adapt(match, substitution.Apply(match.ReturnType, interner), constructTask, interner);
+
         return new FunctionReferenceExpression(group.Node, group.Receiver, match, target)
         {
             TypeArguments = match.TypeParametersList.ConvertAll(parameter => substitution.Apply(parameter, interner)),
             ContextTypes = ContextBinding.TypesOf(match, type => substitution.Apply(type, interner)),
-            Captures = group.StatedCapturesFor(match),
-            ClosedParameterTypes = [.. ValuePack.Expand(match.ParametersList, substitution, interner).Select(parameter => parameter.Type)],
-            ClosedReturnType = constructTask is null
-                ? substitution.Apply(match.ReturnType, interner)
-                : ClrCatch.Adapt(match, substitution.Apply(match.ReturnType, interner), constructTask, interner),
+            Captures = [.. group.StatedCapturesFor(match), .. ReceiverSlots.Used(group.ReceiverCaptures, [closedReturn, .. closedParameters])],
+            ClosedParameterTypes = closedParameters,
+            ClosedReturnType = closedReturn,
         };
     }
 

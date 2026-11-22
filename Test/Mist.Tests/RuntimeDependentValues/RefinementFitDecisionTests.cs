@@ -206,4 +206,35 @@ public sealed class RefinementFitDecisionTests
         Assert.NotNull(SlotIdentity.Judge(state, source, slots.Closed(list, slots.Closed(ring, narrower.Value)), through: null, reading));
         Assert.NotNull(SlotIdentity.Judge(state, source, slots.Closed(list, slots.Closed(ring, slots.Literal(15))), through: null, reading));
     }
+
+    [Fact]
+    public void ANestedPairMeetsAnExactCaptureByItsValueWhereACallsOwnCaptureStandsForOneValue()
+    {
+        var list = HandBuiltModel.Class("List<>");
+        list.TypeParametersList.Add(new TypeParameter("T", 0, list.Scope, list));
+        var stated = slots.Capture(n, slots.Int);
+        var mine = slots.Capture(n, slots.Int);
+        var value = new Value(slots.Int, "m", HandBuiltModel.Node());
+        var state = Holding() with
+        {
+            Bindings = Holding().Bindings.Set(stated, value).Set(mine, value),
+            Kept = Holding().Kept.Add(stated, Between(11, 29)).Add(mine, Between(11, 29)),
+        };
+        var exact = new SlotMeeting([stated]);
+        var values = exact with { Values = new HashSet<SlotCapture>(ReferenceEqualityComparer.Instance) { stated, mine } };
+
+        UnprovenSlot? judge(SlotCapture source, SlotCapture target, SlotMeeting meeting, FactState? at = null)
+        {
+            return SlotIdentity.Judge(at ?? state, slots.Closed(list, slots.Closed(ring, source.Value)), slots.Closed(list, slots.Closed(ring, target.Value)), through: null, reading, meeting: meeting);
+        }
+
+        Assert.Null(judge(written, stated, SlotMeeting.Fit));
+        Assert.NotNull(judge(written, stated, exact));
+        Assert.Null(judge(written, stated, exact with { Inner = [stated] }));
+        Assert.NotNull(judge(mine, stated, exact));
+        Assert.Null(judge(mine, stated, values));
+        Assert.NotNull(judge(mine, stated, values, state with { Bindings = state.Bindings.Set(mine, new Value(slots.Int, "k", HandBuiltModel.Node())) }));
+        Assert.Null(judge(mine, written, SlotMeeting.Fit));
+        Assert.NotNull(judge(mine, written, SlotMeeting.Fit with { Values = values.Values }));
+    }
 }

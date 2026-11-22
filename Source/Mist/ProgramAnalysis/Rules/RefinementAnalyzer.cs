@@ -171,19 +171,19 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
                     NeedArguments(
                         state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver, call.Signature,
-                        [.. call.Captures, .. (call.Receiver as MemberAccessExpression)?.Captures ?? []]);
+                        [.. call.Captures, .. (call.Receiver as MemberAccessExpression)?.Captures ?? []], ClosingSites.Stated(call));
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
-                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList, callee: construction.Constructor, exact: construction.Captures);
+                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList, callee: construction.Constructor, exact: construction.Captures, stated: ClosingSites.Stated(construction));
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, Add: { } add } element }:
-                    NeedArguments(state, [element.Value], element.AddParameterTypes, add.ParametersList, callee: add, exact: sites.CreatorOf(element));
+                    NeedArguments(state, [element.Value], element.AddParameterTypes, add.ParametersList, callee: add, exact: sites.CreatorOf(element), stated: sites.StatedFor(element));
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, TargetType: { } member } entry }:
-                    Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName, meeting: new SlotMeeting(sites.CreatorOf(entry)));
+                    Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName, meeting: new SlotMeeting(sites.CreatorOf(entry)) { Inner = SlotMeeting.Inside(sites.CreatorOf(entry), sites.StatedFor(entry)) });
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: FunctionReferenceExpression { Type: IFunctionType target } reference }:
@@ -340,7 +340,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 return;
             }
 
-            if(SlotIdentity.Judge(state, value, target, factReading, budget, meeting) is { } unproven)
+            if(SlotIdentity.Judge(state, value, target, factReading, budget, Met(meeting)) is { } unproven)
             {
                 ReportClosing(unproven, at.Node, [value]);
                 return;

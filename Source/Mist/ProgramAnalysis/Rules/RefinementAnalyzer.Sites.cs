@@ -34,7 +34,7 @@ internal sealed partial class RefinementAnalyzer
                     || SlotIdentity.Owes(entry.Value, entry.TargetType) || Owed([entry.Value], entry.AddParameterTypes),
                 CastExpression cast => Refined(cast.ParameterType ?? cast.TargetType) || SlotIdentity.Owes(cast.Operand, cast.ParameterType ?? cast.TargetType),
                 FunctionReferenceExpression { Type: IFunctionType function } reference => function.ParameterTypes.Zip(reference.ClosedParameterTypes).Any(pair => SlotIdentity.Owes(pair.First, pair.Second))
-                    || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType),
+                    || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType) || reference.ClosedParameterTypes.Any(type => SlotIdentity.OwesThrough(reference.Receiver, type)),
                 _ => false,
             });
         }
@@ -42,7 +42,7 @@ internal sealed partial class RefinementAnalyzer
         public void NeedArguments(
             FactState state, IReadOnlyList<Expression> arguments,
             IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null,
-            IReadOnlyCollection<SlotCapture>? exact = null)
+            IReadOnlyCollection<SlotCapture>? exact = null, IEnumerable<IMistType>? stated = null)
         {
             if(parameterTypes is null)
             {
@@ -51,6 +51,7 @@ internal sealed partial class RefinementAnalyzer
 
             var flattened = parameters is not null && ValuePack.FlattenedSlot(parameters) is not null;
             var reading = Reading.Of(state, arguments, callee?.SourceDeclaration ?? callee, flattened, this, receiver);
+            var inner = SlotMeeting.Inside(exact ?? [], stated);
             var targets = flattened
                 ? ArgumentTargets.Of(
                     parameters, parameterTypes, [.. arguments.Select(argument => argument is SpreadExpression ? null : argument.Type)],
@@ -76,7 +77,7 @@ internal sealed partial class RefinementAnalyzer
                 Need(
                     state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
                     reading: reading,
-                    meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [], Receiver = receiver } : new SlotMeeting(exact ?? [], Receiver: receiver));
+                    meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [], Receiver = receiver, Inner = inner } : new SlotMeeting(exact ?? [], Receiver: receiver) { Inner = inner });
             }
         }
 

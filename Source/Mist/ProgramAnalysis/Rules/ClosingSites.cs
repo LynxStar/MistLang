@@ -16,7 +16,9 @@ namespace Mist.ProgramAnalysis.Rules;
 /// expression-bodied lambda's result, a with block's value, and a field or property initializer or a
 /// getter's expression body, each of which is a body root. Also which closing each capture fills, so a
 /// contract naming a sibling slot reads the sibling from the closing's own argument for it, and which
-/// creation an initializer entry belongs to, whose captures the entry meets by equality.
+/// creation an initializer entry belongs to, whose captures the entry meets by equality. And which captures stand
+/// for one value wherever they are nested (<see cref="Values"/>): a call's, a method group's or a receiver's own,
+/// except one written inside a type the call states.
 /// </summary>
 internal sealed class ClosingSites
 {
@@ -24,7 +26,10 @@ internal sealed class ClosingSites
 
     private readonly Dictionary<Expression, IMistType> targets = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<SlotCapture, IReadOnlyDictionary<TypeParameter, IMistType>> closings = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<ObjectInitializerAssignment, IReadOnlyList<SlotCapture>> creators = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<ObjectInitializerAssignment, NewExpression> creators = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<SlotCapture> values = new(ReferenceEqualityComparer.Instance);
+
+    public IReadOnlySet<SlotCapture> Values => values;
 
     public static ClosingSites Of(AnalysisContext context)
     {
@@ -61,13 +66,23 @@ internal sealed class ClosingSites
                 case NewExpression { Captures.Count: > 0 } creation:
                     foreach(var entry in creation.Initializer)
                     {
-                        sites.creators[entry] = creation.Captures;
+                        sites.creators[entry] = creation;
                     }
 
                     break;
 
                 case WithBlockStatement ambient when !ReferenceEquals(ambient.KeyType, ambient.Value.Type):
                     sites.targets[ambient.Value] = ambient.KeyType;
+                    break;
+
+                case InvocationExpression or FunctionReferenceExpression or MemberAccessExpression or IndexExpression:
+                    var owned = SlotCapture.Of(node);
+                    sites.values.UnionWith(owned.Except(SlotMeeting.Inside(owned, node switch
+                    {
+                        InvocationExpression call => Stated(call),
+                        FunctionReferenceExpression reference => reference.TypeArguments,
+                        _ => null,
+                    })));
                     break;
             }
 
@@ -98,7 +113,22 @@ internal sealed class ClosingSites
 
     public IReadOnlyList<SlotCapture> CreatorOf(ObjectInitializerAssignment entry)
     {
-        return creators.GetValueOrDefault(entry) ?? [];
+        return creators.GetValueOrDefault(entry)?.Captures ?? [];
+    }
+
+    public IReadOnlyList<IMistType>? StatedFor(ObjectInitializerAssignment entry)
+    {
+        return creators.GetValueOrDefault(entry) is { } creation ? Stated(creation) : null;
+    }
+
+    public static IReadOnlyList<IMistType>? Stated(InvocationExpression call)
+    {
+        return (call.Receiver as MemberAccessExpression)?.TypeArguments ?? (call.Receiver as MethodReferenceExpression)?.TypeArguments;
+    }
+
+    public static IReadOnlyList<IMistType>? Stated(NewExpression creation)
+    {
+        return (SlotReads.Plain(creation.Type) as ConstructedType)?.TypeArguments;
     }
 
     public IReadOnlyDictionary<TypeParameter, IMistType>? ClosingOf(SlotCapture capture)

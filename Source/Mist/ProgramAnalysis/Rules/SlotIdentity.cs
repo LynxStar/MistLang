@@ -21,17 +21,42 @@ internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string L
 /// by refinement equality (<see cref="Alike"/>), and by equality as well where the slot is exact. A member
 /// reached through a value the binder gave no read of its own slot still stands for that value's slot
 /// (Requirement 7.6), so a slot the <see cref="Receiver"/>'s type closes it with is met by equality with the
-/// read through the receiver as evaluated.
+/// read through the receiver as evaluated. A slot nested in a type argument meets by refinement equality, and
+/// by equality as well where it is exact, unless its capture was written inside a type the site states
+/// (<see cref="Inner"/>), as <c>First&lt;Ring&lt;n&gt;&gt;</c> writes <c>n</c>, which stands for the refinement.
 /// </summary>
 internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool Alike = false, Expression? Receiver = null)
 {
+    private static readonly HashSet<SlotCapture> NoValues = new(ReferenceEqualityComparer.Instance);
+
     public static readonly SlotMeeting Fit = new([]);
 
     public static readonly SlotMeeting Equal = new([], Alike: true);
 
+    public IReadOnlyCollection<SlotCapture> Inner { get; init; } = [];
+
+    public IReadOnlySet<SlotCapture> Values { get; init; } = NoValues;
+
+    public bool OneValue(IMistType argument)
+    {
+        return SlotReads.StandsForOneValue(argument) || (argument is CapturedValue captured && Values.Contains(captured.Capture));
+    }
+
+    public static IReadOnlyCollection<SlotCapture> Inside(IReadOnlyCollection<SlotCapture> exact, IEnumerable<IMistType>? stated)
+    {
+        var written = stated?.Where(argument => argument is not CapturedValue).ToList() ?? [];
+
+        return written.Count == 0 ? [] : [.. exact.Where(capture => written.Exists(argument => CaptureScope.Mentions(argument, capture)))];
+    }
+
     public bool IsExact(IMistType slot)
     {
         return (slot is CapturedValue captured && Exact.Any(capture => ReferenceEquals(capture, captured.Capture))) || ReceiverSlot(slot) is not null;
+    }
+
+    public bool HoldsNested(IMistType slot)
+    {
+        return IsExact(slot) && !(slot is CapturedValue captured && Inner.Any(capture => ReferenceEquals(capture, captured.Capture)));
     }
 
     public TypeParameter? ReceiverSlot(IMistType slot)
@@ -121,8 +146,12 @@ internal static class SlotIdentity
     {
         var meeting = new SlotMeeting([], Receiver: receiver);
 
-        return target is not null && Constituents(target).Any(constituent => SlotReads.Plain(constituent) is ConstructedType closing
-            && closing.TypeArguments.Any(argument => meeting.ReceiverSlot(argument) is not null));
+        return target is not null && Constituents(target).Any(constituent => Reaches(meeting, constituent));
+    }
+
+    private static bool Reaches(SlotMeeting meeting, IMistType type)
+    {
+        return SlotReads.Plain(type) is ConstructedType closing && closing.TypeArguments.Any(argument => meeting.ReceiverSlot(argument) is not null || Reaches(meeting, argument));
     }
 
     public static bool Owes(Expression? value, IMistType? target)
@@ -151,13 +180,15 @@ internal static class SlotIdentity
             return (null, null);
         }
 
-        if((pair.Nested || meeting.Alike) && Alike(ref state, pair, reading, budget) is var alike && (pair.Nested || !meeting.IsExact(pair.Slot) || alike is not Proven))
+        var held = pair.Nested ? meeting.HoldsNested(pair.Slot) : meeting.IsExact(pair.Slot);
+
+        if((pair.Nested || meeting.Alike) && Alike(ref state, pair, reading, budget, meeting) is var alike && (!held || alike is not Proven))
         {
             return (alike, null);
         }
 
         var read = pair.Read ?? pair.Parameter;
-        var left = through is null && !SlotReads.StandsForOneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
+        var left = through is null && !meeting.OneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
 
         if(SlotReads.StandsForOneValue(pair.Slot) || meeting.IsExact(pair.Slot) || SlotReads.Refinement(state, pair.Slot) is not { } admitted)
         {
@@ -215,10 +246,10 @@ internal static class SlotIdentity
         return refinement.Intervals is [var only] && only.Low == only.High ? Equal(state, new Term(only.Low), value, budget) : null;
     }
 
-    private static Proof? Alike(ref FactState state, Pair pair, FactReading reading, Budget? budget)
+    private static Proof? Alike(ref FactState state, Pair pair, FactReading reading, Budget? budget, SlotMeeting meeting)
     {
-        var argument = SlotReads.StandsForOneValue(pair.Argument) && pair.Argument is not LiftedType ? SlotReads.Value(ref state, reading, pair.Argument, null, pair.Read ?? pair.Parameter) : null;
-        var slot = SlotReads.StandsForOneValue(pair.Slot) && pair.Slot is not LiftedType ? SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter) : null;
+        var argument = meeting.OneValue(pair.Argument) && pair.Argument is not LiftedType ? SlotReads.Value(ref state, reading, pair.Argument, null, pair.Read ?? pair.Parameter) : null;
+        var slot = meeting.OneValue(pair.Slot) && pair.Slot is not LiftedType ? SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter) : null;
 
         return (argument, slot) switch
         {
@@ -284,7 +315,7 @@ internal static class SlotIdentity
             var slot = target.TypeArguments[i];
             var own = meeting?.ReceiverSlot(slot) is not null;
 
-            if((ReferenceEquals(argument, slot) && !own) || argument is ErrorType || slot is ErrorType)
+            if((ReferenceEquals(argument, slot) && !own && (meeting is null || !Reaches(meeting, slot))) || argument is ErrorType || slot is ErrorType)
             {
                 continue;
             }
@@ -303,7 +334,7 @@ internal static class SlotIdentity
             else if(SlotReads.Plain(argument) is ConstructedType inner && SlotReads.Plain(slot) is ConstructedType outer
                 && SlotReads.Closing(inner, outer.Definition) is { } reaching && reaching.TypeArguments.Count == outer.TypeArguments.Count)
             {
-                foreach(var nested in Pairs(reaching, outer))
+                foreach(var nested in Pairs(reaching, outer, meeting))
                 {
                     yield return nested with { Nested = true };
                 }

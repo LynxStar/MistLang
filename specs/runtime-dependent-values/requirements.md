@@ -304,6 +304,9 @@ void Show(Ring<unknown> ring, PositiveInt n)
 
 ## Requirement 8 A relation through a signature
 
+Items 1 to 6 and 10 revised on 2026-11-22 to follow Requirements 1 and 2. They
+apply what the owner ruled and decide nothing new.
+
 1. A relation between a value and the types of a signature SHALL be stated
    through a dependent parameter, of the method or of the enclosing type, or,
    for the length of an array the method returns, through a regular parameter
@@ -312,16 +315,23 @@ void Show(Ring<unknown> ring, PositiveInt n)
 2. A method's dependent parameter SHALL take a runtime value under
    Requirements 1 and 5, as `Zeroes<count>()`. It is evaluated once, before
    the regular arguments, and inside the method it is a value fixed for the
-   call.
+   call, typed by its domain.
 3. Where the argument list is omitted, the parameter SHALL be inferred from an
    argument as today, and the inferred value is the value that argument
-   carries. For an `Array<int, n>` it is `n`. For an `int[]` it is the array's
-   `Length`, under Requirement 7.
+   carries in the slot, whatever refinement its type closes the slot with. For
+   an `Array<int, ZeroOrPositiveInt>` or an `int[]` it is that array's
+   `Length`, under Requirement 7, and where the array was created as
+   `new int[n]` the facts know it equals `n`.
 4. Where more than one argument binds one dependent parameter, the first
-   SHALL bind it and each other SHALL be proven identical under Requirement 2.
+   SHALL bind it, and the facts SHALL prove each other argument's slot equal to
+   it. A shared refinement is not enough: two `Array<int, ZeroOrPositiveInt>`
+   values fit each other under Requirement 2, but may hold different lengths.
 5. The parameter's contract SHALL be proven at the call under Requirement 4.
-6. At a call, the result has the return type with the parameter bound to the
-   value passed. Inside the method the types of its parameters are facts at
+6. At a call, the result has the return type with the slot closed with what
+   is provable about the value passed, under Requirement 1, and the facts SHALL
+   record that the result's slot equals that value. For a `ZeroOrPositiveInt
+   count`, `Zeroes<count>()` is an `Array<int, ZeroOrPositiveInt>` whose
+   `Length` is `count`. Inside the method the types of its parameters are facts at
    the first line, and each `return` SHALL be proven against the return type.
    No body is read at a call, as flow-sensitive-refinement-inference
    Requirement 6 states.
@@ -343,9 +353,10 @@ void Show(Ring<unknown> ring, PositiveInt n)
 10. At a call, the result SHALL be closed with the value passed for that
     parameter, evaluated once, as the argument, under Requirement 1. The
     argument is an argument and not a slot, so Requirement 5 does not limit
-    it: `Zeroes(count)` is an `Array<int, count>`, and `Zeroes(count + 1)` is
-    closed with the value `count + 1` produced, which is identical to another
-    closing's value only as far as the facts recorded for it prove.
+    it: `Zeroes(count)` is an `Array<int, ZeroOrPositiveInt>` whose `Length`
+    is `count`, and `Zeroes(count + 1)` has the `Length` that `count + 1`
+    produced, equal to another array's only as far as the facts recorded for it
+    prove.
 
 Example.
 
@@ -363,11 +374,13 @@ void Blit<N:ZeroOrPositiveInt>(Array<int, N> source, Array<int, N> target)
     }
 }
 
-void Caller(ZeroOrPositiveInt count)
+void Caller(ZeroOrPositiveInt count, ZeroOrPositiveInt other)
 {
-    var a = Zeroes<count>();    // Array<int, count>
+    var a = Zeroes<count>();    // Array<int, ZeroOrPositiveInt>, and a.Length == count
     var b = Zeroes<count>();
-    Blit(a, b);                 // N is inferred from a, and b is proven to match
+    var c = Zeroes<other>();    // Array<int, ZeroOrPositiveInt>, and c.Length == other
+    Blit(a, b);                 // N is inferred from a, and b is proven to match: both lengths are count
+    Blit(a, c);                 // refused: fails when count != other
     Blit(a, new int[3]);        // refused: fails when count <= 2 or count >= 4
 }
 ```
@@ -391,9 +404,9 @@ Ring<n> Make(readonly ZeroOrPositiveInt n)   // refused: only an array's length 
 
 void Caller(ZeroOrPositiveInt count)
 {
-    var a = Sized(count);       // Array<int, count>
+    var a = Sized(count);       // Array<int, ZeroOrPositiveInt>, and a.Length == count
     var b = Sized(count);
-    Blit(a, b);                 // proven: both are closed with count's value
+    Blit(a, b);                 // proven: both lengths are count
 }
 ```
 

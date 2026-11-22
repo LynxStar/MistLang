@@ -92,7 +92,7 @@ public sealed class TypeSlotThroughTypeParameterTests
     [InlineData("class", "T.Output")]
     [InlineData("abstract", "T.Absent")]
     [InlineData("abstract", "T.Output.Inner")]
-    public void ADottedNameThatIsNoSlotOfAConstrainingAbstractIsAnUnresolvedType(string constraints, string written)
+    public void ADottedNameThatIsNoSlotOfAConstrainingAbstractIsRefusedAtTheReference(string constraints, string written)
     {
         if(constraints == "class")
         {
@@ -109,7 +109,7 @@ public sealed class TypeSlotThroughTypeParameterTests
 
         var resolution = Resolve(Reference(written.Split('.')));
 
-        AssertUnresolved(resolution, written);
+        AssertRefusedOnce(resolution);
     }
 
     [Fact]
@@ -132,7 +132,10 @@ public sealed class TypeSlotThroughTypeParameterTests
 
         var resolution = Resolve(Reference("Output", "Extra"));
 
-        AssertUnresolved(resolution, "Output.Extra");
+        AssertRefusedOnce(resolution);
+        var finding = Assert.Single(f.Diagnostics.Admitted);
+        Assert.Equal("MIST0298", finding.Number.Value);
+        Assert.Equal(new SlotValue[] { new NameValue("Output.Extra") }, finding.Arguments);
     }
 
     [Theory]
@@ -146,19 +149,13 @@ public sealed class TypeSlotThroughTypeParameterTests
 
         var resolution = Resolve(reference);
 
-        var finding = Assert.Single(f.Diagnostics.Admitted);
-        Assert.Equal(DiagnosticSeverity.Error, finding.Severity);
-        Assert.Equal(ReferenceOffset, Assert.IsType<SourceRange>(finding.Location).Offset);
-        Assert.True(resolution.IsFailed);
-        Assert.Same(ErrorType.Instance, resolution.Type);
+        AssertRefusedOnce(resolution);
     }
 
-    private void AssertUnresolved(TypeResolution resolution, string written)
+    private void AssertRefusedOnce(TypeResolution resolution)
     {
         var finding = Assert.Single(f.Diagnostics.Admitted);
-        Assert.Equal("MIST0298", finding.Number.Value);
         Assert.Equal(DiagnosticSeverity.Error, finding.Severity);
-        Assert.Equal(new SlotValue[] { new NameValue(written) }, finding.Arguments);
         Assert.Equal(ReferenceOffset, Assert.IsType<SourceRange>(finding.Location).Offset);
         Assert.True(resolution.IsFailed);
         Assert.Same(ErrorType.Instance, resolution.Type);

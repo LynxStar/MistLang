@@ -1,4 +1,5 @@
 using Mist.CLI.Steering;
+using Mist.Common.Diagnostics;
 
 namespace Mist.CLI.Tests.Steering;
 
@@ -376,5 +377,57 @@ public sealed class SteeringInstallerTests : IDisposable
         Assert.False(File.Exists(Path.Combine(kiro, "mist-language.md")));
         Assert.Equal("user content", File.ReadAllText(Path.Combine(kiro, "my-rules.md")));
         Assert.Empty(result.SkippedUserFiles);
+    }
+
+    [Fact]
+    public void InstallFrom_FileWhereReferenceDirectoryBelongs_RefusesBeforeWritingInstructions()
+    {
+        WriteBundled("mist-language.md");
+        _ = Directory.CreateDirectory(Path.Combine(projectFolder, ".mist"));
+        File.WriteAllText(SteeringDir, "not a directory");
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.False(result.Succeeded);
+        var failure = result.FailureDiagnostic!.Value.Occurrence;
+        Assert.Same(CommandDiagnostics.SteeringDirectoryCreateFailed, failure.Descriptor);
+        Assert.Equal(new FileOnly(SteeringDir), failure.Location);
+        Assert.Equal(new PathValue(SteeringDir), failure.Arguments[0]);
+        Assert.Equal("not a directory", File.ReadAllText(SteeringDir));
+        Assert.False(File.Exists(AgentsMd));
+    }
+
+    [Fact]
+    public void InstallFrom_DirectoryAtBundledDestination_RefusesBeforeWritingInstructions()
+    {
+        WriteBundled("mist-language.md");
+        var destination = Path.Combine(SteeringDir, "mist-language.md");
+        _ = Directory.CreateDirectory(destination);
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.False(result.Succeeded);
+        var failure = result.FailureDiagnostic!.Value.Occurrence;
+        Assert.Same(CommandDiagnostics.SteeringFileInstallFailed, failure.Descriptor);
+        Assert.Equal(new FileOnly(destination), failure.Location);
+        Assert.Equal(new NameValue("mist-language.md"), failure.Arguments[0]);
+        Assert.True(Directory.Exists(destination));
+        Assert.False(File.Exists(AgentsMd));
+    }
+
+    [Fact]
+    public void InstallFrom_DirectoryAtAgentsMd_RefusesTheInstructionWrite()
+    {
+        WriteBundled("mist-language.md");
+        _ = Directory.CreateDirectory(AgentsMd);
+
+        var result = SteeringInstaller.InstallFrom(projectFolder, sourceRoot);
+
+        Assert.False(result.Succeeded);
+        var failure = result.FailureDiagnostic!.Value.Occurrence;
+        Assert.Same(CommandDiagnostics.SteeringInstructionsWriteFailed, failure.Descriptor);
+        Assert.Equal(new FileOnly(AgentsMd), failure.Location);
+        Assert.Equal(new PathValue(AgentsMd), failure.Arguments[0]);
+        Assert.True(Directory.Exists(AgentsMd));
     }
 }

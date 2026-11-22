@@ -30,6 +30,7 @@ internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary
     public ImmutableDictionary<object, Term> Results { get; init; } = ImmutableDictionary<object, Term>.Empty;
     public ImmutableDictionary<CompoundAssignmentExpression, Term> CompoundInputs { get; init; } = ImmutableDictionary<CompoundAssignmentExpression, Term>.Empty;
     public IReadOnlySet<object> Unseen { get; init; } = UnseenWrites.None;
+    public IReadOnlySet<LocalVariable> Held { get; init; } = BodyHolders.None.Held;
     public ImmutableDictionary<LocalVariable, Expression> PatternSources { get; init; } = ImmutableDictionary<LocalVariable, Expression>.Empty;
 
     public bool TryGetValue(object holder, out Knowledge known)

@@ -64,6 +64,7 @@ internal sealed class FactReading(LiftedReturns lifted)
             var stable = !state.Unseen.Contains(holder) && expression switch
             {
                 MemberAccessExpression access => (access.Receiver is ThisExpression && access.Member is FieldResult)
+                    || (access is { Receiver: LocalReferenceExpression { Local: var receiver }, Member: FieldResult { Field.Modifiers.IsStatic: false } } && state.Held.Contains(receiver))
                     || RangeKnowledge.IsLength(access) || (access.Member is { } member && StableMembers.IsStable(member)),
                 PropertyReferenceExpression property => StableMembers.IsStable(new PropertyResult(property.Property, property.Property.DeclaringType!, [])),
                 _ => true,

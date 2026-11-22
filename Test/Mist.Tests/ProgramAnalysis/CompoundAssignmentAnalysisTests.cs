@@ -275,7 +275,7 @@ public sealed class CompoundAssignmentAnalysisTests
     {
         var body = HandBuiltModel.Block(new LocalDeclarationStatement(local, HandBuiltModel.Literal(Integer, 3L)), Run(write));
         var solution = FlowSolution<FactState>.Solve(
-            FlowGraphBuilder.Build(body), new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
+            FlowGraphBuilder.Build(body), new FactFlow(BodyHolders.Of(body), new LiftedReturns()), FactFlow.Nothing);
         var known = Knowledge.Unknown;
         solution.Replay((state, step) =>
         {

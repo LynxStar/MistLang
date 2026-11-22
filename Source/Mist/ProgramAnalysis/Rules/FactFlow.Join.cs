@@ -21,7 +21,8 @@ internal sealed partial class FactFlow
 
         var joined = Nothing with
         {
-            Unseen = unseenWrites,
+            Unseen = holders.Unseen,
+            Held = holders.Held,
             PatternSources = left.PatternSources,
             StableHolders = left.StableHolders.Intersect(right.StableHolders),
             CompoundInputs = Agreeing(left.CompoundInputs, right.CompoundInputs),

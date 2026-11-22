@@ -1,10 +1,10 @@
-using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
@@ -34,12 +34,13 @@ public sealed class DelegateInvocationSignatureTests
     [InlineData(ByRefDirection.None, false)]
     public void WritableDelegateArgumentsInvalidateRefinementFacts(ByRefDirection direction, bool invalidated)
     {
-        var model = new HandBuiltModel();
-        var integer = model.Type("Int32");
-        var holder = new LocalVariable("value", integer);
-        var call = Call(integer, [new LocalReferenceExpression(HandBuiltModel.Node(), holder)], [Parameter(integer, direction)]);
+        var h = new HandBuiltRefinements();
+        var holder = new LocalVariable("value", h.Int);
+        var call = Call(h.Int, [new LocalReferenceExpression(HandBuiltModel.Node(), holder)], [Parameter(h.Int, direction)]);
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(holder, h.Literal(5L)), HandBuiltRefinements.Evaluate(call),
+            HandBuiltRefinements.Need(HandBuiltRefinements.Read(holder), h.Refine(h.Int, ComparisonKind.Equal, 5L, "Five")));
 
-        Assert.Equal(invalidated, UnseenWrites.Of(call).Contains(holder));
+        Assert.Equal(invalidated, h.Built.Analyze(new RefinementAnalyzer(), body).Any(finding => finding.Number.Value == "MIST0272"));
     }
 
     [Theory]

@@ -19,8 +19,10 @@ public sealed class FieldFactRetentionTests
     [InlineData("operator-that-writes", "MIST0275")]
     [InlineData("extension-getter-that-writes", "MIST0275")]
     [InlineData("mutator-call", "MIST0275")]
+    [InlineData("mutator-of-another-field", null)]
     [InlineData("readonly-looking-call-to-a-mutator", "MIST0275")]
-    [InlineData("inferred-readonly-call-given-a-ref-argument", "MIST0275")]
+    [InlineData("inferred-readonly-call-given-a-ref-argument", null)]
+    [InlineData("call-given-the-field-by-ref", "MIST0275")]
     [InlineData("delegate-call", "MIST0275")]
     [InlineData("object-creation", "MIST0275")]
     [InlineData("getter-that-writes", "MIST0275")]
@@ -54,11 +56,13 @@ public sealed class FieldFactRetentionTests
         Expression step = between switch
         {
             "inferred-readonly-call" => f.Call(f.Method("Peek", f.Reads())),
-            "mutator-call" => f.Call(f.Method("Peek", f.Writes())),
+            "mutator-call" => f.Call(f.Method("Peek", f.WritesItems())),
+            "mutator-of-another-field" => f.Call(f.Method("Peek", f.Writes())),
             "readonly-looking-call-to-a-mutator" =>
-                f.Call(f.Method("Outer", HandBuiltModel.Block(new ReturnStatement(f.Call(f.Method("Peek", f.Writes())), f.H.Int)))),
+                f.Call(f.Method("Outer", HandBuiltModel.Block(new ReturnStatement(f.Call(f.Method("Peek", f.WritesItems())), f.H.Int)))),
             "inferred-readonly-call-given-a-ref-argument" =>
                 f.Call(f.Method("Peek", f.Reads(), parameters: FieldEffectFragments.ByRef(f.H.Int)), HandBuiltRefinements.Local(f.H.Int, "spare")),
+            "call-given-the-field-by-ref" => f.Call(f.Method("Peek", f.Reads(), parameters: FieldEffectFragments.ByRef(f.Items.Type)), f.ItemsRead),
             "delegate-call" => new InvocationExpression(HandBuiltModel.Node(), f.H.Literal(0L), [], f.H.Int, null, []),
             "object-creation" => new NewExpression(HandBuiltModel.Node(), f.Owner, [], null, [], []),
             "inferred-readonly-getter" => f.Read(f.Property(FieldEffectFragments.Accessor(f.Reads()), null)),

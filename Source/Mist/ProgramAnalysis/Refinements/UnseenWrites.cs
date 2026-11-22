@@ -8,9 +8,9 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// Captured writes, ref/out arguments and ref-local aliases can invalidate facts outside this body's flow.
-/// Proofs have no runtime guard, so these holders and aliases retain only declared types, which still
-/// constrain every write.
+/// Captured writes, and ref locals whose storage <see cref="BodyHolders"/> cannot name, can invalidate facts
+/// outside this body's flow. Proofs have no runtime guard, so these holders and aliases retain only declared
+/// types, which still constrain every write.
 /// </summary>
 internal static class UnseenWrites
 {
@@ -36,15 +36,7 @@ internal static class UnseenWrites
                     AddCapturedWrites(unseen, [], BodyWalker.DescendantsAndSelf(block.Body).ToList());
                     break;
 
-                case InvocationExpression call:
-                    AddByRef(unseen, call.Arguments, call.Parameters);
-                    break;
-
-                case NewExpression creation:
-                    AddByRef(unseen, creation.Arguments, creation.Constructor?.ParametersList);
-                    break;
-
-                case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased }:
+                case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased } when BodyHolders.Named(aliased) is null:
                     _ = unseen.Add(alias);
 
                     if(Referenced(aliased) is { } target)
@@ -64,13 +56,27 @@ internal static class UnseenWrites
         var own = Captures.OwnNames(parameters, inside);
 
         var targets = inside.OfType<AssignmentExpression>().Select(assignment => assignment.Target)
-            .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target));
+            .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target))
+            .Concat(inside.OfType<InvocationExpression>().SelectMany(call => ByRef(call.Arguments, call.Parameters)))
+            .Concat(inside.OfType<NewExpression>().SelectMany(creation => ByRef(creation.Arguments, creation.Constructor?.ParametersList)))
+            .Concat(inside.OfType<LocalDeclarationStatement>().Where(declaration => declaration.Local.IsRef).Select(declaration => declaration.Initializer).OfType<Expression>());
 
         foreach(var written in targets.Select(Referenced).OfType<object>())
         {
             if(written is not LocalVariable local || !own.Contains(local))
             {
                 _ = unseen.Add(written);
+            }
+        }
+    }
+
+    private static IEnumerable<Expression> ByRef(IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    {
+        for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
+        {
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out)
+            {
+                yield return arguments[i];
             }
         }
     }
@@ -84,16 +90,5 @@ internal static class UnseenWrites
             MemberAccessExpression { Member: FieldResult field } => field.Field,
             _ => null,
         };
-    }
-
-    private static void AddByRef(HashSet<object> unseen, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
-    {
-        for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
-        {
-            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && Referenced(arguments[i]) is { } passed)
-            {
-                _ = unseen.Add(passed);
-            }
-        }
     }
 }

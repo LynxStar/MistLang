@@ -22,6 +22,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("int offset = 1; Index end = ^offset; offset = 5; Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
     [InlineData("Index end = ^1; Index copy = end; end = ^4; Range window = 0..copy; var slice = numbers[window]; var last = slice[3];")]
     [InlineData("Index end = ^1; Range window = 0..end; end = ^4; var slice = numbers[window]; var last = slice[3];")]
+    [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[3];")]
     [InlineData("Index end = ^1; end = ^2; Range window = 0..end; var slice = numbers[window]; var last = slice[2];")]
     [InlineData("Index end = ^1; if(flag) { end = ^1; } Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
     [InlineData("Index end = ^1; while(flag) { end = ^1; flag = false; } Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
@@ -45,7 +46,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("Index end = Pick.Edge(); Range window = 0..end; end = ^1; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
     [InlineData("Index end = ^1; var change = () => { end = ^5; }; change(); var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
     [InlineData("Index end = ^1; ref Index alias = end; Range window = 0..alias; alias = ^5; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; Pick.Change(ref end); Range window = 0..end; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
     public void UnknownDifferentAndInvalidIndexes_RemainRefused(string statements, string id)
     {
         Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Number.Value);

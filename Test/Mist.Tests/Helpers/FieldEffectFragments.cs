@@ -41,6 +41,11 @@ internal sealed class FieldEffectFragments
             new ReturnStatement(H.Literal(1L), H.Int));
     }
 
+    public Block WritesItems()
+    {
+        return HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(ItemsRead, H.Array(1L))), new ReturnStatement(H.Literal(1L), H.Int));
+    }
+
     public Method Method(string name, Block? body, MemberModifiers modifiers = default, MemberType? declaring = null, params Parameter[] parameters)
     {
         return new Method(name, H.Int, [.. parameters], modifiers) { Body = body, DeclaringType = declaring ?? Owner };

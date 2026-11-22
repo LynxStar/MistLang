@@ -5,6 +5,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -13,10 +14,11 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, LiftedReturns lifted, FieldEffects? effects = null, FlowGraph? graph = null, int alternativeCap = Bag.AlternativeCap)
+internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted, MemberWrites? writes = null, FlowGraph? graph = null, int alternativeCap = Bag.AlternativeCap)
     : IFlowLattice<FactState>
 {
-    private readonly FieldEffects effects = effects ?? new();
+    private readonly BodyHolders holders = holders;
+    private readonly MemberWrites writes = writes ?? new(new FieldEffects());
     private readonly FactReading reading = new(lifted);
     private readonly Dictionary<object, List<CompoundAssignmentExpression>> compoundReads = CompoundReads(graph);
     private readonly Dictionary<FlowBlock, LoopChanges> loopChanges = LoopChanges.Of(graph);
@@ -24,7 +26,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
 
     public FactState Transfer(FactState state, FlowStep step)
     {
-        state = state with { Unseen = unseenWrites, Bag = state.Bag.WithCap(alternativeCap), WideningEntry = null, WideningHeader = null };
+        state = state with { Unseen = holders.Unseen, Held = holders.Held, Bag = state.Bag.WithCap(alternativeCap), WideningEntry = null, WideningHeader = null };
         if(step.Kind == FlowStepKind.Evaluate && compoundReads.TryGetValue(step.Node, out var compounds))
         {
             foreach(var compound in compounds)
@@ -65,28 +67,17 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
                 var old = state.CompoundInputs.GetValueOrDefault(compound) ?? reading.Read(ref state, compound.Target);
                 var result = FactReading.Operation(ref state, (BinaryExpression)longForm.Value, old, reading.Evaluated(ref state, compound.Value));
                 state = state with { Results = state.Results.SetItem(longForm.Value, result), CompoundInputs = state.CompoundInputs.Remove(compound) };
-                if(effects.MayWrite(compound))
-                {
-                    state = InvalidateFields(state);
-                }
-
-                return Assign(state, longForm);
+                return Assign(EndWritten(state, compound), longForm);
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
-                state = Assign(state, assignment);
-                return effects.MayWrite(assignment) ? InvalidateFields(state) : state;
+                return EndWritten(Assign(state, assignment), assignment);
 
             case { Kind: FlowStepKind.Evaluate, Node: MethodReferenceExpression or NamespaceReferenceExpression }:
                 return state;
 
             case { Kind: FlowStepKind.Evaluate, Node: Expression expression }:
                 state = state with { Results = state.Results.Remove(expression) };
-                if(effects.MayWrite(expression))
-                {
-                    state = InvalidateFields(state);
-                }
-
-                state = InvalidateArguments(state, expression);
+                state = InvalidateArguments(EndWritten(state, expression), expression);
                 var term = reading.Read(ref state, expression);
                 return state with { Results = state.Results.SetItem(expression, term) };
 
@@ -121,14 +112,15 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         var known = expression is not null ? KnowledgeOf(state, expression, local.Type) : Knowledge.Unknown;
         var trusted = matched || term is null || AssignmentHolds(ref state, local.Type, term);
         var supplied = expression is null && local.Parameter is { } parameter ? state.Bindings.Get(parameter) : null;
-        var value = supplied ?? Shared(local.Type, expression, term) ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
+        var shared = holders.Held.Contains(local) ? null : Shared(local.Type, expression, term);
+        var value = supplied ?? shared ?? FactReading.Fresh(ref state, local.Type, local.Name, local.Parameter?.DeclarationNode!, trusted);
         state = state with { Bindings = state.Bindings.Set(local, value) };
         if(term is not null && expression is not null)
         {
             FactReading.CarryLength(ref state, term, expression.Type, value, local.Type);
         }
 
-        if(term is not null && Shared(local.Type, expression, term) is null)
+        if(term is not null && shared is null)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };
         }
@@ -156,9 +148,10 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         }
 
         var trusted = AssignmentHolds(ref state, assignment.Target.Type, term);
-        var value = Shared(assignment.Target.Type, assignment.Value, term)
+        var value = (holder is LocalVariable local && holders.Held.Contains(local) ? null : Shared(assignment.Target.Type, assignment.Value, term))
             ?? FactReading.Fresh(ref state, assignment.Target.Type, RefinementFindings.Display(assignment.Target), assignment.Node, trusted);
         state = state with { Bindings = state.Bindings.Set(holder, value), StableHolders = state.StableHolders.Remove(holder), Results = state.Results.SetItem(assignment, new Term(value)) };
+        state = EndAliases(state, holder);
         FactReading.CarryLength(ref state, term, assignment.Value.Type, value, assignment.Target.Type);
         if(!assignment.IsCoalescing)
         {
@@ -279,34 +272,127 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         };
     }
 
-    private static FactState InvalidateFields(FactState state, bool all = false)
+    private FactState InvalidateFields(FactState state, bool all = false)
     {
         foreach(var holder in state.Bindings.Order)
         {
             if(holder is Field field && (all || !field.Modifiers.IsReadonly))
             {
-                var value = FactReading.Fresh(ref state, field.Type, field.Name, state.Bindings.Values[holder].Node);
-                state = state with { Bindings = state.Bindings.Set(holder, value) };
+                state = End(state, holder);
             }
         }
 
         return state;
     }
 
-    private FactState InvalidateArguments(FactState state, Expression expression)
+    private FactState EndWritten(FactState state, Expression node)
     {
-        var (arguments, parameters) = expression switch
+        if(Writer(state, node) is not { } writer)
+        {
+            return state;
+        }
+
+        foreach(var holder in state.Bindings.Order)
+        {
+            if(Writes(writer, holder))
+            {
+                state = End(state, holder);
+            }
+        }
+
+        return state;
+    }
+
+    private (IReadOnlySet<Field>? Fields, Value? Receiver, HashSet<Value> Lent)? Writer(FactState state, Expression node)
+    {
+        var written = writes.Of(node);
+        if(written is { Count: 0 })
+        {
+            return null;
+        }
+
+        var receiver = node is InvocationExpression call ? Bound(state, ThisTiers.ReceiverOf(call)) : null;
+        var lent = new HashSet<Value>();
+        var (arguments, parameters) = Arguments(node);
+        for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
+        {
+            if(parameters[i].Modifier.Ownership != OwnershipKind.Frozen && Bound(state, arguments[i]) is { } passed)
+            {
+                _ = lent.Add(passed);
+            }
+        }
+
+        return (written, receiver, lent);
+    }
+
+    private static bool Writes((IReadOnlySet<Field>? Fields, Value? Receiver, HashSet<Value> Lent) writer, object holder)
+    {
+        return holder switch
+        {
+            Field field => writer.Fields?.Contains(field) ?? !field.Modifiers.IsReadonly,
+            MemberHolder { Member: Field { Modifiers.IsReadonly: false } field } member => writer.Lent.Contains(member.Receiver)
+                || (ReferenceEquals(member.Receiver, writer.Receiver) && (writer.Fields?.Contains(field) ?? true)),
+            _ => false,
+        };
+    }
+
+    private static Value? Bound(FactState state, Expression? expression)
+    {
+        return expression is LocalReferenceExpression { Local: var local } ? state.Bindings.Get(local) : null;
+    }
+
+    private static (IReadOnlyList<Expression>? Arguments, IReadOnlyList<Parameter>? Parameters) Arguments(Expression expression)
+    {
+        return expression switch
         {
             InvocationExpression call => (call.Arguments, call.Parameters),
             NewExpression creation => (creation.Arguments, creation.Constructor?.ParametersList),
             _ => (null, null),
         };
+    }
+
+    private FactState End(FactState state, object holder)
+    {
+        var old = state.Bindings.Values[holder];
+        var value = FactReading.Fresh(ref state, HolderType(holder) ?? old.Type, old.DisplayName, old.Node);
+        state = state with { Bindings = state.Bindings.Set(holder, value) };
+        return EndAliases(state, holder);
+    }
+
+    private FactState EndAliases(FactState state, object holder)
+    {
+        foreach(var alias in holders.AliasesOf(holder))
+        {
+            if(state.Bindings.Get(alias) is { } old)
+            {
+                var value = FactReading.Fresh(ref state, HolderType(alias) ?? old.Type, old.DisplayName, old.Node);
+                state = state with { Bindings = state.Bindings.Set(alias, value) };
+            }
+        }
+
+        return state;
+    }
+
+    private static IMistType? HolderType(object holder)
+    {
+        return holder switch
+        {
+            Field field => field.Type,
+            LocalVariable local => local.Type,
+            MemberHolder { Member: Field field } => field.Type,
+            _ => null,
+        };
+    }
+
+    private FactState InvalidateArguments(FactState state, Expression expression)
+    {
+        var (arguments, parameters) = Arguments(expression);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
             if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && reading.Holder(ref state, arguments[i]) is { } holder)
             {
                 var value = FactReading.Fresh(ref state, arguments[i].Type, RefinementFindings.Display(arguments[i]), arguments[i].Node);
-                state = state with { Bindings = state.Bindings.Set(holder, value) };
+                state = EndAliases(state with { Bindings = state.Bindings.Set(holder, value) }, holder);
             }
         }
 

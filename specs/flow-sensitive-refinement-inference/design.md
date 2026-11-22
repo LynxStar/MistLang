@@ -64,34 +64,6 @@ may write a member, which ends that member's value and no other. Which members a
 call may write is the ownership and purity rules' judgement, member by member: a
 method on `this` that writes `B` leaves the facts about `A` in place.
 
-The compiler at 4c2e5bb3 proves less than this in four places. With
-`Take(Five f)` taking `int >= 5 and <= 5`, each `Take` below is refused today and
-is proven under this design:
-
-```mist
-var a = 5;
-Take(a);        // a local passed by ref anywhere in the body keeps only its type
-Bump(ref a);
-
-var c = 5;
-Take(c);        // so does a local that a ref local names anywhere in the body
-ref int r = c;
-r = 6;
-
-owned var b = new Box();
-b.V = 5;
-Take(b.V);      // a member of an object the body owns carries no facts
-
-A = 5;          // inside a method of a class with fields A and B
-SetB();         // writes only B
-Take(A);        // every mutable field of this ends at the call
-```
-
-`UnseenWrites.Of(root)` takes the first two out of the flow for the whole body,
-member holders of owned and exclusively held objects are not fact-bearing, and
-`FieldEffects.MayWrite` answers for all mutable fields together where
-`ThisTiers.FieldUses` holds the per-field answer.
-
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's
 intrinsic `Length`. Its value's facts come from `Lengths.Typed` when the type

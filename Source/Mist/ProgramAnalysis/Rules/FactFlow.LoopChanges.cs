@@ -1,5 +1,4 @@
 using Mist.ProgramAnalysis.Flow;
-using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -54,8 +53,9 @@ internal sealed partial class FactFlow
             return result;
         }
 
-        public bool Writes(object holder, FactState incoming, FactReading reading, FieldEffects effects)
+        public bool Writes(object holder, FactState incoming, FactFlow flow)
         {
+            var named = flow.holders.AliasesOf(holder).Prepend(holder).ToList();
             foreach(var expression in nodes)
             {
                 var target = expression switch
@@ -64,26 +64,26 @@ internal sealed partial class FactFlow
                     CompoundAssignmentExpression compound => compound.Target,
                     _ => null,
                 };
-                if(target is not null && Equals(reading.Holder(ref incoming, target), holder))
+                if(target is not null && flow.reading.Holder(ref incoming, target) is { } assigned && named.Contains(assigned))
                 {
                     return true;
                 }
 
-                if(holder is Field field && (target is ThisExpression || (!field.Modifiers.IsReadonly && effects.MayWrite(expression))))
+                if(holder is Field && target is ThisExpression)
                 {
                     return true;
                 }
 
-                var (arguments, parameters) = expression switch
+                if(flow.Writer(incoming, expression) is { } writer && named.Any(name => FactFlow.Writes(writer, name)))
                 {
-                    InvocationExpression call => (call.Arguments, call.Parameters),
-                    NewExpression creation => (creation.Arguments, creation.Constructor?.ParametersList),
-                    _ => (null, null),
-                };
+                    return true;
+                }
+
+                var (arguments, parameters) = Arguments(expression);
                 for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
                 {
                     if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out
-                        && Equals(reading.Holder(ref incoming, arguments[i]), holder))
+                        && flow.reading.Holder(ref incoming, arguments[i]) is { } passed && named.Contains(passed))
                     {
                         return true;
                     }

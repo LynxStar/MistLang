@@ -32,6 +32,7 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("int end = 3; var last = numbers[0..end][2];")]
     [InlineData("int end = numbers.Length; Range window = 1..end; end = 0; var slice = numbers[window]; var last = slice[3];")]
     [InlineData("int end = numbers.Length; numbers = [1, 2, 3, 4, 5]; Range window = 1..end; var slice = numbers[window]; var last = slice[3];")]
+    [InlineData("int end = 3; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[2];")]
     public void CapturedOffsets_KeepTheirValuesAcrossCopiesWritesJoinsAndRebinding(string statements)
     {
         Assert.Empty(Findings(Build(statements, Unknown)));
@@ -52,7 +53,7 @@ public sealed class RangeCaptureDecisionTests
         var model = Build($"int start = Pick.Begin(flag); int end = Pick.End(flag); Range window = {bounds}; start = 4; end = 0; var slice = numbers[window]; var last = slice[{last}];", Intervals);
         var body = Body(model);
         var graph = FlowGraphBuilder.Build(body);
-        var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
+        var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(BodyHolders.Of(body), new LiftedReturns()), FactFlow.Nothing);
         var slice = BodyWalker.DescendantsAndSelf(body).OfType<LocalDeclarationStatement>().Single(declaration => declaration.Local.Name == "slice").Local;
 
         var captured = FactState.Empty;
@@ -73,7 +74,7 @@ public sealed class RangeCaptureDecisionTests
     [InlineData("int end = 3; Range window = 0..end; var change = () => { end = 0; }; change(); var slice = numbers[window]; var last = slice[0];")]
     [InlineData("int end = Pick.End(3); Range window = 0..end; if(flag) { end = 3; window = 0..end; } var slice = numbers[window]; var last = slice[0];")]
     [InlineData("int end = 3; ref int alias = end; Range window = 0..alias; alias = 0; var slice = numbers[window]; var last = slice[0];")]
-    [InlineData("int end = 3; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];")]
+    [InlineData("int end = 3; Pick.Change(ref end); Range window = 0..end; var slice = numbers[window]; var last = slice[0];")]
     public void LaterFactsAndAliasedWrites_DoNotProveAnEarlierUnknownCapture(string statements)
     {
         Assert.Equal("MIST0275", Assert.Single(Findings(Build(statements, Unknown))).Number.Value);

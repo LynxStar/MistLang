@@ -129,21 +129,28 @@ void Foo(Range n, Range m)
 
 ## Requirement 3 What a declaration takes
 
-1. A `var` SHALL take the type of its initializer with the values of its slots,
-   whether a value is a literal or not. `var a = new int[n];` declares an
-   `Array<int, n>`, as `var a = new int[3];` declares an `Array<int, 3>`.
+Revised on 2026-11-22 to follow Requirements 1 and 2. It applies what the owner
+ruled and decides nothing new.
+
+1. A `var` SHALL take the type of its initializer, which closes each slot with
+   what is provable about its value under Requirement 1. With `n` a `Range`,
+   `var a = new int[n];` declares an `Array<int, Range>` and records
+   `a.Length == n`. After `var n = 7;` it declares an `Array<int, 7>`, as
+   `var a = new int[3];` declares an `Array<int, 3>`.
 2. Every later write to the variable SHALL be held to that type under
-   Requirement 2. The `n` it is held to is the value `n` had at the
-   declaration.
-3. A variable meant to hold values of different closings is declared with the
-   type that says so, `int[] a = new int[n];`, as today.
+   Requirement 2. With `m` also a `Range`, `a = new int[m];` is accepted, and
+   the fact `a.Length == n` ends with the write.
+3. A variable meant to hold arrays of any length is declared with the type that
+   says so, `int[] a = new int[n];`, as today.
 4. This revises [stack-only-types](../stack-only-types/requirements.md) where it
    types a runtime-sized `stackalloc int[n]` as `Span<T, unknown>`. It is a
-   `Span<int, n>`.
+   `Span<int, Range>` for a `Range n`, with `Length == n`.
 
 Programs that compile today change under this requirement:
 `var a = new int[n]; a = new int[m];` is accepted today, because that `a` is an
-`int[]`.
+`int[]`. It is now accepted only where what is provable about `m` lies inside
+what is provable about `n`: refused for a `Range n` and a `ZeroOrPositiveInt m`,
+because it fails when `m <= 10` or `m >= 30`.
 
 ## Requirement 4 The slot's own contract
 

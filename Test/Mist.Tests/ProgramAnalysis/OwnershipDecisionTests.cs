@@ -370,15 +370,22 @@ public sealed class OwnershipDecisionTests : ProgramModelProbe
     }
 
     /// <summary>
-    /// Owned-fields Requirements 16.2 and 16.7: an owned field of a non-clonable type read out of an
-    /// owned holder into any binding is a move of that field, so the read after it is refused.
+    /// Owned-fields Requirements 16.2 and 16.7: an owned field read out of an owned holder into a shared
+    /// binding is a move of that field, so the read after it is refused.
     /// </summary>
     [Theory]
-    [InlineData("owned var car = new Car(); owned var f = car.Front; Console.WriteLine(car.Front.Get());")]
     [InlineData("owned var car = new Car(); var f = car.Front; Console.WriteLine(car.Front.Get());")]
     public void AnOwnedFieldReadOutOfAnOwnedHolder_IsAMoveOfThatField(string statement)
     {
         Assert.Equal("MIST0227", Assert.Single(Analyse(statement)).Number.Value);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("owned var car = new Car(); owned var f = car.Front; Console.WriteLine(car.Front.Get());")]
+    public void AnOwnedFieldOfADerivingTypeReadIntoAnOwnedBinding_IsAClone(string statement)
+    {
+        AssertSilent(statement);
     }
 
     [Theory]

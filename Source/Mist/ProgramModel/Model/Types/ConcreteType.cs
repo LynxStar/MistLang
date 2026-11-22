@@ -81,6 +81,10 @@ internal abstract class ConcreteType : MemberType, IConcreteType
 
     public UnheldCopy? UnheldCopy { get; internal set; }
 
+    public Method? DerivedClone { get; internal set; }
+
+    public IMistType? DerivedCloneConformance { get; internal set; }
+
     public NewtypeDeclarationNode? NewtypeDeclaration { get; internal set; }
 
     internal override IEnumerable<Method> EnumerateDelegates()

@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Resolution;
@@ -113,7 +114,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
     {
         var decision = closing.Argument is TypeParameter
             ? ConstraintEntailment.Decide(closing, declared, context.Model.TypeInterner)
-            : Decide(closing, declared, context.Model.TypeInterner);
+            : Decide(closing, declared, context.Model.TypeInterner, context.Model.Clones);
 
         if(decision is not { } descriptor
             || Closed(declared, closing.Closing, context.Model.TypeInterner) is not { } constraint)
@@ -140,7 +141,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         }
     }
 
-    internal static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner)
+    internal static MistDiagnostic? Decide(TypeArgumentClosing closing, TypeParameterConstraint declared, TypeInterner interner, CloneDerivation? clones = null)
     {
         if(closing.Argument is ErrorType || Closed(declared, closing.Closing, interner) is not { } constraint)
         {
@@ -152,6 +153,7 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
         var satisfied = constraint switch
         {
+            TypeConstraint typed when clones is not null && ClonesByDerivation(argument, typed.ConstraintType) => clones.Judge(argument).Kind != CloneKind.Refused,
             TypeConstraint typed => Is(argument, typed.ConstraintType, interner),
             ConstructorConstraint constructor => HasConstructor(argument, constructor.ParameterTypes, interner),
             KeywordConstraint keyword => Keyword(keyword.Kind, argument, definition),
@@ -166,6 +168,14 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
         return constraint is ConstructorConstraint
             ? ProgramAnalysisDiagnostics.ConstructorConstraintNotSatisfied
             : ProgramAnalysisDiagnostics.ConstraintNotSatisfied;
+    }
+
+    private static bool ClonesByDerivation(IMistType argument, IMistType constraint)
+    {
+        return constraint is ConstructedType { TypeArguments: [var itself] } clonable
+            && clonable.Definition.FullyQualifiedName == WellKnownTypes.IClonable.FullyQualifiedName
+            && itself.FullyQualifiedName == argument.FullyQualifiedName
+            && (argument is ConstructedType constructed ? constructed.Definition : argument) is ConcreteType { DerivedClone: not null };
     }
 
     /// <summary>

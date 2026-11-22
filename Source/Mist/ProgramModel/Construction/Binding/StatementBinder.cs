@@ -305,7 +305,7 @@ internal static class StatementBinder
             OperandFacts.Declared(ctx, body, local, initializer);
         }
 
-        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(ownership, initializer, local.IsRef));
+        return new LocalDeclarationStatement(local, initializer is null ? null : OwnedProvenance.At(context.ProgramModel.Clones, ownership, initializer, local.IsRef));
     }
 
     /// <summary>

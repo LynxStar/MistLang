@@ -99,7 +99,7 @@ internal static class MemberBinder
             foreach(var field in concreteType.FieldsList)
             {
                 field.Initializer = AtSlot(
-                    OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(field.Initializer, field.Type, memberType.Scope, context));
+                    OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(field.Initializer, field.Type, memberType.Scope, context), context);
                 context.StorageWrites.MarkComplete(field);
             }
 
@@ -109,13 +109,13 @@ internal static class MemberBinder
         foreach(var property in memberType.PropertiesList)
         {
             property.Initializer = AtSlot(
-                OwnedProvenance.IsOwned(property), BodyBinder.BindInitializer(property.Initializer, property.Type, memberType.Scope, context));
+                OwnedProvenance.IsOwned(property), BodyBinder.BindInitializer(property.Initializer, property.Type, memberType.Scope, context), context);
         }
     }
 
-    private static Expression? AtSlot(bool owned, Expression? bound)
+    private static Expression? AtSlot(bool owned, Expression? bound, BuilderContext context)
     {
-        return bound is null ? null : OwnedProvenance.At(owned ? OwnershipKind.Owned : OwnershipKind.Unrestricted, bound);
+        return bound is null ? null : OwnedProvenance.At(context.ProgramModel.Clones, owned ? OwnershipKind.Owned : OwnershipKind.Unrestricted, bound);
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ internal static class MemberBinder
     {
         if(declaring.FieldsList.Find(f => f.Name == entry.FieldName) is { } field)
         {
-            entry.Value = AtSlot(OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(entry.Value, field.Type, enclosing.Scope, context))!;
+            entry.Value = AtSlot(OwnedProvenance.IsOwned(field), BodyBinder.BindInitializer(entry.Value, field.Type, enclosing.Scope, context), context)!;
         }
     }
 

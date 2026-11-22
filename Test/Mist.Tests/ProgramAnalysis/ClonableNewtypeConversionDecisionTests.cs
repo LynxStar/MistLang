@@ -73,6 +73,8 @@ public sealed class ClonableNewtypeConversionDecisionTests
 
         public class Entity
         {
+            public Ocelot? Pet;
+
             public Entity() { }
         }
 

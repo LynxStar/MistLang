@@ -29,6 +29,8 @@ internal sealed class CastOperator(
     /// </summary>
     public bool CopiesClone { get; init; }
 
+    public bool CopiesDerivedClone { get; init; }
+
     public Method? ClonesThrough { get; init; }
 
     public Diagnostic? BindingFailure { get; internal set; }

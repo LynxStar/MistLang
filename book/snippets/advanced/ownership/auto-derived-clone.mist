@@ -1,0 +1,54 @@
+using Standard;
+
+namespace Snippet;
+
+// Neither type declares Clone(): every field is unchangeable or owned, so the compiler derives one.
+public class Style
+{
+    public string Font;
+    public int Size;
+
+    public Style(string font, int size)
+    {
+        this.Font = font;
+        this.Size = size;
+    }
+}
+
+public owned class Heading
+{
+    public string Text;
+    public Style Look;
+
+    public Heading(string text, int size)
+    {
+        this.Text = text;
+        this.Look = new Style("serif", size);
+    }
+
+    public void Resize(int size)
+    {
+        Look.Size = size;
+    }
+
+    public readonly string Describe()
+    {
+        return $"{Text} at {Look.Size}";
+    }
+}
+
+public class AutoCloneDemo
+{
+    public static void Run()
+    {
+        var shared = new Style("sans", 10);
+        owned Style mine = shared;
+        shared.Size = 11;
+        Console.WriteLine($"shared={shared.Size}, mine={mine.Size}");
+
+        owned var original = new Heading("Intro", 12);
+        owned var copy = original.Clone();
+        copy.Resize(20);
+        Console.WriteLine($"original={original.Describe()}, copy={copy.Describe()}");
+    }
+}

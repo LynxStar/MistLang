@@ -337,6 +337,18 @@ internal static class TypeEmitter
                 DefaultEmitter.EmitImplicitConstruction(concrete, writer, diagnostics, ref anyEmitted);
             }
 
+            if(concrete is { DerivedClone: not null } && CloneDemand.Emits(concrete))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                DerivedCloneEmitter.Emit(concrete, writer, diagnostics);
+            }
+
+            if(type is ClassType classType && CloneDemand.Clones is not null && CloneDemand.CopiesSlotsOf(classType))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                DerivedCloneEmitter.EmitSlotCopier(classType, writer);
+            }
+
             if(concrete is not null && DropInsertion.SynthesizesDrop(concrete))
             {
                 DropEmitter.Emit(concrete, writer, ref anyEmitted);
@@ -477,6 +489,12 @@ internal static class TypeEmitter
 
         foreach(var abstractRef in SlotLift.Reached(type))
         {
+            if(type is ConcreteType { DerivedCloneConformance: { } derived } concrete
+                && derived.FullyQualifiedName == abstractRef.FullyQualifiedName && !CloneDemand.Emits(concrete))
+            {
+                continue;
+            }
+
             bases.Add(TypeNameEmitter.Emit(SlotLift.Base(abstractRef, type) ?? abstractRef));
         }
 

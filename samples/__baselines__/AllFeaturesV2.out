@@ -2763,3 +2763,22 @@ code from literal: LHR
 code from equality: JFK
 code from join: OSL
 code from regex: SFO
+=== Automatic Clone ===
+--- 1. Implicit clones of a derived type ---
+  local: shared=99 mine=1
+  plain parameter copy=1099 shared=99
+  borrowed parameter copy=2099 shared=99 label=a
+--- 2. An owned graph copied whole ---
+  original title=sans frame=2/1 edge=4/3 note=5 count=6 footer=7
+  copy     title=serif frame=12/11 edge=14/13 note=15 count=16 footer=17
+  original title=mono frame=102/101 edge=104/103 note=105 count=106 footer=107
+  copy     title=serif frame=12/11 edge=14/13 note=15 count=16 footer=17
+--- 3. A copy keeps the value's class ---
+  a Dog named Rex with 4 legs
+  not a Dog but an animal with 2 legs
+--- 4. An explicit Clone of a derived type ---
+  first=5/first second=6/second
+--- 5. A linear type with Drop is cloned like any other ---
+  socket=7 twin=8
+  socket 8 closed
+  socket 7 closed

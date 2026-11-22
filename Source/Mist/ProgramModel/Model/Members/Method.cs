@@ -26,6 +26,12 @@ internal class Method(
 
     public bool IsTopLevelProgram { get; init; }
 
+    /// <summary>
+    /// The <c>Clone</c> the compiler supplies for a type that declares none (ownership-v2 Requirement 8.6). It has no body:
+    /// what it copies is <see cref="Construction.CloneDerivation"/>'s to decide and how is each backend's.
+    /// </summary>
+    public bool IsDerivedClone { get; init; }
+
     public List<AttributeData> AttributesList { get; } = [];
 
     public List<DeclaredAttribute> DeclaredAttributesList { get; } = [];

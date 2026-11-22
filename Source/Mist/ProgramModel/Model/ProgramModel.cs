@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts;
 using Mist.ProgramModel.Contracts.Types;
@@ -61,6 +62,8 @@ public sealed class ProgramModel : IProgramModel
     internal CompositeApplicationRegistry CompositeApplications { get; private set; } = new();
 
     internal TypeNamingRegistry TypeNamings { get; private set; } = new();
+
+    internal CloneDerivation Clones { get; set; } = new([]);
 
     /// <summary>
     /// Runs <paramref name="trial"/> against empty registries and restores these after, so a binding

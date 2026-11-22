@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Types;
 
@@ -55,10 +56,16 @@ internal static class CastOperatorEmitter
             }
         }
 
-        if(castOperator is { CopiesClone: true, IsImplicit: true, DeclaringType: ConcreteType clone })
+        if(castOperator is { CopiesClone: true, DeclaringType: ConcreteType clone }
+            && (castOperator.IsImplicit || (castOperator.CopiesDerivedClone && ReferenceEquals(Definition(castOperator.SourceParameter.Type), clone))))
         {
             writer.WriteBlankLine();
             CloneCopyEmitter.EmitAccessors(clone, writer, diagnostics);
         }
+    }
+
+    private static IMistType Definition(IMistType type)
+    {
+        return type is ConstructedType constructed ? constructed.Definition : type;
     }
 }

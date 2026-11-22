@@ -335,6 +335,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.ReadonlyFieldAssigned"] = "Cannot assign to readonly field 'arg0' outside a constructor of 'arg1'.",
         ["ProgramAnalysisDiagnostics.OwnedReturnNotOwned"] = "'arg0' returns owned but this value is not: arg1. An owned return is a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.",
         ["ProgramAnalysisDiagnostics.OwnedSourceNotOwned"] = "Cannot move this value into arg0: arg1. An owned destination takes only what nothing else holds: a construction, a clone, a call returning owned, a move from an owned binding, or a value of a type that cannot change.",
+        ["ProgramAnalysisDiagnostics.NotClonable"] = "Cannot clone this 'arg0': arg1.",
         ["ProgramAnalysisDiagnostics.StackSpanReturned"] = "This 'arg0' refers to arg1, so it cannot be returned: it would outlive its stack frame.",
         ["ProgramAnalysisDiagnostics.StackSpanStored"] = "This 'arg0' refers to arg1, so it cannot be stored in arg2: arg3.",
         ["ProgramAnalysisDiagnostics.StackSpanPassed"] = "This 'arg0' refers to arg1, so it cannot be passed to 'arg2' alongside arg3, which 'arg2' could store it in: arg4.",

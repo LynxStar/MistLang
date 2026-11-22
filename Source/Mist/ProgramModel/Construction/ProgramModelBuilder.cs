@@ -156,6 +156,14 @@ public sealed class ProgramModelBuilder
         conformanceBuilder.BuildAll();
         StandardErrorAdaptation.Register(programModel.FindQualifiedType("Standard.ExceptionError") as ConcreteType);
 
+        // Phase 2d: after conformances, which a field's clonability reads, and before bodies, which call the result.
+        CloneSynthesis.Run(sourceTypes, programModel);
+
+        foreach(var clone in clones)
+        {
+            NewtypeConversions.SynthesizeDerived(clone, context.ProgramModel.TypeInterner);
+        }
+
         // Phase 3.
         PredicateBinder.BindAll(programModel, context);
         MemberBinder.BindAll(sourceTypes.Where(type => type is not ConcreteType { CloneSource: not null }), context);

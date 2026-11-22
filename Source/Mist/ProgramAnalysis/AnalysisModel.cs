@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Enums;
@@ -14,6 +15,7 @@ internal sealed class AnalysisModel
     {
         TypeInterner = model.TypeInterner;
         TypesByFQN = model.TypesByFQN;
+        Clones = model.Clones.IsEmpty ? new CloneDerivation(scope.Types) : model.Clones;
 
         bool includes(SyntaxNode node, Scope? boundIn)
         {
@@ -34,6 +36,8 @@ internal sealed class AnalysisModel
     public TypeInterner TypeInterner { get; }
 
     public IReadOnlyDictionary<string, IMistType> TypesByFQN { get; }
+
+    public CloneDerivation Clones { get; }
 
     public ScopedConstraintClosures ConstructorConstraintClosures { get; }
 

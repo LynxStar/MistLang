@@ -330,6 +330,7 @@ Generated from `DiagnosticRegistry.Index`. Regenerate with `tools/diagnostics/ca
 | MIST0458 | Disciplined array element | An array is an unrestricted container with no drop of its own, so it can neither guarantee a linear element its single drop nor keep an affine element to one holder. Manage the disciplined values individually, or hold them in a container whose discipline enforces their rules. | Error | Fixed | discipline: Enum, type: Type | None |
 | MIST0479 | Installed value consumed | A with scope takes responsibility for the linear or affine value it installs until the scope ends, so that value may not be dropped, moved to an owned destination, returned, or otherwise consumed inside the scope. Use it without consuming it, or lend it, and let the scope release it on the way out. | Error | Fixed | action: Enum, variable: Name | None |
 | MIST0486 | Owned value stored in non-owning field | A non-owning field cannot retain a value held by an owned binding. Make the field owning, or explicitly clone the value before storing it. | Error | Fixed | value: Name, field: Name | None |
+| MIST0506 | Type cannot be cloned | The compiler supplies a 'Clone()' only for a type whose every field it can copy without a decision from the author, and this instantiation has a field that does not qualify. Make the field 'owned', give the type a 'Clone()' of its own, or clone an instantiation whose arguments can be copied. | Error | Fixed | type: Type, reason: Name | None |
 
 ## EFF
 

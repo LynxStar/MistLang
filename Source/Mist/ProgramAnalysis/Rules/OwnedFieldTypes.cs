@@ -10,14 +10,13 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// This restriction uses declared types, not provenance (owned-fields Requirement 5.3), and admits
-/// types the model cannot classify as references. <see cref="OwnedProvenance.IsClonable"/> decides cloning.
+/// types the model cannot classify as references. <see cref="CloneDerivation"/> decides cloning.
 /// An owned base judges its own storage, so the inherited-slot walk stops there.
 /// </summary>
 internal static class OwnedFieldTypes
 {
-    public static IEnumerable<Violation> Of(ConcreteType owned, OwnedProvenance.Derivations? derived = null)
+    public static IEnumerable<Violation> Of(ConcreteType owned, CloneDerivation clones)
     {
-        derived ??= new OwnedProvenance.Derivations();
         var visited = new HashSet<ConcreteType>(ReferenceEqualityComparer.Instance);
         var substitution = TypeSubstitution.Empty;
 
@@ -27,7 +26,7 @@ internal static class OwnedFieldTypes
             {
                 var type = substitution.Apply(slot.Type, interner: null);
 
-                if(WhyRefused(type, derived) is { } reason)
+                if(WhyRefused(type, clones) is { } reason)
                 {
                     yield return new Violation(slot, ReferenceEquals(declaring, owned) ? null : declaring, type, reason);
                 }
@@ -45,22 +44,28 @@ internal static class OwnedFieldTypes
         }
     }
 
-    public static string? WhyRefused(IMistType type, OwnedProvenance.Derivations? derived = null)
+    public static string? WhyRefused(IMistType type, CloneDerivation clones)
     {
-        derived ??= new OwnedProvenance.Derivations();
         type = Unaliased(type);
 
         if(type is UnionType union)
         {
-            return union.Constituents.Where(constituent => !OptionalUnion.IsVoid(constituent)).Select(constituent => WhyRefused(constituent, derived)).FirstOrDefault(reason => reason is not null);
+            return union.Constituents.Where(constituent => !OptionalUnion.IsVoid(constituent)).Select(constituent => WhyRefused(constituent, clones)).FirstOrDefault(reason => reason is not null);
         }
 
         if(type is TypeParameter)
         {
-            return Admits(type, derived) ? null : "a type parameter not constrained to an owned type or 'IClonable<T>'";
+            return Admits(type, clones) ? null : "a type parameter not constrained to an owned type or 'IClonable<T>'";
         }
 
-        return IsReference(type) && !Admits(type, derived) ? "which is neither owned, clonable nor a value type" : null;
+        if(!IsReference(type) || Admits(type, clones))
+        {
+            return null;
+        }
+
+        return CloneDerivation.IsInMist((type as ConstructedType)?.Definition as MistType ?? type as MistType) && clones.Judge(type).Refusal is { } refusal
+            ? $"which is neither owned, clonable nor a value type ({CloneDerivation.Describe(type, refusal)})"
+            : "which is neither owned, clonable nor a value type";
     }
 
     private static bool IsReference(IMistType type)
@@ -68,14 +73,14 @@ internal static class OwnedFieldTypes
         return type is ClassType or AbstractType or IFunctionType or ConstructedType { Definition: ClassType or AbstractType };
     }
 
-    private static bool Admits(IMistType type, OwnedProvenance.Derivations derived)
+    private static bool Admits(IMistType type, CloneDerivation clones)
     {
         return Unaliased(type) switch
         {
             ConcreteType { IsOwned: true } or ConstructedType { Definition: ConcreteType { IsOwned: true } } => true,
-            TypeParameter parameter when parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Owned
-                || (constraint is TypeConstraint { ConstraintType: var bound } && Admits(bound, derived))) => true,
-            var unaliased => OwnedProvenance.IsClonable(unaliased, derived),
+            TypeParameter parameter when parameter.ConstraintsList.Exists(constraint => constraint.Kind is TypeParameterConstraintKind.Owned or TypeParameterConstraintKind.Struct
+                || (constraint is TypeConstraint { ConstraintType: var bound } && Admits(bound, clones))) => true,
+            var unaliased => clones.Judge(unaliased).Kind != CloneKind.Refused,
         };
     }
 

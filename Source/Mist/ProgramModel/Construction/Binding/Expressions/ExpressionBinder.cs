@@ -70,7 +70,7 @@ internal static class ExpressionBinder
 
                 if(!isCoalescing)
                 {
-                    value = OwnedProvenance.At(OwnedProvenance.OwnershipOf(target), value);
+                    value = OwnedProvenance.At(context.ProgramModel.Clones, OwnedProvenance.OwnershipOf(target), value);
                 }
 
                 return new AssignmentExpression(expression, target, value, AssignmentResultType(target, value, isCoalescing), isCoalescing);
@@ -373,6 +373,7 @@ internal static class ExpressionBinder
             node,
             type,
             OwnedProvenance.AtParameters(
+                context.ProgramModel.Clones,
                 ImplicitConversions.AtParameters(settled, choice.Selected, parameterTypes, interner), choice.Selected?.ParametersList),
             choice.Selected,
             ObjectInitializerBinder.Bind(initializer, type, ctx, context),

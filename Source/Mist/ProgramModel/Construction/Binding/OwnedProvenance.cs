@@ -22,9 +22,9 @@ internal static class OwnedProvenance
     /// finished model, and refusing here would turn a rule about provenance into one about which types
     /// may be owned.
     /// </summary>
-    public static Expression At(OwnershipKind target, Expression source, bool byReference = false)
+    public static Expression At(CloneDerivation clones, OwnershipKind target, Expression source, bool byReference = false)
     {
-        if(byReference || target is OwnershipKind.Frozen or OwnershipKind.Borrowed || !Clonable(source.Type))
+        if(byReference || target is OwnershipKind.Frozen or OwnershipKind.Borrowed || !Clonable(clones, source.Type))
         {
             return source;
         }
@@ -36,7 +36,7 @@ internal static class OwnedProvenance
     }
 
     public static IReadOnlyList<Expression> AtParameters(
-        IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+        CloneDerivation clones, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
         if(parameters is null)
         {
@@ -48,7 +48,7 @@ internal static class OwnedProvenance
         for(var i = 0; i < arguments.Count; i++)
         {
             adjusted.Add(i < parameters.Count
-                ? At(parameters[i].Modifier.Ownership, arguments[i], parameters[i].Modifier.IsRef)
+                ? At(clones, parameters[i].Modifier.Ownership, arguments[i], parameters[i].Modifier.IsRef)
                 : arguments[i]);
         }
 
@@ -132,130 +132,9 @@ internal static class OwnedProvenance
     public static bool Yields(CastOperator conversion)
     {
         return conversion.ClonesThrough is not null
+            || conversion.CopiesDerivedClone
             || conversion.Modifiers.IsOwned
             || conversion.ReturnOwnership == OwnershipKind.Owned;
-    }
-
-    /// <summary>
-    /// Whether a value of the type can be copied into an independent one (ownership-v2 Requirement 8): a value
-    /// type, a declared <c>Clone</c>, a conformance to IClonable, or a Mist class every field of which is
-    /// clonable in turn (8.6, 8.7). A generic class is derived once, its own parameters taken as clonable, and an
-    /// instantiation of it also needs every argument clonable, which keeps the walk finite however its fields
-    /// nest it. One <see cref="Derivations"/> is shared across an analysis so each type is derived once; a type
-    /// met again while still being derived counts as clonable, so what is admitted beneath it is provisional and
-    /// a refusal of that type withdraws those admissions. Broader than what <see cref="At"/> reads, because
-    /// nothing synthesizes a <c>Clone</c> for a derived type and implicit cloning needs one to call.
-    /// </summary>
-    public static bool IsClonable(IMistType type, Derivations? deriving = null)
-    {
-        deriving ??= new Derivations();
-
-        return type switch
-        {
-            TypeAlias { AliasedType: { } aliased } => IsClonable(aliased, deriving),
-            ConstructedType { Definition: TypeAlias { AliasedType: { } aliased } } alias
-                => IsClonable(TypeSubstitution.ForReceiver(alias).Apply(aliased, interner: null), deriving),
-            RefinedType refined => IsClonable(refined.BaseType, deriving),
-            UnionType union => union.Constituents.All(constituent => OptionalUnion.IsVoid(constituent) || IsClonable(constituent, deriving)),
-            Newtype { SourceType: { } source } => IsClonable(source, deriving),
-            TypeParameter parameter => deriving.Pending.Any(definition => Declares(definition, parameter))
-                || parameter.ConstraintsList.Exists(constraint => constraint.Kind == TypeParameterConstraintKind.Struct
-                    || (constraint is TypeConstraint { ConstraintType: var bound } && IsClonable(bound, deriving))),
-            StructType or ConstructedType { Definition: StructType } or EnumType or ITupleType => true,
-            _ => Clonable(type) || ConformsToClonable(type) || Derives(type, deriving),
-        };
-    }
-
-    private static bool ConformsToClonable(IMistType type)
-    {
-        var definition = type is ConstructedType constructed ? constructed.Definition : type;
-
-        return definition.FullyQualifiedName == WellKnownTypes.IClonable.FullyQualifiedName
-            || (definition is MemberType member && member.BaseAbstractTypes.Exists(ConformsToClonable))
-            || (definition is ConcreteType concrete
-                && (concrete.ConformancesList.Exists(conformance => ConformsToClonable(conformance.AbstractType))
-                    || (concrete.BaseType is { } baseType && ConformsToClonable(baseType))));
-    }
-
-    private static bool Derives(IMistType type, Derivations deriving)
-    {
-        if((type is ConstructedType constructed ? constructed.Definition : type) is not ConcreteType { IsIntrinsic: false, DeclarationNode: not null } concrete
-            || !Arguments(type).All(argument => IsClonable(argument, deriving)))
-        {
-            return false;
-        }
-
-        if(deriving.Settled.TryGetValue(concrete, out var settled))
-        {
-            return settled;
-        }
-
-        if(!deriving.Pending.Add(concrete))
-        {
-            return true;
-        }
-
-        var mark = deriving.Provisional.Count;
-
-        try
-        {
-            var derives = (concrete.BaseType is not { } baseType || IsClonable(baseType, deriving))
-                && InstanceStorage.Of(concrete).All(slot => IsClonable(slot.Type, deriving));
-
-            if(derives)
-            {
-                deriving.Provisional.Add(concrete);
-            }
-            else
-            {
-                for(var i = mark; i < deriving.Provisional.Count; i++)
-                {
-                    _ = deriving.Settled.Remove(deriving.Provisional[i]);
-                }
-
-                deriving.Provisional.RemoveRange(mark, deriving.Provisional.Count - mark);
-            }
-
-            deriving.Settled[concrete] = derives;
-            return derives;
-        }
-        finally
-        {
-            _ = deriving.Pending.Remove(concrete);
-        }
-    }
-
-    public sealed class Derivations
-    {
-        internal HashSet<ConcreteType> Pending { get; } = new(ReferenceEqualityComparer.Instance);
-
-        internal Dictionary<ConcreteType, bool> Settled { get; } = new(ReferenceEqualityComparer.Instance);
-
-        internal List<ConcreteType> Provisional { get; } = [];
-    }
-
-    private static IEnumerable<IMistType> Arguments(IMistType type)
-    {
-        for(var constructed = type as ConstructedType; constructed is not null; constructed = constructed.Enclosing)
-        {
-            foreach(var argument in constructed.TypeArguments)
-            {
-                yield return argument;
-            }
-        }
-    }
-
-    private static bool Declares(ConcreteType definition, TypeParameter parameter)
-    {
-        for(MistType? declaring = definition; declaring is not null; declaring = declaring.DeclaringType)
-        {
-            if(declaring is IHasTypeParameters generic && generic.TypeParametersList.Contains(parameter))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -263,16 +142,21 @@ internal static class OwnedProvenance
     /// to Standard's IClonable, so a type that declares one directly is not made to name the abstract
     /// as well -- what emission needs is a member to call.
     /// </summary>
-    private static bool Clonable(IMistType type)
+    private static bool Clonable(CloneDerivation clones, IMistType type)
     {
         var definition = type is ConstructedType constructed ? constructed.Definition : type;
 
         // AN INTRINSIC TYPE IS NOT CLONED, deliberately. Standard's String declares a Clone so it can
         // satisfy the abstract, but the member is the target's and the CLR's returns object; and a copy
         // of an immutable value is indistinguishable from the value, so the clone buys no independence.
-        return definition is not ConcreteType { IsIntrinsic: true }
-            && (definition as MemberType)?.MethodsList.Exists(
-                method => method.Name == "Clone" && method.ParametersList.Count == 0) == true
-            ;
+        // A derived Clone is called only where the instantiation itself derives and holds something changeable,
+        // and never in place of the move a linear, affine or relevant value makes by its own discipline.
+        return definition switch
+        {
+            ConcreteType { IsIntrinsic: true } => false,
+            ConcreteType { DerivedClone: not null } => ResultTransfers.Discipline(type) == SubstructuralDiscipline.None && clones.Judge(type).Kind == CloneKind.Derived,
+            MemberType member => CloneDerivation.DeclaresClone(member),
+            _ => false,
+        };
     }
 }

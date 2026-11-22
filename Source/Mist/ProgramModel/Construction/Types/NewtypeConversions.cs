@@ -56,6 +56,30 @@ internal static class NewtypeConversions
         clone.CastOperatorsList.Add(Copy(sourceType, itself, clone, isImplicit: false));
     }
 
+    /// <summary>
+    /// A mutable class source whose <c>Clone</c> is derived converts by the same copy, run into the other type (newtypes
+    /// Requirement 10, ownership-v2 Requirement 8.13): field for field, each owned field cloned. Synthesized once
+    /// derivation is known, after the source's declared <c>Clone</c>, if any, has had its turn in <see cref="Synthesize"/>.
+    /// </summary>
+    public static void SynthesizeDerived(ConcreteType clone, TypeInterner interner)
+    {
+        if(clone is not { CloneSource: not null, CloneSourceType: { } sourceType }
+            || clone.CastOperatorsList.Exists(castOperator => castOperator.CopiesClone || castOperator.ClonesThrough is not null)
+            || sourceType is ConstructedType { Enclosing: not null }
+            || ((sourceType as ConstructedType)?.Definition ?? sourceType) is not ConcreteType { DerivedClone: not null } source
+            || IsCopyable(source)
+            || !IsWithinTheEmittersReach(clone, source)
+            || UnheldSlot(clone, source, sourceType) is not null)
+        {
+            return;
+        }
+
+        var itself = clone.TypeParametersList.Count == 0 ? clone : (IMistType)interner.GetOrCreateConstructedType(clone, clone.TypeParametersList);
+
+        clone.CastOperatorsList.Add(Copy(itself, sourceType, clone, isImplicit: false, derived: true));
+        clone.CastOperatorsList.Add(Copy(sourceType, itself, clone, isImplicit: false, derived: true));
+    }
+
     public static void Bind(ConcreteType clone, BuilderContext context)
     {
         foreach(var conversion in clone.CastOperatorsList.Where(castOperator => castOperator.ClonesThrough is not null))
@@ -178,7 +202,7 @@ internal static class NewtypeConversions
         return conversion;
     }
 
-    private static CastOperator Copy(IMistType from, IMistType to, ConcreteType clone, bool isImplicit)
+    private static CastOperator Copy(IMistType from, IMistType to, ConcreteType clone, bool isImplicit, bool derived = false)
     {
         var modifiers = new MemberModifiers { Accessibility = Accessibility.Public, IsStatic = true };
 
@@ -186,6 +210,7 @@ internal static class NewtypeConversions
         {
             DeclaringType = clone,
             CopiesClone = true,
+            CopiesDerivedClone = derived,
         };
     }
 }

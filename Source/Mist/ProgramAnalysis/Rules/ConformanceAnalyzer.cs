@@ -409,6 +409,11 @@ internal sealed class ConformanceAnalyzer : IProgramAnalyzer
                 yield return new Filler(method, null, null, substitution);
             }
 
+            if(type.DerivedClone is { } derived)
+            {
+                yield return new Filler(derived, null, null, substitution);
+            }
+
             foreach(var property in type.PropertiesList.Where(property => IsPublicInstance(property.Modifiers)))
             {
                 yield return new Filler(null, property, null, substitution);

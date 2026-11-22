@@ -17,7 +17,7 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [
         "MIST0149", "MIST0152", "MIST0157", "MIST0158",
         "MIST0153",
-        "MIST0151", "MIST0155", "MIST0390",
+        "MIST0151", "MIST0155", "MIST0390", "MIST0506",
         "MIST0386", "MIST0301",
         "MIST0193", "MIST0403",
     ];
@@ -246,15 +246,14 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     [Theory]
     [InlineData("Position entersWithoutACast = point;", "MIST0158")]
     [InlineData("Coord crossesWithoutACast = position;", "MIST0158")]
-    [InlineData("Entity leavesAMutableClass = actor;", "MIST0157")]
-    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;", "MIST0152")]
+    [InlineData("Entity leavesAMutableClassOnlyByCast = actor;", "MIST0158")]
     [InlineData("Pair<string, int> leavesOnlyForItsOwnArguments = intPair;", "MIST0157")]
     [InlineData("Held<string> leavesOnlyForItsOwnInstance = kept;", "MIST0157")]
     [InlineData("Pair<int, string> leavesOnlyAsItsSourcePermutes = swapped;", "MIST0157")]
     [InlineData("Kept<int> entersAGenericCloneWithoutACast = new Held<int>(4);", "MIST0158")]
     [InlineData("Kept<int> entersFromAnotherInstance = (Kept<int>)new Held<string>(\"s\");", "MIST0151")]
-    [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);", "MIST0152")]
-    [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);", "MIST0152")]
+    [InlineData("Crated<Entity> entersAnInstanceThatCannotBeCopied = (Crated<Entity>)new Crate<Entity>(entity);", "MIST0506")]
+    [InlineData("Crate<Entity> leavesAnInstanceThatCannotBeCopied = (Crate<Entity>)new Crated<Entity>(entity);", "MIST0506")]
     [InlineData("Held<int> | Entity aUnionLeavesOnlyAsItsConstituentsAre = keptOrEntity;", "MIST0157")]
     [InlineData("Chain<int> aSelfTypedSlotCopiesNothing = (Chain<int>)new Node<int>(1);", "MIST0153")]
     [InlineData("IntChain aSelfTypedSlotCopiesNothingWhenClosed = (IntChain)new Node<int>(1);", "MIST0153")]
@@ -263,6 +262,17 @@ public sealed class NewtypeConversionDecisionTests : ProgramModelProbe
     public void AConversionTheSourceDoesNotAdmit_IsRefused(string statement, string expected)
     {
         Assert.Equal(expected, Assert.Single(Analyse(statement)).Number.Value);
+    }
+
+    [Theory]
+    [Trait("Tier", "3")]
+    [InlineData("Actor entersAMutableClassByCast = (Actor)entity;")]
+    [InlineData("Entity leavesAMutableClassByCast = (Entity)actor;")]
+    [InlineData("Crated<int> entersAMutableGenericClassByCast = (Crated<int>)new Crate<int>(1);")]
+    [InlineData("Crate<int> leavesAMutableGenericClassByCast = (Crate<int>)new Crated<int>(1);")]
+    public void ACastBetweenAMutableClassAndItsNewtype_CopiesThroughTheDerivedClone(string statement)
+    {
+        Assert.Empty(Analyse(statement));
     }
 
     [Theory]

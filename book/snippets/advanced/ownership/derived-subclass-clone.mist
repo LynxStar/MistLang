@@ -1,0 +1,38 @@
+using Standard;
+
+namespace Snippet;
+
+// Animal derives a Clone() only because every subclass could be copied too; the copy keeps the value's class.
+public class Animal
+{
+    public int Legs;
+
+    public Animal(int legs)
+    {
+        this.Legs = legs;
+    }
+}
+
+public class Dog : Animal
+{
+    public string Name;
+
+    public Dog(int legs, string name) : base(legs)
+    {
+        this.Name = name;
+    }
+}
+
+public class SubclassCloneDemo
+{
+    public static void Run()
+    {
+        Animal pet = new Dog(4, "Rex");
+        owned Animal kept = pet;
+
+        if (kept is Dog dog)
+        {
+            Console.WriteLine($"kept a Dog named {dog.Name}");
+        }
+    }
+}

@@ -392,6 +392,16 @@ public static partial class ProgramAnalysisDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("destination", SlotKind.Name), new Slot("reason", SlotKind.Name)]);
 
+    public static readonly MistDiagnostic NotClonable = new(
+        DiagnosticNumber.Mint("MIST0506"),
+        Title: "Type cannot be cloned",
+        Template: "Cannot clone this '{type}': {reason}.",
+        Description: "The compiler supplies a 'Clone()' only for a type whose every field it can copy without a decision from the author, and this instantiation has a field that does not qualify. Make the field 'owned', give the type a 'Clone()' of its own, or clone an instantiation whose arguments can be copied.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("type", SlotKind.Type), new Slot("reason", SlotKind.Name)]);
+
     public static readonly MistDiagnostic StackSpanReturned = new(
         DiagnosticNumber.Mint("MIST0265"),
         Title: "Stack span returned",

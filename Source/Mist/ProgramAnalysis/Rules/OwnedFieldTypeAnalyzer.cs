@@ -1,5 +1,4 @@
 using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
 
@@ -11,11 +10,9 @@ internal sealed class OwnedFieldTypeAnalyzer : IProgramAnalyzer
 
     public void Analyze(AnalysisContext context)
     {
-        var derived = new OwnedProvenance.Derivations();
-
         foreach(var type in context.Types.OfType<ConcreteType>().Where(type => type is { IsOwned: true, IsIntrinsic: false }))
         {
-            foreach(var violation in OwnedFieldTypes.Of(type, derived))
+            foreach(var violation in OwnedFieldTypes.Of(type, context.Model.Clones))
             {
                 if(((violation.InheritedFrom is null ? violation.Slot.DeclarationNode : null) ?? Declarations.NodeOf(type)) is { } at)
                 {

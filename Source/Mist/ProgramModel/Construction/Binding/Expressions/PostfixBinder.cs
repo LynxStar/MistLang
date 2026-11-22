@@ -361,6 +361,7 @@ internal static class PostfixBinder
         var invocation = new InvocationExpression(
             node, callee,
             OwnedProvenance.AtParameters(
+                context.ProgramModel.Clones,
                 ImplicitConversions.AtParameters(bound, selected, parameterTypes, interner), selected.ParametersList),
             returnType, selected, parameterTypes)
         {

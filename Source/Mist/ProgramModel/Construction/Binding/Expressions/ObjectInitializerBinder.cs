@@ -62,6 +62,7 @@ internal static class ObjectInitializerBinder
         }
 
         value = OwnedProvenance.At(
+            context.ProgramModel.Clones,
             OwnedProvenance.OwnershipOf(found),
             ImplicitConversions.At(NewtypeLiterals.Admit(value, target, context.ProgramModel.TypeInterner)!, target, context.ProgramModel.TypeInterner));
 

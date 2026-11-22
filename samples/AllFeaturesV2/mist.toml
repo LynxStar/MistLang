@@ -108,3 +108,4 @@ ClrCatch = { path = "../ClrCatch" }
 ProofArithmetic = { path = "../ProofArithmetic" }
 CompoundAssignment = { path = "../CompoundAssignment" }
 FlowFacts = { path = "../FlowFacts" }
+AutomaticClone = { path = "../AutomaticClone" }

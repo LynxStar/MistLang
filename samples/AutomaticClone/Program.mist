@@ -1,0 +1,240 @@
+using Standard;
+
+namespace AutomaticClone;
+
+// None of these types declares a Clone: the compiler derives one wherever every field is unchangeable, owned,
+// or a struct or tuple built from such fields, and the copy it makes shares nothing that can change.
+public class Point
+{
+    public int X;
+    public string Label;
+
+    public Point(int x, string label)
+    {
+        this.X = x;
+        this.Label = label;
+    }
+}
+
+public class Style
+{
+    public string Font;
+    public int Size;
+
+    public Style(string font, int size)
+    {
+        this.Font = font;
+        this.Size = size;
+    }
+}
+
+public owned class Border
+{
+    public Style Line;
+    public int Width;
+
+    public Border(owned Style line, int width)
+    {
+        this.Line = line;
+        this.Width = width;
+    }
+
+    public void Thicken(int by)
+    {
+        Width = Width + by;
+        Line.Size = Line.Size + by;
+    }
+}
+
+public struct Margin
+{
+    public owned Style Rule;
+    public int Inset;
+
+    public Margin(owned Style rule, int inset)
+    {
+        this.Rule = rule;
+        this.Inset = inset;
+    }
+}
+
+public class Box<T>
+{
+    public T Value;
+
+    public Box(T value)
+    {
+        this.Value = value;
+    }
+}
+
+public class Holder<T>
+{
+    public owned T Item;
+
+    public Holder(owned T item)
+    {
+        this.Item = item;
+    }
+}
+
+public owned class Page
+{
+    public Style Title;
+    public Border Frame;
+    public Margin Edge;
+    public Style? Note;
+    public Box<int> Count;
+    public Holder<Style> Footer;
+
+    public Page(string font)
+    {
+        this.Title = new Style(font, 12);
+        this.Frame = new Border(new Style("rule", 1), 2);
+        this.Edge = new Margin(new Style("edge", 3), 4);
+        this.Note = new Style("note", 5);
+        this.Count = new Box<int>(6);
+        this.Footer = new Holder<Style>(new Style("footer", 7));
+    }
+
+    public void Rewrite(string font, int by)
+    {
+        Title.Font = font;
+        Frame.Thicken(by);
+        Edge.Rule.Size = Edge.Rule.Size + by;
+        Edge.Inset = Edge.Inset + by;
+        if (Note is Style note)
+        {
+            note.Size = note.Size + by;
+        }
+        Count.Value = Count.Value + by;
+        Footer.Item.Size = Footer.Item.Size + by;
+    }
+
+    public string Describe()
+    {
+        var note = -1;
+        if (Note is Style present)
+        {
+            note = present.Size;
+        }
+        return $"title={Title.Font} frame={Frame.Width}/{Frame.Line.Size} edge={Edge.Inset}/{Edge.Rule.Size} note={note} count={Count.Value} footer={Footer.Item.Size}";
+    }
+}
+
+public class Animal
+{
+    public int Legs;
+
+    public Animal(int legs)
+    {
+        this.Legs = legs;
+    }
+
+    public string Kind()
+    {
+        return "animal";
+    }
+}
+
+public class Dog : Animal
+{
+    public string Name;
+
+    public Dog(int legs, string name) : base(legs)
+    {
+        this.Name = name;
+    }
+}
+
+public linear class Socket
+{
+    public int Handle;
+
+    public Socket(int handle)
+    {
+        this.Handle = handle;
+    }
+
+    public void Drop()
+    {
+        Console.WriteLine($"  socket {Handle} closed");
+    }
+}
+
+public class Program
+{
+    public static int FromPlain(Point p)
+    {
+        owned Point mine = p;
+        mine.X = mine.X + 1000;
+        return mine.X;
+    }
+
+    public static int FromBorrowed(borrowed Point p)
+    {
+        owned Point mine = p;
+        mine.X = mine.X + 2000;
+        return mine.X;
+    }
+
+    public static string Keep(Animal a)
+    {
+        owned Animal mine = a;
+        if (mine is Dog dog)
+        {
+            return $"a Dog named {dog.Name} with {dog.Legs} legs";
+        }
+
+        return $"not a Dog but an animal with {mine.Legs} legs";
+    }
+
+    public static void RunDemo()
+    {
+        Console.WriteLine("=== Automatic Clone ===");
+
+        Console.WriteLine("--- 1. Implicit clones of a derived type ---");
+        var shared = new Point(1, "a");
+        owned Point mine = shared;
+        shared.X = 99;
+        Console.WriteLine($"  local: shared={shared.X} mine={mine.X}");
+        Console.WriteLine($"  plain parameter copy={FromPlain(shared)} shared={shared.X}");
+        Console.WriteLine($"  borrowed parameter copy={FromBorrowed(shared)} shared={shared.X} label={shared.Label}");
+
+        Console.WriteLine("--- 2. An owned graph copied whole ---");
+        owned var original = new Page("sans");
+        owned var copy = original.Clone();
+        copy.Rewrite("serif", 10);
+        Console.WriteLine($"  original {original.Describe()}");
+        Console.WriteLine($"  copy     {copy.Describe()}");
+        original.Rewrite("mono", 100);
+        Console.WriteLine($"  original {original.Describe()}");
+        Console.WriteLine($"  copy     {copy.Describe()}");
+
+        Console.WriteLine("--- 3. A copy keeps the value's class ---");
+        Animal held = new Dog(4, "Rex");
+        Console.WriteLine($"  {Keep(held)}");
+        Console.WriteLine($"  {Keep(new Animal(2))}");
+
+        Console.WriteLine("--- 4. An explicit Clone of a derived type ---");
+        var first = new Point(5, "first");
+        var second = first.Clone();
+        second.X = 6;
+        second.Label = "second";
+        Console.WriteLine($"  first={first.X}/{first.Label} second={second.X}/{second.Label}");
+
+        Console.WriteLine("--- 5. A linear type with Drop is cloned like any other ---");
+        {
+            var socket = new Socket(7);
+            var twin = socket.Clone();
+            twin.Handle = 8;
+            Console.WriteLine($"  socket={socket.Handle} twin={twin.Handle}");
+        }
+
+    }
+
+    public static void Main()
+    {
+        RunDemo();
+    }
+}

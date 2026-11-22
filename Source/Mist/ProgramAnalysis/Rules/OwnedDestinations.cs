@@ -1,4 +1,6 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -82,10 +84,15 @@ internal static class OwnedDestinations
 
             case InvocationExpression invocation:
                 Arguments(context, invocation.Arguments, invocation.Parameters, method, origins);
+                RequireDerivable(context, invocation);
                 break;
 
             case NewExpression allocation:
                 Arguments(context, allocation.Arguments, allocation.Constructor?.ParametersList, method, origins);
+                break;
+
+            case CastExpression { Operator: CastOperator { CopiesDerivedClone: true } } cast:
+                RequireDerivable(context, cast, context.Model.Clones.Judge(cast.Operand.Type).Kind == CloneKind.Refused ? cast.Operand.Type : cast.TargetType);
                 break;
         }
 
@@ -185,7 +192,9 @@ internal static class OwnedDestinations
         if((localSource is { Local.InfersOwnership: true } inferred && locals.Of(inferred.Local) < ThisTier.Owned && !Origins.IsUnchangeable(value.Type) && !ThisTiers.IsValue(value.Type))
             || (!OwnershipAnalyzer.YieldsOwned(value, method, origins) && !(localSource is { Local.InfersOwnership: true } inferredOwner && locals.Of(inferredOwner.Local) == ThisTier.Owned)))
         {
-            context.Report(ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination), new NameValue(OwnershipAnalyzer.Unowned(value)));
+            context.Report(
+                ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),
+                new NameValue(OwnershipAnalyzer.Unowned(value) + WhyNotCloned(context, value.Type)));
         }
         else if(!extracts && OwnershipAnalyzer.HeldByAnotherOwner(value, method) is { } field && Place.Of(Unwrapped(value)) is not { IsRoot: false })
         {
@@ -199,6 +208,33 @@ internal static class OwnedDestinations
                 ProgramAnalysisDiagnostics.OwnedSourceNotOwned, value.Node, [value], new NameValue(destination),
                 new NameValue($"local '{local.Name}' is not an owned binding, so nothing stops it being used after the move"));
         }
+    }
+
+    private static void RequireDerivable(AnalysisContext context, InvocationExpression invocation)
+    {
+        if((invocation.Method?.SourceDeclaration ?? invocation.Method) is { IsDerivedClone: true }
+            && invocation.Receiver is MemberAccessExpression { Receiver: { } receiver })
+        {
+            RequireDerivable(context, invocation, receiver.Type);
+        }
+    }
+
+    private static void RequireDerivable(AnalysisContext context, Expression copying, IMistType type)
+    {
+        if(context.Model.Clones.Judge(type).Refusal is { } refusal)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.NotClonable, copying.Node, [copying],
+                DiagnosticSnapshot.Type(type), new NameValue(CloneDerivation.Describe(type, refusal)));
+        }
+    }
+
+    private static string WhyNotCloned(AnalysisContext context, IMistType type)
+    {
+        return CloneDerivation.IsInMist((type is ConstructedType constructed ? constructed.Definition : type) as MistType)
+            && context.Model.Clones.Judge(type).Refusal is { } refusal
+                ? $"; {CloneDerivation.Describe(type, refusal)}"
+                : "";
     }
 
     private static Expression Unwrapped(Expression expression)

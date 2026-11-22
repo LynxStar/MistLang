@@ -4,6 +4,7 @@
 // fields and still needs one.
 
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -19,6 +20,8 @@ namespace Mist.Tests.Semantics;
 
 public sealed class OwnedProvenanceTests
 {
+    private static readonly CloneDerivation NoClones = new([]);
+
     [Theory]
     [Trait("Tier", "1")]
     [InlineData("clone-through")]
@@ -28,8 +31,8 @@ public sealed class OwnedProvenanceTests
         var types = new Types();
         var cast = types.Cast(conversion);
 
-        Assert.Same(cast, OwnedProvenance.At(OwnershipKind.Owned, cast));
-        Assert.Same(cast, Assert.Single(OwnedProvenance.AtParameters([cast], [new Parameter("taken", cast.Type, new ParameterModifier(false, false, OwnershipKind.Owned))])));
+        Assert.Same(cast, OwnedProvenance.At(NoClones, OwnershipKind.Owned, cast));
+        Assert.Same(cast, Assert.Single(OwnedProvenance.AtParameters(NoClones, [cast], [new Parameter("taken", cast.Type, new ParameterModifier(false, false, OwnershipKind.Owned))])));
     }
 
     [Theory]
@@ -41,8 +44,8 @@ public sealed class OwnedProvenanceTests
         var types = new Types();
         var cast = types.Cast(conversion);
 
-        Assert.Same(cast, Assert.IsType<CloneExpression>(OwnedProvenance.At(OwnershipKind.Owned, cast)).Source);
-        Assert.Same(cast, OwnedProvenance.At(OwnershipKind.Unrestricted, cast));
+        Assert.Same(cast, Assert.IsType<CloneExpression>(OwnedProvenance.At(NoClones, OwnershipKind.Owned, cast)).Source);
+        Assert.Same(cast, OwnedProvenance.At(NoClones, OwnershipKind.Unrestricted, cast));
     }
 
     [Fact]
@@ -54,7 +57,7 @@ public sealed class OwnedProvenanceTests
         var conversion = new ImplicitConversionExpression(HandBuiltModel.Node(), types.Operand(called.SourceParameter.Type), called.TargetType,
             [new ConversionFunction(called, called.SourceParameter.Type, called.TargetType)]);
 
-        Assert.Same(conversion, OwnedProvenance.At(OwnershipKind.Owned, conversion));
+        Assert.Same(conversion, OwnedProvenance.At(NoClones, OwnershipKind.Owned, conversion));
     }
 
     [Theory]
@@ -98,7 +101,7 @@ public sealed class OwnedProvenanceTests
         var holders = new Holders();
         var read = holders.Read(holder);
 
-        var bound = OwnedProvenance.At(destination, read, byReference);
+        var bound = OwnedProvenance.At(NoClones, destination, read, byReference);
 
         Assert.Equal(cloned, bound is CloneExpression);
         Assert.Same(read, cloned ? ((CloneExpression)bound).Source : bound);

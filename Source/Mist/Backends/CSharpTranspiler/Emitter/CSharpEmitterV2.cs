@@ -133,6 +133,7 @@ internal sealed class CSharpEmitterV2
         using var fills = NativeSlotFills.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var nullability = NativeSlotNullability.Enter((ProgramModel.Model.ProgramModel)programModel);
         using var stamping = StorageStamping.Enter((ProgramModel.Model.ProgramModel)programModel);
+        using var demand = CloneDemand.Enter((ProgramModel.Model.ProgramModel)programModel);
 
         (monomorphs, variadicUses) = MonomorphSet.Discover((ProgramModel.Model.ProgramModel)programModel);
 

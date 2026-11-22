@@ -338,7 +338,7 @@ internal static partial class PurityJudge
 
     public static Method? CloneOf(IMistType type)
     {
-        return DefinitionOf(type) is MemberType member ? Parameterless(member, "Clone") : null;
+        return DefinitionOf(type) is MemberType member ? Parameterless(member, "Clone") ?? (member as ConcreteType)?.DerivedClone : null;
     }
 
     public static IMistType DefinitionOf(IMistType type)

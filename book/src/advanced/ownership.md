@@ -286,7 +286,7 @@ owned class Vault
 // }
 ```
 
-The restriction is evaluated after `IClonable<T>` auto-derivation, so types that become clonable through the derivation mechanism are accepted.
+The restriction is evaluated after `IClonable<T>` auto-derivation, so types that become clonable through the derivation mechanism are accepted. A field type whose own plain field holds a changeable object does not derive (see [Auto-Derivation](#auto-derivation)), so it is refused here too.
 
 ### Solving Static Aliasing and Non-Owned Constructors
 
@@ -432,11 +432,57 @@ When the source is a value held in a lent tier (`borrowed`, `frozen`, or `readon
 
 ### Auto-Derivation
 
-You do not have to write `Clone()` for most types. The compiler **auto-derives** `IClonable<T>` for a type when all of its fields have types that implement `IClonable<T>`. The bootstrap value types (`Int32`, `Boolean`, `Float64`, and the rest) and `String` implement `IClonable<T>` as base cases. The rule applies recursively: a type whose fields are all clonable is itself clonable, regardless of whether those fields are structs or classes.
+You do not have to write `Clone()` for most types. The compiler **auto-derives** `IClonable<T>`, supplying the `Clone()`, for a class or struct that declares no `Clone()` of its own — but only where it can tell from the program alone that the copy needs no decision from you. That is the case when every instance field of the type, and of each of its base classes, is one of:
 
-If a type has even one field whose type is not clonable, the compiler does not auto-derive `IClonable<T>` for it. You must then implement `Clone()` manually, or the type is simply not clonable and cannot be used as a shared-to-owned source.
+- a field whose type is **unchangeable**: a value type none of whose fields holds anything changeable, `string`, an enum, `void`, or a `readonly` type holding nothing changeable;
+- an **`owned` field** — every field of an `owned type` counts — whose type implements `IClonable<T>`, by declaration, by conformance or by this same derivation;
+- a field whose type is a **struct or a tuple** each of whose fields meets the same test.
 
-In the emitted C#, `IClonable<T>` is an ordinary interface with a `Clone()` method, and the compiler emits an explicit `.Clone()` call at each site where implicit cloning occurs — except for pure value-type structs, where C#'s value semantics already provide the copy and the call can be optimized away.
+An optional or union field is judged constituent by constituent. The bootstrap value types (`Int32`, `Boolean`, `Float64`, and the rest) and `String` implement `IClonable<T>` as base cases. A generic type is judged with its type arguments substituted, so `Box<int>` can derive where `Box<Style>` does not; a type parameter left unsubstituted qualifies only where its constraints make every argument qualify.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/ownership/auto-derived-clone.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/ownership/auto-derived-clone.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+The derived `Clone()` returns a **fully unique copy**: nothing changeable in the copy is reachable from the original. An object whose `Clone()` is declared rather than derived is copied by calling it, through an abstract type's conformance included.
+
+**A field that is not `owned` and holds a changeable object prevents derivation.** Another field may hold the same object, or the field may lead back to the object being cloned, and whether a copy should share or duplicate it is yours to decide. Mark the field `owned` — which also states that it is the only holder — or implement `Clone()` yourself. Otherwise the type is not clonable, and an owned destination fed a shared value of it is refused with an error that names the first field standing in the way and why:
+
+```text
+error MIST0264: Cannot move this value into owned binding 'mine': parameter 'p' is not owned, so the caller may still hold its value; 'Person' cannot be cloned: field 'Home' of 'Person' is not owned and holds 'Address', which can change; make that field 'owned' or give the type a 'Clone()' of its own. ...
+```
+
+Calling `Clone()` on a generic instantiation that does not derive — `Box<Style>` above — is refused with `MIST0506` and the same explanation, and such an instantiation does not satisfy an `IClonable<T>` constraint.
+
+#### Subclasses
+
+A class that derives copies the value's **actual class**: a `Dog` held as an `Animal` comes back a `Dog`, typed `owned Animal`. Because of that, a class derives only when it and every subclass, direct or indirect, qualify; a subclass that does not withdraws the derivation from its bases, and the error names it. A subclass that derives has its own `Clone()` returning its own type.
+
+{{#tabs }}
+{{#tab name="Mist" }}
+```mist
+{{#include ../../snippets/advanced/ownership/derived-subclass-clone.mist}}
+```
+{{#endtab }}
+{{#tab name="Emitted C#" }}
+```csharp
+{{#include ../../snippets/advanced/ownership/derived-subclass-clone.cs}}
+```
+{{#endtab }}
+{{#endtabs }}
+
+A declared parameterless `Clone()` is always the one called, and it stops derivation: what it copies is your decision. A class whose base class declares `Clone()` does not derive either — its own would redeclare an inherited member — so a `Clone()` written on a base copies every value as the base's class. A `Drop()` method, or a `linear`, `affine` or `relevant` modifier, neither causes nor prevents derivation; implicit cloning still never replaces the move a substructural value makes by its own discipline.
+
+In the emitted C#, `IClonable<T>` is an ordinary interface with a `Clone()` method, and the compiler emits an explicit `.Clone()` call at each site where implicit cloning occurs. A derived `Clone()` is not called for a value type holding nothing changeable, since its copy already is the clone. The generated `Clone()` is written only for types the program actually clones.
 
 ## Summary
 
@@ -451,5 +497,5 @@ In the emitted C#, `IClonable<T>` is an ordinary interface with a `Clone()` meth
 - **Per-field state tracking** enables partial moves and sibling independence: move one field out while the rest remain accessible, and restore it later.
 - **Ownership inference** on `var` bindings finds the minimum tier satisfying all uses, with `shared` as the ultimate fallback.
 - **Moves** transfer ownership and leave the source dead; using a moved binding is a compile error.
-- **`IClonable<T>`** bridges shared values to owned ones, with the compiler inserting clones implicitly at move boundaries and auto-deriving the abstract type when all fields are clonable.
+- **`IClonable<T>`** bridges shared values to owned ones, with the compiler inserting clones implicitly at move boundaries and auto-deriving the abstract type where every field is unchangeable, owned and clonable, or a struct or tuple of such fields.
 - The whole system is compile-time only; the sole runtime artifact is an occasional `.Clone()` call.

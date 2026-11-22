@@ -337,7 +337,7 @@ internal static class TypeMemberLookup
         }
 
         var group = new List<Method>();
-        foreach(var method in memberType.MethodsList)
+        foreach(var method in memberType is ConcreteType { DerivedClone: { } derived } ? memberType.MethodsList.Append(derived) : memberType.MethodsList)
         {
             if(method.Name == request.Name && Admits(method.Modifiers, request, depth))
             {

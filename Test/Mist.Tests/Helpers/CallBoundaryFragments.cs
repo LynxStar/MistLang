@@ -158,6 +158,61 @@ internal sealed class CallBoundaryFragments
         }
     }
 
+    public IReadOnlyList<Diagnostic> SameCall(string name)
+    {
+        var c = Owned("c", cell);
+        var p = Owned("p", pair);
+        var fresh = Declare(c, New(cell, cellConstructor));
+        var owned = new ParameterModifier(false, false, OwnershipKind.Owned);
+        var borrowed = new ParameterModifier(false, false, OwnershipKind.Borrowed);
+        var frozen = new ParameterModifier(false, false, OwnershipKind.Frozen);
+        var viewed = new ParameterModifier(IsReadonly: true, IsRef: true, OwnershipKind.Unrestricted);
+        var plain = new ParameterModifier(false, false, OwnershipKind.Unrestricted);
+
+        return name switch
+        {
+            "owned-then-owned" => Twice(c, fresh, owned, owned),
+            "owned-then-frozen" => Twice(c, fresh, owned, frozen),
+            "borrowed-then-frozen" => Twice(c, fresh, borrowed, frozen),
+            "borrowed-then-borrowed" => Twice(c, fresh, borrowed, borrowed),
+            "borrowed-then-plain" => Twice(c, fresh, borrowed, plain),
+            "frozen-then-borrowed" => Twice(c, fresh, frozen, borrowed),
+            "frozen-then-owned" => Twice(c, fresh, frozen, owned),
+            "readonly-ref-then-owned" => Twice(c, fresh, viewed, owned),
+            "readonly-ref-then-borrowed" => Twice(c, fresh, viewed, borrowed),
+            "readonly-ref-then-readonly-ref" => Twice(c, fresh, viewed, viewed),
+            "frozen-then-frozen" => Twice(c, fresh, frozen, frozen),
+            "frozen-then-readonly-ref" => Twice(c, fresh, frozen, viewed),
+            "readonly-ref-then-frozen" => Twice(c, fresh, viewed, frozen),
+            "readonly-ref-then-plain" => Twice(c, fresh, viewed, plain),
+            "plain-then-plain" => Twice(c, fresh, plain, plain),
+            "owned-into-two-constructor-parameters" =>
+                Body(fresh, Run(New(pair, Constructor(pair, new Parameter("left", cell, owned), new Parameter("right", cell, owned)), Ref(c), Ref(c, 37)))),
+            "receiver-then-owned-argument" => Receiver(c, fresh, ThisTier.None, owned),
+            "borrowing-receiver-then-frozen-argument" => Receiver(c, fresh, ThisTier.Borrowed, frozen),
+            "receiver-then-frozen-argument" => Receiver(c, fresh, ThisTier.None, frozen),
+            "receiver-then-plain-argument" => Receiver(c, fresh, ThisTier.None, plain),
+            "owned-field-then-holder" =>
+                Body(Declare(p, New(pair, pairConstructor)), Run(Call(Static("Split", unit, null, new Parameter("a", cell, owned), new Parameter("b", pair)), null, 0, Access(Ref(p), left), Ref(p, 37)))),
+            "borrowed-then-returned-then-moved" => Body(fresh, Run(Call(borrow, null, 0, Ref(c))), Run(Call(borrow, null, 0, Ref(c))), Run(Call(take, null, 0, Ref(c)))),
+            "plain-then-bumped" => Body(fresh, Run(Call(keep, null, 0, Ref(c))), Run(Call(bump, null, 0, Ref(c)))),
+            _ => throw new ArgumentException($"no same-call fragment named '{name}'", nameof(name)),
+        };
+    }
+
+    private IReadOnlyList<Diagnostic> Twice(LocalVariable c, Statement fresh, ParameterModifier first, ParameterModifier second)
+    {
+        var both = Static("Both", unit, null, new Parameter("a", cell, first), new Parameter("b", cell, second));
+        return Body(fresh, Run(Call(both, null, 0, Ref(c), Ref(c, 37))));
+    }
+
+    private IReadOnlyList<Diagnostic> Receiver(LocalVariable c, Statement fresh, ThisTier tier, ParameterModifier argument)
+    {
+        var absorb = new Method("Absorb", unit, [new Parameter("other", cell, argument)], default) { DeclaringType = cell, DeclaredThisTier = tier == ThisTier.None ? null : tier };
+        cell.MethodsList.Add(absorb);
+        return Body(fresh, Run(Call(absorb, Ref(c), 0, Ref(c, 37))));
+    }
+
     private IReadOnlyList<Diagnostic> Returns(IMistType returned, params Statement[] statements)
     {
         var make = new Method("Make", returned, [], new MemberModifiers { IsStatic = true })

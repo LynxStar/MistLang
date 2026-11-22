@@ -155,26 +155,28 @@ internal sealed partial class OwnershipFlow
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression invocation }:
-                JudgeArguments(state, invocation.Arguments, invocation.Parameters);
+                var call = CallScope(state);
 
                 if(ThisTiers.ReceiverOf(invocation) is { } receiver)
                 {
                     foreach(var held in LocalOwnership.Sources(receiver))
                     {
                         JudgeReceiver(state, invocation, receiver, held);
+                        call = Tracked(held) ? Hold(call, held, receiver, ReceiverAction(invocation)) : call;
                     }
                 }
 
+                JudgeArguments(state, call, invocation.Arguments, invocation.Parameters);
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: NewExpression creation }:
-                JudgeArguments(state, creation.Arguments, creation.Constructor?.ParametersList);
+                JudgeArguments(state, CallScope(state), creation.Arguments, creation.Constructor?.ParametersList);
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false } entry }:
                 if(entry.Add is { } add)
                 {
-                    JudgeArguments(state, [entry.Value], add.ParametersList);
+                    JudgeArguments(state, CallScope(state), [entry.Value], add.ParametersList);
                 }
                 else if(OwnedProvenance.OwnershipOf(entry.Member) == OwnershipKind.Owned)
                 {
@@ -290,13 +292,16 @@ internal sealed partial class OwnershipFlow
         }
     }
 
-    private void JudgeArguments(State state, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    private void JudgeArguments(State state, State call, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
     {
         for(var i = 0; i < arguments.Count && parameters is not null && i < parameters.Count; i++)
         {
-            foreach(var place in LocalOwnership.Sources(arguments[i]))
+            var taken = CallAction(arguments[i], parameters[i]);
+            var places = LocalOwnership.Sources(arguments[i]).Where(Tracked).ToList();
+
+            foreach(var place in places)
             {
-                if(!Tracked(place))
+                if(taken is { } action && RefusedInCall(call, place, arguments[i], action))
                 {
                     continue;
                 }
@@ -318,6 +323,11 @@ internal sealed partial class OwnershipFlow
                     JudgeAction(state, place, arguments[i], Action.Move);
                     JudgeShared(state, arguments[i], $"owned parameter '{parameters[i].Name}'", owned: true);
                 }
+            }
+
+            if(taken is { } held)
+            {
+                call = places.Aggregate(call, (current, place) => Hold(current, place, arguments[i], held));
             }
         }
     }

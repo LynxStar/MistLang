@@ -8,7 +8,7 @@ Requirement 8 was revised on 2026-11-19, when
 [runtime-length-facts](../runtime-length-facts/requirements.md) Requirement 3
 moved here. On 2026-11-21 the owner set a new direction: a run-time closing is
 typed by what is provable about its value, not by the value
-([design.md](design.md), *Direction of 2026-11-21*). Requirements 1 to 3 and 5
+([design.md](design.md), *The refinement meaning*). Requirements 1 to 3 and 5
 to 11 were revised for it on 2026-11-21 and 2026-11-22; Requirements 4 and 6
 read the same under either meaning.
 The proposal lists the decisions still open, and a requirement is added here
@@ -39,7 +39,7 @@ closing is a type with its slots filled.
 A dependent slot is one more generic argument. Its value may not be known until
 the program runs. The compiler types it by what it can prove about that value,
 and the object carries the value itself. Revised on 2026-11-21 under the
-owner's direction ([design.md](design.md), *Direction of 2026-11-21*); item 4
+owner's direction ([design.md](design.md), *The refinement meaning*); item 4
 was ruled "The second one, whatever is provable."
 
 1. A dependent type argument SHALL be a value. Where the type is written, the

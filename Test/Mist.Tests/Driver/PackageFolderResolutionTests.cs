@@ -58,6 +58,37 @@ public sealed class PackageFolderResolutionTests : IDisposable
     }
 
     [Fact]
+    public void RuntimeFallback_DependsOnWhetherAnyCompileAssemblySurvivesFiltering()
+    {
+        var root = Path.Combine(scratch, "nuget");
+        _ = Touch(root, "filtered", "1.0.0", "lib", "net8.0", "_._");
+        var fallback = Touch(root, "filtered", "1.0.0", "ref", "net10.0", "Fallback.dll");
+        var compile = Touch(root, "winner", "1.0.0", "lib", "net8.0", "Compile.dll");
+        _ = Touch(root, "winner", "1.0.0", "lib", "net10.0", "Runtime.dll");
+
+        var result = Resolve(
+            new DiagnosticBag(),
+            [root],
+            """
+            {
+              "Filtered/1.0.0": {
+                "compile": { "lib/net8.0/_._": {}, "lib/net9.0/Missing.dll": {} },
+                "runtime": { "ref/net10.0/Fallback.dll": {} }
+              },
+              "Winner/1.0.0": {
+                "compile": { "lib/net8.0/Compile.dll": {} },
+                "runtime": { "lib/net10.0/Runtime.dll": {} }
+              }
+            }
+            """);
+
+        Assert.Equal<string>([fallback, compile], result.AssemblyPaths);
+        Assert.Equal<ResolvedPackageInfo>(
+            [new("Filtered", "1.0.0", "net9.0", 1), new("Winner", "1.0.0", "net8.0", 1)],
+            result.Resolved);
+    }
+
+    [Fact]
     public void RuntimeTargets_AreSelectedUnderTheIsolatedFolder()
     {
         var root = Path.Combine(scratch, "nuget");

@@ -265,7 +265,31 @@ public static class PackageResolver
 
                     if(library.Value.TryGetProperty("compile", out var compileSection))
                     {
-                        foreach(var assembly in compileSection.EnumerateObject())
+                        addAssemblies(compileSection);
+                    }
+
+                    // Some packages list runtime assemblies and no compile ones.
+                    if(packageAssemblies.Count == 0
+                        && library.Value.TryGetProperty("runtime", out var runtimeSection))
+                    {
+                        addAssemblies(runtimeSection);
+                    }
+
+                    assemblyPaths.AddRange(packageAssemblies);
+
+                    if(declaredPackageSet.ContainsKey(packageName))
+                    {
+                        _ = resolvedDeclaredPackages.Add(packageName);
+                        resolvedInfos.Add(new ResolvedPackageInfo(
+                            packageName,
+                            packageVersion,
+                            selectedTfm ?? string.Empty,
+                            packageAssemblies.Count));
+                    }
+
+                    void addAssemblies(JsonElement section)
+                    {
+                        foreach(var assembly in section.EnumerateObject())
                         {
                             var assemblyRelPath = assembly.Name;
 
@@ -298,56 +322,6 @@ public static class PackageResolver
                                 packageAssemblies.Add(fullPath);
                             }
                         }
-                    }
-
-                    // Some packages list runtime assemblies and no compile ones.
-                    if(packageAssemblies.Count == 0
-                        && library.Value.TryGetProperty("runtime", out var runtimeSection))
-                    {
-                        foreach(var assembly in runtimeSection.EnumerateObject())
-                        {
-                            var assemblyRelPath = assembly.Name;
-
-                            if(assemblyRelPath.EndsWith("_._", StringComparison.Ordinal))
-                            {
-                                continue;
-                            }
-
-                            var pathParts = assemblyRelPath.Split('/');
-                            if(pathParts.Length >= 3 && pathParts[0] == "lib")
-                            {
-                                selectedTfm = pathParts[1];
-                            }
-
-                            var assemblyName = Path.GetFileNameWithoutExtension(
-                                Path.GetFileName(assemblyRelPath));
-
-                            if(frameworkAssemblyNames.Contains(assemblyName))
-                            {
-                                continue;
-                            }
-
-                            var fullPath = Path.Combine(
-                                packageDirectory,
-                                assemblyRelPath.Replace('/', Path.DirectorySeparatorChar));
-
-                            if(File.Exists(fullPath))
-                            {
-                                packageAssemblies.Add(fullPath);
-                            }
-                        }
-                    }
-
-                    assemblyPaths.AddRange(packageAssemblies);
-
-                    if(declaredPackageSet.ContainsKey(packageName))
-                    {
-                        _ = resolvedDeclaredPackages.Add(packageName);
-                        resolvedInfos.Add(new ResolvedPackageInfo(
-                            packageName,
-                            packageVersion,
-                            selectedTfm ?? string.Empty,
-                            packageAssemblies.Count));
                     }
                 }
             }

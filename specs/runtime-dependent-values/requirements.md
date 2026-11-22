@@ -464,15 +464,19 @@ static reached through a refinement, "Ok sold".
    storage of the value the name holds where it is written, whatever the facts
    prove about it: `Counter<n>.hits` when `n` is 1 is `Counter<1>.hits`. Its
    type is what is provable under Requirement 1.
-3. A closing written with a refinement type name, `Counter<ZeroOrPositiveInt>`,
+3. An instance member SHALL reach the static storage of the value its object
+   carries, whatever type the object is held as. Through `y` held as a
+   `Counter<ZeroOrPositiveInt>`, a method that reads a static field reads the
+   storage of `y`'s own value, as the object always has one.
+4. A closing written with a refinement type name, `Counter<ZeroOrPositiveInt>`,
    names no single value. A static field reached through it SHALL be refused,
    and the diagnostic SHALL say to name a value. A static method or computed
    property reached through it SHALL be accepted only where it reads neither a
    dependent parameter of the declaration nor one of its static fields,
    directly or through a member it calls.
-4. State shared by every value of a slot belongs on a type that is not closed
+5. State shared by every value of a slot belongs on a type that is not closed
    with that slot.
-5. No dependent parameter is confined to literals on account of static
+6. No dependent parameter is confined to literals on account of static
    storage.
 
 A program that closes a type with many distinct values keeps static storage

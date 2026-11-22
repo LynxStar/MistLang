@@ -4,7 +4,12 @@
 
 Requirements settled with the owner on 2026-11-07 and 2026-11-08, developed
 from [proposal.md](proposal.md). The design and tasks follow. This is a language
-contract, not a claim that the current compiler implements it.
+contract, not a claim that the current compiler implements it. Requirement 8
+item 6 was revised with the owner on 2026-11-22: what this spec states is
+exactly what the compiler proves, no more and no less, because a refinement the
+facts prove can decide a test when the program runs
+([runtime-dependent-values](../runtime-dependent-values/requirements.md)
+Requirements 1.4 and 9).
 
 In scope: the facts the compiler infers about the current values of variables
 along a control-flow path, how those facts survive joins, writes and
@@ -406,10 +411,10 @@ other requirement here applies to them unchanged.
    Postfix yields the value before the write and prefix the value after it, and
    the write happens where C# makes it happen. `items[i++]` reads `items[i]` and
    then increments `i`.
-6. The facts MAY stop short of the expression form. An increment inside a larger
-   expression MAY yield a value that knows only its type, while the statement
-   form SHALL be recorded as item 4 states. This spec raises what the compiler
-   can prove; it does not promise to prove everything the grammar admits.
+6. An increment inside a larger expression SHALL yield a value with the facts
+   item 4 gives the statement form: postfix yields the value before the write,
+   prefix the value after it. With `i == 14`, `var m = ++i;` gives `m == 15`
+   and `var k = i++;` gives `k == 14`, each with the new `i == 15` beside it.
 
 Example.
 

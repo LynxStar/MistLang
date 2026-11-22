@@ -49,18 +49,48 @@ an immutable map from holder to current value. Reading a holder yields its
 current value. A holder with no binding gets a fresh value with its type's
 facts, and the binding is recorded so the next read yields the same value.
 
-Which holders carry facts beyond their type (Requirement 3.5): locals and
-parameters not in `UnseenWrites.Of(root)`; fields of `this`, given new values
-when `FieldEffects.MayWrite` fires (Requirement 3.6); and members whose value
-cannot change while the receiver value is the same object: the `Length` of
-`Array`, `Span`, `ReadOnlySpan` and `string`, readonly fields, and the members
-`StableMembers.IsStable` admits. A holder in `UnseenWrites` yields a fresh value
-at every read, as does a mutable member of an object the body does not own. This
-is the conservative reading of 3.5. Extending fact-bearing members to objects the
-body exclusively borrows, through `LocalOwnership`, is a later step that changes
-no fact shape. `FieldEffects` answers yes or no for all mutable fields at once;
-`ThisTiers.FieldUses` is the per-field summary available when that granularity
-is wanted, also later.
+Which holders carry facts beyond their type (Requirement 3.5): every local and
+parameter except one that a lambda, a local function or an async block writes;
+fields of `this`; the members of an object the body owns or holds exclusively
+under the ownership rules; and members whose value cannot change while the
+receiver value is the same object: the `Length` of `Array`, `Span`,
+`ReadOnlySpan` and `string`, readonly fields, and the members
+`StableMembers.IsStable` admits. Any other holder yields a fresh value at every
+read. A holder's value ends only at a write the body can see (Requirement 3.6):
+an assignment; a `ref` or `out` argument, which begins a new value after the
+call and leaves the facts before it in place; a write through a `ref` local,
+which begins a new value for every holder the alias may name; and a call that
+may write a member, which ends that member's value and no other. Which members a
+call may write is the ownership and purity rules' judgement, member by member: a
+method on `this` that writes `B` leaves the facts about `A` in place.
+
+The compiler at 4c2e5bb3 proves less than this in four places. With
+`Take(Five f)` taking `int >= 5 and <= 5`, each `Take` below is refused today and
+is proven under this design:
+
+```mist
+var a = 5;
+Take(a);        // a local passed by ref anywhere in the body keeps only its type
+Bump(ref a);
+
+var c = 5;
+Take(c);        // so does a local that a ref local names anywhere in the body
+ref int r = c;
+r = 6;
+
+var b = new Box();
+b.V = 5;
+Take(b.V);      // a member of an object the body owns carries no facts
+
+A = 5;          // inside a method of a class with fields A and B
+SetB();         // writes only B
+Take(A);        // every mutable field of this ends at the call
+```
+
+`UnseenWrites.Of(root)` takes the first two out of the flow for the whole body,
+member holders of owned and exclusively held objects are not fact-bearing, and
+`FieldEffects.MayWrite` answers for all mutable fields together where
+`ThisTiers.FieldUses` holds the per-field answer.
 
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's
@@ -181,9 +211,10 @@ Transfer, by step kind:
   (Requirement 3.4).
 - Evaluate of an assignment: the same for the target holder, whether a local, a
   field of `this` or a member holder (Requirement 3.1, 3.4).
-- Evaluate of a call, a `new` or a user operator: when `FieldEffects.MayWrite`
-  says so, every mutable field of `this` gets a new value with type facts, and so
-  does the holder behind every `ref` or `out` argument. The result is a fresh
+- Evaluate of a call, a `new` or a user operator: every member of `this` or of
+  an owned or exclusively held object that the call may write gets a new value
+  with type facts, and so does the holder behind every `ref` or `out` argument,
+  after the arguments are read. The result is a fresh
   value with the return type's facts, `LiftedReturns.Produced` included
   (Requirement 6.1).
 - Assume(condition, holds): a comparison reads both sides as terms and adds the
@@ -384,18 +415,18 @@ on `Evaluate` of the node reads `target` as the old value's term, builds
 `old op value` through `Terms` and `Exactness`, and binds the target holder to a
 new value with `new == old op value` when exactness holds, or the type's facts
 when it does not. A postfix increment used as an expression yields the old
-value's term and a prefix one the new value's. Requirement 8.6 allows the first
-delivery to give an increment inside a larger expression a fresh value with its
-type's facts instead; the statement form is the one the tests must prove.
+value's term and a prefix one the new value's, inside a larger expression as
+well as in a statement (Requirement 8.6). The compiler at fc8a1daa gives an
+increment inside a larger expression a fresh value with only its type's facts;
+runtime-dependent-values stage 8 c closes that.
 
 Tests: Tier 1 for the binder's operator selection and result typing over
 hand-built targets; Tier 2 for `FactFlow` over `x += i` with and without a
-bound on `i`, and for definite assignment and ownership over a hand-built body
-with the node; the `samples/FlowFacts` sample uses `i++` and `+=` in its loops.
+bound on `i`, over `var m = ++i;` and `var k = i++;`, and for definite
+assignment and ownership over a hand-built body with the node; the `samples/FlowFacts` sample uses `i++` and `+=` in its loops.
 
 ## Not in this design
 
-The two stretch goals in Status and scope. Per-field write summaries beyond
-`FieldEffects`. Fact-bearing members of exclusively borrowed objects. Index and
+The two stretch goals in Status and scope. Index and
 Range values inside the chain; they stay in `StoredRange`. A loop summary
 stronger than Requirement 5 (Requirement 5.6).

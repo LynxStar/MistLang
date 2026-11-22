@@ -78,7 +78,7 @@ Take(c);        // so does a local that a ref local names anywhere in the body
 ref int r = c;
 r = 6;
 
-var b = new Box();
+owned var b = new Box();
 b.V = 5;
 Take(b.V);      // a member of an object the body owns carries no facts
 

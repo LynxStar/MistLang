@@ -46,7 +46,7 @@ graph TD
 
 **Phase 2 — Semantic Model Building.** `SemanticModelBuilder` continues to set `IsOwnedType` from the `owned` modifier (`Source/Mist/Semantics/Model/SemanticModelBuilder.cs` lines ~1596, ~1646) and `OwnershipTier.Owned` on owned-specified symbols. The affine/linear write-through to `IsOwnedType` is unchanged (drop semantics owns that). **Removed here:** nothing structural — but the downstream consumers of `IsOwnedType` change meaning (it now gates the cooperation contract and method-tier access, not field validation).
 
-**Phase 2.5 — IClonable Derivation (new).** A derivation pass computes, for each user and bootstrap type, whether it implements `IClonable<T>` — either by explicit declaration or by auto-derivation (all fields clonable, Req 8 AC 6–7). The result is cached on the type model for the resolver to query.
+**Phase 2.5 — IClonable Derivation (new).** A derivation pass computes, for each user and bootstrap type, whether it implements `IClonable<T>` — either by explicit declaration or by auto-derivation (Req 8 AC 6–13) — and generates the `Clone()` of each type that derives. *Automatic Clone* below says which types qualify and why. The result is cached on the type model for the resolver to query.
 
 **Phase 3 — Ownership Analysis (rewritten).** The `OwnershipAnalyzer` is rewritten around three collaborators:
 - `MoveBoundaryResolver` — the single provenance/clone authority (Req 6 AC 9).
@@ -89,7 +89,7 @@ interface IClonable<T>
 **Responsibilities**:
 - Declares the single method `owned T Clone()` (Req 8 AC 1). The `owned` return specifier means `Clone()` hands out a fresh owned value, which is exactly what a move boundary needs.
 - Bootstrap value types (`Int32`, `Int64`, `Boolean`, `Char`, `Single`, `Double`, `Decimal`, `Byte`, `SByte`, `Int16`, `UInt16`, `UInt32`, `UInt64`) and `String` implement it as base cases (Req 8 AC 6). Because these are `intrinsic`, their `Clone()` is satisfied intrinsically (identity copy for value types; strings are immutable so `Clone()` returns the same reference, observationally independent).
-- Auto-derivation (Req 8 AC 6–7) is computed by the compiler, not written by hand, for ordinary types whose fields are all clonable.
+- Auto-derivation (Req 8 AC 6–13) is computed by the compiler, not written by hand, for types whose every field the compiler can copy without a decision from the author; see *Automatic Clone*.
 
 **Bootstrap declaration example** (`Int32.mist` gains the interface):
 
@@ -292,6 +292,34 @@ public void Analyze(ISemanticModel model, DiagnosticBag diagnostics)
 }
 ```
 
+### Automatic Clone (revision of 2026-11-22)
+
+Req 8 AC 6 first said a type auto-derives when all of its fields are clonable. That left open what the generated `Clone()` does when two fields hold one object, or when the graph leads back to the object being cloned. The revision asks a different question instead: when can the compiler tell, from the program alone, that a copy needs no decision from the author? It derives a `Clone()` only then.
+
+**What the compiler can tell.** Every object the copy reaches is one of:
+
+1. **Unchangeable.** Nothing can change it once constructed, so no holder can observe another's.
+2. **Held in an `owned` field.** Ownership makes that field the only way to reach its object: writing an owned field takes only a value nothing else holds, and reading one into another place moves it out. A cycle through owned fields cannot be reached from a live binding, because closing it moves the root: `a.Next = a` leaves `a` moved.
+3. **Of a class whose actual type the compiler can copy.** Mist compiles the whole program, so every subclass is known, and the generated `Clone()` copies whichever class it is given (Req 8 AC 10). A field of an abstract type is copied through the abstract's own `IClonable<T>` conformance, which dispatches at run time.
+
+A field that is not `owned` and holds a Changeable_Object meets none of these. Another field may hold the same object, or it may lead back to the object being cloned, and whether the copy should share or duplicate it is the author's choice. Such a field prevents derivation (Req 8 AC 7). Marking it `owned` states that it is the only holder, which is also what makes the copy unambiguous.
+
+*Rejected:* deriving through such a field when the declared field types alone show that no object can be reached twice and nothing leads back, as in `Person { Address Home; }`. The answer would change with edits elsewhere, such as a second `Address` field or a subclass of `Address` anywhere in the program. Under the adopted rule the reason a type does not derive is visible in the type.
+
+**What the generated `Clone()` promises.** A fully unique copy (Req 8 AC 9): nothing changeable in it is reachable from the original. How the copy is made belongs to each emitter and may differ between them. Conditions 1 and 2 leave no object in the graph reachable twice, so an emitter needs no record of what it has already copied; a bulk copy of the graph's memory with its references relocated is one way to make it.
+
+**Subclasses.** Class members dispatch on the receiver's declared type, and a subclass cannot redeclare an inherited member (MIST0177), so a `Clone()` written on a base class cannot copy a subclass: given a `Dog`, a hand-written `Animal.Clone()` returns an `Animal`. The generated one copies the actual class, `owned Animal` in its signature and a `Dog` at run time. Because every subclass must qualify, a subclass that does not withdraws its bases' derivation, and the refusal names it (Req 13 AC 7).
+
+*Rejected:* refusing derivation for any class that has a subclass. A hierarchy would then have no way to clone but a hand-written type test in its base, which is what the generated `Clone()` does.
+
+**What stays the author's.** A declared `Clone()` replaces derivation (Req 8 AC 11). Its body decides what is copied, and its `owned` return makes the result unique, judged by the rule for every owned-returning member. A class whose base declares `Clone()` does not derive, since its own would redeclare an inherited member.
+
+**Drop and substructural types.** A `Drop()` method or a `linear`, `affine` or `relevant` modifier neither causes nor prevents derivation (Req 8 AC 12). They govern when a value is released, not whether it can be copied.
+
+**Dependencies.** Condition 2 relies on the move rules refusing a second move of an owned binding, two moves within one call included.
+
+**What this changes in the compiler.** The derivation that MIST0237 consults admits a field that is not `owned` when its class is clonable, and a type that holds itself through such a field; the revision refuses both, which narrows what an owned type's fields may be. The unchangeable-type test used by provenance counts every value type as unchangeable, where Req 8 AC 6 counts one only when none of its fields holds a Changeable_Object. Implicit cloning reads only a declared `Clone()`; under the revision it calls the generated one too.
+
 ## Data Models
 
 ### Type model changes (`ClassType` / `StructType`)
@@ -359,10 +387,10 @@ For all bindings b lent as borrowed/frozen/readonly-ref and cloned into an owned
 
 **Validates: Requirements 8.5**
 
-### Property 6: IClonable auto-derivation is exactly "all fields clonable" (Req 8 AC 6–7)
-For all types T, `ImplementsIClonable(T)` ⟺ (T explicitly declares `IClonable<T>`) ∨ (∀ field f ∈ T.Fields: ImplementsIClonable(typeof(f))). Bootstrap value types and String are base cases (always true).
+### Property 6: IClonable auto-derivation is exactly "every field copyable without a decision" (Req 8 AC 6–7, 10)
+For every type T declared in Mist with no `Clone()` of its own, T auto-derives exactly when every instance field of T and of its base classes is Unchangeable, or `owned` with a type that implements `IClonable<T>`, or a struct or tuple whose fields meet the same test, and, where T is a class with subclasses, every subclass meets it too. A field that is not `owned` and holds a Changeable_Object always prevents derivation. Bootstrap value types and String are base cases (always true).
 
-**Validates: Requirements 8.6, 8.7**
+**Validates: Requirements 8.6, 8.7, 8.10**
 
 ### Property 7: Method tier visibility (Req 2, 3)
 For all owned bindings of type T and methods m: m is callable ⟺ (T is owned) ∨ (m is readonly) ∨ (T is a value type).

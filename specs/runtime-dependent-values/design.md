@@ -45,10 +45,9 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
   can write through them (*A closing fits by refinement*).
 - **A dependent parameter stands for its own value.** In a parameter, return or
   field type, `Array<int, N>` means that the length is `N`'s value
-  (Requirements 7.3, 8.1 and 8.6), as stages 1 to 3 built it. This design reads
-  `N` written inside a body the same way, so a dependent parameter is never
-  captured. The literal reading of Requirements 1 and 5.1 differs, and the
-  owner rules between them; see *Readings to confirm*.
+  (Requirements 7.3, 8.1 and 8.6), as stages 1 to 3 built it. `N` written
+  inside a body means the same, so a dependent parameter is never captured
+  (Requirement 1.7; see *A dependent parameter written inside a body*).
 - **Arrays.** `new int[x]` gives an `Array<int, Range>` with `Length == x`
   recorded. `int[n]` returns (Requirement 8 items 7 to 10) carry the relation
   through a signature.
@@ -83,22 +82,18 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
   this one `new Cell<x>[k]` is a `Cell<Range>[]`, and `Cell<15>[] a = b` with `b`
   a `Cell<Range>[]` is not a valid program.
 
-### Readings to confirm
+### A dependent parameter written inside a body
 
-This follows from a revised requirement, and it is shown to the owner with its
-program before the stage 8 step that builds it.
-
-1. **A dependent parameter written inside a body.** Read literally,
-   Requirements 1.1, 1.4 and 5.1 make `N` in a body's type stand for its
-   refinement, which inside the declaration is only its domain. Then
-   `Array<int, N> b = new int[5];` is accepted and `b.Length == N` is not known;
-   inside `Ring<Capacity>`, `other is Ring<Capacity>` tests only the domain, so
-   the `Differs` program of *Identity by value: the first delivery* prints
-   `False` for both calls; and `Ring<Capacity> copy = this; return copy;` is
-   refused, because `this`'s slot holder is not linked to the parameter. The
-   stricter reading, that a dependent parameter always stands for its own
-   value, keeps all three as stages 1 to 3 built them. This design builds the
-   stricter reading unless the owner rules otherwise.
+The owner ruled on 2026-11-22 that a dependent parameter written inside its
+declaration stands for its own value (Requirement 1.7), as it does in the
+declaration's signatures. Read like a local, `N` would stand for its
+refinement, which inside the declaration is only its domain. Then
+`Array<int, N> b = new int[5];` would be accepted with `b.Length == N` unknown;
+inside `Ring<Capacity>`, `other is Ring<Capacity>` would test only the domain,
+so the `Differs` program of *Identity by value: the first delivery* would print
+`False` for both calls; and `Ring<Capacity> copy = this; return copy;` would be
+refused, because `this`'s slot holder is not linked to the parameter. Under the
+ruling all three behave as stages 1 to 3 built them.
 
 ### A refinement visible at run time
 
@@ -186,7 +181,7 @@ in a body: readonly, unnameable, typed by the slot's contract (the parameter's
 domain with its `where` predicate, as a parameter's `where` is already part of
 its type), and initialized by the bound argument. `CapturedValue(SlotCapture)`
 is the `MistType` that fills the slot. A dependent parameter written in a body's
-type stays the forwarded parameter (*Readings to confirm*), so a body's slot
+type stays the forwarded parameter (Requirement 1.7), so a body's slot
 argument is a capture, a literal, a refinement type or a dependent parameter.
 
 What a capture means is Stage 5's. At the capture's `Declare` step the
@@ -255,7 +250,7 @@ the walk: for each argument, the parameter at that position.
 - A dependent slot given a type reference that is a bare or dotted name is
   looked up as a value first, as an expression's name is (Requirement 5.4).
   A dependent parameter in scope is the forwarded argument, as today, in a body
-  too (*Readings to confirm*). Any other value inside a body is handed to the
+  too (Requirement 1.7). Any other value inside a body is handed to the
   caller's value binder and captured.
 - Where no value of that name is in scope, the name is looked up as a type. A
   refinement of the slot's domain becomes the refinement slot argument,
@@ -1745,8 +1740,7 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    (18a829ea). Its accepted programs join stage 6's sample.
 8. The refinement meaning, revised requirements of 2026-11-21 and 2026-11-22.
    Each step shows the owner its before-and-after programs before it is
-   dispatched, and nothing starts until the owner has ruled on *Readings to
-   confirm*. No step admits by refinement anything the steps before it cannot
+   dispatched. No step admits by refinement anything the steps before it cannot
    keep sound, so the membership judgement lands only with every rule that
    holds a slot to one value.
    a. Stage 5's fit judgement and everything it needs at once: the refinement

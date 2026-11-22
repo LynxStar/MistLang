@@ -72,6 +72,13 @@ ruled that the facts in hand are exactly the flow spec's.
    SHALL keep the refinement: with `n : Range`, `k => new int[n]` returns an
    `int[Range]`. This replaces the earlier rule that the slot is `unknown`
    there.
+7. A dependent parameter written in a type inside its own declaration SHALL
+   stand for its own value, as it does in the declaration's signatures
+   (Requirements 7.3, 8.1 and 8.6), and SHALL NOT be captured. Inside
+   `class Ring<Capacity:int>`, `other is Ring<Capacity>` compares with this
+   ring's capacity, `Ring<Capacity> copy = this;` is valid, and
+   `Array<int, Capacity> b = new int[5];` is valid only where `Capacity == 5`
+   is proven. Ruled on 2026-11-22: "Its own value".
 
 Example.
 

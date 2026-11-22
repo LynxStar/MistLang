@@ -392,16 +392,24 @@ void Caller(ZeroOrPositiveInt count)
 
 ## Requirement 9 Testing a value against a closing
 
+Revised on 2026-11-21 to follow Requirement 1 under the owner's direction; ruled
+"`this is Ring<n>` should testing for the refinement of n".
+
 1. A type test, in an `is`, a type pattern or an `as`, SHALL take a closing
-   whose slot is a literal or a name, under Requirement 5. A name is read
-   once, where the test is written.
+   whose slots are written under Requirement 5: a literal, a name, or a
+   refinement type name. A name in a test's slot stands for the refinement the
+   facts prove for its value where the test is written, under Requirement 1.
 2. The test SHALL pass when the value is of the declaration and the value it
-   carries in each slot is identical to the slot's value. That comparison is
+   carries in each slot lies inside that slot's refinement. A literal is the
+   refinement with one member, so `is Ring<5>` compares with 5. The check is
    made when the program runs, and it is the only check this spec adds to a
    running program. The programmer wrote it.
 3. Where the test passes, the binding it introduces SHALL have the tested
-   type, and the facts SHALL gain that its read is identical to the slot's
-   value: after `ring is Ring<n> same`, `same.Capacity == n`.
+   type, and its read SHALL be proven inside the slot's refinement. The test
+   does not prove the read equal to the name's value: after
+   `ring is Ring<n> same`, `same.Capacity` lies inside `n`'s refinement. A
+   program that needs the read equal to the value compares them,
+   `ring.Capacity == n`, under Requirement 7.
 4. A slot in a test MAY be a dependent parameter in scope, and the value
    tested MAY be of a type closed with one. Inside
    `void Check<N:int>(Buffer<N> b)`, `b is Buffer<5>` compares `N` with 5, and
@@ -416,16 +424,23 @@ void Caller(ZeroOrPositiveInt count)
 Example.
 
 ```mist
-void Show(unknown thing, Ring<unknown> ring, PositiveInt n)
+type Range = int > 10 and < 30;
+
+void Show(unknown thing, Ring<unknown> ring, Range n)
 {
     if(ring is Ring<n> same)
     {
-        // same is a Ring<n>
+        // same is a Ring<Range>: its capacity is above 10 and below 30
     }
 
-    if(thing is Ring<n> found)
+    if(ring.Capacity == n)
     {
-        // thing is a Ring, and its capacity is n
+        // ring's capacity is n's value
+    }
+
+    if(n == 15 && thing is Ring<n> found)
+    {
+        // thing is a Ring, and its capacity is 15
     }
 }
 ```

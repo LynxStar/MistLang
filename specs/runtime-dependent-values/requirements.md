@@ -447,17 +447,32 @@ void Show(unknown thing, Ring<unknown> ring, Range n)
 
 ## Requirement 10 Static storage
 
-Static means of the type. A closing is a type, so each closing has its own
-static storage, or the word static means something else.
+Static means of the type. An object's type is a closing with an exact value in
+each slot, so each value has its own static storage, or the word static means
+something else.
 [generics-type-arguments](../generics-type-arguments/requirements.md)
-Requirement 10 states this for type arguments and it stands.
+Requirement 10 states this for type arguments and it stands. Revised on
+2026-11-21 under the owner's direction; ruled "Ok, so by value", and for a
+static reached through a refinement, "Ok sold".
 
-1. Each closing SHALL have its own static storage, whether its slots hold
-   literals or runtime values. A closing is its declaration, its type
-   arguments and the values of its slots.
-2. Two closings that are one type under Requirement 2 SHALL reach the same
-   storage. `Counter<n>.hits` when `n` is 1 is `Counter<1>.hits`.
-3. No dependent parameter is confined to literals on account of static
+1. Each closing with an exact value in every slot SHALL have its own static
+   storage, whether a value is a literal or known only when the program runs.
+   A closing is its declaration, its type arguments and the values of its
+   slots. `Counter<1>.hits` and `Counter<2>.hits` are two storages, whether or
+   not the static mentions a dependent parameter.
+2. A static reached through a closing whose slot is a name SHALL reach the
+   storage of the value the name holds where it is written, whatever the facts
+   prove about it: `Counter<n>.hits` when `n` is 1 is `Counter<1>.hits`. Its
+   type is what is provable under Requirement 1.
+3. A closing written with a refinement type name, `Counter<ZeroOrPositiveInt>`,
+   names no single value. A static field reached through it SHALL be refused,
+   and the diagnostic SHALL say to name a value. A static method or computed
+   property reached through it SHALL be accepted only where it reads neither a
+   dependent parameter of the declaration nor one of its static fields,
+   directly or through a member it calls.
+4. State shared by every value of a slot belongs on a type that is not closed
+   with that slot.
+5. No dependent parameter is confined to literals on account of static
    storage.
 
 A program that closes a type with many distinct values keeps static storage
@@ -469,12 +484,19 @@ Example.
 public class Counter<N:int>
 {
     public static int hits;
+    public static int[N] slots = new int[N];
+    public static int Twice(int x) { return x * 2; }
 }
 
-Counter<1>.hits = 5;
-Console.WriteLine(Counter<2>.hits);     // 0
-var n = GetOne();                       // 1 when the program runs
-Console.WriteLine(Counter<n>.hits);     // 5
+void Show(ZeroOrPositiveInt n)                              // called with 1
+{
+    Counter<1>.hits = 5;
+    Console.WriteLine(Counter<2>.hits);                     // 0
+    Console.WriteLine(Counter<n>.hits);                     // 5
+    var a = Counter<n>.slots;                               // Array<int, ZeroOrPositiveInt>, and a.Length == n
+    Console.WriteLine(Counter<ZeroOrPositiveInt>.Twice(3)); // 6
+    var b = Counter<ZeroOrPositiveInt>.hits;                // refused: name a value
+}
 ```
 
 ## Requirement 11 The read with no single answer

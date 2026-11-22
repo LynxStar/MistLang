@@ -19,7 +19,7 @@ using SyntaxNode = Storm.Runtime.SyntaxNode;
 namespace Mist.Tests.Semantics;
 
 [Trait("Tier", "2")]
-public sealed class StorageWriteSummaryTests
+public sealed partial class StorageWriteSummaryTests
 {
     private readonly BindingFragments fragments = new();
 
@@ -402,9 +402,9 @@ public sealed class StorageWriteSummaryTests
             return field;
         }
 
-        public Method Method(string name, IReadOnlyList<Parameter> parameters, Block? body)
+        public Method Method(string name, IReadOnlyList<Parameter> parameters, Block? body, IMistType? returns = null)
         {
-            var method = new Method(name, new HandBuiltModel().Type("Int32"), [.. parameters], DeclarationFragments.Public)
+            var method = new Method(name, returns ?? new HandBuiltModel().Type("Int32"), [.. parameters], DeclarationFragments.Public)
             {
                 DeclaringType = Type,
                 Scope = new MethodScope(Type.Scope),
@@ -426,7 +426,19 @@ public sealed class StorageWriteSummaryTests
             return declared;
         }
 
-        public Constructor Constructor(IReadOnlyList<Parameter> parameters, Block body)
+        public CastOperator Conversion(IMistType from, IMistType to, bool isImplicit, Block body)
+        {
+            var conversion = new CastOperator(to, new Parameter("value", from), isImplicit, DeclarationFragments.Public with { IsStatic = true })
+            {
+                DeclaringType = Type,
+                Scope = new MethodScope(Type.Scope),
+                Body = body,
+            };
+            Type.CastOperatorsList.Add(conversion);
+            return conversion;
+        }
+
+        public Constructor Constructor(IReadOnlyList<Parameter> parameters, Block? body)
         {
             var constructor = new Constructor(Type.Name, Type, [.. parameters], DeclarationFragments.Public)
             {

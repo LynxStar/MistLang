@@ -18,9 +18,12 @@ internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string L
 /// How a site meets the slots of the type it expects. By default a slot is met by refinement. A site
 /// whose capture stands for one value, a call's own or a creation's own, meets it by equality (<see cref="Exact"/>),
 /// and a site the other side can write through, a <c>ref</c> or <c>out</c> argument or a <c>ref</c> local,
-/// by refinement equality (<see cref="Alike"/>).
+/// by refinement equality (<see cref="Alike"/>), and by equality as well where the slot is exact. A member
+/// reached through a value the binder gave no read of its own slot still stands for that value's slot
+/// (Requirement 7.6), so a slot the <see cref="Receiver"/>'s type closes it with is met by equality with the
+/// read through the receiver as evaluated.
 /// </summary>
-internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool Alike = false)
+internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool Alike = false, Expression? Receiver = null)
 {
     public static readonly SlotMeeting Fit = new([]);
 
@@ -28,7 +31,19 @@ internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool 
 
     public bool IsExact(IMistType slot)
     {
-        return slot is CapturedValue captured && Exact.Any(capture => ReferenceEquals(capture, captured.Capture));
+        return (slot is CapturedValue captured && Exact.Any(capture => ReferenceEquals(capture, captured.Capture))) || ReceiverSlot(slot) is not null;
+    }
+
+    public TypeParameter? ReceiverSlot(IMistType slot)
+    {
+        if(Receiver is null or TypeReferenceExpression or ThisExpression || slot is not (CapturedValue or RefinementArgument)
+            || SlotReads.Plain(Receiver.Type) is not ConstructedType { Definition: ClassType or StructType } closing || closing.Definition is not IHasTypeParameters declared)
+        {
+            return null;
+        }
+
+        return declared.TypeParametersList.Find(parameter => parameter is { IsDependent: true, IsPack: false }
+            && parameter.Ordinal < closing.TypeArguments.Count && ReferenceEquals(closing.TypeArguments[parameter.Ordinal], slot));
     }
 }
 
@@ -68,16 +83,18 @@ internal static class SlotIdentity
 
             UnprovenSlot? unproven = null;
 
-            foreach(var pair in Pairs(reaching, closing))
+            foreach(var pair in Pairs(reaching, closing, meeting))
             {
-                var via = pair.Nested || meeting.Alike ? null : written;
+                var via = pair.Nested || (meeting.Alike && !meeting.IsExact(pair.Slot)) ? null : written;
                 var (proof, refinement) = Prove(ref state, pair, via, reading, budget, meeting);
 
                 if(proof is not Proven)
                 {
                     unproven = new UnprovenSlot(
                         Spelled(state, source), Spelled(state, constituent),
-                        Shown(state, pair.Argument, pair.Parameter, via), Shown(state, pair.Slot, pair.Parameter, null), proof, refinement);
+                        Shown(state, pair.Argument, pair.Parameter, via),
+                        meeting.ReceiverSlot(pair.Slot) is { } own ? $"{RefinementFindings.Display(meeting.Receiver!)}.{own.Name}" : Shown(state, pair.Slot, pair.Parameter, null),
+                        proof, refinement);
                     break;
                 }
             }
@@ -100,6 +117,14 @@ internal static class SlotIdentity
             && Pairs(reaching, closing).Any(pair => !Same(pair.Argument, pair.Slot));
     }
 
+    public static bool OwesThrough(Expression? receiver, IMistType? target)
+    {
+        var meeting = new SlotMeeting([], Receiver: receiver);
+
+        return target is not null && Constituents(target).Any(constituent => SlotReads.Plain(constituent) is ConstructedType closing
+            && closing.TypeArguments.Any(argument => meeting.ReceiverSlot(argument) is not null));
+    }
+
     public static bool Owes(Expression? value, IMistType? target)
     {
         return value is not null && Owes(SlotReads.Written(value).Type, target);
@@ -115,7 +140,8 @@ internal static class SlotIdentity
 
     private static (Proof? Proof, string? Refinement) Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget, SlotMeeting meeting)
     {
-        if(ReadsItself(pair, through) || Refused(pair.Argument, pair.Parameter) || Refused(pair.Slot, pair.Parameter) || Same(pair.Argument, pair.Slot))
+        if(ReadsItself(pair, through) || Refused(pair.Argument, pair.Parameter) || Refused(pair.Slot, pair.Parameter)
+            || (Same(pair.Argument, pair.Slot) && meeting.ReceiverSlot(pair.Slot) is null))
         {
             return (new Proven(), null);
         }
@@ -125,9 +151,9 @@ internal static class SlotIdentity
             return (null, null);
         }
 
-        if(pair.Nested || meeting.Alike)
+        if((pair.Nested || meeting.Alike) && Alike(ref state, pair, reading, budget) is var alike && (pair.Nested || !meeting.IsExact(pair.Slot) || alike is not Proven))
         {
-            return (Alike(ref state, pair, reading, budget), null);
+            return (alike, null);
         }
 
         var read = pair.Read ?? pair.Parameter;
@@ -135,7 +161,9 @@ internal static class SlotIdentity
 
         if(SlotReads.StandsForOneValue(pair.Slot) || meeting.IsExact(pair.Slot) || SlotReads.Refinement(state, pair.Slot) is not { } admitted)
         {
-            var right = SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
+            var right = meeting.ReceiverSlot(pair.Slot) is { } own
+                ? reading.Read(ref state, SlotReads.Read(meeting.Receiver!, own))
+                : SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
 
             return (right is null ? null : left is not null ? Equal(state, left, right, budget) : Single(ref state, Admits(state, pair.Argument, pair.Parameter), right, budget), null);
         }
@@ -248,19 +276,20 @@ internal static class SlotIdentity
 
     private sealed record Pair(IMistType Argument, IMistType Slot, TypeParameter Parameter, TypeParameter? Read, bool Nested = false);
 
-    private static IEnumerable<Pair> Pairs(ConstructedType source, ConstructedType target)
+    private static IEnumerable<Pair> Pairs(ConstructedType source, ConstructedType target, SlotMeeting? meeting = null)
     {
         for(var i = 0; i < source.TypeArguments.Count && i < target.TypeArguments.Count; i++)
         {
             var argument = source.TypeArguments[i];
             var slot = target.TypeArguments[i];
+            var own = meeting?.ReceiverSlot(slot) is not null;
 
-            if(ReferenceEquals(argument, slot) || argument is ErrorType || slot is ErrorType)
+            if((ReferenceEquals(argument, slot) && !own) || argument is ErrorType || slot is ErrorType)
             {
                 continue;
             }
 
-            if(ConversionClassifier.OwesProof(argument, slot, target.Definition, i))
+            if(own || ConversionClassifier.OwesProof(argument, slot, target.Definition, i))
             {
                 if(slot is not (UnknownType or UnknownValueType) or RefinementArgument)
                 {

@@ -1,5 +1,6 @@
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Storm.Runtime;
 
 namespace Mist.ProgramModel.Model.Expressions;
@@ -32,6 +33,8 @@ internal sealed class IndexExpression(
     public CountedIndexer? FromEnd { get; init; }
 
     public CountedSlice? Slice { get; init; }
+
+    public IReadOnlyList<SlotCapture> Captures { get; init; } = [];
 
     public override IMistType Type { get; } = type;
 }

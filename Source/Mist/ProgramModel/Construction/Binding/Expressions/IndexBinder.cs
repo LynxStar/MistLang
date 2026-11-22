@@ -91,8 +91,19 @@ internal static class IndexBinder
             return new ErrorExpression(node, [receiver, index]);
         }
 
-        var type = Indexability.ArrayElement(receiver.Type) ?? Indexability.IndexerType(selected, choice.Substitution, context);
         var interner = context.ProgramModel.TypeInterner;
+        var (owned, slots) = selected.Modifiers.IsIntrinsic ? (null, []) : ReceiverSlots.Own(receiver, ConversionRelation.Unrefined(receiver.Type) as ConstructedType, interner);
+
+        if(slots.Count > 0 && Indexability.Select(indexers, owned!, index, context) is { Selected: { } reselected } through && ReferenceEquals(reselected, selected))
+        {
+            choice = through;
+        }
+        else
+        {
+            slots = [];
+        }
+
+        var type = Indexability.ArrayElement(receiver.Type) ?? Indexability.IndexerType(selected, choice.Substitution, context);
         var parameterTypes = selected.ParametersList.ConvertAll(parameter => choice.Substitution.Apply(parameter.Type, interner));
         CountedIndexer? fromEnd = null;
         var readsPosition = !selected.Modifiers.IsIntrinsic && Indexability.IsIndex(index.Type) && parameterTypes is [_] && !Indexability.IsIndex(parameterTypes[0]);
@@ -116,6 +127,7 @@ internal static class IndexBinder
             Indexer = selected.Modifiers.IsIntrinsic ? null : selected,
             ParameterType = parameterTypes is [var slot] && (!Indexability.IsIndex(index.Type) || (readsPosition && !takesPosition)) ? slot : null,
             FromEnd = fromEnd,
+            Captures = ReceiverSlots.Used(slots, [type, .. parameterTypes]),
         };
     }
 

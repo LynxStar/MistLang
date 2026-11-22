@@ -139,7 +139,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target)));
+                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target), Receiver: Through(assignment.Target)));
 
                     if(assignment.Target is IndexExpression written)
                     {
@@ -268,7 +268,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name, reading: Reading.ForReceiver(index.Receiver));
+                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name, reading: Reading.ForReceiver(index.Receiver), meeting: new SlotMeeting(index.Captures, Receiver: index.Receiver));
             }
         }
 

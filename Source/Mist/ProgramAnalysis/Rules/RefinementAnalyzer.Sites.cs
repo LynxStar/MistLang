@@ -22,11 +22,13 @@ internal sealed partial class RefinementAnalyzer
                 ForEachStatement loop => loop.ElementConversion is null && SlotIdentity.Owes(EnumerableElement.Of(loop.Collection.Type), loop.Variable.Type),
                 TupleDeconstructionStatement deconstruction => Deconstructed(deconstruction).Any(pair => SlotIdentity.Owes(pair.Element, pair.Target.Type)),
                 LocalDeclarationStatement declaration => Refined(declaration.Local.Type) || SlotIdentity.Owes(declaration.Initializer, declaration.Local.Type),
-                AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type),
+                AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type)
+                    || SlotIdentity.OwesThrough(Through(assignment.Target), assignment.Target.Type),
                 CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression,
                 ReturnStatement returned => Refined(returned.TargetType) || SlotIdentity.Owes(returned.Value, returned.TargetType),
                 IndexExpression => true,
-                InvocationExpression call => Targets(call.ParameterTypes) || Owed(call.Arguments, call.ParameterTypes),
+                InvocationExpression call => Targets(call.ParameterTypes) || Owed(call.Arguments, call.ParameterTypes)
+                    || call.ParameterTypes?.Any(type => SlotIdentity.OwesThrough((call.Receiver as MemberAccessExpression)?.Receiver, type)) == true,
                 NewExpression creation => Targets(creation.ParameterTypes) || Owed(creation.Arguments, creation.ParameterTypes),
                 ObjectInitializerAssignment entry => Refined(entry.TargetType) || Targets(entry.AddParameterTypes)
                     || SlotIdentity.Owes(entry.Value, entry.TargetType) || Owed([entry.Value], entry.AddParameterTypes),
@@ -73,8 +75,20 @@ internal sealed partial class RefinementAnalyzer
 
                 Need(
                     state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
-                    reading: reading, meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [] } : new SlotMeeting(exact ?? []));
+                    reading: reading,
+                    meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [], Receiver = receiver } : new SlotMeeting(exact ?? [], Receiver: receiver));
             }
+        }
+
+        // The value a written member is reached through, whose own slots the written value meets.
+        private static Expression? Through(Expression target)
+        {
+            return target switch
+            {
+                MemberAccessExpression { Member: FieldResult or PropertyResult } member => member.Receiver,
+                IndexExpression { Indexer: not null } index => index.Receiver,
+                _ => null,
+            };
         }
 
         private static bool Owed(IReadOnlyList<Expression> arguments, IReadOnlyList<IMistType>? types)

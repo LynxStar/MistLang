@@ -145,6 +145,54 @@ public sealed class RefinementFitDecisionTests
     }
 
     [Fact]
+    public void ARefSiteMeetsAnExactCaptureByRefinementEqualityAndByItsValue()
+    {
+        var value = new Value(slots.Int, "n", HandBuiltModel.Node());
+        var argument = slots.Capture(n, slots.Int);
+        var narrower = slots.Capture(n, slots.Int);
+        var state = Holding(Within(11, 29)) with
+        {
+            Bindings = Holding().Bindings.Set(written, value),
+            Kept = Holding().Kept.Add(argument, Between(11, 29)).Add(narrower, Between(11, 19)),
+        };
+        var equal = state with { Bag = state.Bag.Add(new Fact(new Term(read).Subtract(new Term(value)), Relation.Equal)) };
+        var exact = SlotMeeting.Equal with { Exact = [written] };
+
+        UnprovenSlot? judge(FactState at, SlotCapture closing, SlotMeeting meeting)
+        {
+            var local = new LocalVariable("other", slots.Closed(ring, closing.Value));
+            var bound = at with { Bindings = at.Bindings.Set(local, held) };
+            return SlotIdentity.Judge(bound, HandBuiltRefinements.Read(local), slots.Closed(ring, written.Value), reading, meeting: meeting);
+        }
+
+        Assert.Null(judge(state, argument, SlotMeeting.Equal));
+        Assert.NotNull(judge(state, argument, exact));
+        Assert.Null(judge(equal, argument, exact));
+        Assert.NotNull(judge(equal, narrower, exact));
+    }
+
+    [Fact]
+    public void ASlotTheReceiversTypeClosesIsMetByEqualityWithTheReadThroughTheReceiver()
+    {
+        var q = new LocalVariable("q", slots.Closed(ring, written.Value));
+        var owner = new Value(q.Type, "q", HandBuiltModel.Node());
+        var own = new Value(slots.Int, "q.Capacity", HandBuiltModel.Node());
+        var state = Holding(Within(12, 20)) with { Bindings = Holding().Bindings.Set(q, owner).Set(new MemberHolder(owner, capacity), own) };
+        var through = new SlotMeeting([], Receiver: HandBuiltRefinements.Read(q));
+        var target = slots.Closed(ring, written.Value);
+
+        Assert.Null(Judge(state, target));
+
+        var unproven = Judge(state, target, through);
+
+        Assert.Equal(("ring.Capacity", "q.Capacity"), (unproven?.Left, unproven?.Right));
+        Assert.Null(Judge(state with { Bag = state.Bag.Add(new Fact(new Term(read).Subtract(new Term(own)), Relation.Equal)) }, target, through));
+
+        var same = new LocalVariable("same", target);
+        Assert.NotNull(SlotIdentity.Judge(state with { Bindings = state.Bindings.Set(same, held) }, HandBuiltRefinements.Read(same), target, reading, meeting: through));
+    }
+
+    [Fact]
     public void ANestedPairIsMetByRefinementEquality()
     {
         var list = HandBuiltModel.Class("List<>");

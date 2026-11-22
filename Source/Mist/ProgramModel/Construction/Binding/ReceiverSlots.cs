@@ -13,8 +13,9 @@ namespace Mist.ProgramModel.Construction.Binding;
 /// 7.6). A slot the receiver's type closes with a capture or a refinement stands for what is provable about
 /// the receiver's value, not for the value itself, so the member's signature reads the receiver's own slot
 /// instead: a capture whose initializer is that read, owned by the node that reaches the member, which an
-/// argument or a write meets by equality. Only a receiver that is a plain read is given one, since the
-/// capture reads the receiver again.
+/// argument or a write meets by equality, for a method, a field, a property or an indexer. Only a receiver that
+/// is a plain read is given one, since the capture reads the receiver again; through any other receiver the
+/// member keeps the type's closing, and Stage 5 meets those slots through the receiver as evaluated.
 /// </summary>
 internal static class ReceiverSlots
 {

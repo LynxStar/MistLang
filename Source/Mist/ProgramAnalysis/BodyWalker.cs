@@ -75,7 +75,7 @@ internal static class BodyWalker
         add<FieldReferenceExpression>(_ => []);
         add<FunctionReferenceExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), e.Receiver]);
         add<ImplicitConversionExpression>(e => [e.Operand]);
-        add<IndexExpression>(e => [e.Receiver, e.Index]);
+        add<IndexExpression>(e => [.. e.Captures.Select(capture => capture.Initializer), e.Receiver, e.Index]);
         add<InterpolatedStringExpression>(e => [.. e.Parts]);
         add<InterpolatedStringText>(_ => []);
         add<InterpolatedStringHole>(h => [h.Expression]);

@@ -41,6 +41,7 @@ internal sealed class SlotCapture : LocalVariable
             TypeTestPattern test => test.Captures,
             InvocationExpression invocation => invocation.Captures,
             MemberAccessExpression access => access.Captures,
+            IndexExpression index => index.Captures,
             CastExpression cast => cast.Captures,
             AsExpression conversion => conversion.Captures,
             DefaultExpression defaulted => defaulted.Captures,

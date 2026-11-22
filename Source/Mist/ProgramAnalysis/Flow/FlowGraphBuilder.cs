@@ -535,9 +535,9 @@ internal sealed class FlowGraphBuilder
     {
         return target switch
         {
-            MemberAccessExpression member when LocalStoragePath.Of(member) is not null || member.Type is ErrorType => current,
-            MemberAccessExpression member => Expression(member.Receiver, current),
-            IndexExpression index => Expression(index.Index, Expression(index.Receiver, current)),
+            MemberAccessExpression member when LocalStoragePath.Of(member) is not null || member.Type is ErrorType => Captured(member, current),
+            MemberAccessExpression member => Expression(member.Receiver, Captured(member, current)),
+            IndexExpression index => Expression(index.Index, Expression(index.Receiver, Captured(index, current))),
             ExtensionPropertyAccessExpression extension => Expression(extension.Receiver, current),
             _ => current,
         };

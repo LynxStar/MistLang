@@ -119,9 +119,28 @@ internal sealed class FactHolderFragments
 
     public Method Bump()
     {
-        var written = Parameter("x", H.Int, direction: ByRefDirection.Ref);
-        var local = new LocalVariable("x", H.Int) { IsRef = true, Parameter = written };
-        return Method("Bump", Pair, HandBuiltModel.Block(Set(Read(local), Number(1L))), H.Int, written);
+        var local = ByRef("x");
+        return Method("Bump", Pair, HandBuiltModel.Block(Set(Read(local), Number(1L))), H.Int, local.Parameter!);
+    }
+
+    public LocalVariable ByRef(string name)
+    {
+        return new LocalVariable(name, H.Int) { IsRef = true, Parameter = Parameter(name, H.Int, direction: ByRefDirection.Ref) };
+    }
+
+    public Method Referencing(string name, ClassType declaring, IMistType? returns = null)
+    {
+        return new Method(name, returns ?? H.Int, [], new MemberModifiers { IsRef = true }) { Body = HandBuiltModel.Block(), DeclaringType = declaring };
+    }
+
+    public LambdaExpression Closure(params Statement[] statements)
+    {
+        return new LambdaExpression(HandBuiltModel.Node(), [], null, HandBuiltModel.Block(statements), false, new FunctionType([], H.Int));
+    }
+
+    public InvocationExpression Delegate()
+    {
+        return new InvocationExpression(HandBuiltModel.Node(), Number(0L), [], H.Int, null, []);
     }
 
     private Field AddField(ClassType owner, string name)

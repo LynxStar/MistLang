@@ -1,5 +1,7 @@
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 
@@ -79,11 +81,13 @@ public sealed class FactHolderFlowTests
     [Theory]
     [InlineData("nothing-between", OwnershipKind.Owned, false)]
     [InlineData("nothing-between", OwnershipKind.Unrestricted, true)]
+    [InlineData("nothing-between", OwnershipKind.Borrowed, true)]
     [InlineData("call-writing-another-member", OwnershipKind.Owned, false)]
     [InlineData("call-writing-the-member", OwnershipKind.Owned, true)]
     [InlineData("borrowed-argument", OwnershipKind.Owned, true)]
     [InlineData("unrestricted-argument-earlier", OwnershipKind.Owned, true)]
     [InlineData("call-that-cannot-reach-it", OwnershipKind.Owned, false)]
+    [InlineData("ref-argument-a-call-on-it-hands-back", OwnershipKind.Owned, true)]
     public void AMemberOfAnOwnedObjectKeepsItsFactsUntilACallMayWriteIt(string between, OwnershipKind ownership, bool refused)
     {
         var f = new FactHolderFragments();
@@ -102,6 +106,7 @@ public sealed class FactHolderFlowTests
             "borrowed-argument" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Lend", f.Pair, null, null,
                 FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed)), FactHolderFragments.Read(b))),
             "call-that-cannot-reach-it" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Print", f.Pair, null))),
+            "ref-argument-a-call-on-it-hands-back" => HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Call(FactHolderFragments.Read(b), f.Referencing("RefV", f.Box, f.H.String)))),
             _ => null,
         };
         if(call is not null)
@@ -112,6 +117,68 @@ public sealed class FactHolderFlowTests
         body.Add(f.Need(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V, Last)));
 
         AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnObjectWhoseMethodLeavesAClosureOverItKeepsNoMemberFacts(bool closesOverIt)
+    {
+        var f = new FactHolderFragments();
+        var b = f.Object("b", OwnershipKind.Owned);
+        var count = new Field("Count", f.H.Int, default, new MemberModifiers { IsStatic = true }) { DeclaringType = f.Box };
+        var arm = f.Method("Arm", f.Box, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(f.Closure(
+            FactHolderFragments.Set(FactHolderFragments.Own(closesOverIt ? f.V : count), f.Number(1L))))));
+        List<Statement> body = [f.Created(b), HandBuiltRefinements.Evaluate(FactHolderFragments.Call(FactHolderFragments.Read(b), arm)),
+            FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V), f.Number(5L)), HandBuiltRefinements.Evaluate(f.Delegate()),
+            f.Need(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V, Last))];
+
+        AssertRefusedOnlyAfter(f, body, closesOverIt);
+    }
+
+    [Theory]
+    [InlineData("a-local", false)]
+    [InlineData("a-reference-a-call-hands-back", true)]
+    [InlineData("a-ref-local-bound-to-such-a-reference", true)]
+    [InlineData("a-ref-parameter", true)]
+    [InlineData("a-member-of-an-object-the-body-does-not-hold", true)]
+    public void ARefArgumentWhoseStorageTheFlowCannotNameMayWriteEveryField(string argument, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var other = f.Object("other", OwnershipKind.Unrestricted);
+        var refA = f.Referencing("RefA", f.Pair);
+        List<Statement> body = [FactHolderFragments.Declare(a, f.Number(0L)), f.Created(other),
+            FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, refA)), FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(5L))];
+        Expression passed = argument switch
+        {
+            "a-local" => FactHolderFragments.Read(a),
+            "a-reference-a-call-hands-back" => FactHolderFragments.Call(f.This, refA),
+            "a-ref-local-bound-to-such-a-reference" => FactHolderFragments.Read(r),
+            "a-ref-parameter" => FactHolderFragments.Read(f.ByRef("x")),
+            "a-member-of-an-object-the-body-does-not-hold" => FactHolderFragments.Member(FactHolderFragments.Read(other), f.V),
+            _ => throw new InvalidOperationException(argument),
+        };
+        body.Add(HandBuiltRefinements.Evaluate(f.Free(f.Bump(), passed)));
+        body.Add(f.Need(FactHolderFragments.Own(f.A, Last)));
+
+        AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ACallOnThisEndsTheFieldItsBodyWritesThroughARefLocal(bool writesA)
+    {
+        var f = new FactHolderFragments();
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var setter = f.Method("Set", f.Pair, HandBuiltModel.Block(FactHolderFragments.Declare(r, FactHolderFragments.Own(writesA ? f.A : f.B)),
+            FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L))));
+        List<Statement> body = [FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(5L)),
+            HandBuiltRefinements.Evaluate(FactHolderFragments.Call(f.This, setter)), f.Need(FactHolderFragments.Own(f.A, Last))];
+
+        AssertRefusedOnlyAfter(f, body, writesA);
     }
 
     [Theory]

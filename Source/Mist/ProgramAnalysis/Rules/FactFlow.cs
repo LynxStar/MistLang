@@ -305,7 +305,8 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
 
     private (IReadOnlySet<Field>? Fields, Value? Receiver, HashSet<Value> Lent)? Writer(FactState state, Expression node)
     {
-        var written = writes.Of(node);
+        var (arguments, parameters) = Arguments(node);
+        var written = HidesStorage(state, arguments, parameters) ? null : writes.Of(node);
         if(written is { Count: 0 })
         {
             return null;
@@ -313,7 +314,6 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
 
         var receiver = node is InvocationExpression call ? Bound(state, ThisTiers.ReceiverOf(call)) : null;
         var lent = new HashSet<Value>();
-        var (arguments, parameters) = Arguments(node);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
             if(parameters[i].Modifier.Ownership != OwnershipKind.Frozen && Bound(state, arguments[i]) is { } passed)
@@ -323,6 +323,25 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
         }
 
         return (written, receiver, lent);
+    }
+
+    private bool HidesStorage(FactState state, IReadOnlyList<Expression>? arguments, IReadOnlyList<Parameter>? parameters)
+    {
+        for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
+        {
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && !(reading.Holder(ref state, arguments[i]) switch
+            {
+                LocalVariable local => holders.Names(local),
+                Field => true,
+                MemberHolder => arguments[i] is MemberAccessExpression { Receiver: LocalReferenceExpression { Local: var receiver } } && holders.Held.Contains(receiver),
+                _ => false,
+            }))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool Writes((IReadOnlySet<Field>? Fields, Value? Receiver, HashSet<Value> Lent) writer, object holder)

@@ -11,8 +11,10 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// <summary>
 /// A receiver's fields carry facts only while nothing outside the body can reach its object (flow-sensitive
 /// refinement inference Requirement 3.5), so each use of it must be one whose writes the flow sees: a field
-/// access, a call on it whose <see cref="MemberWrites"/> are known, a lend or a move, or a write of the local.
-/// Any other use, or a capture, may hand the object to code that writes it later.
+/// access, a call on it whose <see cref="MemberWrites"/> are known and that hands back no reference into it, a
+/// lend or a move, or a write of the local. Any other use, or a capture, may hand the object to code that writes
+/// it later. Only <c>owned</c> promises the object is the body's alone: a <c>borrowed</c> binding may be taken
+/// from a field or a fresh object whose constructor kept <c>this</c>, which the ownership rules do not exclude.
 /// </summary>
 internal sealed class BodyHolders
 {
@@ -38,7 +40,13 @@ internal sealed class BodyHolders
 
     public static bool HoldsMembers(LocalVariable local)
     {
-        return !local.IsRef && local.Ownership is OwnershipKind.Owned or OwnershipKind.Borrowed;
+        return local is { IsRef: false, Ownership: OwnershipKind.Owned };
+    }
+
+    public bool Names(LocalVariable local)
+    {
+        return !local.IsRef || (local.Parameter is null && aliases.TryGetValue(local, out var group)
+            && group.All(other => other is not LocalVariable { IsRef: true, Parameter: not null }));
     }
 
     public static object? Named(Expression? expression)
@@ -137,7 +145,7 @@ internal sealed class BodyHolders
                     see(access.Receiver);
                     break;
                 case InvocationExpression call:
-                    if(writes.Of(call) is not null && Origins.IsUnchangeable(call.Type))
+                    if(writes.Of(call) is not null && Origins.IsUnchangeable(call.Type) && call.Method is not { Modifiers.IsRef: true })
                     {
                         see(ThisTiers.ReceiverOf(call));
                     }

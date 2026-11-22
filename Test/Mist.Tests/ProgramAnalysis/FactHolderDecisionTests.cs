@@ -14,11 +14,11 @@ public sealed class FactHolderDecisionTests
 {
     [Theory]
     [InlineData(OwnershipKind.Owned, false, true)]
-    [InlineData(OwnershipKind.Borrowed, false, true)]
+    [InlineData(OwnershipKind.Borrowed, false, false)]
     [InlineData(OwnershipKind.Frozen, false, false)]
     [InlineData(OwnershipKind.Unrestricted, false, false)]
     [InlineData(OwnershipKind.Owned, true, false)]
-    public void OnlyAnOwnedOrBorrowedBindingHoldsItsObjectsMembers(OwnershipKind ownership, bool isRef, bool holds)
+    public void OnlyAnOwnedBindingHoldsItsObjectsMembers(OwnershipKind ownership, bool isRef, bool holds)
     {
         var f = new FactHolderFragments();
 
@@ -88,11 +88,40 @@ public sealed class FactHolderDecisionTests
     }
 
     [Theory]
+    [InlineData("plain-local", true)]
+    [InlineData("ref-local-of-a-field", true)]
+    [InlineData("ref-local-of-a-ref-local-of-a-field", true)]
+    [InlineData("ref-parameter", false)]
+    [InlineData("ref-local-of-a-ref-parameter", false)]
+    [InlineData("ref-local-of-a-reference-a-call-hands-back", false)]
+    public void OnlyALocalTheFlowCanFollowToAHolderNamesItsStorage(string form, bool named)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var s = FactHolderFragments.Int(f.H, "s", isRef: true);
+        var x = f.ByRef("x");
+        var (subject, statements) = form switch
+        {
+            "plain-local" => (a, new Statement[] { FactHolderFragments.Declare(a, f.Number(5L)) }),
+            "ref-local-of-a-field" => (r, [FactHolderFragments.Declare(r, FactHolderFragments.Own(f.A))]),
+            "ref-local-of-a-ref-local-of-a-field" => (s, [FactHolderFragments.Declare(r, FactHolderFragments.Own(f.A)), FactHolderFragments.Declare(s, FactHolderFragments.Read(r))]),
+            "ref-parameter" => (x, [HandBuiltRefinements.Evaluate(FactHolderFragments.Read(x))]),
+            "ref-local-of-a-ref-parameter" => (r, [FactHolderFragments.Declare(r, FactHolderFragments.Read(x))]),
+            "ref-local-of-a-reference-a-call-hands-back" => (r, [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, f.Referencing("RefA", f.Pair)))]),
+            _ => throw new InvalidOperationException(form),
+        };
+
+        Assert.Equal(named, BodyHolders.Of(HandBuiltModel.Block(statements)).Names(subject));
+    }
+
+    [Theory]
     [InlineData("field-access", OwnershipKind.Owned, true)]
-    [InlineData("field-access", OwnershipKind.Borrowed, true)]
+    [InlineData("field-access", OwnershipKind.Borrowed, false)]
     [InlineData("field-access", OwnershipKind.Unrestricted, false)]
     [InlineData("call-with-known-writes", OwnershipKind.Owned, true)]
     [InlineData("call-that-may-do-anything", OwnershipKind.Owned, false)]
+    [InlineData("call-handing-back-a-reference-into-it", OwnershipKind.Owned, false)]
     [InlineData("borrowed-argument", OwnershipKind.Owned, true)]
     [InlineData("unrestricted-argument", OwnershipKind.Owned, false)]
     [InlineData("moved", OwnershipKind.Owned, true)]
@@ -113,6 +142,7 @@ public sealed class FactHolderDecisionTests
             "field-access" => FactHolderFragments.Set(FactHolderFragments.Member(read(), f.V), f.Number(5L)),
             "call-with-known-writes" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Writing("SetV", f.Box, f.V))),
             "call-that-may-do-anything" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Method("Run", f.Box, null))),
+            "call-handing-back-a-reference-into-it" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Referencing("RefV", f.Box, f.H.String))),
             "borrowed-argument" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Lend", f.Pair, null, null,
                 FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed)), read())),
             "unrestricted-argument" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box)), read())),
@@ -134,6 +164,16 @@ public sealed class FactHolderDecisionTests
     [InlineData("calls-itself-through-another", "A,B")]
     [InlineData("writes-a-static", "Count")]
     [InlineData("passes-a-field-by-ref", "A")]
+    [InlineData("writes-a-field-through-a-ref-local", "A")]
+    [InlineData("writes-through-a-ref-local-of-a-ref-local", "A")]
+    [InlineData("compounds-through-a-ref-local", "A")]
+    [InlineData("passes-a-ref-local-by-ref", "A")]
+    [InlineData("writes-only-its-ref-parameter", "")]
+    [InlineData("a-closure-touches-only-statics", "Count")]
+    [InlineData("writes-through-a-ref-local-it-cannot-name", null)]
+    [InlineData("a-closure-writes-a-field", null)]
+    [InlineData("a-local-function-reads-a-field", null)]
+    [InlineData("hands-out-a-method-group-over-this", null)]
     [InlineData("declared-readonly", "")]
     [InlineData("hands-out-this", null)]
     [InlineData("calls-what-may-do-anything", null)]
@@ -146,6 +186,14 @@ public sealed class FactHolderDecisionTests
         var count = new Field("Count", f.H.Int, default, new MemberModifiers { IsStatic = true }) { DeclaringType = f.Pair };
         var writeA = f.Writing("SetA", f.Pair, f.A);
         var other = f.Object("other", OwnershipKind.Unrestricted);
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var s = FactHolderFragments.Int(f.H, "s", isRef: true);
+        Method only(params Statement[] statements)
+        {
+            return f.Method("Touch", f.Pair, HandBuiltModel.Block(statements));
+        }
+
+        var aliasA = FactHolderFragments.Declare(r, FactHolderFragments.Own(f.A));
         Method body(params Statement[] statements)
         {
             return f.Method("Touch", f.Pair, HandBuiltModel.Block([FactHolderFragments.Set(FactHolderFragments.Own(f.B), f.Number(1L)), .. statements]));
@@ -158,6 +206,19 @@ public sealed class FactHolderDecisionTests
             "calls-itself-through-another" => Cycle(f, writeA),
             "writes-a-static" => f.Method("Touch", f.Pair, HandBuiltModel.Block(FactHolderFragments.Set(FactHolderFragments.Own(count), f.Number(1L)))),
             "passes-a-field-by-ref" => f.Method("Touch", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Own(f.A))))),
+            "writes-a-field-through-a-ref-local" => only(aliasA, FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L))),
+            "writes-through-a-ref-local-of-a-ref-local" => only(aliasA, FactHolderFragments.Declare(s, FactHolderFragments.Read(r)),
+                FactHolderFragments.Set(FactHolderFragments.Read(s), f.Number(1L))),
+            "compounds-through-a-ref-local" => only(aliasA, HandBuiltRefinements.Evaluate(new CompoundAssignmentExpression(HandBuiltModel.Node(),
+                FactHolderFragments.Read(r), BinaryOperatorKind.Add, f.Number(1L), f.H.Int, null, IncrementForm.None))),
+            "passes-a-ref-local-by-ref" => only(aliasA, HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Read(r)))),
+            "writes-only-its-ref-parameter" => f.Bump(),
+            "a-closure-touches-only-statics" => only(HandBuiltRefinements.Evaluate(f.Closure(FactHolderFragments.Set(FactHolderFragments.Own(count), f.Number(1L))))),
+            "writes-through-a-ref-local-it-cannot-name" => only(FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, f.Referencing("RefA", f.Pair))),
+                FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L))),
+            "a-closure-writes-a-field" => only(HandBuiltRefinements.Evaluate(f.Closure(FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(1L))))),
+            "a-local-function-reads-a-field" => body(new LocalFunctionStatement(f.Method("W", f.Pair, HandBuiltModel.Block(f.Need(FactHolderFragments.Own(f.A)))), [])),
+            "hands-out-a-method-group-over-this" => body(HandBuiltRefinements.Evaluate(new MethodGroupExpression(HandBuiltModel.Node(), null, writeA.Name, [writeA], null))),
             "declared-readonly" => new Method("Touch", f.H.String, [], new MemberModifiers { IsReadonly = true }) { Body = HandBuiltModel.Block(), DeclaringType = f.Pair },
             "hands-out-this" => body(HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, HandBuiltModel.Block(), null, FactHolderFragments.Parameter("x", f.Pair)), f.This))),
             "calls-what-may-do-anything" => body(HandBuiltRefinements.Evaluate(f.Free(f.Method("Print", f.Pair, null)))),

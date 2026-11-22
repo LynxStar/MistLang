@@ -25,8 +25,9 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
 - **A name in a body's slot stands for its refinement.** The capture stays the
   slot argument the binder makes, but Stage 5 no longer reads it as one value.
   It reads it as the refinement the facts prove for the capture's value at the
-  capture's `Declare` step: bounds, a constant, excluded values, path conditions,
-  and no relation to another name (Requirement 1.4). Only a fact relates a value
+  capture's `Declare` step: everything the flow spec's chain derives about that
+  value, as bounds, a constant and excluded values, with no relation to another
+  name left in it (Requirement 1.4). Only a fact relates a value
   to the name: `new Cell<n>()` records that its slot holds `n`'s value, as
   `new int[n]` records `Length == n`, and a write ends it. `Cell<n> c = make();`
   states that `c`'s slot lies inside `n`'s refinement and nothing more.
@@ -84,8 +85,8 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
 
 ### Readings to confirm
 
-Each follows from a revised requirement, and each is shown to the owner with
-its program before the stage 8 step that builds it.
+This follows from a revised requirement, and it is shown to the owner with its
+program before the stage 8 step that builds it.
 
 1. **A dependent parameter written inside a body.** Read literally,
    Requirements 1.1, 1.4 and 5.1 make `N` in a body's type stand for its
@@ -98,21 +99,39 @@ its program before the stage 8 step that builds it.
    stricter reading, that a dependent parameter always stands for its own
    value, keeps all three as stages 1 to 3 built them. This design builds the
    stricter reading unless the owner rules otherwise.
-2. **A type observable at run time depends on the facts.** Under Requirement
-   9.1 a test's answer depends on what the facts prove where it is written: with
-   `n : Range`, `x is Ring<n>` passes for a capacity of 20, and the same test
-   inside `if(n == 15)` does not. Everywhere else a stronger proof only lets
-   more programs compile; here it changes what a compiled program prints. The
-   same holds wherever a closing written with a capture has an identity at run
-   time: the `T | void` check at the .NET boundary, the closing an abstract
-   value finds again, a struct closing's C# type and so which CLR pool or
-   generic instantiation it shares, and the static storage of a generic closed
-   with it, `Counter<Ring<n>>.hits`. The flow spec leaves some facts optional
-   (flow-sensitive Requirement 2 item 6), and what Stage 5 keeps at `Declare`,
-   the intervals and excluded values in the bag, is narrower than everything
-   the chain could derive. So either the kept refinement gets a definition the
-   spec fixes, or the owner accepts that these answers may differ between two
-   compilers that both meet the spec.
+
+### A refinement visible at run time
+
+A test's answer depends on the refinement the facts prove where it is written:
+with `n : Range`, `x is Ring<n>` passes for a capacity of 20, and the same test
+inside `if(n == 15)` does not. The same holds wherever a closing written with a
+capture has an identity at run time: the `T | void` check at the .NET boundary,
+the closing an abstract value finds again, a struct closing's C# type and so
+the CLR pool or generic instantiation it shares, and the static storage of
+`Counter<Ring<n>>.hits`.
+
+The owner ruled on 2026-11-22 that this refinement is everything the flow spec
+proves there, and that the flow spec states exactly what the compiler proves: a
+compiler that proves less does not meet it. The flow spec bounds the amount from
+both sides. Its Requirement 2 item 6 records nothing for an operation it does not
+list, its Requirement 1.4 refuses what the chain does not prove, and its
+Requirement 8 item 6 requires the facts of an increment inside a larger
+expression.
+
+```mist
+void Show(Range n, unknown x)
+{
+    var i = 14;
+    var m = ++i;
+    if(n == m)
+    {
+        Console.WriteLine(x is Ring<n>);    // tests capacity 15
+    }
+}
+```
+
+`m == i` and `i == 15` give `n == 15`. The compiler at fc8a1daa gives `m` only
+its type, so stage 8 c closes that before the first test emits a refinement.
 
 ## Shape of the change
 
@@ -171,8 +190,13 @@ type stays the forwarded parameter (*Readings to confirm*), so a body's slot
 argument is a capture, a literal, a refinement type or a dependent parameter.
 
 What a capture means is Stage 5's. At the capture's `Declare` step the
-analyzer keeps its refinement: the intervals and excluded values the bag holds
-for the capture's value there, with no relational fact. That refinement is the
+analyzer keeps its refinement: what the flow spec's chain proves about the
+capture's value there (*A refinement visible at run time*). Stage 5 removes
+every other variable from the facts in hand by the chain's substitution and
+reduction (flow-sensitive Requirement 1.2), and the bounds, constant and
+excluded values left about the capture's value are its refinement. The bag's
+own intervals are not enough: `n <= k + 2` with `k <= 13` bounds `n` by 15,
+which no interval in the bag holds. That refinement is the
 slot of every type written with the capture, for the life of that type, as
 Requirement 1.2 fixes it. A later fact about `n` narrows `n`, not a type
 already written with it.
@@ -506,7 +530,7 @@ the backend emits as it emits a test against a refinement type (refinement-types
 runtime validation). For a capture that predicate is the refinement Stage 5
 kept, so Stage 5 hands each such test's refinement to the backend with the
 model. That makes the test's answer depend on what the facts prove at the test;
-see *Readings to confirm*.
+see *A refinement visible at run time*.
 
 ## Signatures and calls (Requirement 8)
 
@@ -1659,7 +1683,8 @@ Stage 8, Tier 1: the fit judgement over a hand-built state for each target
 kind (a literal, a capture's kept refinement, a refinement slot argument,
 `unknown`, a declaration's dependent parameter) with an admit and a refusal
 each; the refinement a capture keeps at `Declare`, with and without a path
-condition and with a relational fact it must leave out; `SlotReads.Value` for a
+condition, with a relational fact it must leave out and with one the chain
+resolves to a bound; `SlotReads.Value` for a
 capture-closed receiver after a write to it; the classifier over each
 Requirement 11 conversion and its refusal; resolution of a name in a dependent
 slot that is a value, a type, both, and a fully qualified type. Tier 2: a
@@ -1743,7 +1768,9 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
    c. The backend's test emits the refinement's predicate, with Stage 5 handing
       each test's kept refinement to the backend. Every test that compares a
       slot today moves with it: the value route's test, a union entry's test,
-      and a witness's comparison of a nested closing's slots (MIST-1493).
+      and a witness's comparison of a nested closing's slots (MIST-1493). It
+      starts with the facts of an increment inside a larger expression
+      (flow-sensitive Requirement 8 item 6), which a test reads.
    d. Abstracts (Requirement 11): the classifier's three conversions and their
       diagnostics, the count Stage 5 makes for a capture target, a test that
       passes on exactly one closing, inference from an abstract, and in the

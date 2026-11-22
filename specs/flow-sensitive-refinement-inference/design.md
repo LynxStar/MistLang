@@ -384,14 +384,15 @@ on `Evaluate` of the node reads `target` as the old value's term, builds
 `old op value` through `Terms` and `Exactness`, and binds the target holder to a
 new value with `new == old op value` when exactness holds, or the type's facts
 when it does not. A postfix increment used as an expression yields the old
-value's term and a prefix one the new value's. Requirement 8.6 allows the first
-delivery to give an increment inside a larger expression a fresh value with its
-type's facts instead; the statement form is the one the tests must prove.
+value's term and a prefix one the new value's, inside a larger expression as
+well as in a statement (Requirement 8.6). The compiler at fc8a1daa gives an
+increment inside a larger expression a fresh value with only its type's facts;
+runtime-dependent-values stage 8 c closes that.
 
 Tests: Tier 1 for the binder's operator selection and result typing over
 hand-built targets; Tier 2 for `FactFlow` over `x += i` with and without a
-bound on `i`, and for definite assignment and ownership over a hand-built body
-with the node; the `samples/FlowFacts` sample uses `i++` and `+=` in its loops.
+bound on `i`, over `var m = ++i;` and `var k = i++;`, and for definite
+assignment and ownership over a hand-built body with the node; the `samples/FlowFacts` sample uses `i++` and `+=` in its loops.
 
 ## Not in this design
 

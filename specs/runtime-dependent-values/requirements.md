@@ -40,7 +40,8 @@ A dependent slot is one more generic argument. Its value may not be known until
 the program runs. The compiler types it by what it can prove about that value,
 and the object carries the value itself. Revised on 2026-11-21 under the
 owner's direction ([design.md](design.md), *The refinement meaning*); item 4
-was ruled "The second one, whatever is provable."
+was ruled "The second one, whatever is provable.", and on 2026-11-22 the owner
+ruled that the facts in hand are exactly the flow spec's.
 
 1. A dependent type argument SHALL be a value. Where the type is written, the
    type SHALL be closed with the refinement the facts in hand prove for that
@@ -58,7 +59,11 @@ was ruled "The second one, whatever is provable."
    to be, including what a condition on the current path adds. After
    `var n = 7;`, `new int[n]` is an `Array<int, 7>`. A relation to another name,
    such as `n < m` or `a.Length == n`, SHALL stay a fact and SHALL NOT enter the
-   type.
+   type. The facts in hand SHALL be exactly those
+   flow-sensitive-refinement-inference records and chains, and a compiler that
+   proves less about a value does not meet this spec, since a test checks the
+   refinement when the program runs (Requirement 9). After `var i = 14;` and
+   `var m = ++i;`, inside `if(n == m)` the refinement of `n` is 15.
 5. This revises dependent-types Requirements 2, 5, 11.4 and 15.1, which admit
    only a compile-time constant.
 6. The body of a lambda or a local function runs many times, and a value

@@ -70,7 +70,6 @@ public sealed class OperatorAndCastFlowTests
         return new NewExpression(HandBuiltModel.Node(), slots.Closed(definition, made.Value), [], null, [], []) { Captures = [made] };
     }
 
-    // Ring<Capacity> operator +(Ring<Capacity> a, int[Capacity] b), closed with the left operand's type.
     private BinaryExpression Add(Expression left, IMistType slot, Expression right)
     {
         var plus = new Operator(OperatorKind.Plus, slots.Closed(ring, capacity), [new Parameter("a", slots.Closed(ring, capacity)), new Parameter("b", slots.ArrayOf(capacity))],

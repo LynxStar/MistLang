@@ -25,9 +25,9 @@ public sealed class AdmittedIntervalEdgeTests
     public void MinusLeavesAnEndUnboundedWhenAnOperandEndIsInfinite()
     {
         Assert.Equal(Admitted.AtLeast(2), Admitted.AtLeast(5).Minus(Admitted.Between(1, 3)));
-        Assert.Equal(Admitted.AtMost(4), Admitted.AtMost(5).Minus(Admitted.Between(1, 3)));
+        Assert.Equal(Admitted.AtMost(8), Admitted.AtMost(5).Minus(Admitted.Between(-3, -1)));
         Assert.Equal(Admitted.AtMost(3), Admitted.Between(1, 3).Minus(Admitted.AtLeast(0)));
-        Assert.Equal(Admitted.AtLeast(-5), Admitted.Exactly(0).Minus(Admitted.AtMost(5)));
+        Assert.Equal(Admitted.AtLeast(-10), Admitted.Exactly(-5).Minus(Admitted.AtMost(5)));
     }
 
     [Fact]

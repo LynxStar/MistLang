@@ -30,13 +30,24 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
   to the name: `new Cell<n>()` records that its slot holds `n`'s value, as
   `new int[n]` records `Length == n`, and a write ends it. `Cell<n> c = make();`
   states that `c`'s slot lies inside `n`'s refinement and nothing more.
-- **A dependent parameter in a declaration states a relation.** In a parameter,
-  return or field type, `Array<int, N>` means that the length is `N`'s value
-  (Requirements 7.3, 8.1 and 8.6), as stages 1 to 3 built it. Inside a body,
-  `N` written in a type is a name like any other under Requirement 5.1, so it is
-  captured and stands for its refinement. This is the one reading of the
-  requirements below that the owner has not ruled on in these words; see
-  *Readings to confirm*.
+- **A node that makes an object, or reaches a type's statics, uses the value.**
+  `new Ring<n>(init)`, an object initializer, an array creation's element type,
+  `default(Cell<n>)` and `Counter<n>.M(args)` close their own object or storage
+  with exactly `n`'s value (Requirements 1.1 and 10.2). Their constructor
+  parameters, initializer entries and static members are met by equality with
+  that value, as an invocation's capture is (*Signatures and calls*). Only the
+  type of the node's result, which a `var` takes, stands for the refinement,
+  with the creation's fact beside it.
+- **A type argument never widens.** `List<Ring<15>>` is not a
+  `List<Ring<Range>>`: a slot nested in a type argument, a `ref` or `out`
+  argument and a `ref` local meet by refinement equality, since the other side
+  can write through them (*A closing fits by refinement*).
+- **A dependent parameter stands for its own value.** In a parameter, return or
+  field type, `Array<int, N>` means that the length is `N`'s value
+  (Requirements 7.3, 8.1 and 8.6), as stages 1 to 3 built it. This design reads
+  `N` written inside a body the same way, so a dependent parameter is never
+  captured. The literal reading of Requirements 1 and 5.1 differs, and the
+  owner rules between them; see *Readings to confirm*.
 - **Arrays.** `new int[x]` gives an `Array<int, Range>` with `Length == x`
   recorded. `int[n]` returns (Requirement 8 items 7 to 10) carry the relation
   through a signature.
@@ -46,7 +57,12 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
   "Agree"). `new Cell<x>[5]` with `x` equal to 15 stamps five `Cell<15>`, and
   `default(Cell<x>)` is `Cell<15>`. `default(Cell<Range>)`, written with the
   refinement itself, has no value to hand and no default, as `default(Range)`
-  has none. In generic code the captured value travels with the closing
+  has none. A struct closing written with a refinement slot argument is
+  therefore neither defaultable nor stampable to defaultability and
+  `Stampability`: `Blank<Cell<Range>>()` and a `where T : default` closed with
+  it are refused, and a struct with a field of that type has a default only if
+  the field has an initializer, so the anchor never reaches a value Mist
+  creates. In generic code the captured value travels with the closing
   witness, so `Blank<Cell<x>>()` stamps `Cell<15>`.
 - **.NET writing zeros into a closing's slot.** A value-routed slot is stored
   relative to an anchor, a member of its refinement that is a constant of the
@@ -71,16 +87,32 @@ how a pair of them is judged, changes. Stage 8 of *Sequencing* delivers it.
 Each follows from a revised requirement, and each is shown to the owner with
 its program before the stage 8 step that builds it.
 
-1. Inside a body, `Array<int, N> b = new int[5];` is accepted where 5 lies in
-   `N`'s domain, because `N` there stands for its refinement, and `b.Length == N`
-   is then not known. The stricter reading, that a dependent parameter always
-   states the relation, refuses it.
-2. A test's answer depends on what the facts prove at the test (Requirement
-   9.1). With `n : Range`, `x is Ring<n>` passes for a capacity of 20, and the
-   same test inside `if(n == 15)` does not. Everywhere else a stronger proof
-   only lets more programs compile; here it changes what a compiled program
-   prints, and the flow spec leaves some facts optional, so two compilers that
-   both meet it may answer one test differently.
+1. **A dependent parameter written inside a body.** Read literally,
+   Requirements 1.1, 1.4 and 5.1 make `N` in a body's type stand for its
+   refinement, which inside the declaration is only its domain. Then
+   `Array<int, N> b = new int[5];` is accepted and `b.Length == N` is not known;
+   inside `Ring<Capacity>`, `other is Ring<Capacity>` tests only the domain, so
+   the `Differs` program of *Identity by value: the first delivery* prints
+   `False` for both calls; and `Ring<Capacity> copy = this; return copy;` is
+   refused, because `this`'s slot holder is not linked to the parameter. The
+   stricter reading, that a dependent parameter always stands for its own
+   value, keeps all three as stages 1 to 3 built them. This design builds the
+   stricter reading unless the owner rules otherwise.
+2. **A type observable at run time depends on the facts.** Under Requirement
+   9.1 a test's answer depends on what the facts prove where it is written: with
+   `n : Range`, `x is Ring<n>` passes for a capacity of 20, and the same test
+   inside `if(n == 15)` does not. Everywhere else a stronger proof only lets
+   more programs compile; here it changes what a compiled program prints. The
+   same holds wherever a closing written with a capture has an identity at run
+   time: the `T | void` check at the .NET boundary, the closing an abstract
+   value finds again, a struct closing's C# type and so which CLR pool or
+   generic instantiation it shares, and the static storage of a generic closed
+   with it, `Counter<Ring<n>>.hits`. The flow spec leaves some facts optional
+   (flow-sensitive Requirement 2 item 6), and what Stage 5 keeps at `Declare`,
+   the intervals and excluded values in the bag, is narrower than everything
+   the chain could derive. So either the kept refinement gets a definition the
+   spec fixes, or the owner accepts that these answers may differ between two
+   compilers that both meet the spec.
 
 ## Shape of the change
 
@@ -134,9 +166,9 @@ A `SlotCapture` is a `LocalVariable` the binder makes where a type is written
 in a body: readonly, unnameable, typed by the slot's contract (the parameter's
 domain with its `where` predicate, as a parameter's `where` is already part of
 its type), and initialized by the bound argument. `CapturedValue(SlotCapture)`
-is the `MistType` that fills the slot. Under the refinement meaning a dependent
-parameter written in a body's type is captured too, so every slot argument a
-body writes is a capture, a literal or a refinement type.
+is the `MistType` that fills the slot. A dependent parameter written in a body's
+type stays the forwarded parameter (*Readings to confirm*), so a body's slot
+argument is a capture, a literal, a refinement type or a dependent parameter.
 
 What a capture means is Stage 5's. At the capture's `Declare` step the
 analyzer keeps its refinement: the intervals and excluded values the bag holds
@@ -175,9 +207,10 @@ declared earlier cannot name it. One path is left: the inferred result type of
 a lambda or a local function whose body made the capture. That body runs many
 times and the capture is a new value each time, but what is provable about it
 is the same each time. A nested body starts from an empty state (*Not in this
-design*), so what is provable there is the type of the capture's initializer.
-The binder closes the inferred result type's slot with that type as a
-refinement slot argument: with `n : Range`, `k => new int[n]` returns an
+design*), so what is provable there is the type of the capture's initializer, within the
+slot's contract. The binder closes the inferred result type's slot with that
+type narrowed by the contract, as a refinement slot argument; `new int[n + 1]`
+gives `ZeroOrPositiveInt`, not `int`: with `n : Range`, `k => new int[n]` returns an
 `int[Range]` (Requirement 1.6). Stages 1 to 3 put `unknown` there.
 
 Outside a body there is nothing to capture. A field type, a signature, a base
@@ -197,9 +230,9 @@ the walk: for each argument, the parameter at that position.
 - A dependent slot given a literal lifts as today.
 - A dependent slot given a type reference that is a bare or dotted name is
   looked up as a value first, as an expression's name is (Requirement 5.4).
-  Outside a body a dependent parameter in scope is the forwarded argument, as
-  today. Inside a body any value, a dependent parameter included, is handed to
-  the caller's value binder and captured.
+  A dependent parameter in scope is the forwarded argument, as today, in a body
+  too (*Readings to confirm*). Any other value inside a body is handed to the
+  caller's value binder and captured.
 - Where no value of that name is in scope, the name is looked up as a type. A
   refinement of the slot's domain becomes the refinement slot argument,
   `Cell<Range>` (Requirement 5.3), and any other type is refused as MIST0298 is
@@ -266,8 +299,10 @@ declares the C# locals its own captures are kept in inside its body, so one
 call does not see another's value. And a method group's delegate reads the
 value as it stood when the reference was evaluated. A switch arm compares the
 slot as a `when` would, so exhaustiveness counts it as covering the constituent
-only where both slots are one value: the same capture, literal or parameter, or
-two captures that read one holder the body never writes. Otherwise MIST0148
+only where both slots are one refinement: the same capture, literal, refinement
+slot argument or parameter. Stages 1 to 4 also counted two captures of one
+holder the body never writes; under the refinement meaning a path condition
+can give them different refinements, so stage 8 drops that case. Otherwise MIST0148
 names the constituent, and a value that reaches no arm throws when the program
 runs, as it does for any switch that warning names.
 
@@ -317,8 +352,8 @@ term lies inside the target slot's refinement:
 - a capture is the refinement kept at its `Declare` step;
 - a refinement slot argument is its type's predicate;
 - the `unknown` slot is the whole domain and owes nothing, as today;
-- a dependent parameter in a declaration's type states the relation, so the
-  question is equality with the value bound under that `TypeParameter`, the
+- a dependent parameter stands for its value, so the question is equality with
+  the value bound under that `TypeParameter`, the
   holder `FactReading.Holder` gives it (`FactReading.cs:179`), as stages 1 to 3
   built it.
 
@@ -338,10 +373,35 @@ What the delivered code does not yet do:
   A program that needs two slots equal is proven by the facts at the site that
   needs it.
 
-Equality stays where a dependent parameter states a relation: a declaration's
-type, above, and one dependent parameter bound by more than one argument
-(Requirement 8.4, under *Signatures and calls*). Both ask `Chain.Prove` to rule
-out a difference, as `SlotIdentity` does today.
+Equality stays wherever a slot stands for one value rather than a refinement:
+a dependent parameter, above; one dependent parameter bound by
+more than one argument (Requirement 8.4, under *Signatures and calls*); and the
+capture of a node that makes an object or reaches a type's statics, whose
+constructor parameters, initializer entries and static members are substituted
+with that capture and met by equality. Without the last, this would be
+accepted and read past an array's end:
+
+```mist
+public class Ring<Capacity:Range>
+{
+    int[Capacity] slots;
+    public Ring(int[Capacity] init) { slots = init; }
+    public int Last() { return slots[Capacity - 1]; }
+}
+
+void F(Range n, Range m) { new Ring<n>(new int[m]).Last(); }   // refused: fails when m != n
+```
+
+Each asks `Chain.Prove` to rule out a difference, as `SlotIdentity` does today.
+
+A slot pair nested inside a type argument is judged by refinement equality:
+each refinement inside the other, the judgement *Abstracts* asks of a fresh
+term. A type argument is a type slot, and Requirement 2.1 widens only a
+closing's own slots. Otherwise `List<Ring<Range>> any = fifteens;` with
+`fifteens` a `List<Ring<15>>` would let `any.Add(new Ring<20>())` put a 20
+where `fifteens[0]` is a `Ring<15>`. A `ref` or `out` argument and a `ref`
+local's initializer meet the same way, since the other side can write through
+them.
 
 Assignability judges a conversion in more places than `Proving.Judge` visits: a
 switch arm, the right of `??`, an array literal element, an expression-bodied
@@ -379,8 +439,9 @@ Facts. `SlotReads.Value(ref FactState, access)` says what the read is, from the
 receiver type's argument for that parameter:
 
 - a literal: that constant;
-- a dependent parameter of the declaration the type was written in, outside a
-  body: that parameter's value, because the declaration states the relation;
+- a dependent parameter: that parameter's value. Inside its own declaration
+  that covers `this`, whose type is the declaration closed with its own
+  parameters, so `Ring<Capacity> copy = this;` is proven;
 - anything else on a class or struct, a capture, a refinement slot argument or
   `unknown`: the value under `MemberHolder(receiver, parameter)`, as `Length`
   has it (`FactReading.cs:165-191`). Stages 1 to 3 read a capture as the
@@ -428,6 +489,8 @@ refinement:
 
 - a literal: equality, so `ring is Ring<5> r` gives `r.Capacity == 5`, and
   `b is Buffer<5>` inside `Check<N:int>(Buffer<N> b)` gives `N == 5`;
+- a dependent parameter: equality with its value, so `other is Ring<Capacity>`
+  inside `Ring` asks whether `other` has this ring's capacity;
 - a capture: the refinement kept at its `Declare` step, and no equality with
   the capture's value (Requirement 9.3). Stages 1 to 3 add `== n` here;
 - a refinement slot argument: its predicate.
@@ -456,12 +519,19 @@ Inference binds what the argument's slot holds (`TypeArgumentInference.cs:437`,
 `Record` at `:544`):
 
 - a literal or a dependent parameter, as today;
-- anything else, a capture, a refinement slot argument, the `unknown` slot of a
-  class or struct, or the slot of an abstract: a capture on the invocation whose
-  initializer is the slot read of that argument, through the holder of the
-  previous section. Stages 1 to 3 bound a capture to itself, which under the
-  refinement meaning reads the name instead of the argument, and refused an
-  abstract's `unknown` slot, which Requirement 11.8 now admits.
+- anything else in the argument's own type, a capture, a refinement slot
+  argument, the `unknown` slot of a class or struct, or the slot of an
+  abstract: a capture on the invocation whose initializer is the slot read of
+  that argument, through the holder of the previous section. Stages 1 to 3
+  bound a capture to itself, which under the refinement meaning reads the name
+  instead of the argument, and refused an abstract's `unknown` slot, which
+  Requirement 11.8 now admits;
+- a slot nested in one of the argument's type arguments binds only a literal or
+  a dependent parameter. A `List<Ring<n>>` holds rings of every capacity in
+  `n`'s refinement, so there is no one value to bind, and the call states the
+  parameter (`SlotNotInferable`). Item 2 of *Identity by value*, which passes a
+  nested capture's value, keeps its literal and parameter cases and loses its
+  capture case.
 
 A capture on the invocation stands for the method's parameter, so it is judged
 by equality against the invocation's own arguments: each argument after the
@@ -478,9 +548,9 @@ The grammar comes first. `ArrayRankSuffix` (`Mist.storm:393-395`) sizes a
 rank only with an integer literal, so `int[n]` is MIST0123 in every type
 position on main and on this branch at 652d20d3, and so is `int[N]` for a
 dependent parameter, in a signature and in a body alike. Only the
-`Array<int, n>` spelling reaches the binder. `SizedArrayRank` takes a name or
-a dotted path of names as well as a literal, the forms Requirement 5.1 admits
-in a slot, in every type position. What the name may refer to stays the
+`Array<int, n>` spelling reaches the binder. `NamedSizedArrayRank` beside
+`SizedArrayRank` (`Mist.storm:395-396`) takes a name or a dotted path of names,
+the forms Requirement 5.1 admits in a slot, in every type position. What the name may refer to stays the
 binder's: a capture in a body under Requirement 5, the return type's
 parameter under item 7, a dependent parameter anywhere, and MIST0487
 otherwise. `a[i]` stays an index wherever it is one today.
@@ -531,10 +601,15 @@ A closing written with a refinement slot argument names no value
 reached through it, where `PostfixBinder` resolves a static member through a
 closed type, and the diagnostic says to name a value. A static method or a
 computed property reached through it is admitted by the binder and judged by a
-Stage 5 rule, `StaticThroughRefinement`: it walks the member's body and the
-bodies it calls, within the declaration and through its closings, for a read
-of one of the declaration's dependent parameters or of one of its static
-fields, and refuses the access at the first, naming the read. The rule walks
+Stage 5 rule, `StaticThroughRefinement`. It refuses the access where the
+member's signature names one of the declaration's dependent parameters, since
+the body relies on that relation: through `Counter<ZeroOrPositiveInt>`, a
+`static void Copy(int[N] a, int[N] b)` would take two arrays of any lengths.
+Otherwise it walks the member's body, its lambdas and local functions, and the
+bodies it calls, within the declaration and through its closings, for a read of
+a dependent parameter or a read or write of a static field, and refuses at the
+first, naming it. A write is refused as a read is: no value selects the storage
+it would write. The rule walks
 bodies, so it is proven at Tier 2. `new` and `default` written with a
 refinement slot argument are refused by the binder for the same reason
 (*The refinement meaning*).
@@ -549,9 +624,13 @@ conversion whose target is a closing of an abstract before the third test of
 - **From a value whose exact class is known**, a `new`, a struct or a sealed
   class (Requirement 11.3). The classifier lists the class's closings of the
   abstract, through its bases. A closing whose slots are literals is outside the
-  target when a target literal differs, or when a refinement slot argument's
-  predicate refuses the constant; any other closing may fit. More than one that
-  may fit is refused, and the diagnostic names them. Exactly one is admitted,
+  target when a target literal differs, when a refinement slot argument's
+  predicate refuses the constant, or when the target's slot is a capture whose
+  type refuses it; any other closing may fit. More than one that may fit is
+  refused, and the diagnostic names them, except where the target's slot is a
+  capture: the binder cannot see the refinement Stage 5 keeps, so it admits the
+  conversion and Stage 5 refuses it unless exactly one closing fits that
+  refinement. Exactly one is admitted,
   the value holds it, and Stage 5 proves it fits as it proves any pair.
   A `new Both()` converts to `ISized<2>` and to `ISized<int > 1>`, and to
   `ISized<ZeroOrPositiveInt>` not at all.
@@ -581,7 +660,8 @@ emitted, `MonomorphSet.Discover` and `UnionSpecialization`
 (`CSharpEmitterV2.cs:140-145`). `SlotRoutes` is a third. A dependent parameter
 is value-routed when any of these holds, to a fixed point:
 
-- some closing in the program fills it with a capture;
+- some closing in the program fills it with a capture or a refinement slot
+  argument;
 - a value-routed parameter is forwarded into it;
 - its slot is read through `unknown`, or inferred from an `unknown` slot;
 - its domain is of the fourth kind;
@@ -614,8 +694,14 @@ A value-routed slot leaves the C# type parameter list. What is left:
   then its own C# type, and converting a value from one to another copies it
   and re-encodes the field. A literal closing is the one-member case, whose
   anchor is its literal: the carrier route stages 1 to 4 kept. A class keeps
-  the plain value and one C# class for all its closings; its zeroed storage is
-  a null reference, which is not this spec's.
+  the plain value, and which C# class an object is follows *A type for every
+  literal closing*; its zeroed storage is a null reference, which is not this
+  spec's.
+- A static member of a value-routed struct, reached from an instance or through
+  a refinement's carrier, routes by the value to the literal closing's storage
+  or to the holder table, never to the refinement carrier's own C# statics, so
+  a `Cell<Range>` holding 15 and a `Cell<15>` share storage (Requirements 10.1
+  and 10.3).
 - A test appends the slot's refinement: `x is Ring r && r.__Capacity == 5` for
   a literal, and the refinement's predicate over `r.__Capacity` for a capture
   or a refinement slot argument, `r.__Capacity > 10 && r.__Capacity < 30`, the
@@ -657,8 +743,10 @@ x is Ring<5>    // true
 ```
 
 C# fixes an object's type when the object is created, so `x` and `y` are
-instances of one C# class, or `x` could never be a `Ring<5>`. That is why a
-value-routed declaration is one C# type for all its closings. It follows that
+instances of one C# class, or `x` could never be a `Ring<5>`. That is why
+stages 1 to 4 made a value-routed declaration one C# type for all its closings;
+*A type for every literal closing* gives a literal closing its own C# type
+again. It follows that
 the C# type answers nothing about which closing a value has, and the backend
 answers from the value wherever the program can observe the difference. A
 runtime closing in one place never changes whether code in another place
@@ -769,9 +857,14 @@ value as Mist already treats a CLR reference (assembly-type-provider
 Requirement 14.2): a class closing written with a capture or a refinement,
 coming back from CLR code, has type `T | void`, and narrowing it to `T` checks
 that the value is present and that its carried value lies inside the type's
-refinement. A value that fails is `void`. A struct closing is its own C# type
-for each refinement, so a CLR generic hands back only a value of that
-refinement or a zeroed one, which the anchor makes valid; it needs no check.
+refinement. A value that fails is `void`. The same holds for a closing of an
+abstract, whose one C# interface serves every closing, so a pool shared by
+`ISized<Range>` and `ISized<ZeroOrPositiveInt>` can hand back an object with no
+closing the type admits, and for a class closing written with a value-routed
+dependent parameter, as `ArrayPool<Ring<N>>` inside a value-routed `Box<N>` is
+one `Ring__Any` pool for every `N`. A struct closing is its own C# type for each
+refinement, so a CLR generic hands back only a value of that refinement or a
+zeroed one, which the anchor makes valid; it needs no check.
 
 ```mist
 var rings = new List<Ring<n>>();
@@ -977,10 +1070,11 @@ that yields nothing has no value to wrap, so in a lambda body, an accessor
 body and a `for` clause its capture is a statement ahead of it. A call that
 `UnitHoisting` moves ahead of its statement, or stores in a temporary ahead of
 a later operand, evaluates its capture once where it moves to, and what stands
-in its place, the unit instance or the temporary, evaluates nothing. A lambda's
-result type holds `unknown` where its body closed a type with a capture
-(Requirement 1.6), so an inference from it outside the lambda is the slot
-nested under `unknown`. A list of rings of unknown capacity carries no single
+in its place, the unit instance or the temporary, evaluates nothing. Stages 1 to 4
+put `unknown` in a lambda's result type where its body closed a type with a
+capture; stage 8 puts the refinement there (Requirement 1.6), and an inference
+from a slot nested in another type's argument binds only a literal or a
+dependent parameter, so it is refused there as it was under `unknown`. A list of rings of unknown capacity carries no single
 value, so a dependent parameter whose only source is a slot under `unknown`
 nested inside another type's argument, or a function type's position, is
 MIST0490 in the frontend (Requirement 8.3, MIST-1373); a `Ring<unknown>`
@@ -1031,8 +1125,9 @@ A holder is made on first use and exactly once for a value, as a C# static
 initializer runs exactly once, so the table hands out one holder when two
 threads ask together.
 
-Two closings that are one type under Requirement 2 hold the same values, so
-they reach the same holder, which is Requirement 10.2. The table grows with
+A static access through a closing reaches the holder for the value its
+capture's initializer produced, whatever the refinement, which is
+Requirement 10.2. The table grows with
 the distinct values a program uses, as the requirement says it does. A type
 that also has type parameters, `Pair<T, N>`, keeps its C# type parameter, so
 its table is one per `T` with no further work. The key is the slot's value; a
@@ -1106,8 +1201,8 @@ carries its slot's value. A test against one of them is the entry's test and
 the comparison every runtime test already appends: `u is Ring<5> a` is the
 entry test and `a.__Capacity == 5`.
 
-A union with a runtime closing as a constituent cannot be tested at all today,
-for a frontend reason. With `Ring<n> | string a`, the test `a is Ring<n> x` is
+A union with a runtime closing as a constituent could not be tested at all
+before MIST-1373, for a frontend reason. With `Ring<n> | string a`, the test `a is Ring<n> x` is
 MIST0345, "not one of the types the union can hold": the constituent and the
 tested type are two captures of `n`, and the check compares them as written
 instead of as Requirement 2 judges them. That is fixed in the frontend, with
@@ -1403,7 +1498,8 @@ cannot be answered:
 - A method's slot inferred from a closing nested in another type's argument,
   MIST0498. No member reads the value back. Item 2 of *Identity by value*
   carries a capture in a local; the number stays for a slot nested under
-  `unknown`, which has no value anywhere.
+  `unknown`, which has no value anywhere, and stage 8 withdraws the capture
+  case, since a nested capture stands for a refinement.
 - A read of a value-routed parameter where no value reaches, MIST0499: an
   attribute argument, and a copy that union specialization makes with a
   closing of the parameter's owner in a type argument. A conversion into the
@@ -1431,7 +1527,7 @@ a `new Ring<n>()` or `new Cell<n>()` elsewhere in the program:
 All four close the type with literals. One runtime closing anywhere routes the
 declaration, and every closing of it loses the slot.
 
-Until item 8 of *Identity by value* lands, the backend refuses these where the
+Item 8 of *Identity by value* landed with MIST-1493 (814e3037). Before it, the backend refused these where the
 closing is written; the pass below stays, and then decides where a description
 is passed. `SlotSensitivity`, a
 whole-program pass beside `SlotRoutes`, marks a type parameter of a
@@ -1490,7 +1586,8 @@ New, numbered from MIST0486 in the order they land:
   conversion.
 - `SlotNotInferable`, Stage 4: "'{parameter}' cannot be inferred from an
   argument of type '{type}'. State it between angle brackets." From stage 8
-  only for a slot nested under `unknown`, which has no value anywhere.
+  for a slot nested in another type's argument that is not a literal or a
+  dependent parameter.
 - `ReturnLengthNotReadonly`, Stage 4, at the name in the return type:
   "'{parameter}' is named in the return type, so it must be declared as a
   readonly value parameter."
@@ -1505,10 +1602,10 @@ main's):
   identity form stays for a declaration's dependent parameter and for
   Requirement 8.4.
 - `ClosingHasNoValue`, Stage 4: "'{type}' names no single value of
-  '{parameter}', so it cannot be created, defaulted or have its static field
-  '{member}' read. Name a value instead." (Requirements 1, 10.4).
+  '{parameter}', so it cannot be created, defaulted or have its static field or
+  auto-property '{member}' reached. Name a value instead." (Requirements 1, 10.4).
 - `StaticThroughRefinement`, Stage 5: "'{member}' is reached through '{type}',
-  which names no single value of '{parameter}', and it reads '{read}'."
+  which names no single value of '{parameter}', and it {uses} '{what}'."
 - `AbstractClosingAmbiguous`, Stage 4: "'{source}' converts to '{target}'
   through more than one of its closings: {closings}." (Requirement 11.3).
 - `AbstractClosingNeedsExactClass`, Stage 4: "'{source}' may be a subclass with
@@ -1619,34 +1716,44 @@ Each stage leaves `AllFeaturesV2` passing. Stages 3 and 4 may run side by side.
 7. Requirement 8 items 7 to 10, revised on 2026-11-19: a name in the
    grammar's sized rank, the return type's length slot naming a `readonly`
    parameter, its refusals, the slot-contract site and the call's capture.
-   It needs stages 1 to 3 and nothing after them. Its accepted programs join
-   stage 6's sample.
+   It needed stages 1 to 3 and nothing after them, and landed with MIST-1536
+   (18a829ea). Its accepted programs join stage 6's sample.
 8. The refinement meaning, revised requirements of 2026-11-21 and 2026-11-22.
    Each step shows the owner its before-and-after programs before it is
-   dispatched, and steps a and e first show the reading they build (*Readings
-   to confirm*).
-   a. Stage 5's fit judgement: the refinement a capture keeps at `Declare`,
-      `SlotIdentity` asking membership, `SlotReads` through the receiver's
-      holder, a creation's slot fact, `Tested` adding membership, and an
-      invocation's capture judged by equality. The binder's inference reads the
-      argument's slot, and a lambda's result keeps the refinement
-      (Requirement 1.6). Every later step needs it.
-   b. The refinement slot argument: resolution with the value winning and a
-      fully qualified type, `ClosingHasNoValue`, and the Stage 5 rule
-      `StaticThroughRefinement`.
-   c. A member reached through a value reads that value's slot
-      (Requirement 7.6).
+   dispatched, and nothing starts until the owner has ruled on *Readings to
+   confirm*. No step admits by refinement anything the steps before it cannot
+   keep sound, so the membership judgement lands only with every rule that
+   holds a slot to one value.
+   a. Stage 5's fit judgement and everything it needs at once: the refinement
+      slot argument as a model type; the refinement a capture keeps at
+      `Declare`; `SlotIdentity` asking membership; `SlotReads` through the
+      receiver's holder; a creation's slot fact; `Tested` adding membership;
+      equality for an invocation's capture, a creation's or static access's
+      capture, and a declaration's dependent parameter; refinement equality for
+      nested pairs, `ref`, `out` and `ref` locals; a member reached through a
+      value reading that value's slot (Requirement 7.6), for methods, fields,
+      properties, indexers and writes; inference reading the argument's slot
+      and refusing a nested capture; the exhaustiveness rule of one
+      refinement; and a lambda's result keeping the refinement
+      (Requirement 1.6).
+   b. The refinement slot argument in source: resolution with the value
+      winning and a fully qualified type, `ClosingHasNoValue`, defaultability
+      and stampability of a struct closing written with one, and the Stage 5
+      rule `StaticThroughRefinement`.
+   c. The backend's test emits the refinement's predicate, with Stage 5 handing
+      each test's kept refinement to the backend. Every test that compares a
+      slot today moves with it: the value route's test, a union entry's test,
+      and a witness's comparison of a nested closing's slots (MIST-1493).
    d. Abstracts (Requirement 11): the classifier's three conversions and their
-      diagnostics, a test that passes on exactly one closing, inference from
-      an abstract, and in the backend the closing a value holds found again at
-      each use. It retires `SlotReadThroughUnknown`.
-   e. The backend's test emits the refinement's predicate, with Stage 5 handing
-      each test's kept refinement to the backend.
-   f. The backend's anchor: a struct closing's C# type per refinement, its
-      slot stored relative to `TN.Anchor`, the closing's default with its own
-      value, and `T | void` for a class closing coming back from CLR code. It
-      needs step b.
-   g. Stage 6's sample and the book chapter take the programs the revised
+      diagnostics, the count Stage 5 makes for a capture target, a test that
+      passes on exactly one closing, inference from an abstract, and in the
+      backend the closing a value holds found again at each use through the
+      predicate of step c. It retires `SlotReadThroughUnknown`.
+   e. The backend's anchor: a struct closing's C# type per refinement, its slot
+      stored relative to `TN.Anchor`, its statics routed by value, the closing's
+      default with its own value, and `T | void` for a value coming back from
+      CLR code under *A run-time closing at the .NET boundary*. It needs step b.
+   f. Stage 6's sample and the book chapter take the programs the revised
       requirements accept.
 
 ## Not in this design

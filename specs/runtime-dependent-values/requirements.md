@@ -110,6 +110,19 @@ under the owner's direction; item 2 was ruled "Yes, facts narrow".
    needs the narrower closing tests for it with `is` (Requirement 9).
 4. No check SHALL be made when the program runs other than a test the program
    writes.
+5. A slot nested in a type argument SHALL fit only where each refinement lies
+   inside the other. A type argument never widens, so `List<Ring<15>>` is not a
+   `List<Ring<Range>>`, or `any.Add(new Ring<20>())` would put a 20 where a
+   `Ring<15>` is read. A `ref` or `out` argument and a `ref` local SHALL meet
+   the same way, since the other side can write through them.
+6. A node that makes an object or reaches a type's static members, as
+   `new Ring<n>(init)` or `Counter<n>.Copy(a, b)`, SHALL meet the constructor's
+   parameters, its initializer entries and the static members with exactly the
+   value it closes the object or the storage with (Requirement 1.1), and not
+   with the refinement. Only the type of its result stands for the refinement.
+
+Items 5 and 6 were added on 2026-11-22 for soundness, when a review of the
+design showed each hole with a program.
 
 Example.
 
@@ -331,7 +344,10 @@ apply what the owner ruled and decide nothing new.
    carries in the slot, whatever refinement its type closes the slot with. For
    an `Array<int, ZeroOrPositiveInt>` or an `int[]` it is that array's
    `Length`, under Requirement 7, and where the array was created as
-   `new int[n]` the facts know it equals `n`.
+   `new int[n]` the facts know it equals `n`. A slot nested in one of the
+   argument's type arguments SHALL bind only a literal or a dependent
+   parameter: a `List<Ring<n>>` holds rings of every capacity in `n`'s
+   refinement, so the call states the parameter.
 4. Where more than one argument binds one dependent parameter, the first
    SHALL bind it, and the facts SHALL prove each other argument's slot equal to
    it. A shared refinement is not enough: two `Array<int, ZeroOrPositiveInt>`
@@ -502,9 +518,12 @@ static reached through a refinement, "Ok sold".
 4. A closing written with a refinement type name, `Counter<ZeroOrPositiveInt>`,
    names no single value. A static field reached through it SHALL be refused,
    and the diagnostic SHALL say to name a value. A static method or computed
-   property reached through it SHALL be accepted only where it reads neither a
-   dependent parameter of the declaration nor one of its static fields,
-   directly or through a member it calls.
+   property reached through it SHALL be accepted only where its signature names
+   no dependent parameter of the declaration, and it neither reads a dependent
+   parameter nor reads or writes one of its static fields, directly or through
+   a member it calls. The signature and the write were added on 2026-11-22 for
+   soundness: `static void Copy(int[N] a, int[N] b)` would take two arrays of
+   any lengths, and a write has no storage to reach.
 5. State shared by every value of a slot belongs on a type that is not closed
    with that slot.
 6. No dependent parameter is confined to literals on account of static

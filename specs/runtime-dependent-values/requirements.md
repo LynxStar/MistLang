@@ -94,7 +94,8 @@ under the owner's direction; item 2 was ruled "Yes, facts narrow".
    value lies inside the expected refinement. `Cell<15>` fits where `Cell<Range>`
    is expected, and two `Cell<Range>` values fit each other whatever their
    values. Two literals fit exactly when they are the same value, as
-   dependent-types Requirement 8.1 states.
+   dependent-types Requirement 8.1 states. This holds for a class or a struct;
+   a closing of an abstract converts as Requirement 11 states.
 2. What is provable about a slot SHALL include the facts in hand at the use,
    not only the type written. An object created as `new Cell<n>()` records that
    its slot holds the value `n` had there, as `new int[n]` records
@@ -266,8 +267,8 @@ direction.
 
 1. Every type SHALL answer its dependent parameters through an instance.
    `ring.Capacity` is the exact value the object was created with, as
-   `a.Length` is for an array. Requirement 11 states the one read that has no
-   answer.
+   `a.Length` is for an array. Requirement 11 states which closing an
+   abstract's read comes from.
 2. The read SHALL yield the same value for the life of the object and SHALL
    NOT be assignable.
 3. The read's type SHALL be what the value's type proves about the slot. Where
@@ -281,6 +282,12 @@ direction.
 5. The read through the type, `Ring<4>.Capacity`, stays. This revises
    dependent-types Requirement 7.3, which refuses the read through an
    instance.
+6. Through a value, a member's signature SHALL read each slot as that value's
+   own read, never as the refinement the value's type closes the slot with.
+   With `t` an `ITake<Range>`, `void Take(int[N] a)` takes an `int[t.N]`, so
+   `t.Take(new int[n])` is refused unless the facts prove `n == t.N`, and
+   `int[N] Items()` returns an `int[t.N]`. Taking any `int[Range]` would let an
+   array of one length reach an object closed with another.
 
 Example.
 
@@ -403,7 +410,8 @@ Revised on 2026-11-21 to follow Requirement 1 under the owner's direction; ruled
    carries in each slot lies inside that slot's refinement. A literal is the
    refinement with one member, so `is Ring<5>` compares with 5. The check is
    made when the program runs, and it is the only check this spec adds to a
-   running program. The programmer wrote it.
+   running program. The programmer wrote it. A test against a closing of an
+   abstract is Requirement 11 item 6.
 3. Where the test passes, the binding it introduces SHALL have the tested
    type, and its read SHALL be proven inside the slot's refinement. The test
    does not prove the read equal to the name's value: after
@@ -503,50 +511,70 @@ void Show(ZeroOrPositiveInt n)                              // called with 1
 }
 ```
 
-## Requirement 11 The read with no single answer
+## Requirement 11 An abstract at more than one value
 
 An object is exactly one closing of its own class or struct. It may implement
 several closings of one abstract, as a class may implement `IConvert<int>` and
-`IConvert<string>`.
+`IConvert<string>`. A value held as an abstract holds one of them and keeps it.
+Mist never widens an abstract's type argument (MIST0157), and it never widens an
+abstract's dependent slot either. Revised on 2026-11-22 under the owner's
+direction; ruled "Copy the type-argument rule. Both is allowed, but interface
+values never widen."
 
 1. A type MAY implement one abstract at more than one value of a slot, as
-   today. `class Both : ISized<1>, ISized<2>` is valid. Through each named
-   closing the slot has one value: 1 through `ISized<1>`, 2 through
-   `ISized<2>`.
-2. The slot of an abstract SHALL NOT be read through a value whose type closes
-   that slot with `unknown`. `some.N` over an `ISized<unknown>` is refused,
-   because the object may implement more than one closing and the read has no
-   single answer.
-3. The value SHALL be reached by a type test under Requirement 9, which an
-   object passes for every closing it implements.
-4. What is known of an abstract's slot through a named closing comes from that
-   closing. It SHALL NOT be kept as a fact about the object under another
-   closing.
-5. A dependent parameter SHALL NOT be inferred under Requirement 8 from an
-   argument whose type closes an abstract's slot with `unknown`. The call
-   states it.
-6. Every other read is Requirement 7 unchanged: through a class or a struct,
-   whatever its closing, and through any named closing of an abstract.
+   today. `class Both : ISized<1>, ISized<2>` is valid.
+2. A value held as an abstract's closing SHALL hold exactly one of the
+   object's closings of that abstract, and every read and every member reached
+   through it SHALL use that closing under Requirement 7. `some.N` always has
+   one answer.
+3. A value whose exact class is known SHALL convert to an abstract's closing
+   where exactly one of that class's closings of the abstract fits it under
+   Requirement 2, and the value then holds that closing. The exact class is
+   known for a `new` expression, a struct and a sealed class.
+   `ISized<int > 1> b = new Both();` holds `ISized<2>`.
+   `ISized<ZeroOrPositiveInt> c = new Both();` is refused because two fit, and
+   the diagnostic SHALL name both.
+4. Where the exact class is not known, a subclass may add a closing the type
+   does not show, so the value SHALL convert only to a closing whose slots are
+   literals. With `Fixed<N:int> : ISized<N>` not sealed, a `Fixed<Range>`
+   converts to `ISized<15>` where the facts prove its slot is 15, and never to
+   `ISized<Range>`.
+5. A value held as an abstract's closing SHALL convert to another closing of
+   the same abstract only where the expected refinement lies inside the one it
+   is held as and the facts prove its slot inside the expected one. It never
+   widens: with `x` an `ISized<15>`, `ISized<Range> y = x;` is refused. A method
+   that takes any closing is written over the slot,
+   `void Use<N:Range>(ISized<N> s)`, and `Use(x)` binds `N` to 15.
+6. A type test against an abstract's closing SHALL ask the object. It passes
+   where exactly one of the object's closings of that abstract fits, and the
+   binding holds that closing. `both is ISized<1> one` passes with `one.N`
+   equal to 1, and `both is ISized<ZeroOrPositiveInt> s` fails. `as` answers
+   `void` where the test fails.
+7. What is known of an abstract's slot through one closing SHALL NOT be kept
+   as a fact about the object under another. After
+   `ISized<int > 1> b = new Both();`, the test `b is ISized<1> one` passes, and
+   `one.N` is 1 while `b.N` is 2.
+8. A dependent parameter MAY be inferred under Requirement 8 from an argument
+   held as an abstract's closing. It binds the slot of the closing the value
+   holds. This replaces the earlier rule that the call states the parameter.
 
 Example.
 
 ```mist
-public class Both : ISized<1>, ISized<2>
+public interface ISized<N:int>
 {
-    public string Describe()
-    {
-        return "both";
-    }
+    int[N] Items();
 }
 
-ISized<1> one = new Both();
-one.N                           // 1
+public class Both : ISized<1>, ISized<2> { ... }
 
-ISized<unknown> some = new Both();
-some.N                          // refused: Both is an ISized<1> and an ISized<2>
+ISized<2> two = new Both();                  // holds ISized<2>
+ISized<int > 1> b = new Both();              // holds ISized<2>, the only one that fits
+ISized<ZeroOrPositiveInt> c = new Both();    // refused: ISized<1> and ISized<2> both fit
+ISized<ZeroOrPositiveInt> a = b;             // refused: a value held as an abstract never widens
 
-if(some is ISized<n> sized)
-{
-    sized.N                     // n
-}
+var x = b.Items()[1];                        // proven: b.N is above 1
+
+void Use<N:ZeroOrPositiveInt>(ISized<N> s) { }
+Use(b);                                      // N is b.N
 ```

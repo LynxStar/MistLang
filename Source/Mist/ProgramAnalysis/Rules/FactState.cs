@@ -6,6 +6,7 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -31,6 +32,7 @@ internal sealed record FactState(Bindings Bindings, Bag Bag, ImmutableDictionary
     public ImmutableDictionary<CompoundAssignmentExpression, Term> CompoundInputs { get; init; } = ImmutableDictionary<CompoundAssignmentExpression, Term>.Empty;
     public IReadOnlySet<object> Unseen { get; init; } = UnseenWrites.None;
     public ImmutableDictionary<LocalVariable, Expression> PatternSources { get; init; } = ImmutableDictionary<LocalVariable, Expression>.Empty;
+    public ImmutableDictionary<SlotCapture, IntegralSet> Kept { get; init; } = ImmutableDictionary<SlotCapture, IntegralSet>.Empty;
 
     public bool TryGetValue(object holder, out Knowledge known)
     {

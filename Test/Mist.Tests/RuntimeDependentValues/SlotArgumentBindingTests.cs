@@ -95,8 +95,8 @@ public sealed class SlotArgumentBindingTests : ProgramModelProbe
         Assert.Same(length.Value, Assert.IsType<ConstructedType>(creation.Type).TypeArguments[1]);
         Assert.Same(creation.Type, statements[1].Local.Type);
         Assert.Equal("int[n]", TypeDisplay.Mist(statements[1].Local.Type));
-        Assert.Equal("int[]", TypeDisplay.Mist(lambda.ReturnType));
-        _ = Assert.IsType<UnknownValueType>(Assert.IsType<ConstructedType>(lambda.ReturnType).TypeArguments[1]);
+        Assert.Equal("int[ZeroOrPositiveInt]", TypeDisplay.Mist(lambda.ReturnType));
+        _ = Assert.IsType<RefinementArgument>(Assert.IsType<ConstructedType>(lambda.ReturnType).TypeArguments[1]);
     }
 
     [Fact]

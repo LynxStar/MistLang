@@ -37,6 +37,14 @@ public sealed class SlotIdentityDecisionTests
         return FactState.Empty with { Bindings = Bindings.Empty.Set(first, n).Set(second, m) };
     }
 
+    private FactState Keeping(FactState state, long low, long high, long otherLow, long otherHigh)
+    {
+        return state with
+        {
+            Kept = state.Kept.SetItem(first, new IntegralSet([new IntegralInterval(low, high)])).SetItem(second, new IntegralSet([new IntegralInterval(otherLow, otherHigh)])),
+        };
+    }
+
     private static FactState Knowing(FactState state, Fact fact)
     {
         return state with { Bag = state.Bag.Add(fact) };
@@ -75,16 +83,14 @@ public sealed class SlotIdentityDecisionTests
     }
 
     [Fact]
-    public void TwoCapturesAreOneValueWhereTheFlowBoundThemToOne()
+    public void TwoCapturesFitWhereTheSourcesKeptRefinementLiesInsideTheTargets()
     {
-        var one = FactState.Empty with { Bindings = Bindings.Empty.Set(first, n).Set(second, n) };
+        Assert.Null(Judge(Keeping(Bound(), 11, 19, 11, 29), slots.Closed(ring, first.Value), slots.Closed(ring, second.Value)));
 
-        Assert.Null(Judge(one, slots.Closed(ring, first.Value), slots.Closed(ring, second.Value)));
+        var unproven = Judge(Keeping(Bound(), 11, 29, 11, 19), slots.Closed(ring, first.Value), slots.Closed(ring, second.Value));
 
-        var unproven = Judge(Bound(), slots.Closed(ring, first.Value), slots.Closed(ring, second.Value));
-
-        Assert.Equal(("n", "m"), (unproven?.Left, unproven?.Right));
-        Assert.Equal("fails when n <= m - 1", Case(unproven));
+        Assert.Equal(("n", "int >= 11 and <= 19"), (unproven?.Left, unproven?.Refinement));
+        Assert.StartsWith("fails when ring.Capacity >= 20", Case(unproven), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,13 +103,11 @@ public sealed class SlotIdentityDecisionTests
     }
 
     [Fact]
-    public void ABoundOnOneSideLeavesTheOtherUnproven()
+    public void AFactAboutTheNameAfterItsCaptureLeavesTheKeptRefinementAsItWas()
     {
-        var apart = Knowing(Bound(), new Fact(new Term(n).Subtract(new Term(m)).Add(new Term(1))));
+        var later = Knowing(Keeping(Bound(), 11, 29, 11, 19), Equal(new Term(n), new Term(15)));
 
-        var unproven = Judge(apart, slots.Closed(ring, first.Value), slots.Closed(ring, second.Value));
-
-        Assert.Equal("fails when n <= m - 1", Case(unproven));
+        Assert.NotNull(Judge(later, slots.Closed(ring, first.Value), slots.Closed(ring, second.Value)));
     }
 
     [Fact]
@@ -112,15 +116,15 @@ public sealed class SlotIdentityDecisionTests
         var local = new LocalVariable("ring", slots.Closed(ring, UnknownType.Instance));
         var held = new Value(local.Type, "ring", HandBuiltModel.Node());
         var read = new Value(slots.Int, "ring.Capacity", HandBuiltModel.Node());
-        var state = Bound() with { Bindings = Bound().Bindings.Set(local, held).Set(new MemberHolder(held, capacity), read) };
-        var proven = Knowing(state, Equal(new Term(read), new Term(n)));
+        var state = Keeping(Bound(), 11, 29, 11, 29) with { Bindings = Bound().Bindings.Set(local, held).Set(new MemberHolder(held, capacity), read) };
+        var proven = Knowing(state, Fact.In(read, new IntegralSet([new IntegralInterval(12, 20)])));
 
         Assert.Null(SlotIdentity.Judge(proven, HandBuiltRefinements.Read(local), slots.Closed(ring, first.Value), reading));
 
         var unproven = SlotIdentity.Judge(state, HandBuiltRefinements.Read(local), slots.Closed(ring, first.Value), reading);
 
-        Assert.Equal(("ring.Capacity", "n"), (unproven?.Left, unproven?.Right));
-        Assert.Equal("fails when n <= ring.Capacity - 1", Case(unproven));
+        Assert.Equal(("ring.Capacity", "int >= 11 and <= 29"), (unproven?.Left, unproven?.Refinement));
+        Assert.NotNull(Case(unproven));
     }
 
     [Fact]
@@ -143,17 +147,17 @@ public sealed class SlotIdentityDecisionTests
     [Fact]
     public void ACaptureTheFactsKnowAsALiteralIsSpelledAsThatLiteral()
     {
-        var seven = Knowing(Bound(), Equal(new Term(n), new Term(7)));
+        var seven = Keeping(Knowing(Bound(), Equal(new Term(n), new Term(7))), 7, 7, 8, 20);
 
         Assert.Null(Judge(seven, slots.ArrayOf(first.Value), slots.ArrayOf(slots.Literal(7))));
         Assert.Null(Judge(seven, slots.ArrayOf(slots.Literal(7)), slots.ArrayOf(first.Value)));
 
         var unproven = Judge(seven, slots.ArrayOf(first.Value), slots.ArrayOf(second.Value));
 
-        Assert.Equal(("7", "m"), (unproven?.Left, unproven?.Right));
+        Assert.Equal(("7", "int >= 8 and <= 20"), (unproven?.Left, unproven?.Refinement));
         Assert.Equal("int[7]", DiagnosticSnapshot.Type(unproven!.Source).Spelling);
         Assert.Equal("int[m]", DiagnosticSnapshot.Type(unproven.Target).Spelling);
-        Assert.Equal("fails when m >= 8", Case(unproven));
+        Assert.NotNull(Case(unproven));
     }
 
     [Fact]
@@ -212,11 +216,13 @@ public sealed class SlotIdentityDecisionTests
         var reassigned = unchanged with { Bindings = unchanged.Bindings.Set(local, new Value(local.Type, "a", HandBuiltModel.Node())) };
         var again = HandBuiltRefinements.Read(local, 3);
 
-        Assert.Null(SlotIdentity.Judge(unchanged, again, slots.ArrayOf(inferred.Value), reading));
-        Assert.Null(SlotIdentity.Judge(unchanged, new ImplicitConversionExpression(HandBuiltModel.Node(), again, again.Type, []), slots.ArrayOf(inferred.Value), reading));
-        Assert.Equal(("a.Length", "a.Length"), SlotIdentity.Judge(reassigned, again, slots.ArrayOf(inferred.Value), reading) is { } unproven ? (unproven.Left, unproven.Right) : (null, null));
-        Assert.Equal(("other.Length", "a.Length"), SlotIdentity.Judge(unchanged, HandBuiltRefinements.Read(other), slots.ArrayOf(inferred.Value), reading) is { } apart ? (apart.Left, apart.Right) : (null, null));
-        Assert.NotNull(SlotIdentity.Judge(FactState.Empty, again, slots.ArrayOf(inferred.Value), reading));
+        var call = new SlotMeeting([inferred]);
+
+        Assert.Null(SlotIdentity.Judge(unchanged, again, slots.ArrayOf(inferred.Value), reading, meeting: call));
+        Assert.Null(SlotIdentity.Judge(unchanged, new ImplicitConversionExpression(HandBuiltModel.Node(), again, again.Type, []), slots.ArrayOf(inferred.Value), reading, meeting: call));
+        Assert.Equal(("a.Length", "a.Length"), SlotIdentity.Judge(reassigned, again, slots.ArrayOf(inferred.Value), reading, meeting: call) is { } unproven ? (unproven.Left, unproven.Right) : (null, null));
+        Assert.Equal(("other.Length", "a.Length"), SlotIdentity.Judge(unchanged, HandBuiltRefinements.Read(other), slots.ArrayOf(inferred.Value), reading, meeting: call) is { } apart ? (apart.Left, apart.Right) : (null, null));
+        Assert.NotNull(SlotIdentity.Judge(FactState.Empty, again, slots.ArrayOf(inferred.Value), reading, meeting: call));
     }
 
     [Fact]

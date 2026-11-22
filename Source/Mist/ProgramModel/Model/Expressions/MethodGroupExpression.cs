@@ -90,6 +90,8 @@ internal sealed class MethodGroupExpression : Expression
 
     public IReadOnlyList<SlotCapture> StatedSharedCaptures { get; init; } = [];
 
+    public IReadOnlyList<SlotCapture> ReceiverCaptures { get; init; } = [];
+
     public IReadOnlyList<IMistType>? StatedArgumentsFor(Method candidate)
     {
         return StatedPerCandidate is { } own && own.TryGetValue(candidate, out var resolved) ? resolved.Arguments : StatedTypeArguments;

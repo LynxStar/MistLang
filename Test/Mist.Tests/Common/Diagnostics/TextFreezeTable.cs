@@ -411,6 +411,8 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.RefinementProofExhausted"] = "Could not finish proving 'arg0' for 'arg1' within the compiler's limit: add an explicit check on this path.",
         ["ProgramAnalysisDiagnostics.ClosingNotProven"] = "'arg0' is not proven to be 'arg1': 'arg2' and 'arg3' are not proven identicalarg4.",
         ["ProgramAnalysisDiagnostics.ClosingNotProven|absent:case"] = "'arg0' is not proven to be 'arg1': 'arg2' and 'arg3' are not proven identical.",
+        ["ProgramAnalysisDiagnostics.ClosingRefinementNotProven"] = "'arg0' is not proven to be 'arg1': 'arg2' is not proven to lie in 'arg3'arg4.",
+        ["ProgramAnalysisDiagnostics.ClosingRefinementNotProven|absent:case"] = "'arg0' is not proven to be 'arg1': 'arg2' is not proven to lie in 'arg3'.",
         ["ProgramAnalysisDiagnostics.ResultPropagationDestination"] = "Error propagation requires a compatible error return destination in this callable.",
         ["ProgramAnalysisDiagnostics.ResultPropagationError"] = "The propagated error is not assignable to this callable's error return destination. Map it explicitly.",
         ["ProgramAnalysisDiagnostics.ResultErrorIsNotIdentity"] = "A proven error alternative is not a successful plain value. Return it explicitly as a failure or map it.",

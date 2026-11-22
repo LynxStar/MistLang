@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
+using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
@@ -10,30 +12,51 @@ using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
 
-internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string Left, string Right, Proof? Proof = null);
+internal sealed record UnprovenSlot(IMistType Source, IMistType Target, string Left, string Right, Proof? Proof = null, string? Refinement = null);
 
 /// <summary>
-/// Whether a value's type and the type it meets are one type where they differ only in the values of
-/// dependent slots, which <see cref="ConversionClassifier.AgreesUpToProof"/> admits and leaves to be
-/// proven here (runtime-dependent-values Requirement 2). Each slot pair that is not one object is read
-/// as two terms through <see cref="SlotReads"/> and the chain is asked to rule out their difference, so
-/// <c>if(n == m)</c> proves <c>int[m]</c> to be an <c>int[n]</c> and the failing case names the program's
-/// own values. Without a reading in hand there are no facts, and only the same capture, literal or
-/// parameter is one value. A slot the target leaves <c>unknown</c> owes nothing. A pair nested inside a type
-/// argument has no value expression to read an <c>unknown</c> slot through: the outer value is not the inner
-/// object, so that pair is judged with no receiver and only the same value proves it.
+/// How a site meets the slots of the type it expects. By default a slot is met by refinement. A site
+/// whose capture stands for one value, a call's own or a creation's own, meets it by equality (<see cref="Exact"/>),
+/// and a site the other side can write through, a <c>ref</c> or <c>out</c> argument or a <c>ref</c> local,
+/// by refinement equality (<see cref="Alike"/>).
+/// </summary>
+internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool Alike = false)
+{
+    public static readonly SlotMeeting Fit = new([]);
+
+    public static readonly SlotMeeting Equal = new([], Alike: true);
+
+    public bool IsExact(IMistType slot)
+    {
+        return slot is CapturedValue captured && Exact.Any(capture => ReferenceEquals(capture, captured.Capture));
+    }
+}
+
+/// <summary>
+/// Whether a value's type fits the type it meets where they differ only in dependent slots, which
+/// <see cref="ConversionClassifier.AgreesUpToProof"/> admits and leaves to be proven here
+/// (runtime-dependent-values Requirements 2 and 8.4). The source's slot is read through
+/// <see cref="SlotReads"/>, through the value's own holder where there is a value, and the chain is asked
+/// whether it lies inside the target slot's refinement: a capture's kept refinement or a refinement
+/// argument's predicate. A literal, a dependent parameter and a capture <see cref="SlotMeeting.Exact"/>
+/// stand for one value and are met by equality. A pair nested in a type argument, and every pair of an
+/// <see cref="SlotMeeting.Alike"/> site, is met by refinement equality, since a type argument never
+/// widens. Without a value the source slot is only what its type admits; without a reading there are no
+/// facts and only the same slot argument fits. A slot the target leaves <c>unknown</c> owes nothing.
 /// </summary>
 internal static class SlotIdentity
 {
-    public static UnprovenSlot? Judge(FactState state, Expression value, IMistType target, FactReading? reading = null, Budget? budget = null)
+    public static UnprovenSlot? Judge(FactState state, Expression value, IMistType target, FactReading? reading = null, Budget? budget = null, SlotMeeting? meeting = null)
     {
-        return Judge(state, SlotReads.Written(value).Type, target, value, reading, budget);
+        return Judge(state, SlotReads.Written(value).Type, target, value, reading, budget, meeting);
     }
 
-    public static UnprovenSlot? Judge(FactState state, IMistType source, IMistType target, Expression? through, FactReading? reading = null, Budget? budget = null)
+    public static UnprovenSlot? Judge(
+        FactState state, IMistType source, IMistType target, Expression? through, FactReading? reading = null, Budget? budget = null, SlotMeeting? meeting = null)
     {
         UnprovenSlot? first = null;
         var written = through is null ? null : SlotReads.Written(through);
+        meeting ??= SlotMeeting.Fit;
 
         foreach(var constituent in Constituents(target))
         {
@@ -47,14 +70,14 @@ internal static class SlotIdentity
 
             foreach(var pair in Pairs(reaching, closing))
             {
-                var via = pair.Nested ? null : written;
-                var proof = Prove(ref state, pair, via, reading, budget);
+                var via = pair.Nested || meeting.Alike ? null : written;
+                var (proof, refinement) = Prove(ref state, pair, via, reading, budget, meeting);
 
                 if(proof is not Proven)
                 {
                     unproven = new UnprovenSlot(
                         Spelled(state, source), Spelled(state, constituent),
-                        Shown(state, pair.Argument, pair.Parameter, via), Shown(state, pair.Slot, pair.Parameter, null), proof);
+                        Shown(state, pair.Argument, pair.Parameter, via), Shown(state, pair.Slot, pair.Parameter, null), proof, refinement);
                     break;
                 }
             }
@@ -70,12 +93,11 @@ internal static class SlotIdentity
         return first;
     }
 
-    public static bool Compares(IMistType source, IMistType tested, Func<CapturedValue, CapturedValue, bool> oneValue)
+    public static bool Compares(IMistType source, IMistType tested)
     {
         return SlotReads.Plain(tested) is ConstructedType closing && SlotReads.Closing(source, closing.Definition) is { } reaching
             && reaching.TypeArguments.Count == closing.TypeArguments.Count
-            && Pairs(reaching, closing).Any(pair => !Same(pair.Argument, pair.Slot)
-                && !(pair is { Argument: CapturedValue left, Slot: CapturedValue right } && oneValue(left, right)));
+            && Pairs(reaching, closing).Any(pair => !Same(pair.Argument, pair.Slot));
     }
 
     public static bool Owes(Expression? value, IMistType? target)
@@ -91,26 +113,65 @@ internal static class SlotIdentity
                 && Pairs(reaching, closing).Any());
     }
 
-    private static Proof? Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget)
+    private static (Proof? Proof, string? Refinement) Prove(ref FactState state, Pair pair, Expression? through, FactReading? reading, Budget? budget, SlotMeeting meeting)
     {
-        if(ReadsItself(pair, through) || Refused(pair.Argument, pair.Parameter) || Refused(pair.Slot, pair.Parameter))
+        if(ReadsItself(pair, through) || Refused(pair.Argument, pair.Parameter) || Refused(pair.Slot, pair.Parameter) || Same(pair.Argument, pair.Slot))
         {
-            return new Proven();
+            return (new Proven(), null);
         }
 
         if(reading is null)
         {
-            return Same(pair.Argument, pair.Slot) ? new Proven() : null;
+            return (null, null);
         }
 
-        var left = SlotReads.Value(ref state, reading, pair.Argument, through, pair.Read ?? pair.Parameter);
-        var right = SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
-
-        if(left is null || right is null)
+        if(pair.Nested || meeting.Alike)
         {
-            return null;
+            return (Alike(ref state, pair, reading, budget), null);
         }
 
+        var read = pair.Read ?? pair.Parameter;
+        var left = through is null && !SlotReads.StandsForOneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
+
+        if(SlotReads.StandsForOneValue(pair.Slot) || meeting.IsExact(pair.Slot) || SlotReads.Refinement(state, pair.Slot) is not { } admitted)
+        {
+            var right = SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
+
+            return (right is null ? null : left is not null ? Equal(state, left, right, budget) : Single(ref state, Admits(state, pair.Argument, pair.Parameter), right, budget), null);
+        }
+
+        var shown = Describe(Domain(pair.Parameter, pair.Slot), admitted);
+
+        if(left is null)
+        {
+            return (Admits(state, pair.Argument, pair.Parameter).IsSubsetOf(admitted) ? new Proven() : null, shown);
+        }
+
+        if(left.Variables.IsEmpty)
+        {
+            return (left.Constant >= long.MinValue && left.Constant <= long.MaxValue && admitted.Contains((long)left.Constant) ? new Proven() : new Refuted(Alternative.Empty, false), shown);
+        }
+
+        return (Chain.Prove(state.Bag, [.. ContractReader.Intervals(admitted.Not(), left)], left.Variables.ToHashSet(), budget), shown);
+    }
+
+    private static string Describe(IMistType domain, Admitted admitted)
+    {
+        var whole = SlotReads.Typed(domain);
+        var (floor, ceiling) = (whole.Low ?? long.MinValue, whole.High ?? long.MaxValue);
+        var parts = admitted.Intervals.Select(interval => interval.Low == interval.High
+            ? string.Create(CultureInfo.InvariantCulture, $"== {interval.Low}")
+            : string.Join(" and ", new[]
+            {
+                interval.Low > floor ? string.Create(CultureInfo.InvariantCulture, $">= {interval.Low}") : null,
+                interval.High < ceiling ? string.Create(CultureInfo.InvariantCulture, $"<= {interval.High}") : null,
+            }.OfType<string>())).ToList();
+
+        return parts.All(part => part.Length > 0) && parts.Count > 0 ? $"{TypeDisplay.Mist(domain)} {string.Join(" or ", parts)}" : TypeDisplay.Mist(domain);
+    }
+
+    private static Proof Equal(FactState state, Term left, Term right, Budget? budget)
+    {
         var difference = left.Subtract(right);
 
         if(difference.Variables.IsEmpty)
@@ -119,6 +180,41 @@ internal static class SlotIdentity
         }
 
         return Chain.Prove(state.Bag, new Fact(difference, Relation.Equal).Denial(), difference.Variables.ToHashSet(), budget);
+    }
+
+    private static Proof? Single(ref FactState state, Admitted refinement, Term value, Budget? budget)
+    {
+        return refinement.Intervals is [var only] && only.Low == only.High ? Equal(state, new Term(only.Low), value, budget) : null;
+    }
+
+    private static Proof? Alike(ref FactState state, Pair pair, FactReading reading, Budget? budget)
+    {
+        var argument = SlotReads.StandsForOneValue(pair.Argument) && pair.Argument is not LiftedType ? SlotReads.Value(ref state, reading, pair.Argument, null, pair.Read ?? pair.Parameter) : null;
+        var slot = SlotReads.StandsForOneValue(pair.Slot) && pair.Slot is not LiftedType ? SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter) : null;
+
+        return (argument, slot) switch
+        {
+            ({ } left, { } right) => Equal(state, left, right, budget),
+            ({ } left, null) => Single(ref state, Admits(state, pair.Slot, pair.Parameter), left, budget),
+            (null, { } right) => Single(ref state, Admits(state, pair.Argument, pair.Parameter), right, budget),
+            _ => Admits(state, pair.Argument, pair.Parameter) is var mine && Admits(state, pair.Slot, pair.Parameter) is var theirs
+                && mine.IsSubsetOf(theirs) && theirs.IsSubsetOf(mine) ? new Proven() : null,
+        };
+    }
+
+    private static Admitted Admits(FactState state, IMistType argument, TypeParameter parameter)
+    {
+        return SlotReads.Refinement(state, argument) ?? SlotReads.Typed(Domain(parameter, argument));
+    }
+
+    private static IMistType Domain(TypeParameter parameter, IMistType argument)
+    {
+        return argument switch
+        {
+            CapturedValue captured => captured.Domain,
+            UnknownValueType unknown => unknown.Domain,
+            _ => parameter.Domain ?? argument,
+        };
     }
 
     // A slot inferred from an argument's unknown one is a capture of that argument's own read, the same value
@@ -138,6 +234,8 @@ internal static class SlotIdentity
         {
             (CapturedValue left, CapturedValue right) => ReferenceEquals(left.Capture, right.Capture),
             (LiftedType left, LiftedType right) => SlotReads.Constant(left) is { } mine && mine == SlotReads.Constant(right),
+            (RefinementArgument left, RefinementArgument right) => ConversionRelation.IsIdentity(left.Refinement, right.Refinement)
+                && (left.Contract is null) == (right.Contract is null) && (left.Contract is null || ConversionRelation.IsIdentity(left.Contract, right.Contract!)),
             _ => ReferenceEquals(argument, slot),
         };
     }
@@ -164,7 +262,7 @@ internal static class SlotIdentity
 
             if(ConversionClassifier.OwesProof(argument, slot, target.Definition, i))
             {
-                if(slot is not (UnknownType or UnknownValueType))
+                if(slot is not (UnknownType or UnknownValueType) or RefinementArgument)
                 {
                     var ordinal = i;
                     yield return new Pair(

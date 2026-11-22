@@ -128,10 +128,10 @@ public sealed class ReturnLengthProofFlowTests
     }
 
     [Fact]
-    public void TwoResultsOfACallWithOneValueAreOneTypeAndAnotherValuesIsNot()
+    public void TwoResultsOfACallWithOneValueAreOneTypeAndAWiderValuesIsNot()
     {
         var sized = Sized(slots.ZeroOrPositive, out _);
-        var count = new LocalVariable("count", slots.ZeroOrPositive);
+        var count = new LocalVariable("count", slots.Refinements.Between(slots.Int, 0L, 19L, "Small"));
         var other = new LocalVariable("other", slots.ZeroOrPositive);
         var (a, length) = Called(sized, count, "a");
         var (b, _) = Called(sized, count, "b");
@@ -146,7 +146,7 @@ public sealed class ReturnLengthProofFlowTests
 
         var refused = Assert.Single(slots.Refinements.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block(a, c, same(c))));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'int[other]' is not proven to be 'int[count]'", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'int[other]' is not proven to be 'int[count]': 'other' is not proven to lie in 'int >= 0 and <= 19'", refused.Message, StringComparison.Ordinal);
     }
 }

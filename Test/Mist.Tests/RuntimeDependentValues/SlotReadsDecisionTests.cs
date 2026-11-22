@@ -134,17 +134,19 @@ public sealed class SlotReadsDecisionTests
     }
 
     [Fact]
-    public void APassingTestAddsThatTheScrutineesReadIsTheSlotsValue()
+    public void APassingTestAddsThatTheScrutineesReadLiesInTheCapturesRefinementAndNotThatItIsTheValue()
     {
         var n = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive));
         var held = new Value(slots.Int, "n", HandBuiltModel.Node());
         var some = new LocalVariable("ring", slots.Closed(ring, UnknownType.Instance));
-        var state = FactState.Empty with { Bindings = Bindings.Empty.Set(n, held) };
+        var kept = new IntegralSet([new IntegralInterval(11, 29)]);
+        var state = FactState.Empty with { Bindings = Bindings.Empty.Set(n, held), Kept = FactState.Empty.Kept.Add(n, kept) };
 
         var tested = SlotReads.Tested(state, reading, HandBuiltRefinements.Read(some), slots.Closed(ring, n.Value));
         var read = tested.Bindings.Get(new MemberHolder(tested.Bindings.Get(some)!, capacity))!;
 
-        Assert.Contains(tested.Bag.Common, fact => fact.Relation == Relation.Equal && fact.Term.Variables.Contains(read) && fact.Term.Variables.Contains(held));
+        Assert.Equal(kept, tested.Bag.Intervals(read));
+        Assert.DoesNotContain(tested.Bag.Common.Concat(tested.Bag.Alternatives.SelectMany(alternative => alternative.Facts)), fact => fact.Term.Variables.Contains(held));
     }
 
     [Fact]

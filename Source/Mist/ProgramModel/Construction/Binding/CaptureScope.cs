@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -8,8 +9,10 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// A type as it leaves the body that made its captures. That body runs many times and each run makes
-/// a new value, so a type the binder infers for the body's result cannot hold one: the slot is
-/// <c>unknown</c> there, which is what the same creation was before a slot took a runtime value.
+/// a new value, so a type the binder infers for the body's result cannot hold one. What is provable about
+/// it is the same each time, and a nested body starts from no facts, so the slot is the capture's
+/// initializer type narrowed by the slot's contract, as a <see cref="RefinementArgument"/>
+/// (runtime-dependent-values Requirement 1.6).
 /// </summary>
 internal static class CaptureScope
 {
@@ -34,7 +37,7 @@ internal static class CaptureScope
 
         return type switch
         {
-            CapturedValue captured => interner.GetOrCreateUnknownValue(captured.Domain),
+            CapturedValue captured => interner.GetOrCreateRefinement(captured.Domain, Written(captured.Capture.Initializer).Type, captured.Capture.Type),
             ConstructedType constructed => interner.GetOrCreateConstructedType(
                 constructed.Definition, each(constructed.TypeArguments),
                 constructed.Enclosing is { } enclosing ? (ConstructedType)Without(enclosing, made, interner) : null),
@@ -44,6 +47,16 @@ internal static class CaptureScope
             FunctionType function => interner.GetOrCreateFunctionType(each(function.ParameterTypes), Without(function.ReturnType, made, interner), function.IsPure),
             _ => type,
         };
+    }
+
+    private static Expression Written(Expression initializer)
+    {
+        return initializer is ImplicitConversionExpression conversion ? Written(conversion.Operand) : initializer;
+    }
+
+    public static bool Mentions(IMistType type, SlotCapture capture)
+    {
+        return Mentions(type, new HashSet<SlotCapture>(ReferenceEqualityComparer.Instance) { capture });
     }
 
     private static bool Mentions(IMistType type, HashSet<SlotCapture> made)

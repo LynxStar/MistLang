@@ -60,6 +60,7 @@ internal sealed class FactReading(LiftedReturns lifted)
         }
 
         if(expression is MemberAccessExpression read && SlotReads.Parameter(read) is { } slot && SlotReads.Argument(read, slot) is { } argument
+            && (SlotReads.StandsForOneValue(argument) || slot.DeclaringType is not (ClassType or StructType))
             && argument is not (UnknownType or UnknownValueType) && SlotReads.Value(ref state, this, argument, null, slot) is { } closed)
         {
             var receiver = Read(ref state, read.Receiver);
@@ -108,6 +109,12 @@ internal sealed class FactReading(LiftedReturns lifted)
             if(lifted.Produced(expression) is { } heldLift)
             {
                 state = state with { Bag = AddValues(state.Bag, value, heldLift) };
+            }
+
+            if(expression is MemberAccessExpression slotRead && SlotReads.Parameter(slotRead) is { } held && SlotReads.Argument(slotRead, held) is { } closing
+                && SlotReads.Refinement(state, closing) is { } refinement)
+            {
+                state = state with { Bag = AddValues(state.Bag, value, refinement) };
             }
 
             AddSymbols(ref state, value, contract, (expression as MemberAccessExpression)?.Receiver);

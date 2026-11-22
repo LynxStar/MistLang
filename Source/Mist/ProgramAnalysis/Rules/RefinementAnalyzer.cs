@@ -122,7 +122,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     break;
 
                 case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }:
-                    Need(state, initializer, declaration.Local.Type, initializer);
+                    Need(state, initializer, declaration.Local.Type, initializer, meeting: declaration.Local.IsRef ? SlotMeeting.Equal : null);
                     break;
 
                 case { Kind: FlowStepKind.Introduce, Node: ForEachStatement { ElementConversion: null } loop } when EnumerableElement.Of(loop.Collection.Type) is { } element:
@@ -139,7 +139,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
+                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target)));
 
                     if(assignment.Target is IndexExpression written)
                     {
@@ -169,19 +169,21 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: InvocationExpression call }:
-                    NeedArguments(state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver, call.Signature);
+                    NeedArguments(
+                        state, call.Arguments, call.ParameterTypes, call.Parameters, (call.Receiver as MemberAccessExpression)?.Receiver, call.Signature,
+                        [.. call.Captures, .. (call.Receiver as MemberAccessExpression)?.Captures ?? []]);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: NewExpression construction }:
-                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList, callee: construction.Constructor);
+                    NeedArguments(state, construction.Arguments, construction.ParameterTypes, construction.Constructor?.ParametersList, callee: construction.Constructor, exact: construction.Captures);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, Add: { } add } element }:
-                    NeedArguments(state, [element.Value], element.AddParameterTypes, add.ParametersList, callee: add);
+                    NeedArguments(state, [element.Value], element.AddParameterTypes, add.ParametersList, callee: add, exact: sites.CreatorOf(element));
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: ObjectInitializerAssignment { IsTargetFailed: false, TargetType: { } member } entry }:
-                    Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName);
+                    Need(state, entry.Value, member, entry.Value, onConstraint: entry.MemberName, meeting: new SlotMeeting(sites.CreatorOf(entry)));
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: FunctionReferenceExpression { Type: IFunctionType target } reference }:
@@ -329,7 +331,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
         private void Need(
             FactState state, Expression value, IMistType target, Expression at, string? onConstraint = null,
-            Expression? measured = null, Reading? reading = null)
+            Expression? measured = null, Reading? reading = null, SlotMeeting? meeting = null)
         {
             reading ??= Reading.None;
 
@@ -338,7 +340,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 return;
             }
 
-            if(SlotIdentity.Judge(state, value, target, factReading, budget) is { } unproven)
+            if(SlotIdentity.Judge(state, value, target, factReading, budget, meeting) is { } unproven)
             {
                 ReportClosing(unproven, at.Node, [value]);
                 return;

@@ -12,15 +12,14 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What a dependent slot read through a value is, <c>a.Length</c> or <c>ring.Capacity</c>: the value the
-/// receiver's type was closed with, read from the receiver type's argument for that parameter and never
-/// from the type of the read, which is the slot's domain whatever the closing holds; the slot's <c>where</c>
-/// is a fact on the value, never part of the type. A literal is its
-/// constant, a capture the value its local holds, a dependent parameter the value bound under it, and the
-/// <c>unknown</c> slot of a class or a struct the value under the member holder of the receiver, which
-/// an object keeps for life (runtime-dependent-values Requirement 7). The slot of an abstract is never
-/// keyed by the object (Requirement 11.4): through a named closing it is one of the first three, and
-/// through <c>unknown</c> it does not bind.
+/// What a dependent slot read through a value is, <c>a.Length</c> or <c>ring.Capacity</c>, and what a slot
+/// argument admits (runtime-dependent-values Requirements 1, 7 and 9). A literal is its constant and a
+/// dependent parameter the value bound under it. Any other slot of a class or a struct, a capture, a
+/// refinement or <c>unknown</c>, is the value under the member holder of the receiver, which an object
+/// keeps for life: a creation records it equal to the value it closed the object with, a copy carries
+/// it, a write to the variable ends it, and the receiver type's refinement is a fact on it. A capture
+/// admits the refinement <see cref="Keep"/> fixes at its Declare step, never its value. The slot of an
+/// abstract is never keyed by the object (Requirement 11.4).
 /// </summary>
 internal static class SlotReads
 {
@@ -91,12 +90,92 @@ internal static class SlotReads
         return argument switch
         {
             LiftedType lifted when Constant(lifted) is { } constant => new Term(constant),
+            CapturedValue or UnknownType or UnknownValueType when through is not null && parameter.DeclaringType is ClassType or StructType
+                => reading.Read(ref state, Read(through, parameter)),
             CapturedValue captured => reading.Read(ref state, new LocalReferenceExpression(captured.Capture.Initializer.Node, captured.Capture)),
             TypeParameter { IsDependent: true } dependent => reading.Symbol(ref state, new SymbolicBound(dependent.Name, ComparisonKind.Equal) { Named = dependent }),
             ParameterValue held => reading.Symbol(ref state, new SymbolicBound(held.Parameter.Name, ComparisonKind.Equal) { Named = held.Parameter }),
-            UnknownType or UnknownValueType when through is not null && parameter.DeclaringType is ClassType or StructType => reading.Read(ref state, Read(through, parameter)),
             _ => null,
         };
+    }
+
+    public static bool StandsForOneValue(IMistType argument)
+    {
+        return argument is LiftedType or ParameterValue or TypeParameter { IsDependent: true };
+    }
+
+    public static FactState Keep(FactState state, SlotCapture capture)
+    {
+        return state.Bindings.Get(capture) is { } value && IntegralTypes.Range(capture.Type) is not null
+            ? state with { Kept = state.Kept.SetItem(capture, state.Bag.Intervals(value).And(IntegralSet.Of(Typed(capture.Type)))) }
+            : state;
+    }
+
+    public static Admitted? Refinement(FactState state, IMistType argument)
+    {
+        return argument switch
+        {
+            CapturedValue captured when IntegralTypes.Range(captured.Capture.Type) is not null => state.Kept.TryGetValue(captured.Capture, out var kept)
+                ? FactState.AdmittedValues(kept)
+                : Typed(captured.Capture.Type).And(Typed(Written(captured.Capture.Initializer).Type)),
+            RefinementArgument refinement when IntegralTypes.Range(refinement.Domain) is not null
+                => Typed(refinement.Refinement).And(refinement.Contract is { } contract ? Typed(contract) : Admitted.Everything).And(Typed(refinement.Domain)),
+            LiftedType lifted when Constant(lifted) is { } constant && constant >= long.MinValue && constant <= long.MaxValue => Admitted.Exactly((long)constant),
+            _ => null,
+        };
+    }
+
+    public static Admitted Typed(IMistType type)
+    {
+        var values = Requirement.ValuesOf(type) ?? Admitted.Everything;
+
+        return IntegralTypes.Range(type) is { } range ? values.And(FactState.AdmittedValues(new IntegralSet([range]))) : values;
+    }
+
+    public static FactState Created(FactState state, Expression expression, Term term)
+    {
+        if(term is not { Constant.IsZero: true, Variables: [var made] } || !term.Multipliers[0].IsOne)
+        {
+            return state;
+        }
+
+        var owned = SlotCapture.Of(expression).Concat(expression is InvocationExpression { Receiver: MemberAccessExpression receiver } ? receiver.Captures : []).ToList();
+
+        if(owned.Count == 0 || Plain(expression.Type) is not ConstructedType { Definition: IHasTypeParameters declared } closing || closing.Definition is not (ClassType or StructType))
+        {
+            return state;
+        }
+
+        foreach(var parameter in declared.TypeParametersList.Where(parameter => parameter is { IsDependent: true, IsPack: false } && parameter.Ordinal < closing.TypeArguments.Count))
+        {
+            if(closing.TypeArguments[parameter.Ordinal] is CapturedValue captured && owned.Exists(capture => ReferenceEquals(capture, captured.Capture))
+                && state.Bindings.Get(captured.Capture) is { } value)
+            {
+                state = state with { Bindings = state.Bindings.Set(new MemberHolder(made, parameter), value) };
+            }
+        }
+
+        return state;
+    }
+
+    public static bool HasSlots(IMistType type)
+    {
+        return Plain(type) is ConstructedType { Definition: IHasTypeParameters declared } && declared.TypeParametersList.Exists(parameter => parameter.IsDependent);
+    }
+
+    public static FactState Carry(FactState state, Value from, Value to)
+    {
+        if(ReferenceEquals(from, to))
+        {
+            return state;
+        }
+
+        foreach(var holder in state.Bindings.Order.OfType<MemberHolder>().Where(holder => ReferenceEquals(holder.Receiver, from) && holder.Member is TypeParameter).ToList())
+        {
+            state = state with { Bindings = state.Bindings.Set(holder with { Receiver = to }, state.Bindings.Values[holder]) };
+        }
+
+        return state;
     }
 
     public static BigInteger? Constant(LiftedType lifted)
@@ -119,9 +198,10 @@ internal static class SlotReads
 
     public static BigInteger? Known(FactState state, CapturedValue captured)
     {
-        return state.Bindings.Get(captured.Capture) is { } value && state.Bag.Intervals(value).Intervals is [var only] && only.Low is { } low && low == only.High
-            ? low
-            : null;
+        var values = state.Kept.TryGetValue(captured.Capture, out var kept) ? kept
+            : state.Bindings.Get(captured.Capture) is { } value ? state.Bag.Intervals(value) : IntegralSet.Everything;
+
+        return values.Intervals is [var only] && only.Low is { } low && low == only.High ? low : null;
     }
 
     public static FactState Tested(FactState state, FactReading reading, Expression scrutinee, IMistType tested)
@@ -144,15 +224,24 @@ internal static class SlotReads
             var slot = closing.TypeArguments[parameter.Ordinal];
             var own = (source.Definition as IHasTypeParameters)?.TypeParametersList.Find(candidate => candidate.Ordinal == parameter.Ordinal) ?? parameter;
 
-            if(slot is UnknownType or UnknownValueType or ErrorType || ReferenceEquals(argument, slot)
+            if((slot is UnknownType or UnknownValueType or ErrorType && slot is not RefinementArgument) || ReferenceEquals(argument, slot)
                 || (source.Definition is not (ClassType or StructType) && argument is not TypeParameter { IsDependent: true }))
             {
                 continue;
             }
 
-            if(Value(ref state, reading, argument, value, own) is { } read && Value(ref state, reading, slot, null, parameter) is { } held)
+            if(Value(ref state, reading, argument, value, own) is not { } read)
+            {
+                continue;
+            }
+
+            if(StandsForOneValue(slot) && Value(ref state, reading, slot, null, parameter) is { } held)
             {
                 state = state with { Bag = state.Bag.Add(new Fact(read.Subtract(held), Relation.Equal)) };
+            }
+            else if(Refinement(state, slot) is { IsEverything: false } admitted)
+            {
+                state = state with { Bag = state.Bag.AddAlternatives(ContractReader.Intervals(admitted, read)) };
             }
         }
 

@@ -19,9 +19,9 @@ internal sealed partial class RefinementAnalyzer
             }
         }
 
-        private void NeedClosing(FactState state, IMistType source, IMistType target, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about)
+        private void NeedClosing(FactState state, IMistType source, IMistType target, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about, SlotMeeting? meeting = null)
         {
-            if(source is not ErrorType && SlotIdentity.Judge(state, source, target, through: null, factReading, budget) is { } unproven)
+            if(source is not ErrorType && SlotIdentity.Judge(state, source, target, through: null, factReading, budget, meeting) is { } unproven)
             {
                 ReportClosing(unproven, at, about);
             }
@@ -49,9 +49,9 @@ internal sealed partial class RefinementAnalyzer
         private void ReportClosing(UnprovenSlot unproven, Storm.Runtime.SyntaxNode at, IReadOnlyList<Expression> about)
         {
             context.Report(
-                ProgramAnalysisDiagnostics.ClosingNotProven, at, about,
+                unproven.Refinement is null ? ProgramAnalysisDiagnostics.ClosingNotProven : ProgramAnalysisDiagnostics.ClosingRefinementNotProven, at, about,
                 DiagnosticSnapshot.Type(unproven.Source), DiagnosticSnapshot.Type(unproven.Target),
-                new NameValue(unproven.Left), new NameValue(unproven.Right), RefinementFindings.Case(unproven.Proof));
+                new NameValue(unproven.Left), new NameValue(unproven.Refinement ?? unproven.Right), RefinementFindings.Case(unproven.Proof));
         }
 
         private static IEnumerable<(IMistType Element, LocalVariable Target)> Deconstructed(TupleDeconstructionStatement deconstruction)

@@ -237,7 +237,7 @@ internal static class ConversionClassifier
             return false;
         }
 
-        if(argument is UnknownType or UnknownValueType)
+        if(argument is UnknownType or (UnknownValueType and not RefinementArgument))
         {
             return definition is ClassType or StructType && IsNamedValue(slot);
         }
@@ -247,7 +247,7 @@ internal static class ConversionClassifier
 
     private static bool IsRuntimeValue(IMistType value)
     {
-        return value is CapturedValue or ParameterValue or TypeParameter { IsDependent: true, IsPack: false };
+        return value is CapturedValue or ParameterValue or RefinementArgument or TypeParameter { IsDependent: true, IsPack: false };
     }
 
     private static bool IsNamedValue(IMistType value)
@@ -262,7 +262,7 @@ internal static class ConversionClassifier
             return false;
         }
 
-        if(slot is UnknownValueType unknown)
+        if(slot is UnknownValueType unknown and not RefinementArgument)
         {
             return Same(Normalize(argument), unknown.Domain);
         }

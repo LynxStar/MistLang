@@ -18,8 +18,8 @@ public sealed class SlotIdentityFlowTests
 
     public SlotIdentityFlowTests()
     {
-        n = new LocalVariable("n", slots.ZeroOrPositive);
-        m = new LocalVariable("m", slots.ZeroOrPositive);
+        n = new LocalVariable("n", slots.Refinements.Between(slots.Int, 11L, 19L, "Small"));
+        m = new LocalVariable("m", slots.Refinements.Between(slots.Int, 11L, 29L, "Range"));
     }
 
     private IReadOnlyList<Diagnostic> Analyze(params Statement[] statements)
@@ -77,25 +77,30 @@ public sealed class SlotIdentityFlowTests
     [Fact]
     public void AWriteToTheNamedVariableLeavesTheEarlierClosingBehind()
     {
-        var (a, declared) = Created(n);
+        var (a, declared) = Created(m);
 
-        var refused = Assert.Single(Analyze(declared, Write(n, m), Typed(n, a)));
+        var refused = Assert.Single(Analyze(declared, Write(m, n), Typed(m, a)));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'int[n]' is not proven to be 'int[n]': 'n' and 'n' are not proven identical", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'int[m]' is not proven to be 'int[m]': 'm' is not proven to lie in 'int >= 11 and <= 19' (fails when m >= 20)", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void AnArrayOfAnotherLengthIsRefusedIntoTheDeclaredOne()
+    public void AnArrayOutsideTheDeclaredRefinementIsRefusedAndOneInsideItIsAdmitted()
     {
+        ExpressionStatement write(LocalVariable target, LocalVariable length)
+        {
+            return new ExpressionStatement(HandBuiltRefinements.Assign(HandBuiltRefinements.Read(target), slots.Create(slots.Capture(length))));
+        }
+
         var (a, declared) = Created(n);
-        var other = slots.Create(slots.Capture(m));
-        var write = new ExpressionStatement(HandBuiltRefinements.Assign(HandBuiltRefinements.Read(a), other));
+        var (wide, declaredWide) = Created(m, "wide");
 
-        var refused = Assert.Single(Analyze(declared, write));
+        var refused = Assert.Single(Analyze(declared, write(a, m)));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'m' and 'n' are not proven identical", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'m' is not proven to lie in 'int >= 11 and <= 19' (fails when m >= 20)", refused.Message, StringComparison.Ordinal);
+        Assert.Empty(Analyze(declaredWide, write(wide, n)));
     }
 
     [Fact]
@@ -134,13 +139,13 @@ public sealed class SlotIdentityFlowTests
     }
 
     [Fact]
-    public void ACaptureMadeInALoopBodyIsNotTheValueAnEarlierIterationLeft()
+    public void ACaptureMadeInALoopBodyKeepsTheRefinementOfItsIterationAndRefusesAWiderArray()
     {
-        var (a, declared) = Created(n);
-        var body = HandBuiltModel.Block(Typed(n, a), Write(n, m));
+        var (a, declared) = Created(m);
+        var body = HandBuiltModel.Block(Typed(n, a), Write(n, n));
 
-        var refused = Analyze(declared, new WhileStatement(slots.Refinements.Binary(HandBuiltRefinements.Read(m), BinaryOperatorKind.LessThan, slots.Refinements.Literal(10L)), body));
+        var refused = Analyze(declared, new WhileStatement(slots.Refinements.Binary(HandBuiltRefinements.Read(n), BinaryOperatorKind.LessThan, slots.Refinements.Literal(15L)), body));
 
-        Assert.Equal("MIST0486", Assert.Single(refused).Number.Value);
+        Assert.Equal("MIST0506", Assert.Single(refused).Number.Value);
     }
 }

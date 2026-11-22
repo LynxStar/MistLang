@@ -201,4 +201,14 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("left", SlotKind.Name), new Slot("right", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
+
+    public static readonly MistDiagnostic ClosingRefinementNotProven = new(
+        DiagnosticNumber.Mint("MIST0506"),
+        Title: "Closing refinement not proven",
+        Template: "'{source}' is not proven to be '{target}': '{left}' is not proven to lie in '{refinement}'{case}.",
+        Description: "The value's type and the type it meets differ only in dependent slots, and nothing on this path proves that what the value's slot holds lies inside the refinement the expected type's slot stands for. Test the value against the narrower closing with 'is', or declare the variable with a type whose slot admits every value it may hold.",
+        Category: DiagnosticCategory.Typ,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("source", SlotKind.Type), new Slot("target", SlotKind.Type), new Slot("left", SlotKind.Name), new Slot("refinement", SlotKind.Name), new Slot("case", SlotKind.Optional, SlotKind.Name)]);
 }

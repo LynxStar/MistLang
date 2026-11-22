@@ -12,10 +12,10 @@ namespace Mist.Tests.RuntimeDependentValues;
 /// <summary>
 /// A switch arm that tests a closing differing from its constituent only in a dependent slot compares the slot when
 /// the program runs (runtime-dependent-values Requirement 9.2), so the exhaustiveness rule reads it as a guard: it
-/// covers the constituent only where both slots are one value, and otherwise MIST0148 names the constituent, as
-/// <c>Ring&lt;n&gt;</c> over <c>Ring&lt;m&gt; | string</c> would otherwise throw when n and m differ. Judged by the
-/// exhaustiveness analyzer over hand-built bodies, since whether two captures are one value depends on whether the
-/// body writes the holder they read.
+/// covers the constituent only where both slots are one refinement -- the same capture, literal, refinement argument or
+/// parameter -- and otherwise MIST0148 names the constituent, as <c>Ring&lt;n&gt;</c> over <c>Ring&lt;m&gt; | string</c>
+/// would otherwise throw when n and m differ. Two captures of one holder are two refinements, since a path condition
+/// between them can narrow one. Judged by the exhaustiveness analyzer over hand-built bodies.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class SlotTestCoverageTests
@@ -42,9 +42,11 @@ public sealed class SlotTestCoverageTests
     }
 
     [Fact]
-    public void AUnionConstituentTestedThroughTheSameUnwrittenHolderIsCovered()
+    public void AUnionConstituentTestedThroughAnotherCaptureOfTheSameUnwrittenHolderIsMissing()
     {
-        Assert.Empty(Analyze(Union(n, n)));
+        var missing = Assert.Single(Analyze(Union(n, n)));
+
+        Assert.Contains("Missing cases: Ring<n>", missing.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -57,12 +59,10 @@ public sealed class SlotTestCoverageTests
     }
 
     [Fact]
-    public void APlainScrutineeCoveredOnlyByAnotherValuesTestIsMissingTheRemainder()
+    public void APlainScrutineeCoveredOnlyByAnotherCapturesTestIsMissingTheRemainder()
     {
-        var missing = Assert.Single(Analyze(Plain(m, n)));
-
-        Assert.Contains("Missing cases: _", missing.Message, StringComparison.Ordinal);
-        Assert.Empty(Analyze(Plain(n, n)));
+        Assert.Contains("Missing cases: _", Assert.Single(Analyze(Plain(m, n))).Message, StringComparison.Ordinal);
+        Assert.Contains("Missing cases: _", Assert.Single(Analyze(Plain(n, n))).Message, StringComparison.Ordinal);
     }
 
     private IReadOnlyList<Diagnostic> Analyze(params Statement[] statements)

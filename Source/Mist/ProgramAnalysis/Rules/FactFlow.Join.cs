@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Model.Scopes;
 
 namespace Mist.ProgramAnalysis.Rules;
 
@@ -23,6 +24,7 @@ internal sealed partial class FactFlow
         {
             Unseen = unseenWrites,
             PatternSources = left.PatternSources,
+            Kept = Kept(left.Kept, right.Kept),
             StableHolders = left.StableHolders.Intersect(right.StableHolders),
             CompoundInputs = Agreeing(left.CompoundInputs, right.CompoundInputs),
             Results = Agreeing(left.Results, right.Results),
@@ -59,6 +61,13 @@ internal sealed partial class FactFlow
             .Concat(joined.Results.Values.SelectMany(term => term.Variables))
             .Concat(joined.CompoundInputs.Values.SelectMany(term => term.Variables));
         return joined with { Bag = left.Bag.Join(right.Bag, mine, theirs, alternativeCap, live) };
+    }
+
+    // Every use of a capture follows its one Declare, so two paths that both hold it hold it from one step.
+    private static ImmutableDictionary<SlotCapture, IntegralSet> Kept(ImmutableDictionary<SlotCapture, IntegralSet> left, ImmutableDictionary<SlotCapture, IntegralSet> right)
+    {
+        return ReferenceEquals(left, right) ? left
+            : right.Aggregate(left, (kept, pair) => kept.SetItem(pair.Key, kept.TryGetValue(pair.Key, out var mine) ? mine.Or(pair.Value) : pair.Value));
     }
 
     // Text facts hold in every alternative that knows the value. An alternative that never sees it

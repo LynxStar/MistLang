@@ -14,6 +14,7 @@ internal sealed class TypeInterner
     private readonly Dictionary<string, AnonymousType> anonymousTypes = [];
     private readonly Dictionary<LiftedTypeKey, LiftedType> liftedTypes = [];
     private readonly Dictionary<IMistType, UnknownValueType> unknownValueTypes = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<(IMistType, IMistType, IMistType?), RefinementArgument> refinementArguments = [];
 
     /// <summary>
     /// The overloads exist so a caller cannot choose the CLR box. Identity is keyed on
@@ -92,6 +93,18 @@ internal sealed class TypeInterner
         var unknownValue = new UnknownValueType(domain);
         unknownValueTypes[domain] = unknownValue;
         return unknownValue;
+    }
+
+    public RefinementArgument GetOrCreateRefinement(IMistType domain, IMistType refinement, IMistType? contract)
+    {
+        if(refinementArguments.TryGetValue((domain, refinement, contract), out var existing))
+        {
+            return existing;
+        }
+
+        var argument = new RefinementArgument(domain, refinement, contract);
+        refinementArguments[(domain, refinement, contract)] = argument;
+        return argument;
     }
 
     /// <summary>

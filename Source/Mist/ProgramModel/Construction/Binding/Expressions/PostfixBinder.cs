@@ -297,7 +297,7 @@ internal static partial class PostfixBinder
         {
             IsImplicit = isImplicit,
             ContextTypes = ContextBinding.TypesOf(selected, type => choice.Substitution.Apply(type, interner)),
-            Captures = [.. captures ?? [], .. group.StatedCapturesFor(selected), .. slots.CapturesOf(selected), .. lengths],
+            Captures = [.. captures ?? [], .. group.StatedCapturesFor(selected), .. slots.CapturesOf(selected), .. lengths, .. ReceiverSlots.Used(group.ReceiverCaptures, [returnType, .. parameterTypes])],
         };
 
         return TaskResult.IsDrop(selected) ? invocation : AutoDrop(invocation, ctx, context);
@@ -481,7 +481,8 @@ internal static partial class PostfixBinder
 
         if(found is MethodGroupResult { Methods.Count: > 0 } group)
         {
-            return new MethodGroupExpression(node, receiver, memberName, group.Methods, constructed) { Paths = group.Paths };
+            var (owned, slots) = ReceiverSlots.Own(receiver, constructed, context.ProgramModel.TypeInterner);
+            return new MethodGroupExpression(node, receiver, memberName, group.Methods, owned) { Paths = group.Paths, ReceiverCaptures = slots };
         }
 
         if(HiddenOn(constructed, found, ctx.AccessAt(node), node, context))
@@ -537,15 +538,19 @@ internal static partial class PostfixBinder
             return new TypeReferenceExpression(node, carried);
         }
 
+        var (reaching, captures) = found is FieldResult or PropertyResult ? ReceiverSlots.Own(receiver, constructed, context.ProgramModel.TypeInterner) : (constructed, []);
         var resolved = ClrInboundLifting.Close(
             found,
             TypeSubstitution
-                .ForMember(constructed, found, context.ProgramModel.TypeInterner)
+                .ForMember(reaching, found, context.ProgramModel.TypeInterner)
                 .Apply(MemberTypeOf(found), context.ProgramModel.TypeInterner),
             context.Resolver.LookupWellKnown(WellKnownTypes.Void),
             context.ProgramModel.TypeInterner);
 
-        return new MemberAccessExpression(node, receiver, memberName, resolved, member: found, isFailed: reported);
+        return new MemberAccessExpression(node, receiver, memberName, resolved, member: found, isFailed: reported)
+        {
+            Captures = ReceiverSlots.Used(captures, [resolved]),
+        };
     }
 
     /// <summary>

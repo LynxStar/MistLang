@@ -4,6 +4,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 
@@ -38,7 +39,8 @@ internal sealed partial class RefinementAnalyzer
 
         public void NeedArguments(
             FactState state, IReadOnlyList<Expression> arguments,
-            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null)
+            IReadOnlyList<IMistType>? parameterTypes, IReadOnlyList<Parameter>? parameters, Expression? receiver = null, Method? callee = null,
+            IReadOnlyCollection<SlotCapture>? exact = null)
         {
             if(parameterTypes is null)
             {
@@ -58,16 +60,20 @@ internal sealed partial class RefinementAnalyzer
                 var slot = flattened ? ValuePack.SlotOf(parameters!, arguments.Count, i) : i;
                 var parameter = parameters is not null && slot < parameters.Count ? parameters[slot] : null;
 
-                if(parameter is { Modifier.Direction: ByRefDirection.Out }
-                    || targets[i] is not { } target
-                    || (flattened && arguments[i] is SpreadExpression))
+                if(targets[i] is not { } target || (flattened && arguments[i] is SpreadExpression))
                 {
+                    continue;
+                }
+
+                if(parameter is { Modifier.Direction: ByRefDirection.Out })
+                {
+                    NeedClosing(state, arguments[i].Type, target, arguments[i].Node, [arguments[i]], SlotMeeting.Equal);
                     continue;
                 }
 
                 Need(
                     state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
-                    reading: reading);
+                    reading: reading, meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [] } : new SlotMeeting(exact ?? []));
             }
         }
 

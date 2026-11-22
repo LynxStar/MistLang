@@ -15,7 +15,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// evaluates the value: a switch arm's result, the right of <c>??</c>, an array literal's element, an
 /// expression-bodied lambda's result, a with block's value, and a field or property initializer or a
 /// getter's expression body, each of which is a body root. Also which closing each capture fills, so a
-/// contract naming a sibling slot reads the sibling from the closing's own argument for it.
+/// contract naming a sibling slot reads the sibling from the closing's own argument for it, and which
+/// creation an initializer entry belongs to, whose captures the entry meets by equality.
 /// </summary>
 internal sealed class ClosingSites
 {
@@ -23,6 +24,7 @@ internal sealed class ClosingSites
 
     private readonly Dictionary<Expression, IMistType> targets = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<SlotCapture, IReadOnlyDictionary<TypeParameter, IMistType>> closings = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<ObjectInitializerAssignment, IReadOnlyList<SlotCapture>> creators = new(ReferenceEqualityComparer.Instance);
 
     public static ClosingSites Of(AnalysisContext context)
     {
@@ -56,6 +58,14 @@ internal sealed class ClosingSites
                     sites.targets[result] = target;
                     break;
 
+                case NewExpression { Captures.Count: > 0 } creation:
+                    foreach(var entry in creation.Initializer)
+                    {
+                        sites.creators[entry] = creation.Captures;
+                    }
+
+                    break;
+
                 case WithBlockStatement ambient when !ReferenceEquals(ambient.KeyType, ambient.Value.Type):
                     sites.targets[ambient.Value] = ambient.KeyType;
                     break;
@@ -84,6 +94,11 @@ internal sealed class ClosingSites
     public IMistType? TargetOf(Expression value)
     {
         return targets.GetValueOrDefault(value);
+    }
+
+    public IReadOnlyList<SlotCapture> CreatorOf(ObjectInitializerAssignment entry)
+    {
+        return creators.GetValueOrDefault(entry) ?? [];
     }
 
     public IReadOnlyDictionary<TypeParameter, IMistType>? ClosingOf(SlotCapture capture)

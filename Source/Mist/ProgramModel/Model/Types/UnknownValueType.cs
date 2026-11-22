@@ -13,13 +13,18 @@ namespace Mist.ProgramModel.Model.Types;
 /// only be emitted as <c>object</c>.
 /// </para>
 /// </summary>
-internal sealed class UnknownValueType : MistType
+internal class UnknownValueType : MistType
 {
     /// <remarks>
     /// Named <c>unknown</c> so a constructed type reads the way diagnostics say it. The name is not
     /// the identity -- <see cref="Domain"/> is -- so two domains sharing this name is not a collision.
     /// </remarks>
     public UnknownValueType(IMistType domain) : base("unknown", new Scope(null), declaringType: null)
+    {
+        Domain = domain;
+    }
+
+    protected UnknownValueType(string name, IMistType domain) : base(name, new Scope(null), declaringType: null)
     {
         Domain = domain;
     }

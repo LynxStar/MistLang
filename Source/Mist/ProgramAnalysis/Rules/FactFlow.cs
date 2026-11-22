@@ -52,6 +52,9 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: null } declaration }:
                 return state with { Bindings = state.Bindings.Remove([declaration.Local]) };
 
+            case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Local: SlotCapture capture } declaration }:
+                return SlotReads.Keep(Give(state, capture, declaration.Initializer), capture);
+
             case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement declaration }:
                 return Give(state, declaration.Local, declaration.Initializer);
 
@@ -89,7 +92,7 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
 
                 state = InvalidateArguments(state, expression);
                 var term = reading.Read(ref state, expression);
-                return state with { Results = state.Results.SetItem(expression, term) };
+                return SlotReads.Created(state, expression, term) with { Results = state.Results.SetItem(expression, term) };
 
             default:
                 return state;
@@ -130,6 +133,11 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };
         }
 
+        if(term is { Constant.IsZero: true, Variables: [var source] } && term.Multipliers[0].IsOne && SlotReads.HasSlots(local.Type))
+        {
+            state = SlotReads.Carry(state, source, value);
+        }
+
         if(trusted)
         {
             reading.AddSymbols(ref state, value, local.Type);
@@ -159,6 +167,10 @@ internal sealed partial class FactFlow(IReadOnlySet<object> unseenWrites, Lifted
         if(!assignment.IsCoalescing)
         {
             state = state with { Bag = state.Bag.Add(new Fact(new Term(value).Subtract(term), Relation.Equal)) };
+            if(term is { Constant.IsZero: true, Variables: [var source] } && term.Multipliers[0].IsOne && SlotReads.HasSlots(assignment.Target.Type))
+            {
+                state = SlotReads.Carry(state, source, value);
+            }
         }
 
         if(trusted)

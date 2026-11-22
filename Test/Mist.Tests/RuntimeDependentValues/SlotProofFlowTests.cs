@@ -31,7 +31,7 @@ public sealed class SlotProofFlowTests
         ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
         capacity = ring.TypeParametersList[0];
         n = new LocalVariable("n", slots.ZeroOrPositive);
-        m = new LocalVariable("m", slots.ZeroOrPositive);
+        m = new LocalVariable("m", slots.Refinements.Between(slots.Int, 0L, 19L, "Small"));
         i = new LocalVariable("i", slots.Int);
     }
 
@@ -106,8 +106,8 @@ public sealed class SlotProofFlowTests
 
         var refused = Assert.Single(Analyze(declared, Written(m, HandBuiltRefinements.Read(a))));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'int[n]' is not proven to be 'int[m]': 'n' and 'm' are not proven identical (fails when n <= m - 1)", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'int[n]' is not proven to be 'int[m]': 'n' is not proven to lie in 'int >= 0 and <= 19' (fails when n >= 20)", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -120,8 +120,8 @@ public sealed class SlotProofFlowTests
 
         var refused = Assert.Single(Analyze(RingOf(n, HandBuiltRefinements.Read(some))));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'Ring<unknown>' is not proven to be 'Ring<n>': 'ring.Capacity' and 'n' are not proven identical (fails when n <= ring.Capacity - 1)", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'Ring<unknown>' is not proven to be 'Ring<n>': 'ring.Capacity' is not proven to lie in 'int >= 0' (fails when ring.Capacity <= -1)", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class SlotProofFlowTests
     }
 
     [Fact]
-    public void TheBranchATestSelectsKnowsTheScrutineesReadToBeTheSlotsValue()
+    public void TheBranchATestSelectsKnowsTheScrutineesReadLiesInTheSlotsRefinement()
     {
         var some = new LocalVariable("ring", slots.Closed(ring, UnknownType.Instance));
         var tested = slots.Capture(n, slots.Int);
@@ -193,7 +193,7 @@ public sealed class SlotProofFlowTests
             HandBuiltModel.Node(), HandBuiltRefinements.Read(some), new TypeTestPattern(HandBuiltModel.Node(), same.Type, same) { Captures = [tested] }, slots.Refinements.Bool);
 
         Assert.Empty(Analyze(HandBuiltRefinements.If(test, RingOf(n, HandBuiltRefinements.Read(some), "x"), RingOf(n, HandBuiltRefinements.Read(same), "y"))));
-        Assert.Equal(["MIST0486"], Numbers(Analyze(HandBuiltRefinements.If(test), RingOf(n, HandBuiltRefinements.Read(some), "x"))));
+        Assert.Equal(["MIST0506"], Numbers(Analyze(HandBuiltRefinements.If(test), RingOf(n, HandBuiltRefinements.Read(some), "x"))));
     }
 
     [Fact]
@@ -218,17 +218,21 @@ public sealed class SlotProofFlowTests
     [Fact]
     public void ASecondArgumentBindingTheSameParameterIsProvenAtTheArgumentSite()
     {
-        var (a, declaredA, length) = Created(n, "a");
+        var (a, declaredA, _) = Created(n, "a");
         var (b, declaredB, _) = Created(n, "b");
         var three = new LocalVariable("c", slots.ArrayOf(slots.Literal(3)));
         var declaredC = new LocalDeclarationStatement(three, slots.Refinements.Array(3));
-        var inferred = slots.ArrayOf(length.Value);
-        var blit = new Method("Blit", slots.Refinements.Built.Type("Void"), [new Parameter("source", inferred), new Parameter("target", inferred)], new MemberModifiers());
 
         ExpressionStatement call(LocalVariable second)
         {
+            var length = new SlotCapture("a.Length", slots.ZeroOrPositive, slots.Int, slots.Refinements.Length(HandBuiltRefinements.Read(a)), 42);
+            var inferred = slots.ArrayOf(length.Value);
+            var blit = new Method("Blit", slots.Refinements.Built.Type("Void"), [new Parameter("source", inferred), new Parameter("target", inferred)], new MemberModifiers());
             return HandBuiltRefinements.Evaluate(new InvocationExpression(
-                HandBuiltModel.Node(), slots.Refinements.Literal(0L), [HandBuiltRefinements.Read(a), HandBuiltRefinements.Read(second)], blit.ReturnType, blit, [inferred, inferred]));
+                HandBuiltModel.Node(), slots.Refinements.Literal(0L), [HandBuiltRefinements.Read(a), HandBuiltRefinements.Read(second)], blit.ReturnType, blit, [inferred, inferred])
+            {
+                Captures = [length],
+            });
         }
 
         Assert.Empty(Analyze(declaredA, declaredB, call(b)));
@@ -236,7 +240,7 @@ public sealed class SlotProofFlowTests
         var refused = Assert.Single(Analyze(declaredA, declaredC, call(three)));
 
         Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'int[3]' is not proven to be 'int[n]': '3' and 'n' are not proven identical (fails when n <= 2)", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("'int[3]' is not proven to be 'int[a.Length]': '3' and 'a.Length' are not proven identical", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -276,7 +280,7 @@ public sealed class SlotProofFlowTests
     }
 
     [Fact]
-    public void AnArraySizedByASourcesLengthAdmitsTheSourceItselfAndRefusesAnother()
+    public void AnArraySizedByASourcesLengthAdmitsWhatLiesInThatLengthsRefinementAndRefusesAnother()
     {
         var source = new LocalVariable("source", slots.ArrayOf(new UnknownValueType(slots.Int)));
         var other = new LocalVariable("other", slots.ArrayOf(new UnknownValueType(slots.Int)));
@@ -287,12 +291,18 @@ public sealed class SlotProofFlowTests
             return HandBuiltSlots.Declare(new LocalVariable("c", slots.ArrayOf(sized.Value)), HandBuiltRefinements.Read(from), sized);
         }
 
-        Assert.Empty(Analyze(copied(source)));
+        IfStatement shorter(LocalVariable from)
+        {
+            return HandBuiltRefinements.If(
+                slots.Refinements.Binary(slots.Refinements.Length(HandBuiltRefinements.Read(source)), BinaryOperatorKind.LessThan, slots.Refinements.Literal(5L)), copied(from));
+        }
 
-        var refused = Assert.Single(Analyze(copied(other)));
+        Assert.Empty(Analyze(shorter(source)));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'other.Length' and 'source.Length' are not proven identical", refused.Message, StringComparison.Ordinal);
+        var refused = Assert.Single(Analyze(shorter(other)));
+
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'other.Length' is not proven to lie in 'int >= 0 and <= 4'", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -312,8 +322,8 @@ public sealed class SlotProofFlowTests
 
         var refused = Assert.Single(Analyze(HandBuiltRefinements.If(tested(5), RingOf(n, fresh(4), "r"))));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'Ring<4>' is not proven to be 'Ring<5>': '4' and '5' are not proven identical (fails when n == 5)", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'Ring<4>' is not proven to be 'Ring<5>': '4' is not proven to lie in 'int == 5'", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -339,10 +349,10 @@ public sealed class SlotProofFlowTests
         var seven = new LocalVariable("n", slots.Int);
         var (a, declared, _) = Created(seven);
 
-        var refused = Assert.Single(Analyze(new LocalDeclarationStatement(seven, slots.Refinements.Literal(7L)), declared, Written(m, HandBuiltRefinements.Read(a))));
+        var refused = Assert.Single(Analyze(new LocalDeclarationStatement(seven, slots.Refinements.Literal(25L)), declared, Written(m, HandBuiltRefinements.Read(a))));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'int[7]' is not proven to be 'int[m]': '7' and 'm' are not proven identical (fails when m <= 6)", refused.Message, StringComparison.Ordinal);
+        Assert.Equal("MIST0506", refused.Number.Value);
+        Assert.Contains("'int[25]' is not proven to be 'int[m]': '25' is not proven to lie in 'int >= 0 and <= 19'", refused.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -375,8 +385,8 @@ public sealed class SlotProofFlowTests
     [Fact]
     public void ASwitchArmAndAnArrayLiteralElementAreJudgedWhereTheFlowEvaluatesThem()
     {
-        var (a, declaredA, _) = Created(n, "a");
-        var (c, declaredC, _) = Created(m, "c");
+        var (a, declaredA, _) = Created(m, "a");
+        var (c, declaredC, _) = Created(n, "c");
 
         LocalDeclarationStatement picked()
         {
@@ -397,7 +407,7 @@ public sealed class SlotProofFlowTests
         var proven = HandBuiltRefinements.If(Equal(HandBuiltRefinements.Read(n), HandBuiltRefinements.Read(m)), picked(), listed());
 
         Assert.Empty(Analyze(declaredA, declaredC, proven));
-        Assert.Equal(["MIST0486", "MIST0486"], Numbers(Analyze(declaredA, declaredC, picked(), listed())));
+        Assert.Equal(["MIST0506", "MIST0506"], Numbers(Analyze(declaredA, declaredC, picked(), listed())));
         Assert.Empty(slots.Refinements.Built.Analyze(new AssignabilityAnalyzer(), HandBuiltModel.Block(declaredA, declaredC, picked(), listed())));
     }
 }

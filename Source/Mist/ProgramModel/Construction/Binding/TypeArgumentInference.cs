@@ -446,13 +446,14 @@ internal static class TypeArgumentInference
     {
         if(declared is TypeParameter parameter)
         {
-            if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Nested: true })
+            if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType or CapturedValue && reading is { Nested: true })
             {
                 reading.Slots.Nested(reading.Method, parameter, reading.Shown ?? reading.Argument.Type);
                 return;
             }
 
-            if(parameter is { IsDependent: true, IsPack: false } && actual is UnknownType or UnknownValueType && reading is { Closing: { } closing })
+            if(parameter is { IsDependent: true, IsPack: false } && reading is { Closing: { } closing }
+                && (actual is UnknownType or UnknownValueType || (actual is CapturedValue && closing.Definition is ClassType or StructType)))
             {
                 var slot = Slot(parameter, parameters);
                 if(slot < 0 || bounds[slot].Count > 0 || reading.Slots.Unknown(reading.Method, parameter, reading.Argument, closing, reading.Ordinal) is not { } read)

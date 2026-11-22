@@ -11,7 +11,8 @@ namespace Mist.Tests.RuntimeDependentValues;
 
 /// <summary>
 /// What a method's dependent parameter binds from each kind of argument slot (runtime-dependent-values
-/// Requirements 8.3, 8.4 and 11.5).
+/// Requirements 8.3, 8.4 and 11.5): a literal or a dependent parameter as it is, and any other slot of a class
+/// or a struct, a capture included, as a capture that reads the argument's own slot.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class SlotInferenceDecisionTests
@@ -33,6 +34,11 @@ public sealed class SlotInferenceDecisionTests
         count.TypeParametersList.Add(n);
     }
 
+    private static string? ReadFrom(IMistType? inferred)
+    {
+        return inferred is CapturedValue { Capture.Initializer: MemberAccessExpression { Receiver: LocalReferenceExpression { Local.Name: var name } } } ? name : null;
+    }
+
     private (IMistType?[] Inferred, SlotInference Slots, TypeArgumentConflict? Conflict) Infer(Method method, params Expression[] arguments)
     {
         var inference = new SlotInference(slots.Refinements.Built.Interner);
@@ -41,15 +47,36 @@ public sealed class SlotInferenceDecisionTests
     }
 
     [Fact]
-    public void ALiteralACaptureAndADependentParameterBindAsTheyAre()
+    public void ALiteralAndADependentParameterBindAsTheyAreAndACaptureBindsTheArgumentsOwnRead()
     {
         var literal = slots.Literal(3);
         var captured = slots.Capture(new LocalVariable("k", slots.Int)).Value;
         var forwarded = slots.Dependent("M");
+        var a = HandBuiltRefinements.Local(slots.ArrayOf(captured), "a");
 
         Assert.Same(literal, Infer(len, HandBuiltRefinements.Local(slots.ArrayOf(literal), "a")).Inferred[0]);
-        Assert.Same(captured, Infer(len, HandBuiltRefinements.Local(slots.ArrayOf(captured), "a")).Inferred[0]);
         Assert.Same(forwarded, Infer(len, HandBuiltRefinements.Local(slots.ArrayOf(forwarded), "a")).Inferred[0]);
+
+        var bound = Assert.IsType<CapturedValue>(Infer(len, a).Inferred[0]);
+
+        Assert.NotSame(captured, bound);
+        Assert.Same(a, Assert.IsType<MemberAccessExpression>(bound.Capture.Initializer).Receiver);
+    }
+
+    [Fact]
+    public void ACaptureNestedInAnArgumentsTypeArgumentBindsNothingAndIsRefused()
+    {
+        var box = HandBuiltModel.Class("Box<>");
+        box.TypeParametersList.Add(new TypeParameter("T", 0, box.Scope, box));
+        var boxed = new Method("Boxed", slots.Int, [new Parameter("b", slots.Closed(box, slots.ArrayOf(n)))], default) { Scope = new Scope(null) };
+        boxed.TypeParametersList.Add(n);
+        var argument = HandBuiltRefinements.Local(slots.Closed(box, slots.ArrayOf(slots.Capture(new LocalVariable("k", slots.Int)).Value)), "b");
+
+        var (inferred, inference, _) = Infer(boxed, argument);
+
+        Assert.Null(inferred[0]);
+        Assert.Same(n, inference.RefusedFor(boxed)?.Parameter);
+        Assert.Same(slots.Literal(3), Infer(boxed, HandBuiltRefinements.Local(slots.Closed(box, slots.ArrayOf(slots.Literal(3))), "b")).Inferred[0]);
     }
 
     [Fact]
@@ -145,7 +172,7 @@ public sealed class SlotInferenceDecisionTests
         var (literals, _, _) = Infer(blit, HandBuiltRefinements.Local(slots.ArrayOf(first), "b"), HandBuiltRefinements.Local(slots.ArrayOf(slots.Literal(3)), "c"));
 
         Assert.Null(conflict);
-        Assert.Same(first, inferred[0]);
-        Assert.Same(first, literals[0]);
+        Assert.Equal("b", ReadFrom(inferred[0]));
+        Assert.Equal("b", ReadFrom(literals[0]));
     }
 }

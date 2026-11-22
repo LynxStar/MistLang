@@ -15,9 +15,9 @@ namespace Mist.Tests.RuntimeDependentValues;
 /// <summary>
 /// The six places a body writes a type that the binder refused before runtime-dependent-values MIST-1373: a typed
 /// foreach variable, a typed deconstruction, a with binding, <c>default(T)</c>, the element type of an array creation
-/// and a method group with stated arguments. Each declares its captures in the flow, so a closing it meets is proven
-/// where <c>n == m</c> holds and refused as MIST0486 where it does not, judged by the refinement analyzer over
-/// hand-built bodies.
+/// and a method group with stated arguments. Each declares its captures in the flow, so a closing it meets is judged
+/// by the refinement each capture keeps: with <c>n</c> a wider refinement than <c>m</c>, it is proven where
+/// <c>n == m</c> holds and refused where it does not, judged by the refinement analyzer over hand-built bodies.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class BodySiteClosingProofTests
@@ -30,8 +30,8 @@ public sealed class BodySiteClosingProofTests
 
     public BodySiteClosingProofTests()
     {
-        n = new LocalVariable("n", slots.Int);
-        m = new LocalVariable("m", slots.Int);
+        n = new LocalVariable("n", slots.Refinements.Between(slots.Int, 11L, 29L, "Range"));
+        m = new LocalVariable("m", slots.Refinements.Between(slots.Int, 11L, 19L, "Small"));
         ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.Int);
         cell = HandBuiltSlots.Generic(HandBuiltModel.Struct("Cell<>"), "N", slots.Int);
     }
@@ -40,12 +40,12 @@ public sealed class BodySiteClosingProofTests
 
     [Theory]
     [MemberData(nameof(Sites))]
-    public void AClosingWrittenAtTheSiteIsProvenWhereTheValuesAreEqualAndRefusedWhereTheyAreNot(string site)
+    public void AClosingWrittenAtTheSiteIsProvenWhereTheRefinementsMeetAndRefusedWhereTheyDoNot(string site)
     {
         var refused = Assert.Single(Analyze(Site(site)));
 
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("are not proven identical", refused.Message, StringComparison.Ordinal);
+        Assert.Contains(refused.Number.Value, new[] { "MIST0486", "MIST0506" });
+        Assert.Contains("is not proven to be", refused.Message, StringComparison.Ordinal);
         Assert.Empty(Analyze([HandBuiltRefinements.If(slots.Refinements.Binary(HandBuiltRefinements.Read(n), BinaryOperatorKind.Equal, HandBuiltRefinements.Read(m)), Site(site))]));
     }
 

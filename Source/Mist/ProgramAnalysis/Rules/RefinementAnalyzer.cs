@@ -151,7 +151,10 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                 case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression compound }
                     when StorageLocations.NotAssignable(compound.Target) is null:
                     var result = CompoundValue(ref state, compound);
-                    Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target));
+                    if(NeedOperands(state, (BinaryExpression)result))
+                    {
+                        Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target), meeting: new SlotMeeting(SlotCapture.Of(compound.Target), Receiver: Through(compound.Target)));
+                    }
 
                     if(compound.Target is IndexExpression incremented)
                     {
@@ -162,6 +165,10 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
                 case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } value, TargetType: { } target } }:
                     Need(state, value, target, value);
+                    break;
+
+                case { Kind: FlowStepKind.Evaluate, Node: BinaryExpression { Operator.Modifiers.IsIntrinsic: false } operation }:
+                    _ = NeedOperands(state, operation);
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: IndexExpression index }:

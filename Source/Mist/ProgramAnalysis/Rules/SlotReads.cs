@@ -16,8 +16,8 @@ namespace Mist.ProgramAnalysis.Rules;
 /// argument admits (runtime-dependent-values Requirements 1, 7 and 9). A literal is its constant and a
 /// dependent parameter the value bound under it. Any other slot of a class or a struct, a capture, a
 /// refinement or <c>unknown</c>, is the value under the member holder of the receiver, which an object
-/// keeps for life: a creation records it equal to the value it closed the object with, a copy carries
-/// it, a write to the variable ends it, and the receiver type's refinement is a fact on it. A capture
+/// keeps for life: a creation records it equal to the value it closed the object with, a copy or a cast
+/// carries it, a write to the variable ends it, and the receiver type's refinement is a fact on it. A capture
 /// admits the refinement <see cref="Keep"/> fixes at its Declare step, never its value. The slot of an
 /// abstract is never keyed by the object (Requirement 11.4).
 /// </summary>
@@ -90,6 +90,8 @@ internal static class SlotReads
         return argument switch
         {
             LiftedType lifted when Constant(lifted) is { } constant => new Term(constant),
+            CapturedValue captured when through is not null && Creates(through, captured.Capture)
+                => reading.Read(ref state, new LocalReferenceExpression(captured.Capture.Initializer.Node, captured.Capture)),
             CapturedValue or UnknownType or UnknownValueType when through is not null && parameter.DeclaringType is ClassType or StructType
                 => reading.Read(ref state, Read(through, parameter)),
             CapturedValue captured => reading.Read(ref state, new LocalReferenceExpression(captured.Capture.Initializer.Node, captured.Capture)),
@@ -97,6 +99,12 @@ internal static class SlotReads
             ParameterValue held => reading.Symbol(ref state, new SymbolicBound(held.Parameter.Name, ComparisonKind.Equal) { Named = held.Parameter }),
             _ => null,
         };
+    }
+
+    private static bool Creates(Expression through, SlotCapture capture)
+    {
+        return Written(through) is NewExpression or ArrayCreationExpression or StackallocExpression or DefaultExpression or InvocationExpression
+            && SlotCapture.Of(Written(through)).Contains(capture);
     }
 
     public static bool StandsForOneValue(IMistType argument)
@@ -139,6 +147,24 @@ internal static class SlotReads
             return state;
         }
 
+        if(expression is BinaryExpression { Operator: { } called } operation && SlotIdentity.Closer(operation) is { } closer
+            && state.Results.GetValueOrDefault(closer) is { Constant.IsZero: true, Variables: [var from] } closed && closed.Multipliers[0].IsOne)
+        {
+            return Returned(state, called.ReturnType, expression.Type, from, made);
+        }
+
+        var cast = expression switch
+        {
+            CastExpression { Operator: null } converted => converted.Operand,
+            AsExpression converted => converted.Operand,
+            _ => null,
+        };
+
+        if(cast is not null)
+        {
+            return state.Results.GetValueOrDefault(cast) is { Constant.IsZero: true, Variables: [var operand] } read && read.Multipliers[0].IsOne ? Carry(state, operand, made) : state;
+        }
+
         var owned = SlotCapture.Of(expression).Concat(expression is InvocationExpression { Receiver: MemberAccessExpression receiver } ? receiver.Captures : []).ToList();
 
         if(owned.Count == 0 || Plain(expression.Type) is not ConstructedType { Definition: IHasTypeParameters declared } closing || closing.Definition is not (ClassType or StructType))
@@ -150,6 +176,24 @@ internal static class SlotReads
         {
             if(closing.TypeArguments[parameter.Ordinal] is CapturedValue captured && owned.Exists(capture => ReferenceEquals(capture, captured.Capture))
                 && state.Bindings.Get(captured.Capture) is { } value)
+            {
+                state = state with { Bindings = state.Bindings.Set(new MemberHolder(made, parameter), value) };
+            }
+        }
+
+        return state;
+    }
+
+    private static FactState Returned(FactState state, IMistType declared, IMistType result, Value from, Value made)
+    {
+        if(Plain(declared) is not ConstructedType written || Plain(result) is not ConstructedType { Definition: ClassType or StructType, Definition: IHasTypeParameters closing })
+        {
+            return state;
+        }
+
+        foreach(var parameter in closing.TypeParametersList.Where(parameter => parameter is { IsDependent: true, IsPack: false } && parameter.Ordinal < written.TypeArguments.Count))
+        {
+            if(written.TypeArguments[parameter.Ordinal] is TypeParameter { IsDependent: true } owner && state.Bindings.Get(new MemberHolder(from, owner)) is { } value)
             {
                 state = state with { Bindings = state.Bindings.Set(new MemberHolder(made, parameter), value) };
             }

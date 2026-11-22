@@ -2,7 +2,9 @@ using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -51,6 +53,69 @@ public sealed class SlotReadsDecisionTests
         var read = SlotReads.Value(ref state, reading, capture.Value, null, capacity);
 
         Assert.Equal([held], read?.Variables);
+    }
+
+    [Fact]
+    public void ACreationsOwnCaptureReadThroughThatCreationIsTheValueItsLocalHoldsAndAnyOtherValuesIsItsHolder()
+    {
+        var capture = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive));
+        var held = new Value(slots.Int, "n", HandBuiltModel.Node());
+        var made = new NewExpression(HandBuiltModel.Node(), slots.Closed(ring, capture.Value), [], null, [], []) { Captures = [capture] };
+        var other = new LocalVariable("other", slots.Closed(ring, capture.Value));
+        var state = FactState.Empty with { Bindings = Bindings.Empty.Set(capture, held) };
+
+        var read = SlotReads.Value(ref state, reading, capture.Value, made, capacity);
+        var through = SlotReads.Value(ref state, reading, capture.Value, HandBuiltRefinements.Read(other), capacity);
+
+        Assert.Equal([held], read?.Variables);
+        Assert.Equal([state.Bindings.Get(new MemberHolder(state.Bindings.Get(other)!, capacity))!], through?.Variables);
+    }
+
+    [Fact]
+    public void ACastCarriesItsOperandsSlotAndRecordsNoneOfTheCaptureItsTypeWrites()
+    {
+        var named = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive));
+        var q = new LocalVariable("q", slots.Closed(ring, named.Value));
+        var operand = HandBuiltRefinements.Read(q);
+        var cast = new CastExpression(HandBuiltModel.Node(), operand, slots.Closed(ring, named.Value), [], slots.Closed(ring, named.Value)) { Captures = [named] };
+        var (instance, slot, written, result) = (Held("q"), Held("m"), Held("n"), Held("cast"));
+        var state = FactState.Empty with
+        {
+            Bindings = Bindings.Empty.Set(named, written).Set(new MemberHolder(instance, capacity), slot),
+            Results = FactState.Empty.Results.SetItem(operand, new Term(instance)),
+        };
+
+        var carried = SlotReads.Created(state, cast, new Term(result));
+        var unknown = SlotReads.Created(state with { Bindings = Bindings.Empty.Set(named, written) }, cast, new Term(result));
+
+        Assert.Same(slot, carried.Bindings.Get(new MemberHolder(result, capacity)));
+        Assert.Null(unknown.Bindings.Get(new MemberHolder(result, capacity)));
+    }
+
+    [Fact]
+    public void AUserOperatorsResultHoldsTheSlotOfTheOperandWhoseValueClosesItWhereItsReturnTypeNamesIt()
+    {
+        var named = slots.Capture(new LocalVariable("n", slots.ZeroOrPositive));
+        var closed = slots.Closed(ring, named.Value);
+        var q = new LocalVariable("q", closed);
+        var left = HandBuiltRefinements.Read(q);
+        var plus = new Operator(OperatorKind.Plus, slots.Closed(ring, capacity), [new Parameter("a", slots.Closed(ring, capacity)), new Parameter("b", slots.Int)],
+            new MemberModifiers { IsStatic = true })
+        { DeclaringType = ring };
+        var sum = new BinaryExpression(HandBuiltModel.Node(), left, BinaryOperatorKind.Add, slots.Refinements.Literal(1L), closed) { Operator = plus, ParameterTypes = [closed, slots.Int] };
+        var (instance, slot, result) = (Held("q"), Held("m"), Held("sum"));
+        var state = FactState.Empty with
+        {
+            Bindings = Bindings.Empty.Set(new MemberHolder(instance, capacity), slot),
+            Results = FactState.Empty.Results.SetItem(left, new Term(instance)),
+        };
+
+        Assert.Same(slot, SlotReads.Created(state, sum, new Term(result)).Bindings.Get(new MemberHolder(result, capacity)));
+    }
+
+    private Value Held(string name)
+    {
+        return new Value(slots.Int, name, HandBuiltModel.Node());
     }
 
     [Fact]

@@ -149,6 +149,13 @@ internal static class SlotIdentity
         return target is not null && Constituents(target).Any(constituent => Reaches(meeting, constituent));
     }
 
+    public static Expression? Closer(BinaryExpression operation)
+    {
+        return operation is { Operator.Modifiers.IsIntrinsic: false, ParameterTypes: { } types }
+            ? new[] { operation.Left, operation.Right }.FirstOrDefault(operand => types.Any(type => OwesThrough(operand, type)))
+            : null;
+    }
+
     private static bool Reaches(SlotMeeting meeting, IMistType type)
     {
         return SlotReads.Plain(type) is ConstructedType closing && closing.TypeArguments.Any(argument => meeting.ReceiverSlot(argument) is not null || Reaches(meeting, argument));

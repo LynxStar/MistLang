@@ -24,7 +24,9 @@ internal sealed partial class RefinementAnalyzer
                 LocalDeclarationStatement declaration => Refined(declaration.Local.Type) || SlotIdentity.Owes(declaration.Initializer, declaration.Local.Type),
                 AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type)
                     || SlotIdentity.OwesThrough(Through(assignment.Target), assignment.Target.Type),
-                CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression,
+                CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression
+                    || Operates((BinaryExpression)CompoundAssignments.LongForm(compound).Value) || SlotIdentity.OwesThrough(Through(compound.Target), compound.Target.Type),
+                BinaryExpression { Operator.Modifiers.IsIntrinsic: false } operation => Operates(operation),
                 ReturnStatement returned => Refined(returned.TargetType) || SlotIdentity.Owes(returned.Value, returned.TargetType),
                 IndexExpression => true,
                 InvocationExpression call => Targets(call.ParameterTypes) || Owed(call.Arguments, call.ParameterTypes)
@@ -81,7 +83,33 @@ internal sealed partial class RefinementAnalyzer
             }
         }
 
-        // The value a written member is reached through, whose own slots the written value meets.
+        public bool NeedOperands(FactState state, BinaryExpression operation)
+        {
+            if(operation.ParameterTypes is not [var left, var right])
+            {
+                return true;
+            }
+
+            var closer = SlotIdentity.Closer(operation);
+
+            foreach(var (operand, target) in new[] { (operation.Left, left), (operation.Right, right) })
+            {
+                if(operand.Type is not ErrorType && SlotIdentity.Judge(state, operand, target, factReading, budget, Met(new SlotMeeting([], Receiver: closer))) is { } unproven)
+                {
+                    ReportClosing(unproven, operand.Node, [operand]);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool Operates(BinaryExpression operation)
+        {
+            return SlotIdentity.Closer(operation) is not null || Owed([operation.Left, operation.Right], operation.ParameterTypes);
+        }
+
+        // The value a written member, or a user operator's owner, is reached through, whose own slots each value met there meets.
         private static Expression? Through(Expression target)
         {
             return target switch

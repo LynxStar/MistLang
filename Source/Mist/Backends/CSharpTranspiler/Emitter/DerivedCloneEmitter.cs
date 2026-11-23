@@ -46,11 +46,10 @@ internal static class DerivedCloneEmitter
             using(writer.Block())
             {
                 writer.WriteLine("var copy = this;");
+                var counter = 0;
 
                 foreach(var field in flattened.Fields.Where(field => !field.Field.Modifiers.IsStatic))
                 {
-                    var counter = 0;
-
                     if(Copy($"copy.{IdentifierSpelling.Of(field.Name)}", field.Type, clones, ref counter) is { } copied)
                     {
                         writer.WriteLine(Write($"copy.{IdentifierSpelling.Of(field.Name)}", copied, field.Field.Modifiers.IsReadonly || structType.IsReadonly));
@@ -59,8 +58,6 @@ internal static class DerivedCloneEmitter
 
                 foreach(var slot in InstanceStorage.Of(structType).Where(slot => slot.Property is not null))
                 {
-                    var counter = 0;
-
                     if(Copy($"copy.{IdentifierSpelling.Of(slot.Name)}", slot.Type, clones, ref counter) is { } copied)
                     {
                         writer.WriteLine($"{BackingName(slot)}(ref copy) = {copied};");
@@ -115,9 +112,10 @@ internal static class DerivedCloneEmitter
 
         using(writer.Block())
         {
+            var counter = 0;
+
             foreach(var slot in CloneDemand.SlotsNeedingCopy(type, clones))
             {
-                var counter = 0;
                 var read = $"this.{IdentifierSpelling.Of(slot.Name)}";
 
                 if(Copy(read, slot.Type, clones, ref counter) is not { } copied)

@@ -25,6 +25,7 @@ public sealed class GenericCloneEmissionTests
     [InlineData("forwarded")]
     [InlineData("nested")]
     [InlineData("optional")]
+    [InlineData("multiple-optionals")]
     public void AGenericCopyEmitsTheCloneOfEveryChangeableArgumentWithoutDependingOnWrittenClosings(string shape)
     {
         var model = new HandBuiltModel();
@@ -52,8 +53,14 @@ public sealed class GenericCloneEmissionTests
         style.FieldsList.Add(new Field("Size", int32, OwnershipKind.Unrestricted, DeclarationFragments.Public) { DeclaringType = style });
         var holder = declare("Holder<>");
         var t = DeclarationFragments.Parameter(holder, holder.Scope, "T");
-        var slotType = shape == "optional" ? model.Interner.GetOrCreateUnionType([t, model.Type("Void")]) : t;
+        var slotType = shape is "optional" or "multiple-optionals" ? model.Interner.GetOrCreateUnionType([t, model.Type("Void")]) : t;
         holder.FieldsList.Add(new Field("Item", slotType, OwnershipKind.Owned, DeclarationFragments.Public) { DeclaringType = holder });
+
+        if(shape == "multiple-optionals")
+        {
+            holder.FieldsList.Add(new Field("Other", slotType, OwnershipKind.Owned, DeclarationFragments.Public) { DeclaringType = holder });
+        }
+
         var holderOfStyle = model.Interner.GetOrCreateConstructedType(holder, [style]);
         IMistType copied = holderOfStyle;
         var probe = declare("Program");
@@ -133,9 +140,14 @@ public sealed class GenericCloneEmissionTests
             Assert.Contains("if(__Unchangeable(type)) return value;", holderWriter.ToString());
             Assert.Contains("throw new System.InvalidOperationException", holderWriter.ToString());
 
-            if(shape == "optional")
+            if(shape is "optional" or "multiple-optionals")
             {
                 Assert.Contains("this.Item is { } __present0", holderWriter.ToString());
+            }
+
+            if(shape == "multiple-optionals")
+            {
+                Assert.Contains("this.Other is { } __present1", holderWriter.ToString());
             }
 
             if(shape == "forwarded")

@@ -159,6 +159,13 @@ public sealed class UnknownReceiverSlotFlowTests
         return Load(Sized(length), conditional: true, receiver: reached, slot: known ? slot : null);
     }
 
+    private ExpressionStatement Keep(LocalVariable h, Field member, Expression value)
+    {
+        var owner = member.DeclaringType!;
+        var target = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(h), member.Name, Lifted(slots.Closed(ring, UnknownType.Instance)), member: new FieldResult(member, owner, []));
+        return HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(target, value));
+    }
+
     private ExpressionStatement Store(LocalVariable through, Expression value)
     {
         var last = new Field("Last", slots.ArrayOf(capacity), OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = ring };
@@ -264,5 +271,28 @@ public sealed class UnknownReceiverSlotFlowTests
 
         Refused(Analyze(OfM(h, owner), LoadThrough(h, member, n, known: false)), "'n' and 'h.R.Capacity' are not proven identical (fails when m <= n - 1)");
         Assert.Empty(Analyze(OfM(h, owner), LoadThrough(h, member, m, known: false)));
+    }
+
+    [Fact]
+    public void AValueStoredInAnOptionalMemberTypedWithItsOwnersSlotThroughAnUnknownOwnerMeetsTheOwnersSlot()
+    {
+        var (h, member) = Holding(UnknownType.Instance);
+        var owner = member.DeclaringType!;
+        var kept = new Field("F", member.Type, OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = owner };
+
+        Refused(Analyze(OfM(h, owner), Keep(h, kept, Ring(n))), "'n' and 'h.K' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(OfM(h, owner), Keep(h, kept, Ring(m))));
+    }
+
+    [Fact]
+    public void AnOptionalStoredInAnOptionalMemberTypedWithItsOwnersSlotMeetsTheOwnersSlotThroughTheValueItHolds()
+    {
+        var (h, member) = Holding(UnknownType.Instance);
+        var owner = member.DeclaringType!;
+        var kept = new Field("F", member.Type, OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = owner };
+        var x = new LocalVariable("x", Lifted(slots.Closed(ring, UnknownType.Instance)));
+
+        Refused(Analyze(OfM(h, owner), HandBuiltSlots.Declare(x, Ring(n)), Keep(h, kept, HandBuiltRefinements.Read(x))), "'x.Capacity' and 'h.K' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(OfM(h, owner), HandBuiltSlots.Declare(x, Ring(m)), Keep(h, kept, HandBuiltRefinements.Read(x))));
     }
 }

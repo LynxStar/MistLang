@@ -111,10 +111,11 @@ internal static class SlotIdentity
         UnprovenSlot? first = null;
         var written = through is null ? null : SlotReads.Written(through);
         (source, target, meeting) = Own(source, target, through, meeting ?? SlotMeeting.Fit);
+        var held = Held(source, target);
 
         foreach(var constituent in Constituents(target))
         {
-            if(SlotReads.Plain(constituent) is not ConstructedType closing || SlotReads.Closing(source, closing.Definition) is not { } reaching
+            if(SlotReads.Plain(constituent) is not ConstructedType closing || SlotReads.Closing(held, closing.Definition) is not { } reaching
                 || reaching.TypeArguments.Count != closing.TypeArguments.Count)
             {
                 continue;
@@ -130,7 +131,7 @@ internal static class SlotIdentity
                 if(proof is not Proven)
                 {
                     unproven = new UnprovenSlot(
-                        Spelled(state, source), Spelled(state, constituent),
+                        Spelled(state, held), Spelled(state, constituent),
                         Shown(state, pair.Argument, pair.Parameter, via),
                         meeting.ReceiverSlot(pair.Slot) is { } own ? $"{RefinementFindings.Display(meeting.Receiver!)}.{own.Name}" : Shown(state, pair.Slot, pair.Parameter, null),
                         proof, refinement);
@@ -403,6 +404,12 @@ internal static class SlotIdentity
                 }
             }
         }
+    }
+
+    // An optional fits an optional through the value it holds, so that value's slots meet the target's.
+    private static IMistType Held(IMistType source, IMistType target)
+    {
+        return OptionalUnion.IsOptional(SlotReads.Plain(target)) ? SlotReads.Receiving(source) : source;
     }
 
     private static IReadOnlyList<IMistType> Constituents(IMistType target)

@@ -123,4 +123,27 @@ public sealed class ReceiverOwnSlotDecisionTests
         Assert.Same(m, SlotReads.Created(Evaluated(state, receiver, owner), reached, new Term(made)).Bindings.Get(new MemberHolder(made, capacity)));
         Assert.Null(SlotReads.Created(state, reached, new Term(made)).Bindings.Get(new MemberHolder(made, capacity)));
     }
+
+    [Fact]
+    public void AnOptionalMemberTypedWithItsOwnersSlotIsMarkedWithThatSlotThroughTheOptional()
+    {
+        var holder = HandBuiltSlots.Generic(HandBuiltModel.Class("Hd<>"), "K", slots.ZeroOrPositive);
+        var k = holder.TypeParametersList[0];
+        var h = HandBuiltRefinements.Local(slots.Closed(holder, UnknownType.Instance), "h");
+        var owned = new Dictionary<SlotCapture, TypeParameter>(ReferenceEqualityComparer.Instance);
+
+        var marked = Assert.IsType<UnionType>(OwnSlots.Mark(h, Optional(slots.Closed(ring, k)), Optional(slots.Closed(ring, UnknownType.Instance)), owned));
+
+        _ = Assert.IsType<CapturedValue>(Assert.Single(marked.Constituents.OfType<ConstructedType>()).TypeArguments[0]);
+        Assert.Same(k, Assert.Single(owned).Value);
+    }
+
+    [Fact]
+    public void AnOptionalFitsAnOptionalThroughTheSlotsOfTheValueItHolds()
+    {
+        var second = slots.Capture(new LocalVariable("m", slots.Int));
+
+        Assert.NotNull(SlotIdentity.Judge(FactState.Empty, Optional(slots.Closed(ring, first.Value)), Optional(slots.Closed(ring, second.Value)), through: null));
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, Optional(slots.Closed(ring, first.Value)), Optional(slots.Closed(ring, first.Value)), through: null));
+    }
 }

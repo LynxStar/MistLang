@@ -1,3 +1,4 @@
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -63,6 +64,16 @@ internal static class OwnSlots
                 receiver.Node.Span.Start);
             owned[capture] = parameter;
             return capture.Value;
+        }
+
+        if(closed is UnionType optional && OptionalUnion.InnerType(closed) is { } within
+            && OptionalUnion.InnerType(SlotReads.Plain(declared)) is { } inner)
+        {
+            var marked = Marked(receiver, inner, within, closing, owned);
+
+            return ReferenceEquals(marked, within)
+                ? closed
+                : new UnionType(optional.Constituents.Select(constituent => ReferenceEquals(constituent, within) ? marked : constituent).ToList());
         }
 
         if(closed is not ConstructedType shut || SlotReads.Plain(declared) is not ConstructedType open

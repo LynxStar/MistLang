@@ -30,7 +30,7 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
                     break;
 
                 case AssignmentExpression assignment when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Check(context, assignment.Value, AssignedType(context, assignment), assignment.Target);
+                    Check(context, assignment.Value, StorageLocations.AssignedType(assignment, context.Model.TypeInterner), assignment.Target);
                     break;
 
                 case CompoundAssignmentExpression { ResultType: not ErrorType } compound when StorageLocations.NotAssignable(compound.Target) is null:
@@ -252,13 +252,6 @@ internal sealed class AssignabilityAnalyzer : IProgramAnalyzer
             ITupleType tuple => tuple.ElementTypes,
             _ => null,
         };
-    }
-
-    private static IMistType AssignedType(AnalysisContext context, AssignmentExpression assignment)
-    {
-        return assignment.IsCoalescing
-            ? OptionalLifting.NonVoidPortion(assignment.Target.Type, context.Model.TypeInterner)
-            : assignment.Target.Type;
     }
 
     private static IMistType? ResultTarget(LambdaExpression lambda)

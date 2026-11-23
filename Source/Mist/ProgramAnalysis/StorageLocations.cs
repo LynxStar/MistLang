@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
@@ -36,6 +37,16 @@ internal static class StorageLocations
             LiteralExpression => "a literal",
             _ => "a computed value",
         };
+    }
+
+    /// <summary>
+    /// What an assignment's value is judged against: the target, or for a coalescing assignment, which fills
+    /// only the target's absence, its non-void portion. Every Stage 5 rule that judges an assignment's value
+    /// asks here.
+    /// </summary>
+    public static IMistType AssignedType(AssignmentExpression assignment, TypeInterner interner)
+    {
+        return assignment.IsCoalescing ? OptionalLifting.NonVoidPortion(assignment.Target.Type, interner) : assignment.Target.Type;
     }
 
     /// <summary>

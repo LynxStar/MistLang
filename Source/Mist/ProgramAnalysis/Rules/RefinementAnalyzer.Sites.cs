@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
@@ -23,9 +24,9 @@ internal sealed partial class RefinementAnalyzer
                 TupleDeconstructionStatement deconstruction => Deconstructed(deconstruction).Any(pair => SlotIdentity.Owes(pair.Element, pair.Target.Type)),
                 LocalDeclarationStatement declaration => Refined(declaration.Local.Type) || SlotIdentity.Owes(declaration.Initializer, declaration.Local.Type),
                 AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type)
-                    || SlotIdentity.OwesThrough(Through(assignment.Target), assignment.Target.Type, Declared(assignment.Target)),
+                    || SlotIdentity.OwesThrough(Through(assignment.Target), Stored(assignment.Target), Declared(assignment.Target)),
                 CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression
-                    || Operates((BinaryExpression)CompoundAssignments.LongForm(compound).Value) || SlotIdentity.OwesThrough(Through(compound.Target), compound.Target.Type, Declared(compound.Target)),
+                    || Operates((BinaryExpression)CompoundAssignments.LongForm(compound).Value) || SlotIdentity.OwesThrough(Through(compound.Target), Stored(compound.Target), Declared(compound.Target)),
                 BinaryExpression { Operator.Modifiers.IsIntrinsic: false } operation => Operates(operation),
                 ReturnStatement returned => Refined(returned.TargetType) || SlotIdentity.Owes(returned.Value, returned.TargetType),
                 IndexExpression => true,
@@ -64,7 +65,7 @@ internal sealed partial class RefinementAnalyzer
             {
                 var slot = flattened ? ValuePack.SlotOf(parameters!, arguments.Count, i) : i;
                 var parameter = parameters is not null && slot < parameters.Count ? parameters[slot] : null;
-                var declared = flattened ? null : parameter?.Type;
+                var declared = flattened ? null : SlotIdentity.Declared(callee, slot) ?? parameter?.Type;
 
                 if(targets[i] is not { } target || (flattened && arguments[i] is SpreadExpression))
                 {
@@ -123,6 +124,12 @@ internal sealed partial class RefinementAnalyzer
                 IndexExpression { Indexer: not null } index => index.Receiver,
                 _ => null,
             };
+        }
+
+        private static IMistType Stored(Expression target)
+        {
+            return target is MemberAccessExpression { IsConditional: true } && OptionalUnion.InnerType(target.Type) is { } stored
+                && !OptionalUnion.ContainsVoid(Declared(target) ?? stored) ? stored : target.Type;
         }
 
         private static IMistType? Declared(Expression target)

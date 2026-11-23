@@ -1,0 +1,109 @@
+using System.Collections.Immutable;
+using Mist.ProgramAnalysis.Facts;
+using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
+
+namespace Mist.Tests.RuntimeDependentValues;
+
+[Trait("Tier", "1")]
+public sealed class ReceiverOwnSlotDecisionTests
+{
+    private readonly HandBuiltSlots slots = new();
+    private readonly FactReading reading = new(new LiftedReturns());
+    private readonly MemberType ring;
+    private readonly TypeParameter capacity;
+    private readonly SlotCapture first;
+    private readonly Value n;
+    private readonly Value m;
+
+    public ReceiverOwnSlotDecisionTests()
+    {
+        ring = HandBuiltSlots.Generic(HandBuiltModel.Class("Ring<>"), "Capacity", slots.ZeroOrPositive);
+        capacity = ring.TypeParametersList[0];
+        first = slots.Capture(new LocalVariable("n", slots.Int));
+        n = new Value(slots.Int, "n", HandBuiltModel.Node());
+        m = new Value(slots.Int, "m", HandBuiltModel.Node());
+    }
+
+    private IMistType Unknown => slots.Refinements.Built.Interner.GetOrCreateUnknownValue(slots.Int);
+
+    private IMistType Optional(IMistType held)
+    {
+        return slots.Refinements.Built.Interner.GetOrCreateUnionType([held, slots.Refinements.Built.Type("Void")]);
+    }
+
+    private static FactState Evaluated(FactState state, Expression receiver, Value held)
+    {
+        return state with { Results = ImmutableDictionary<object, Term>.Empty.SetItem(receiver, new Term(held)) };
+    }
+
+    [Fact]
+    public void TheReceiversOwnSlotIsReadFromTheValueTheReceiverHeldWhenItWasEvaluated()
+    {
+        var u = new LocalVariable("u", slots.Closed(ring, UnknownType.Instance));
+        var receiver = HandBuiltRefinements.Read(u);
+        var before = new Value(u.Type, "u", HandBuiltModel.Node());
+        var after = new Value(u.Type, "u", HandBuiltModel.Node());
+        var state = FactState.Empty with
+        {
+            Bindings = Bindings.Empty.Set(first, n).Set(u, after).Set(new MemberHolder(before, capacity), m).Set(new MemberHolder(after, capacity), n),
+        };
+        var meeting = new SlotMeeting([first], Receiver: receiver) { Declared = slots.ArrayOf(capacity) };
+
+        var unproven = SlotIdentity.Judge(Evaluated(state, receiver, before), slots.Create(first), slots.ArrayOf(Unknown), reading, meeting: meeting);
+
+        Assert.Equal(("n", "u.Capacity"), (unproven?.Left, unproven?.Right));
+        Assert.Null(SlotIdentity.Judge(Evaluated(state, receiver, after), slots.Create(first), slots.ArrayOf(Unknown), reading, meeting: meeting));
+    }
+
+    [Fact]
+    public void AnArgumentReachedThroughAMemberHasTheSlotOfThatMembersOwnReceiver()
+    {
+        var x = new LocalVariable("x", slots.Closed(ring, first.Value));
+        var receiver = HandBuiltRefinements.Read(x);
+        var last = new Field("Last", slots.ArrayOf(capacity), OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = ring };
+        var read = new MemberAccessExpression(HandBuiltModel.Node(), receiver, last.Name, slots.ArrayOf(first.Value), member: new FieldResult(last, ring, []));
+        var own = slots.Capture(new LocalVariable("u", slots.Int));
+        var held = new Value(x.Type, "x", HandBuiltModel.Node());
+        var state = FactState.Empty with { Bindings = Bindings.Empty.Set(x, held).Set(new MemberHolder(held, capacity), m).Set(own, m) };
+
+        Assert.Equal<(Expression, TypeParameter)?>((receiver, capacity), OwnSlots.Slot(read, 1));
+        Assert.Null(SlotIdentity.Judge(Evaluated(state, receiver, held), read, slots.ArrayOf(own.Value), reading, meeting: new SlotMeeting([own])));
+        Assert.NotNull(SlotIdentity.Judge(Evaluated(state with { Bindings = state.Bindings.Set(own, n) }, receiver, held), read, slots.ArrayOf(own.Value), reading, meeting: new SlotMeeting([own])));
+    }
+
+    [Fact]
+    public void AReceiverReachedByOptionalChainingMeetsItsOwnSlotAsAPlainReceiverDoes()
+    {
+        var known = HandBuiltRefinements.Local(Optional(slots.Closed(ring, first.Value)), "u");
+        var unknown = HandBuiltRefinements.Local(Optional(slots.Closed(ring, UnknownType.Instance)), "u");
+        var owned = new Dictionary<SlotCapture, TypeParameter>(ReferenceEqualityComparer.Instance);
+
+        Assert.Same(capacity, new SlotMeeting([], Receiver: known).ReceiverSlot(first.Value));
+        _ = Assert.IsType<CapturedValue>(Assert.IsType<ConstructedType>(OwnSlots.Mark(unknown, slots.ArrayOf(capacity), slots.ArrayOf(Unknown), owned)).TypeArguments[1]);
+        Assert.Same(capacity, Assert.Single(owned).Value);
+    }
+
+    [Fact]
+    public void AnExtensionBlocksSlotIsTheReceiversOwnWhereTheBlocksReceiverTypeClosesWithIt()
+    {
+        var scope = new ExtensionScope(null);
+        var block = new ExtensionBlock("self", "", scope, null);
+        var c = new TypeParameter("C", 0, scope, null) { IsDependent = true, Domain = (MistType)slots.Int };
+        block.TypeParametersList.Add(c);
+        block.ResolvedReceiverType = slots.Closed(ring, c);
+        var owned = new Dictionary<SlotCapture, TypeParameter>(ReferenceEqualityComparer.Instance);
+
+        _ = OwnSlots.Mark(HandBuiltRefinements.Local(slots.Closed(ring, UnknownType.Instance), "u"), slots.ArrayOf(c), slots.ArrayOf(Unknown), owned);
+
+        Assert.Same(capacity, Assert.Single(owned).Value);
+    }
+}

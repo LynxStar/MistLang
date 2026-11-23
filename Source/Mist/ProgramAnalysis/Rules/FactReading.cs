@@ -75,50 +75,7 @@ internal sealed class FactReading(LiftedReturns lifted)
 
         if(Holder(ref state, expression) is { } holder)
         {
-            var stable = !state.Unseen.Contains(holder) && expression switch
-            {
-                MemberAccessExpression access => (access.Receiver is ThisExpression && access.Member is FieldResult)
-                    || SlotReads.Member(access) is not null || (access.Member is { } member && StableMembers.IsStable(member)),
-                PropertyReferenceExpression property => StableMembers.IsStable(new PropertyResult(property.Property, property.Property.DeclaringType!, [])),
-                _ => true,
-            };
-            if(stable && state.Bindings.Get(holder) is { } existing)
-            {
-                return new Term(existing);
-            }
-
-            var parameter = (expression as LocalReferenceExpression)?.Local.Parameter;
-            var contract = SlotReads.Contract(expression) ?? expression.Type;
-            var value = stable && parameter is not null && state.Bindings.Get(parameter) is { } supplied
-                ? supplied : Fresh(ref state, contract, RefinementFindings.Display(expression), expression.Node);
-            if(parameter is not null && stable)
-            {
-                state = state with { Bindings = state.Bindings.Set(parameter, value) };
-            }
-
-            if(stable)
-            {
-                state = state with { Bindings = state.Bindings.Set(holder, value) };
-            }
-
-            if(expression is MemberAccessExpression access2 && SlotReads.IsLength(access2))
-            {
-                state = state with { Bag = AddValues(state.Bag, value, FactFlow.Length(state, access2.Receiver, lifted) ?? Admitted.AtLeast(0)) };
-            }
-
-            if(lifted.Produced(expression) is { } heldLift)
-            {
-                state = state with { Bag = AddValues(state.Bag, value, heldLift) };
-            }
-
-            if(expression is MemberAccessExpression slotRead && SlotReads.Parameter(slotRead) is { } held && SlotReads.Argument(slotRead, held) is { } closing
-                && SlotReads.Refinement(state, closing) is { } refinement)
-            {
-                state = state with { Bag = AddValues(state.Bag, value, refinement) };
-            }
-
-            AddSymbols(ref state, value, contract, (expression as MemberAccessExpression)?.Receiver);
-            return new Term(value);
+            return Held(ref state, expression, holder);
         }
 
         var fresh = Fresh(ref state, expression.Type, RefinementFindings.Display(expression), expression.Node, Declares(expression));
@@ -140,6 +97,64 @@ internal sealed class FactReading(LiftedReturns lifted)
         var instance = expression is InvocationExpression call ? (call.Receiver as MemberAccessExpression)?.Receiver : null;
         AddSymbols(ref state, fresh, expression.Type, instance);
         return new Term(fresh);
+    }
+
+    public Term Own(ref FactState state, Expression receiver, TypeParameter slot)
+    {
+        var read = SlotReads.Read(receiver, slot);
+        var pinned = SlotReads.Argument(read, slot) is not { } closed || !SlotReads.StandsForOneValue(closed);
+
+        return pinned && state.Results.TryGetValue(receiver, out var evaluated) && evaluated is { Constant.IsZero: true, Variables: [var owner] } && evaluated.Multipliers[0].IsOne
+            ? Held(ref state, read, new MemberHolder(owner, slot))
+            : Read(ref state, read);
+    }
+
+    private Term Held(ref FactState state, Expression expression, object holder)
+    {
+        var stable = !state.Unseen.Contains(holder) && expression switch
+        {
+            MemberAccessExpression access => (access.Receiver is ThisExpression && access.Member is FieldResult)
+                || SlotReads.Member(access) is not null || (access.Member is { } member && StableMembers.IsStable(member)),
+            PropertyReferenceExpression property => StableMembers.IsStable(new PropertyResult(property.Property, property.Property.DeclaringType!, [])),
+            _ => true,
+        };
+        if(stable && state.Bindings.Get(holder) is { } existing)
+        {
+            return new Term(existing);
+        }
+
+        var parameter = (expression as LocalReferenceExpression)?.Local.Parameter;
+        var contract = SlotReads.Contract(expression) ?? expression.Type;
+        var value = stable && parameter is not null && state.Bindings.Get(parameter) is { } supplied
+            ? supplied : Fresh(ref state, contract, RefinementFindings.Display(expression), expression.Node);
+        if(parameter is not null && stable)
+        {
+            state = state with { Bindings = state.Bindings.Set(parameter, value) };
+        }
+
+        if(stable)
+        {
+            state = state with { Bindings = state.Bindings.Set(holder, value) };
+        }
+
+        if(expression is MemberAccessExpression access2 && SlotReads.IsLength(access2))
+        {
+            state = state with { Bag = AddValues(state.Bag, value, FactFlow.Length(state, access2.Receiver, lifted) ?? Admitted.AtLeast(0)) };
+        }
+
+        if(lifted.Produced(expression) is { } heldLift)
+        {
+            state = state with { Bag = AddValues(state.Bag, value, heldLift) };
+        }
+
+        if(expression is MemberAccessExpression slotRead && SlotReads.Parameter(slotRead) is { } held && SlotReads.Argument(slotRead, held) is { } closing
+            && SlotReads.Refinement(state, closing) is { } refinement)
+        {
+            state = state with { Bag = AddValues(state.Bag, value, refinement) };
+        }
+
+        AddSymbols(ref state, value, contract, (expression as MemberAccessExpression)?.Receiver);
+        return new Term(value);
     }
 
     public Term Evaluated(ref FactState state, Expression expression)

@@ -1,9 +1,12 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Construction.Resolution;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -50,6 +53,77 @@ internal sealed partial class RefinementAnalyzer
                         finding, at, [],
                         new NameValue(forwarded.Name), new NameValue(parameter.Name), new NameValue(Demanded(forwarded) is { } own ? $"'{own.Values}'" : "an unconstrained parameter"), new NameValue(required.Values.ToString()));
                     break;
+            }
+        }
+    }
+
+    private void JudgeRelation(AnalysisContext context, TypeArgumentClosing closing, FactReading reading)
+    {
+        if(DependentFinding(closing.Parameter, closing.Argument) is not null
+            || ((IHasTypeParameters?)closing.Parameter.DeclaringMethod ?? closing.Parameter.DeclaringType as IHasTypeParameters) is not { } declaring)
+        {
+            return;
+        }
+
+        var siblings = declaring.TypeParametersList.ToDictionary(
+            sibling => sibling, sibling => closing.Closing.Apply(sibling, interner: null), ReferenceEqualityComparer.Instance as IEqualityComparer<TypeParameter>);
+
+        if(ClosingRelations.Judge(
+            FactState.Empty, reading, closing.Parameter, closing.Argument, siblings, filled => !filled.Any(argument => argument is CapturedValue),
+            (ref FactState at, TypeParameter sibling, IMistType filled) => SlotReads.Value(ref at, reading, filled, null, sibling), budget)
+            is not null and not Proven)
+        {
+            ReportRelation(context, closing.Parameter, closing.Argument, closing.Node);
+        }
+    }
+
+    private static void ReportRelation(AnalysisContext context, TypeParameter parameter, IMistType argument, Storm.Runtime.SyntaxNode at)
+    {
+        var relation = new NameValue(RefinementFindings.Describe(ClosingRelations.Of(parameter)!));
+
+        if(argument is TypeParameter forwarded)
+        {
+            context.Report(
+                ProgramAnalysisDiagnostics.DependentForwardUnproven, at, [], new NameValue(forwarded.Name), new NameValue(parameter.Name),
+                new NameValue(Demanded(forwarded) is { } own ? $"'{RefinementFindings.Describe(own)}'" : "an unconstrained parameter"), relation);
+            return;
+        }
+
+        context.Report(
+            ProgramAnalysisDiagnostics.DependentArgumentViolated, at, [],
+            new NameValue(argument switch
+            {
+                LiftedType lifted => DependentDomains.Spell(lifted.Value),
+                ParameterValue held => held.Parameter.Name,
+                _ => TypeDisplay.Mist(argument),
+            }),
+            relation, new NameValue(parameter.Name));
+    }
+
+    private sealed partial class Proving
+    {
+        private void NeedRelations(FactState state, SlotCapture capture)
+        {
+            if(sites.ClosingOf(capture) is not { } closing)
+            {
+                return;
+            }
+
+            foreach(var (parameter, argument) in closing)
+            {
+                var proof = ClosingRelations.Judge(
+                    state, factReading, parameter, argument, closing,
+                    filled => filled.Any(argument => argument is CapturedValue named && ReferenceEquals(named.Capture, capture))
+                        && filled.All(argument => argument is not CapturedValue other || ReferenceEquals(other.Capture, capture) || state.Bindings.Get(other.Capture) is not null),
+                    (ref FactState at, TypeParameter sibling, IMistType filled) => filled is CapturedValue named && ReferenceEquals(named.Capture, capture)
+                        ? factReading.Read(ref at, capture.Initializer)
+                        : SlotReads.Value(ref at, factReading, filled, null, sibling),
+                    budget);
+
+                if(proof is not null and not Proven)
+                {
+                    ReportRelation(context, parameter, argument, sites.SiteOf(capture) ?? capture.Initializer.Node);
+                }
             }
         }
     }

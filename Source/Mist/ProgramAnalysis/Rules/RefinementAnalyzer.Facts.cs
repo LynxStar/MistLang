@@ -66,7 +66,7 @@ internal sealed partial class RefinementAnalyzer
             var result = (BinaryExpression)CompoundAssignments.LongForm(compound).Value;
             var old = state.CompoundInputs.GetValueOrDefault(compound) ?? factReading.Read(ref state, compound.Target);
             var term = FactReading.Operation(ref state, result, old, factReading.Evaluated(ref state, compound.Value));
-            state = state with { Results = state.Results.SetItem(result, term) };
+            state = state with { Results = state.Results.SetItem(result, term).SetItem(compound.Target, old) };
             return result;
         }
 

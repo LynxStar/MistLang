@@ -64,22 +64,36 @@ public sealed class UnknownReceiverSlotFlowTests
         return HandBuiltSlots.Declare(local, new NewExpression(HandBuiltModel.Node(), slots.Closed(definition, made.Value), [], null, [], []) { Captures = [made] });
     }
 
-    private ExpressionStatement Load(Expression length, LocalVariable? through = null)
+    private ExpressionStatement Load(Expression length, LocalVariable? through = null, bool conditional = false)
     {
         var method = new Method("Load", Void, [new Parameter("items", slots.ArrayOf(capacity))], new MemberModifiers()) { DeclaringType = ring };
-        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(through ?? u), "Load", Void);
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(through ?? u), "Load", Void, isConditional: conditional);
         return HandBuiltRefinements.Evaluate(new InvocationExpression(HandBuiltModel.Node(), callee, [length], Void, method, [slots.ArrayOf(Unknown)]));
+    }
+
+    private Operator Plus()
+    {
+        return new Operator(OperatorKind.Plus, slots.Closed(ring, capacity), [new Parameter("a", slots.Closed(ring, capacity)), new Parameter("b", slots.ArrayOf(capacity))],
+            new MemberModifiers { IsStatic = true })
+        { DeclaringType = ring };
     }
 
     private ExpressionStatement Add(Expression length)
     {
-        var plus = new Operator(OperatorKind.Plus, slots.Closed(ring, capacity), [new Parameter("a", slots.Closed(ring, capacity)), new Parameter("b", slots.ArrayOf(capacity))],
-            new MemberModifiers { IsStatic = true })
-        { DeclaringType = ring };
         var closed = slots.Closed(ring, Unknown);
         return HandBuiltRefinements.Evaluate(new BinaryExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(u), BinaryOperatorKind.Add, length, closed)
         {
-            Operator = plus,
+            Operator = Plus(),
+            ParameterTypes = [closed, slots.ArrayOf(Unknown)],
+        });
+    }
+
+    private ExpressionStatement AddTo(Expression length)
+    {
+        var closed = slots.Closed(ring, Unknown);
+        return HandBuiltRefinements.Evaluate(new CompoundAssignmentExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(u), BinaryOperatorKind.Add, length, u.Type, Plus(), IncrementForm.None)
+        {
+            ResultType = closed,
             ParameterTypes = [closed, slots.ArrayOf(Unknown)],
         });
     }
@@ -87,6 +101,45 @@ public sealed class UnknownReceiverSlotFlowTests
     private ArrayCreationExpression Sized(LocalVariable length)
     {
         return slots.Create(slots.Capture(length));
+    }
+
+    private NewExpression Ring(LocalVariable length)
+    {
+        var made = slots.Capture(length, slots.Int);
+        return new NewExpression(HandBuiltModel.Node(), slots.Closed(ring, made.Value), [], null, [], []) { Captures = [made] };
+    }
+
+    private ArrayCreationExpression SizedByReassigning(LocalVariable length)
+    {
+        var reassigned = HandBuiltRefinements.Assign(HandBuiltRefinements.Read(u), Ring(length));
+        var read = new MemberAccessExpression(HandBuiltModel.Node(), reassigned, capacity.Name, slots.Int, member: new TypeResult(capacity));
+        return slots.Create(new SlotCapture("(u = new Ring()).Capacity", slots.ZeroOrPositive, slots.Int, read, 11));
+    }
+
+    private ExpressionStatement Put(Expression length)
+    {
+        var scope = new ExtensionScope(null);
+        var block = new ExtensionBlock("self", "", scope, null);
+        var c = new TypeParameter("C", 0, scope, null) { IsDependent = true, Domain = slots.ZeroOrPositive };
+        block.TypeParametersList.Add(c);
+        block.ResolvedReceiverType = slots.Closed(ring, c);
+        var open = new Method("Put", Void, [new Parameter("items", slots.ArrayOf(c))], new MemberModifiers()) { DeclaringBlock = block };
+        var closed = new Method("Put", Void, [new Parameter("items", slots.ArrayOf(Unknown))], new MemberModifiers()) { DeclaringBlock = block, SourceDeclaration = open };
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(u), "Put", Void);
+        return HandBuiltRefinements.Evaluate(new InvocationExpression(HandBuiltModel.Node(), callee, [length], Void, closed, [slots.ArrayOf(Unknown)]));
+    }
+
+    private LocalVariable Optional()
+    {
+        return new LocalVariable("u", slots.Refinements.Built.Interner.GetOrCreateUnionType([slots.Closed(ring, UnknownType.Instance), Void]));
+    }
+
+    private ExpressionStatement Store(LocalVariable through, Expression value)
+    {
+        var last = new Field("Last", slots.ArrayOf(capacity), OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = ring };
+        var lifted = slots.Refinements.Built.Interner.GetOrCreateUnionType([slots.ArrayOf(Unknown), Void]);
+        var target = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(through), last.Name, lifted, isConditional: true, member: new FieldResult(last, ring, []));
+        return HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(target, value));
     }
 
     [Fact]
@@ -126,5 +179,44 @@ public sealed class UnknownReceiverSlotFlowTests
         var length = new SlotCapture("u.Capacity", slots.ZeroOrPositive, slots.Int, read, 7);
 
         Assert.Empty(Analyze(Load(slots.Create(length))));
+    }
+
+    [Fact]
+    public void AnArgumentThatReassignsTheReceiverMeetsTheSlotOfTheValueTheCallRunsOn()
+    {
+        Refused(Analyze(RingOfM(), Load(SizedByReassigning(n))), "'(u = new Ring()).Capacity' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(RingOfM(), Load(SizedByReassigning(m))));
+    }
+
+    [Fact]
+    public void ACompoundAssignmentsRightSideThatReassignsTheTargetMeetsTheSlotOfTheValueItHeldBefore()
+    {
+        Refused(Analyze(RingOfM(), AddTo(SizedByReassigning(n))), "'(u = new Ring()).Capacity' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(RingOfM(), AddTo(SizedByReassigning(m))));
+    }
+
+    [Fact]
+    public void AMemberReachedByOptionalChainingMeetsTheReceiversOwnSlot()
+    {
+        var optional = Optional();
+
+        Refused(Analyze(HandBuiltSlots.Declare(optional, Ring(m)), Load(Sized(n), optional, conditional: true)), "'n' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(HandBuiltSlots.Declare(optional, Ring(m)), Load(Sized(m), optional, conditional: true)));
+    }
+
+    [Fact]
+    public void AFieldWrittenByOptionalChainingMeetsTheReceiversOwnSlot()
+    {
+        var optional = Optional();
+
+        Refused(Analyze(HandBuiltSlots.Declare(optional, Ring(m)), Store(optional, Sized(n))), "'n' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(HandBuiltSlots.Declare(optional, Ring(m)), Store(optional, Sized(m))));
+    }
+
+    [Fact]
+    public void AnExtensionReachedThroughAValueMeetsThatValuesOwnSlotItsBlockReads()
+    {
+        Refused(Analyze(RingOfM(), Put(Sized(n))), "'n' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(RingOfM(), Put(Sized(m))));
     }
 }

@@ -61,12 +61,14 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
         }
 
         var closings = context.Model.ConstructorConstraintClosures;
+        var reading = new FactReading(lifted);
 
         foreach(var closing in closings.Closings.Concat(closings.OpenClosings))
         {
             if(closing.Parameter is { IsDependent: true, IsPack: false } && context.IsInSource(closing.Node))
             {
                 JudgeClosing(context, closing.Parameter, closing.Argument, closing.Node);
+                JudgeRelation(context, closing, reading);
             }
         }
 
@@ -119,6 +121,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Local: SlotCapture capture, Initializer: { } captured } }:
                     Need(state, captured, capture.Type, captured, reading: Reading.ForClosing(sites.ClosingOf(capture)));
+                    NeedRelations(state, capture);
                     break;
 
                 case { Kind: FlowStepKind.Declare, Node: LocalDeclarationStatement { Initializer: { } initializer } declaration }:
@@ -139,7 +142,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target), Receiver: Through(assignment.Target)) { Declared = Declared(assignment.Target) });
+                    Need(state, assignment.Value, Stored(assignment.Target), assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target), Receiver: Through(assignment.Target)) { Declared = Declared(assignment.Target) });
 
                     if(assignment.Target is IndexExpression written)
                     {
@@ -153,7 +156,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     var result = CompoundValue(ref state, compound);
                     if(NeedOperands(state, (BinaryExpression)result))
                     {
-                        Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target), meeting: new SlotMeeting(SlotCapture.Of(compound.Target), Receiver: Through(compound.Target)) { Declared = Declared(compound.Target) });
+                        Need(state, result, Stored(compound.Target), compound, onConstraint: RefinementFindings.Display(compound.Target), meeting: new SlotMeeting(SlotCapture.Of(compound.Target), Receiver: Through(compound.Target)) { Declared = Declared(compound.Target) });
                     }
 
                     if(compound.Target is IndexExpression incremented)

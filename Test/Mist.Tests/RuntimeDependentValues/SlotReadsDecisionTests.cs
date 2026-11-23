@@ -262,7 +262,7 @@ public sealed class SlotReadsDecisionTests
     }
 
     [Fact]
-    public void ADependentParametersWhereThatRelatesItToAnotherParameterIsNotItsOwnReadsRefinement()
+    public void ADependentParametersWhereThatRelatesItToAnotherParameterIsItsOwnReadsRefinementToo()
     {
         var pair = HandBuiltSlots.Generic(HandBuiltModel.Class("Pair<>"), "A", slots.Int);
         var low = pair.TypeParametersList[0];
@@ -271,7 +271,7 @@ public sealed class SlotReadsDecisionTests
         high.RefinementNode = HandBuiltModel.Node();
         high.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, new TypeReferenceExpression(HandBuiltModel.Node(), low));
 
-        Assert.Null(SlotReads.Contract(new TypeReferenceExpression(HandBuiltModel.Node(), high)));
+        Assert.Same(high.Refinement, Assert.IsType<RefinedType>(SlotReads.Contract(new TypeReferenceExpression(HandBuiltModel.Node(), high))).Predicate);
 
         high.Refinement = new ConjunctionPattern(HandBuiltModel.Node(), slots.Int, [
             new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, HandBuiltModel.Literal(slots.Int, 0L)),

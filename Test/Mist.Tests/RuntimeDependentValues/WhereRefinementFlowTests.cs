@@ -75,18 +75,31 @@ public sealed class WhereRefinementFlowTests
         Assert.Contains("fails when Capacity <= -1", refused.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void AWhereThatRelatesTheSlotToAnotherSlotLeavesItsLengthRefused()
+    private TypeParameter AtLeast(MemberType pair, TypeParameter low)
     {
-        var (pair, low) = Ring(0);
         var high = new TypeParameter("B", 1, pair.Scope, pair) { IsDependent = true, Domain = (MistType)slots.Int };
         pair.TypeParametersList.Add(high);
         high.RefinementNode = HandBuiltModel.Node();
         high.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, new TypeReferenceExpression(HandBuiltModel.Node(), low));
+        return high;
+    }
 
-        var refused = Assert.Single(InMethod(pair, high));
+    [Fact]
+    public void AWhereThatRelatesTheSlotToAnotherSlotProvesItsLengthThroughThatSlotsOwnWhere()
+    {
+        var (pair, low) = Ring(0);
+
+        Assert.Empty(InMethod(pair, AtLeast(pair, low)));
+    }
+
+    [Fact]
+    public void AWhereThatRelatesTheSlotToASlotThatMayBeNegativeLeavesItsLengthRefused()
+    {
+        var (pair, low) = Ring(-5);
+
+        var refused = Assert.Single(InMethod(pair, AtLeast(pair, low)));
 
         Assert.Equal("MIST0272", refused.Number.Value);
-        Assert.Contains("fails when B <= -1", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("fails when B >= -5 and B <= -1", refused.Message, StringComparison.Ordinal);
     }
 }

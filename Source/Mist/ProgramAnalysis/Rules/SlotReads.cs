@@ -1,6 +1,7 @@
 using System.Numerics;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -58,21 +59,14 @@ internal static class SlotReads
         return expression switch
         {
             MemberAccessExpression access when Parameter(access) is { } parameter => InstanceSlotRead.Contract(parameter),
-            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } parameter } when Unrelated(parameter) => InstanceSlotRead.Contract(parameter),
+            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } parameter } => InstanceSlotRead.Contract(parameter),
             _ => null,
         };
     }
 
-    // A where that relates the slot to another name is a relation, which stays a fact and never enters a type (runtime-dependent-values Requirement 1.4).
-    private static bool Unrelated(TypeParameter parameter)
-    {
-        return parameter.Refinement is null
-            || Requirement.Of(parameter.Refinement, parameter.Domain is { } domain ? RealRequirement.KindOf(domain) : null) is { Bounds.IsEmpty: true };
-    }
-
     public static IMistType? Argument(MemberAccessExpression access, TypeParameter parameter)
     {
-        return parameter.DeclaringType is { } definition && Closing(access.Receiver.Type, definition) is { } closing && parameter.Ordinal < closing.TypeArguments.Count
+        return parameter.DeclaringType is { } definition && Closing(Receiving(access.Receiver.Type), definition) is { } closing && parameter.Ordinal < closing.TypeArguments.Count
             ? closing.TypeArguments[parameter.Ordinal]
             : null;
     }
@@ -216,7 +210,7 @@ internal static class SlotReads
 
     public static bool HasSlots(IMistType type)
     {
-        return Plain(type) is ConstructedType { Definition: IHasTypeParameters declared } && declared.TypeParametersList.Exists(parameter => parameter.IsDependent);
+        return Receiving(type) is ConstructedType { Definition: IHasTypeParameters declared } && declared.TypeParametersList.Exists(parameter => parameter.IsDependent);
     }
 
     public static FactState Carry(FactState state, Value from, Value to)
@@ -317,6 +311,11 @@ internal static class SlotReads
     public static IMistType Plain(IMistType type)
     {
         return Requirement.Unrefined(type);
+    }
+
+    public static IMistType Receiving(IMistType type)
+    {
+        return Plain(OptionalUnion.InnerType(Plain(type)) ?? type);
     }
 
     private static bool IsStringLength(MemberAccessExpression access)

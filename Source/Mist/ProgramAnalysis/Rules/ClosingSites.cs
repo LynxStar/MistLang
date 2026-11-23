@@ -28,6 +28,7 @@ internal sealed class ClosingSites
     private readonly Dictionary<SlotCapture, IReadOnlyDictionary<TypeParameter, IMistType>> closings = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<ObjectInitializerAssignment, NewExpression> creators = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<SlotCapture> values = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<SlotCapture, Storm.Runtime.SyntaxNode> at = new(ReferenceEqualityComparer.Instance);
 
     public IReadOnlySet<SlotCapture> Values => values;
 
@@ -91,6 +92,12 @@ internal sealed class ClosingSites
                 if(ClosingOf(node, capture) is { } closing)
                 {
                     sites.closings[capture] = closing;
+                    sites.at[capture] = node switch
+                    {
+                        Expression written => written.Node,
+                        Pattern tested => tested.Node,
+                        _ => capture.Initializer.Node,
+                    };
                 }
             }
         }
@@ -134,6 +141,11 @@ internal sealed class ClosingSites
     public IReadOnlyDictionary<TypeParameter, IMistType>? ClosingOf(SlotCapture capture)
     {
         return closings.GetValueOrDefault(capture);
+    }
+
+    public Storm.Runtime.SyntaxNode? SiteOf(SlotCapture capture)
+    {
+        return at.GetValueOrDefault(capture);
     }
 
     public static IMistType? ResultTarget(LambdaExpression lambda)

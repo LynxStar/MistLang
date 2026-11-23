@@ -76,7 +76,7 @@ internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool 
         }
 
         if(Receiver is null or TypeReferenceExpression or ThisExpression || slot is not (CapturedValue or RefinementArgument)
-            || SlotReads.Plain(Receiver.Type) is not ConstructedType { Definition: ClassType or StructType } closing || closing.Definition is not IHasTypeParameters declared)
+            || SlotReads.Receiving(Receiver.Type) is not ConstructedType { Definition: ClassType or StructType } closing || closing.Definition is not IHasTypeParameters declared)
         {
             return null;
         }
@@ -177,7 +177,9 @@ internal static class SlotIdentity
 
     public static IMistType? Declared(Method? member, int ordinal)
     {
-        return member is not null && ordinal < member.ParametersList.Count ? member.ParametersList[ordinal].Type : null;
+        var declared = member?.SourceDeclaration ?? member;
+
+        return declared is not null && ordinal < declared.ParametersList.Count ? declared.ParametersList[ordinal].Type : null;
     }
 
     // A value reached through a member is given its receiver's own slots only where the site meets one, so every other site reads it as before.
@@ -245,14 +247,16 @@ internal static class SlotIdentity
         }
 
         var read = pair.Read ?? pair.Parameter;
-        var left = pair.Argument is CapturedValue reached && meeting.Reached.ContainsKey(reached.Capture)
-            ? reading.Read(ref state, reached.Capture.Initializer)
+        var left = pair.Argument is CapturedValue { Capture.Initializer: MemberAccessExpression { Receiver: var from } } reached && meeting.Reached.TryGetValue(reached.Capture, out var reaching)
+            ? reading.Own(ref state, from, reaching)
+            : through is not null && OwnSlots.Slot(through, read.Ordinal) is { } member
+                ? reading.Own(ref state, member.Receiver, member.Own)
             : through is null && !meeting.OneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
 
         if(SlotReads.StandsForOneValue(pair.Slot) || meeting.IsExact(pair.Slot) || SlotReads.Refinement(state, pair.Slot) is not { } admitted)
         {
             var right = meeting.ReceiverSlot(pair.Slot) is { } own
-                ? reading.Read(ref state, SlotReads.Read(meeting.Receiver!, own))
+                ? reading.Own(ref state, meeting.Receiver!, own)
                 : SlotReads.Value(ref state, reading, pair.Slot, null, pair.Parameter);
 
             return (right is null ? null : left is not null ? Equal(state, left, right, budget) : Single(ref state, Admits(state, pair.Argument, pair.Parameter), right, budget), null);

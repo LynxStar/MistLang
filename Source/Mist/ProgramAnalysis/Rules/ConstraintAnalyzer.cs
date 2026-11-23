@@ -124,7 +124,14 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
         var argument = closing.Argument;
 
-        if(constraint is ConstructorConstraint required)
+        if(constraint is TypeConstraint cloneConstraint && RequiresClone(argument, cloneConstraint.ConstraintType)
+            && CloneDerivation.IsInMist((argument is ConstructedType construction ? construction.Definition : argument) as MistType)
+            && context.Model.Clones.Judge(argument).Refusal is { } refusal)
+        {
+            context.Report(ProgramAnalysisDiagnostics.NotClonable, closing.Node, [],
+                DiagnosticSnapshot.Type(argument), new NameValue(CloneDerivation.Describe(argument, refusal)));
+        }
+        else if(constraint is ConstructorConstraint required)
         {
             context.Report(
                 descriptor, closing.Node, [],
@@ -172,10 +179,15 @@ internal sealed class ConstraintAnalyzer : IProgramAnalyzer
 
     private static bool ClonesByDerivation(IMistType argument, IMistType constraint)
     {
+        return RequiresClone(argument, constraint)
+            && (argument is ConstructedType constructed ? constructed.Definition : argument) is ConcreteType { DerivedClone: not null };
+    }
+
+    private static bool RequiresClone(IMistType argument, IMistType constraint)
+    {
         return constraint is ConstructedType { TypeArguments: [var itself] } clonable
             && clonable.Definition.FullyQualifiedName == WellKnownTypes.IClonable.FullyQualifiedName
-            && itself.FullyQualifiedName == argument.FullyQualifiedName
-            && (argument is ConstructedType constructed ? constructed.Definition : argument) is ConcreteType { DerivedClone: not null };
+            && itself.FullyQualifiedName == argument.FullyQualifiedName;
     }
 
     /// <summary>

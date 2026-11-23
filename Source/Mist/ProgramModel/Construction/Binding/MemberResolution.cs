@@ -91,6 +91,8 @@ internal static class MemberResolution
         }
 
         var reported = (found is not NotFoundResult || reportMissing)
+            && !(found is NotFoundResult && memberName == "Clone"
+                && visibility == MemberVisibility.InstanceOnly && CloneDerivation.IsInMist(declaring))
             && Report(found, declaring, receiver, memberName, node, context, hidden);
 
         return new MemberLookup(found, constructed, reported);
@@ -108,7 +110,7 @@ internal static class MemberResolution
     // A refinement is a nominal SUBTYPE of what it refines, so its members are that type's. The
     // predicate says which VALUES the type admits, never which members they answer to. An alias
     // named in expression position, `Task.Yield()`, is likewise its aliased type's.
-    private static IMistType Answering(IMistType type)
+    internal static IMistType Answering(IMistType type)
     {
         var unaliased = type is TypeAlias { AliasedType: { } aliased } ? aliased : type;
 

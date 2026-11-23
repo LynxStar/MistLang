@@ -1,5 +1,7 @@
 using Mist.Common.Diagnostics;
 using Mist.ProgramModel;
+using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -69,6 +71,27 @@ internal sealed class OperatorAnalyzer : IProgramAnalyzer
 
                 case MemberAccessExpression { Receiver.Type: UnknownType, Member: null or NotFoundResult, Type: ErrorType } access:
                     context.Refuse(access, OperatorDecision.Member(access.Receiver.Type)!, [access.Receiver], new NameValue(access.MemberName));
+                    break;
+
+                case MemberAccessExpression { MemberName: "Clone", Member: NotFoundResult, IsFailed: false, Receiver: not TypeReferenceExpression } access:
+                    var receiver = MemberResolution.Answering(access.IsConditional
+                        ? OptionalLifting.NonVoidPortion(access.Receiver.Type, context.Model.TypeInterner)
+                        : access.Receiver.Type);
+
+                    if(CloneDerivation.IsInMist((receiver is ConstructedType constructed ? constructed.Definition : receiver) as MistType))
+                    {
+                        if(context.Model.Clones.Judge(receiver).Refusal is { } refusal)
+                        {
+                            context.Refuse(access, ProgramAnalysisDiagnostics.NotClonable, [access.Receiver],
+                                DiagnosticSnapshot.Type(receiver), new NameValue(CloneDerivation.Describe(receiver, refusal)));
+                        }
+                        else
+                        {
+                            context.Refuse(access, ProgramModelDiagnostics.UnresolvedMember, [access.Receiver],
+                                DiagnosticSnapshot.Type(receiver), new NameValue(access.MemberName));
+                        }
+                    }
+
                     break;
             }
         }

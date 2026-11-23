@@ -2782,3 +2782,5 @@ code from regex: SFO
   socket=7 twin=8
   socket 8 closed
   socket 7 closed
+--- 6. An inferred generic copy keeps its own contents ---
+  copy=1 original=99

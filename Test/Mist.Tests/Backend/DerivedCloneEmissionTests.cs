@@ -113,7 +113,7 @@ public sealed class DerivedCloneEmissionTests : ProgramModelProbe
     {
         var emitted = EmitDeclaration("Holder<>", "var shared = new Holder<Style>(); owned Holder<Style> mine = shared;");
 
-        Assert.Contains("this.Item = (this.Item is Standard.IClonable<T> __clonable0 ? __clonable0.Clone() : this.Item);", emitted);
+        Assert.Contains("this.Item = __CloneSlot(this.Item);", emitted);
         Assert.Contains("public Probe.Style Clone()", EmitDeclaration("Style", "var shared = new Holder<Style>(); owned Holder<Style> mine = shared;"));
     }
 

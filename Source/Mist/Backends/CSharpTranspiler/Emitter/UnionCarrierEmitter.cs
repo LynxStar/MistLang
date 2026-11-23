@@ -29,6 +29,13 @@ internal static class UnionCarrierEmitter
 
             ResultDropEmitter.Emit(union, writer);
 
+            if(CloneDemand.CopiesGenericSlots && CloneDemand.Clones is { } clones && DerivedCloneEmitter.CanCopy(union, clones))
+            {
+                var counter = 0;
+                writer.WriteBlankLine();
+                writer.WriteLine($"public {name} Clone() => {DerivedCloneEmitter.Copy("this", union, clones, ref counter) ?? "this"};");
+            }
+
             for(var i = 0; i < union.Constituents.Count; i++)
             {
                 EmitAccessors(union, union.Constituents[i], i + 1, writer);

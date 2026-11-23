@@ -15,19 +15,37 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 /// </summary>
 internal static class DerivedCloneEmitter
 {
+    public static string SelfName(ConcreteType type)
+    {
+        return Monomorph.InScope()?.Owns(type.TypeParametersList) == true
+            ? TypeEmitter.EmitTypeName(type)
+            : TypeNameEmitter.Emit(type.TypeParametersList.Count == 0 ? type : new ConstructedType(type, type.TypeParametersList));
+    }
+
+    public static bool IsEmitted(ConcreteType type)
+    {
+        return CloneDemand.Emits(type) && CopyableSpecialization(type);
+    }
+
+    public static bool CopyableSpecialization(ConcreteType type)
+    {
+        return !UnionSpecialization.Specializes(type) || type.DerivedClone is not { } clone
+            || CloneDemand.Clones?.Judge(TypeNameEmitter.Closed(clone.ReturnType)).Kind != CloneKind.Refused;
+    }
+
     public static void Emit(ConcreteType type, CSharpWriter writer, DiagnosticBag diagnostics)
     {
         var clones = CloneDemand.Clones!;
-        var self = TypeNameEmitter.Emit(type.DerivedClone!.ReturnType);
+        var self = SelfName(type);
 
         if(type is StructType structType)
         {
+            var flattened = new StructFlattener(diagnostics).Flatten(structType);
             writer.WriteLine($"public {self} Clone()");
 
             using(writer.Block())
             {
                 writer.WriteLine("var copy = this;");
-                var flattened = new StructFlattener(diagnostics).Flatten(structType);
 
                 foreach(var field in flattened.Fields.Where(field => !field.Field.Modifiers.IsStatic))
                 {
@@ -53,6 +71,13 @@ internal static class DerivedCloneEmitter
             }
 
             EmitBackingAccessors(structType, self, writer);
+
+            if(flattened.Fields.Any(field => !field.Field.Modifiers.IsStatic && GenericCloneEmitter.NeedsHelper(field.Type))
+                || InstanceStorage.Of(structType).Any(slot => GenericCloneEmitter.NeedsHelper(slot.Type)))
+            {
+                GenericCloneEmitter.Emit(type, writer);
+            }
+
             return;
         }
 
@@ -84,7 +109,7 @@ internal static class DerivedCloneEmitter
     public static void EmitSlotCopier(ConcreteType type, CSharpWriter writer)
     {
         var clones = CloneDemand.Clones!;
-        var self = TypeNameEmitter.Emit(type.TypeParametersList.Count == 0 ? type : new ConstructedType(type, type.TypeParametersList));
+        var self = SelfName(type);
 
         writer.WriteLine($"{(type.Modifiers.IsSealed ? "private" : "protected")} void {HelperName(type)}()");
 
@@ -107,6 +132,11 @@ internal static class DerivedCloneEmitter
         }
 
         EmitBackingAccessors(type, self, writer);
+
+        if(InstanceStorage.Of(type).Any(slot => GenericCloneEmitter.NeedsHelper(slot.Type)))
+        {
+            GenericCloneEmitter.Emit(type, writer);
+        }
     }
 
     private static void EmitBackingAccessors(ConcreteType type, string self, CSharpWriter writer)
@@ -138,8 +168,23 @@ internal static class DerivedCloneEmitter
         return $"__Backing_{slot.Name}";
     }
 
-    private static string? Copy(string read, IMistType type, CloneDerivation clones, ref int counter)
+    internal static bool CanCopy(IMistType type, CloneDerivation clones)
     {
+        type = TypeNameEmitter.Closed(type);
+
+        return type switch
+        {
+            TypeAlias { AliasedType: { } aliased } => CanCopy(aliased, clones),
+            RefinedType refined => CanCopy(refined.BaseType, clones),
+            ITupleType tuple => tuple.ElementTypes.All(element => CanCopy(element, clones)),
+            UnionType union => union.Constituents.All(constituent => CanCopy(constituent, clones)),
+            _ => clones.Judge(type).Kind != CloneKind.Refused,
+        };
+    }
+
+    internal static string? Copy(string read, IMistType type, CloneDerivation clones, ref int counter)
+    {
+        type = TypeNameEmitter.Closed(type);
         type = type switch
         {
             TypeAlias { AliasedType: { } aliased } => aliased,
@@ -154,13 +199,8 @@ internal static class DerivedCloneEmitter
 
         switch(type)
         {
-            case TypeParameter parameter:
-                {
-                    var bound = $"__clonable{counter++}";
-                    var clonable = TypeNameEmitter.Emit(new ConstructedType(Clonable(), [parameter]));
-
-                    return $"({read} is {clonable} {bound} ? {bound}.Clone() : {read})";
-                }
+            case TypeParameter:
+                return $"__CloneSlot({read})";
 
             case UnionType union when OptionalUnion.InnerType(union) is { } inner:
                 {
@@ -209,11 +249,5 @@ internal static class DerivedCloneEmitter
         }
 
         return TypeNameEmitter.IsReferenceKind(type) ? $"{read}?.Clone()!" : $"{read}.Clone()";
-    }
-
-    private static AbstractType Clonable()
-    {
-        return CloneDemand.ClonableAbstract
-            ?? throw new InvalidOperationException("ICE: a derived Clone over a type parameter reached emission without Standard's IClonable.");
     }
 }

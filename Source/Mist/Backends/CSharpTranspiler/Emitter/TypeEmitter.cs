@@ -337,13 +337,13 @@ internal static class TypeEmitter
                 DefaultEmitter.EmitImplicitConstruction(concrete, writer, diagnostics, ref anyEmitted);
             }
 
-            if(concrete is { DerivedClone: not null } && CloneDemand.Emits(concrete))
+            if(concrete is { DerivedClone: not null } && DerivedCloneEmitter.IsEmitted(concrete))
             {
                 SeparateMember(writer, ref anyEmitted);
                 DerivedCloneEmitter.Emit(concrete, writer, diagnostics);
             }
 
-            if(type is ClassType classType && CloneDemand.Clones is not null && CloneDemand.CopiesSlotsOf(classType))
+            if(type is ClassType classType && CloneDemand.Clones is not null && CloneDemand.CopiesSlotsOf(classType) && DerivedCloneEmitter.CopyableSpecialization(classType))
             {
                 SeparateMember(writer, ref anyEmitted);
                 DerivedCloneEmitter.EmitSlotCopier(classType, writer);
@@ -490,8 +490,13 @@ internal static class TypeEmitter
         foreach(var abstractRef in SlotLift.Reached(type))
         {
             if(type is ConcreteType { DerivedCloneConformance: { } derived } concrete
-                && derived.FullyQualifiedName == abstractRef.FullyQualifiedName && !CloneDemand.Emits(concrete))
+                && derived.FullyQualifiedName == abstractRef.FullyQualifiedName)
             {
+                if(DerivedCloneEmitter.IsEmitted(concrete))
+                {
+                    bases.Add($"Standard.IClonable<{DerivedCloneEmitter.SelfName(concrete)}>");
+                }
+
                 continue;
             }
 

@@ -14,7 +14,9 @@ namespace Mist.Backends.CSharpTranspiler.Lowering;
 /// The derived <c>Clone</c>s this program reaches, which are the only ones written: a type no clone, call, conversion
 /// or <c>IClonable</c> requirement reaches keeps the C# it had before derivation. Reaching one class reaches its
 /// deriving subclasses, which a copy of the class may turn out to be, and its deriving bases, whose <c>Clone</c> its
-/// own overrides; reaching a type reaches whatever its copy clones in turn.
+/// own overrides; reaching a type reaches whatever its copy clones in turn. An unsubstituted slot
+/// retains every derivable generic argument type: inferred and forwarded arguments need not have a
+/// written closing, and C# excludes ref structs from those arguments.
 /// </summary>
 internal sealed class CloneDemand
 {
@@ -27,7 +29,7 @@ internal sealed class CloneDemand
 
     private readonly Dictionary<ConcreteType, List<ConcreteType>> subclasses = new(ReferenceEqualityComparer.Instance);
 
-    private readonly Dictionary<TypeParameter, List<IMistType>> arguments = [];
+    private readonly List<ConcreteType> derivable;
 
     private readonly Queue<ConcreteType> pending = new();
 
@@ -35,11 +37,14 @@ internal sealed class CloneDemand
 
     private readonly AbstractType? clonable;
 
+    private bool copiesGenericSlots;
+
     private CloneDemand(ProgramModelClass model)
     {
         clones = model.Clones;
         clonable = model.TypesByFQN.GetValueOrDefault(WellKnownTypes.IClonable.FullyQualifiedName) as AbstractType;
         var types = SourceTypes.Of(model).OfType<ConcreteType>().ToList();
+        derivable = types.Where(type => type.DerivedClone is not null && type is not StructType { IsRef: true }).ToList();
 
         foreach(var type in types)
         {
@@ -62,13 +67,6 @@ internal sealed class CloneDemand
 
         foreach(var closing in model.ConstructorConstraintClosures.Closings)
         {
-            if(!arguments.TryGetValue(closing.Parameter, out var closed))
-            {
-                arguments[closing.Parameter] = closed = [];
-            }
-
-            closed.Add(closing.Argument);
-
             if(clonable?.TypeParametersList.Contains(closing.Parameter) == true || closing.Parameter.ConstraintsList.Exists(constraint => constraint is TypeConstraint { ConstraintType: var bound } && Mentions(bound)))
             {
                 Need(closing.Argument);
@@ -121,6 +119,8 @@ internal sealed class CloneDemand
     public static CloneDerivation? Clones => active?.clones;
 
     public static AbstractType? ClonableAbstract => active?.clonable;
+
+    public static bool CopiesGenericSlots => active?.copiesGenericSlots == true;
 
     public static bool Emits(ConcreteType type)
     {
@@ -208,10 +208,17 @@ internal sealed class CloneDemand
 
                 return;
 
-            case TypeParameter parameter:
-                foreach(var argument in arguments.GetValueOrDefault(parameter) ?? [])
+            case TypeParameter:
+                if(copiesGenericSlots)
                 {
-                    Need(argument);
+                    return;
+                }
+
+                copiesGenericSlots = true;
+
+                foreach(var candidate in derivable)
+                {
+                    pending.Enqueue(candidate);
                 }
 
                 return;

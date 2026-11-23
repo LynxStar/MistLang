@@ -162,8 +162,23 @@ public linear class Socket
     }
 }
 
+public class InferredStyle
+{
+    public int Size;
+
+    public InferredStyle(int size)
+    {
+        this.Size = size;
+    }
+}
+
 public class Program
 {
+    public static Holder<U> Wrap<U>(owned U item)
+    {
+        return new Holder<U>(item);
+    }
+
     public static int FromPlain(Point p)
     {
         owned Point mine = p;
@@ -231,6 +246,11 @@ public class Program
             Console.WriteLine($"  socket={socket.Handle} twin={twin.Handle}");
         }
 
+        Console.WriteLine("--- 6. An inferred generic copy keeps its own contents ---");
+        var inferred = Wrap(new InferredStyle(1));
+        owned var inferredCopy = inferred;
+        inferred.Item.Size = 99;
+        Console.WriteLine($"  copy={inferredCopy.Item.Size} original={inferred.Item.Size}");
     }
 
     public static void Main()

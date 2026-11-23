@@ -48,58 +48,38 @@ public static class CliArgumentParser
 
             if(arg == "--backend")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--backend")]));
-                }
-                else
-                {
-                    i++;
-                    backendId = args[i];
+                    backendId = value;
                 }
             }
             else if(arg == "--output")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--output")]));
-                }
-                else
-                {
-                    i++;
-                    outputDirectory = args[i];
+                    outputDirectory = value;
                 }
             }
             else if(arg == "--bin")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--bin")]));
-                }
-                else
-                {
-                    i++;
-                    binDirectory = args[i];
+                    binDirectory = value;
                 }
             }
             else if(arg == "--mode")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--mode")]));
-                }
-                else
-                {
-                    i++;
-                    mode = args[i].ToLowerInvariant() switch
+                    mode = value.ToLowerInvariant() switch
                     {
                         "compile" => CompilerMode.Compile,
                         "lex" => CompilerMode.Lex,
                         _ => CompilerMode.Compile,
                     };
-                    if(args[i].ToLowerInvariant() is not ("compile" or "lex"))
+                    if(value.ToLowerInvariant() is not ("compile" or "lex"))
                     {
-                        errors.Add(new CliParseError(CommandDiagnostics.UnknownMode, [new NameValue(args[i])]));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownMode, [new NameValue(value)]));
                     }
                 }
             }
@@ -113,30 +93,20 @@ public static class CliArgumentParser
             }
             else if(arg == "--pipeline")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--pipeline")]));
-                }
-                else
-                {
-                    i++;
-                    pipeline = args[i].ToLowerInvariant();
+                    pipeline = value.ToLowerInvariant();
                     if(pipeline is not "standard")
                     {
-                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPipeline, [new NameValue(args[i])]));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPipeline, [new NameValue(value)]));
                     }
                 }
             }
             else if(arg == "--platform")
             {
-                if(i + 1 >= args.Length)
+                if(TryConsumeRequiredValue(args, ref i, errors, out var value))
                 {
-                    errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue("--platform")]));
-                }
-                else
-                {
-                    i++;
-                    platform = args[i].ToLowerInvariant() switch
+                    platform = value.ToLowerInvariant() switch
                     {
                         "windows" => TargetPlatform.Windows,
                         "linux" => TargetPlatform.Linux,
@@ -145,7 +115,7 @@ public static class CliArgumentParser
                     };
                     if(platform is null)
                     {
-                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPlatform, [new NameValue(args[i])]));
+                        errors.Add(new CliParseError(CommandDiagnostics.UnknownPlatform, [new NameValue(value)]));
                     }
                 }
             }
@@ -306,5 +276,18 @@ public static class CliArgumentParser
         return new CliParseResult(
             new CliArguments(projectFolder!, Command: command, backendId, outputDirectory, binDirectory, mode, quiet, verbose, inspectTypeName, pipeline, platform, runtimeIdentifier),
             errors);
+    }
+
+    private static bool TryConsumeRequiredValue(string[] args, ref int index, List<CliParseError> errors, out string value)
+    {
+        if(index + 1 >= args.Length)
+        {
+            errors.Add(new CliParseError(CommandDiagnostics.MissingFlagValue, [new NameValue(args[index])]));
+            value = "";
+            return false;
+        }
+
+        value = args[++index];
+        return true;
     }
 }

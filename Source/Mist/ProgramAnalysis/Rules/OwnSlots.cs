@@ -1,0 +1,73 @@
+using Mist.ProgramModel.Construction.Binding;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
+
+namespace Mist.ProgramAnalysis.Rules;
+
+/// <summary>
+/// The slots of a member's signature that are the receiver's own where the receiver's class or struct
+/// closes them with <c>unknown</c> (runtime-dependent-values Requirement 7.6). An object is one closing
+/// of its own class, so such a slot still holds one value, the receiver's own read. The binder leaves the
+/// slot <c>unknown</c>, and one <c>unknown</c> stands for every unknown value of a domain, so which slot is
+/// the receiver's is read from where the declared signature names the receiver's parameter, never from the
+/// closed type argument. Each becomes a capture initialized by that read, which <see cref="SlotMeeting"/>
+/// meets by equality, as it meets a slot the binder gave the receiver's read.
+/// </summary>
+internal static class OwnSlots
+{
+    public static IMistType Mark(Expression? receiver, IMistType? declared, IMistType closed, IDictionary<SlotCapture, TypeParameter> owned)
+    {
+        return declared is not null && receiver is not (null or TypeReferenceExpression or ThisExpression)
+            && SlotReads.Plain(receiver.Type) is ConstructedType { Definition: ClassType or StructType } closing
+                ? Marked(receiver, declared, closed, closing, owned)
+                : closed;
+    }
+
+    public static (Expression Receiver, IMistType Declared)? Reached(Expression value)
+    {
+        return SlotReads.Written(value) switch
+        {
+            MemberAccessExpression { Member: FieldResult field, Receiver: { } receiver } => (receiver, field.Field.Type),
+            MemberAccessExpression { Member: PropertyResult property, Receiver: { } receiver } => (receiver, property.Property.Type),
+            InvocationExpression { Receiver: MemberAccessExpression { Receiver: { } receiver }, Signature: { } method } => (receiver, method.ReturnType),
+            IndexExpression { Indexer: { } indexer, Receiver: var receiver } => (receiver, indexer.Type),
+            _ => null,
+        };
+    }
+
+    private static IMistType Marked(Expression receiver, IMistType declared, IMistType closed, ConstructedType closing, IDictionary<SlotCapture, TypeParameter> owned)
+    {
+        if(declared is TypeParameter { IsDependent: true, IsPack: false, Domain: { } domain } parameter && Unknown(closed)
+            && closing.Definition is IHasTypeParameters declaring && declaring.TypeParametersList.Exists(own => ReferenceEquals(own, parameter))
+            && parameter.Ordinal < closing.TypeArguments.Count
+            && Unknown(closing.TypeArguments[parameter.Ordinal]))
+        {
+            var read = SlotReads.Read(receiver, parameter);
+            var capture = new SlotCapture(
+                $"{RefinementFindings.Display(receiver)}.{parameter.Name}", InstanceSlotRead.Contract(parameter) ?? domain, ConversionRelation.Unrefined(domain), read,
+                receiver.Node.Span.Start);
+            owned[capture] = parameter;
+            return capture.Value;
+        }
+
+        if(closed is not ConstructedType shut || SlotReads.Plain(declared) is not ConstructedType open
+            || !ReferenceEquals(open.Definition, shut.Definition) || open.TypeArguments.Count != shut.TypeArguments.Count)
+        {
+            return closed;
+        }
+
+        var arguments = shut.TypeArguments.Select((argument, i) => Marked(receiver, open.TypeArguments[i], argument, closing, owned)).ToList();
+
+        return arguments.Where((argument, i) => !ReferenceEquals(argument, shut.TypeArguments[i])).Any()
+            ? new ConstructedType(shut.Definition, arguments, shut.Enclosing)
+            : closed;
+    }
+
+    private static bool Unknown(IMistType argument)
+    {
+        return argument is UnknownType or (UnknownValueType and not RefinementArgument);
+    }
+}

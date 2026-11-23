@@ -23,20 +23,20 @@ internal sealed partial class RefinementAnalyzer
                 TupleDeconstructionStatement deconstruction => Deconstructed(deconstruction).Any(pair => SlotIdentity.Owes(pair.Element, pair.Target.Type)),
                 LocalDeclarationStatement declaration => Refined(declaration.Local.Type) || SlotIdentity.Owes(declaration.Initializer, declaration.Local.Type),
                 AssignmentExpression assignment => Refined(assignment.Target.Type) || assignment.Target is IndexExpression || SlotIdentity.Owes(assignment.Value, assignment.Target.Type)
-                    || SlotIdentity.OwesThrough(Through(assignment.Target), assignment.Target.Type),
+                    || SlotIdentity.OwesThrough(Through(assignment.Target), assignment.Target.Type, Declared(assignment.Target)),
                 CompoundAssignmentExpression compound => Refined(compound.Target.Type) || compound.Target is IndexExpression
-                    || Operates((BinaryExpression)CompoundAssignments.LongForm(compound).Value) || SlotIdentity.OwesThrough(Through(compound.Target), compound.Target.Type),
+                    || Operates((BinaryExpression)CompoundAssignments.LongForm(compound).Value) || SlotIdentity.OwesThrough(Through(compound.Target), compound.Target.Type, Declared(compound.Target)),
                 BinaryExpression { Operator.Modifiers.IsIntrinsic: false } operation => Operates(operation),
                 ReturnStatement returned => Refined(returned.TargetType) || SlotIdentity.Owes(returned.Value, returned.TargetType),
                 IndexExpression => true,
                 InvocationExpression call => Targets(call.ParameterTypes) || Owed(call.Arguments, call.ParameterTypes)
-                    || call.ParameterTypes?.Any(type => SlotIdentity.OwesThrough((call.Receiver as MemberAccessExpression)?.Receiver, type)) == true,
+                    || call.ParameterTypes?.Where((type, i) => SlotIdentity.OwesThrough((call.Receiver as MemberAccessExpression)?.Receiver, type, SlotIdentity.Declared(call.Signature, i))).Any() == true,
                 NewExpression creation => Targets(creation.ParameterTypes) || Owed(creation.Arguments, creation.ParameterTypes),
                 ObjectInitializerAssignment entry => Refined(entry.TargetType) || Targets(entry.AddParameterTypes)
                     || SlotIdentity.Owes(entry.Value, entry.TargetType) || Owed([entry.Value], entry.AddParameterTypes),
                 CastExpression cast => Refined(cast.ParameterType ?? cast.TargetType) || SlotIdentity.Owes(cast.Operand, cast.ParameterType ?? cast.TargetType),
                 FunctionReferenceExpression { Type: IFunctionType function } reference => function.ParameterTypes.Zip(reference.ClosedParameterTypes).Any(pair => SlotIdentity.Owes(pair.First, pair.Second))
-                    || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType) || reference.ClosedParameterTypes.Any(type => SlotIdentity.OwesThrough(reference.Receiver, type)),
+                    || SlotIdentity.Owes(reference.ClosedReturnType, function.ReturnType) || reference.ClosedParameterTypes.Where((type, i) => SlotIdentity.OwesThrough(reference.Receiver, type, SlotIdentity.Declared(reference.Method, i))).Any(),
                 _ => false,
             });
         }
@@ -64,6 +64,7 @@ internal sealed partial class RefinementAnalyzer
             {
                 var slot = flattened ? ValuePack.SlotOf(parameters!, arguments.Count, i) : i;
                 var parameter = parameters is not null && slot < parameters.Count ? parameters[slot] : null;
+                var declared = flattened ? null : parameter?.Type;
 
                 if(targets[i] is not { } target || (flattened && arguments[i] is SpreadExpression))
                 {
@@ -79,7 +80,9 @@ internal sealed partial class RefinementAnalyzer
                 Need(
                     state, arguments[i], target, arguments[i], onConstraint: parameter?.Name ?? RefinementFindings.Display(arguments[i]), measured: Measured(receiver),
                     reading: reading,
-                    meeting: parameter is { Modifier.Direction: ByRefDirection.Ref } ? SlotMeeting.Equal with { Exact = exact ?? [], Receiver = receiver, Inner = inner } : new SlotMeeting(exact ?? [], Receiver: receiver) { Inner = inner });
+                    meeting: parameter is { Modifier.Direction: ByRefDirection.Ref }
+                        ? SlotMeeting.Equal with { Exact = exact ?? [], Receiver = receiver, Inner = inner, Declared = declared }
+                        : new SlotMeeting(exact ?? [], Receiver: receiver) { Inner = inner, Declared = declared });
             }
         }
 
@@ -92,9 +95,11 @@ internal sealed partial class RefinementAnalyzer
 
             var closer = SlotIdentity.Closer(operation);
 
-            foreach(var (operand, target) in new[] { (operation.Left, left), (operation.Right, right) })
+            foreach(var (operand, target, declared) in new[] { (operation.Left, left, SlotIdentity.Declared(operation.Operator, 0)), (operation.Right, right, SlotIdentity.Declared(operation.Operator, 1)) })
             {
-                if(operand.Type is not ErrorType && SlotIdentity.Judge(state, operand, target, factReading, budget, Met(new SlotMeeting([], Receiver: closer))) is { } unproven)
+                var meeting = new SlotMeeting([], Receiver: closer) { Declared = declared };
+
+                if(operand.Type is not ErrorType && SlotIdentity.Judge(state, operand, target, factReading, budget, Met(meeting)) is { } unproven)
                 {
                     ReportClosing(unproven, operand.Node, [operand]);
                     return false;
@@ -116,6 +121,17 @@ internal sealed partial class RefinementAnalyzer
             {
                 MemberAccessExpression { Member: FieldResult or PropertyResult } member => member.Receiver,
                 IndexExpression { Indexer: not null } index => index.Receiver,
+                _ => null,
+            };
+        }
+
+        private static IMistType? Declared(Expression target)
+        {
+            return target switch
+            {
+                MemberAccessExpression { Member: FieldResult field } => field.Field.Type,
+                MemberAccessExpression { Member: PropertyResult property } => property.Property.Type,
+                IndexExpression { Indexer: { } indexer } => indexer.Type,
                 _ => null,
             };
         }

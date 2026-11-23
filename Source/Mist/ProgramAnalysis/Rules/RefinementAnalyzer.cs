@@ -139,7 +139,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
                 case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
                     when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target), Receiver: Through(assignment.Target)));
+                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target), meeting: new SlotMeeting(SlotCapture.Of(assignment.Target), Receiver: Through(assignment.Target)) { Declared = Declared(assignment.Target) });
 
                     if(assignment.Target is IndexExpression written)
                     {
@@ -153,7 +153,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     var result = CompoundValue(ref state, compound);
                     if(NeedOperands(state, (BinaryExpression)result))
                     {
-                        Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target), meeting: new SlotMeeting(SlotCapture.Of(compound.Target), Receiver: Through(compound.Target)));
+                        Need(state, result, compound.Target.Type, compound, onConstraint: RefinementFindings.Display(compound.Target), meeting: new SlotMeeting(SlotCapture.Of(compound.Target), Receiver: Through(compound.Target)) { Declared = Declared(compound.Target) });
                     }
 
                     if(compound.Target is IndexExpression incremented)
@@ -275,7 +275,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
             if(index is { ParameterType: { } slot, Indexer.ParametersList: [var parameter] })
             {
-                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name, reading: Reading.ForReceiver(index.Receiver), meeting: new SlotMeeting(index.Captures, Receiver: index.Receiver));
+                Need(state, index.Index, slot, index.Index, onConstraint: parameter.Name, reading: Reading.ForReceiver(index.Receiver), meeting: new SlotMeeting(index.Captures, Receiver: index.Receiver) { Declared = parameter.Type });
             }
         }
 

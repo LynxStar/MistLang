@@ -7,6 +7,7 @@ using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
 
@@ -29,6 +30,8 @@ internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool 
 {
     private static readonly HashSet<SlotCapture> NoValues = new(ReferenceEqualityComparer.Instance);
 
+    private static readonly Dictionary<SlotCapture, TypeParameter> NoneOwned = new(ReferenceEqualityComparer.Instance);
+
     public static readonly SlotMeeting Fit = new([]);
 
     public static readonly SlotMeeting Equal = new([], Alike: true);
@@ -36,6 +39,12 @@ internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool 
     public IReadOnlyCollection<SlotCapture> Inner { get; init; } = [];
 
     public IReadOnlySet<SlotCapture> Values { get; init; } = NoValues;
+
+    public IMistType? Declared { get; init; }
+
+    public IReadOnlyDictionary<SlotCapture, TypeParameter> Owned { get; init; } = NoneOwned;
+
+    public IReadOnlyDictionary<SlotCapture, TypeParameter> Reached { get; init; } = NoneOwned;
 
     public bool OneValue(IMistType argument)
     {
@@ -61,6 +70,11 @@ internal sealed record SlotMeeting(IReadOnlyCollection<SlotCapture> Exact, bool 
 
     public TypeParameter? ReceiverSlot(IMistType slot)
     {
+        if(slot is CapturedValue marked && Owned.TryGetValue(marked.Capture, out var owned))
+        {
+            return owned;
+        }
+
         if(Receiver is null or TypeReferenceExpression or ThisExpression || slot is not (CapturedValue or RefinementArgument)
             || SlotReads.Plain(Receiver.Type) is not ConstructedType { Definition: ClassType or StructType } closing || closing.Definition is not IHasTypeParameters declared)
         {
@@ -96,7 +110,7 @@ internal static class SlotIdentity
     {
         UnprovenSlot? first = null;
         var written = through is null ? null : SlotReads.Written(through);
-        meeting ??= SlotMeeting.Fit;
+        (source, target, meeting) = Own(source, target, through, meeting ?? SlotMeeting.Fit);
 
         foreach(var constituent in Constituents(target))
         {
@@ -142,18 +156,54 @@ internal static class SlotIdentity
             && Pairs(reaching, closing).Any(pair => !Same(pair.Argument, pair.Slot));
     }
 
-    public static bool OwesThrough(Expression? receiver, IMistType? target)
+    public static bool OwesThrough(Expression? receiver, IMistType? target, IMistType? declared = null)
     {
-        var meeting = new SlotMeeting([], Receiver: receiver);
+        if(target is null)
+        {
+            return false;
+        }
 
-        return target is not null && Constituents(target).Any(constituent => Reaches(meeting, constituent));
+        var (_, marked, meeting) = Own(target, target, null, new SlotMeeting([], Receiver: receiver) { Declared = declared });
+
+        return Constituents(marked).Any(constituent => Reaches(meeting, constituent));
     }
 
     public static Expression? Closer(BinaryExpression operation)
     {
-        return operation is { Operator.Modifiers.IsIntrinsic: false, ParameterTypes: { } types }
-            ? new[] { operation.Left, operation.Right }.FirstOrDefault(operand => types.Any(type => OwesThrough(operand, type)))
+        return operation is { Operator: { Modifiers.IsIntrinsic: false } declared, ParameterTypes: { } types }
+            ? new[] { operation.Left, operation.Right }.FirstOrDefault(operand => types.Where((type, i) => OwesThrough(operand, type, Declared(declared, i))).Any())
             : null;
+    }
+
+    public static IMistType? Declared(Method? member, int ordinal)
+    {
+        return member is not null && ordinal < member.ParametersList.Count ? member.ParametersList[ordinal].Type : null;
+    }
+
+    // A value reached through a member is given its receiver's own slots only where the site meets one, so every other site reads it as before.
+    private static (IMistType Source, IMistType Target, SlotMeeting Meeting) Own(IMistType source, IMistType target, Expression? through, SlotMeeting meeting)
+    {
+        if(meeting is { Declared: null } or { Receiver: null })
+        {
+            return (source, target, meeting);
+        }
+
+        var owned = new Dictionary<SlotCapture, TypeParameter>(ReferenceEqualityComparer.Instance);
+        target = OwnSlots.Mark(meeting.Receiver, meeting.Declared, target, owned);
+
+        if(owned.Count == 0)
+        {
+            return (source, target, meeting);
+        }
+
+        var reached = new Dictionary<SlotCapture, TypeParameter>(ReferenceEqualityComparer.Instance);
+
+        if(through is not null && OwnSlots.Reached(through) is var (receiver, declared))
+        {
+            source = OwnSlots.Mark(receiver, declared, source, reached);
+        }
+
+        return (source, target, meeting with { Owned = owned, Reached = reached });
     }
 
     private static bool Reaches(SlotMeeting meeting, IMistType type)
@@ -195,7 +245,9 @@ internal static class SlotIdentity
         }
 
         var read = pair.Read ?? pair.Parameter;
-        var left = through is null && !meeting.OneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
+        var left = pair.Argument is CapturedValue reached && meeting.Reached.ContainsKey(reached.Capture)
+            ? reading.Read(ref state, reached.Capture.Initializer)
+            : through is null && !meeting.OneValue(pair.Argument) ? null : SlotReads.Value(ref state, reading, pair.Argument, through, read);
 
         if(SlotReads.StandsForOneValue(pair.Slot) || meeting.IsExact(pair.Slot) || SlotReads.Refinement(state, pair.Slot) is not { } admitted)
         {

@@ -128,6 +128,32 @@ public sealed class SlotIdentityDecisionTests
     }
 
     [Fact]
+    public void ASlotTheSignatureGivesAReceiverClosedWithUnknownIsMetByThatReceiversOwnRead()
+    {
+        var local = new LocalVariable("ring", slots.Closed(ring, UnknownType.Instance));
+        var held = new Value(local.Type, "ring", HandBuiltModel.Node());
+        var read = new Value(slots.Int, "ring.Capacity", HandBuiltModel.Node());
+        var state = Bound() with { Bindings = Bound().Bindings.Set(local, held).Set(new MemberHolder(held, capacity), read) };
+        var unknown = slots.Refinements.Built.Interner.GetOrCreateUnknownValue(slots.Int);
+        var argument = slots.Create(first);
+        var own = new SlotMeeting([], Receiver: HandBuiltRefinements.Read(local)) { Declared = slots.ArrayOf(capacity) };
+
+        Assert.Null(SlotIdentity.Judge(Knowing(state, Equal(new Term(n), new Term(read))), argument, slots.ArrayOf(unknown), reading, meeting: own));
+
+        var unproven = SlotIdentity.Judge(state, argument, slots.ArrayOf(unknown), reading, meeting: own);
+
+        Assert.Equal(("n", "ring.Capacity"), (unproven?.Left, unproven?.Right));
+        Assert.Equal("int[ring.Capacity]", DiagnosticSnapshot.Type(unproven!.Target).Spelling);
+        Assert.True(SlotIdentity.OwesThrough(own.Receiver, slots.ArrayOf(unknown), own.Declared));
+
+        var elsewhere = own with { Declared = slots.ArrayOf(unknown) };
+
+        Assert.Null(SlotIdentity.Judge(state, argument, slots.ArrayOf(unknown), reading, meeting: elsewhere));
+        Assert.False(SlotIdentity.OwesThrough(own.Receiver, slots.ArrayOf(unknown), elsewhere.Declared));
+        Assert.False(SlotIdentity.OwesThrough(own.Receiver, slots.ArrayOf(unknown)));
+    }
+
+    [Fact]
     public void ADependentParameterIsProvenByTheFactAboutIt()
     {
         var parameter = slots.Dependent("N");

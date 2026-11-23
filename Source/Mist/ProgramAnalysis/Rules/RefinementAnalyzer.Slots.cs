@@ -30,7 +30,8 @@ internal sealed partial class RefinementAnalyzer
         private void NeedSignature(FactState state, FunctionReferenceExpression reference, IFunctionType target)
         {
             var taking = new SlotMeeting(reference.Captures, Receiver: reference.Receiver) { Inner = SlotMeeting.Inside(reference.Captures, reference.TypeArguments) };
-            var pairs = target.ParameterTypes.Zip(reference.ClosedParameterTypes).Select(pair => (Source: pair.First, Target: pair.Second, Meeting: taking));
+            var pairs = target.ParameterTypes.Zip(reference.ClosedParameterTypes)
+                .Select((pair, i) => (Source: pair.First, Target: pair.Second, Meeting: taking with { Declared = SlotIdentity.Declared(reference.Method, i) }));
 
             if(reference.ClosedReturnType is { } returned)
             {

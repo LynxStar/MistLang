@@ -106,9 +106,9 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     Need(state, initializer, declaration.Local.Type, initializer);
                     break;
 
-                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression { IsCoalescing: false } assignment }
+                case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }
                     when StorageLocations.NotAssignable(assignment.Target) is null:
-                    Need(state, assignment.Value, assignment.Target.Type, assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
+                    Need(state, assignment.Value, StorageLocations.AssignedType(assignment, context.Model.TypeInterner), assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
 
                     if(assignment.Target is IndexExpression written)
                     {

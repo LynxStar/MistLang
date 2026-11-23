@@ -1,3 +1,4 @@
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
@@ -8,10 +9,11 @@ namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
 /// What a reference a call returns may name besides what the call is handed by reference, which
-/// <see cref="BodyHolders.Places"/> names. The callee's returned storage is read as the caller's: its <c>this</c> is
-/// the call's receiver, a parameter it never reassigns is the argument, and a struct field lies inside its holder, so
-/// a returned ref names that storage through every nested call. A callee whose body cannot be read, because it has
-/// none or another type may override it, may return any field or static of the reference's type.
+/// <see cref="BodyHolders.Places"/> names. The callee's returned storage is read as the caller's: its <c>this</c>, and
+/// an extension receiver it never reassigns, is the call's receiver, a parameter it never reassigns is the argument, and
+/// a struct field lies inside its holder, so a returned ref names that storage through every nested call. A callee
+/// whose body cannot be read, because it has none or another type may override it, may return any field or static of
+/// the reference's type.
 /// </summary>
 internal static class ReturnedStorage
 {
@@ -73,18 +75,15 @@ internal static class ReturnedStorage
             return receiver is null ? WriteReach.Field(field) : caller.Member(field, receiver, nested);
         }
 
-        if(frame.Method.DeclaringBlock is not null || frame.Method.ClosedBlock is not null)
-        {
-            return WriteReach.Field(field);
-        }
-
+        var block = frame.Method.DeclaringBlock ?? frame.Method.ClosedBlock;
         var mapped = receiver switch
         {
-            null or ThisExpression => Receiver(frame.Call),
+            null or ThisExpression when block is null => Receiver(frame.Call),
+            LocalReferenceExpression { Local: var local } when ReferenceEquals(local, block?.Receiver) && Held(frame.Method, local) => Receiver(frame.Call),
             LocalReferenceExpression { Local.Parameter: { } parameter } when Held(frame.Method, parameter) => (true, Argument(frame, parameter)),
             _ => (false, null),
         };
-        return mapped is (true, var root) && (root is not null || receiver is null or ThisExpression)
+        return mapped is (true, var root) && (root is not null || (block is null && receiver is null or ThisExpression))
             ? Member(field, root, nested, frame.Outer, caller) : WriteReach.Field(field);
     }
 
@@ -118,11 +117,17 @@ internal static class ReturnedStorage
             return structure && parameter.Modifier.IsRef;
         }
 
-        bool names(Expression? expression)
-        {
-            return expression is LocalReferenceExpression { Local.Parameter: var named } && ReferenceEquals(named, parameter);
-        }
+        return Unassigned(method, expression => expression is LocalReferenceExpression { Local.Parameter: var named } && ReferenceEquals(named, parameter));
+    }
 
+    private static bool Held(Method method, LocalVariable receiver)
+    {
+        return !method.Modifiers.IsStatic && Requirement.Unrefined(receiver.Type) is not StructType
+            && Unassigned(method, expression => expression is LocalReferenceExpression { Local: var named } && ReferenceEquals(named, receiver));
+    }
+
+    private static bool Unassigned(Method method, Func<Expression?, bool> names)
+    {
         var nodes = BodyWalker.DescendantsAndSelf(method.Body!).ToList();
         return !(nodes.OfType<AssignmentExpression>().SelectMany(Deconstructions.Pairs).Any(pair => names(pair.Target))
             || nodes.OfType<CompoundAssignmentExpression>().Any(compound => names(compound.Target))

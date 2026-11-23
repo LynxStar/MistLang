@@ -146,6 +146,16 @@ internal sealed class FactHolderFragments
         };
     }
 
+    public static ExtensionBlock Extension(ClassType receiver)
+    {
+        return new ExtensionBlock("p", "", new Scope(null), null) { ResolvedReceiverType = receiver, Receiver = new LocalVariable("p", receiver) };
+    }
+
+    public static Method Extending(ExtensionBlock block, Method method)
+    {
+        return new Method(method.Name, method.ReturnType, [.. method.ParametersList], method.Modifiers) { Body = method.Body, DeclaringBlock = block };
+    }
+
     public static InvocationExpression Implicit(Method method, params Expression[] arguments)
     {
         return new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), method), arguments, method.ReturnType, method, method.ParametersList.ConvertAll(parameter => parameter.Type));

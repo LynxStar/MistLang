@@ -166,6 +166,8 @@ public sealed class FieldWriteFlowTests
     [InlineData("written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object", false)]
     [InlineData("written-through-a-ref-two-calls-return-for-a-new-object", false)]
     [InlineData("written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this", true)]
+    [InlineData("written-through-a-ref-an-extension-call-returns-for-a-new-object", false)]
+    [InlineData("written-through-a-ref-an-extension-call-returns-for-this", true)]
     public void AByRefParameterLosesItsFactsAtEveryWriteToStorageItMayName(string form, bool refused)
     {
         var f = new FactHolderFragments();
@@ -194,8 +196,12 @@ public sealed class FieldWriteFlowTests
         var outer = f.Returning("Outer", FactHolderFragments.Implicit(refA));
         var reset = f.Returning("Reset", [FactHolderFragments.Set(FactHolderFragments.Read(owner), f.This)], FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A),
             owner.Parameter!);
+        var extension = FactHolderFragments.Extension(f.Pair);
+        var extA = FactHolderFragments.Extending(extension, f.Returning("ExtA", FactHolderFragments.Member(FactHolderFragments.Read(extension.Receiver!), f.A)));
         List<Statement> setup = form switch
         {
+            "written-through-a-ref-an-extension-call-returns-for-a-new-object" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.Create(), extA))],
+            "written-through-a-ref-an-extension-call-returns-for-this" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, extA))],
             "written-through-a-ref-a-call-returns-for-a-struct-handed-by-ref" =>
                 [FactHolderFragments.Declare(copy, FactHolderFragments.Own(f.AddField(f.Pair, "P", type: point))), FactHolderFragments.Declare(r, f.Free(getX, FactHolderFragments.Read(copy)))],
             "written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, deep, f.Create()))],
@@ -223,7 +229,8 @@ public sealed class FieldWriteFlowTests
             "element-of-an-array-created-here-written" => FactHolderFragments.Set(f.H.At(FactHolderFragments.Read(array), f.Number(0L)), f.Number(1L)),
             "written-through-a-ref-a-call-returns-for-a-new-object" or "written-through-a-ref-a-call-returns-for-a-struct-handed-by-ref"
                 or "written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object" or "written-through-a-ref-two-calls-return-for-a-new-object"
-                or "written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this" => FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L)),
+                or "written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this" or "written-through-a-ref-an-extension-call-returns-for-a-new-object"
+                or "written-through-a-ref-an-extension-call-returns-for-this" => FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L)),
             _ => throw new InvalidOperationException(form),
         };
         var five = form == "readonly-ref-parameter-after-a-field-write"

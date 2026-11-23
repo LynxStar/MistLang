@@ -121,8 +121,9 @@ parameter may be any type.
 A write through a ref a call returns reaches what `ReturnedStorage` reads in
 the callee's `return ref` statements, read as the caller's storage. The
 callee's `this` is the call's receiver. A class-typed by-value parameter is the
-argument when the callee never assigns it, hands it by `ref` or `out`, or binds
-a `ref` local to it; otherwise it may hold any object, `this` included. A
+argument, and a class-typed `extension` block receiver is the call's receiver,
+when the callee never assigns it, hands it by `ref` or `out`, or binds a `ref`
+local to it; otherwise it may hold any object, `this` included. A
 struct-typed `ref` parameter is the argument's storage. A struct field lies
 inside the storage that holds it. A field the callee returns therefore names
 that field of the caller's storage, which may be the caller's `this`, unless

@@ -40,6 +40,14 @@ public sealed class WriteReachDecisionTests
     [InlineData("another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object", "")]
     [InlineData("another-call-handed-a-struct-field-of-a-receiver-that-is-another-object", "")]
     [InlineData("another-call-handed-a-struct-field-of-this", "p,y")]
+    [InlineData("field-of-an-extension-receiver-that-is-another-object", "")]
+    [InlineData("field-of-an-extension-receiver-that-is-this", "A,p,y")]
+    [InlineData("field-of-an-extension-receiver-reassigned-to-a-parameter-given-this", "A,p,y")]
+    [InlineData("field-of-an-extension-receiver-handed-by-ref", "A,p,y")]
+    [InlineData("field-of-a-parameter-of-an-extension-method-given-another-object", "")]
+    [InlineData("field-of-a-parameter-of-an-extension-method-given-this", "A,p,y")]
+    [InlineData("another-call-on-an-extension-receiver-that-is-another-object", "")]
+    [InlineData("another-call-on-an-extension-receiver-that-is-this", "A,p,y")]
     public void AReferenceACallReturnsReachesTheStorageItsBodyReturnsReadAsTheCallers(string returned, string reached)
     {
         var f = new FactHolderFragments();
@@ -56,8 +64,20 @@ public sealed class WriteReachDecisionTests
         var swap = new Method("Swap", f.H.Int, [f.ByRef("q", f.Pair).Parameter!], new MemberModifiers()) { DeclaringType = f.Pair };
         Statement[] toThis = [FactHolderFragments.Set(FactHolderFragments.Read(owner), f.This)];
         Expression ownerX = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(owner), stored), inner);
+        var extension = FactHolderFragments.Extension(f.Pair);
+        var extended = FactHolderFragments.Read(extension.Receiver!);
         var callee = returned switch
         {
+            "field-of-an-extension-receiver-that-is-another-object" or "field-of-an-extension-receiver-that-is-this" =>
+                FactHolderFragments.Extending(extension, f.Returning("ExtA", FactHolderFragments.Member(extended, f.A))),
+            "field-of-an-extension-receiver-reassigned-to-a-parameter-given-this" => FactHolderFragments.Extending(extension, f.Returning("ExtA",
+                [FactHolderFragments.Set(FactHolderFragments.Read(extension.Receiver!), FactHolderFragments.Read(owner))], FactHolderFragments.Member(extended, f.A), owner.Parameter!)),
+            "field-of-an-extension-receiver-handed-by-ref" => FactHolderFragments.Extending(extension, f.Returning("ExtA",
+                [HandBuiltRefinements.Evaluate(f.Free(swap, FactHolderFragments.Read(extension.Receiver!)))], FactHolderFragments.Member(extended, f.A))),
+            "field-of-a-parameter-of-an-extension-method-given-another-object" or "field-of-a-parameter-of-an-extension-method-given-this" =>
+                FactHolderFragments.Extending(extension, through),
+            "another-call-on-an-extension-receiver-that-is-another-object" or "another-call-on-an-extension-receiver-that-is-this" =>
+                FactHolderFragments.Extending(extension, f.Returning("ExtA", FactHolderFragments.Call(extended, getA))),
             "field-of-a-parameter-reassigned-to-this" => f.Returning("Through", toThis, FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
             "field-of-a-parameter-handed-by-ref" => f.Returning("Through", [HandBuiltRefinements.Evaluate(f.Free(swap, FactHolderFragments.Read(owner)))],
                 FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
@@ -92,14 +112,18 @@ public sealed class WriteReachDecisionTests
             "field-of-a-parameter-given-another-object" or "field-of-a-parameter-reassigned-to-this" or "field-of-a-parameter-handed-by-ref"
                 or "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-reassigned-to-this"
                 or "another-call-handed-a-parameter-given-another-object" or "another-call-handed-a-parameter-reassigned-to-this" => [f.Create()],
-            "field-of-a-parameter-given-this" or "field-of-a-struct-field-of-a-parameter-given-this" => [f.This],
+            "field-of-a-parameter-given-this" or "field-of-a-struct-field-of-a-parameter-given-this"
+                or "field-of-an-extension-receiver-reassigned-to-a-parameter-given-this" or "field-of-a-parameter-of-an-extension-method-given-this" => [f.This],
+            "field-of-a-parameter-of-an-extension-method-given-another-object" => [f.Create()],
             "field-of-a-ref-struct-parameter-given-a-member-of-a-new-object" or "another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object" =>
                 [FactHolderFragments.Member(f.Create(), stored)],
             "field-of-a-ref-struct-parameter-given-a-field" => [FactHolderFragments.Own(stored)],
             _ => [],
         };
         Expression receiver = returned is "field-of-a-receiver-that-is-another-object" or "another-call-on-a-receiver-that-is-another-object"
-            or "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" ? f.Create() : f.This;
+            or "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" or "field-of-an-extension-receiver-that-is-another-object"
+            or "field-of-an-extension-receiver-reassigned-to-a-parameter-given-this" or "field-of-an-extension-receiver-handed-by-ref"
+            or "field-of-a-parameter-of-an-extension-method-given-this" or "another-call-on-an-extension-receiver-that-is-another-object" ? f.Create() : f.This;
 
         var reach = ReturnedStorage.Of(FactHolderFragments.Call(receiver, callee, arguments), BodyHolders.None);
 

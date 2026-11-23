@@ -67,10 +67,10 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
                 var old = state.CompoundInputs.GetValueOrDefault(compound) ?? reading.Read(ref state, compound.Target);
                 var result = FactReading.Operation(ref state, (BinaryExpression)longForm.Value, old, reading.Evaluated(ref state, compound.Value));
                 state = state with { Results = state.Results.SetItem(longForm.Value, result), CompoundInputs = state.CompoundInputs.Remove(compound) };
-                return Assign(EndWritten(state, compound), longForm);
+                return EndPlaces(Assign(EndWritten(state, compound), longForm), compound.Target);
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
-                return EndWritten(Assign(state, assignment), assignment);
+                return Deconstructions.Pairs(assignment).Aggregate(EndWritten(Assign(state, assignment), assignment), (ended, pair) => EndPlaces(ended, pair.Target));
 
             case { Kind: FlowStepKind.Evaluate, Node: MethodReferenceExpression or NamespaceReferenceExpression }:
                 return state;
@@ -408,10 +408,37 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
         var (arguments, parameters) = Arguments(expression);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && reading.Holder(ref state, arguments[i]) is { } holder)
+            if(parameters[i].Modifier.Direction is not (ByRefDirection.Ref or ByRefDirection.Out))
+            {
+                continue;
+            }
+
+            if(reading.Holder(ref state, arguments[i]) is { } holder)
             {
                 var value = FactReading.Fresh(ref state, arguments[i].Type, RefinementFindings.Display(arguments[i]), arguments[i].Node);
                 state = EndAliases(state with { Bindings = state.Bindings.Set(holder, value) }, holder);
+            }
+            else
+            {
+                state = EndPlaces(state, arguments[i]);
+            }
+        }
+
+        return state;
+    }
+
+    private FactState EndPlaces(FactState state, Expression place)
+    {
+        if(place is not InvocationExpression { Method.Modifiers.IsRef: true } call)
+        {
+            return state;
+        }
+
+        foreach(var named in BodyHolders.Places(call))
+        {
+            if(reading.Holder(ref state, named) is { } holder)
+            {
+                state = state.Bindings.Get(holder) is not null ? End(state, holder) : EndAliases(state, holder);
             }
         }
 

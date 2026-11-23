@@ -156,6 +156,35 @@ internal sealed class FactHolderFragments
         return Method("Bump", Pair, HandBuiltModel.Block(Set(Read(local), Number(1L))), H.Int, local.Parameter!);
     }
 
+    public Method Identity()
+    {
+        var local = ByRef("x");
+        return new Method("Id", H.Int, [local.Parameter!], new MemberModifiers { IsRef = true })
+        {
+            Body = HandBuiltModel.Block(new ReturnStatement(Read(local), H.Int, isRef: true)),
+            DeclaringType = Pair,
+        };
+    }
+
+    public Method Returning(Func<LocalVariable, Statement[]> body)
+    {
+        var x = new LocalVariable("x", Box) { Parameter = Parameter("x", Box, OwnershipKind.Borrowed) };
+        return new Method("Get", H.Int, [x.Parameter], new MemberModifiers { IsRef = true }) { Body = HandBuiltModel.Block(body(x)), DeclaringType = Pair };
+    }
+
+    public static MemberAccessExpression Member(Expression receiver, Property property)
+    {
+        return new MemberAccessExpression(HandBuiltModel.Node(), receiver, property.Name, property.Type, member: new PropertyResult(property, property.DeclaringType ?? receiver.Type, []));
+    }
+
+    public Property Settable(string name, bool autoSetter)
+    {
+        var setter = autoSetter
+            ? new PropertyAccessor { IsAuto = true }
+            : new PropertyAccessor { Body = HandBuiltModel.Block(Keep(StoredBox, new ThisExpression(HandBuiltModel.Node(), Box))) };
+        return new Property(name, H.Int, new MemberModifiers()) { Getter = new PropertyAccessor { IsAuto = true }, Setter = setter, DeclaringType = Box };
+    }
+
     public LocalVariable ByRef(string name)
     {
         return new LocalVariable(name, H.Int) { IsRef = true, Parameter = Parameter(name, H.Int, direction: ByRefDirection.Ref) };

@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 
 namespace Mist.ProgramAnalysis.Refinements;
 
@@ -15,18 +16,21 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// lend to a callee that keeps no reference to it, a move, or a write of the local. Any other use, or a capture,
 /// may hand the object to code that writes it later. Only <c>owned</c> promises the object is the body's alone:
 /// a <c>borrowed</c> binding may be taken from a field or a fresh object whose constructor kept <c>this</c>, which
-/// the ownership rules do not exclude.
+/// the ownership rules do not exclude. A ref returned by a call may name what the call was handed by ref, so a
+/// write through a ref local bound to one also ends those holders, which keep their facts between such writes.
 /// </summary>
 internal sealed class BodyHolders
 {
-    public static readonly BodyHolders None = new(UnseenWrites.None, new Dictionary<object, List<object>>(), new HashSet<LocalVariable>());
+    public static readonly BodyHolders None = new(UnseenWrites.None, new Dictionary<object, List<object>>(), new Dictionary<object, List<object>>(), new HashSet<LocalVariable>());
 
     private readonly Dictionary<object, List<object>> aliases;
+    private readonly Dictionary<object, List<object>> reached;
 
-    private BodyHolders(IReadOnlySet<object> unseen, Dictionary<object, List<object>> aliases, IReadOnlySet<LocalVariable> held)
+    private BodyHolders(IReadOnlySet<object> unseen, Dictionary<object, List<object>> aliases, Dictionary<object, List<object>> reached, IReadOnlySet<LocalVariable> held)
     {
         Unseen = unseen;
         this.aliases = aliases;
+        this.reached = reached;
         Held = held;
     }
 
@@ -36,7 +40,31 @@ internal sealed class BodyHolders
 
     public IReadOnlyList<object> AliasesOf(object holder)
     {
-        return aliases.TryGetValue(holder, out var found) ? found : [];
+        var group = aliases.TryGetValue(holder, out var found) ? found : [];
+        return group.Prepend(holder).SelectMany(member => reached.TryGetValue(member, out var named) ? named : []).Concat(group)
+            .Where(other => !ReferenceEquals(other, holder)).Distinct(ReferenceEqualityComparer.Instance).ToList();
+    }
+
+    public static IEnumerable<Expression> Places(InvocationExpression call)
+    {
+        var parameters = call.Parameters;
+        for(var i = 0; parameters is not null && i < call.Arguments.Count && i < parameters.Count; i++)
+        {
+            if(parameters[i].Modifier.Direction is not (ByRefDirection.Ref or ByRefDirection.Out))
+            {
+                continue;
+            }
+
+            foreach(var place in call.Arguments[i] is InvocationExpression { Method.Modifiers.IsRef: true } inner ? Places(inner) : [call.Arguments[i]])
+            {
+                yield return place;
+            }
+        }
+
+        if(ThisTiers.ReceiverOf(call) is { Type: StructType } receiver)
+        {
+            yield return receiver;
+        }
     }
 
     public static bool HoldsMembers(LocalVariable local)
@@ -72,7 +100,64 @@ internal sealed class BodyHolders
             unseen.UnionWith(aliases.TryGetValue(holder, out var group) ? group : []);
         }
 
-        return new BodyHolders(unseen, aliases, HeldReceivers(nodes, writes));
+        var reached = Reached(nodes, aliases);
+        foreach(var captured in Captured(nodes).Where(reached.ContainsKey))
+        {
+            unseen.UnionWith(reached[captured]);
+        }
+
+        return new BodyHolders(unseen, aliases, reached, HeldReceivers(nodes, writes));
+    }
+
+    private static Dictionary<object, List<object>> Reached(List<object> nodes, Dictionary<object, List<object>> aliases)
+    {
+        var reached = new Dictionary<object, List<object>>(ReferenceEqualityComparer.Instance);
+        foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
+        {
+            if(declaration.Local.IsRef && declaration.Initializer is InvocationExpression call)
+            {
+                var found = new HashSet<object>(ReferenceEqualityComparer.Instance);
+                foreach(var holder in Places(call).Select(Named).OfType<object>())
+                {
+                    var group = aliases.TryGetValue(holder, out var members) ? members : [];
+                    found.UnionWith(group.Prepend(holder));
+                    found.UnionWith(group.Prepend(holder).SelectMany(member => reached.TryGetValue(member, out var named) ? named : []));
+                }
+
+                _ = found.Remove(declaration.Local);
+                reached[declaration.Local] = [.. found];
+            }
+        }
+
+        return reached;
+    }
+
+    private static HashSet<object> Captured(List<object> nodes)
+    {
+        var captured = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        void inside(IEnumerable<LocalVariable> parameters, IReadOnlyList<object> body)
+        {
+            var own = Captures.OwnNames(parameters, body);
+            captured.UnionWith(body.OfType<LocalReferenceExpression>().Select(reference => reference.Local).Where(local => !own.Contains(local)));
+        }
+
+        foreach(var node in nodes)
+        {
+            switch(node)
+            {
+                case LambdaExpression lambda:
+                    inside(lambda.Parameters, Captures.Inside(lambda));
+                    break;
+                case LocalFunctionStatement function:
+                    inside(function.Parameters, Captures.Inside(function));
+                    break;
+                case AsyncBlockExpression block:
+                    inside([], BodyWalker.DescendantsAndSelf(block.Body).ToList());
+                    break;
+            }
+        }
+
+        return captured;
     }
 
     private static Dictionary<object, List<object>> Aliases(List<object> nodes)

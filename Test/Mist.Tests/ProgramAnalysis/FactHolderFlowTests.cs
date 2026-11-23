@@ -263,6 +263,110 @@ public sealed class FactHolderFlowTests
         AssertRefusedOnlyAfter(f, body, true);
     }
 
+    [Theory]
+    [InlineData("ref-local-written-after-the-local", true)]
+    [InlineData("ref-local-written-before-the-local", false)]
+    [InlineData("ref-local-written-after-the-need", false)]
+    [InlineData("ref-local-of-a-ref-local-written-after-the-local", true)]
+    [InlineData("the-call-assigned", true)]
+    [InlineData("the-call-compounded", true)]
+    [InlineData("the-call-passed-by-ref-after-the-local-is-set-again", true)]
+    [InlineData("the-call-handed-a-member-of-an-owned-object-assigned", true)]
+    public void AWriteThroughAReferenceACallHandsBackEndsWhatTheCallWasHandedByRef(string form, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var x = FactHolderFragments.Int(f.H, "x", isRef: true);
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var b = f.Object("b", OwnershipKind.Owned);
+        var id = f.Identity();
+        var y = f.ByRef("y");
+        var set = f.Method("Set", f.Pair, HandBuiltModel.Block(FactHolderFragments.Set(FactHolderFragments.Read(y), f.Number(1L))), f.H.Int,
+            y.Parameter!, FactHolderFragments.Parameter("z", f.H.Int));
+        InvocationExpression aliasOf(LocalVariable local)
+        {
+            return f.Free(id, FactHolderFragments.Read(local));
+        }
+
+        Statement five()
+        {
+            return FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(5L));
+        }
+
+        Statement write(int value)
+        {
+            return FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(value));
+        }
+
+        var need = f.Need(FactHolderFragments.Read(a, Last));
+        var member = FactHolderFragments.Member(FactHolderFragments.Read(b), f.V);
+        Statement[] statements = form switch
+        {
+            "ref-local-written-after-the-local" => [FactHolderFragments.Declare(r, aliasOf(a)), five(), write(1), need],
+            "ref-local-written-before-the-local" => [FactHolderFragments.Declare(r, aliasOf(a)), write(1), five(), need],
+            "ref-local-written-after-the-need" => [five(), need, FactHolderFragments.Declare(r, aliasOf(a)), write(6)],
+            "ref-local-of-a-ref-local-written-after-the-local" => [FactHolderFragments.Declare(x, FactHolderFragments.Read(a)), FactHolderFragments.Declare(r, aliasOf(x)),
+                five(), write(1), need],
+            "the-call-assigned" => [five(), FactHolderFragments.Set(aliasOf(a), f.Number(1L)), need],
+            "the-call-compounded" => [five(), HandBuiltRefinements.Evaluate(new CompoundAssignmentExpression(HandBuiltModel.Node(), aliasOf(a), BinaryOperatorKind.Add,
+                f.Number(1L), f.H.Int, null, IncrementForm.None)), need],
+            "the-call-passed-by-ref-after-the-local-is-set-again" => [HandBuiltRefinements.Evaluate(f.Free(set, aliasOf(a),
+                HandBuiltRefinements.Assign(FactHolderFragments.Read(a), f.Number(5L)))), need],
+            "the-call-handed-a-member-of-an-owned-object-assigned" => [f.Created(b), FactHolderFragments.Set(member, f.Number(5L)),
+                FactHolderFragments.Set(f.Free(id, FactHolderFragments.Member(FactHolderFragments.Read(b), f.V)), f.Number(1L)),
+                f.Need(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V, Last))],
+            _ => throw new InvalidOperationException(form),
+        };
+
+        AssertRefusedOnlyAfter(f, [FactHolderFragments.Declare(a, f.Number(0L)), .. statements], refused);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ALentObjectKeepsNoMemberFactsOnceTheCalleeMayHandBackAReferenceIntoIt(bool intoIt)
+    {
+        var f = new FactHolderFragments();
+        var b = f.Object("b", OwnershipKind.Owned);
+        var get = f.Returning(x => [new ReturnStatement(intoIt ? FactHolderFragments.Member(FactHolderFragments.Read(x), f.V) : FactHolderFragments.Own(f.Count), f.H.Int, isRef: true)]);
+        List<Statement> body = [f.Created(b), FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V), f.Number(5L)),
+            FactHolderFragments.Set(f.Free(get, FactHolderFragments.Read(b)), f.Number(1L)), f.Need(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V, Last))];
+
+        AssertRefusedOnlyAfter(f, body, intoIt);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void AnObjectLentToACalleeThatSetsItsPropertyKeepsMemberFactsOnlyWhileTheSetterKeepsNothing(bool autoSetter, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var b = f.Object("b", OwnershipKind.Owned);
+        var property = f.Settable("P", autoSetter);
+        var lend = f.Lender("Lend", f.Box, x => [FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(x), property), f.Number(2L))]).Method;
+        List<Statement> body = [f.Created(b), HandBuiltRefinements.Evaluate(f.Free(lend, FactHolderFragments.Read(b))),
+            FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V), f.Number(5L)),
+            FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Own(f.StoredBox), f.V), f.Number(1L)),
+            f.Need(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V, Last))];
+
+        AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Fact]
+    public void ACallAssignedThroughEndsTheFieldsItsBodyWrites()
+    {
+        var f = new FactHolderFragments();
+        var writeA = new Method("WriteA", f.H.Int, [], new MemberModifiers { IsRef = true })
+        {
+            Body = HandBuiltModel.Block(FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(1L)), new ReturnStatement(FactHolderFragments.Own(f.B), f.H.Int, isRef: true)),
+            DeclaringType = f.Pair,
+        };
+        List<Statement> body = [FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(5L)),
+            FactHolderFragments.Set(FactHolderFragments.Call(f.This, writeA), f.Number(2L)), f.Need(FactHolderFragments.Own(f.A, Last))];
+
+        AssertRefusedOnlyAfter(f, body, true);
+    }
+
     private static IReadOnlyList<Mist.Common.Diagnostics.Diagnostic> Analyze(FactHolderFragments f, List<Statement> body)
     {
         return f.H.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. body]));

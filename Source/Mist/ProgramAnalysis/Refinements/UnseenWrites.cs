@@ -39,11 +39,8 @@ internal static class UnseenWrites
                 case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased } when BodyHolders.Named(aliased) is null:
                     _ = unseen.Add(alias);
 
-                    if(Referenced(aliased) is { } target)
-                    {
-                        _ = unseen.Add(target);
-                    }
-
+                    var places = aliased is InvocationExpression call ? BodyHolders.Places(call).Where(place => BodyHolders.Named(place) is null) : aliased is null ? [] : [aliased];
+                    unseen.UnionWith(places.Select(Referenced).OfType<object>());
                     break;
             }
         }

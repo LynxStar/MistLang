@@ -89,6 +89,44 @@ public sealed class FactHolderDecisionTests
     }
 
     [Theory]
+    [InlineData("a-local", "a", "r")]
+    [InlineData("a-ref-local-of-a-local", "a,x", "r")]
+    [InlineData("a-reference-another-such-call-hands-back", "a", "r")]
+    [InlineData("a-field-of-another-object", "", "A,r")]
+    public void ARefLocalBoundToARefReturningCallMayNameWhatTheCallWasHandedByRef(string argument, string named, string unseen)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var x = FactHolderFragments.Int(f.H, "x", isRef: true);
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var other = f.Object("other", OwnershipKind.Unrestricted);
+        var id = f.Identity();
+        Expression passed = argument switch
+        {
+            "a-local" => FactHolderFragments.Read(a),
+            "a-ref-local-of-a-local" => FactHolderFragments.Read(x),
+            "a-reference-another-such-call-hands-back" => f.Free(id, FactHolderFragments.Read(a)),
+            "a-field-of-another-object" => FactHolderFragments.Member(FactHolderFragments.Read(other), f.A),
+            _ => throw new InvalidOperationException(argument),
+        };
+        static string names(IEnumerable<object> holders)
+        {
+            return string.Join(",", holders.Select(holder => holder switch
+            {
+                LocalVariable local => local.Name,
+                Field field => field.Name,
+                _ => throw new InvalidOperationException(holder.GetType().Name),
+            }).Order(StringComparer.Ordinal));
+        }
+
+        Statement alias = argument == "a-ref-local-of-a-local" ? FactHolderFragments.Declare(x, FactHolderFragments.Read(a)) : f.Created(other);
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(0L)), alias, FactHolderFragments.Declare(r, f.Free(id, passed))));
+
+        Assert.Equal(named, names(holders.AliasesOf(r)));
+        Assert.Equal(unseen, names(holders.Unseen));
+    }
+
+    [Theory]
     [InlineData("plain-local", true)]
     [InlineData("ref-local-of-a-field", true)]
     [InlineData("ref-local-of-a-ref-local-of-a-field", true)]
@@ -274,6 +312,12 @@ public sealed class FactHolderDecisionTests
     [InlineData("calls-a-method-on-it-that-keeps-its-receiver", true)]
     [InlineData("rebinds-it-through-a-ref-parameter", true)]
     [InlineData("has-no-body", true)]
+    [InlineData("returns-a-reference-into-it", true)]
+    [InlineData("returns-a-reference-through-a-ref-local-into-it", true)]
+    [InlineData("returns-a-reference-into-something-else", false)]
+    [InlineData("sets-an-auto-property-of-it", false)]
+    [InlineData("sets-a-property-whose-setter-keeps-it", true)]
+    [InlineData("compounds-a-property-whose-setter-keeps-it", true)]
     public void ACalleeKeepsAnArgumentWhenItMayStoreReturnCaptureOrHandItOnToOneThatDoes(string callee, bool keeps)
     {
         var f = new FactHolderFragments();
@@ -290,6 +334,7 @@ public sealed class FactHolderDecisionTests
         var reader = lender(x => [f.Need(FactHolderFragments.Member(read(x), f.V))]);
         var keeper = lender(x => [FactHolderFragments.Keep(f.StoredBox, read(x))]);
         var stash = f.Method("Stash", f.Box, HandBuiltModel.Block(FactHolderFragments.Keep(f.StoredBox, new ThisExpression(HandBuiltModel.Node(), f.Box))));
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
         var method = callee switch
         {
             "reads-a-field-of-it" => reader,
@@ -304,6 +349,15 @@ public sealed class FactHolderDecisionTests
             "calls-a-method-on-it-that-keeps-its-receiver" => lender(x => [HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(x), stash))]),
             "rebinds-it-through-a-ref-parameter" => lender(x => [FactHolderFragments.Set(read(x), FactHolderFragments.Own(f.StoredBox))], ByRefDirection.Ref),
             "has-no-body" => f.Method("Lend", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed)),
+            "returns-a-reference-into-it" => f.Returning(x => [new ReturnStatement(FactHolderFragments.Member(read(x), f.V), f.H.Int, isRef: true)]),
+            "returns-a-reference-through-a-ref-local-into-it" => f.Returning(x => [FactHolderFragments.Declare(r, FactHolderFragments.Member(read(x), f.V)),
+                new ReturnStatement(read(r), f.H.Int, isRef: true)]),
+            "returns-a-reference-into-something-else" => f.Returning(x => [f.Need(FactHolderFragments.Member(read(x), f.V)),
+                new ReturnStatement(FactHolderFragments.Own(f.Count), f.H.Int, isRef: true)]),
+            "sets-an-auto-property-of-it" => lender(x => [FactHolderFragments.Set(FactHolderFragments.Member(read(x), f.Settable("Q", autoSetter: true)), f.Number(2L))]),
+            "sets-a-property-whose-setter-keeps-it" => lender(x => [FactHolderFragments.Set(FactHolderFragments.Member(read(x), f.Settable("P", autoSetter: false)), f.Number(2L))]),
+            "compounds-a-property-whose-setter-keeps-it" => lender(x => [HandBuiltRefinements.Evaluate(new CompoundAssignmentExpression(HandBuiltModel.Node(),
+                FactHolderFragments.Member(read(x), f.Settable("P", autoSetter: false)), BinaryOperatorKind.Add, f.Number(2L), f.H.Int, null, IncrementForm.None))]),
             _ => throw new InvalidOperationException(callee),
         };
         var b = f.Object("b", OwnershipKind.Owned);

@@ -155,6 +155,14 @@ internal sealed class MemberWrites(FieldEffects effects)
         var nodes = BodyWalker.DescendantsAndSelf(method.Body!).ToList();
         var closed = new HashSet<object>(ReferenceEqualityComparer.Instance);
         var safe = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        var set = nodes.OfType<AssignmentExpression>().SelectMany(Deconstructions.Pairs).Select(pair => pair.Target)
+            .Concat(nodes.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target)).ToHashSet<object>(ReferenceEqualityComparer.Instance);
+        var compounded = nodes.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target).ToHashSet<object>(ReferenceEqualityComparer.Instance);
+        bool uses(Expression access, Property property)
+        {
+            return set.Contains(access) ? Writes(property) && (!compounded.Contains(access) || Reads(access, property)) : Reads(access, property);
+        }
+
         void unless(bool keeps, object? reference)
         {
             if(!keeps && reference is not null)
@@ -179,6 +187,12 @@ internal sealed class MemberWrites(FieldEffects effects)
                 case AsyncExpression deferred:
                     closed.UnionWith(BodyWalker.DescendantsAndSelf(deferred.Operand));
                     break;
+                case ReturnStatement { IsRef: true, Value: { } returned }:
+                    closed.UnionWith(BodyWalker.DescendantsAndSelf(returned));
+                    break;
+                case LocalDeclarationStatement { Local.IsRef: true, Initializer: { } aliased } when method.Modifiers.IsRef:
+                    closed.UnionWith(BodyWalker.DescendantsAndSelf(aliased));
+                    break;
                 case FieldReferenceExpression or BackingFieldReferenceExpression:
                     _ = safe.Add(node);
                     break;
@@ -186,10 +200,10 @@ internal sealed class MemberWrites(FieldEffects effects)
                     _ = safe.Add(access.Receiver);
                     break;
                 case MemberAccessExpression { Member: PropertyResult { Property: var property } } access:
-                    unless(!Reads(access, property), access.Receiver);
+                    unless(!uses(access, property), access.Receiver);
                     break;
                 case PropertyReferenceExpression { Property: var property } reference:
-                    unless(!Reads(reference, property), reference);
+                    unless(!uses(reference, property), reference);
                     break;
                 case AssignmentExpression { Target: LocalReferenceExpression { Local: var local } target } assignment
                     when(!local.IsRef && local.Parameter?.Modifier is null or { IsRef: false, Direction: ByRefDirection.None })
@@ -229,6 +243,11 @@ internal sealed class MemberWrites(FieldEffects effects)
     private bool Reads(Expression access, Property property)
     {
         return property.Getter is { IsAuto: true } || (!effects.MayWrite(access) && Origins.IsUnchangeable(access.Type));
+    }
+
+    private static bool Writes(Property property)
+    {
+        return property.Setter is { IsAuto: true } || (property.Setter is null && property.Getter is { IsAuto: true });
     }
 
     private static int IndexOf(IReadOnlyList<Expression> arguments, Expression argument)

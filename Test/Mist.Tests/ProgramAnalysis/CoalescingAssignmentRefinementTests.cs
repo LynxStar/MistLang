@@ -68,6 +68,21 @@ public sealed class CoalescingAssignmentRefinementTests
         Assert.Empty(h.Built.Analyze(new RefinementAnalyzer(), body));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AnUnprovenIndexTargetIsRefusedOnceForAPlainOrACoalescingAssignment(bool coalescing)
+    {
+        var items = HandBuiltRefinements.Local(h.Sequence(), "items");
+        var assignment = new AssignmentExpression(
+            HandBuiltModel.Node(), h.At(items, HandBuiltRefinements.Local(h.Int, "slot")), h.Literal(5L), h.Int, coalescing);
+        var body = HandBuiltModel.Block(HandBuiltRefinements.Give(items, h.Array(3L, erased: true)), HandBuiltRefinements.Evaluate(assignment));
+
+        var diagnostic = Assert.Single(h.Built.Analyze(new RefinementAnalyzer(), body));
+
+        Assert.Equal("MIST0275", diagnostic.Number.Value);
+    }
+
     private Statement[] Body(string target, Expression value, bool coalescing)
     {
         var owner = HandBuiltModel.Class("Box");

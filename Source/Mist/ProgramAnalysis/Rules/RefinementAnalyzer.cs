@@ -110,7 +110,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     when StorageLocations.NotAssignable(assignment.Target) is null:
                     Need(state, assignment.Value, StorageLocations.AssignedType(assignment, context.Model.TypeInterner), assignment.Value, onConstraint: RefinementFindings.Display(assignment.Target));
 
-                    if(assignment.Target is IndexExpression written)
+                    if(!assignment.IsCoalescing && assignment.Target is IndexExpression written)
                     {
                         NeedIndex(state, written);
                     }

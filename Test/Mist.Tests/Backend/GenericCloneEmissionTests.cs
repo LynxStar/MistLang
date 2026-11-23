@@ -20,6 +20,94 @@ namespace Mist.Tests.Backend;
 public sealed class GenericCloneEmissionTests
 {
     [Theory]
+    [InlineData("member")]
+    [InlineData("subclass")]
+    [InlineData("generic")]
+    [InlineData("changeable")]
+    public void GenericSlotFallbackCarriesTheCompilerUnchangeabilityDecision(string shape)
+    {
+        var model = new HandBuiltModel();
+        var assembly = model.Model.AddSelfAssembly("Probe");
+        var unit = new CompilationUnit { SourcePath = "hand-built.mist" };
+        assembly.CompilationUnits.Add(unit);
+
+        ClassType declare(string name, bool isReadonly)
+        {
+            var type = new ClassType(name, "Probe", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>())
+            {
+                Modifiers = DeclarationFragments.Public with { IsReadonly = isReadonly },
+                Assembly = assembly,
+            };
+            unit.Types.Add(type);
+            _ = model.Model.RegisterType(type);
+            return type;
+        }
+
+        var int32 = new StructType("Int32", "Standard", new Scope(null), null, null);
+        var regex = new ClassType("Regex", "Standard", new Scope(null), null, null)
+        {
+            Modifiers = DeclarationFragments.Public with { IsReadonly = true, IsIntrinsic = true },
+            Assembly = assembly,
+        };
+        unit.Types.Add(regex);
+        _ = model.Model.RegisterType(regex);
+        var frozen = declare(shape == "generic" ? "FrozenValue<>" : "FrozenValue", shape != "changeable");
+        IMistType contents = shape == "generic" ? DeclarationFragments.Parameter(frozen, frozen.Scope, "T") : int32;
+        frozen.FieldsList.Add(new Field(shape == "subclass" ? "Value" : "Clone", contents, OwnershipKind.Unrestricted, DeclarationFragments.Public with { IsReadonly = true }) { DeclaringType = frozen });
+
+        if(shape == "subclass")
+        {
+            var child = declare("FrozenChild", true);
+            child.BaseType = frozen;
+            child.MethodsList.Add(new Method("Clone", child, [], DeclarationFragments.Public with { IsOwned = true }) { DeclaringType = child });
+        }
+
+        var holder = declare("Holder<>", false);
+        var parameter = DeclarationFragments.Parameter(holder, holder.Scope, "T");
+        holder.FieldsList.Add(new Field("Item", parameter, OwnershipKind.Owned, DeclarationFragments.Public) { DeclaringType = holder });
+        holder.DerivedClone = new Method("Clone", model.Interner.GetOrCreateConstructedType(holder, [parameter]), [], DeclarationFragments.Public)
+        {
+            DeclaringType = holder,
+            IsDerivedClone = true,
+        };
+        model.Model.Clones = new CloneDerivation(unit.Types);
+        var value = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("shared", holder));
+        holder.MethodsList.Add(new Method("Run", model.Type("Void"), [], DeclarationFragments.Public)
+        {
+            DeclaringType = holder,
+            Body = HandBuiltModel.Block(new ExpressionStatement(new CloneExpression(HandBuiltModel.Node(), value))),
+        });
+        var diagnostics = new DiagnosticBag();
+
+        using(CloneDemand.Enter(model.Model))
+        {
+            var closures = ConstraintClosureMap.Build(model.Model, diagnostics);
+            var frozenWriter = new CSharpWriter();
+            TypeEmitter.EmitTypeBody(frozen, closures, model.Model.VariadicUses, frozenWriter, diagnostics);
+            var predicate = "private static bool __MistUnchangeable(System.Func<System.Type, bool> judge)";
+
+            if(shape == "changeable")
+            {
+                Assert.DoesNotContain(predicate, frozenWriter.ToString());
+            }
+            else
+            {
+                Assert.Contains(predicate, frozenWriter.ToString());
+                Assert.Contains(shape == "generic" ? "return judge(typeof(T));" : "return true;", frozenWriter.ToString());
+                Assert.DoesNotContain("public Probe.FrozenValue Clone()", frozenWriter.ToString());
+            }
+
+            var holderWriter = new CSharpWriter();
+            TypeEmitter.EmitTypeBody(holder, closures, model.Model.VariadicUses, holderWriter, diagnostics);
+            Assert.Contains("type.GetMethod(\"__MistUnchangeable\", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly)", holderWriter.ToString());
+            Assert.Contains("System.Func<System.Type, bool> judge = __Unchangeable;", holderWriter.ToString());
+            Assert.Contains("type == typeof(System.Text.RegularExpressions.Regex)", holderWriter.ToString());
+        }
+
+        Assert.Empty(diagnostics.ToImmutableArray());
+    }
+
+    [Theory]
     [InlineData("inferred")]
     [InlineData("explicit")]
     [InlineData("forwarded")]

@@ -1,3 +1,4 @@
+using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Types;
@@ -7,6 +8,23 @@ namespace Mist.Backends.CSharpTranspiler.Emitter;
 // Closed generic slots can hold tuples or a declared Clone without IClonable; neither may take the unchanged fallback.
 internal static class GenericCloneEmitter
 {
+    public static void EmitUnchangeability(ConcreteType owner, CSharpWriter writer, ref bool anyEmitted)
+    {
+        if(!CloneDemand.CopiesGenericSlots || owner is not ClassType
+            || CloneDemand.Clones?.UnchangeableParameters(owner) is not { } parameters)
+        {
+            return;
+        }
+
+        TypeEmitter.SeparateMember(writer, ref anyEmitted);
+        writer.WriteLine("private static bool __MistUnchangeable(System.Func<System.Type, bool> judge)");
+        using(writer.Block())
+        {
+            var checks = parameters.Select(parameter => $"judge(typeof({TypeNameEmitter.Emit(parameter)}))");
+            writer.WriteLine($"return {(parameters.Count == 0 ? "true" : string.Join(" && ", checks))};");
+        }
+    }
+
     public static bool NeedsHelper(IMistType type)
     {
         return type switch
@@ -86,6 +104,12 @@ internal static class GenericCloneEmitter
             private static bool __Unchangeable(System.Type type)
             {
                 if(type == typeof(string) || type.IsPrimitive || type.IsEnum) return true;
+                var predicate = type.GetMethod("__MistUnchangeable", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly);
+                if(predicate is not null)
+                {
+                    System.Func<System.Type, bool> judge = __Unchangeable;
+                    return (bool)predicate.Invoke(null, new object[] { judge });
+                }
                 if(!type.IsValueType) return false;
                 foreach(var field in type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
                 {
@@ -94,6 +118,10 @@ internal static class GenericCloneEmitter
                 return true;
             }
             """;
+
+        var intrinsicChecks = CloneDemand.UnchangeableIntrinsics.Select(type => $"type == typeof({TypeNameEmitter.Emit(type)})")
+            .Prepend("type == typeof(string)").Distinct(StringComparer.Ordinal);
+        source = source.Replace("type == typeof(string)", string.Join(" || ", intrinsicChecks), StringComparison.Ordinal);
 
         foreach(var line in source.Replace("TValue", parameter, StringComparison.Ordinal).Split('\n'))
         {

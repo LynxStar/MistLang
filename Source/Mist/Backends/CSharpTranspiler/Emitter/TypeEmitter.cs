@@ -337,6 +337,11 @@ internal static class TypeEmitter
                 DefaultEmitter.EmitImplicitConstruction(concrete, writer, diagnostics, ref anyEmitted);
             }
 
+            if(concrete is not null)
+            {
+                GenericCloneEmitter.EmitUnchangeability(concrete, writer, ref anyEmitted);
+            }
+
             if(concrete is { DerivedClone: not null } && DerivedCloneEmitter.IsEmitted(concrete))
             {
                 SeparateMember(writer, ref anyEmitted);

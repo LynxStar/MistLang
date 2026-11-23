@@ -31,6 +31,8 @@ internal sealed class CloneDemand
 
     private readonly List<ConcreteType> derivable;
 
+    private readonly List<ConcreteType> unchangeableIntrinsics;
+
     private readonly Queue<ConcreteType> pending = new();
 
     private readonly CloneDerivation clones;
@@ -45,6 +47,8 @@ internal sealed class CloneDemand
         clonable = model.TypesByFQN.GetValueOrDefault(WellKnownTypes.IClonable.FullyQualifiedName) as AbstractType;
         var types = SourceTypes.Of(model).OfType<ConcreteType>().ToList();
         derivable = types.Where(type => type.DerivedClone is not null && type is not StructType { IsRef: true }).ToList();
+        unchangeableIntrinsics = types.Where(type => type is ClassType { IsIntrinsic: true, CloneSource: null }
+            && clones.Judge(type).Kind == CloneKind.Unchangeable).ToList();
 
         foreach(var type in types)
         {
@@ -121,6 +125,8 @@ internal sealed class CloneDemand
     public static AbstractType? ClonableAbstract => active?.clonable;
 
     public static bool CopiesGenericSlots => active?.copiesGenericSlots == true;
+
+    public static IReadOnlyList<ConcreteType> UnchangeableIntrinsics => active?.unchangeableIntrinsics ?? [];
 
     public static bool Emits(ConcreteType type)
     {

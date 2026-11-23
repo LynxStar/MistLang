@@ -61,6 +61,14 @@ internal sealed class CloneDerivation
         return Candidate(definition) && new Session(this, definition).Derivation(Itself(definition)) is null;
     }
 
+    public IReadOnlyCollection<TypeParameter>? UnchangeableParameters(ConcreteType definition)
+    {
+        var parameters = new HashSet<TypeParameter>();
+        return new Session(this, definition, parameters).Judge(Itself(definition)).Kind == CloneKind.Unchangeable
+            ? parameters.ToArray()
+            : null;
+    }
+
     public static string Describe(IMistType type, CloneRefusal refusal)
     {
         var name = TypeDisplay.Mist(type);
@@ -107,7 +115,7 @@ internal sealed class CloneDerivation
             : OwnedProvenance.IsOwned(slot.Property!) || declaring.Modifiers.IsOwned;
     }
 
-    private sealed class Session(CloneDerivation world, ConcreteType? assumed)
+    private sealed class Session(CloneDerivation world, ConcreteType? assumed, HashSet<TypeParameter>? unchangeableParameters = null)
     {
         private readonly HashSet<string> pending = new(StringComparer.Ordinal);
 
@@ -411,7 +419,13 @@ internal sealed class CloneDerivation
                     return true;
 
                 case TypeParameter parameter:
-                    return Assumed(parameter);
+                    if(!Assumed(parameter))
+                    {
+                        return false;
+                    }
+
+                    _ = unchangeableParameters?.Add(parameter);
+                    return true;
             }
 
             if(OptionalUnion.IsVoid(type) || string.Equals(type.FullyQualifiedName, WellKnownTypes.String.FullyQualifiedName, StringComparison.Ordinal))

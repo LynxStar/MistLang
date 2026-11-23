@@ -38,6 +38,43 @@ public class Recorded
     {
         return System.FormattableString.Invariant($"{this.Value} {this.Unit}");
     }
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Reading?(Snippet.Recorded? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Reading)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Reading));
+        __Snippet_Reading_Value(copy) = __Snippet_Recorded_Value(value);
+        __Snippet_Reading_Unit(copy) = __Snippet_Recorded_Unit(value);
+        return copy;
+    }
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "Value")]
+    private static extern ref int __Snippet_Recorded_Value(Snippet.Recorded target);
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "Unit")]
+    private static extern ref string __Snippet_Recorded_Unit(Snippet.Recorded target);
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "Value")]
+    private static extern ref int __Snippet_Reading_Value(Snippet.Reading target);
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "Unit")]
+    private static extern ref string __Snippet_Reading_Unit(Snippet.Reading target);
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Recorded?(Snippet.Reading? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Recorded)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Recorded));
+        __Snippet_Recorded_Value(copy) = __Snippet_Reading_Value(value);
+        __Snippet_Recorded_Unit(copy) = __Snippet_Reading_Unit(value);
+        return copy;
+    }
 }
 
 public class Program

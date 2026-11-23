@@ -52,6 +52,41 @@ internal class IntBox
     {
         return new Snippet.Box<string>(System.FormattableString.Invariant($"<{this.item}>"));
     }
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Box<int>?(Snippet.IntBox? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Box<int>)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Box<int>));
+        __Snippet_Box_Access<int>.__item(copy) = __Snippet_IntBox_item(value);
+        return copy;
+    }
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "item")]
+    private static extern ref int __Snippet_IntBox_item(Snippet.IntBox target);
+
+    private static class __Snippet_Box_Access<T>
+    {
+        [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "item")]
+        public static extern ref T __item(Snippet.Box<T> target);
+    }
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.IntBox?(Snippet.Box<int>? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.IntBox)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.IntBox));
+        __Snippet_IntBox_item(copy) = __Snippet_Box_Access<int>.__item(value);
+        return copy;
+    }
 }
 
 internal class Boxed<T>
@@ -78,6 +113,41 @@ internal class Boxed<T>
     {
         return new Snippet.Boxed<string>($"<{MistInvariant.Text(this.item)}>");
     }
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Box<T>?(Snippet.Boxed<T>? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Box<T>)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Box<T>));
+        __Snippet_Boxed_1__Snippet_Box_Access<T>.__item(copy) = __Snippet_Boxed_item(value);
+        return copy;
+    }
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "item")]
+    private static extern ref T __Snippet_Boxed_item(Snippet.Boxed<T> target);
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Boxed<T>?(Snippet.Box<T>? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Boxed<T>)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Boxed<T>));
+        __Snippet_Boxed_item(copy) = __Snippet_Boxed_1__Snippet_Box_Access<T>.__item(value);
+        return copy;
+    }
+}
+
+file static class __Snippet_Boxed_1__Snippet_Box_Access<T>
+{
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "item")]
+    public static extern ref T __item(Snippet.Box<T> target);
 }
 
 public class Program

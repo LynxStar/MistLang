@@ -35,6 +35,35 @@ internal class Jaguar : Snippet.Cat
     {
         return new Snippet.Jaguar($"{this.Name} II");
     }
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Tiger?(Snippet.Jaguar? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Tiger)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Tiger));
+        __Snippet_Cat_Name(copy) = __Snippet_Cat_Name(value);
+        return copy;
+    }
+
+    [System.Runtime.CompilerServices.UnsafeAccessor(System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = "Name")]
+    private static extern ref string __Snippet_Cat_Name(Snippet.Cat target);
+
+    [return: System.Diagnostics.CodeAnalysis.NotNullIfNotNull("value")]
+    public static explicit operator Snippet.Jaguar?(Snippet.Tiger? value)
+    {
+        if(value is null)
+        {
+            return null;
+        }
+
+        var copy = (Snippet.Jaguar)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Snippet.Jaguar));
+        __Snippet_Cat_Name(copy) = __Snippet_Cat_Name(value);
+        return copy;
+    }
 }
 
 public class Program

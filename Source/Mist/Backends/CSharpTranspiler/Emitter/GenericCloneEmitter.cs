@@ -20,7 +20,7 @@ internal static class GenericCloneEmitter
         writer.WriteLine("private static bool __MistUnchangeable(System.Func<System.Type, bool> judge)");
         using(writer.Block())
         {
-            var checks = parameters.Select(parameter => $"judge(typeof({TypeNameEmitter.Emit(parameter)}))");
+            var checks = parameters.Select(parameter => $"judge(typeof({TypeNameEmitter.EmitUnannotated(parameter)}))");
             writer.WriteLine($"return {(parameters.Count == 0 ? "true" : string.Join(" && ", checks))};");
         }
     }

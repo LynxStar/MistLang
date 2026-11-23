@@ -23,6 +23,7 @@ public sealed class GenericCloneEmissionTests
     [InlineData("member")]
     [InlineData("subclass")]
     [InlineData("generic")]
+    [InlineData("optional-specialization")]
     [InlineData("changeable")]
     public void GenericSlotFallbackCarriesTheCompilerUnchangeabilityDecision(string shape)
     {
@@ -51,8 +52,9 @@ public sealed class GenericCloneEmissionTests
         };
         unit.Types.Add(regex);
         _ = model.Model.RegisterType(regex);
-        var frozen = declare(shape == "generic" ? "FrozenValue<>" : "FrozenValue", shape != "changeable");
-        IMistType contents = shape == "generic" ? DeclarationFragments.Parameter(frozen, frozen.Scope, "T") : int32;
+        var generic = shape is "generic" or "optional-specialization";
+        var frozen = declare(generic ? "FrozenValue<>" : "FrozenValue", shape != "changeable");
+        IMistType contents = generic ? DeclarationFragments.Parameter(frozen, frozen.Scope, "T") : int32;
         frozen.FieldsList.Add(new Field(shape == "subclass" ? "Value" : "Clone", contents, OwnershipKind.Unrestricted, DeclarationFragments.Public with { IsReadonly = true }) { DeclaringType = frozen });
 
         if(shape == "subclass")
@@ -83,7 +85,15 @@ public sealed class GenericCloneEmissionTests
         {
             var closures = ConstraintClosureMap.Build(model.Model, diagnostics);
             var frozenWriter = new CSharpWriter();
-            TypeEmitter.EmitTypeBody(frozen, closures, model.Model.VariadicUses, frozenWriter, diagnostics);
+
+            using(shape == "optional-specialization"
+                ? TypeNameEmitter.Substituting(TypeSubstitution.Empty.With((TypeParameter)contents,
+                    model.Interner.GetOrCreateUnionType([model.Type("String"), model.Type("Void")])))
+                : null)
+            {
+                TypeEmitter.EmitTypeBody(frozen, closures, model.Model.VariadicUses, frozenWriter, diagnostics);
+            }
+
             var predicate = "private static bool __MistUnchangeable(System.Func<System.Type, bool> judge)";
 
             if(shape == "changeable")
@@ -93,7 +103,13 @@ public sealed class GenericCloneEmissionTests
             else
             {
                 Assert.Contains(predicate, frozenWriter.ToString());
-                Assert.Contains(shape == "generic" ? "return judge(typeof(T));" : "return true;", frozenWriter.ToString());
+                var expected = shape switch
+                {
+                    "generic" => "return judge(typeof(T));",
+                    "optional-specialization" => "return judge(typeof(string));",
+                    _ => "return true;",
+                };
+                Assert.Contains(expected, frozenWriter.ToString());
                 Assert.DoesNotContain("public Probe.FrozenValue Clone()", frozenWriter.ToString());
             }
 

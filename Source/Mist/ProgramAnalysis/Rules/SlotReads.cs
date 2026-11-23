@@ -58,9 +58,16 @@ internal static class SlotReads
         return expression switch
         {
             MemberAccessExpression access when Parameter(access) is { } parameter => InstanceSlotRead.Contract(parameter),
-            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } parameter } => InstanceSlotRead.Contract(parameter),
+            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } parameter } when Unrelated(parameter) => InstanceSlotRead.Contract(parameter),
             _ => null,
         };
+    }
+
+    // A where that relates the slot to another name is a relation, which stays a fact and never enters a type (runtime-dependent-values Requirement 1.4).
+    private static bool Unrelated(TypeParameter parameter)
+    {
+        return parameter.Refinement is null
+            || Requirement.Of(parameter.Refinement, parameter.Domain is { } domain ? RealRequirement.KindOf(domain) : null) is { Bounds.IsEmpty: true };
     }
 
     public static IMistType? Argument(MemberAccessExpression access, TypeParameter parameter)

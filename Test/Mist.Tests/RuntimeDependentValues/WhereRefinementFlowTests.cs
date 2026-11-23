@@ -32,13 +32,18 @@ public sealed class WhereRefinementFlowTests
 
     private ArrayCreationExpression Sized(TypeParameter capacity)
     {
-        var length = new SlotCapture("Capacity", slots.ZeroOrPositive, slots.Int, new TypeReferenceExpression(HandBuiltModel.Node(), capacity), 3);
+        var length = new SlotCapture(capacity.Name, slots.ZeroOrPositive, slots.Int, new TypeReferenceExpression(HandBuiltModel.Node(), capacity), 3);
         return slots.Create(length);
     }
 
     private IReadOnlyList<Diagnostic> InMethod(long floor)
     {
         var (ring, capacity) = Ring(floor);
+        return InMethod(ring, capacity);
+    }
+
+    private IReadOnlyList<Diagnostic> InMethod(MemberType ring, TypeParameter capacity)
+    {
         var made = Sized(capacity);
         var method = new Method("Make", made.Type, [], new MemberModifiers()) { DeclaringType = ring };
 
@@ -68,5 +73,20 @@ public sealed class WhereRefinementFlowTests
 
         Assert.Equal("MIST0272", refused.Number.Value);
         Assert.Contains("fails when Capacity <= -1", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AWhereThatRelatesTheSlotToAnotherSlotLeavesItsLengthRefused()
+    {
+        var (pair, low) = Ring(0);
+        var high = new TypeParameter("B", 1, pair.Scope, pair) { IsDependent = true, Domain = (MistType)slots.Int };
+        pair.TypeParametersList.Add(high);
+        high.RefinementNode = HandBuiltModel.Node();
+        high.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, new TypeReferenceExpression(HandBuiltModel.Node(), low));
+
+        var refused = Assert.Single(InMethod(pair, high));
+
+        Assert.Equal("MIST0272", refused.Number.Value);
+        Assert.Contains("fails when B <= -1", refused.Message, StringComparison.Ordinal);
     }
 }

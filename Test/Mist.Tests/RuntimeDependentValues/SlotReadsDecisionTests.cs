@@ -262,6 +262,25 @@ public sealed class SlotReadsDecisionTests
     }
 
     [Fact]
+    public void ADependentParametersWhereThatRelatesItToAnotherParameterIsNotItsOwnReadsRefinement()
+    {
+        var pair = HandBuiltSlots.Generic(HandBuiltModel.Class("Pair<>"), "A", slots.Int);
+        var low = pair.TypeParametersList[0];
+        var high = new TypeParameter("B", 1, pair.Scope, pair) { IsDependent = true, Domain = (MistType)slots.Int };
+        pair.TypeParametersList.Add(high);
+        high.RefinementNode = HandBuiltModel.Node();
+        high.Refinement = new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, new TypeReferenceExpression(HandBuiltModel.Node(), low));
+
+        Assert.Null(SlotReads.Contract(new TypeReferenceExpression(HandBuiltModel.Node(), high)));
+
+        high.Refinement = new ConjunctionPattern(HandBuiltModel.Node(), slots.Int, [
+            new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.GreaterThanOrEqual, HandBuiltModel.Literal(slots.Int, 0L)),
+            new ComparisonPattern(HandBuiltModel.Node(), slots.Int, ComparisonKind.LessThanOrEqual, HandBuiltModel.Literal(slots.Int, 100L))]);
+
+        Assert.Same(high.Refinement, Assert.IsType<RefinedType>(SlotReads.Contract(new TypeReferenceExpression(HandBuiltModel.Node(), high))).Predicate);
+    }
+
+    [Fact]
     public void ASynthesizedReadIsTypedByTheSlotsDomainWhileItsWhereStaysAFactOnTheValue()
     {
         var bounded = HandBuiltSlots.Generic(HandBuiltModel.Class("Bounded<>"), "Capacity", slots.Int);

@@ -347,6 +347,98 @@ public sealed class WriteReachDecisionTests
     }
 
     [Theory]
+    [InlineData("a-local-handed-to-it-by-ref", true)]
+    [InlineData("a-local-handed-through-a-ref-local", true)]
+    [InlineData("a-local-never-handed-by-ref", false)]
+    [InlineData("a-local-handed-only-readonly", false)]
+    [InlineData("a-local-of-another-closed-type", false)]
+    [InlineData("a-local-the-function-declares", false)]
+    [InlineData("a-ref-parameter-of-the-body-itself", false)]
+    public void AWriteThroughANestedFunctionsRefParameterReachesALocalOutsideItThatMayBeItsStorage(string form, bool reached)
+    {
+        var f = new FactHolderFragments();
+        var a = form == "a-local-of-another-closed-type" ? new LocalVariable("a", f.H.Built.Type("Int64")) : FactHolderFragments.Int(f.H, "a");
+        var b = FactHolderFragments.Int(f.H, "b");
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var p = f.ByRef("p");
+        var own = form == "a-local-the-function-declares";
+        List<Statement> inner = own ? [FactHolderFragments.Declare(a, f.Number(5L)), Reads(a), HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Read(a)))]
+            : [HandBuiltRefinements.Evaluate(FactHolderFragments.Read(a))];
+        var w = f.Method("W", f.Pair, HandBuiltModel.Block([.. inner, FactHolderFragments.Set(FactHolderFragments.Read(p), f.Number(1L))]), f.H.Int, p.Parameter!);
+        List<Statement> body = [FactHolderFragments.Declare(b, f.Number(0L)), new LocalFunctionStatement(w, [p])];
+        if(!own)
+        {
+            body.Insert(0, FactHolderFragments.Declare(a, f.Number(5L)));
+        }
+
+        body.AddRange(form switch
+        {
+            "a-local-handed-to-it-by-ref" or "a-local-of-another-closed-type" => [HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(a)))],
+            "a-local-handed-through-a-ref-local" => [FactHolderFragments.Declare(r, FactHolderFragments.Read(a)), HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(r)))],
+            "a-local-handed-only-readonly" => [HandBuiltRefinements.Evaluate(f.Free(f.Viewing(f.H.Int, ByRefDirection.In), FactHolderFragments.Read(a))),
+                HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(b)))],
+            "a-ref-parameter-of-the-body-itself" => [HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Read(a)))],
+            _ => [HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(b)))],
+        });
+        var written = form == "a-ref-parameter-of-the-body-itself" ? f.ByRef("q") : p;
+
+        var holders = BodyHolders.Of(HandBuiltModel.Block([.. body]));
+
+        Assert.Equal(reached, holders.Reach(FactHolderFragments.Read(written)).Covers(a));
+    }
+
+    [Theory]
+    [InlineData(ByRefDirection.Ref, true, true)]
+    [InlineData(ByRefDirection.In, true, true)]
+    [InlineData(ByRefDirection.Ref, false, false)]
+    public void AWriteToALocalANestedFunctionReadsReachesThatFunctionsRefParametersItMayBeHandedTo(ByRefDirection direction, bool handed, bool reached)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var b = FactHolderFragments.Int(f.H, "b");
+        var p = f.ByRef("p", direction: direction);
+        var w = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(a))), f.H.Int, p.Parameter!);
+
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(5L)), FactHolderFragments.Declare(b, f.Number(0L)),
+            new LocalFunctionStatement(w, [p]), HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(handed ? a : b)))));
+
+        Assert.Equal(reached, holders.Reach(FactHolderFragments.Read(a)).Covers(p));
+    }
+
+    [Theory]
+    [InlineData("writes-the-local", true)]
+    [InlineData("hands-the-local-by-ref", true)]
+    [InlineData("calls-a-local-function-that-writes-the-local", true)]
+    [InlineData("writes-another-local", false)]
+    [InlineData("is-a-method", false)]
+    public void ACallToALocalFunctionReachesTheRefParametersThatMayNameALocalItWrites(string form, bool reached)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var b = FactHolderFragments.Int(f.H, "b");
+        var p = f.ByRef("p");
+        var m = f.Method("M", f.Pair, HandBuiltModel.Block(FactHolderFragments.Set(FactHolderFragments.Read(p), f.Number(5L))), f.H.Int, p.Parameter!);
+        var write = f.Method("Inc", f.Pair, HandBuiltModel.Block(form switch
+        {
+            "hands-the-local-by-ref" => HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Read(a))),
+            "writes-another-local" => FactHolderFragments.Set(FactHolderFragments.Read(b), f.Number(1L)),
+            _ => FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(1L)),
+        }));
+        var outer = f.Method("Outer", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(f.Free(write))));
+        List<Statement> body = [FactHolderFragments.Declare(a, f.Number(0L)), FactHolderFragments.Declare(b, f.Number(0L)), new LocalFunctionStatement(m, [p]),
+            HandBuiltRefinements.Evaluate(f.Free(m, FactHolderFragments.Read(a)))];
+        if(form != "is-a-method")
+        {
+            body.Add(new LocalFunctionStatement(write, []));
+            body.Add(new LocalFunctionStatement(outer, []));
+        }
+
+        var holders = BodyHolders.Of(HandBuiltModel.Block([.. body]));
+
+        Assert.Equal(reached, holders.Called(f.Free(form == "calls-a-local-function-that-writes-the-local" ? outer : write)).Covers(p));
+    }
+
+    [Theory]
     [InlineData("Int32", "Int32", true)]
     [InlineData("Int32", "Int64", false)]
     [InlineData("refined-Int32", "Int32", true)]

@@ -12,24 +12,27 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// A ref local names its referent's storage, so a write through it ends every holder it may name (flow-sensitive
 /// refinement inference Requirement 3.6), and those keep their facts between such writes. A ref returned by a call
 /// may name anything the call reaches as well as what it was handed by ref, so a ref local bound to one carries no
-/// facts itself, while a write through it ends those holders. Only the body's own locals and by-value parameters are
-/// followed: a field or a by-ref parameter may share storage with a by-ref parameter whose writes end nothing else,
-/// and a local a nested function reads may be the storage of that function's own by-ref parameter, so any of these
-/// passed by ref or out, or named by a ref local, keeps only its type; a readonly ref argument cannot write it.
+/// facts itself, while a write through it ends those holders. A local a nested function reads may be the storage of
+/// that function's own by-ref parameter once it is handed by reference, so a write to either, or a call to a local
+/// function that writes the local, ends the other; <see cref="WriteReach"/> names what every other write reaches.
 /// </summary>
 internal sealed class BodyHolders
 {
     public static readonly BodyHolders None = new(UnseenWrites.None, new Dictionary<object, List<object>>(), new Dictionary<object, List<object>>(),
-        new Dictionary<object, WriteReach>(), new HashSet<object>(), new HashSet<object>());
+        new Dictionary<object, WriteReach>(), new HashSet<object>(), new HashSet<object>(), new Dictionary<object, List<LocalVariable>>(),
+        new Dictionary<Method, WriteReach>());
 
     private readonly Dictionary<object, List<object>> aliases;
     private readonly Dictionary<object, List<object>> reached;
     private readonly Dictionary<object, WriteReach> storage;
     private readonly IReadOnlySet<object> created;
     private readonly IReadOnlySet<object> owned;
+    private readonly Dictionary<object, List<LocalVariable>> shared;
+    private readonly Dictionary<Method, WriteReach> calls;
 
     private BodyHolders(IReadOnlySet<object> unseen, Dictionary<object, List<object>> aliases, Dictionary<object, List<object>> reached,
-        Dictionary<object, WriteReach> storage, IReadOnlySet<object> created, IReadOnlySet<object> owned)
+        Dictionary<object, WriteReach> storage, IReadOnlySet<object> created, IReadOnlySet<object> owned, Dictionary<object, List<LocalVariable>> shared,
+        Dictionary<Method, WriteReach> calls)
     {
         Unseen = unseen;
         this.aliases = aliases;
@@ -37,9 +40,16 @@ internal sealed class BodyHolders
         this.storage = storage;
         this.created = created;
         this.owned = owned;
+        this.shared = shared;
+        this.calls = calls;
     }
 
     public IReadOnlySet<object> Unseen { get; }
+
+    public WriteReach Called(Expression expression)
+    {
+        return expression is InvocationExpression { Method: { } method } && calls.TryGetValue(method.SourceDeclaration ?? method, out var reach) ? reach : WriteReach.Nothing;
+    }
 
     public IReadOnlyList<object> AliasesOf(object holder)
     {
@@ -57,7 +67,7 @@ internal sealed class BodyHolders
                 Field field => WriteReach.Field(field),
                 LocalVariable { Parameter.Modifier.IsRef: true } parameter => WriteReach.Storage(parameter.Type, anyField: true),
                 _ => storage.GetValueOrDefault(holder) ?? WriteReach.Nothing,
-            })),
+            }).Or(WriteReach.Shared(shared.GetValueOrDefault(holder) ?? []))),
             FieldReferenceExpression { Field: var field } => WriteReach.Field(field),
             MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => Member(field, receiver),
             IndexExpression { Indexer: null } element when Owned(element.Receiver, owned) => WriteReach.Nothing,
@@ -150,10 +160,8 @@ internal sealed class BodyHolders
         var unseen = new HashSet<object>(UnseenWrites.Of(root), ReferenceEqualityComparer.Instance);
         var aliases = Aliases(nodes);
         var reached = Reached(nodes, aliases);
-        var captured = Captured(nodes);
-        var handed = nodes.OfType<Expression>().SelectMany(Handed).Select(Named).OfType<object>()
-            .Concat(aliases.Keys).Concat(reached.Values.SelectMany(named => named));
-        unseen.UnionWith(handed.Where(holder => !Followed(holder) || captured.Contains(holder)));
+        var functions = Functions(nodes);
+        var captured = new HashSet<LocalVariable>(functions.SelectMany(function => function.Reads), ReferenceEqualityComparer.Instance);
         var pending = new Stack<object>(unseen);
         while(pending.TryPop(out var holder))
         {
@@ -180,7 +188,9 @@ internal sealed class BodyHolders
             .Concat(nodes.OfType<LocalReferenceExpression>().Select(reference => reference.Local)
                 .Where(local => local is { IsRef: false, Parameter.Modifier: { IsRef: false, Direction: ByRefDirection.None } } && Requirement.Unrefined(local.Type) is StructType))
             .Where(local => !captured.Contains((LocalVariable)local)).ToHashSet(ReferenceEqualityComparer.Instance);
-        var holders = new BodyHolders(unseen, aliases, reached, new Dictionary<object, WriteReach>(ReferenceEqualityComparer.Instance), created, owned);
+        var shared = Shared(nodes, functions, captured, aliases, reached);
+        var holders = new BodyHolders(unseen, aliases, reached, new Dictionary<object, WriteReach>(ReferenceEqualityComparer.Instance), created, owned, shared,
+            Calls(functions, shared));
         holders.Store(nodes);
         return holders;
     }
@@ -215,17 +225,77 @@ internal sealed class BodyHolders
         return created;
     }
 
-    private static bool Followed(object holder)
+    private static Dictionary<object, List<LocalVariable>> Shared(List<object> nodes, List<Nested> functions, HashSet<LocalVariable> captured, Dictionary<object, List<object>> aliases, Dictionary<object, List<object>> reached)
     {
-        return holder is LocalVariable { Parameter: null } or LocalVariable { Parameter.Modifier: { IsRef: false, Direction: ByRefDirection.None } };
+        HashSet<object> lent(bool writable)
+        {
+            var named = new HashSet<object>(ReferenceEqualityComparer.Instance);
+            foreach(var holder in nodes.OfType<Expression>().SelectMany(expression => Passed(expression, writable)).Select(Named).OfType<object>())
+            {
+                named.UnionWith((aliases.TryGetValue(holder, out var group) ? group : []).Concat(reached.TryGetValue(holder, out var found) ? found : []).Prepend(holder));
+            }
+
+            return named;
+        }
+
+        var (written, read) = (lent(writable: true), lent(writable: false));
+        var shared = new Dictionary<object, List<LocalVariable>>(ReferenceEqualityComparer.Instance);
+        foreach(var function in functions)
+        {
+            foreach(var parameter in function.Parameters.Where(parameter => parameter.Parameter?.Modifier is { IsRef: true } or { Direction: not ByRefDirection.None }))
+            {
+                var pool = parameter.Parameter!.Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out ? written : read;
+                foreach(var local in captured.Where(local => !function.Own.Contains(local) && pool.Contains(local) && WriteReach.MayShare(local.Type, parameter.Type)))
+                {
+                    (shared.TryGetValue(parameter, out var mine) ? mine : shared[parameter] = []).Add(local);
+                    (shared.TryGetValue(local, out var theirs) ? theirs : shared[local] = []).Add(parameter);
+                }
+            }
+        }
+
+        return shared;
+    }
+
+    private static Dictionary<Method, WriteReach> Calls(List<Nested> functions, Dictionary<object, List<LocalVariable>> shared)
+    {
+        var writes = new Dictionary<Method, HashSet<object>>(ReferenceEqualityComparer.Instance);
+        foreach(var function in functions.Where(function => function.Function is not null))
+        {
+            writes[function.Function!] = function.Writes;
+        }
+
+        for(var grown = true; grown;)
+        {
+            grown = false;
+            foreach(var function in functions.Where(function => function.Function is not null))
+            {
+                var mine = writes[function.Function!];
+                var before = mine.Count;
+                mine.UnionWith(function.Calls.SelectMany(callee => writes.TryGetValue(callee, out var theirs) ? theirs : []).ToList());
+                grown |= mine.Count != before;
+            }
+        }
+
+        var calls = new Dictionary<Method, WriteReach>(ReferenceEqualityComparer.Instance);
+        foreach(var (function, written) in writes)
+        {
+            calls[function] = WriteReach.Shared(written.SelectMany(local => shared.GetValueOrDefault(local) ?? []));
+        }
+
+        return calls;
     }
 
     public static IEnumerable<Expression> Handed(Expression expression)
     {
+        return Passed(expression, writable: true);
+    }
+
+    private static IEnumerable<Expression> Passed(Expression expression, bool writable)
+    {
         var (arguments, parameters) = Arguments(expression);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out)
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out || (!writable && parameters[i].Modifier.Direction is ByRefDirection.In))
             {
                 foreach(var place in ReturnsRef(arguments[i]) ? Places(arguments[i]) : [arguments[i]])
                 {
@@ -235,13 +305,16 @@ internal sealed class BodyHolders
         }
     }
 
-    private static HashSet<LocalVariable> Captured(List<object> nodes)
+    private static List<Nested> Functions(List<object> nodes)
     {
-        var captured = new HashSet<LocalVariable>(ReferenceEqualityComparer.Instance);
-        void inside(IEnumerable<LocalVariable> parameters, IReadOnlyList<object> body)
+        var functions = new List<Nested>();
+        void inside(IReadOnlyList<LocalVariable> parameters, IReadOnlyList<object> body, Method? function)
         {
             var own = Captures.OwnNames(parameters, body);
-            captured.UnionWith(body.OfType<LocalReferenceExpression>().Select(reference => reference.Local).Where(local => !own.Contains(local)));
+            var reads = new HashSet<LocalVariable>(body.OfType<LocalReferenceExpression>().Select(reference => reference.Local).Where(local => !own.Contains(local)),
+                ReferenceEqualityComparer.Instance);
+            var calls = body.OfType<InvocationExpression>().Select(call => call.Method?.SourceDeclaration ?? call.Method).OfType<Method>().ToList();
+            functions.Add(new(parameters, own, reads, new HashSet<object>(UnseenWrites.CapturedWrites(own, body), ReferenceEqualityComparer.Instance), function, calls));
         }
 
         foreach(var node in nodes)
@@ -249,18 +322,18 @@ internal sealed class BodyHolders
             switch(node)
             {
                 case LambdaExpression lambda:
-                    inside(lambda.Parameters, Captures.Inside(lambda));
+                    inside(lambda.Parameters, Captures.Inside(lambda), null);
                     break;
                 case LocalFunctionStatement function:
-                    inside(function.Parameters, Captures.Inside(function));
+                    inside(function.Parameters, Captures.Inside(function), function.Function);
                     break;
                 case AsyncBlockExpression block:
-                    inside([], BodyWalker.DescendantsAndSelf(block.Body).ToList());
+                    inside([], BodyWalker.DescendantsAndSelf(block.Body).ToList(), null);
                     break;
             }
         }
 
-        return captured;
+        return functions;
     }
 
     private static Dictionary<object, List<object>> Reached(List<object> nodes, Dictionary<object, List<object>> aliases)
@@ -309,4 +382,7 @@ internal sealed class BodyHolders
     {
         return groups.TryGetValue(holder, out var group) ? group : new HashSet<object>(ReferenceEqualityComparer.Instance) { holder };
     }
+
+    private sealed record Nested(IReadOnlyList<LocalVariable> Parameters, HashSet<LocalVariable> Own, HashSet<LocalVariable> Reads, HashSet<object> Writes,
+        Method? Function, List<Method> Calls);
 }

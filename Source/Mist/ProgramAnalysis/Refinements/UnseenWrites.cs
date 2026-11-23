@@ -70,20 +70,17 @@ internal static class UnseenWrites
 
     private static void AddCapturedWrites(HashSet<object> unseen, IEnumerable<LocalVariable> parameters, IReadOnlyList<object> inside)
     {
-        var own = Captures.OwnNames(parameters, inside);
+        unseen.UnionWith(CapturedWrites(Captures.OwnNames(parameters, inside), inside));
+    }
 
+    public static IEnumerable<object> CapturedWrites(HashSet<LocalVariable> own, IReadOnlyList<object> inside)
+    {
         var targets = inside.OfType<AssignmentExpression>().Select(assignment => assignment.Target)
             .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target))
             .Concat(inside.OfType<Expression>().SelectMany(ByRef))
             .Concat(inside.OfType<LocalDeclarationStatement>().Where(declaration => declaration.Local.IsRef).Select(declaration => declaration.Initializer).OfType<Expression>());
 
-        foreach(var written in targets.Select(Referenced).OfType<object>())
-        {
-            if(written is not LocalVariable local || !own.Contains(local))
-            {
-                _ = unseen.Add(written);
-            }
-        }
+        return targets.Select(Referenced).OfType<object>().Where(written => written is not LocalVariable local || !own.Contains(local));
     }
 
     private static IEnumerable<Expression> ByRef(Expression node)

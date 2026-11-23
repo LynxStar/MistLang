@@ -88,7 +88,7 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
                     state = InvalidateFields(state, byRef: effects.MayWriteUnhanded(expression));
                 }
 
-                state = InvalidateArguments(state, expression);
+                state = EndCovered(InvalidateArguments(state, expression), holders.Called(expression), null);
                 var term = reading.Read(ref state, expression);
                 return state with { Results = state.Results.SetItem(expression, term) };
 
@@ -311,7 +311,11 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
             return state;
         }
 
-        var written = reading.Holder(ref state, target);
+        return EndCovered(state, reach, reading.Holder(ref state, target));
+    }
+
+    private FactState EndCovered(FactState state, WriteReach reach, object? written)
+    {
         foreach(var holder in state.Bindings.Order.ToList())
         {
             if(!Equals(holder, written) && reach.Covers(holder))

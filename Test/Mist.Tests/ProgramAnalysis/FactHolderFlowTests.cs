@@ -79,18 +79,100 @@ public sealed class FactHolderFlowTests
         AssertRefusedOnlyAfter(f, body, true);
     }
 
-    [Fact]
-    public void ALocalANestedFunctionReadsKeepsOnlyItsTypeThereOnceItIsHandedToThatFunctionsRefParameter()
+    [Theory]
+    [InlineData("handed-to-that-function", true)]
+    [InlineData("never-handed-by-ref", false)]
+    public void ALocalANestedFunctionReadsEndsThereAtAWriteThroughThatFunctionsRefParameterOnlyIfItMayBeItsStorage(string form, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var b = FactHolderFragments.Int(f.H, "b");
+        var p = f.ByRef("p");
+        var write = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.If(f.H.Binary(FactHolderFragments.Read(a), BinaryOperatorKind.Equal, f.Number(5L)),
+            FactHolderFragments.Set(FactHolderFragments.Read(p), f.Number(1L)), f.Need(FactHolderFragments.Read(a, Last)))), f.H.Int, p.Parameter!);
+        List<Statement> body = [FactHolderFragments.Declare(a, f.Number(5L)), FactHolderFragments.Declare(b, f.Number(0L)), new LocalFunctionStatement(write, [p]),
+            HandBuiltRefinements.Evaluate(f.Free(write, FactHolderFragments.Read(form == "handed-to-that-function" ? a : b)))];
+
+        AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Theory]
+    [InlineData("field-of-this", false)]
+    [InlineData("field-of-this", true)]
+    [InlineData("ref-parameter", false)]
+    [InlineData("ref-parameter", true)]
+    [InlineData("local-a-nested-function-reads", false)]
+    [InlineData("local-a-nested-function-reads", true)]
+    public void AHolderHandedOutByRefKeepsItsFactsUpToTheCall(string holder, bool needAfter)
     {
         var f = new FactHolderFragments();
         var a = FactHolderFragments.Int(f.H, "a");
         var p = f.ByRef("p");
-        var write = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.If(f.H.Binary(FactHolderFragments.Read(a), BinaryOperatorKind.Equal, f.Number(5L)),
-            FactHolderFragments.Set(FactHolderFragments.Read(p), f.Number(1L)), f.Need(FactHolderFragments.Read(a, Last)))), f.H.Int, p.Parameter!);
-        List<Statement> body = [FactHolderFragments.Declare(a, f.Number(5L)), new LocalFunctionStatement(write, []),
-            HandBuiltRefinements.Evaluate(f.Free(write, FactHolderFragments.Read(a)))];
+        Expression place(int offset = 0)
+        {
+            return holder switch
+            {
+                "field-of-this" => FactHolderFragments.Own(f.A, offset),
+                "ref-parameter" => FactHolderFragments.Read(p, offset),
+                _ => FactHolderFragments.Read(a, offset),
+            };
+        }
 
-        AssertRefusedOnlyAfter(f, body, true);
+        var reader = f.Method("Read", f.Pair, HandBuiltModel.Block(new ReturnStatement(FactHolderFragments.Read(a), f.H.Int)), f.H.Int);
+        List<Statement> body = [FactHolderFragments.Set(place(), f.Number(5L)), f.Need(place()), HandBuiltRefinements.Evaluate(f.Free(f.Bump(), place()))];
+        if(holder == "local-a-nested-function-reads")
+        {
+            body.InsertRange(0, [FactHolderFragments.Declare(a, f.Number(0L)), new LocalFunctionStatement(reader, [])]);
+        }
+
+        if(needAfter)
+        {
+            body.Add(f.Need(place(Last)));
+        }
+
+        AssertRefusedOnlyAfter(f, body, needAfter);
+    }
+
+    [Theory]
+    [InlineData("named-by-a-ref-local", "Int32", true)]
+    [InlineData("handed-by-ref", "Int32", true)]
+    [InlineData("handed-by-ref", "Int64", false)]
+    public void AFieldHandedOutByRefEndsAtAWriteThroughARefParameterThatMayNameIt(string handed, string parameter, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var p = f.ByRef("p", f.H.Built.Type(parameter));
+        List<Statement> body = [handed == "named-by-a-ref-local" ? FactHolderFragments.Declare(r, FactHolderFragments.Own(f.A))
+                : HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Own(f.A))),
+            FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(5L)), FactHolderFragments.Set(FactHolderFragments.Read(p), f.Number(1L)),
+            f.Need(FactHolderFragments.Own(f.A, Last))];
+
+        AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Theory]
+    [InlineData("calls-a-function-writing-the-local", true, false, true)]
+    [InlineData("calls-a-function-writing-the-local", true, true, true)]
+    [InlineData("calls-a-function-writing-the-local", false, false, true)]
+    [InlineData("writes-the-local-itself", false, false, true)]
+    [InlineData("calls-a-function-writing-another-local", true, false, false)]
+    public void AWriteToALocalOutsideANestedFunctionEndsItsRefParametersThatMayNameIt(string form, bool handed, bool loop, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var b = FactHolderFragments.Int(f.H, "b");
+        var x = f.ByRef("x");
+        var increment = f.Method("Inc", f.Pair, HandBuiltModel.Block(FactHolderFragments.Set(FactHolderFragments.Read(form == "calls-a-function-writing-another-local" ? b : a), f.Number(6L))));
+        var write = form == "writes-the-local-itself" ? FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(6L)) : HandBuiltRefinements.Evaluate(f.Free(increment));
+        var need = f.Need(FactHolderFragments.Read(x, Last));
+        List<Statement> inner = handed ? [FactHolderFragments.Set(FactHolderFragments.Read(x), f.Number(5L)), HandBuiltRefinements.Evaluate(f.Free(f.Bump(), FactHolderFragments.Read(x)))] : [];
+        inner.Add(FactHolderFragments.Set(FactHolderFragments.Read(x), f.Number(5L)));
+        inner.AddRange(loop ? [new WhileStatement(HandBuiltRefinements.Local(f.H.Bool, "flag"), HandBuiltModel.Block(need, write))] : [write, need]);
+        var m = f.Method("M", f.Pair, HandBuiltModel.Block([.. inner]), f.H.Int, x.Parameter!);
+        List<Statement> body = [FactHolderFragments.Declare(a, f.Number(0L)), FactHolderFragments.Declare(b, f.Number(0L)), new LocalFunctionStatement(increment, []),
+            new LocalFunctionStatement(m, [x]), HandBuiltRefinements.Evaluate(f.Free(m, FactHolderFragments.Read(a)))];
+
+        AssertRefusedOnlyAfter(f, body, refused);
     }
 
     [Theory]

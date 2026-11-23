@@ -18,9 +18,9 @@ public sealed class FactHolderDecisionTests
     [InlineData("passed-by-ref", false)]
     [InlineData("named-by-a-ref-local", false)]
     [InlineData("read-by-a-local-function", false)]
-    [InlineData("read-by-a-local-function-and-passed-by-ref", true)]
-    [InlineData("read-by-a-local-function-and-named-by-a-ref-local", true)]
-    public void OnlyALocalANestedFunctionWritesOrMayReachThroughARefIsOutsideTheFlow(string form, bool unseen)
+    [InlineData("read-by-a-local-function-and-passed-by-ref", false)]
+    [InlineData("read-by-a-local-function-and-named-by-a-ref-local", false)]
+    public void OnlyALocalANestedFunctionWritesIsOutsideTheFlow(string form, bool unseen)
     {
         var f = new FactHolderFragments();
         var d = FactHolderFragments.Int(f.H, "d");
@@ -81,9 +81,9 @@ public sealed class FactHolderDecisionTests
     [Theory]
     [InlineData("local", "")]
     [InlineData("by-value-parameter", "")]
-    [InlineData("ref-parameter", "p,r,s")]
-    [InlineData("field-of-this", "A,r,s")]
-    public void ARefLocalNamingStorageABodyDoesNotFollowLeavesItsWholeAliasGroupOutsideTheFlow(string named, string unseen)
+    [InlineData("ref-parameter", "")]
+    [InlineData("field-of-this", "")]
+    public void ARefLocalKeepsItsWholeAliasGroupInTheFlow(string named, string unseen)
     {
         var f = new FactHolderFragments();
         var r = FactHolderFragments.Int(f.H, "r", isRef: true);
@@ -106,8 +106,8 @@ public sealed class FactHolderDecisionTests
     [Theory]
     [InlineData("local", "")]
     [InlineData("ref-local-of-a-local", "")]
-    [InlineData("field", "A")]
-    [InlineData("ref-parameter", "p")]
+    [InlineData("field", "")]
+    [InlineData("ref-parameter", "")]
     [InlineData("member-of-another-object", "V")]
     public void ARefArgumentLeavesOutsideTheFlowOnlyStorageTheBodyDoesNotFollow(string argument, string unseen)
     {
@@ -133,12 +133,13 @@ public sealed class FactHolderDecisionTests
     [Theory]
     [InlineData("local", ByRefDirection.In, "")]
     [InlineData("local-a-nested-function-reads", ByRefDirection.In, "")]
-    [InlineData("local-a-nested-function-reads", ByRefDirection.Ref, "a")]
-    [InlineData("local-a-nested-function-reads", ByRefDirection.Out, "a")]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.Ref, "")]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.Out, "")]
     [InlineData("field", ByRefDirection.In, "")]
+    [InlineData("field", ByRefDirection.Ref, "")]
     [InlineData("ref-parameter", ByRefDirection.In, "")]
-    [InlineData("ref-parameter", ByRefDirection.Ref, "p")]
-    public void AReadonlyRefArgumentLeavesItsHolderInTheFlow(string argument, ByRefDirection direction, string unseen)
+    [InlineData("ref-parameter", ByRefDirection.Ref, "")]
+    public void ARefArgumentOfAnyDirectionLeavesItsHolderInTheFlow(string argument, ByRefDirection direction, string unseen)
     {
         var f = new FactHolderFragments();
         var a = FactHolderFragments.Int(f.H, "a");
@@ -162,7 +163,7 @@ public sealed class FactHolderDecisionTests
     [InlineData("a-local", "a", "r")]
     [InlineData("a-ref-local-of-a-local", "a,x", "r")]
     [InlineData("a-reference-another-such-call-hands-back", "a", "r")]
-    [InlineData("a-field", "A", "A,r")]
+    [InlineData("a-field", "A", "r")]
     [InlineData("a-field-of-another-object", "", "V,r")]
     public void ARefLocalBoundToARefReturningCallCarriesNoFactsAndEndsWhatTheCallWasHandedByRef(string argument, string named, string unseen)
     {

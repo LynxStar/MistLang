@@ -82,18 +82,23 @@ Member holders of owned and exclusively held objects are not fact-bearing, and
 `FieldEffects.MayWrite` answers for all mutable fields together where
 `ThisTiers.FieldUses` holds the per-field answer.
 
-A local or by-value parameter passed by `ref` or named by a `ref` local keeps its
-facts until the write itself, as the rule above states. `BodyHolders` names which
-holders a `ref` local may reach, and leaves outside the flow, with only their
-type, the holders whose every write it cannot follow: a field of `this` or a
-by-ref parameter that is passed by `ref` or `out` or named by a `ref` local, since
-a write through a by-ref parameter may change one without ending it; a local a
-nested function reads that is passed by `ref` or `out` or named by a `ref` local,
-since it may be that function's own by-ref parameter; a holder handed by
-reference to a call whose result is a `ref` struct such as `Span`; and a `ref`
-local bound to a call that returns a ref, though a write through it still ends
-the holders that call was handed by reference. Otherwise a `readonly ref`
-argument cannot write its holder, so it leaves the holder's facts in place.
+A local, a parameter or a field of `this` passed by `ref` or `out` or named by a
+`ref` local keeps its facts until the write itself, as the rule above states.
+`BodyHolders` names which holders a `ref` local may reach, and `WriteReach` below
+names which holders any other write may reach. A local a nested function reads
+may be what that function's own `ref` or `out` parameter names once the local is
+passed by `ref` or `out` or named by a `ref` local, and what its `readonly ref`
+parameter names once it is passed by reference at all. So a write through such a
+parameter ends the local, a write to the local ends the parameter, and so does a
+call to a local function that writes the local, directly or through the local
+functions it calls. A local the nested function declares itself is never its
+parameter's storage. `BodyHolders` leaves outside the flow, with only their type,
+a field passed by `ref` or `out` or named by a `ref` local through another
+object, whose storage the flow cannot name; a holder handed by reference to a
+call whose result is a `ref` struct such as `Span`; and a `ref` local bound to a
+call that returns a ref, though a write through it still ends the holders that
+call was handed by reference. Otherwise a `readonly ref` argument cannot write
+its holder, so it leaves the holder's facts in place.
 
 `WriteReach` names the other holders a write may reach, because their storage
 may be the storage written. A by-ref parameter (`ref`, `out` or `readonly ref`)

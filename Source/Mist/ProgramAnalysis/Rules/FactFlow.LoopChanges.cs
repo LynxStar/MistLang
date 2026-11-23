@@ -72,7 +72,7 @@ internal sealed partial class FactFlow
 
                 var byRef = holder is LocalVariable { Parameter.Modifier.IsRef: true };
                 var mayWrite = byRef ? flow.effects.MayWriteUnhanded(expression) : holder is Field { Modifiers.IsReadonly: false } && flow.effects.MayWrite(expression);
-                if(((holder is Field || byRef) && target is ThisExpression) || mayWrite)
+                if(((holder is Field || byRef) && target is ThisExpression) || mayWrite || flow.holders.Called(expression).Covers(holder))
                 {
                     return true;
                 }

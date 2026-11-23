@@ -16,6 +16,14 @@ internal sealed record WriteReach(IMistType? Type, IReadOnlySet<Field> Fields, b
 {
     public static readonly WriteReach Nothing = new(null, new HashSet<Field>(), false, false);
 
+    public IReadOnlySet<LocalVariable> Locals { get; init; } = new HashSet<LocalVariable>();
+
+    public static WriteReach Shared(IEnumerable<LocalVariable> locals)
+    {
+        var named = new HashSet<LocalVariable>(locals, ReferenceEqualityComparer.Instance);
+        return named.Count == 0 ? Nothing : Nothing with { Locals = named };
+    }
+
     public static WriteReach Storage(IMistType type, bool anyField = false)
     {
         return new(type, new HashSet<Field>(), anyField, true);
@@ -32,6 +40,7 @@ internal sealed record WriteReach(IMistType? Type, IReadOnlySet<Field> Fields, b
         {
             Field field => Names(field),
             MemberHolder { Member: Field field } => Names(field),
+            LocalVariable local when Locals.Contains(local) => true,
             LocalVariable { Parameter.Modifier.IsRef: true } parameter => ByRefParameters && MayShare(Type, parameter.Type),
             _ => false,
         };
@@ -50,7 +59,10 @@ internal sealed record WriteReach(IMistType? Type, IReadOnlySet<Field> Fields, b
         }
 
         var type = Type is not null && other.Type is not null && !MayShare(Type, other.Type) ? null : Type ?? other.Type;
-        return new(type, new HashSet<Field>(Fields.Concat(other.Fields), ReferenceEqualityComparer.Instance), AnyField || other.AnyField, ByRefParameters || other.ByRefParameters);
+        return new(type, new HashSet<Field>(Fields.Concat(other.Fields), ReferenceEqualityComparer.Instance), AnyField || other.AnyField, ByRefParameters || other.ByRefParameters)
+        {
+            Locals = new HashSet<LocalVariable>(Locals.Concat(other.Locals), ReferenceEqualityComparer.Instance),
+        };
     }
 
     public static bool MayShare(IMistType? first, IMistType? second)

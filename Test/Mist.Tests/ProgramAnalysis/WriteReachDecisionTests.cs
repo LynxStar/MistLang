@@ -48,6 +48,15 @@ public sealed class WriteReachDecisionTests
     [InlineData("field-of-a-parameter-of-an-extension-method-given-this", "A,p,y")]
     [InlineData("another-call-on-an-extension-receiver-that-is-another-object", "")]
     [InlineData("another-call-on-an-extension-receiver-that-is-this", "A,p,y")]
+    [InlineData("a-recursive-call-on-a-receiver-that-is-another-object", "")]
+    [InlineData("a-recursive-call-on-this", "A,p,y")]
+    [InlineData("a-mutually-recursive-call-on-a-receiver-that-is-another-object", "")]
+    [InlineData("a-mutually-recursive-call-on-this", "A,B,p,y")]
+    [InlineData("a-recursive-call-handing-this-on-given-another-object", "")]
+    [InlineData("a-recursive-call-handing-its-parameter-on-given-this", "A,p,y")]
+    [InlineData("a-recursive-call-handing-its-ref-parameter-on-given-a-local", "")]
+    [InlineData("a-recursive-call-handing-its-ref-parameter-on-given-a-field", "A,p,y")]
+    [InlineData("a-cycle-that-never-returns-known-storage", "")]
     public void AReferenceACallReturnsReachesTheStorageItsBodyReturnsReadAsTheCallers(string returned, string reached)
     {
         var f = new FactHolderFragments();
@@ -66,6 +75,14 @@ public sealed class WriteReachDecisionTests
         Expression ownerX = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(owner), stored), inner);
         var extension = FactHolderFragments.Extension(f.Pair);
         var extended = FactHolderFragments.Read(extension.Receiver!);
+        var rec = f.RefMethod("Rec");
+        var (ev, od) = (f.RefMethod("Ev"), f.RefMethod("Od"));
+        _ = FactHolderFragments.ReturningEach(ev, FactHolderFragments.Implicit(od), FactHolderFragments.Member(f.This, f.A));
+        _ = FactHolderFragments.ReturningEach(od, FactHolderFragments.Implicit(ev), FactHolderFragments.Member(f.This, f.B));
+        var recursing = new LocalVariable("owner", f.Pair) { Parameter = FactHolderFragments.Parameter("owner", f.Pair) };
+        var recP = f.RefMethod("RecP", recursing.Parameter!);
+        var bounce = f.ByRef("z");
+        var passOn = f.RefMethod("PassOn", bounce.Parameter!);
         var callee = returned switch
         {
             "field-of-an-extension-receiver-that-is-another-object" or "field-of-an-extension-receiver-that-is-this" =>
@@ -91,6 +108,16 @@ public sealed class WriteReachDecisionTests
             "another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object" => f.Returning("Outer", f.Free(getX, FactHolderFragments.Read(holder)), holder.Parameter!),
             "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" or "another-call-handed-a-struct-field-of-this" =>
                 f.Returning("Outer", f.Free(getX, FactHolderFragments.Own(stored))),
+            "a-recursive-call-on-a-receiver-that-is-another-object" or "a-recursive-call-on-this" =>
+                FactHolderFragments.ReturningEach(rec, FactHolderFragments.Implicit(rec), FactHolderFragments.Member(f.This, f.A)),
+            "a-mutually-recursive-call-on-a-receiver-that-is-another-object" or "a-mutually-recursive-call-on-this" => ev,
+            "a-recursive-call-handing-this-on-given-another-object" => FactHolderFragments.ReturningEach(recP, FactHolderFragments.Implicit(recP, f.This),
+                FactHolderFragments.Member(FactHolderFragments.Read(recursing), f.A)),
+            "a-recursive-call-handing-its-parameter-on-given-this" => FactHolderFragments.ReturningEach(recP,
+                FactHolderFragments.Implicit(recP, FactHolderFragments.Read(recursing)), FactHolderFragments.Member(FactHolderFragments.Read(recursing), f.A)),
+            "a-recursive-call-handing-its-ref-parameter-on-given-a-local" or "a-recursive-call-handing-its-ref-parameter-on-given-a-field" =>
+                FactHolderFragments.ReturningEach(passOn, FactHolderFragments.Implicit(passOn, FactHolderFragments.Read(bounce)), FactHolderFragments.Read(bounce)),
+            "a-cycle-that-never-returns-known-storage" => FactHolderFragments.ReturningEach(rec, FactHolderFragments.Implicit(rec)),
             "field-of-this" => getA,
             "field-of-another-object" => f.Returning("GetV", FactHolderFragments.Member(FactHolderFragments.Read(new LocalVariable("other", f.Box)), f.V)),
             "static" => f.Returning("GetS", FactHolderFragments.Own(f.S)),
@@ -106,8 +133,10 @@ public sealed class WriteReachDecisionTests
         };
         Expression[] arguments = returned switch
         {
-            "its-ref-parameter-given-a-local" => [FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a"))],
-            "its-ref-parameter-given-a-field" => [FactHolderFragments.Own(f.A)],
+            "its-ref-parameter-given-a-local" or "a-recursive-call-handing-its-ref-parameter-on-given-a-local" => [FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a"))],
+            "its-ref-parameter-given-a-field" or "a-recursive-call-handing-its-ref-parameter-on-given-a-field" => [FactHolderFragments.Own(f.A)],
+            "a-recursive-call-handing-this-on-given-another-object" => [f.Create()],
+            "a-recursive-call-handing-its-parameter-on-given-this" => [f.This],
             "its-ref-parameter-given-a-member-of-a-new-object" => [FactHolderFragments.Member(f.Create(), f.A)],
             "field-of-a-parameter-given-another-object" or "field-of-a-parameter-reassigned-to-this" or "field-of-a-parameter-handed-by-ref"
                 or "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-reassigned-to-this"
@@ -123,7 +152,9 @@ public sealed class WriteReachDecisionTests
         Expression receiver = returned is "field-of-a-receiver-that-is-another-object" or "another-call-on-a-receiver-that-is-another-object"
             or "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" or "field-of-an-extension-receiver-that-is-another-object"
             or "field-of-an-extension-receiver-reassigned-to-a-parameter-given-this" or "field-of-an-extension-receiver-handed-by-ref"
-            or "field-of-a-parameter-of-an-extension-method-given-this" or "another-call-on-an-extension-receiver-that-is-another-object" ? f.Create() : f.This;
+            or "field-of-a-parameter-of-an-extension-method-given-this" or "another-call-on-an-extension-receiver-that-is-another-object"
+            or "a-recursive-call-on-a-receiver-that-is-another-object" or "a-mutually-recursive-call-on-a-receiver-that-is-another-object"
+            or "a-recursive-call-handing-this-on-given-another-object" or "a-recursive-call-handing-its-parameter-on-given-this" ? f.Create() : f.This;
 
         var reach = ReturnedStorage.Of(FactHolderFragments.Call(receiver, callee, arguments), BodyHolders.None);
 

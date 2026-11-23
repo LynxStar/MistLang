@@ -132,10 +132,15 @@ body created, however deep in struct fields, reaches no by-ref parameter. A
 by-ref parameter it returns names what the caller handed it, so the write
 reaches what a write to that argument reaches. A nested call's result is read
 the same way, with its receiver and arguments read through the outer call in
-turn, so `o.G()` returning `ref GetA()` names `o.A`. An array element names no
-field. A callee with no body, one an abstract type declares, one already being
-read (recursion), or one that returns anything else may return any field or
-static of the ref's type. This
+turn, so `o.G()` returning `ref GetA()` names `o.A`. Each callee's returned
+storage is read once, in terms of its own receiver and parameters, as the least
+fixpoint over its `return ref` statements: a recursive or mutually recursive
+call contributes what its callee's returns name, read through that call in
+turn, and a cycle that never reaches a `return ref` of known storage
+contributes nothing. So `Rec` returning `ref Rec(n - 1)` or `ref A` names
+`this.A`, and `o.Rec(3)` names `o.A`. An array element names no field. A callee
+with no body, one an abstract type declares, or one that returns anything else
+may return any field or static of the ref's type. This
 reads the callee's body for which storage it names, as the purity rules read it
 for which members it writes, and never for a fact about a value (Requirement
 6.1). The same reach applies to a `ref` local bound to such a call and to the

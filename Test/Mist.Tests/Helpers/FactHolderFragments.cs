@@ -146,6 +146,17 @@ internal sealed class FactHolderFragments
         };
     }
 
+    public Method RefMethod(string name, params Parameter[] parameters)
+    {
+        return new Method(name, H.Int, [.. parameters], new MemberModifiers { IsRef = true }) { Body = HandBuiltModel.Block(), DeclaringType = Pair };
+    }
+
+    public static Method ReturningEach(Method method, params Expression[] returned)
+    {
+        method.Body!.Statements = [.. returned.Select(value => new ReturnStatement(value, method.ReturnType, isRef: true))];
+        return method;
+    }
+
     public static ExtensionBlock Extension(ClassType receiver)
     {
         return new ExtensionBlock("p", "", new Scope(null), null) { ResolvedReceiverType = receiver, Receiver = new LocalVariable("p", receiver) };

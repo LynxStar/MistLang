@@ -44,7 +44,7 @@ internal static class OwnSlots
     {
         return Reached(value) is var (receiver, declared) && receiver is not (TypeReferenceExpression or ThisExpression)
             && SlotReads.Receiving(receiver.Type) is ConstructedType { Definition: ClassType or StructType } closing
-            && SlotReads.Plain(declared) is ConstructedType open && ordinal < open.TypeArguments.Count
+            && SlotReads.Receiving(declared) is ConstructedType open && ordinal < open.TypeArguments.Count
             && open.TypeArguments[ordinal] is TypeParameter { IsDependent: true, IsPack: false } named && Own(named, closing) is { } own
                 ? (receiver, own)
                 : null;

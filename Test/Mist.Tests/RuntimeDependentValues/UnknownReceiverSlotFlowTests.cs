@@ -64,11 +64,11 @@ public sealed class UnknownReceiverSlotFlowTests
         return HandBuiltSlots.Declare(local, new NewExpression(HandBuiltModel.Node(), slots.Closed(definition, made.Value), [], null, [], []) { Captures = [made] });
     }
 
-    private ExpressionStatement Load(Expression length, LocalVariable? through = null, bool conditional = false)
+    private ExpressionStatement Load(Expression length, LocalVariable? through = null, bool conditional = false, Expression? receiver = null, IMistType? slot = null)
     {
         var method = new Method("Load", Void, [new Parameter("items", slots.ArrayOf(capacity))], new MemberModifiers()) { DeclaringType = ring };
-        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(through ?? u), "Load", Void, isConditional: conditional);
-        return HandBuiltRefinements.Evaluate(new InvocationExpression(HandBuiltModel.Node(), callee, [length], Void, method, [slots.ArrayOf(Unknown)]));
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), receiver ?? HandBuiltRefinements.Read(through ?? u), "Load", Void, isConditional: conditional);
+        return HandBuiltRefinements.Evaluate(new InvocationExpression(HandBuiltModel.Node(), callee, [length], Void, method, [slots.ArrayOf(slot ?? Unknown)]));
     }
 
     private Operator Plus()
@@ -132,6 +132,31 @@ public sealed class UnknownReceiverSlotFlowTests
     private LocalVariable Optional()
     {
         return new LocalVariable("u", slots.Refinements.Built.Interner.GetOrCreateUnionType([slots.Closed(ring, UnknownType.Instance), Void]));
+    }
+
+    private IMistType Lifted(IMistType held)
+    {
+        return slots.Refinements.Built.Interner.GetOrCreateUnionType([held, Void]);
+    }
+
+    private (LocalVariable Holder, Property Member) Holding(IMistType closing)
+    {
+        var holder = HandBuiltSlots.Generic(HandBuiltModel.Class("Hd<>"), "K", slots.ZeroOrPositive);
+        var member = new Property("R", Lifted(slots.Closed(ring, holder.TypeParametersList[0])), new MemberModifiers()) { DeclaringType = holder };
+        return (new LocalVariable("h", slots.Closed(holder, closing)), member);
+    }
+
+    private ExpressionStatement LoadThrough(LocalVariable h, Property member, LocalVariable length, bool known)
+    {
+        var owner = member.DeclaringType!;
+        var own = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(h), "K", slots.Int, member: new TypeResult(owner.TypeParametersList[0]));
+        var k = new SlotCapture("h.K", slots.ZeroOrPositive, slots.Int, own, 5);
+        IMistType slot = known ? k.Value : UnknownType.Instance;
+        var reached = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(h), member.Name, Lifted(slots.Closed(ring, slot)), member: new PropertyResult(member, owner, []))
+        {
+            Captures = known ? [k] : [],
+        };
+        return Load(Sized(length), conditional: true, receiver: reached, slot: known ? slot : null);
     }
 
     private ExpressionStatement Store(LocalVariable through, Expression value)
@@ -218,5 +243,26 @@ public sealed class UnknownReceiverSlotFlowTests
     {
         Refused(Analyze(RingOfM(), Put(Sized(n))), "'n' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
         Assert.Empty(Analyze(RingOfM(), Put(Sized(m))));
+    }
+
+    [Fact]
+    public void AMemberReachedByOptionalChainingThroughAKnownOwnersMemberTypedWithItsSlotMeetsTheOwnersSlot()
+    {
+        var made = slots.Capture(m, slots.Int);
+        var (h, member) = Holding(made.Value);
+        var declared = HandBuiltSlots.Declare(h, new NewExpression(HandBuiltModel.Node(), h.Type, [], null, [], []) { Captures = [made] });
+
+        Refused(Analyze(declared, LoadThrough(h, member, n, known: true)), "'n' and 'h.R.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(declared, LoadThrough(h, member, m, known: true)));
+    }
+
+    [Fact]
+    public void AMemberReachedByOptionalChainingThroughAnUnknownOwnersMemberTypedWithItsSlotMeetsTheOwnersSlot()
+    {
+        var (h, member) = Holding(UnknownType.Instance);
+        var owner = member.DeclaringType!;
+
+        Refused(Analyze(OfM(h, owner), LoadThrough(h, member, n, known: false)), "'n' and 'h.R.Capacity' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(OfM(h, owner), LoadThrough(h, member, m, known: false)));
     }
 }

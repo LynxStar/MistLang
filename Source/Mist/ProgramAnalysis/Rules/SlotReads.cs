@@ -171,9 +171,11 @@ internal static class SlotReads
             return state.Results.GetValueOrDefault(cast) is { Constant.IsZero: true, Variables: [var operand] } read && read.Multipliers[0].IsOne ? Carry(state, operand, made) : state;
         }
 
+        state = Reached(state, expression, made);
+
         var owned = SlotCapture.Of(expression).Concat(expression is InvocationExpression { Receiver: MemberAccessExpression receiver } ? receiver.Captures : []).ToList();
 
-        if(owned.Count == 0 || Plain(expression.Type) is not ConstructedType { Definition: IHasTypeParameters declared } closing || closing.Definition is not (ClassType or StructType))
+        if(owned.Count == 0 || Receiving(expression.Type) is not ConstructedType { Definition: IHasTypeParameters declared } closing || closing.Definition is not (ClassType or StructType))
         {
             return state;
         }
@@ -190,9 +192,30 @@ internal static class SlotReads
         return state;
     }
 
+    private static FactState Reached(FactState state, Expression expression, Value made)
+    {
+        if(Receiving(expression.Type) is not ConstructedType { Definition: ClassType or StructType, Definition: IHasTypeParameters closing }
+            || OwnSlots.Reached(expression) is not var (_, declared) || Receiving(declared) is not ConstructedType { Definition: var written } || !ReferenceEquals(written, closing))
+        {
+            return state;
+        }
+
+        foreach(var parameter in closing.TypeParametersList.Where(parameter => parameter is { IsDependent: true, IsPack: false }))
+        {
+            if(OwnSlots.Slot(expression, parameter.Ordinal) is var (receiver, own)
+                && state.Results.GetValueOrDefault(receiver) is { Constant.IsZero: true, Variables: [var owner] } read && read.Multipliers[0].IsOne
+                && state.Bindings.Get(new MemberHolder(owner, own)) is { } value)
+            {
+                state = state with { Bindings = state.Bindings.Set(new MemberHolder(made, parameter), value) };
+            }
+        }
+
+        return state;
+    }
+
     private static FactState Returned(FactState state, IMistType declared, IMistType result, Value from, Value made)
     {
-        if(Plain(declared) is not ConstructedType written || Plain(result) is not ConstructedType { Definition: ClassType or StructType, Definition: IHasTypeParameters closing })
+        if(Receiving(declared) is not ConstructedType written || Receiving(result) is not ConstructedType { Definition: ClassType or StructType, Definition: IHasTypeParameters closing })
         {
             return state;
         }

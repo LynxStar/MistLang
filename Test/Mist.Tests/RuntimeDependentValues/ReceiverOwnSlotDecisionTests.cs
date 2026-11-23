@@ -106,4 +106,21 @@ public sealed class ReceiverOwnSlotDecisionTests
 
         Assert.Same(capacity, Assert.Single(owned).Value);
     }
+
+    [Fact]
+    public void AValueReachedThroughAnOptionalMemberTypedWithItsOwnersSlotHoldsTheOwnersSlot()
+    {
+        var holder = HandBuiltSlots.Generic(HandBuiltModel.Class("Hd<>"), "K", slots.ZeroOrPositive);
+        var k = holder.TypeParametersList[0];
+        var member = new Property("R", Optional(slots.Closed(ring, k)), new MemberModifiers()) { DeclaringType = holder };
+        var h = new LocalVariable("h", slots.Closed(holder, UnknownType.Instance));
+        var receiver = HandBuiltRefinements.Read(h);
+        var reached = new MemberAccessExpression(HandBuiltModel.Node(), receiver, member.Name, Optional(slots.Closed(ring, UnknownType.Instance)), member: new PropertyResult(member, holder, []));
+        var owner = new Value(h.Type, "h", HandBuiltModel.Node());
+        var made = new Value(reached.Type, "h.R", HandBuiltModel.Node());
+        var state = FactState.Empty with { Bindings = Bindings.Empty.Set(new MemberHolder(owner, k), m) };
+
+        Assert.Same(m, SlotReads.Created(Evaluated(state, receiver, owner), reached, new Term(made)).Bindings.Get(new MemberHolder(made, capacity)));
+        Assert.Null(SlotReads.Created(state, reached, new Term(made)).Bindings.Get(new MemberHolder(made, capacity)));
+    }
 }

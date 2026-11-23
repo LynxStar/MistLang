@@ -8,18 +8,19 @@ namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
 /// What a reference a call returns may name besides what the call is handed by reference, which
-/// <see cref="BodyHolders.Places"/> names. A field the callee returns names that field of whichever object it reads,
-/// which may be the caller's <c>this</c>. A callee whose body cannot be read, because it has none or another type
-/// may override it, may return any field or static of the reference's type.
+/// <see cref="BodyHolders.Places"/> names. The callee's returned storage is read as the caller's: its <c>this</c> is
+/// the call's receiver, a parameter it never reassigns is the argument, and a struct field lies inside its holder, so
+/// a returned ref names that storage through every nested call. A callee whose body cannot be read, because it has
+/// none or another type may override it, may return any field or static of the reference's type.
 /// </summary>
 internal static class ReturnedStorage
 {
     public static WriteReach Of(Expression call, BodyHolders caller)
     {
-        return Of(call, new HashSet<Method>(ReferenceEqualityComparer.Instance), caller);
+        return Of(call, new HashSet<Method>(ReferenceEqualityComparer.Instance), caller, null);
     }
 
-    private static WriteReach Of(Expression call, HashSet<Method> reading, BodyHolders? caller)
+    private static WriteReach Of(Expression call, HashSet<Method> reading, BodyHolders caller, Frame? outer)
     {
         if(call is not InvocationExpression { Method: { } selected } invocation)
         {
@@ -33,47 +34,107 @@ internal static class ReturnedStorage
             return WriteReach.Storage(call.Type, anyField: true);
         }
 
+        var frame = new Frame(invocation, method, outer);
         var reach = WriteReach.Nothing;
         foreach(var returned in BodyWalker.DescendantsAndSelf(method.Body!).OfType<ReturnStatement>().Where(statement => statement.IsRef))
         {
-            reach = reach.Or(returned.Value is { } value ? Named(value, invocation, method, reading, caller) : WriteReach.Storage(call.Type, anyField: true));
+            reach = reach.Or(returned.Value is { } value ? Named(value, frame, reading, caller) : WriteReach.Storage(call.Type, anyField: true));
         }
 
         _ = reading.Remove(method);
         return reach;
     }
 
-    private static WriteReach Named(Expression returned, InvocationExpression call, Method method, HashSet<Method> reading, BodyHolders? caller)
+    private static WriteReach Named(Expression place, Frame frame, HashSet<Method> reading, BodyHolders caller)
     {
-        return returned switch
+        return place switch
         {
-            FieldReferenceExpression { Field: { Modifiers.IsStatic: false } field } => Owned(field, ThisTiers.ReceiverOf(call), caller),
+            FieldReferenceExpression { Field: { Modifiers.IsStatic: false } field } => Member(field, null, false, frame, caller),
             FieldReferenceExpression field => WriteReach.Field(field.Field),
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: ThisExpression } => Owned(field, ThisTiers.ReceiverOf(call), caller),
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: LocalReferenceExpression { Local.Parameter: { Modifier.IsRef: false } parameter } } =>
-                Owned(field, Argument(call, method, parameter), caller),
-            MemberAccessExpression { Member: FieldResult field } => WriteReach.Field(field.Field),
-            LocalReferenceExpression { Local.Parameter: { Modifier.IsRef: true } parameter } => Handed(Argument(call, method, parameter), returned, caller),
+            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => Member(field, receiver, false, frame, caller),
+            LocalReferenceExpression { Local.Parameter: { Modifier.IsRef: true } parameter } => Argument(frame, parameter) is { } argument
+                ? frame.Outer is null ? caller.Reach(argument) : Named(argument, frame.Outer, reading, caller)
+                : WriteReach.Storage(place.Type, anyField: true),
             IndexExpression { Indexer: null } element => WriteReach.Storage(element.Type),
-            InvocationExpression nested when BodyHolders.ReturnsRef(nested) => BodyHolders.Places(nested).Aggregate(Of(nested, reading, null),
-                (reach, place) => reach.Or(Named(place, call, method, reading, caller))),
-            _ => WriteReach.Storage(returned.Type, anyField: true),
+            InvocationExpression nested when BodyHolders.ReturnsRef(nested) => Of(nested, reading, caller, frame),
+            _ => WriteReach.Storage(place.Type, anyField: true),
         };
     }
 
-    private static WriteReach Owned(Field field, Expression? receiver, BodyHolders? caller)
+    private static WriteReach Member(Field field, Expression? receiver, bool nested, Frame? frame, BodyHolders caller)
     {
-        return receiver is not null && caller is not null ? caller.Member(field, receiver) : WriteReach.Field(field);
+        while(Hop(receiver) is { Modifiers: { IsRef: false, IsStatic: false } } hop && Requirement.Unrefined(hop.Type) is StructType)
+        {
+            (receiver, nested) = (receiver is MemberAccessExpression access ? access.Receiver : null, true);
+        }
+
+        if(frame is null)
+        {
+            return receiver is null ? WriteReach.Field(field) : caller.Member(field, receiver, nested);
+        }
+
+        if(frame.Method.DeclaringBlock is not null || frame.Method.ClosedBlock is not null)
+        {
+            return WriteReach.Field(field);
+        }
+
+        var mapped = receiver switch
+        {
+            null or ThisExpression => Receiver(frame.Call),
+            LocalReferenceExpression { Local.Parameter: { } parameter } when Held(frame.Method, parameter) => (true, Argument(frame, parameter)),
+            _ => (false, null),
+        };
+        return mapped is (true, var root) && (root is not null || receiver is null or ThisExpression)
+            ? Member(field, root, nested, frame.Outer, caller) : WriteReach.Field(field);
     }
 
-    private static WriteReach Handed(Expression? argument, Expression returned, BodyHolders? caller)
+    private static Field? Hop(Expression? receiver)
     {
-        return caller is null ? WriteReach.Nothing : argument is null ? WriteReach.Storage(returned.Type, anyField: true) : caller.Reach(argument);
+        return receiver switch
+        {
+            MemberAccessExpression { Member: FieldResult { Field: var field } } => field,
+            FieldReferenceExpression { Field: var field } => field,
+            _ => null,
+        };
     }
 
-    private static Expression? Argument(InvocationExpression call, Method method, Parameter parameter)
+    private static (bool Known, Expression? Root) Receiver(InvocationExpression call)
     {
-        var index = method.ParametersList.IndexOf(parameter);
-        return index >= 0 && index < call.Arguments.Count ? call.Arguments[index] : null;
+        return call.Receiver switch
+        {
+            MemberAccessExpression access => (true, access.Receiver),
+            FunctionReferenceExpression function => (true, function.Receiver),
+            MethodGroupExpression group => (true, group.Receiver),
+            MethodReferenceExpression => (true, null),
+            _ => (false, null),
+        };
     }
+
+    private static bool Held(Method method, Parameter parameter)
+    {
+        var structure = Requirement.Unrefined(parameter.Type) is StructType;
+        if(structure || parameter.Modifier.IsRef)
+        {
+            return structure && parameter.Modifier.IsRef;
+        }
+
+        bool names(Expression? expression)
+        {
+            return expression is LocalReferenceExpression { Local.Parameter: var named } && ReferenceEquals(named, parameter);
+        }
+
+        var nodes = BodyWalker.DescendantsAndSelf(method.Body!).ToList();
+        return !(nodes.OfType<AssignmentExpression>().SelectMany(Deconstructions.Pairs).Any(pair => names(pair.Target))
+            || nodes.OfType<CompoundAssignmentExpression>().Any(compound => names(compound.Target))
+            || nodes.OfType<Expression>().SelectMany(BodyHolders.Handed).Any(names)
+            || nodes.OfType<LocalDeclarationStatement>().Any(declaration => declaration.Local.IsRef && names(declaration.Initializer)));
+    }
+
+    private static Expression? Argument(Frame frame, Parameter parameter)
+    {
+        var index = frame.Method.ParametersList.IndexOf(parameter);
+        return index >= 0 && index < frame.Call.Arguments.Count ? frame.Call.Arguments[index] : null;
+    }
+
+    private sealed record Frame(InvocationExpression Call, Method Method, Frame? Outer);
 }

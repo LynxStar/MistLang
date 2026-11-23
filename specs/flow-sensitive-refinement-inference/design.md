@@ -119,15 +119,22 @@ type is never another's, so `ref long` does not reach an `int` field; a type
 parameter may be any type.
 
 A write through a ref a call returns reaches what `ReturnedStorage` reads in
-the callee's `return ref` statements: a field it returns names that field,
-which may be the caller's `this`, unless the object it is read from, the call's
-receiver or the argument for a by-value parameter, is a different object by the
-test above, and that field of storage the body created reaches no by-ref
-parameter; a by-ref parameter it returns names what the caller handed it, so
-the write reaches what a write to that argument reaches; a nested call's result
-is read the same way; an array element names no field. A callee
-with no body, one an abstract type declares, or one that returns anything else
-may return any field or static of the ref's type. This
+the callee's `return ref` statements, read as the caller's storage. The
+callee's `this` is the call's receiver. A class-typed by-value parameter is the
+argument when the callee never assigns it, hands it by `ref` or `out`, or binds
+a `ref` local to it; otherwise it may hold any object, `this` included. A
+struct-typed `ref` parameter is the argument's storage. A struct field lies
+inside the storage that holds it. A field the callee returns therefore names
+that field of the caller's storage, which may be the caller's `this`, unless
+that storage is a different object by the test above, and a field of storage the
+body created, however deep in struct fields, reaches no by-ref parameter. A
+by-ref parameter it returns names what the caller handed it, so the write
+reaches what a write to that argument reaches. A nested call's result is read
+the same way, with its receiver and arguments read through the outer call in
+turn, so `o.G()` returning `ref GetA()` names `o.A`. An array element names no
+field. A callee with no body, one an abstract type declares, one already being
+read (recursion), or one that returns anything else may return any field or
+static of the ref's type. This
 reads the callee's body for which storage it names, as the purity rules read it
 for which members it writes, and never for a fact about a value (Requirement
 6.1). The same reach applies to a `ref` local bound to such a call and to the

@@ -162,6 +162,10 @@ public sealed class FieldWriteFlowTests
     [InlineData("member-of-a-by-value-struct-parameter-written", false)]
     [InlineData("element-of-an-array-created-here-written", false)]
     [InlineData("written-through-a-ref-a-call-returns-for-a-new-object", false)]
+    [InlineData("written-through-a-ref-a-call-returns-for-a-struct-handed-by-ref", false)]
+    [InlineData("written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object", false)]
+    [InlineData("written-through-a-ref-two-calls-return-for-a-new-object", false)]
+    [InlineData("written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this", true)]
     public void AByRefParameterLosesItsFactsAtEveryWriteToStorageItMayName(string form, bool refused)
     {
         var f = new FactHolderFragments();
@@ -181,8 +185,22 @@ public sealed class FieldWriteFlowTests
         var copy = new LocalVariable("c", point);
         var value = new LocalVariable("v", point) { Parameter = FactHolderFragments.Parameter("v", point) };
         var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var inner = new Field("X", f.H.Int, default, new MemberModifiers()) { DeclaringType = point };
+        var holder = f.ByRef("s", point);
+        var getX = f.Returning("GetX", FactHolderFragments.Member(FactHolderFragments.Read(holder), inner), holder.Parameter!);
+        var owner = new LocalVariable("owner", f.Pair) { Parameter = FactHolderFragments.Parameter("owner", f.Pair) };
+        var deep = f.Returning("Deep", FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(owner), f.AddField(f.Pair, "T", type: point)), inner),
+            owner.Parameter!);
+        var outer = f.Returning("Outer", FactHolderFragments.Implicit(refA));
+        var reset = f.Returning("Reset", [FactHolderFragments.Set(FactHolderFragments.Read(owner), f.This)], FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A),
+            owner.Parameter!);
         List<Statement> setup = form switch
         {
+            "written-through-a-ref-a-call-returns-for-a-struct-handed-by-ref" =>
+                [FactHolderFragments.Declare(copy, FactHolderFragments.Own(f.AddField(f.Pair, "P", type: point))), FactHolderFragments.Declare(r, f.Free(getX, FactHolderFragments.Read(copy)))],
+            "written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, deep, f.Create()))],
+            "written-through-a-ref-two-calls-return-for-a-new-object" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.Create(), outer))],
+            "written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, reset, f.Create()))],
             "member-of-a-local-only-ever-new-written" => [FactHolderFragments.Declare(o, f.Create())],
             "member-of-a-struct-copy-written" => [FactHolderFragments.Declare(copy, FactHolderFragments.Own(f.AddField(f.Pair, "P", type: point)))],
             "element-of-an-array-created-here-written" => [FactHolderFragments.Declare(array, f.H.Array(3L))],
@@ -203,7 +221,9 @@ public sealed class FieldWriteFlowTests
             "member-of-a-struct-copy-written" => FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(copy), f.A), f.Number(1L)),
             "member-of-a-by-value-struct-parameter-written" => FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(value), f.A), f.Number(1L)),
             "element-of-an-array-created-here-written" => FactHolderFragments.Set(f.H.At(FactHolderFragments.Read(array), f.Number(0L)), f.Number(1L)),
-            "written-through-a-ref-a-call-returns-for-a-new-object" => FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L)),
+            "written-through-a-ref-a-call-returns-for-a-new-object" or "written-through-a-ref-a-call-returns-for-a-struct-handed-by-ref"
+                or "written-through-a-ref-a-call-returns-for-a-struct-field-of-a-new-object" or "written-through-a-ref-two-calls-return-for-a-new-object"
+                or "written-through-a-ref-a-call-returns-for-a-parameter-it-sets-to-this" => FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L)),
             _ => throw new InvalidOperationException(form),
         };
         var five = form == "readonly-ref-parameter-after-a-field-write"

@@ -137,6 +137,20 @@ internal sealed class FactHolderFragments
         };
     }
 
+    public Method Returning(string name, IReadOnlyList<Statement> before, Expression returned, params Parameter[] parameters)
+    {
+        return new Method(name, H.Int, [.. parameters], new MemberModifiers { IsRef = true })
+        {
+            Body = HandBuiltModel.Block([.. before, new ReturnStatement(returned, H.Int, isRef: true)]),
+            DeclaringType = Pair,
+        };
+    }
+
+    public static InvocationExpression Implicit(Method method, params Expression[] arguments)
+    {
+        return new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), method), arguments, method.ReturnType, method, method.ParametersList.ConvertAll(parameter => parameter.Type));
+    }
+
     public NewExpression Create()
     {
         return new NewExpression(HandBuiltModel.Node(), Pair, [], null, [], null);

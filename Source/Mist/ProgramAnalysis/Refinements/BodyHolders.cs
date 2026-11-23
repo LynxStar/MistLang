@@ -67,10 +67,10 @@ internal sealed class BodyHolders
         };
     }
 
-    public WriteReach Member(Field field, Expression receiver)
+    public WriteReach Member(Field field, Expression receiver, bool nested = false)
     {
         return !field.Modifiers.IsRef && Owned(receiver, owned) ? WriteReach.Storage(field.Type) with { ByRefParameters = false }
-            : Distinct(receiver, created) ? WriteReach.Storage(field.Type) : WriteReach.Field(field);
+            : !nested && Distinct(receiver, created) ? WriteReach.Storage(field.Type) : WriteReach.Field(field);
     }
 
     private static bool Owned(Expression storage, IReadOnlySet<object> owned)
@@ -220,7 +220,7 @@ internal sealed class BodyHolders
         return holder is LocalVariable { Parameter: null } or LocalVariable { Parameter.Modifier: { IsRef: false, Direction: ByRefDirection.None } };
     }
 
-    private static IEnumerable<Expression> Handed(Expression expression)
+    public static IEnumerable<Expression> Handed(Expression expression)
     {
         var (arguments, parameters) = Arguments(expression);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)

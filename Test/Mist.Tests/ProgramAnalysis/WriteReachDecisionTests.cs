@@ -27,7 +27,20 @@ public sealed class WriteReachDecisionTests
     [InlineData("field-of-a-receiver-that-is-another-object", "")]
     [InlineData("field-of-a-parameter-given-another-object", "")]
     [InlineData("field-of-a-parameter-given-this", "A,p,y")]
-    public void AReferenceACallReturnsReachesWhatItsBodyReturnsAndEveryByRefParameterOfItsType(string returned, string reached)
+    [InlineData("field-of-a-parameter-reassigned-to-this", "A,p,y")]
+    [InlineData("field-of-a-parameter-handed-by-ref", "A,p,y")]
+    [InlineData("field-of-a-struct-field-of-a-parameter-given-another-object", "")]
+    [InlineData("field-of-a-struct-field-of-a-parameter-given-this", "p,y")]
+    [InlineData("field-of-a-struct-field-of-a-parameter-reassigned-to-this", "p,y")]
+    [InlineData("field-of-a-ref-struct-parameter-given-a-member-of-a-new-object", "")]
+    [InlineData("field-of-a-ref-struct-parameter-given-a-field", "p,y")]
+    [InlineData("another-call-on-a-receiver-that-is-another-object", "")]
+    [InlineData("another-call-handed-a-parameter-given-another-object", "")]
+    [InlineData("another-call-handed-a-parameter-reassigned-to-this", "A,p,y")]
+    [InlineData("another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object", "")]
+    [InlineData("another-call-handed-a-struct-field-of-a-receiver-that-is-another-object", "")]
+    [InlineData("another-call-handed-a-struct-field-of-this", "p,y")]
+    public void AReferenceACallReturnsReachesTheStorageItsBodyReturnsReadAsTheCallers(string returned, string reached)
     {
         var f = new FactHolderFragments();
         var x = f.ByRef("x");
@@ -35,8 +48,29 @@ public sealed class WriteReachDecisionTests
         var pass = f.Returning("Pass", FactHolderFragments.Read(x), x.Parameter!);
         var owner = new LocalVariable("owner", f.Pair) { Parameter = FactHolderFragments.Parameter("owner", f.Pair) };
         var through = f.Returning("Through", FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!);
+        var point = HandBuiltModel.Struct("Point");
+        var inner = new Field("X", f.H.Int, default, new MemberModifiers()) { DeclaringType = point };
+        var stored = f.AddField(f.Pair, "P", type: point);
+        var holder = f.ByRef("s", point);
+        var getX = f.Returning("GetX", FactHolderFragments.Member(FactHolderFragments.Read(holder), inner), holder.Parameter!);
+        var swap = new Method("Swap", f.H.Int, [f.ByRef("q", f.Pair).Parameter!], new MemberModifiers()) { DeclaringType = f.Pair };
+        Statement[] toThis = [FactHolderFragments.Set(FactHolderFragments.Read(owner), f.This)];
+        Expression ownerX = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(owner), stored), inner);
         var callee = returned switch
         {
+            "field-of-a-parameter-reassigned-to-this" => f.Returning("Through", toThis, FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
+            "field-of-a-parameter-handed-by-ref" => f.Returning("Through", [HandBuiltRefinements.Evaluate(f.Free(swap, FactHolderFragments.Read(owner)))],
+                FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
+            "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-given-this" =>
+                f.Returning("Deep", ownerX, owner.Parameter!),
+            "field-of-a-struct-field-of-a-parameter-reassigned-to-this" => f.Returning("Deep", toThis, ownerX, owner.Parameter!),
+            "field-of-a-ref-struct-parameter-given-a-member-of-a-new-object" or "field-of-a-ref-struct-parameter-given-a-field" => getX,
+            "another-call-on-a-receiver-that-is-another-object" => f.Returning("Outer", FactHolderFragments.Implicit(getA)),
+            "another-call-handed-a-parameter-given-another-object" => f.Returning("Outer", f.Free(through, FactHolderFragments.Read(owner)), owner.Parameter!),
+            "another-call-handed-a-parameter-reassigned-to-this" => f.Returning("Outer", toThis, f.Free(through, FactHolderFragments.Read(owner)), owner.Parameter!),
+            "another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object" => f.Returning("Outer", f.Free(getX, FactHolderFragments.Read(holder)), holder.Parameter!),
+            "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" or "another-call-handed-a-struct-field-of-this" =>
+                f.Returning("Outer", f.Free(getX, FactHolderFragments.Own(stored))),
             "field-of-this" => getA,
             "field-of-another-object" => f.Returning("GetV", FactHolderFragments.Member(FactHolderFragments.Read(new LocalVariable("other", f.Box)), f.V)),
             "static" => f.Returning("GetS", FactHolderFragments.Own(f.S)),
@@ -55,11 +89,17 @@ public sealed class WriteReachDecisionTests
             "its-ref-parameter-given-a-local" => [FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a"))],
             "its-ref-parameter-given-a-field" => [FactHolderFragments.Own(f.A)],
             "its-ref-parameter-given-a-member-of-a-new-object" => [FactHolderFragments.Member(f.Create(), f.A)],
-            "field-of-a-parameter-given-another-object" => [f.Create()],
-            "field-of-a-parameter-given-this" => [f.This],
+            "field-of-a-parameter-given-another-object" or "field-of-a-parameter-reassigned-to-this" or "field-of-a-parameter-handed-by-ref"
+                or "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-reassigned-to-this"
+                or "another-call-handed-a-parameter-given-another-object" or "another-call-handed-a-parameter-reassigned-to-this" => [f.Create()],
+            "field-of-a-parameter-given-this" or "field-of-a-struct-field-of-a-parameter-given-this" => [f.This],
+            "field-of-a-ref-struct-parameter-given-a-member-of-a-new-object" or "another-call-handed-a-ref-struct-parameter-given-a-member-of-a-new-object" =>
+                [FactHolderFragments.Member(f.Create(), stored)],
+            "field-of-a-ref-struct-parameter-given-a-field" => [FactHolderFragments.Own(stored)],
             _ => [],
         };
-        Expression receiver = returned == "field-of-a-receiver-that-is-another-object" ? f.Create() : f.This;
+        Expression receiver = returned is "field-of-a-receiver-that-is-another-object" or "another-call-on-a-receiver-that-is-another-object"
+            or "another-call-handed-a-struct-field-of-a-receiver-that-is-another-object" ? f.Create() : f.This;
 
         var reach = ReturnedStorage.Of(FactHolderFragments.Call(receiver, callee, arguments), BodyHolders.None);
 

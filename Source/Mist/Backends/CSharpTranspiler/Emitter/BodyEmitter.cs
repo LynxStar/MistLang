@@ -3091,7 +3091,7 @@ internal static partial class BodyEmitter
     private static void EmitSubExpression(
         Expression child, int operatorPrecedence, CSharpWriter writer, DiagnosticBag diagnostics)
     {
-        if(GetPrecedence(child) < operatorPrecedence)
+        if(GetPrecedence(child) < operatorPrecedence || IsBareStorage(child))
         {
             writer.Append("(");
             EmitExpression(child, writer, diagnostics);

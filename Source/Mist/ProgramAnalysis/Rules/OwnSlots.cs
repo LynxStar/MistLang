@@ -12,9 +12,10 @@ namespace Mist.ProgramAnalysis.Rules;
 /// closes them with <c>unknown</c> (runtime-dependent-values Requirement 7.6). An object is one closing
 /// of its own class, so such a slot still holds one value, the receiver's own read. The binder leaves the
 /// slot <c>unknown</c>, and one <c>unknown</c> stands for every unknown value of a domain, so which slot is
-/// the receiver's is read from where the declared signature names the receiver's parameter, never from the
-/// closed type argument. Each becomes a capture initialized by that read, which <see cref="SlotMeeting"/>
-/// meets by equality, as it meets a slot the binder gave the receiver's read.
+/// the receiver's is read from where the declared signature names the receiver's own parameter, or the
+/// base's parameter its class closes with that one, never from the closed type argument. Each becomes a
+/// capture initialized by that read, which <see cref="SlotMeeting"/> meets by equality, as it meets a slot
+/// the binder gave the receiver's read.
 /// </summary>
 internal static class OwnSlots
 {
@@ -40,8 +41,8 @@ internal static class OwnSlots
 
     private static IMistType Marked(Expression receiver, IMistType declared, IMistType closed, ConstructedType closing, IDictionary<SlotCapture, TypeParameter> owned)
     {
-        if(declared is TypeParameter { IsDependent: true, IsPack: false, Domain: { } domain } parameter && Unknown(closed)
-            && closing.Definition is IHasTypeParameters declaring && declaring.TypeParametersList.Exists(own => ReferenceEquals(own, parameter))
+        if(declared is TypeParameter { IsDependent: true, IsPack: false } named && Unknown(closed)
+            && Own(named, closing) is { Domain: { } domain } parameter
             && parameter.Ordinal < closing.TypeArguments.Count
             && Unknown(closing.TypeArguments[parameter.Ordinal]))
         {
@@ -64,6 +65,23 @@ internal static class OwnSlots
         return arguments.Where((argument, i) => !ReferenceEquals(argument, shut.TypeArguments[i])).Any()
             ? new ConstructedType(shut.Definition, arguments, shut.Enclosing)
             : closed;
+    }
+
+    private static TypeParameter? Own(TypeParameter parameter, ConstructedType closing)
+    {
+        if(closing.Definition is not IHasTypeParameters declaring)
+        {
+            return null;
+        }
+
+        var mapped = ReferenceEquals(parameter.DeclaringType, closing.Definition) ? parameter
+            : parameter.DeclaringType is { } definition
+                && SlotReads.Closing(new ConstructedType(closing.Definition, declaring.TypeParametersList), definition) is { } path
+                && parameter.Ordinal < path.TypeArguments.Count
+                ? path.TypeArguments[parameter.Ordinal] as TypeParameter
+                : null;
+
+        return mapped is { IsDependent: true, IsPack: false } && declaring.TypeParametersList.Exists(own => ReferenceEquals(own, mapped)) ? mapped : null;
     }
 
     private static bool Unknown(IMistType argument)

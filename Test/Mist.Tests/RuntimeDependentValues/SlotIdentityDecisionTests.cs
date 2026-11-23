@@ -154,6 +154,28 @@ public sealed class SlotIdentityDecisionTests
     }
 
     [Fact]
+    public void ASlotAnInheritedSignatureGivesAReceiverClosedWithUnknownIsMetByThatReceiversOwnReadOfTheSlotItForwards()
+    {
+        var kid = HandBuiltSlots.Generic(HandBuiltModel.Class("Kid<>"), "C", slots.ZeroOrPositive);
+        var forwarded = kid.TypeParametersList[0];
+        ((ConcreteType)kid).BaseType = slots.Closed(ring, forwarded);
+        var local = new LocalVariable("kid", slots.Closed(kid, UnknownType.Instance));
+        var held = new Value(local.Type, "kid", HandBuiltModel.Node());
+        var read = new Value(slots.Int, "kid.C", HandBuiltModel.Node());
+        var state = Bound() with { Bindings = Bound().Bindings.Set(local, held).Set(new MemberHolder(held, forwarded), read) };
+        var unknown = slots.Refinements.Built.Interner.GetOrCreateUnknownValue(slots.Int);
+        var argument = slots.Create(first);
+        var own = new SlotMeeting([], Receiver: HandBuiltRefinements.Read(local)) { Declared = slots.ArrayOf(capacity) };
+
+        Assert.Null(SlotIdentity.Judge(Knowing(state, Equal(new Term(n), new Term(read))), argument, slots.ArrayOf(unknown), reading, meeting: own));
+
+        var unproven = SlotIdentity.Judge(state, argument, slots.ArrayOf(unknown), reading, meeting: own);
+
+        Assert.Equal(("n", "kid.C"), (unproven?.Left, unproven?.Right));
+        Assert.True(SlotIdentity.OwesThrough(own.Receiver, slots.ArrayOf(unknown), own.Declared));
+    }
+
+    [Fact]
     public void ADependentParameterIsProvenByTheFactAboutIt()
     {
         var parameter = slots.Dependent("N");

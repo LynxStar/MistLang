@@ -55,14 +55,19 @@ public sealed class UnknownReceiverSlotFlowTests
 
     private LocalDeclarationStatement RingOfM()
     {
-        var made = slots.Capture(m, slots.Int);
-        return HandBuiltSlots.Declare(u, new NewExpression(HandBuiltModel.Node(), slots.Closed(ring, made.Value), [], null, [], []) { Captures = [made] });
+        return OfM(u, ring);
     }
 
-    private ExpressionStatement Load(Expression length)
+    private LocalDeclarationStatement OfM(LocalVariable local, MemberType definition)
+    {
+        var made = slots.Capture(m, slots.Int);
+        return HandBuiltSlots.Declare(local, new NewExpression(HandBuiltModel.Node(), slots.Closed(definition, made.Value), [], null, [], []) { Captures = [made] });
+    }
+
+    private ExpressionStatement Load(Expression length, LocalVariable? through = null)
     {
         var method = new Method("Load", Void, [new Parameter("items", slots.ArrayOf(capacity))], new MemberModifiers()) { DeclaringType = ring };
-        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(u), "Load", Void);
+        var callee = new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltRefinements.Read(through ?? u), "Load", Void);
         return HandBuiltRefinements.Evaluate(new InvocationExpression(HandBuiltModel.Node(), callee, [length], Void, method, [slots.ArrayOf(Unknown)]));
     }
 
@@ -101,6 +106,17 @@ public sealed class UnknownReceiverSlotFlowTests
     {
         Assert.Empty(Analyze(RingOfM(), Load(Sized(m)), Add(Sized(m))));
         Refused(Analyze(RingOfM(), Add(Sized(n))), "'n' and 'u.Capacity' are not proven identical (fails when m <= n - 1)");
+    }
+
+    [Fact]
+    public void AMethodADerivedValueInheritsReadsTheValuesOwnSlotThatItsClassForwardsToTheBase()
+    {
+        var kid = HandBuiltSlots.Generic(HandBuiltModel.Class("Kid<>"), "C", slots.ZeroOrPositive);
+        ((ConcreteType)kid).BaseType = slots.Closed(ring, kid.TypeParametersList[0]);
+        var derived = new LocalVariable("u", slots.Closed(kid, UnknownType.Instance));
+
+        Refused(Analyze(OfM(derived, kid), Load(Sized(n), derived)), "'int[n]' is not proven to be 'int[u.C]': 'n' and 'u.C' are not proven identical");
+        Assert.Empty(Analyze(OfM(derived, kid), Load(Sized(m), derived)));
     }
 
     [Fact]

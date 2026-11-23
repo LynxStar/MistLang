@@ -31,7 +31,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
 
         foreach(var root in context.Bodies)
         {
-            new Proving(context, lifted, effects, UnseenWrites.Of(root.Root), matchLimit, budget, alternativeCap).Judge(
+            new Proving(context, lifted, effects, BodyHolders.Of(root.Root), matchLimit, budget, alternativeCap).Judge(
                 context.GraphOf(root), FactFlow.Nothing, root.Member switch
                 {
                     Method method => method.ParametersList,
@@ -44,12 +44,12 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
         {
             if(list.Reads is { } reads)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedElements(list, reads);
+                new Proving(context, lifted, effects, BodyHolders.None, matchLimit, budget, alternativeCap).NeedElements(list, reads);
             }
 
             if(list.Slice is { Method: { } slice } sliced)
             {
-                new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedSliceElements(list, sliced, slice);
+                new Proving(context, lifted, effects, BodyHolders.None, matchLimit, budget, alternativeCap).NeedSliceElements(list, sliced, slice);
             }
         }
 
@@ -71,7 +71,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 if(constructor is { ChainedConstructor: { } chained, DeclarationNode: { } declared } && context.IsInSource(declared))
                 {
-                    new Proving(context, lifted, effects, UnseenWrites.None, matchLimit, budget, alternativeCap).NeedArguments(
+                    new Proving(context, lifted, effects, BodyHolders.None, matchLimit, budget, alternativeCap).NeedArguments(
                         FactFlow.Nothing, constructor.ChainArgumentsList, constructor.ChainParameterTypes, chained.ParametersList, callee: chained);
                 }
             }
@@ -79,7 +79,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
     }
 
     private sealed partial class Proving(
-        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, IReadOnlySet<object> unseenWrites, TimeSpan matchLimit, Budget budget, int alternativeCap)
+        AnalysisContext context, LiftedReturns lifted, FieldEffects effects, BodyHolders holders, TimeSpan matchLimit, Budget budget, int alternativeCap)
     {
         public void Judge(FlowGraph graph, FactState entry, IReadOnlyList<Parameter>? parameters = null)
         {
@@ -87,14 +87,14 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
             {
                 foreach(var nested in graph.Nested.Values)
                 {
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, holders, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
                 }
 
                 return;
             }
 
-            entry = Prepare(entry with { Unseen = unseenWrites }, graph, parameters ?? []);
-            var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(unseenWrites, lifted, effects, graph, alternativeCap), entry);
+            entry = Prepare(entry with { Unseen = holders.Unseen }, graph, parameters ?? []);
+            var solution = FlowSolution<FactState>.Solve(graph, new FactFlow(holders, lifted, effects, graph, alternativeCap), entry);
             solution.Replay((state, step) => Judge(graph, state, step));
         }
 
@@ -158,7 +158,7 @@ internal sealed partial class RefinementAnalyzer(TimeSpan matchLimit, Budget bud
                     break;
 
                 case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                    new Proving(context, lifted, effects, unseenWrites, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
+                    new Proving(context, lifted, effects, holders, matchLimit, budget, alternativeCap).Judge(nested, FactFlow.Nothing);
                     break;
             }
         }

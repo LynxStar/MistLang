@@ -8,9 +8,9 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Refinements;
 
 /// <summary>
-/// Captured writes, ref/out arguments and ref-local aliases can invalidate facts outside this body's flow.
-/// Proofs have no runtime guard, so these holders and aliases retain only declared types, which still
-/// constrain every write.
+/// Captured writes, a ref-like value a call builds from what it is handed by reference, and refs to storage
+/// <see cref="BodyHolders"/> cannot name can invalidate facts outside this body's flow. Proofs have no runtime
+/// guard, so these holders and aliases retain only declared types, which still constrain every write.
 /// </summary>
 internal static class UnseenWrites
 {
@@ -36,6 +36,10 @@ internal static class UnseenWrites
                     AddCapturedWrites(unseen, [], BodyWalker.DescendantsAndSelf(block.Body).ToList());
                     break;
 
+                case Expression { Type: var type } built and (InvocationExpression or NewExpression) when RefStructs.Is(type):
+                    unseen.UnionWith(BodyHolders.Places(built).Select(Referenced).OfType<object>());
+                    break;
+
                 case InvocationExpression call:
                     AddByRef(unseen, call.Arguments, call.Parameters);
                     break;
@@ -44,9 +48,14 @@ internal static class UnseenWrites
                     AddByRef(unseen, creation.Arguments, creation.Constructor?.ParametersList);
                     break;
 
-                case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased }:
-                    _ = unseen.Add(alias);
+                case LocalDeclarationStatement { Local: { IsRef: true } alias, Initializer: var aliased } when BodyHolders.Named(aliased) is null:
+                    if(aliased is not null && BodyHolders.ReturnsRef(aliased))
+                    {
+                        unseen.UnionWith(BodyHolders.Places(aliased).Where(place => BodyHolders.Named(place) is null).Select(Referenced).OfType<object>());
+                        break;
+                    }
 
+                    _ = unseen.Add(alias);
                     if(Referenced(aliased) is { } target)
                     {
                         _ = unseen.Add(target);
@@ -64,13 +73,37 @@ internal static class UnseenWrites
         var own = Captures.OwnNames(parameters, inside);
 
         var targets = inside.OfType<AssignmentExpression>().Select(assignment => assignment.Target)
-            .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target));
+            .Concat(inside.OfType<CompoundAssignmentExpression>().Select(compound => compound.Target))
+            .Concat(inside.OfType<Expression>().SelectMany(ByRef))
+            .Concat(inside.OfType<LocalDeclarationStatement>().Where(declaration => declaration.Local.IsRef).Select(declaration => declaration.Initializer).OfType<Expression>());
 
         foreach(var written in targets.Select(Referenced).OfType<object>())
         {
             if(written is not LocalVariable local || !own.Contains(local))
             {
                 _ = unseen.Add(written);
+            }
+        }
+    }
+
+    private static IEnumerable<Expression> ByRef(Expression node)
+    {
+        if(BodyHolders.ReturnsRef(node) || RefStructs.Is(node.Type))
+        {
+            return BodyHolders.Places(node);
+        }
+
+        var (arguments, parameters) = BodyHolders.Arguments(node);
+        return (arguments ?? []).Where((_, i) => parameters is not null && i < parameters.Count && parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out);
+    }
+
+    private static void AddByRef(HashSet<object> unseen, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    {
+        for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
+        {
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && BodyHolders.Named(arguments[i]) is null && Referenced(arguments[i]) is { } passed)
+            {
+                _ = unseen.Add(passed);
             }
         }
     }
@@ -84,16 +117,5 @@ internal static class UnseenWrites
             MemberAccessExpression { Member: FieldResult field } => field.Field,
             _ => null,
         };
-    }
-
-    private static void AddByRef(HashSet<object> unseen, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
-    {
-        for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
-        {
-            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && Referenced(arguments[i]) is { } passed)
-            {
-                _ = unseen.Add(passed);
-            }
-        }
     }
 }

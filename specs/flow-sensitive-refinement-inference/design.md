@@ -64,20 +64,11 @@ may write a member, which ends that member's value and no other. Which members a
 call may write is the ownership and purity rules' judgement, member by member: a
 method on `this` that writes `B` leaves the facts about `A` in place.
 
-The compiler at 4c2e5bb3 proves less than this in four places. With
+The compiler proves less than this in two places MIST-1641 builds. With
 `Take(Five f)` taking `int >= 5 and <= 5`, each `Take` below is refused today and
 is proven under this design:
 
 ```mist
-var a = 5;
-Take(a);        // a local passed by ref anywhere in the body keeps only its type
-Bump(ref a);
-
-var c = 5;
-Take(c);        // so does a local that a ref local names anywhere in the body
-ref int r = c;
-r = 6;
-
 owned var b = new Box();
 b.V = 5;
 Take(b.V);      // a member of an object the body owns carries no facts
@@ -87,10 +78,20 @@ SetB();         // writes only B
 Take(A);        // every mutable field of this ends at the call
 ```
 
-`UnseenWrites.Of(root)` takes the first two out of the flow for the whole body,
-member holders of owned and exclusively held objects are not fact-bearing, and
+Member holders of owned and exclusively held objects are not fact-bearing, and
 `FieldEffects.MayWrite` answers for all mutable fields together where
 `ThisTiers.FieldUses` holds the per-field answer.
+
+A local or by-value parameter passed by `ref` or named by a `ref` local keeps its
+facts until the write itself, as the rule above states. `BodyHolders` names which
+holders a `ref` local may reach, and leaves outside the flow, with only their
+type, the holders whose every write it cannot follow: a field of `this` or a
+by-ref parameter that is passed by `ref` or named by a `ref` local, since a write
+through a by-ref parameter may change one without ending it; a local a nested
+function reads, since it may be that function's own by-ref parameter; a holder
+handed by reference to a call whose result is a `ref` struct such as `Span`; and
+a `ref` local bound to a call that returns a ref, though a write through it still
+ends the holders that call was handed by reference.
 
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's

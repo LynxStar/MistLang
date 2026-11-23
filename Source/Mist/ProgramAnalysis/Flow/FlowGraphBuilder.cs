@@ -508,6 +508,7 @@ internal sealed class FlowGraphBuilder
             MemberAccessExpression member => Expression(member.Receiver, current),
             IndexExpression index => Expression(index.Index, Expression(index.Receiver, current)),
             ExtensionPropertyAccessExpression extension => Expression(extension.Receiver, current),
+            InvocationExpression call => Expression(call, current),
             _ => current,
         };
     }

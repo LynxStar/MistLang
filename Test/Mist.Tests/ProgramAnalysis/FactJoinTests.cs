@@ -112,7 +112,7 @@ public sealed class FactJoinTests
 
     private static FactFlow Lattice()
     {
-        return new FactFlow(new HashSet<object>(), new LiftedReturns());
+        return new FactFlow(BodyHolders.None, new LiftedReturns());
     }
 
     private static FactState State(params (object Holder, Value Value, int Low, int High)[] bindings)

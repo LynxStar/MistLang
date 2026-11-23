@@ -237,7 +237,7 @@ public sealed class StoredRangeDecisionTests
         var graph = FlowGraphBuilder.Build(body);
 
         return FlowSolution<FactState>.Solve(
-            graph, new FactFlow(UnseenWrites.Of(body), new LiftedReturns()), FactFlow.Nothing);
+            graph, new FactFlow(BodyHolders.Of(body), new LiftedReturns()), FactFlow.Nothing);
     }
 
     private static ImmutableArray<Diagnostic> Findings(ProgramModelClass model)

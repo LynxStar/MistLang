@@ -55,7 +55,12 @@ internal static class SlotReads
 
     public static IMistType? Contract(Expression expression)
     {
-        return expression is MemberAccessExpression access && Parameter(access) is { } parameter ? InstanceSlotRead.Contract(parameter) : null;
+        return expression switch
+        {
+            MemberAccessExpression access when Parameter(access) is { } parameter => InstanceSlotRead.Contract(parameter),
+            TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true, IsPack: false } parameter } => InstanceSlotRead.Contract(parameter),
+            _ => null,
+        };
     }
 
     public static IMistType? Argument(MemberAccessExpression access, TypeParameter parameter)

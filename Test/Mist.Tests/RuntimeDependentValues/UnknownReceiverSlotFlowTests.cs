@@ -295,4 +295,16 @@ public sealed class UnknownReceiverSlotFlowTests
         Refused(Analyze(OfM(h, owner), HandBuiltSlots.Declare(x, Ring(n)), Keep(h, kept, HandBuiltRefinements.Read(x))), "'x.Capacity' and 'h.K' are not proven identical (fails when m <= n - 1)");
         Assert.Empty(Analyze(OfM(h, owner), HandBuiltSlots.Declare(x, Ring(m)), Keep(h, kept, HandBuiltRefinements.Read(x))));
     }
+    [Fact]
+    public void AbsenceStoredInAnOptionalMemberTypedWithItsOwnersSlotThroughAnUnknownOwnerHasNoSlotToMeet()
+    {
+        var (h, member) = Holding(UnknownType.Instance);
+        var owner = member.DeclaringType!;
+        var kept = new Field("F", member.Type, OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = owner };
+        var contextual = Lifted(slots.Closed(ring, slots.ZeroOrPositive));
+
+        Refused(Analyze(OfM(h, owner), Keep(h, kept, Ring(n))), "'n' and 'h.K' are not proven identical (fails when m <= n - 1)");
+        Assert.Empty(Analyze(OfM(h, owner), Keep(h, kept, new VoidLiteralExpression(HandBuiltModel.Node(), VoidReading.Absence, contextual))));
+        Assert.Empty(Analyze(OfM(h, owner), Keep(h, kept, new DefaultExpression(HandBuiltModel.Node(), contextual))));
+    }
 }

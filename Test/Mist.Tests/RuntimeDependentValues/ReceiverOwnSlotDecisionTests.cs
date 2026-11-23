@@ -146,4 +146,14 @@ public sealed class ReceiverOwnSlotDecisionTests
         Assert.NotNull(SlotIdentity.Judge(FactState.Empty, Optional(slots.Closed(ring, first.Value)), Optional(slots.Closed(ring, second.Value)), through: null));
         Assert.Null(SlotIdentity.Judge(FactState.Empty, Optional(slots.Closed(ring, first.Value)), Optional(slots.Closed(ring, first.Value)), through: null));
     }
+    [Fact]
+    public void AbsenceFitsAnOptionalWhateverSlotItsContextualTypeNames()
+    {
+        var target = Optional(slots.Closed(ring, slots.Capture(new LocalVariable("m", slots.Int)).Value));
+        var contextual = Optional(slots.Closed(ring, first.Value));
+
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, new VoidLiteralExpression(HandBuiltModel.Node(), VoidReading.Absence, contextual), target));
+        Assert.Null(SlotIdentity.Judge(FactState.Empty, new DefaultExpression(HandBuiltModel.Node(), contextual), target));
+        Assert.NotNull(SlotIdentity.Judge(FactState.Empty, new DefaultExpression(HandBuiltModel.Node(), slots.Closed(ring, first.Value)), target));
+    }
 }

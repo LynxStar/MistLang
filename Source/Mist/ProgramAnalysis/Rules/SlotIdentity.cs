@@ -110,6 +110,12 @@ internal static class SlotIdentity
     {
         UnprovenSlot? first = null;
         var written = through is null ? null : SlotReads.Written(through);
+
+        if(Absent(written))
+        {
+            return null;
+        }
+
         (source, target, meeting) = Own(source, target, through, meeting ?? SlotMeeting.Fit);
         var held = Held(source, target);
 
@@ -404,6 +410,13 @@ internal static class SlotIdentity
                 }
             }
         }
+    }
+
+    // Absence, a void or an optional's default, holds no value, so it has no slot to meet; only its contextual type names one.
+    private static bool Absent(Expression? written)
+    {
+        return written is VoidLiteralExpression { Reading: VoidReading.Absence }
+            || (written is DefaultExpression absent && OptionalUnion.IsOptional(SlotReads.Plain(absent.Type)));
     }
 
     // An optional fits an optional through the value it holds, so that value's slots meet the target's.

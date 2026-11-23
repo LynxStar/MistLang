@@ -412,17 +412,16 @@ internal static class SlotIdentity
         }
     }
 
-    // Absence, a void or an optional's default, holds no value, so it has no slot to meet; only its contextual type names one.
+    // An optional fits an optional through the value it holds, so that value's slots meet the target's; absence, a void or an optional's default, holds none.
+    private static IMistType Held(IMistType source, IMistType target)
+    {
+        return OptionalUnion.IsOptional(SlotReads.Plain(target)) ? SlotReads.Receiving(source) : source;
+    }
+
     private static bool Absent(Expression? written)
     {
         return written is VoidLiteralExpression { Reading: VoidReading.Absence }
             || (written is DefaultExpression absent && OptionalUnion.IsOptional(SlotReads.Plain(absent.Type)));
-    }
-
-    // An optional fits an optional through the value it holds, so that value's slots meet the target's.
-    private static IMistType Held(IMistType source, IMistType target)
-    {
-        return OptionalUnion.IsOptional(SlotReads.Plain(target)) ? SlotReads.Receiving(source) : source;
     }
 
     private static IReadOnlyList<IMistType> Constituents(IMistType target)
@@ -437,7 +436,7 @@ internal static class SlotIdentity
             CapturedValue captured => SlotReads.Known(state, captured) is { } known ? Spell(captured.Domain, known) : captured.WrittenName,
             LiftedType lifted => lifted.Name,
             ParameterValue held => held.Parameter.Name,
-            UnknownType or UnknownValueType when through is not null => $"{RefinementFindings.Display(through)}.{parameter.Name}",
+            UnknownType or UnknownValueType when through is not null => RefinementFindings.Display(SlotReads.Read(through, parameter)),
             _ => TypeDisplay.Mist(slot),
         };
     }

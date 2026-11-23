@@ -2,6 +2,7 @@ using System.Globalization;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Facts;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
@@ -161,6 +162,12 @@ internal static class RefinementFindings
 
     public static string Display(Expression expression)
     {
+        return Display(expression, expression.Type);
+    }
+
+    // A member is read from the value an optional receiver holds, so a receiver spelled by its type is spelled by the held one.
+    private static string Display(Expression expression, IMistType spelled)
+    {
         return expression switch
         {
             LocalReferenceExpression local => local.Local.Name,
@@ -168,7 +175,7 @@ internal static class RefinementFindings
             PropertyReferenceExpression property => property.Property.Name,
             ThisExpression => "this",
             TypeReferenceExpression { ReferencedType: TypeParameter { IsDependent: true } named } => named.Name,
-            MemberAccessExpression access => $"{Display(access.Receiver)}.{access.MemberName}",
+            MemberAccessExpression access => $"{Display(access.Receiver, OptionalUnion.InnerType(SlotReads.Plain(access.Receiver.Type)) ?? access.Receiver.Type)}.{access.MemberName}",
             LiteralExpression { Value: { } constant } => Convert.ToString(constant, CultureInfo.InvariantCulture) ?? "",
             UnaryExpression { OperatorKind: UnaryOperatorKind.FromEnd, Operand: var offset } => $"^{Display(offset)}",
             UnaryExpression { OperatorKind: UnaryOperatorKind.Negate, Operand: LiteralExpression { Value: not null } negated } => $"-{Display(negated)}",
@@ -176,7 +183,7 @@ internal static class RefinementFindings
             BinaryExpression { OperatorKind: BinaryOperatorKind.Add or BinaryOperatorKind.Subtract or BinaryOperatorKind.Multiply, Operator: null or { Modifiers.IsIntrinsic: true } } binary
                 => $"{(binary.OperatorKind == BinaryOperatorKind.Multiply ? Grouped(binary.Left) : Display(binary.Left))} {Arithmetic(binary.OperatorKind)} {(binary.OperatorKind == BinaryOperatorKind.Add ? Display(binary.Right) : Grouped(binary.Right))}",
             RangeExpression range => $"{(range.Start is { } start ? Display(start) : "")}..{(range.End is { } end ? Display(end) : "")}",
-            _ => TypeDisplay.Mist(expression.Type),
+            _ => TypeDisplay.Mist(spelled),
         };
     }
 

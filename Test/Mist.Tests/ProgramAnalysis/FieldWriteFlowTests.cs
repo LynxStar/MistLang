@@ -157,6 +157,11 @@ public sealed class FieldWriteFlowTests
     [InlineData("readonly-ref-parameter-after-a-field-write", true)]
     [InlineData("local-written", false)]
     [InlineData("readonly-call", false)]
+    [InlineData("member-of-a-local-only-ever-new-written", false)]
+    [InlineData("member-of-a-struct-copy-written", false)]
+    [InlineData("member-of-a-by-value-struct-parameter-written", false)]
+    [InlineData("element-of-an-array-created-here-written", false)]
+    [InlineData("written-through-a-ref-a-call-returns-for-a-new-object", false)]
     public void AByRefParameterLosesItsFactsAtEveryWriteToStorageItMayName(string form, bool refused)
     {
         var f = new FactHolderFragments();
@@ -170,6 +175,20 @@ public sealed class FieldWriteFlowTests
             DeclaringType = f.Pair,
         };
         var getA = new Method("GetA", f.H.Int, [], new MemberModifiers { IsReadonly = true }) { Body = HandBuiltModel.Block(), DeclaringType = f.Pair };
+        var refA = f.Returning("RefA", FactHolderFragments.Member(f.This, f.A));
+        var o = new LocalVariable("o", f.Pair);
+        var point = HandBuiltModel.Struct("Point");
+        var copy = new LocalVariable("c", point);
+        var value = new LocalVariable("v", point) { Parameter = FactHolderFragments.Parameter("v", point) };
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        List<Statement> setup = form switch
+        {
+            "member-of-a-local-only-ever-new-written" => [FactHolderFragments.Declare(o, f.Create())],
+            "member-of-a-struct-copy-written" => [FactHolderFragments.Declare(copy, FactHolderFragments.Own(f.AddField(f.Pair, "P", type: point)))],
+            "element-of-an-array-created-here-written" => [FactHolderFragments.Declare(array, f.H.Array(3L))],
+            "written-through-a-ref-a-call-returns-for-a-new-object" => [FactHolderFragments.Declare(r, FactHolderFragments.Call(f.Create(), refA))],
+            _ => [],
+        };
         Statement write = form switch
         {
             "field-written" or "readonly-ref-parameter-after-a-field-write" => FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(1L)),
@@ -180,6 +199,11 @@ public sealed class FieldWriteFlowTests
             "call-that-may-write" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(f.This, setA)),
             "local-written" => FactHolderFragments.Set(FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a")), f.Number(1L)),
             "readonly-call" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(f.This, getA)),
+            "member-of-a-local-only-ever-new-written" => FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(o), f.A), f.Number(1L)),
+            "member-of-a-struct-copy-written" => FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(copy), f.A), f.Number(1L)),
+            "member-of-a-by-value-struct-parameter-written" => FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(value), f.A), f.Number(1L)),
+            "element-of-an-array-created-here-written" => FactHolderFragments.Set(f.H.At(FactHolderFragments.Read(array), f.Number(0L)), f.Number(1L)),
+            "written-through-a-ref-a-call-returns-for-a-new-object" => FactHolderFragments.Set(FactHolderFragments.Read(r), f.Number(1L)),
             _ => throw new InvalidOperationException(form),
         };
         var five = form == "readonly-ref-parameter-after-a-field-write"
@@ -187,7 +211,7 @@ public sealed class FieldWriteFlowTests
         var need = f.Need(FactHolderFragments.Read(x, Last));
         List<Statement> body = form == "readonly-ref-parameter-after-a-field-write"
             ? [HandBuiltRefinements.If(five, write, need)]
-            : [HandBuiltRefinements.Evaluate(five), write, need];
+            : [.. setup, HandBuiltRefinements.Evaluate(five), write, need];
 
         FactHolderFlowTests.AssertRefusedOnlyAfter(f, body, refused);
     }

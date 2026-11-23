@@ -20,21 +20,23 @@ namespace Mist.ProgramAnalysis.Refinements;
 internal sealed class BodyHolders
 {
     public static readonly BodyHolders None = new(UnseenWrites.None, new Dictionary<object, List<object>>(), new Dictionary<object, List<object>>(),
-        new Dictionary<object, WriteReach>(), new HashSet<object>());
+        new Dictionary<object, WriteReach>(), new HashSet<object>(), new HashSet<object>());
 
     private readonly Dictionary<object, List<object>> aliases;
     private readonly Dictionary<object, List<object>> reached;
     private readonly Dictionary<object, WriteReach> storage;
     private readonly IReadOnlySet<object> created;
+    private readonly IReadOnlySet<object> owned;
 
     private BodyHolders(IReadOnlySet<object> unseen, Dictionary<object, List<object>> aliases, Dictionary<object, List<object>> reached,
-        Dictionary<object, WriteReach> storage, IReadOnlySet<object> created)
+        Dictionary<object, WriteReach> storage, IReadOnlySet<object> created, IReadOnlySet<object> owned)
     {
         Unseen = unseen;
         this.aliases = aliases;
         this.reached = reached;
         this.storage = storage;
         this.created = created;
+        this.owned = owned;
     }
 
     public IReadOnlySet<object> Unseen { get; }
@@ -57,10 +59,29 @@ internal sealed class BodyHolders
                 _ => storage.GetValueOrDefault(holder) ?? WriteReach.Nothing,
             })),
             FieldReferenceExpression { Field: var field } => WriteReach.Field(field),
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => Distinct(receiver, created) ? WriteReach.Storage(field.Type) : WriteReach.Field(field),
+            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => Member(field, receiver),
+            IndexExpression { Indexer: null } element when Owned(element.Receiver, owned) => WriteReach.Nothing,
             IndexExpression element => WriteReach.Storage(element.Type, anyField: element.Indexer?.Modifiers.IsRef == true),
-            InvocationExpression call when ReturnsRef(call) => ReturnedStorage.Of(call, receiver => Distinct(receiver, created)),
+            InvocationExpression call when ReturnsRef(call) => ReturnedStorage.Of(call, this),
             _ => WriteReach.Nothing,
+        };
+    }
+
+    public WriteReach Member(Field field, Expression receiver)
+    {
+        return !field.Modifiers.IsRef && Owned(receiver, owned) ? WriteReach.Storage(field.Type) with { ByRefParameters = false }
+            : Distinct(receiver, created) ? WriteReach.Storage(field.Type) : WriteReach.Field(field);
+    }
+
+    private static bool Owned(Expression storage, IReadOnlySet<object> owned)
+    {
+        return storage switch
+        {
+            NewExpression or ArrayCreationExpression => true,
+            LocalReferenceExpression { Local: var local } => owned.Contains(local),
+            MemberAccessExpression { Member: FieldResult { Field: { Modifiers.IsRef: false } field }, Receiver: var receiver } =>
+                Requirement.Unrefined(field.Type) is StructType && Owned(receiver, owned),
+            _ => false,
         };
     }
 
@@ -152,36 +173,44 @@ internal sealed class BodyHolders
             unseen.UnionWith(aliases.TryGetValue(opaque, out var group) ? group : []);
         }
 
-        var created = Created(nodes, unseen);
-        return new BodyHolders(unseen, aliases, reached, Storage(nodes, created), created);
+        var created = Created(nodes, unseen, value => value is NewExpression);
+        var owned = Created(nodes, unseen, value => value is ArrayCreationExpression).Concat(created)
+            .Concat(nodes.OfType<LocalDeclarationStatement>().Select(declaration => declaration.Local)
+                .Where(local => local is { IsRef: false, Parameter: null } && Requirement.Unrefined(local.Type) is StructType))
+            .Concat(nodes.OfType<LocalReferenceExpression>().Select(reference => reference.Local)
+                .Where(local => local is { IsRef: false, Parameter.Modifier: { IsRef: false, Direction: ByRefDirection.None } } && Requirement.Unrefined(local.Type) is StructType))
+            .Where(local => !captured.Contains((LocalVariable)local)).ToHashSet(ReferenceEqualityComparer.Instance);
+        var holders = new BodyHolders(unseen, aliases, reached, new Dictionary<object, WriteReach>(ReferenceEqualityComparer.Instance), created, owned);
+        holders.Store(nodes);
+        return holders;
     }
 
-    private static Dictionary<object, WriteReach> Storage(List<object> nodes, IReadOnlySet<object> created)
+    private void Store(List<object> nodes)
     {
-        var storage = new Dictionary<object, WriteReach>(ReferenceEqualityComparer.Instance);
         foreach(var declaration in nodes.OfType<LocalDeclarationStatement>())
         {
             if(declaration is { Local.IsRef: true, Initializer: { } initializer } && Named(initializer) is null)
             {
                 storage[declaration.Local] = initializer switch
                 {
-                    _ when ReturnsRef(initializer) => ReturnedStorage.Of(initializer, receiver => Distinct(receiver, created)),
+                    _ when ReturnsRef(initializer) => ReturnedStorage.Of(initializer, this),
+                    MemberAccessExpression { Member: FieldResult { Field: { Modifiers.IsRef: false } field }, Receiver: var receiver } when Owned(receiver, owned) =>
+                        WriteReach.Field(field) with { ByRefParameters = false },
                     MemberAccessExpression { Member: FieldResult { Field: var field } } => WriteReach.Field(field),
+                    IndexExpression { Indexer: null } element when Owned(element.Receiver, owned) => WriteReach.Nothing,
                     _ => WriteReach.Storage(declaration.Local.Type, anyField: initializer is not IndexExpression { Indexer: null }),
                 };
             }
         }
-
-        return storage;
     }
 
-    private static HashSet<object> Created(List<object> nodes, HashSet<object> unseen)
+    private static HashSet<object> Created(List<object> nodes, HashSet<object> unseen, Func<Expression?, bool> creates)
     {
-        var created = nodes.OfType<LocalDeclarationStatement>().Where(declaration => declaration is { Local.IsRef: false, Initializer: NewExpression })
+        var created = nodes.OfType<LocalDeclarationStatement>().Where(declaration => !declaration.Local.IsRef && creates(declaration.Initializer))
             .Select(declaration => (object)declaration.Local).ToHashSet(ReferenceEqualityComparer.Instance);
         created.ExceptWith(unseen);
         created.ExceptWith(nodes.OfType<Expression>().SelectMany(Handed).Select(Named).OfType<object>());
-        created.ExceptWith(nodes.OfType<AssignmentExpression>().Where(assignment => assignment.Value is not NewExpression).Select(assignment => Named(assignment.Target)).OfType<object>());
+        created.ExceptWith(nodes.OfType<AssignmentExpression>().Where(assignment => !creates(assignment.Value)).Select(assignment => Named(assignment.Target)).OfType<object>());
         created.ExceptWith(nodes.OfType<LocalDeclarationStatement>().Where(declaration => declaration.Local.IsRef).Select(declaration => Named(declaration.Initializer)).OfType<object>());
         return created;
     }

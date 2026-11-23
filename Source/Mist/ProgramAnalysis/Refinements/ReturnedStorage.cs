@@ -14,12 +14,12 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// </summary>
 internal static class ReturnedStorage
 {
-    public static WriteReach Of(Expression call, Func<Expression, bool> distinct)
+    public static WriteReach Of(Expression call, BodyHolders caller)
     {
-        return Of(call, new HashSet<Method>(ReferenceEqualityComparer.Instance), distinct);
+        return Of(call, new HashSet<Method>(ReferenceEqualityComparer.Instance), caller);
     }
 
-    private static WriteReach Of(Expression call, HashSet<Method> reading, Func<Expression, bool> distinct)
+    private static WriteReach Of(Expression call, HashSet<Method> reading, BodyHolders? caller)
     {
         if(call is not InvocationExpression { Method: { } selected } invocation)
         {
@@ -33,37 +33,42 @@ internal static class ReturnedStorage
             return WriteReach.Storage(call.Type, anyField: true);
         }
 
-        var reach = WriteReach.Storage(call.Type);
+        var reach = WriteReach.Nothing;
         foreach(var returned in BodyWalker.DescendantsAndSelf(method.Body!).OfType<ReturnStatement>().Where(statement => statement.IsRef))
         {
-            reach = reach.Or(returned.Value is { } value ? Named(value, invocation, method, reading, distinct) : WriteReach.Storage(call.Type, anyField: true));
+            reach = reach.Or(returned.Value is { } value ? Named(value, invocation, method, reading, caller) : WriteReach.Storage(call.Type, anyField: true));
         }
 
         _ = reading.Remove(method);
         return reach;
     }
 
-    private static WriteReach Named(Expression returned, InvocationExpression call, Method method, HashSet<Method> reading, Func<Expression, bool> distinct)
+    private static WriteReach Named(Expression returned, InvocationExpression call, Method method, HashSet<Method> reading, BodyHolders? caller)
     {
         return returned switch
         {
-            FieldReferenceExpression { Field: { Modifiers.IsStatic: false } field } => Owned(field, ThisTiers.ReceiverOf(call), distinct),
+            FieldReferenceExpression { Field: { Modifiers.IsStatic: false } field } => Owned(field, ThisTiers.ReceiverOf(call), caller),
             FieldReferenceExpression field => WriteReach.Field(field.Field),
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: ThisExpression } => Owned(field, ThisTiers.ReceiverOf(call), distinct),
+            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: ThisExpression } => Owned(field, ThisTiers.ReceiverOf(call), caller),
             MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: LocalReferenceExpression { Local.Parameter: { Modifier.IsRef: false } parameter } } =>
-                Owned(field, Argument(call, method, parameter), distinct),
+                Owned(field, Argument(call, method, parameter), caller),
             MemberAccessExpression { Member: FieldResult field } => WriteReach.Field(field.Field),
-            LocalReferenceExpression { Local.Parameter.Modifier.IsRef: true } => WriteReach.Nothing,
+            LocalReferenceExpression { Local.Parameter: { Modifier.IsRef: true } parameter } => Handed(Argument(call, method, parameter), returned, caller),
             IndexExpression { Indexer: null } element => WriteReach.Storage(element.Type),
-            InvocationExpression nested when BodyHolders.ReturnsRef(nested) => BodyHolders.Places(nested).Aggregate(Of(nested, reading, _ => false),
-                (reach, place) => reach.Or(Named(place, call, method, reading, distinct))),
+            InvocationExpression nested when BodyHolders.ReturnsRef(nested) => BodyHolders.Places(nested).Aggregate(Of(nested, reading, null),
+                (reach, place) => reach.Or(Named(place, call, method, reading, caller))),
             _ => WriteReach.Storage(returned.Type, anyField: true),
         };
     }
 
-    private static WriteReach Owned(Field field, Expression? receiver, Func<Expression, bool> distinct)
+    private static WriteReach Owned(Field field, Expression? receiver, BodyHolders? caller)
     {
-        return receiver is not null && distinct(receiver) ? WriteReach.Storage(field.Type) : WriteReach.Field(field);
+        return receiver is not null && caller is not null ? caller.Member(field, receiver) : WriteReach.Field(field);
+    }
+
+    private static WriteReach Handed(Expression? argument, Expression returned, BodyHolders? caller)
+    {
+        return caller is null ? WriteReach.Nothing : argument is null ? WriteReach.Storage(returned.Type, anyField: true) : caller.Reach(argument);
     }
 
     private static Expression? Argument(InvocationExpression call, Method method, Parameter parameter)

@@ -16,14 +16,16 @@ public sealed class WriteReachDecisionTests
     [InlineData("field-of-this", "A,p,y")]
     [InlineData("field-of-another-object", "V,p,y")]
     [InlineData("static", "S,p,y")]
-    [InlineData("its-ref-parameter", "p,y")]
+    [InlineData("its-ref-parameter-given-a-local", "")]
+    [InlineData("its-ref-parameter-given-a-field", "A,p,y")]
+    [InlineData("its-ref-parameter-given-a-member-of-a-new-object", "")]
     [InlineData("array-element", "p,y")]
     [InlineData("another-call-returning-a-field", "A,p,y")]
     [InlineData("a-field-handed-to-another-call", "B,p,y")]
     [InlineData("no-body", "A,B,S,V,p,y")]
     [InlineData("an-abstract-method", "A,B,S,V,p,y")]
-    [InlineData("field-of-a-receiver-that-is-another-object", "p,y")]
-    [InlineData("field-of-a-parameter-given-another-object", "p,y")]
+    [InlineData("field-of-a-receiver-that-is-another-object", "")]
+    [InlineData("field-of-a-parameter-given-another-object", "")]
     [InlineData("field-of-a-parameter-given-this", "A,p,y")]
     public void AReferenceACallReturnsReachesWhatItsBodyReturnsAndEveryByRefParameterOfItsType(string returned, string reached)
     {
@@ -38,7 +40,7 @@ public sealed class WriteReachDecisionTests
             "field-of-this" => getA,
             "field-of-another-object" => f.Returning("GetV", FactHolderFragments.Member(FactHolderFragments.Read(new LocalVariable("other", f.Box)), f.V)),
             "static" => f.Returning("GetS", FactHolderFragments.Own(f.S)),
-            "its-ref-parameter" => pass,
+            "its-ref-parameter-given-a-local" or "its-ref-parameter-given-a-field" or "its-ref-parameter-given-a-member-of-a-new-object" => pass,
             "array-element" => f.Returning("Element", f.H.At(f.H.Array(3L), f.Number(0L))),
             "another-call-returning-a-field" => f.Returning("Outer", FactHolderFragments.Call(f.This, getA)),
             "a-field-handed-to-another-call" => f.Returning("Outer", f.Free(pass, FactHolderFragments.Own(f.B))),
@@ -50,14 +52,16 @@ public sealed class WriteReachDecisionTests
         };
         Expression[] arguments = returned switch
         {
-            "its-ref-parameter" => [FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a"))],
+            "its-ref-parameter-given-a-local" => [FactHolderFragments.Read(FactHolderFragments.Int(f.H, "a"))],
+            "its-ref-parameter-given-a-field" => [FactHolderFragments.Own(f.A)],
+            "its-ref-parameter-given-a-member-of-a-new-object" => [FactHolderFragments.Member(f.Create(), f.A)],
             "field-of-a-parameter-given-another-object" => [f.Create()],
             "field-of-a-parameter-given-this" => [f.This],
             _ => [],
         };
         Expression receiver = returned == "field-of-a-receiver-that-is-another-object" ? f.Create() : f.This;
 
-        var reach = ReturnedStorage.Of(FactHolderFragments.Call(receiver, callee, arguments), candidate => candidate is NewExpression);
+        var reach = ReturnedStorage.Of(FactHolderFragments.Call(receiver, callee, arguments), BodyHolders.None);
 
         Assert.Equal(reached, Covered(f, reach));
     }
@@ -70,17 +74,29 @@ public sealed class WriteReachDecisionTests
     [InlineData("member-of-a-call-result", "A,p,y")]
     [InlineData("member-of-a-field", "A,p,y")]
     [InlineData("member-of-a-local-copied-from-this", "A,p,y")]
-    [InlineData("member-of-a-new-object", "p,y")]
-    [InlineData("member-of-a-local-only-ever-new", "p,y")]
+    [InlineData("member-of-a-new-object", "")]
+    [InlineData("member-of-a-local-only-ever-new", "")]
+    [InlineData("member-of-a-local-only-ever-new-a-nested-function-reads", "p,y")]
     [InlineData("member-of-a-local-new-then-reassigned", "A,p,y")]
-    [InlineData("member-of-a-struct-copy", "p,y")]
+    [InlineData("member-of-a-struct-copy", "")]
+    [InlineData("member-of-a-struct-copy-a-nested-function-reads", "p,y")]
+    [InlineData("member-of-a-struct-held-by-a-struct-copy", "")]
+    [InlineData("member-of-a-struct-held-by-a-field", "A,p,y")]
+    [InlineData("member-of-a-by-value-struct-parameter", "")]
+    [InlineData("member-of-a-by-value-struct-parameter-a-nested-function-reads", "p,y")]
     [InlineData("by-ref-parameter", "A,B,S,V,p,y")]
     [InlineData("out-parameter", "A,B,S,V,p,y")]
     [InlineData("ref-local-of-a-by-ref-parameter", "A,B,S,V,p,y")]
     [InlineData("ref-local-of-a-field", "A,p,y")]
     [InlineData("ref-local-bound-to-a-call-returning-a-field", "A,p,y")]
+    [InlineData("ref-local-bound-to-a-call-returning-a-field-of-a-new-object", "")]
+    [InlineData("ref-local-of-a-member-of-a-new-object", "A")]
     [InlineData("ref-local-of-an-array-element", "p,y")]
+    [InlineData("ref-local-of-an-element-of-an-array-created-here", "")]
     [InlineData("array-element", "p,y")]
+    [InlineData("element-of-an-array-created-here", "")]
+    [InlineData("element-of-an-array-created-here-a-nested-function-reads", "p,y")]
+    [InlineData("element-of-a-new-array", "")]
     [InlineData("call-returning-a-field", "A,p,y")]
     [InlineData("local", "")]
     [InlineData("by-value-parameter", "")]
@@ -93,7 +109,11 @@ public sealed class WriteReachDecisionTests
         var getA = f.Returning("GetA", FactHolderFragments.Member(f.This, f.A));
         var self = new Method("Self", f.Pair, [], new MemberModifiers()) { DeclaringType = f.Pair };
         var other = f.AddField(f.Pair, "Other", type: f.Pair);
-        var copy = new LocalVariable("c", HandBuiltModel.Struct("Point"));
+        var point = HandBuiltModel.Struct("Point");
+        var copy = new LocalVariable("c", point);
+        var held = new Field("In", point, default, new MemberModifiers()) { DeclaringType = point };
+        var stored = f.AddField(f.Pair, "P", type: point);
+        var value = new LocalVariable("v", point) { Parameter = FactHolderFragments.Parameter("v", point) };
         var array = new LocalVariable("arr", f.H.Sequence());
         var creation = f.Create();
         List<Statement> before = [];
@@ -130,13 +150,38 @@ public sealed class WriteReachDecisionTests
                 before.Add(FactHolderFragments.Set(FactHolderFragments.Read(o), f.Create()));
                 written = FactHolderFragments.Member(FactHolderFragments.Read(o), f.A);
                 break;
+            case "member-of-a-local-only-ever-new-a-nested-function-reads":
+                before.Add(FactHolderFragments.Declare(o, creation));
+                before.Add(Reads(o));
+                written = FactHolderFragments.Member(FactHolderFragments.Read(o), f.A);
+                break;
             case "member-of-a-local-new-then-reassigned":
                 before.Add(FactHolderFragments.Declare(o, creation));
                 before.Add(FactHolderFragments.Set(FactHolderFragments.Read(o), f.This));
                 written = FactHolderFragments.Member(FactHolderFragments.Read(o), f.A);
                 break;
             case "member-of-a-struct-copy":
+                before.Add(FactHolderFragments.Declare(copy, FactHolderFragments.Own(stored)));
                 written = FactHolderFragments.Member(FactHolderFragments.Read(copy), f.A);
+                break;
+            case "member-of-a-struct-copy-a-nested-function-reads":
+                before.Add(FactHolderFragments.Declare(copy, FactHolderFragments.Own(stored)));
+                before.Add(Reads(copy));
+                written = FactHolderFragments.Member(FactHolderFragments.Read(copy), f.A);
+                break;
+            case "member-of-a-struct-held-by-a-struct-copy":
+                before.Add(FactHolderFragments.Declare(copy, FactHolderFragments.Own(stored)));
+                written = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(copy), held), f.A);
+                break;
+            case "member-of-a-struct-held-by-a-field":
+                written = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Own(stored), held), f.A);
+                break;
+            case "member-of-a-by-value-struct-parameter":
+                written = FactHolderFragments.Member(FactHolderFragments.Read(value), f.A);
+                break;
+            case "member-of-a-by-value-struct-parameter-a-nested-function-reads":
+                before.Add(Reads(value));
+                written = FactHolderFragments.Member(FactHolderFragments.Read(value), f.A);
                 break;
             case "by-ref-parameter":
                 written = FactHolderFragments.Read(x);
@@ -156,12 +201,37 @@ public sealed class WriteReachDecisionTests
                 before.Add(FactHolderFragments.Declare(r, FactHolderFragments.Call(f.This, getA)));
                 written = FactHolderFragments.Read(r);
                 break;
+            case "ref-local-bound-to-a-call-returning-a-field-of-a-new-object":
+                before.Add(FactHolderFragments.Declare(r, FactHolderFragments.Call(creation, getA)));
+                written = FactHolderFragments.Read(r);
+                break;
+            case "ref-local-of-a-member-of-a-new-object":
+                before.Add(FactHolderFragments.Declare(r, FactHolderFragments.Member(creation, f.A)));
+                written = FactHolderFragments.Read(r);
+                break;
+            case "ref-local-of-an-element-of-an-array-created-here":
+                before.Add(FactHolderFragments.Declare(array, f.H.Array(3L)));
+                before.Add(FactHolderFragments.Declare(r, f.H.At(FactHolderFragments.Read(array), f.Number(0L))));
+                written = FactHolderFragments.Read(r);
+                break;
             case "ref-local-of-an-array-element":
                 before.Add(FactHolderFragments.Declare(r, f.H.At(FactHolderFragments.Read(array), f.Number(0L))));
                 written = FactHolderFragments.Read(r);
                 break;
             case "array-element":
                 written = f.H.At(FactHolderFragments.Read(array), f.Number(0L));
+                break;
+            case "element-of-an-array-created-here":
+                before.Add(FactHolderFragments.Declare(array, f.H.Array(3L)));
+                written = f.H.At(FactHolderFragments.Read(array), f.Number(0L));
+                break;
+            case "element-of-an-array-created-here-a-nested-function-reads":
+                before.Add(FactHolderFragments.Declare(array, f.H.Array(3L)));
+                before.Add(Reads(array));
+                written = f.H.At(FactHolderFragments.Read(array), f.Number(0L));
+                break;
+            case "element-of-a-new-array":
+                written = f.H.At(f.H.Array(3L), f.Number(0L));
                 break;
             case "call-returning-a-field":
                 written = FactHolderFragments.Call(f.This, getA);
@@ -200,6 +270,12 @@ public sealed class WriteReachDecisionTests
         }
 
         Assert.Equal(shared, WriteReach.MayShare(type(first), type(second)));
+    }
+
+    private static ExpressionStatement Reads(LocalVariable local)
+    {
+        var read = FactHolderFragments.Read(local);
+        return HandBuiltRefinements.Evaluate(new LambdaExpression(HandBuiltModel.Node(), [], read, null, false, new FunctionType([], read.Type)));
     }
 
     private static Method AbstractCopy(Method method)

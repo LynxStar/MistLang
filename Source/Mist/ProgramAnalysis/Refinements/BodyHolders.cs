@@ -15,7 +15,7 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// facts itself, while a write through it ends those holders. Only the body's own locals and by-value parameters are
 /// followed: a field or a by-ref parameter may share storage with a by-ref parameter whose writes end nothing else,
 /// and a local a nested function reads may be the storage of that function's own by-ref parameter, so any of these
-/// handed out by reference keeps only its type.
+/// passed by ref or out, or named by a ref local, keeps only its type; a readonly ref argument cannot write it.
 /// </summary>
 internal sealed class BodyHolders
 {
@@ -130,7 +130,7 @@ internal sealed class BodyHolders
         var (arguments, parameters) = Arguments(expression);
         for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            if(parameters[i].Modifier.Direction != ByRefDirection.None)
+            if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out)
             {
                 foreach(var place in ReturnsRef(arguments[i]) ? Places(arguments[i]) : [arguments[i]])
                 {

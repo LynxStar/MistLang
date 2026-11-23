@@ -86,12 +86,14 @@ A local or by-value parameter passed by `ref` or named by a `ref` local keeps it
 facts until the write itself, as the rule above states. `BodyHolders` names which
 holders a `ref` local may reach, and leaves outside the flow, with only their
 type, the holders whose every write it cannot follow: a field of `this` or a
-by-ref parameter that is passed by `ref` or named by a `ref` local, since a write
-through a by-ref parameter may change one without ending it; a local a nested
-function reads, since it may be that function's own by-ref parameter; a holder
-handed by reference to a call whose result is a `ref` struct such as `Span`; and
-a `ref` local bound to a call that returns a ref, though a write through it still
-ends the holders that call was handed by reference.
+by-ref parameter that is passed by `ref` or `out` or named by a `ref` local, since
+a write through a by-ref parameter may change one without ending it; a local a
+nested function reads that is passed by `ref` or `out` or named by a `ref` local,
+since it may be that function's own by-ref parameter; a holder handed by
+reference to a call whose result is a `ref` struct such as `Span`; and a `ref`
+local bound to a call that returns a ref, though a write through it still ends
+the holders that call was handed by reference. Otherwise a `readonly ref`
+argument cannot write its holder, so it leaves the holder's facts in place.
 
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's

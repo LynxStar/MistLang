@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -90,6 +91,26 @@ public sealed class FactHolderFlowTests
             HandBuiltRefinements.Evaluate(f.Free(write, FactHolderFragments.Read(a)))];
 
         AssertRefusedOnlyAfter(f, body, true);
+    }
+
+    [Theory]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.In, false)]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.Ref, true)]
+    [InlineData("ref-parameter", ByRefDirection.In, false)]
+    [InlineData("ref-parameter", ByRefDirection.Ref, true)]
+    public void AHolderHandedReadonlyRefKeepsItsFactsAcrossTheCall(string holder, ByRefDirection direction, bool refused)
+    {
+        var f = new FactHolderFragments();
+        var a = holder == "ref-parameter" ? f.ByRef("p") : FactHolderFragments.Int(f.H, "a");
+        var reader = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(a))));
+        List<Statement> body = [FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(5L)),
+            HandBuiltRefinements.Evaluate(f.Free(f.Viewing(f.H.Int, direction), FactHolderFragments.Read(a))), f.Need(FactHolderFragments.Read(a, Last))];
+        if(holder == "local-a-nested-function-reads")
+        {
+            body.InsertRange(0, [FactHolderFragments.Declare(a, f.Number(0L)), new LocalFunctionStatement(reader, [])]);
+        }
+
+        AssertRefusedOnlyAfter(f, body, refused);
     }
 
     [Theory]

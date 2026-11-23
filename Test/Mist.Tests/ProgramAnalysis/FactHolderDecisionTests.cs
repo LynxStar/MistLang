@@ -131,6 +131,34 @@ public sealed class FactHolderDecisionTests
     }
 
     [Theory]
+    [InlineData("local", ByRefDirection.In, "")]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.In, "")]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.Ref, "a")]
+    [InlineData("local-a-nested-function-reads", ByRefDirection.Out, "a")]
+    [InlineData("field", ByRefDirection.In, "")]
+    [InlineData("ref-parameter", ByRefDirection.In, "")]
+    [InlineData("ref-parameter", ByRefDirection.Ref, "p")]
+    public void AReadonlyRefArgumentLeavesItsHolderInTheFlow(string argument, ByRefDirection direction, string unseen)
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var reader = new LocalFunctionStatement(f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(a)))), []);
+        Expression passed = argument switch
+        {
+            "local" or "local-a-nested-function-reads" => FactHolderFragments.Read(a),
+            "field" => FactHolderFragments.Own(f.A),
+            "ref-parameter" => FactHolderFragments.Read(f.ByRef("p")),
+            _ => throw new InvalidOperationException(argument),
+        };
+
+        Statement read = argument == "local-a-nested-function-reads" ? reader : HandBuiltRefinements.Evaluate(f.Number(0L));
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(5L)), read,
+            HandBuiltRefinements.Evaluate(f.Free(f.Viewing(f.H.Int, direction), passed))));
+
+        Assert.Equal(unseen, Names(holders.Unseen));
+    }
+
+    [Theory]
     [InlineData("a-local", "a", "r")]
     [InlineData("a-ref-local-of-a-local", "a,x", "r")]
     [InlineData("a-reference-another-such-call-hands-back", "a", "r")]

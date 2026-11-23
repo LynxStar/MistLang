@@ -21,6 +21,9 @@ internal sealed class FactHolderFragments
         Pair = HandBuiltModel.Class("Pair");
         A = AddField(Pair, "A");
         B = AddField(Pair, "B");
+        StoredBox = new Field("S", Box, default, new MemberModifiers { IsStatic = true }) { DeclaringType = Pair };
+        StoredPair = new Field("P", Pair, default, new MemberModifiers { IsStatic = true }) { DeclaringType = Pair };
+        Count = new Field("Count", H.Int, default, new MemberModifiers { IsStatic = true }) { DeclaringType = Pair };
     }
 
     public HandBuiltRefinements H { get; } = new();
@@ -38,6 +41,12 @@ internal sealed class FactHolderFragments
     public Field A { get; }
 
     public Field B { get; }
+
+    public Field StoredBox { get; }
+
+    public Field StoredPair { get; }
+
+    public Field Count { get; }
 
     public ThisExpression This => new(HandBuiltModel.Node(), Pair);
 
@@ -115,6 +124,30 @@ internal sealed class FactHolderFragments
     public static Parameter Parameter(string name, IMistType type, OwnershipKind ownership = OwnershipKind.Unrestricted, ByRefDirection direction = ByRefDirection.None)
     {
         return new Parameter(name, type, new ParameterModifier(direction == ByRefDirection.In, direction != ByRefDirection.None, ownership, direction));
+    }
+
+    public (Method Method, LocalVariable X) Lender(string name, IMistType type, Func<LocalVariable, Statement[]> body,
+        OwnershipKind ownership = OwnershipKind.Borrowed, ByRefDirection direction = ByRefDirection.None)
+    {
+        var x = new LocalVariable("x", type) { IsRef = direction != ByRefDirection.None, Parameter = Parameter("x", type, ownership, direction) };
+        return (Method(name, Pair, HandBuiltModel.Block(body(x)), null, x.Parameter!), x);
+    }
+
+    public Method Extension(string name, Func<LocalVariable, Statement[]> body, IMistType? receiver = null)
+    {
+        var self = new LocalVariable("self", receiver ?? Box);
+        var block = new ExtensionBlock("self", "Probe", new Scope(null), null) { Receiver = self };
+        return new Method(name, H.String, [], new MemberModifiers()) { Body = HandBuiltModel.Block(body(self)), DeclaringBlock = block };
+    }
+
+    public static Statement Keep(Field stored, Expression value)
+    {
+        return Set(Own(stored), value);
+    }
+
+    public Statement Touch()
+    {
+        return Set(Own(Count), Number(1L));
     }
 
     public Method Bump()

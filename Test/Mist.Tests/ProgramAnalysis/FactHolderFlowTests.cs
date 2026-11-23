@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -88,14 +89,37 @@ public sealed class FactHolderFlowTests
     [InlineData("unrestricted-argument-earlier", OwnershipKind.Owned, true)]
     [InlineData("call-that-cannot-reach-it", OwnershipKind.Owned, false)]
     [InlineData("ref-argument-a-call-on-it-hands-back", OwnershipKind.Owned, true)]
+    [InlineData("lent-earlier-to-a-callee-that-reads-it", OwnershipKind.Owned, false)]
+    [InlineData("lent-earlier-to-a-callee-that-keeps-it", OwnershipKind.Owned, true)]
+    [InlineData("extension-call-earlier-that-reads-its-receiver", OwnershipKind.Owned, false)]
+    [InlineData("extension-call-earlier-that-keeps-its-receiver", OwnershipKind.Owned, true)]
     public void AMemberOfAnOwnedObjectKeepsItsFactsUntilACallMayWriteIt(string between, OwnershipKind ownership, bool refused)
     {
         var f = new FactHolderFragments();
         var b = f.Object("b", ownership);
         List<Statement> body = [f.Created(b)];
-        if(between == "unrestricted-argument-earlier")
+        Statement[] reads(LocalVariable x)
         {
-            body.Add(HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box)), FactHolderFragments.Read(b))));
+            return [f.Need(FactHolderFragments.Member(FactHolderFragments.Read(x), f.V))];
+        }
+
+        Statement[] keeps(LocalVariable x)
+        {
+            return [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(x))];
+        }
+
+        Expression? earlier = between switch
+        {
+            "unrestricted-argument-earlier" => f.Free(f.Method("Keep", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box)), FactHolderFragments.Read(b)),
+            "lent-earlier-to-a-callee-that-reads-it" => f.Free(f.Lender("Lend", f.Box, reads).Method, FactHolderFragments.Read(b)),
+            "lent-earlier-to-a-callee-that-keeps-it" => f.Free(f.Lender("Lend", f.Box, keeps).Method, FactHolderFragments.Read(b)),
+            "extension-call-earlier-that-reads-its-receiver" => FactHolderFragments.Call(FactHolderFragments.Read(b), f.Extension("Peek", reads)),
+            "extension-call-earlier-that-keeps-its-receiver" => FactHolderFragments.Call(FactHolderFragments.Read(b), f.Extension("Stash", keeps)),
+            _ => null,
+        };
+        if(earlier is not null)
+        {
+            body.Add(HandBuiltRefinements.Evaluate(earlier));
         }
 
         body.Add(FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(b), f.V), f.Number(5L)));
@@ -162,6 +186,38 @@ public sealed class FactHolderFlowTests
         };
         body.Add(HandBuiltRefinements.Evaluate(f.Free(f.Bump(), passed)));
         body.Add(f.Need(FactHolderFragments.Own(f.A, Last)));
+
+        AssertRefusedOnlyAfter(f, body, refused);
+    }
+
+    [Theory]
+    [InlineData("argument-the-callee-reads", false)]
+    [InlineData("argument-the-callee-keeps", true)]
+    [InlineData("extension-receiver-the-callee-reads", false)]
+    [InlineData("extension-receiver-the-callee-keeps", true)]
+    public void AFieldOfThisOutlivesACallHandedThisOnlyWhileTheCalleeKeepsNoReferenceToIt(string form, bool refused)
+    {
+        var f = new FactHolderFragments();
+        Statement[] reads(LocalVariable x)
+        {
+            return [f.Touch(), f.Need(FactHolderFragments.Member(FactHolderFragments.Read(x), f.B))];
+        }
+
+        Statement[] keeps(LocalVariable x)
+        {
+            return [f.Touch(), FactHolderFragments.Keep(f.StoredPair, FactHolderFragments.Read(x))];
+        }
+
+        var call = form switch
+        {
+            "argument-the-callee-reads" => f.Free(f.Lender("Look", f.Pair, reads, OwnershipKind.Unrestricted).Method, f.This),
+            "argument-the-callee-keeps" => f.Free(f.Lender("Keep", f.Pair, keeps, OwnershipKind.Unrestricted).Method, f.This),
+            "extension-receiver-the-callee-reads" => FactHolderFragments.Call(f.This, f.Extension("Peek", reads, f.Pair)),
+            "extension-receiver-the-callee-keeps" => FactHolderFragments.Call(f.This, f.Extension("Stash", keeps, f.Pair)),
+            _ => throw new InvalidOperationException(form),
+        };
+        List<Statement> body = [FactHolderFragments.Set(FactHolderFragments.Own(f.A), f.Number(5L)), HandBuiltRefinements.Evaluate(call),
+            f.Need(FactHolderFragments.Own(f.A, Last))];
 
         AssertRefusedOnlyAfter(f, body, refused);
     }

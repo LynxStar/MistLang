@@ -1,4 +1,5 @@
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -123,6 +124,14 @@ public sealed class FactHolderDecisionTests
     [InlineData("call-that-may-do-anything", OwnershipKind.Owned, false)]
     [InlineData("call-handing-back-a-reference-into-it", OwnershipKind.Owned, false)]
     [InlineData("borrowed-argument", OwnershipKind.Owned, true)]
+    [InlineData("borrowed-argument-the-callee-keeps", OwnershipKind.Owned, false)]
+    [InlineData("frozen-argument-the-callee-keeps", OwnershipKind.Owned, false)]
+    [InlineData("ref-argument-the-callee-keeps", OwnershipKind.Owned, false)]
+    [InlineData("borrowed-argument-the-callee-hands-to-one-that-keeps-it", OwnershipKind.Owned, false)]
+    [InlineData("borrowed-argument-of-a-callee-with-no-body", OwnershipKind.Owned, false)]
+    [InlineData("constructor-argument-the-constructor-keeps", OwnershipKind.Owned, false)]
+    [InlineData("extension-receiver-the-callee-reads", OwnershipKind.Owned, true)]
+    [InlineData("extension-receiver-the-callee-keeps", OwnershipKind.Owned, false)]
     [InlineData("unrestricted-argument", OwnershipKind.Owned, false)]
     [InlineData("moved", OwnershipKind.Owned, true)]
     [InlineData("lent-to-a-borrowed-local", OwnershipKind.Owned, false)]
@@ -137,14 +146,27 @@ public sealed class FactHolderDecisionTests
             return FactHolderFragments.Read(b);
         }
 
-        Statement statement = use switch
+        var statement = use switch
         {
             "field-access" => FactHolderFragments.Set(FactHolderFragments.Member(read(), f.V), f.Number(5L)),
             "call-with-known-writes" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Writing("SetV", f.Box, f.V))),
             "call-that-may-do-anything" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Method("Run", f.Box, null))),
             "call-handing-back-a-reference-into-it" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Referencing("RefV", f.Box, f.H.String))),
-            "borrowed-argument" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Lend", f.Pair, null, null,
+            "borrowed-argument" => Lend(f, read(), x => [f.Need(FactHolderFragments.Member(FactHolderFragments.Read(x), f.V))]),
+            "borrowed-argument-the-callee-keeps" => Lend(f, read(), x => [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(x))]),
+            "frozen-argument-the-callee-keeps" => Lend(f, read(), x => [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(x))], OwnershipKind.Frozen),
+            "ref-argument-the-callee-keeps" => Lend(f, read(), x => [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(x))],
+                OwnershipKind.Unrestricted, ByRefDirection.Ref),
+            "borrowed-argument-the-callee-hands-to-one-that-keeps-it" => Lend(f, read(), x =>
+                [HandBuiltRefinements.Evaluate(f.Free(f.Lender("Keep", f.Box, y => [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(y))]).Method,
+                    FactHolderFragments.Read(x)))]),
+            "borrowed-argument-of-a-callee-with-no-body" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Lend", f.Pair, null, null,
                 FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed)), read())),
+            "constructor-argument-the-constructor-keeps" => HandBuiltRefinements.Evaluate(Created(f, read())),
+            "extension-receiver-the-callee-reads" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Extension("Peek", self =>
+                [f.Need(FactHolderFragments.Member(FactHolderFragments.Read(self), f.V))]))),
+            "extension-receiver-the-callee-keeps" => HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(), f.Extension("Stash", self =>
+                [FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(self))]))),
             "unrestricted-argument" => HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box)), read())),
             "moved" => FactHolderFragments.Declare(f.Object("c", OwnershipKind.Unrestricted), read()),
             "lent-to-a-borrowed-local" => FactHolderFragments.Declare(f.Object("c", OwnershipKind.Borrowed), read()),
@@ -176,6 +198,8 @@ public sealed class FactHolderDecisionTests
     [InlineData("hands-out-a-method-group-over-this", null)]
     [InlineData("declared-readonly", "")]
     [InlineData("hands-out-this", null)]
+    [InlineData("hands-this-to-a-call-that-keeps-nothing", "B")]
+    [InlineData("hands-out-a-property-over-this", null)]
     [InlineData("calls-what-may-do-anything", null)]
     [InlineData("writes-another-object", null)]
     [InlineData("has-no-body", null)]
@@ -220,7 +244,11 @@ public sealed class FactHolderDecisionTests
             "a-local-function-reads-a-field" => body(new LocalFunctionStatement(f.Method("W", f.Pair, HandBuiltModel.Block(f.Need(FactHolderFragments.Own(f.A)))), [])),
             "hands-out-a-method-group-over-this" => body(HandBuiltRefinements.Evaluate(new MethodGroupExpression(HandBuiltModel.Node(), null, writeA.Name, [writeA], null))),
             "declared-readonly" => new Method("Touch", f.H.String, [], new MemberModifiers { IsReadonly = true }) { Body = HandBuiltModel.Block(), DeclaringType = f.Pair },
-            "hands-out-this" => body(HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, HandBuiltModel.Block(), null, FactHolderFragments.Parameter("x", f.Pair)), f.This))),
+            "hands-out-this" => body(HandBuiltRefinements.Evaluate(f.Free(f.Lender("Keep", f.Pair,
+                x => [FactHolderFragments.Keep(f.StoredPair, FactHolderFragments.Read(x))], OwnershipKind.Unrestricted).Method, f.This))),
+            "hands-this-to-a-call-that-keeps-nothing" => body(HandBuiltRefinements.Evaluate(f.Free(f.Method("Keep", f.Pair, HandBuiltModel.Block(), null,
+                FactHolderFragments.Parameter("x", f.Pair)), f.This))),
+            "hands-out-a-property-over-this" => body(FactHolderFragments.Keep(f.StoredPair, new PropertyReferenceExpression(HandBuiltModel.Node(), Self(f)))),
             "calls-what-may-do-anything" => body(HandBuiltRefinements.Evaluate(f.Free(f.Method("Print", f.Pair, null)))),
             "writes-another-object" => body(FactHolderFragments.Set(FactHolderFragments.Member(FactHolderFragments.Read(other), f.V), f.Number(1L))),
             "has-no-body" => f.Method("Touch", f.Pair, null),
@@ -229,6 +257,104 @@ public sealed class FactHolderDecisionTests
         };
 
         var written = new MemberWrites(new FieldEffects()).Of(FactHolderFragments.Call(f.This, method));
+
+        Assert.Equal(fields, written is null ? null : string.Join(",", written.Select(field => field.Name).Order(StringComparer.Ordinal)));
+    }
+
+    [Theory]
+    [InlineData("reads-a-field-of-it", false)]
+    [InlineData("writes-a-field-of-it", false)]
+    [InlineData("rebinds-it", false)]
+    [InlineData("hands-it-to-a-callee-that-reads-it", false)]
+    [InlineData("recurses-through-another-callee-keeping-nothing", false)]
+    [InlineData("stores-it", true)]
+    [InlineData("returns-it", true)]
+    [InlineData("captures-it-in-a-closure", true)]
+    [InlineData("hands-it-to-a-callee-that-keeps-it", true)]
+    [InlineData("calls-a-method-on-it-that-keeps-its-receiver", true)]
+    [InlineData("rebinds-it-through-a-ref-parameter", true)]
+    [InlineData("has-no-body", true)]
+    public void ACalleeKeepsAnArgumentWhenItMayStoreReturnCaptureOrHandItOnToOneThatDoes(string callee, bool keeps)
+    {
+        var f = new FactHolderFragments();
+        Expression read(LocalVariable x)
+        {
+            return FactHolderFragments.Read(x);
+        }
+
+        Method lender(Func<LocalVariable, Statement[]> body, ByRefDirection direction = ByRefDirection.None)
+        {
+            return f.Lender("Lend", f.Box, body, direction: direction).Method;
+        }
+
+        var reader = lender(x => [f.Need(FactHolderFragments.Member(read(x), f.V))]);
+        var keeper = lender(x => [FactHolderFragments.Keep(f.StoredBox, read(x))]);
+        var stash = f.Method("Stash", f.Box, HandBuiltModel.Block(FactHolderFragments.Keep(f.StoredBox, new ThisExpression(HandBuiltModel.Node(), f.Box))));
+        var method = callee switch
+        {
+            "reads-a-field-of-it" => reader,
+            "writes-a-field-of-it" => lender(x => [FactHolderFragments.Set(FactHolderFragments.Member(read(x), f.V), f.Number(1L))]),
+            "rebinds-it" => lender(x => [FactHolderFragments.Set(read(x), FactHolderFragments.Own(f.StoredBox))]),
+            "hands-it-to-a-callee-that-reads-it" => lender(x => [HandBuiltRefinements.Evaluate(f.Free(reader, read(x)))]),
+            "recurses-through-another-callee-keeping-nothing" => Recursion(f),
+            "stores-it" => keeper,
+            "returns-it" => lender(x => [new ReturnStatement(read(x), f.Box)]),
+            "captures-it-in-a-closure" => lender(x => [HandBuiltRefinements.Evaluate(f.Closure(f.Need(FactHolderFragments.Member(read(x), f.V))))]),
+            "hands-it-to-a-callee-that-keeps-it" => lender(x => [HandBuiltRefinements.Evaluate(f.Free(keeper, read(x)))]),
+            "calls-a-method-on-it-that-keeps-its-receiver" => lender(x => [HandBuiltRefinements.Evaluate(FactHolderFragments.Call(read(x), stash))]),
+            "rebinds-it-through-a-ref-parameter" => lender(x => [FactHolderFragments.Set(read(x), FactHolderFragments.Own(f.StoredBox))], ByRefDirection.Ref),
+            "has-no-body" => f.Method("Lend", f.Pair, null, null, FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed)),
+            _ => throw new InvalidOperationException(callee),
+        };
+        var b = f.Object("b", OwnershipKind.Owned);
+        var lent = FactHolderFragments.Read(b);
+
+        Assert.Equal(keeps, new MemberWrites(new FieldEffects()).Keeps(f.Free(method, lent), lent));
+    }
+
+    [Fact]
+    public void AValueThatCannotChangeIsNeverKept()
+    {
+        var f = new FactHolderFragments();
+        var point = HandBuiltModel.Struct("Point");
+        var stored = new Field("Last", point, default, new MemberModifiers { IsStatic = true }) { DeclaringType = f.Pair };
+        var keeper = f.Lender("Keep", point, x => [FactHolderFragments.Keep(stored, FactHolderFragments.Read(x))], OwnershipKind.Unrestricted).Method;
+        var passed = FactHolderFragments.Read(new LocalVariable("p", point));
+
+        Assert.False(new MemberWrites(new FieldEffects()).Keeps(f.Free(keeper, passed), passed));
+    }
+
+    [Theory]
+    [InlineData("argument-the-callee-reads", "Count")]
+    [InlineData("argument-the-callee-keeps", null)]
+    [InlineData("this-argument-the-callee-keeps", null)]
+    [InlineData("extension-receiver-the-callee-reads", "Count")]
+    [InlineData("extension-receiver-the-callee-keeps", null)]
+    public void ACallWhoseCalleeMayKeepAReferenceItIsHandedMayWriteAnything(string form, string? fields)
+    {
+        var f = new FactHolderFragments();
+        var b = f.Object("b", OwnershipKind.Owned);
+        Statement[] reads(LocalVariable x)
+        {
+            return [f.Touch(), f.Need(FactHolderFragments.Member(FactHolderFragments.Read(x), f.V))];
+        }
+
+        Statement[] keeps(LocalVariable x, Field stored)
+        {
+            return [f.Touch(), FactHolderFragments.Keep(stored, FactHolderFragments.Read(x))];
+        }
+
+        var call = form switch
+        {
+            "argument-the-callee-reads" => f.Free(f.Lender("Lend", f.Box, reads).Method, FactHolderFragments.Read(b)),
+            "argument-the-callee-keeps" => f.Free(f.Lender("Lend", f.Box, x => keeps(x, f.StoredBox)).Method, FactHolderFragments.Read(b)),
+            "this-argument-the-callee-keeps" => f.Free(f.Lender("Keep", f.Pair, x => keeps(x, f.StoredPair), OwnershipKind.Unrestricted).Method, f.This),
+            "extension-receiver-the-callee-reads" => FactHolderFragments.Call(FactHolderFragments.Read(b), f.Extension("Peek", reads)),
+            "extension-receiver-the-callee-keeps" => FactHolderFragments.Call(FactHolderFragments.Read(b), f.Extension("Stash", self => keeps(self, f.StoredBox))),
+            _ => throw new InvalidOperationException(form),
+        };
+
+        var written = new MemberWrites(new FieldEffects()).Of(call);
 
         Assert.Equal(fields, written is null ? null : string.Join(",", written.Select(field => field.Name).Order(StringComparer.Ordinal)));
     }
@@ -244,6 +370,40 @@ public sealed class FactHolderDecisionTests
             : new NewExpression(HandBuiltModel.Node(), f.Box, [], null, [], []);
 
         Assert.Null(new MemberWrites(new FieldEffects()).Of(node));
+    }
+
+    private static Method Recursion(FactHolderFragments f)
+    {
+        var (first, x) = f.Lender("Lend", f.Box, _ => []);
+        var second = f.Lender("Again", f.Box, y => [HandBuiltRefinements.Evaluate(f.Free(first, FactHolderFragments.Read(y)))]).Method;
+        first.Body!.Statements = [f.Need(FactHolderFragments.Member(FactHolderFragments.Read(x), f.V)), HandBuiltRefinements.Evaluate(f.Free(second, FactHolderFragments.Read(x)))];
+        return first;
+    }
+
+    private static Property Self(FactHolderFragments f)
+    {
+        return new Property("Self", f.Pair, new MemberModifiers { IsReadonly = true })
+        {
+            Getter = new PropertyAccessor { ExpressionBody = f.This },
+            DeclaringType = f.Pair,
+        };
+    }
+
+    private static Statement Lend(FactHolderFragments f, Expression lent, Func<LocalVariable, Statement[]> body,
+        OwnershipKind ownership = OwnershipKind.Borrowed, ByRefDirection direction = ByRefDirection.None)
+    {
+        return HandBuiltRefinements.Evaluate(f.Free(f.Lender("Lend", f.Box, body, ownership, direction).Method, lent));
+    }
+
+    private static NewExpression Created(FactHolderFragments f, Expression argument)
+    {
+        var x = new LocalVariable("x", f.Box) { Parameter = FactHolderFragments.Parameter("x", f.Box, OwnershipKind.Borrowed) };
+        var constructor = new Constructor("Wrapper", f.Pair, [x.Parameter], new MemberModifiers())
+        {
+            Body = HandBuiltModel.Block(FactHolderFragments.Keep(f.StoredBox, FactHolderFragments.Read(x))),
+            DeclaringType = f.Pair,
+        };
+        return new NewExpression(HandBuiltModel.Node(), f.Pair, [argument], constructor, [], [f.Box]);
     }
 
     private static Method Cycle(FactHolderFragments f, Method writeA)

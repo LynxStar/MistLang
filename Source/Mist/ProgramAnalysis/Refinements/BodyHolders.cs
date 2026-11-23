@@ -12,9 +12,10 @@ namespace Mist.ProgramAnalysis.Refinements;
 /// A receiver's fields carry facts only while nothing outside the body can reach its object (flow-sensitive
 /// refinement inference Requirement 3.5), so each use of it must be one whose writes the flow sees: a field
 /// access, a call on it whose <see cref="MemberWrites"/> are known and that hands back no reference into it, a
-/// lend or a move, or a write of the local. Any other use, or a capture, may hand the object to code that writes
-/// it later. Only <c>owned</c> promises the object is the body's alone: a <c>borrowed</c> binding may be taken
-/// from a field or a fresh object whose constructor kept <c>this</c>, which the ownership rules do not exclude.
+/// lend to a callee that keeps no reference to it, a move, or a write of the local. Any other use, or a capture,
+/// may hand the object to code that writes it later. Only <c>owned</c> promises the object is the body's alone:
+/// a <c>borrowed</c> binding may be taken from a field or a fresh object whose constructor kept <c>this</c>, which
+/// the ownership rules do not exclude.
 /// </summary>
 internal sealed class BodyHolders
 {
@@ -119,12 +120,12 @@ internal sealed class BodyHolders
             }
         }
 
-        void arguments(IReadOnlyList<Expression> values, IReadOnlyList<Parameter>? parameters)
+        void arguments(Expression node, IReadOnlyList<Expression> values, IReadOnlyList<Parameter>? parameters)
         {
             for(var i = 0; parameters is not null && i < values.Count && i < parameters.Count; i++)
             {
-                if(parameters[i].Modifier is { IsRef: true } or { Direction: not ByRefDirection.None }
-                    or { Ownership: OwnershipKind.Owned or OwnershipKind.Borrowed or OwnershipKind.Frozen })
+                var lent = parameters[i].Modifier is { IsRef: true } or { Direction: not ByRefDirection.None } or { Ownership: OwnershipKind.Borrowed or OwnershipKind.Frozen };
+                if(parameters[i].Modifier.Ownership == OwnershipKind.Owned || (lent && !writes.Keeps(node, values[i])))
                 {
                     see(values[i]);
                 }
@@ -150,10 +151,10 @@ internal sealed class BodyHolders
                         see(ThisTiers.ReceiverOf(call));
                     }
 
-                    arguments(call.Arguments, call.Parameters);
+                    arguments(call, call.Arguments, call.Parameters);
                     break;
                 case NewExpression creation:
-                    arguments(creation.Arguments, creation.Constructor?.ParametersList);
+                    arguments(creation, creation.Arguments, creation.Constructor?.ParametersList);
                     break;
                 case AssignmentExpression assignment:
                     see(assignment.Target);

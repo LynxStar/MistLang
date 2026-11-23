@@ -60,7 +60,7 @@ internal static class OwnSlots
         {
             var read = SlotReads.Read(receiver, parameter);
             var capture = new SlotCapture(
-                $"{RefinementFindings.Display(receiver)}.{parameter.Name}", InstanceSlotRead.Contract(parameter) ?? domain, ConversionRelation.Unrefined(domain), read,
+                RefinementFindings.Display(read), InstanceSlotRead.Contract(parameter) ?? domain, ConversionRelation.Unrefined(domain), read,
                 receiver.Node.Span.Start);
             owned[capture] = parameter;
             return capture.Value;

@@ -139,7 +139,7 @@ internal static class SlotIdentity
                     unproven = new UnprovenSlot(
                         Spelled(state, held), Spelled(state, constituent),
                         Shown(state, pair.Argument, pair.Parameter, via),
-                        meeting.ReceiverSlot(pair.Slot) is { } own ? $"{RefinementFindings.Display(meeting.Receiver!)}.{own.Name}" : Shown(state, pair.Slot, pair.Parameter, null),
+                        meeting.ReceiverSlot(pair.Slot) is { } own ? RefinementFindings.Display(SlotReads.Read(meeting.Receiver!, own)) : Shown(state, pair.Slot, pair.Parameter, null),
                         proof, refinement);
                     break;
                 }

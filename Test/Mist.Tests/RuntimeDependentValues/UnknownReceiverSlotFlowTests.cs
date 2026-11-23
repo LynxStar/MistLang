@@ -310,16 +310,22 @@ public sealed class UnknownReceiverSlotFlowTests
     }
 
     [Fact]
-    public void AnOptionalValueStoredThroughAnUnknownOwnerIsSpelledByTheValueItHolds()
+    public void AnOptionalValueWithoutANameIsSpelledByTheValueItHolds()
     {
         var (h, member) = Holding(UnknownType.Instance);
         var owner = member.DeclaringType!;
         var kept = new Field("F", member.Type, OwnershipKind.Unrestricted, new MemberModifiers()) { DeclaringType = owner };
-        var pick = new Method("Pick", Lifted(slots.Closed(ring, Unknown)), [], new MemberModifiers { IsStatic = true }) { DeclaringType = ring };
-        var picked = new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), pick), [], pick.ReturnType, pick, []);
+        var made = slots.Capture(n, slots.Int);
 
-        var refused = Assert.Single(Analyze(OfM(h, owner), Keep(h, kept, picked)));
-        Assert.Equal("MIST0486", refused.Number.Value);
-        Assert.Contains("'Ring<int>.Capacity' and 'h.K' are not proven identical (fails when m <= Ring<int>.Capacity - 1)", refused.Message, StringComparison.Ordinal);
+        Refused(Analyze(OfM(h, owner), Keep(h, kept, Picked(Lifted(slots.Closed(ring, Unknown))))),
+            "'Ring<int>.Capacity' and 'h.K' are not proven identical (fails when m <= Ring<int>.Capacity - 1)");
+        Refused(Analyze(Load(Sized(m), conditional: true, receiver: Picked(Lifted(slots.Closed(ring, made.Value)), made), slot: made.Value)),
+            "'m' and 'Ring<n>.Capacity' are not proven identical");
+    }
+
+    private static InvocationExpression Picked(IMistType type, SlotCapture? made = null)
+    {
+        var pick = new Method("Pick", type, [], new MemberModifiers { IsStatic = true }) { DeclaringType = HandBuiltModel.Class("Maker") };
+        return new InvocationExpression(HandBuiltModel.Node(), new MethodReferenceExpression(HandBuiltModel.Node(), pick), [], type, pick, []) { Captures = made is null ? [] : [made] };
     }
 }

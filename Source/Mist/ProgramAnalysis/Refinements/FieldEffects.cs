@@ -19,22 +19,32 @@ internal sealed class FieldEffects
 
     public bool MayWrite(object node)
     {
+        return Writes(node, handed: true);
+    }
+
+    public bool MayWriteUnhanded(object node)
+    {
+        return Writes(node, handed: false);
+    }
+
+    private bool Writes(object node, bool handed)
+    {
         return node switch
         {
-            InvocationExpression call => !Keeps(call, call.Method, call.Arguments, call.Parameters),
-            BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } called } binary => !Keeps(binary, called, [binary.Left, binary.Right], called.ParametersList),
-            UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } called } unary => !Keeps(unary, called, [unary.Operand], called.ParametersList),
-            CastExpression { Operator: { Modifiers.IsIntrinsic: false } called } cast => !Keeps(cast, called, [cast.Operand], called.ParametersList),
+            InvocationExpression call => !Keeps(call, call.Method, call.Arguments, call.Parameters, handed),
+            BinaryExpression { Operator: { Modifiers.IsIntrinsic: false } called } binary => !Keeps(binary, called, [binary.Left, binary.Right], called.ParametersList, handed),
+            UnaryExpression { Operator: { Modifiers.IsIntrinsic: false } called } unary => !Keeps(unary, called, [unary.Operand], called.ParametersList, handed),
+            CastExpression { Operator: { Modifiers.IsIntrinsic: false } called } cast => !Keeps(cast, called, [cast.Operand], called.ParametersList, handed),
             ImplicitConversionExpression { Operator: { Modifiers.IsIntrinsic: false } called } conversion =>
-                !Keeps(conversion, called, [conversion.Operand], called.ParametersList),
+                !Keeps(conversion, called, [conversion.Operand], called.ParametersList, handed),
             NewExpression => true,
             AssignmentExpression { Target: MemberAccessExpression { Member: PropertyResult { Property: var property } } } => !Keeps(property.Setter, property, property.Modifiers, property.DeclaringType),
             AssignmentExpression { Target: PropertyReferenceExpression { Property: var property } } => !Keeps(property.Setter, property, property.Modifiers, property.DeclaringType),
             AssignmentExpression { Target: ExtensionPropertyAccessExpression { Property: var property } } => !Keeps(property.Setter, property, property.Modifiers, property.DeclaringType),
             AssignmentExpression { Target: IndexExpression { Indexer: { } indexer } } => !Keeps(indexer.Setter, indexer, indexer.Modifiers, indexer.DeclaringType),
             AssignmentExpression => false,
-            CompoundAssignmentExpression compound => MayWrite(CompoundAssignments.LongForm(compound))
-                || MayWrite(CompoundAssignments.LongForm(compound).Value) || MayWrite(compound.Target),
+            CompoundAssignmentExpression compound => Writes(CompoundAssignments.LongForm(compound), handed)
+                || Writes(CompoundAssignments.LongForm(compound).Value, handed) || Writes(compound.Target, handed),
             MemberAccessExpression { Member: PropertyResult { Property: var property } } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),
             PropertyReferenceExpression { Property: var property } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),
             ExtensionPropertyAccessExpression { Property: var property } => !Keeps(property.Getter, property, property.Modifiers, property.DeclaringType),
@@ -43,7 +53,7 @@ internal sealed class FieldEffects
         };
     }
 
-    private bool Keeps(Expression node, Method? selected, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters)
+    private bool Keeps(Expression node, Method? selected, IReadOnlyList<Expression> arguments, IReadOnlyList<Parameter>? parameters, bool handed)
     {
         if(selected is null)
         {
@@ -54,7 +64,7 @@ internal sealed class FieldEffects
         {
             var parameter = parameters is not null && i < parameters.Count ? parameters[i] : null;
 
-            if(parameter is null || parameter.Modifier.IsRef || parameter.Modifier.Direction is not ByRefDirection.None
+            if(parameter is null || (handed && (parameter.Modifier.IsRef || parameter.Modifier.Direction is not ByRefDirection.None))
                 || arguments[i].Type is IFunctionType { IsPure: false })
             {
                 return false;

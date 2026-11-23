@@ -19,6 +19,8 @@ internal sealed class FactHolderFragments
         V = AddField(Box, "V");
         Pair = HandBuiltModel.Class("Pair");
         A = AddField(Pair, "A");
+        B = AddField(Pair, "B");
+        S = AddField(Pair, "S", new MemberModifiers { IsStatic = true });
         Span = HandBuiltModel.Struct("Span");
         Span.Modifiers = new MemberModifiers { IsRef = true };
     }
@@ -34,6 +36,10 @@ internal sealed class FactHolderFragments
     public ClassType Pair { get; }
 
     public Field A { get; }
+
+    public Field B { get; }
+
+    public Field S { get; }
 
     public StructType Span { get; }
 
@@ -106,10 +112,10 @@ internal sealed class FactHolderFragments
         return Method("Bump", Pair, HandBuiltModel.Block(Set(Read(local), Number(1L))), H.Int, local.Parameter!);
     }
 
-    public Method Viewing(IMistType returns, ByRefDirection direction = ByRefDirection.Ref)
+    public Method Viewing(IMistType returns, ByRefDirection direction = ByRefDirection.Ref, bool isReadonly = false)
     {
         var local = new LocalVariable("x", H.Int) { IsRef = true, Parameter = Parameter("x", H.Int, direction: direction) };
-        return new Method("View", returns, [local.Parameter!], new MemberModifiers()) { DeclaringType = Pair };
+        return new Method("View", returns, [local.Parameter!], new MemberModifiers { IsReadonly = isReadonly }) { DeclaringType = Pair };
     }
 
     public Method Identity()
@@ -122,14 +128,28 @@ internal sealed class FactHolderFragments
         };
     }
 
-    public LocalVariable ByRef(string name)
+    public Method Returning(string name, Expression? returned, params Parameter[] parameters)
     {
-        return new LocalVariable(name, H.Int) { IsRef = true, Parameter = Parameter(name, H.Int, direction: ByRefDirection.Ref) };
+        return new Method(name, H.Int, [.. parameters], new MemberModifiers { IsRef = true })
+        {
+            Body = returned is null ? null : HandBuiltModel.Block(new ReturnStatement(returned, H.Int, isRef: true)),
+            DeclaringType = Pair,
+        };
     }
 
-    private Field AddField(ClassType owner, string name)
+    public NewExpression Create()
     {
-        var field = new Field(name, H.Int, default, new MemberModifiers()) { DeclaringType = owner };
+        return new NewExpression(HandBuiltModel.Node(), Pair, [], null, [], null);
+    }
+
+    public LocalVariable ByRef(string name, IMistType? type = null, ByRefDirection direction = ByRefDirection.Ref)
+    {
+        return new LocalVariable(name, type ?? H.Int) { IsRef = true, Parameter = Parameter(name, type ?? H.Int, direction: direction) };
+    }
+
+    public Field AddField(ClassType owner, string name, MemberModifiers? modifiers = null, IMistType? type = null)
+    {
+        var field = new Field(name, type ?? H.Int, default, modifiers ?? new MemberModifiers()) { DeclaringType = owner };
         owner.FieldsList.Add(field);
         return field;
     }

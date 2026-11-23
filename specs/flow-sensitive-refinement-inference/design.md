@@ -95,6 +95,36 @@ local bound to a call that returns a ref, though a write through it still ends
 the holders that call was handed by reference. Otherwise a `readonly ref`
 argument cannot write its holder, so it leaves the holder's facts in place.
 
+`WriteReach` names the other holders a write may reach, because their storage
+may be the storage written. A by-ref parameter (`ref`, `out` or `readonly ref`)
+names storage its caller chose: any field of `this`, any static, an array
+element or a member of an object the body can reach. So a write through it, or
+through a `ref` local of it, ends every field and static of its type and every
+other by-ref parameter of its type. A write to a field, a static, an array
+element or a member of another object ends every by-ref parameter of its type,
+and so does a call that may write beyond what it is handed by reference. A
+write to `o.F`, where `o` may be `this`, ends `this.F` and leaves the other
+fields in place. `o` is a different object when it is a `new` expression, a
+local of struct type that holds a copy, or a local that only ever holds `new`
+objects and is never handed by reference. A write to a field also ends the
+facts about that field of any other receiver. Storage of one closed type is
+never another's, so `ref long` does not reach an `int` field; a type parameter
+may be any type.
+
+A write through a ref a call returns reaches, besides what the call was handed
+by reference, what `ReturnedStorage` reads in the callee's `return ref`
+statements: a field it returns names that field, which may be the caller's
+`this`, unless the object it is read from, the call's receiver or the argument
+for a by-value parameter, is a different object by the test above; a nested
+call's result is read the same way; an array element names no field. A callee
+with no body, one an abstract type declares, or one that returns anything else
+may return any field or static of the ref's type. This
+reads the callee's body for which storage it names, as the purity rules read it
+for which members it writes, and never for a fact about a value (Requirement
+6.1). The same reach applies to a `ref` local bound to such a call and to the
+call used as an assignment target. A `ref` local bound to a ref-returning
+property or indexer may name any field or static of its type.
+
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's
 intrinsic `Length`. Its value's facts come from `Lengths.Typed` when the type

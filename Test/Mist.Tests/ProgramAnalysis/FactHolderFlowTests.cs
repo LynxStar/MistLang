@@ -11,7 +11,7 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "2")]
 public sealed class FactHolderFlowTests
 {
-    private const int Last = 40;
+    internal const int Last = 40;
 
     [Theory]
     [InlineData(false)]
@@ -104,7 +104,7 @@ public sealed class FactHolderFlowTests
         var a = holder == "ref-parameter" ? f.ByRef("p") : FactHolderFragments.Int(f.H, "a");
         var reader = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(a))));
         List<Statement> body = [FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(5L)),
-            HandBuiltRefinements.Evaluate(f.Free(f.Viewing(f.H.Int, direction), FactHolderFragments.Read(a))), f.Need(FactHolderFragments.Read(a, Last))];
+            HandBuiltRefinements.Evaluate(f.Free(f.Viewing(f.H.Int, direction, isReadonly: true), FactHolderFragments.Read(a))), f.Need(FactHolderFragments.Read(a, Last))];
         if(holder == "local-a-nested-function-reads")
         {
             body.InsertRange(0, [FactHolderFragments.Declare(a, f.Number(0L)), new LocalFunctionStatement(reader, [])]);
@@ -212,7 +212,7 @@ public sealed class FactHolderFlowTests
         AssertRefusedOnlyAfter(f, body, true);
     }
 
-    private static void AssertRefusedOnlyAfter(FactHolderFragments f, List<Statement> body, bool refused)
+    internal static void AssertRefusedOnlyAfter(FactHolderFragments f, List<Statement> body, bool refused)
     {
         var findings = f.H.Built.Analyze(new RefinementAnalyzer(), HandBuiltModel.Block([.. body]));
         if(refused)

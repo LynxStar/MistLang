@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 
@@ -64,12 +65,14 @@ internal sealed partial class FactFlow
                     CompoundAssignmentExpression compound => compound.Target,
                     _ => null,
                 };
-                if(target is not null && Ends(flow, ref incoming, target, holder))
+                if(target is not null && (Ends(flow, ref incoming, target, holder) || flow.holders.Reach(target).Covers(holder)))
                 {
                     return true;
                 }
 
-                if(holder is Field field && (target is ThisExpression || (!field.Modifiers.IsReadonly && flow.effects.MayWrite(expression))))
+                var byRef = holder is LocalVariable { Parameter.Modifier.IsRef: true };
+                var mayWrite = byRef ? flow.effects.MayWriteUnhanded(expression) : holder is Field { Modifiers.IsReadonly: false } && flow.effects.MayWrite(expression);
+                if(((holder is Field || byRef) && target is ThisExpression) || mayWrite)
                 {
                     return true;
                 }
@@ -77,7 +80,8 @@ internal sealed partial class FactFlow
                 var (arguments, parameters) = BodyHolders.Arguments(expression);
                 for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
                 {
-                    if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out && Ends(flow, ref incoming, arguments[i], holder))
+                    if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out
+                        && (Ends(flow, ref incoming, arguments[i], holder) || flow.holders.Reach(arguments[i]).Covers(holder)))
                     {
                         return true;
                     }

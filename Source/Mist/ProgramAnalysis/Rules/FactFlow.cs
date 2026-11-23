@@ -71,12 +71,12 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
                     state = InvalidateFields(state);
                 }
 
-                return EndPlaces(Assign(state, longForm), compound.Target);
+                return EndReached(EndPlaces(Assign(state, longForm), compound.Target), compound.Target);
 
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
                 state = Assign(state, assignment);
                 state = effects.MayWrite(assignment) ? InvalidateFields(state) : state;
-                return Deconstructions.Pairs(assignment).Aggregate(state, (ended, pair) => EndPlaces(ended, pair.Target));
+                return Deconstructions.Pairs(assignment).Aggregate(state, (ended, pair) => EndReached(EndPlaces(ended, pair.Target), pair.Target));
 
             case { Kind: FlowStepKind.Evaluate, Node: MethodReferenceExpression or NamespaceReferenceExpression }:
                 return state;
@@ -85,7 +85,7 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
                 state = state with { Results = state.Results.Remove(expression) };
                 if(effects.MayWrite(expression))
                 {
-                    state = InvalidateFields(state);
+                    state = InvalidateFields(state, byRef: effects.MayWriteUnhanded(expression));
                 }
 
                 state = InvalidateArguments(state, expression);
@@ -282,11 +282,11 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
         };
     }
 
-    private FactState InvalidateFields(FactState state, bool all = false)
+    private FactState InvalidateFields(FactState state, bool all = false, bool byRef = true)
     {
         foreach(var holder in state.Bindings.Order)
         {
-            if(holder is Field field && (all || !field.Modifiers.IsReadonly))
+            if((holder is Field field && (all || !field.Modifiers.IsReadonly)) || (byRef && holder is LocalVariable { Parameter.Modifier.IsRef: true }))
             {
                 state = End(state, holder);
             }
@@ -301,6 +301,26 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
         var value = FactReading.Fresh(ref state, HolderType(holder) ?? old.Type, old.DisplayName, old.Node);
         state = state with { Bindings = state.Bindings.Set(holder, value) };
         return EndAliases(state, holder);
+    }
+
+    private FactState EndReached(FactState state, Expression target)
+    {
+        var reach = holders.Reach(target);
+        if(ReferenceEquals(reach, WriteReach.Nothing))
+        {
+            return state;
+        }
+
+        var written = reading.Holder(ref state, target);
+        foreach(var holder in state.Bindings.Order.ToList())
+        {
+            if(!Equals(holder, written) && reach.Covers(holder))
+            {
+                state = End(state, holder);
+            }
+        }
+
+        return state;
     }
 
     private FactState EndAliases(FactState state, object holder)
@@ -346,6 +366,8 @@ internal sealed partial class FactFlow(BodyHolders holders, LiftedReturns lifted
             {
                 state = EndPlaces(state, arguments[i]);
             }
+
+            state = EndReached(state, arguments[i]);
         }
 
         return state;

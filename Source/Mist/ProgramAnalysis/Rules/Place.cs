@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -9,7 +10,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Field state requires a tracked holder; shared field reads belong to <see cref="TierAnalyzer"/>.
-/// Copied or immutable field values leave no ownership state behind when read (owned-fields Requirement 16).
+/// Unchangeable field values leave no ownership state behind when read (owned-fields Requirement 16).
 /// </summary>
 internal sealed class Place : IEquatable<Place>
 {
@@ -56,7 +57,8 @@ internal sealed class Place : IEquatable<Place>
 
     public static bool Holds(Field field)
     {
-        return ThisTiers.IsOwned(field) && !ThisTiers.IsValue(field.Type) && !Origins.IsUnchangeable(field.Type);
+        return (ThisTiers.IsOwned(field) && !ThisTiers.IsValue(field.Type) && !Origins.IsUnchangeable(field.Type))
+            || OwnedStructCopies.HoldsOwnedObjects(field.Type);
     }
 
     public Place Child(Field field)

@@ -1,0 +1,33 @@
+using Standard;
+
+namespace Ownership;
+
+public struct MixedWidgets
+{
+    public Widget Plain;
+    public owned Widget Own;
+
+    public MixedWidgets(Widget plain, owned Widget own)
+    {
+        this.Plain = plain;
+        this.Own = own;
+    }
+}
+
+public class StructCopyDemo
+{
+    public static void Show(MixedWidgets value)
+    {
+        Console.WriteLine($"[struct-copy] original plain={value.Plain.Value}, owned={value.Own.Value}");
+    }
+
+    public static void Run()
+    {
+        var original = new MixedWidgets(new Widget(7, "plain"), new Widget(1, "owned"));
+        Show(original);
+        owned var copy = original;
+        copy.Plain.Value = 99;
+        copy.Own.Value = 42;
+        Show(original);
+    }
+}

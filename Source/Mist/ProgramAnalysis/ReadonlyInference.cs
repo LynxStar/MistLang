@@ -285,7 +285,7 @@ internal sealed partial class ReadonlyInference(Func<object, Promise>? inferred 
 
     private bool CloneWrites(CloneExpression clone, Origins origins, List<object> callees)
     {
-        return PurityJudge.CloneOf(clone.Type) is { } method
+        return !clone.CopiesOwnedFields && PurityJudge.CloneOf(clone.Type) is { } method
             && !(origins.Of(clone.Source) is Origin.Own && IsLocalMember(method, method.Modifiers))
             && Unproven(method, callees);
     }

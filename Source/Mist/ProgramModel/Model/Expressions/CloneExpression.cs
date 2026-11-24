@@ -4,13 +4,14 @@ using Storm.Runtime;
 namespace Mist.ProgramModel.Model.Expressions;
 
 /// <summary>
-/// An INSERTED clone, standing where a non-owned value reaches an owned position. Modelled rather than
-/// left to the emitter because the copy is observable: the two instances diverge from here on, and a
-/// program that mutates one and reads the other says so in its output.
+/// An inserted copy at an owned position: either a whole-type Clone or a struct construction that
+/// copies only its owned objects. The distinction is observable because plain fields may still share.
 /// </summary>
-internal sealed class CloneExpression(SyntaxNode node, Expression source) : Expression(node)
+internal sealed class CloneExpression(SyntaxNode node, Expression source, bool copiesOwnedFields = false) : Expression(node)
 {
     public Expression Source { get; } = source;
+
+    public bool CopiesOwnedFields { get; } = copiesOwnedFields;
 
     public override IMistType Type { get; } = source.Type;
 }

@@ -25,6 +25,8 @@ internal sealed class CloneDemand
 
     private readonly HashSet<ConcreteType> reached = new(ReferenceEqualityComparer.Instance);
 
+    private readonly Dictionary<StructType, List<OwnedCopy>> structCopies = new(ReferenceEqualityComparer.Instance);
+
     private readonly HashSet<ConcreteType> copying = new(ReferenceEqualityComparer.Instance);
 
     private readonly Dictionary<ConcreteType, List<ConcreteType>> subclasses = new(ReferenceEqualityComparer.Instance);
@@ -83,6 +85,10 @@ internal sealed class CloneDemand
             {
                 switch(node)
                 {
+                    case CloneExpression { CopiesOwnedFields: true } copy:
+                        NeedConstruction(OwnedStructCopies.Of(copy.Type, clones));
+                        break;
+
                     case CloneExpression clone:
                         Need(clone.Source.Type);
                         break;
@@ -131,6 +137,46 @@ internal sealed class CloneDemand
     public static bool Emits(ConcreteType type)
     {
         return active?.reached.Contains(type) == true;
+    }
+
+    public static bool Constructs(StructType type)
+    {
+        return active?.structCopies.ContainsKey(type) == true;
+    }
+
+    public static IReadOnlyList<OwnedCopy> Constructions(StructType type)
+    {
+        return active?.structCopies.GetValueOrDefault(type) ?? [];
+    }
+
+    private void NeedConstruction(OwnedCopy copy)
+    {
+        if(!copy.Required)
+        {
+            return;
+        }
+
+        if(copy.Kind == OwnedCopyKind.Clone)
+        {
+            Need(copy.Type);
+        }
+        else if(copy.Kind == OwnedCopyKind.Struct && Definition(copy.Type) is StructType structure)
+        {
+            if(!structCopies.TryGetValue(structure, out var copies))
+            {
+                structCopies.Add(structure, copies = []);
+            }
+
+            if(!copies.Exists(known => known.Type.FullyQualifiedName == copy.Type.FullyQualifiedName))
+            {
+                copies.Add(copy);
+            }
+        }
+
+        foreach(var child in copy.Slots.Select(slot => slot.Copy).Concat(copy.Elements))
+        {
+            NeedConstruction(child);
+        }
     }
 
     public static bool CopiesSlotsOf(ConcreteType type)

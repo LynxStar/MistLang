@@ -306,7 +306,7 @@ internal static class TextFreezeTable
         ["ProgramAnalysisDiagnostics.CompositeState"] = "Cannot arg0 'arg1' as a whole while its owned field 'arg2' is arg3.",
         ["ProgramAnalysisDiagnostics.FieldStateCall"] = "Cannot call 'arg0' on 'arg1': it arg2 owned field 'arg3', which is arg4.",
         ["ProgramAnalysisDiagnostics.OwnedAbstract"] = "The 'owned' modifier cannot be applied to abstract type 'arg0'.",
-        ["ProgramAnalysisDiagnostics.OwnedFieldType"] = "arg0 'arg1' of owned type 'arg2' has type 'arg3', arg4. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
+        ["ProgramAnalysisDiagnostics.OwnedFieldType"] = "arg0 'arg1' of owned type 'arg2' has type 'arg3', arg4. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
         ["ProgramAnalysisDiagnostics.OwnedSubstructuralBinding"] = "The 'owned' specifier cannot be applied to 'arg0' of arg1 type 'arg2': a substructural type carries its own discipline.",
         ["ProgramAnalysisDiagnostics.ConflictingDiscipline"] = "'arg0' cannot be both arg1 and 'owned': arg2.",
         ["ProgramAnalysisDiagnostics.FieldDisciplineContainment"] = "arg0 type 'arg1' cannot contain arg2 field 'arg3': arg4.",

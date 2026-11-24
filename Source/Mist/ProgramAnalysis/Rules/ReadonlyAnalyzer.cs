@@ -200,7 +200,7 @@ internal sealed partial class ReadonlyAnalyzer : IProgramAnalyzer
                     new NameValue($"operator {TypeDisplay.Mist(conversion.TargetType)}"), new NameValue(frame.Describe()));
                 break;
 
-            case CloneExpression clone when frame.IsReadonly:
+            case CloneExpression { CopiesOwnedFields: false } clone when frame.IsReadonly:
                 if(PurityJudge.CloneOf(clone.Type) is { } copied && !inference.IsReadonly(copied) && !frame.LocalOn(clone.Source, copied, inference))
                 {
                     context.Report(

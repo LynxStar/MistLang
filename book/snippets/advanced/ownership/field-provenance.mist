@@ -24,7 +24,7 @@ public class Slot
     public Node Current;
     public int Count;
 
-    public Slot(owned Node first)
+    public Slot(Node first)
     {
         this.Current = first;
         this.Count = 1;

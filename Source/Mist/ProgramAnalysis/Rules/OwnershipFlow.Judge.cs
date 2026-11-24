@@ -195,7 +195,7 @@ internal sealed partial class OwnershipFlow
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
                 foreach(var element in literal.Elements)
                 {
-                    foreach(var source in LocalOwnership.Sources(element).Where(Tracked))
+                    foreach(var source in LocalOwnership.Sources(element).Where(source => Tracked(source) && !CopiesStruct(source)))
                     {
                         JudgeAction(state, source, element, Action.Move);
                     }
@@ -243,7 +243,7 @@ internal sealed partial class OwnershipFlow
                     continue;
                 }
 
-                foreach(var moved in LocalOwnership.Sources(value).Where(Tracked))
+                foreach(var moved in LocalOwnership.Sources(value).Where(source => Tracked(source) && MovesInto(written.Local, source)))
                 {
                     JudgeAction(state, moved, value, Action.Move);
                     JudgeShared(state, value, $"owned binding '{written.Local.Name}'", written.Local.Ownership == OwnershipKind.Owned);

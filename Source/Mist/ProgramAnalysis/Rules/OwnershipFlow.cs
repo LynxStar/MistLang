@@ -21,7 +21,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// frozen and readonly ref parameters return the loan. Shared holders stay usable but cannot move or
 /// return owned until the holder or affected field is assigned afresh. Joins remember either path's
 /// move; a reported use settles the place on that path. Linear and affine structs move like classes;
-/// ordinary structs copy even in owned bindings. Non-owning fields cannot retain an owned alias.
+/// structs holding owned objects move into owned destinations. Non-owning fields cannot retain an owned alias.
 /// Calls that do not move linear values and frozen lenders lent borrowed by call remain under
 /// MIST-122 and MIST-061 in Carbonek.
 /// </summary>
@@ -201,7 +201,7 @@ internal sealed partial class OwnershipFlow(
                     state = BindValue(state, target.Local, assignment.Value, assignment, assignment: true);
                 }
 
-                return LocalOwnership.Sources(assignment.Value).Aggregate(state, (current, source) => Move(current, source, assignment.Value));
+                return LocalOwnership.Sources(assignment.Value).Where(source => MovesInto(target.Local, source)).Aggregate(state, (current, source) => Move(current, source, assignment.Value));
 
             case { Kind: FlowStepKind.Evaluate, Node: CompoundAssignmentExpression { Target: LocalReferenceExpression target } compound }:
                 return Tracked(Place.Of(target.Local)) ? BindValue(state, target.Local, compound, compound, assignment: true) : state;
@@ -228,7 +228,7 @@ internal sealed partial class OwnershipFlow(
                 return state;
 
             case { Kind: FlowStepKind.Evaluate, Node: ReturnStatement { Value: { } returned } }:
-                return LocalOwnership.Sources(returned).Aggregate(state, (current, source) => Move(current, source, returned));
+                return LocalOwnership.Sources(returned).Where(source => owning is not null || !CopiesStruct(source)).Aggregate(state, (current, source) => Move(current, source, returned));
 
             case { Kind: FlowStepKind.Evaluate, Node: TupleLiteralExpression tuple }:
                 return tuple.Elements.Aggregate(state, (kept, element) => Keep(kept, element, "a tuple"));
@@ -278,7 +278,7 @@ internal sealed partial class OwnershipFlow(
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
                 foreach(var element in literal.Elements)
                 {
-                    state = LocalOwnership.Sources(element).Aggregate(state, (current, source) => Move(current, source, element));
+                    state = LocalOwnership.Sources(element).Where(source => !CopiesStruct(source)).Aggregate(state, (current, source) => Move(current, source, element));
                 }
 
                 return state;
@@ -492,8 +492,18 @@ internal sealed partial class OwnershipFlow(
         };
     }
 
+    private static bool CopiesStruct(Place source)
+    {
+        return ThisTiers.IsValue(source.Root.Type) && OwnershipAnalyzer.Substructural(source.Root.Type) == SubstructuralDiscipline.None;
+    }
+
     private bool MovesInto(LocalVariable recipient, Place source)
     {
+        if(CopiesStruct(source))
+        {
+            return recipient.Ownership == OwnershipKind.Owned;
+        }
+
         return Place.Tracked(source) || recipient.Ownership == OwnershipKind.Owned
             || (recipient.InfersOwnership && locals.Of(recipient) == ThisTier.Owned);
     }

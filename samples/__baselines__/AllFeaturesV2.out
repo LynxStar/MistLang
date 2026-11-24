@@ -1986,6 +1986,8 @@ voidCall=Void voidBlock=Void
 [inference] original still live=Account(Original, balance=101)
 [inference] simple=just a string
 [inference] alias=just a string
+[struct-copy] original plain=7, owned=1
+[struct-copy] original plain=99, owned=1
 --- Ownership Done ---
 === Anonymous Types Sample ===
 --- Explicit property assignment ---

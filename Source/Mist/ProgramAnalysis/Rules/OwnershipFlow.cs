@@ -33,7 +33,8 @@ internal sealed partial class OwnershipFlow(
     IReadOnlyDictionary<object, object> parents,
     Method? owning,
     LocalOwnership? inferred = null,
-    bool ownedReceiver = false) : IFlowLattice<OwnershipFlow.State>
+    bool ownedReceiver = false,
+    IReadOnlySet<LocalVariable>? own = null) : IFlowLattice<OwnershipFlow.State>
 {
     private readonly LocalOwnership locals = inferred ?? LocalOwnership.Empty;
 

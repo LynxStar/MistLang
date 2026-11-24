@@ -107,8 +107,25 @@ internal sealed class LendFragments
 
     public static LocalFunctionStatement Local(string name, IMistType returns, Block body, params LocalVariable[] parameters)
     {
-        var function = new Method(name, returns, [.. parameters.Select(parameter => parameter.Parameter!)], new MemberModifiers { IsStatic = true }) { Body = body };
+        return Local(name, returns, body, isStatic: true, parameters);
+    }
+
+    public static LocalFunctionStatement Local(string name, IMistType returns, Block body, bool isStatic, params LocalVariable[] parameters)
+    {
+        var function = new Method(name, returns, [.. parameters.Select(parameter => parameter.Parameter!)], new MemberModifiers { IsStatic = isStatic }) { Body = body };
         return new LocalFunctionStatement(function, parameters);
+    }
+
+    public LambdaExpression Lambda(Expression result, bool isStatic = false)
+    {
+        return new LambdaExpression(HandBuiltModel.Node(), [], result, null, isStatic, Model.Interner.GetOrCreateFunctionType([], result.Type));
+    }
+
+    public static Constructor Chained(ClassType type, Constructor target, LocalVariable[] parameters, params Expression[] arguments)
+    {
+        var constructor = new Constructor(type.Name, type, [.. parameters.Select(parameter => parameter.Parameter!)], default) { DeclaringType = type, ChainedConstructor = target };
+        constructor.ChainArgumentsList.AddRange(arguments);
+        return constructor;
     }
 
     public static NewExpression Fresh(ClassType type, Constructor? constructor = null, int offset = 0, params Expression[] arguments)

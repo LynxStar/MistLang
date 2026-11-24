@@ -1,6 +1,9 @@
+using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LendFragments;
 
@@ -22,6 +25,48 @@ public sealed class LentEscapeDecisionTests
     public void OnlyAnUnrestrictedParameterKeepsWhatItIsPassed(string tier, bool keeps)
     {
         Assert.Equal(keeps, OwnershipFlow.Keeps(Tier(tier)));
+    }
+
+    [Theory]
+    [InlineData(0, "x")]
+    [InlineData(1, "rest")]
+    [InlineData(2, "rest")]
+    [InlineData(-1, null)]
+    public void AChainArgumentIsPassedToTheChainedParameterAtItsPlace(int index, string? parameter)
+    {
+        var w = HandBuiltModel.Class("W");
+        var rest = new Parameter("rest", f.BoxArray) { IsFlattened = true };
+        var target = new Constructor("W", w, [new Parameter("x", f.Box), rest], default) { DeclaringType = w };
+        Expression[] arguments = [Fresh(f.Box), Fresh(f.Box), Fresh(f.Box)];
+        var constructor = Chained(HandBuiltModel.Class("W2"), target, [], arguments);
+        var root = new SourceRoot(index < 0 ? Fresh(f.Box) : arguments[index], w, MistAssembly.Synthetic, constructor);
+
+        Assert.Equal(parameter, TierAnalyzer.ChainedParameter(root)?.Name);
+    }
+
+    [Theory]
+    [InlineData("lambda", true)]
+    [InlineData("local function", true)]
+    [InlineData("static lambda", false)]
+    [InlineData("static local function", false)]
+    [InlineData("closure parameter", false)]
+    [InlineData("declared inside", false)]
+    [InlineData("no closure", false)]
+    public void AClosureCapturesWhatItReadsButDoesNotDeclare(string shape, bool captured)
+    {
+        var kept = new LocalVariable("kept", f.Box);
+        var own = Parameter("kept", f.Box, default);
+        var read = Access(Ref(shape == "closure parameter" ? own : kept), f.V);
+        object root = shape switch
+        {
+            "lambda" or "static lambda" => f.Lambda(read, isStatic: shape == "static lambda"),
+            "local function" or "static local function" or "closure parameter"
+                => Local("Look", f.Int32, HandBuiltModel.Block(new ReturnStatement(read, f.Int32)), shape == "static local function", shape == "closure parameter" ? [own] : []),
+            "declared inside" => Local("Look", f.Int32, HandBuiltModel.Block(Declare(kept, Fresh(f.Box)), new ReturnStatement(read, f.Int32)), isStatic: false),
+            _ => Run(read),
+        };
+
+        Assert.Equal(captured, Captures.Captured(BodyWalker.DescendantsAndSelf(root)).Contains(kept));
     }
 
     [Theory]

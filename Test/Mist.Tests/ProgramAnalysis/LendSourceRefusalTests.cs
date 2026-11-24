@@ -28,6 +28,8 @@ public sealed class LendSourceRefusalTests
     [InlineData("T8", "borrowed", false, "field 'p.In'")]
     [InlineData("T9", "borrowed", false, "element of 'arr'")]
     [InlineData("T10", "borrowed", false, "result of 'Get'")]
+    [InlineData("function value result", "borrowed", false, "result of 'g'")]
+    [InlineData("inferred local a closure captures", "borrowed", false, "s")]
     public void ASourceNothingHoldsExclusivelyCannotBeLent(string program, string tier, bool argument, string source)
     {
         var (statements, owner, member) = Lend(program, tier, argument);
@@ -37,6 +39,36 @@ public sealed class LendSourceRefusalTests
         Assert.Equal("MIST0230", diagnostic.Number.Value);
         Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
         Assert.Contains($"unrestricted {source} to {tier} parameter", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("static field", "static field 'Hook.S'")]
+    [InlineData("borrowed parameter re-lent", null)]
+    [InlineData("fresh construction", null)]
+    public void AChainArgumentIsLentOnlyFromAnExclusiveSource(string source, string? refused)
+    {
+        var w = HandBuiltModel.Class("W");
+        var target = new Constructor("W", w, [new Parameter("x", f.Box, Tier("borrowed"))], default) { DeclaringType = w };
+        var y = Parameter("y", f.Box, Tier("borrowed"));
+        Expression argument = source switch
+        {
+            "static field" => Static(f.S, 37),
+            "borrowed parameter re-lent" => Ref(y, 37),
+            _ => Fresh(f.Box),
+        };
+
+        var diagnostics = f.Analyze(new TierAnalyzer(), argument, w, Chained(HandBuiltModel.Class("W2"), target, [y], argument));
+
+        if(refused is null)
+        {
+            Assert.Empty(diagnostics);
+            return;
+        }
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("MIST0230", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains($"unrestricted {refused} to borrowed parameter 'x'", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -145,6 +177,15 @@ public sealed class LendSourceRefusalTests
                 break;
             case "T10":
                 source = Call(new Method("Get", f.Box, [], new MemberModifiers { IsStatic = true }), null, 37);
+                break;
+            case "function value result":
+                var g = Parameter("g", f.Model.Interner.GetOrCreateFunctionType([], f.Box), default);
+                source = new InvocationExpression(HandBuiltModel.Node(37), Ref(g), [], f.Box, null, null);
+                break;
+            case "inferred local a closure captures":
+                var s = new LocalVariable("s", f.Box) { InfersOwnership = true };
+                statements.AddRange([Declare(s, Fresh(f.Box)), Run(f.Lambda(Access(Ref(s), f.V)))]);
+                source = Ref(s, 37);
                 break;
             default:
                 source = Leaky(37);

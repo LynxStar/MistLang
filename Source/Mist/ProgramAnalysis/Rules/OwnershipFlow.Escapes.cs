@@ -13,8 +13,9 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// A lent reference is non-storable (ownership-system Requirements 4.4, 5.2, 6.2 and 11): what holds a
-/// borrowed, frozen or readonly ref binding's value may reach no field, element, collection, return or
-/// unrestricted parameter, so it is lent on only to a lent tier (Requirements 12.2 to 12.4). A bare
+/// borrowed, frozen or readonly ref binding's value may reach no field, element, collection, return,
+/// unrestricted parameter (a constructor chain's included), closure capture, or local that outlives it,
+/// so it is lent on only to a lent tier (Requirements 12.2 to 12.4). A bare
 /// <c>ref</c> parameter carries no ownership, so neither its value nor a pass to one is judged here.
 /// </summary>
 internal sealed partial class OwnershipFlow
@@ -34,6 +35,10 @@ internal sealed partial class OwnershipFlow
                     if(StoredIn(target, Aliased) is { } destination)
                     {
                         Escape(state, value, "store", destination);
+                    }
+                    else if(Written(target) is { } written)
+                    {
+                        Escape(state, value, "store", lent => Outlives(written, lent));
                     }
                 }
 
@@ -70,6 +75,25 @@ internal sealed partial class OwnershipFlow
             case TupleLiteralExpression tuple when !Deconstructed(tuple):
                 Escape(state, tuple.Elements, "in a tuple");
                 break;
+
+            case LambdaExpression or LocalFunctionStatement or AsyncBlockExpression when Captures.Of(step.Node) is var (inner, inside):
+                var closure = step.Node switch { LambdaExpression => "in a lambda", LocalFunctionStatement => "in a local function", _ => "in an async block" };
+                foreach(var reference in inside.OfType<LocalReferenceExpression>()
+                    .Where(reference => !inner.Contains(reference.Local) && EscapeAnalyzer.Why(reference.Local).Kind is null)
+                    .DistinctBy(reference => reference.Local))
+                {
+                    Escape(state, reference, "capture", closure);
+                }
+
+                break;
+        }
+    }
+
+    internal void JudgeChained(Expression argument, Parameter parameter, Constructor chained)
+    {
+        if(Keeps(parameter.Modifier))
+        {
+            Escape(Nothing, argument, "pass", $"to unrestricted parameter '{parameter.Name}' of '{chained.DeclaringType?.Name ?? chained.Name}'");
         }
     }
 
@@ -106,18 +130,61 @@ internal sealed partial class OwnershipFlow
 
     private void Escape(State state, Expression value, string action, string destination)
     {
+        Escape(state, value, action, _ => destination);
+    }
+
+    private void Escape(State state, Expression value, string action, Func<LocalVariable, string?> destination)
+    {
         foreach(var leaf in OwnershipAnalyzer.Selected(value))
         {
-            if(LentIn(state, leaf) is var (lent, tier))
+            if(LentIn(state, leaf, destination) is var (lent, tier, reached))
             {
                 context.Report(
                     ProgramAnalysisDiagnostics.LentReferenceEscapes, leaf.Node, [leaf],
-                    new EnumValue(action), new EnumValue(tier), new NameValue(lent.Name), new NameValue(destination));
+                    new EnumValue(action), new EnumValue(tier), new NameValue(lent.Name), new NameValue(reached));
             }
         }
     }
 
-    private (LocalVariable Lent, string Tier)? LentIn(State state, Expression leaf)
+    private LocalVariable? Written(Expression target)
+    {
+        return OwnershipAnalyzer.Unwrapped(target) switch
+        {
+            LocalReferenceExpression { Local.IsRef: true, Local: var alias } => Aliased(alias) is LocalReferenceExpression { Local.IsRef: false } referent ? referent.Local : null,
+            LocalReferenceExpression { Local: var written } => written,
+            _ => null,
+        };
+    }
+
+    private string? Outlives(LocalVariable written, LocalVariable lent)
+    {
+        if(own is not null && !own.Contains(written))
+        {
+            return $"in '{written.Name}', declared outside this closure";
+        }
+
+        if(locals.IsCaptured(written))
+        {
+            return $"in '{written.Name}', which a closure captures";
+        }
+
+        if(!declaringBlocks.TryGetValue(written, out var outer) || !declaringBlocks.TryGetValue(lent, out var inner) || ReferenceEquals(outer, inner))
+        {
+            return null;
+        }
+
+        for(object node = inner; parents.TryGetValue(node, out var parent); node = parent)
+        {
+            if(ReferenceEquals(parent, outer))
+            {
+                return $"in '{written.Name}', declared outside the block that holds '{lent.Name}'";
+            }
+        }
+
+        return null;
+    }
+
+    private (LocalVariable Lent, string Tier, string Destination)? LentIn(State state, Expression leaf, Func<LocalVariable, string?> destination)
     {
         if(ThisTiers.IsValue(leaf.Type) || Origins.IsUnchangeable(leaf.Type))
         {
@@ -129,16 +196,16 @@ internal sealed partial class OwnershipFlow
             case LocalReferenceExpression { Local: var local }:
                 foreach(var held in ValuesOf(state.Values, Place.Of(local)).OfType<LocalVariable>().OrderBy(value => value.Name, StringComparer.Ordinal))
                 {
-                    if(LentKind(state, held, []) is { } tier)
+                    if(LentKind(state, held, []) is { } tier && destination(held) is { } reached)
                     {
-                        return (held, tier);
+                        return (held, tier, reached);
                     }
                 }
 
                 return null;
 
             case MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } when Place.Holds(field):
-                return LentIn(state, receiver);
+                return LentIn(state, receiver, destination);
 
             default:
                 return null;

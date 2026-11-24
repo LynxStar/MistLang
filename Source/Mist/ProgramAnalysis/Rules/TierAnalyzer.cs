@@ -61,6 +61,13 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
         foreach(var root in context.Bodies)
         {
+            if(ChainedParameter(root) is { } chained)
+            {
+                var argument = (Expression)root.Root;
+                JudgeExtraction(context, argument, chained.Modifier.Ownership, chained.Modifier.IsRef);
+                JudgeLend(context, tiers, argument, argument, chained);
+            }
+
             if(root.Member is Method { DeclaredThisTier: { } declared } method && ReferenceEquals(root.Root, method.Body)
                 && tiers.Inferred(method) is var needed && needed > declared)
             {
@@ -69,6 +76,14 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
                     new NameValue(method.Name), new EnumValue(ThisTiers.Display(declared)), new EnumValue(ThisTiers.Display(needed)));
             }
         }
+    }
+
+    internal static Parameter? ChainedParameter(SourceRoot root)
+    {
+        return root is { Member: Constructor { ChainedConstructor: { } chained } constructor, Root: Expression argument }
+            && constructor.ChainArgumentsList.IndexOf(argument) is var index and >= 0
+            ? index < chained.ParametersList.Count ? chained.ParametersList[index] : chained.ParametersList is [.., { IsFlattened: true } last] ? last : null
+            : null;
     }
 
     private static void JudgeReceiver(AnalysisContext context, ThisTiers tiers, InvocationExpression invocation, Method method)
@@ -205,6 +220,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             ExtensionPropertyAccessExpression property => $"property '{property.Property.Name}'",
             IndexExpression index => $"element of '{Path(index.Receiver)}'",
             InvocationExpression { Signature: { } method } => $"result of '{method.Name}'",
+            InvocationExpression { Receiver: var callee } => OwnershipFlow.Spelled(callee) is { } named ? $"result of '{named}'" : "result of a function value",
             var other => Display(other),
         };
     }

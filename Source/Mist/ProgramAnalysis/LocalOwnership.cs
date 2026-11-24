@@ -18,16 +18,19 @@ internal sealed class LocalOwnership
     private readonly Dictionary<LocalVariable, LocalDeclarationStatement> declarations;
     private readonly Dictionary<LocalVariable, Expression> bindings = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> resolving = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<LocalVariable> captured;
 
     private LocalOwnership()
     {
         declarations = [];
+        captured = [];
     }
 
     private LocalOwnership(object root)
     {
         var nodes = BodyWalker.DescendantsAndSelf(root).ToList();
         declarations = nodes.OfType<LocalDeclarationStatement>().ToDictionary(declaration => declaration.Local);
+        captured = Captures.Captured(nodes);
         foreach(var scope in nodes.OfType<WithBlockStatement>().Where(scope => scope.Binding is not null))
         {
             bindings[scope.Binding!] = scope.Value;
@@ -161,6 +164,11 @@ internal sealed class LocalOwnership
                 var later = uses.Later.Contains(local) || pinned;
                 var inferredTier = places.Any(place => !place.IsRoot) ? source
                     : Choose(source, required, places.Count != 0, later, uses.Overlapping.Contains(local), Exclusive(value), uses.MutatingOverlap.Contains(local));
+                if(Shared(local))
+                {
+                    inferredTier = ThisTier.None;
+                }
+
                 if(inferredTier != inferred[local])
                 {
                     inferred[local] = inferredTier;
@@ -287,6 +295,17 @@ internal sealed class LocalOwnership
     {
         var leaves = OwnershipAnalyzer.Selected(expression).ToList();
         return leaves.Count == 0 ? ThisTier.None : leaves.Min(tier);
+    }
+
+    public bool IsCaptured(LocalVariable local)
+    {
+        return captured.Contains(local);
+    }
+
+    private bool Shared(LocalVariable local)
+    {
+        return captured.Contains(local) && !ThisTiers.IsValue(local.Type) && !Origins.IsUnchangeable(local.Type)
+            && OwnershipAnalyzer.Substructural(local.Type) is not (SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine);
     }
 
     public bool IsLoan(LocalVariable local)

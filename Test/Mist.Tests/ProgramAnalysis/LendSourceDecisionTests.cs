@@ -3,6 +3,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LendFragments;
 
@@ -45,6 +46,22 @@ public sealed class LendSourceDecisionTests
         var parent = Parameter("p", f.Holder, Tier(holder == "borrowed parameter" ? "borrowed" : "frozen"));
 
         Assert.Equal(ThisTier.Owned, LocalOwnership.Empty.Lends(Access(Ref(parent), f.Kept)));
+    }
+
+    [Theory]
+    [InlineData(true, ThisTier.None)]
+    [InlineData(false, ThisTier.Owned)]
+    public void AnInferredLocalAClosureCapturesIsNotHeldExclusively(bool captured, ThisTier lends)
+    {
+        var s = new LocalVariable("s", f.Box) { InfersOwnership = true };
+        var source = Ref(s);
+        List<Statement> statements = [Declare(s, Fresh(f.Box)), Declare(new LocalVariable("o", f.Box) { Ownership = OwnershipKind.Borrowed }, source)];
+        if(captured)
+        {
+            statements.Insert(1, Run(f.Lambda(Access(Ref(s), f.V))));
+        }
+
+        Assert.Equal(lends, LocalOwnership.For(HandBuiltModel.Block([.. statements])).Lends(source));
     }
 
     private Expression Source(string source)

@@ -206,7 +206,7 @@ internal sealed partial class OwnershipFlow
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals, ownedReceiver).Judge(nested, state);
+                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals, ownedReceiver, Captures.Of(step.Node)?.Own ?? own).Judge(nested, state);
                 break;
         }
     }

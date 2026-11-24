@@ -23,6 +23,34 @@ internal static class Captures
         return BodyWalker.DescendantsAndSelf(function.Body).ToList();
     }
 
+    public static (HashSet<LocalVariable> Own, IReadOnlyList<object> Inside)? Of(object closure)
+    {
+        var (parameters, inside) = closure switch
+        {
+            LambdaExpression { IsStatic: false } lambda => (lambda.Parameters, Inside(lambda)),
+            LocalFunctionStatement { Function.Modifiers.IsStatic: false } function => (function.Parameters, Inside(function)),
+            AsyncBlockExpression block => ([], BodyWalker.DescendantsAndSelf(block.Body).ToList()),
+            _ => (null, []),
+        };
+
+        return parameters is null ? null : (OwnNames(parameters, inside), inside);
+    }
+
+    public static HashSet<LocalVariable> Captured(IEnumerable<object> nodes)
+    {
+        var captured = new HashSet<LocalVariable>(ReferenceEqualityComparer.Instance);
+
+        foreach(var closure in nodes)
+        {
+            if(Of(closure) is var (own, inside))
+            {
+                captured.UnionWith(inside.OfType<LocalReferenceExpression>().Select(reference => reference.Local).Where(local => !own.Contains(local)));
+            }
+        }
+
+        return captured;
+    }
+
     public static HashSet<LocalVariable> OwnNames(IEnumerable<LocalVariable> parameters, IReadOnlyList<object> inside)
     {
         var own = new HashSet<LocalVariable>(parameters, ReferenceEqualityComparer.Instance);

@@ -15,7 +15,7 @@ internal sealed partial class FactFlow
         {
             WideningEntry = incoming,
             WideningHeader = header,
-            StableHolders = incoming.Bindings.Order.Where(holder => changes is not null && !changes.Writes(holder, incoming, reading, effects)).ToImmutableHashSet(),
+            StableHolders = incoming.Bindings.Order.Where(holder => changes is not null && !changes.Writes(holder, incoming, this)).ToImmutableHashSet(),
         };
     }
 
@@ -29,7 +29,7 @@ internal sealed partial class FactFlow
         var source = joined.WideningEntry ?? previous;
         var changes = joined.WideningHeader is { } header ? loopChanges.GetValueOrDefault(header) : null;
         var stable = joined.Bindings.Order.Where(holder => changes is not null
-            ? !changes.Writes(holder, source, reading, effects)
+            ? !changes.Writes(holder, source, this)
             : ReferenceEquals(previous.Bindings.Get(holder), joined.Bindings.Get(holder))).ToHashSet();
         var protectedValues = stable.Select(source.Bindings.Get).OfType<Value>().ToHashSet();
         var removed = new HashSet<Value>();

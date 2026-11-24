@@ -105,8 +105,8 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic OwnedFieldType = new(
         DiagnosticNumber.Mint("MIST0237"),
         Title: "Owned type field not ownable",
-        Template: "{kind} '{member}' of owned type '{type}' has type '{memberType}', {reason}. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
-        Description: "An owned type must own its whole graph, so every field must be an owned type, a value type, or implement 'IClonable<T>', and this field's type is none of these. Change the field's type, or give that type an 'IClonable<T>' implementation.",
+        Template: "{kind} '{member}' of owned type '{type}' has type '{memberType}', {reason}. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
+        Description: "An owned type must own its whole graph, so every field must be an owned type, an unchangeable value type, or implement 'IClonable<T>', and this field's type is none of these. Change the field's type, or give that type an 'IClonable<T>' implementation.",
         Category: DiagnosticCategory.Own,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
@@ -471,4 +471,37 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("value", SlotKind.Name), new Slot("field", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic LentConstructionNotFresh = new(
+        DiagnosticNumber.Mint("MIST0507"),
+        Title: "Lent construction not fresh",
+        Template: "Cannot lend this value as {tier} to '{target}': it is neither fresh, moved from an owned binding, nor of a type that cannot change, because the constructor of '{type}' lets 'this' escape. A {tier} lend needs exclusive access, which only an owned binding, an owned field through an owned parent, a construction that keeps 'this' private, or a call returning owned can give.",
+        Description: "A borrowed or frozen lend promises the recipient exclusive access, and a construction gives that only when its constructor chain keeps 'this' private. This constructor stores or hands out 'this', so something else may already reach the new object. Make the constructor keep 'this' private, or hold the object unrestricted and lend it readonly ref.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("tier", SlotKind.Enum), new Slot("target", SlotKind.Name), new Slot("type", SlotKind.Type)],
+        Related: [IncompatibleLend.Number, OwnedSourceNotOwned.Number]);
+
+    public static readonly MistDiagnostic LentReferenceEscapes = new(
+        DiagnosticNumber.Mint("MIST0508"),
+        Title: "Lent reference escapes",
+        Template: "Cannot {action} {tier} '{variable}' {destination}: a {tier} reference is lent only until the scope it was given to ends, so it cannot be stored, returned or passed where it could be kept.",
+        Description: "A borrowed, frozen or readonly ref binding is non-storable: its lender gets full access back when the lend ends, so the reference may not reach a field, a collection element, a return or an unrestricted parameter, and may be lent on only to a parameter of the same tier or a weaker one. Lend it on, read what you need out of it, or clone it into an owned destination.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("action", SlotKind.Enum), new Slot("tier", SlotKind.Enum), new Slot("variable", SlotKind.Name), new Slot("destination", SlotKind.Name)],
+        Related: [IncompatibleLend.Number, CapturedBinding.Number]);
+
+    public static readonly MistDiagnostic OwnedPassedByRef = new(
+        DiagnosticNumber.Mint("MIST0509"),
+        Title: "Owned value passed by bare ref",
+        Template: "Cannot pass {kind} '{name}' to bare ref parameter '{parameter}': a bare 'ref' carries no ownership, so the callee could keep the object or store a shared one in its place, and '{name}' would no longer be its sole owner. Lend it as 'borrowed' to change it in place, or pass it to an 'owned' parameter and take the replacement from an 'owned' return.",
+        Description: "An owned binding or owned field is its object's sole owner, and a bare 'ref' parameter, a projected CLR 'ref' or 'out' included, promises nothing about ownership: the callee may keep the object or write a shared one back. Only a value of a type that cannot change may be passed by bare 'ref'. Lend the value as 'borrowed' to change it in place, or move it to an 'owned' parameter and receive its replacement from an 'owned' return.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("kind", SlotKind.Enum), new Slot("name", SlotKind.Name), new Slot("parameter", SlotKind.Name)],
+        Related: [IncompatibleLend.Number, SharedExtract.Number]);
 }

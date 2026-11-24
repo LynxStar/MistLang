@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 
@@ -54,7 +55,7 @@ internal sealed partial class FactFlow
             return result;
         }
 
-        public bool Writes(object holder, FactState incoming, FactReading reading, FieldEffects effects)
+        public bool Writes(object holder, FactState incoming, FactFlow flow)
         {
             foreach(var expression in nodes)
             {
@@ -64,26 +65,23 @@ internal sealed partial class FactFlow
                     CompoundAssignmentExpression compound => compound.Target,
                     _ => null,
                 };
-                if(target is not null && Equals(reading.Holder(ref incoming, target), holder))
+                if(target is not null && (Ends(flow, ref incoming, target, holder) || flow.holders.Reach(target).Covers(holder)))
                 {
                     return true;
                 }
 
-                if(holder is Field field && (target is ThisExpression || (!field.Modifiers.IsReadonly && effects.MayWrite(expression))))
+                var byRef = holder is LocalVariable { Parameter.Modifier.IsRef: true };
+                var mayWrite = byRef ? flow.effects.MayWriteUnhanded(expression) : holder is Field { Modifiers.IsReadonly: false } && flow.effects.MayWrite(expression);
+                if(((holder is Field || byRef) && target is ThisExpression) || mayWrite || flow.holders.Called(expression).Covers(holder))
                 {
                     return true;
                 }
 
-                var (arguments, parameters) = expression switch
-                {
-                    InvocationExpression call => (call.Arguments, call.Parameters),
-                    NewExpression creation => (creation.Arguments, creation.Constructor?.ParametersList),
-                    _ => (null, null),
-                };
+                var (arguments, parameters) = BodyHolders.Arguments(expression);
                 for(var i = 0; arguments is not null && parameters is not null && i < arguments.Count && i < parameters.Count; i++)
                 {
                     if(parameters[i].Modifier.Direction is ByRefDirection.Ref or ByRefDirection.Out
-                        && Equals(reading.Holder(ref incoming, arguments[i]), holder))
+                        && (Ends(flow, ref incoming, arguments[i], holder) || flow.holders.Reach(arguments[i]).Covers(holder)))
                     {
                         return true;
                     }
@@ -91,6 +89,25 @@ internal sealed partial class FactFlow
             }
 
             return false;
+        }
+
+        private static bool Ends(FactFlow flow, ref FactState incoming, Expression place, object holder)
+        {
+            if(BodyHolders.ReturnsRef(place))
+            {
+                foreach(var named in BodyHolders.Places(place))
+                {
+                    if(Ends(flow, ref incoming, named, holder))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            return flow.reading.Holder(ref incoming, place) is { } written
+                && (Equals(written, holder) || flow.holders.AliasesOf(written).Contains(holder));
         }
     }
 }

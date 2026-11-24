@@ -45,7 +45,7 @@ public sealed class RangeIndexMemberDecisionTests
     [InlineData("Index end = Pick.Edge(); Range window = 0..end; end = ^1; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
     [InlineData("Index end = ^1; var change = () => { end = ^5; }; change(); var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
     [InlineData("Index end = ^1; ref Index alias = end; Range window = 0..alias; alias = ^5; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; Range window = 0..end; Pick.Change(ref end); var slice = numbers[window]; var last = slice[0];", "MIST0275")]
+    [InlineData("Index end = ^1; Pick.Change(ref end); Range window = 0..end; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
     public void UnknownDifferentAndInvalidIndexes_RemainRefused(string statements, string id)
     {
         Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Number.Value);

@@ -64,20 +64,11 @@ may write a member, which ends that member's value and no other. Which members a
 call may write is the ownership and purity rules' judgement, member by member: a
 method on `this` that writes `B` leaves the facts about `A` in place.
 
-The compiler at 4c2e5bb3 proves less than this in four places. With
+The compiler proves less than this in two places MIST-1641 builds. With
 `Take(Five f)` taking `int >= 5 and <= 5`, each `Take` below is refused today and
 is proven under this design:
 
 ```mist
-var a = 5;
-Take(a);        // a local passed by ref anywhere in the body keeps only its type
-Bump(ref a);
-
-var c = 5;
-Take(c);        // so does a local that a ref local names anywhere in the body
-ref int r = c;
-r = 6;
-
 owned var b = new Box();
 b.V = 5;
 Take(b.V);      // a member of an object the body owns carries no facts
@@ -87,10 +78,79 @@ SetB();         // writes only B
 Take(A);        // every mutable field of this ends at the call
 ```
 
-`UnseenWrites.Of(root)` takes the first two out of the flow for the whole body,
-member holders of owned and exclusively held objects are not fact-bearing, and
+Member holders of owned and exclusively held objects are not fact-bearing, and
 `FieldEffects.MayWrite` answers for all mutable fields together where
 `ThisTiers.FieldUses` holds the per-field answer.
+
+A local, a parameter or a field of `this` passed by `ref` or `out` or named by a
+`ref` local keeps its facts until the write itself, as the rule above states.
+`BodyHolders` names which holders a `ref` local may reach, and `WriteReach` below
+names which holders any other write may reach. A local a nested function reads
+may be what that function's own `ref` or `out` parameter names once the local is
+passed by `ref` or `out` or named by a `ref` local, and what its `readonly ref`
+parameter names once it is passed by reference at all. So a write through such a
+parameter ends the local, a write to the local ends the parameter, and so does a
+call to a local function that writes the local, directly or through the local
+functions it calls. A local the nested function declares itself is never its
+parameter's storage. `BodyHolders` leaves outside the flow, with only their type,
+a field passed by `ref` or `out` or named by a `ref` local through another
+object, whose storage the flow cannot name; a holder handed by reference to a
+call whose result is a `ref` struct such as `Span`; and a `ref` local bound to a
+call that returns a ref, though a write through it still ends the holders that
+call was handed by reference. Otherwise a `readonly ref` argument cannot write
+its holder, so it leaves the holder's facts in place.
+
+`WriteReach` names the other holders a write may reach, because their storage
+may be the storage written. A by-ref parameter (`ref`, `out` or `readonly ref`)
+names storage its caller chose: any field of `this`, any static, an array
+element or a member of an object that existed when the body was entered. So a
+write through it, or through a `ref` local of it, ends every field and static
+of its type and every other by-ref parameter of its type. A write to a field, a
+static, an array element or a member of another object ends every by-ref
+parameter of its type, and so does a call that may write beyond what it is
+handed by reference. Storage the body created or copied after it was entered
+is the exception: a by-ref parameter's storage was fixed on entry, so a write
+to a member of a `new` object, of a local that only ever holds `new` objects,
+of a struct local or a by-value struct parameter (or a struct field of such
+storage), or to an element of an array the body created, ends no by-ref
+parameter. A local a nested function reads is not such storage, because it may
+be what that function's own by-ref parameter names. A write to `o.F`, where `o`
+may be `this`, ends `this.F` and leaves the other fields in place. `o` is a
+different object when it is a `new` expression, a local of struct type that
+holds a copy, storage the body created as above, or a local that only ever
+holds `new` objects and is never handed by reference. A write to a field also
+ends the facts about that field of any other receiver. Storage of one closed
+type is never another's, so `ref long` does not reach an `int` field; a type
+parameter may be any type.
+
+A write through a ref a call returns reaches what `ReturnedStorage` reads in
+the callee's `return ref` statements, read as the caller's storage. The
+callee's `this` is the call's receiver. A class-typed by-value parameter is the
+argument, and a class-typed `extension` block receiver is the call's receiver,
+when the callee never assigns it, hands it by `ref` or `out`, or binds a `ref`
+local to it; otherwise it may hold any object, `this` included. A
+struct-typed `ref` parameter is the argument's storage. A struct field lies
+inside the storage that holds it. A field the callee returns therefore names
+that field of the caller's storage, which may be the caller's `this`, unless
+that storage is a different object by the test above, and a field of storage the
+body created, however deep in struct fields, reaches no by-ref parameter. A
+by-ref parameter it returns names what the caller handed it, so the write
+reaches what a write to that argument reaches. A nested call's result is read
+the same way, with its receiver and arguments read through the outer call in
+turn, so `o.G()` returning `ref GetA()` names `o.A`. Each callee's returned
+storage is read once, in terms of its own receiver and parameters, as the least
+fixpoint over its `return ref` statements: a recursive or mutually recursive
+call contributes what its callee's returns name, read through that call in
+turn, and a cycle that never reaches a `return ref` of known storage
+contributes nothing. So `Rec` returning `ref Rec(n - 1)` or `ref A` names
+`this.A`, and `o.Rec(3)` names `o.A`. An array element names no field. A callee
+with no body, one an abstract type declares, or one that returns anything else
+may return any field or static of the ref's type. This
+reads the callee's body for which storage it names, as the purity rules read it
+for which members it writes, and never for a fact about a value (Requirement
+6.1). The same reach applies to a `ref` local bound to such a call and to the
+call used as an assignment target. A `ref` local bound to a ref-returning
+property or indexer may name any field or static of its type.
 
 The `Length` holder is the dependent type parameter `TypeResult` that
 `RangeKnowledge.IsLength` recognizes (RangeKnowledge.cs:25-36) and string's

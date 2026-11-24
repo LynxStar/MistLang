@@ -31,7 +31,7 @@ An owned binding must be initialized with a value that yields unique ownership. 
 
 In addition, a `default(T)` expression (or a bare `default` when the target type is known) counts as a unique-ownership source. `default` produces a freshly allocated, fully independent value graph, so it is equivalent to a constructor call for ownership purposes.
 
-If you try to initialize an owned binding from a value that is not uniquely owned and cannot be cloned, the compiler reports an error — the binding cannot prove it is the sole owner.
+If you try to initialize an owned binding from a reference value that is not uniquely owned and cannot be cloned, the compiler reports an error — the binding cannot prove it is the sole owner. A struct instead follows the field-wise construction rule described under [Owned Fields](#owned-fields).
 
 ### Owned Bindings Work for Any Non-Substructural Type
 
@@ -87,7 +87,7 @@ This is not blind trust. An `owned` type's mutable methods are available precise
 
 Declaring a type `owned` is a behavioral promise: the type author guarantees that every mutation inside the type maintains ownership invariants. Concretely, every field assignment inside the type's methods and constructors must come from an owned source.
 
-The compiler enforces this contract at the type's definition site. For each assignment `this.field = source` inside an `owned` type, the source must be one of: a move from an owned parameter or binding, a constructor call, a call returning an owned value, a `default` expression, or a value that can be cloned via `IClonable<T>`. A value-type or primitive source is always fine because copying it cannot introduce an alias.
+The compiler enforces this contract at the type's definition site. For each assignment `this.field = source` inside an `owned` type, the source must be one of: a move from an owned parameter or binding, a constructor call, a call returning an owned value, a `default` expression, or a value that can be cloned via `IClonable<T>`. A primitive or a struct holding nothing changeable needs no extra work. A struct that holds objects follows the field-wise construction rule below.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -104,7 +104,7 @@ The compiler enforces this contract at the type's definition site. For each assi
 
 If a method or constructor in an `owned` type assigns a field from a non-owned source that cannot be cloned — for example, storing an unverified parameter directly into a field — the compiler reports a contract violation, naming the method, the field, and the offending source. The fix is to make the parameter `owned`, clone it, or construct a fresh value.
 
-An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is a value type. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an abstract type is an error.
+An `owned` type additionally enforces a **field-type restriction**: every field must have a type that is another `owned type`, implements `IClonable<T>`, or is an unchangeable value type. A struct that holds a changeable object needs an owned or clonable type, as a class does. This guarantees full ownership of the entire object graph. See [Owned Fields](#owned-fields) for details. The `owned` modifier applies to classes and structs; applying it to an abstract type is an error.
 
 ## Field Assignment Provenance
 
@@ -126,7 +126,7 @@ Beyond method calls, you can update a field of an owned-bound instance directly 
 The provenance rule treats sources exactly like an owned binding initializer:
 
 - A constructor call, an owned-returning call, a move from an owned binding, or a `default` expression — accepted as owned.
-- A value type (struct) or primitive — accepted without restriction, because copying it cannot introduce an alias.
+- A primitive or an unchangeable struct — accepted directly. Any other struct is constructed from its fields: plain fields may share, while owned fields holding changeable objects move from an owned source or clone from a shared source. This includes owned fields nested in structs and tuples; a required clone that cannot be made is an error naming the field and its type.
 - A non-owned reference value that implements `IClonable<T>` — accepted, with an implicit `.Clone()` inserted.
 - Anything else — a non-owned reference with no way to become owned — is a compile error.
 
@@ -161,10 +161,10 @@ public class Document
 
 An `owned` field enforces two rules:
 
-1. **Provenance on writes** — any value written into the field must come from an owned source (a constructor call, a move from an owned binding, an owned-returning function, or a clone via `IClonable<T>`). This is the same provenance rule as field assignment on owned bindings, but now it applies to the specific field at all times. Where the source is a shared value of a clonable type, the compiler inserts the `.Clone()` itself — at a field initializer, in a constructor or method assignment, and in an object initializer — so the field receives an independent copy. A shared value whose type cannot be cloned is refused at the write.
+1. **Provenance on writes** — any value written into the field must come from an owned source (a constructor call, a move from an owned binding, an owned-returning function, or a clone via `IClonable<T>`). This is the same provenance rule as field assignment on owned bindings, but now it applies to the specific field at all times. Where the source is a shared value of a clonable type, the compiler inserts the `.Clone()` itself — at a field initializer, in a constructor or method assignment, and in an object initializer — so the field receives an independent copy. A shared reference whose type cannot be cloned is refused at the write; a struct follows the field-wise construction rule.
 2. **Extraction requires an owned parent** — moving out of, borrowing, freezing, or taking a readonly ref of the field is only permitted when the parent binding is owned. Through a shared parent, you can write (with provenance) and read: a read of a clonable field through a shared parent is compiled as a clone, and a read of a field whose type cannot be cloned is refused, since the only way to hand it out would be to alias it.
 
-The `owned` modifier is valid on fields of any reference type. It can also appear on value-type fields (structs and primitives) without error, though it has no behavioral effect since value types are copied. Static fields cannot be marked `owned` — ownership requires an instance-level owner.
+The `owned` modifier is valid on fields of reference types and value types. A struct copied into an owned field is a construction from its fields: plain fields may share their objects, and owned fields holding changeable objects, including those nested in structs or tuples, move from an owned source or clone from a shared source. If a required clone is unavailable, the copy is refused. On a primitive or a struct holding nothing changeable, `owned` needs no additional copying. Static fields cannot be marked `owned` — ownership requires an instance-level owner.
 
 ### Jagged Ownership
 
@@ -266,7 +266,7 @@ But `owned type` goes further with a **field-type restriction**: every field of 
 
 - Another `owned type`, or
 - A type implementing `IClonable<T>`, or
-- A value type (struct or primitive).
+- An unchangeable value type: a primitive, or a struct none of whose fields holds a changeable object. A struct holding one must instead be owned or clonable, just like a class.
 
 This guarantees that `owned type` provides **full** ownership of the entire object graph. No field can hold an arbitrary shared reference that might alias external state.
 
@@ -407,7 +407,7 @@ abstract IClonable<T>
 
 ### Implicit Cloning
 
-You rarely call `Clone()` by hand. Wherever a value must move into an owned destination — an owned binding initializer, a field assignment on an owned binding, or an `owned` parameter — and the source is not already owned, the compiler checks whether the source's type implements `IClonable<T>`. If it does, the compiler inserts a `.Clone()` call automatically. If it does not, and the source is not already owned, the compiler reports an error suggesting you implement `IClonable<T>`.
+You rarely call `Clone()` by hand. Wherever a reference value must move into an owned destination — an owned binding initializer, a field assignment on an owned binding, or an `owned` parameter — and the source is not already owned, the compiler checks whether the source's type implements `IClonable<T>`. If it does, the compiler inserts a `.Clone()` call automatically. If it does not, and the source is not already owned, the compiler reports an error suggesting you implement `IClonable<T>`.
 
 {{#tabs }}
 {{#tab name="Mist" }}
@@ -422,7 +422,7 @@ You rarely call `Clone()` by hand. Wherever a value must move into an owned dest
 {{#endtab }}
 {{#endtabs }}
 
-Implicit cloning is the single, uniform mechanism by which a non-owned value becomes owned. It applies identically at every move boundary, so you never have to remember different rules for bindings, fields, and parameters.
+Implicit cloning bridges shared references into owned destinations. A struct copy instead constructs a value from its fields, sharing plain objects and cloning owned ones when the source is shared. It applies identically at every move boundary, so you never have to remember different rules for bindings, fields, and parameters.
 
 A source that already owns its value is not cloned again: a construction, a call returning `owned` (an explicit `Clone()` among them), an owned binding, and a cast whose conversion hands over an owned value -- a newtype's conversion that runs a `Clone` body (see [Clonable Class Sources](../type-system/newtypes.md#clonable-class-sources)), or a conversion operator declared `owned`. So `owned Jaguar kept = (Jaguar)tiger;` runs one `Clone`, not two. A newtype's field-by-field copy is not such a source: the copy's fields are still the operand's, so an owned destination clones it once.
 
@@ -455,7 +455,7 @@ An optional or union field is judged constituent by constituent. The bootstrap v
 
 The derived `Clone()` returns a **fully unique copy**: nothing changeable in the copy is reachable from the original. An object whose `Clone()` is declared rather than derived is copied by calling it, through an abstract type's conformance included.
 
-**A field that is not `owned` and holds a changeable object prevents derivation.** Another field may hold the same object, or the field may lead back to the object being cloned, and whether a copy should share or duplicate it is yours to decide. Mark the field `owned` — which also states that it is the only holder — or implement `Clone()` yourself. Otherwise the type is not clonable, and an owned destination fed a shared value of it is refused with an error that names the first field standing in the way and why:
+**A field that is not `owned` and holds a changeable object prevents derivation.** Another field may hold the same object, or the field may lead back to the object being cloned, and whether a copy should share or duplicate it is yours to decide. Mark the field `owned` — which also states that it is the only holder — or implement `Clone()` yourself. Otherwise the type is not clonable. An owned destination fed a shared class value of it is refused with an error that names the first field standing in the way and why:
 
 ```text
 error MIST0264: Cannot move this value into owned binding 'mine': parameter 'p' is not owned, so the caller may still hold its value; 'Person' cannot be cloned: field 'Home' of 'Person' is not owned and holds 'Address', which can change; make that field 'owned' or give the type a 'Clone()' of its own. ...
@@ -489,11 +489,11 @@ In the emitted C#, `IClonable<T>` is an ordinary interface with a `Clone()` meth
 - Ownership is a property of a **binding** (`owned var`), not of a type. Any non-substructural type can be owned.
 - A **non-owned type** in an owned binding appears readonly — only readonly methods and provenance-checked field assignments are available.
 - An **`owned` type** opts into a cooperation contract the compiler verifies, earning full mutable method access in owned bindings.
-- **Field assignment provenance** requires the source of a field assignment on an owned binding to be owned (or a value type, or cloned).
+- **Field assignment provenance** requires an owned or cloned source, or a struct constructed from its fields under the field-wise copy rule.
 - **Owned fields** let you protect individual fields with ownership semantics. Writes require provenance; extraction requires an owned parent binding.
 - The **this-tier system** infers per-method access requirements from owned-field usage, replacing blanket method hiding with precise call-site checks. Use `with {tier}` to annotate explicitly.
 - **Jagged ownership** — a type with some fields `owned` and some not — gives you targeted protection without requiring `owned type` on the whole class.
-- An **`owned type`** additionally enforces a field-type restriction: all fields must be owned types, implement `IClonable<T>`, or be value types — guaranteeing full graph ownership.
+- An **`owned type`** additionally enforces a field-type restriction: all fields must be owned types, implement `IClonable<T>`, or be unchangeable value types — guaranteeing full graph ownership.
 - **Per-field state tracking** enables partial moves and sibling independence: move one field out while the rest remain accessible, and restore it later.
 - **Ownership inference** on `var` bindings finds the minimum tier satisfying all uses, with `shared` as the ultimate fallback.
 - **Moves** transfer ownership and leave the source dead; using a moved binding is a compile error.

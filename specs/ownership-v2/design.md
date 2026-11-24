@@ -320,6 +320,33 @@ A field that is not `owned` and holds a Changeable_Object meets none of these. A
 
 **What this changes in the compiler.** The derivation that MIST0237 consults admits a field that is not `owned` when its class is clonable, and a type that holds itself through such a field; the revision refuses both, which narrows what an owned type's fields may be. The unchangeable-type test used by provenance counts every value type as unchangeable, where Req 8 AC 6 counts one only when none of its fields holds a Changeable_Object. Implicit cloning reads only a declared `Clone()`; under the revision it calls the generated one too.
 
+### Struct copies (revision of 2026-11-23)
+
+Req 4 AC 3 and owned-fields Req 4 AC 3, with the criteria that restate them, first exempted every struct from provenance and from the owned-type field restriction because a struct is copied. A copy of a struct copies the references its fields hold. Two kinds of program then compile in which an owned value reaches an object something else holds:
+
+```mist
+public class Style { public int Size; public Style(int size) { this.Size = size; } }
+public struct Pair { public Style S; public Pair(Style s) { this.S = s; } }
+public owned class Doc { public Pair P; public Doc(Pair p) { this.P = p; } }
+public struct Mixed { public Style Plain; public owned Style Own; ... }
+
+var shared = new Style(1);
+owned var a = new Doc(new Pair(shared));
+owned var b = new Doc(new Pair(shared)); // two owned types reach one Style
+
+var m = new Mixed(shared, new Style(1));
+Show(m);
+owned var q = m;                         // q.Own and m.Own are one Style
+```
+
+**A struct copy is a construction from its fields** (Req 6 AC 11). A field that is not `owned` shares its object, exactly as it does in `owned var q = new Pair(p.S)`, which an owned destination already accepts. An `owned` field promises that nothing else holds its object, so the copy reads it as any owned field is read: moved from an owned source, cloned from a shared one, refused when it cannot be cloned. An Unchangeable struct needs nothing, and a struct whose every field qualifies derives `Clone()` (Req 8 AC 6), so the copy is that clone.
+
+**An owned type still promises its whole graph**, so its field of a struct that holds a Changeable_Object must be owned or clonable (owned-fields Req 4), as a field of a class type must.
+
+*Rejected:* treating a struct that holds a Changeable_Object as a reference type at owned destinations. It refuses `owned var q = p` for a shared `p` while `owned var q = new Pair(p.S)`, the same copy written out, compiles.
+
+**What this changes in the compiler.** Provenance and the owned-type field restriction count every value type that is not a view as unchangeable. A struct copied into an owned destination now moves or clones each owned field that holds a Changeable_Object, and an owned type's field of a struct that holds one is refused unless the struct is owned or clonable.
+
 ## Data Models
 
 ### Type model changes (`ClassType` / `StructType`)

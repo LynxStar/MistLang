@@ -23,7 +23,7 @@ public sealed class FactLoopTests
                 HandBuiltRefinements.If(condition, HandBuiltRefinements.Evaluate(h.Literal(0L))),
                 HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(i, h.Binary(i, BinaryOperatorKind.Add, h.Literal(1L), h.Int))))));
         var graph = FlowGraphBuilder.Build(body);
-        var lattice = new Watching(new FactFlow(new HashSet<object>(), new LiftedReturns(), graph: graph), i, condition);
+        var lattice = new Watching(new FactFlow(BodyHolders.None, new LiftedReturns(), graph: graph), i, condition);
 
         _ = FlowSolution<FactState>.Solve(graph, lattice, FactState.Empty);
 
@@ -42,7 +42,7 @@ public sealed class FactLoopTests
         var body = HandBuiltModel.Block(new WhileStatement(flag, HandBuiltModel.Block(
             HandBuiltRefinements.Give(copy, n), HandBuiltRefinements.Need(copy, h.Between(h.Int, 0L, 10L)))));
         var graph = FlowGraphBuilder.Build(body);
-        var inner = new FactFlow(new HashSet<object>(), new LiftedReturns(), graph: graph);
+        var inner = new FactFlow(BodyHolders.None, new LiftedReturns(), graph: graph);
         var entry = inner.Transfer(FactState.Empty, new FlowStep(FlowStepKind.Introduce, flag, flag.Local));
         entry = inner.Transfer(entry, new FlowStep(FlowStepKind.Introduce, n, n.Local));
         var lattice = new Watching(inner, n, h.Literal(false));

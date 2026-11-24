@@ -18,16 +18,20 @@ internal sealed class LocalOwnership
     private readonly Dictionary<LocalVariable, LocalDeclarationStatement> declarations;
     private readonly Dictionary<LocalVariable, Expression> bindings = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> resolving = new(ReferenceEqualityComparer.Instance);
+    private readonly HashSet<LocalVariable> captured;
+    private readonly HashSet<LocalVariable> passedByRef = new(ReferenceEqualityComparer.Instance);
 
     private LocalOwnership()
     {
         declarations = [];
+        captured = [];
     }
 
     private LocalOwnership(object root)
     {
         var nodes = BodyWalker.DescendantsAndSelf(root).ToList();
         declarations = nodes.OfType<LocalDeclarationStatement>().ToDictionary(declaration => declaration.Local);
+        captured = Captures.Captured(nodes);
         foreach(var scope in nodes.OfType<WithBlockStatement>().Where(scope => scope.Binding is not null))
         {
             bindings[scope.Binding!] = scope.Value;
@@ -53,6 +57,11 @@ internal sealed class LocalOwnership
             for(var i = 0; parameters is not null && i < values.Count && i < parameters.Count; i++)
             {
                 var parameter = parameters[i];
+                if(TierAnalyzer.BareRef(parameter.Modifier) && OwnershipAnalyzer.Unwrapped(values[i]) is LocalReferenceExpression { Local: var passed })
+                {
+                    _ = passedByRef.Add(passed);
+                }
+
                 var required = parameter.Modifier.Ownership == OwnershipKind.Owned
                     || (!parameter.Modifier.IsRef && parameter.Modifier.Ownership == OwnershipKind.Unrestricted && Exclusive(values[i]))
                     ? ThisTier.Owned : ThisTiers.LendTier(parameter);
@@ -161,6 +170,11 @@ internal sealed class LocalOwnership
                 var later = uses.Later.Contains(local) || pinned;
                 var inferredTier = places.Any(place => !place.IsRoot) ? source
                     : Choose(source, required, places.Count != 0, later, uses.Overlapping.Contains(local), Exclusive(value), uses.MutatingOverlap.Contains(local));
+                if(Shared(local))
+                {
+                    inferredTier = ThisTier.None;
+                }
+
                 if(inferredTier != inferred[local])
                 {
                     inferred[local] = inferredTier;
@@ -230,8 +244,7 @@ internal sealed class LocalOwnership
 
     public ThisTier Provided(Expression expression)
     {
-        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
-        return leaves.Count == 0 ? ThisTier.None : leaves.Min(leaf => leaf switch
+        return Least(expression, leaf => leaf switch
         {
             LocalReferenceExpression reference => Of(reference.Local),
             FieldReferenceExpression field => ThisTiers.IsOwned(field.Field) ? ThisTier.Owned : ThisTier.None,
@@ -239,16 +252,66 @@ internal sealed class LocalOwnership
         });
     }
 
+    /// <summary>
+    /// The access a <c>borrowed</c> or <c>frozen</c> binding or argument can take from a source, which only an
+    /// exclusive holder gives (ownership-v2 Requirement 9.6): an owned or lent binding, an owned member of a
+    /// holder that is not shared (owned-fields Requirement 2), a construction keeping <c>this</c> private, or a
+    /// call returning owned. What an owned member of a lent holder gives is not narrowed here.
+    /// </summary>
+    public ThisTier Lends(Expression expression)
+    {
+        return Held(expression, lending: true);
+    }
+
     private ThisTier SourceOf(Expression expression)
     {
-        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
-        return leaves.Count == 0 ? ThisTier.None : leaves.Min(leaf => leaf switch
+        return Held(expression, lending: false);
+    }
+
+    private ThisTier Held(Expression expression, bool lending)
+    {
+        return Least(expression, leaf => leaf switch
         {
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => ThisTiers.IsOwned(field) ? Provided(receiver) : ThisTier.None,
+            LocalReferenceExpression or FieldReferenceExpression => Provided(leaf),
+            PropertyReferenceExpression { Property.Modifiers: { IsOwned: true, IsStatic: false } } => ThisTier.Owned,
+            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } when ThisTiers.IsOwned(field) => Holder(receiver, lending),
+            MemberAccessExpression { Member: PropertyResult { Property.Modifiers: { IsOwned: true, IsStatic: false } }, Receiver: var receiver } => Holder(receiver, lending),
+            MemberAccessExpression { Member: FieldResult } => lending && Origins.IsUnchangeable(leaf.Type) ? ThisTier.Owned : ThisTier.None,
+            MemberAccessExpression { Member: PropertyResult } or PropertyReferenceExpression or ExtensionPropertyAccessExpression or IndexExpression
+                => Origins.IsUnchangeable(leaf.Type) ? ThisTier.Owned : ThisTier.None,
             InvocationExpression call when call.Signature is not ({ Modifiers.IsOwned: true } or { ReturnOwnership: OwnershipKind.Owned })
                 && !Exclusive(call) && !Origins.IsUnchangeable(call.Type) => ThisTier.None,
-            _ => Provided(leaf),
+            NewExpression creation when IsLeaky(creation) => ThisTier.None,
+            _ => ThisTier.Owned,
         });
+    }
+
+    private ThisTier Holder(Expression receiver, bool lending)
+    {
+        var held = Held(receiver, lending);
+        return lending && held > ThisTier.None ? ThisTier.Owned : held;
+    }
+
+    public static bool IsLeaky(NewExpression creation)
+    {
+        return !ThisTiers.IsValue(creation.Type) && ThisEscapes.Of(creation);
+    }
+
+    private static ThisTier Least(Expression expression, Func<Expression, ThisTier> tier)
+    {
+        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
+        return leaves.Count == 0 ? ThisTier.None : leaves.Min(tier);
+    }
+
+    public bool IsCaptured(LocalVariable local)
+    {
+        return captured.Contains(local);
+    }
+
+    private bool Shared(LocalVariable local)
+    {
+        return ((captured.Contains(local) && !ThisTiers.IsValue(local.Type)) || passedByRef.Contains(local)) && !Origins.IsUnchangeable(local.Type)
+            && OwnershipAnalyzer.Substructural(local.Type) is not (SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine);
     }
 
     public bool IsLoan(LocalVariable local)
@@ -267,7 +330,9 @@ internal sealed class LocalOwnership
 
     public static IEnumerable<Place> Sources(Expression expression)
     {
-        return OwnershipAnalyzer.Selected(expression).Select(Place.Of).OfType<Place>().Distinct();
+        return OwnershipAnalyzer.Selected(expression).Select(Place.Of).OfType<Place>()
+            .Where(place => place.IsRoot || !ThisTiers.IsValue(place.Type) || OwnershipAnalyzer.Substructural(place.Type) != SubstructuralDiscipline.None)
+            .Distinct();
     }
 
     private static bool Exclusive(Expression expression)

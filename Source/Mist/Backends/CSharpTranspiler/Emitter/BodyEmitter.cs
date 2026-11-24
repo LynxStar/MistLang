@@ -33,7 +33,7 @@ internal static partial class BodyEmitter
 
     private const int PrefixPrecedence = 9;
 
-    private const int PostfixPrecedence = 10;
+    internal const int PostfixPrecedence = 10;
 
     private const int DisjunctionPrecedence = 1;
 
@@ -1134,6 +1134,10 @@ internal static partial class BodyEmitter
                 }
 
                 writer.Append(asyncBlock.IsValueTask ? "))" : ")");
+                break;
+
+            case CloneExpression { CopiesOwnedFields: true } copy:
+                StructCopyEmitter.EmitExpression(copy, writer, diagnostics);
                 break;
 
             case CloneExpression clone when IntrinsicCalls.ClonesAsItself(clone.Source.Type):

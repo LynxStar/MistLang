@@ -51,7 +51,7 @@ internal sealed partial class EscapeAnalyzer : IProgramAnalyzer
         }
     }
 
-    private static (string? Kind, string Reason) Why(LocalVariable local)
+    internal static (string? Kind, string Reason) Why(LocalVariable local)
     {
         if(RefStructs.Is(local.Type))
         {

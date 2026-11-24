@@ -221,7 +221,7 @@ internal static partial class PurityJudge
                     JudgeLocalRead(local);
                     break;
 
-                case CloneExpression clone:
+                case CloneExpression { CopiesOwnedFields: false } clone:
                     JudgeClone(clone);
                     break;
 

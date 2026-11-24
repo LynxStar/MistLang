@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -27,8 +28,14 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         {
             var graph = context.GraphOf(root);
             var owning = OwningMethod(root);
-            new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root),
-                ownedReceiver: root.Member is Method { DeclaredThisTier: ThisTier.Owned }).Judge(graph, OwnershipFlow.Nothing);
+            var flow = new OwnershipFlow(context, tiers, DeclaringBlocks(root.Root), WithScopes.Of(root.Root), Parents(root.Root), owning, LocalOwnership.For(root.Root),
+                ownedReceiver: root.Member is Method { DeclaredThisTier: ThisTier.Owned });
+            flow.Judge(graph, OwnershipFlow.Nothing);
+
+            if(TierAnalyzer.ChainedParameter(root) is { } chained && root.Member is Constructor { ChainedConstructor: { } target })
+            {
+                flow.JudgeChained((Expression)root.Root, chained, target);
+            }
 
             if(owning is { Body: { } body })
             {
@@ -49,7 +56,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         return root.Member is Method { Body: { } body } method && ReferenceEquals(body, root.Root) && ReturnsOwned(method) ? method : null;
     }
 
-    private static bool ReturnsOwned(Method method)
+    internal static bool ReturnsOwned(Method method)
     {
         return method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned;
     }
@@ -192,7 +199,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
     internal static bool Tracked(LocalVariable local)
     {
-        return (local.Ownership == OwnershipKind.Owned && (!ThisTiers.IsValue(local.Type) || ResultTransfers.Payloads(local.Type).Count > 0))
+        return (local.Ownership == OwnershipKind.Owned && (!ThisTiers.IsValue(local.Type) || ResultTransfers.Payloads(local.Type).Count > 0 || OwnedStructCopies.HoldsOwnedObjects(local.Type)))
             || Substructural(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 

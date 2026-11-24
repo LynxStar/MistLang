@@ -40,6 +40,8 @@ internal sealed partial class OwnershipFlow
 
     private void Judge(FlowGraph graph, State state, FlowStep step)
     {
+        JudgeEscapes(state, step);
+
         if(SnapshotAt(step) is { } snapshot)
         {
             if(state.Moved.TryGetValue(snapshot.Place, out var moved))
@@ -195,7 +197,7 @@ internal sealed partial class OwnershipFlow
             case { Kind: FlowStepKind.Evaluate, Node: ArrayLiteralExpression literal }:
                 foreach(var element in literal.Elements)
                 {
-                    foreach(var source in LocalOwnership.Sources(element).Where(Tracked))
+                    foreach(var source in LocalOwnership.Sources(element).Where(source => Tracked(source) && !CopiesStruct(source)))
                     {
                         JudgeAction(state, source, element, Action.Move);
                     }
@@ -204,7 +206,7 @@ internal sealed partial class OwnershipFlow
                 break;
 
             case { Kind: FlowStepKind.Evaluate, Node: LambdaExpression or AsyncBlockExpression or LocalFunctionStatement } when graph.Nested.TryGetValue(step.Node, out var nested):
-                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals, ownedReceiver).Judge(nested, state);
+                new OwnershipFlow(context, tiers, declaringBlocks, scopes, parents, owning: null, locals, ownedReceiver, Captures.Of(step.Node)?.Own ?? own).Judge(nested, state);
                 break;
         }
     }
@@ -243,7 +245,7 @@ internal sealed partial class OwnershipFlow
                     continue;
                 }
 
-                foreach(var moved in LocalOwnership.Sources(value).Where(Tracked))
+                foreach(var moved in LocalOwnership.Sources(value).Where(source => Tracked(source) && MovesInto(written.Local, source)))
                 {
                     JudgeAction(state, moved, value, Action.Move);
                     JudgeShared(state, value, $"owned binding '{written.Local.Name}'", written.Local.Ownership == OwnershipKind.Owned);

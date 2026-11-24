@@ -82,6 +82,16 @@ internal static class OwnedDestinations
                 Require(context, entry.Value, destination, method, origins);
                 break;
 
+            case CloneExpression { CopiesOwnedFields: true } copy when OwnedStructCopies.Of(copy.Type, context.Model.Clones).Refusal is { } refusal:
+                var reason = CloneDerivation.Describe(copy.Type, refusal);
+                if(!refusal.Remedied)
+                {
+                    reason += "; give that field's type a 'Clone()' of its own or move from an owned source";
+                }
+
+                context.Report(ProgramAnalysisDiagnostics.NotClonable, copy.Node, [copy], DiagnosticSnapshot.Type(copy.Type), new NameValue(reason));
+                break;
+
             case InvocationExpression invocation:
                 Arguments(context, invocation.Arguments, invocation.Parameters, method, origins);
                 RequireDerivable(context, invocation);

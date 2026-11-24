@@ -10,12 +10,13 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// What a declaration alone decides about ownership and disciplines: `owned` on an abstract or beside
-/// a discipline that implies or excludes it, `ref` on a class, an owned binding of a value whose
-/// discipline already governs it, and the containment matrix -- a linear container holds anything, an
-/// affine one affine or unrestricted, a relevant one relevant or unrestricted, and every other container
-/// only unrestricted, a type parameter counting as what its constraint says and as nothing at all when
-/// it says nothing inside a disciplined container. An array is such an other container, judged where it is made.
+/// What a declaration alone decides about ownership and disciplines: `owned` on an abstract, on a static
+/// field (owned-fields Requirement 1.5) or beside a discipline that implies or excludes it, `ref` on a
+/// class, an owned binding of a value whose discipline already governs it, and the containment matrix -- a
+/// linear container holds anything, an affine one affine or unrestricted, a relevant one relevant or
+/// unrestricted, and every other container only unrestricted, a type parameter counting as what its
+/// constraint says and as nothing at all when it says nothing inside a disciplined container. An array is
+/// such an other container, judged where it is made.
 /// </summary>
 internal sealed class DisciplineAnalyzer : IProgramAnalyzer
 {
@@ -39,6 +40,7 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             if(type is ConcreteType concrete)
             {
                 JudgeContainer(context, concrete);
+                JudgeStaticOwned(context, concrete);
             }
         }
 
@@ -64,6 +66,22 @@ internal sealed class DisciplineAnalyzer : IProgramAnalyzer
             if(element is not null && ArrayRefuses(element) is { } held && node is Expression array)
             {
                 context.Report(ProgramAnalysisDiagnostics.ArrayElementDiscipline, array.Node, [array], new EnumValue(Display(held)), DiagnosticSnapshot.Type(element));
+            }
+        }
+    }
+
+    internal static bool StaticOwned(Field field)
+    {
+        return field.Modifiers.IsStatic && (field.Ownership == OwnershipKind.Owned || field.Modifiers.IsOwned);
+    }
+
+    private static void JudgeStaticOwned(AnalysisContext context, ConcreteType declaring)
+    {
+        foreach(var field in declaring.FieldsList.Where(StaticOwned))
+        {
+            if((field.DeclarationNode ?? Declarations.NodeOf(declaring)) is { } at)
+            {
+                context.Report(ProgramAnalysisDiagnostics.StaticOwnedField, at, [], new NameValue(field.Name), DiagnosticSnapshot.Type(declaring, declaring.Name));
             }
         }
     }

@@ -504,4 +504,14 @@ public static partial class ProgramAnalysisDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("kind", SlotKind.Enum), new Slot("name", SlotKind.Name), new Slot("parameter", SlotKind.Name)],
         Related: [IncompatibleLend.Number, SharedExtract.Number]);
+
+    public static readonly MistDiagnostic StaticOwnedField = new(
+        DiagnosticNumber.Mint("MIST0510"),
+        Title: "Static field marked owned",
+        Template: "Static field '{field}' of '{type}' cannot be marked 'owned': ownership semantics require an instance-level owner, and a static field belongs to no instance.",
+        Description: "An 'owned' field makes the instance that holds it its object's sole owner, and a static field is held by no instance, so there is no owner to give it. Remove 'owned', or make the field an instance field.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("field", SlotKind.Name), new Slot("type", SlotKind.Type)]);
 }

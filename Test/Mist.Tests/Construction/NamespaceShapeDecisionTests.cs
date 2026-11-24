@@ -81,6 +81,19 @@ public sealed class NamespaceShapeDecisionTests
     }
 
     [Fact]
+    public void AFileScopedNamespaceInsideABlockOfAFileScopedFileIsRefusedButTheFileKeepsItsNamespace()
+    {
+        var f = new Shapes();
+
+        var fileNamespace = f.Build(Top(FileScoped("A", At(0), Nested(Block("B", At(20), Nested(FileScoped("C", At(150))))))));
+
+        Assert.Equal([("MIST0292", 150)], f.Findings());
+        Assert.Equal(DiagnosticSeverity.Error, Assert.Single(f.Diagnostics.Admitted).Severity);
+        Assert.Equal("A", fileNamespace);
+        Assert.Contains("A.B", f.Model.Namespaces.Keys);
+    }
+
+    [Fact]
     public void OneFileScopedNamespaceFollowedByOtherItemsIsTheFilesNamespace()
     {
         var f = new Shapes();

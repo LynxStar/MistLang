@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -36,7 +37,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
                     break;
 
                 case LocalDeclarationStatement { Initializer: { } initializer } declaration:
-                    JudgeExtraction(context, initializer, declaration.Local.Ownership, declaration.Local.IsRef);
+                    _ = JudgeExtraction(context, initializer, declaration.Local.Ownership, declaration.Local.IsRef);
                     var required = declaration.Local.Ownership switch
                     {
                         OwnershipKind.Borrowed => ThisTier.Borrowed,
@@ -51,7 +52,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
                     {
                         if(target is LocalReferenceExpression { Local: var written })
                         {
-                            JudgeExtraction(context, value, written.IsRef ? OwnershipKind.Unrestricted : written.Ownership, byReference: false);
+                            _ = JudgeExtraction(context, value, written.IsRef ? OwnershipKind.Unrestricted : written.Ownership, byReference: false);
                         }
                     }
 
@@ -64,8 +65,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             if(ChainedParameter(root) is { } chained)
             {
                 var argument = (Expression)root.Root;
-                JudgeExtraction(context, argument, chained.Modifier.Ownership, chained.Modifier.IsRef);
-                JudgeLend(context, tiers, argument, argument, chained);
+                JudgeArgument(context, tiers, argument, argument, chained);
             }
 
             if(root.Member is Method { DeclaredThisTier: { } declared } method && ReferenceEquals(root.Root, method.Body)
@@ -112,9 +112,39 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     {
         for(var i = 0; parameters is not null && i < arguments.Count && i < parameters.Count; i++)
         {
-            JudgeExtraction(context, arguments[i], parameters[i].Modifier.Ownership, parameters[i].Modifier.IsRef);
-            JudgeLend(context, tiers, call, arguments[i], parameters[i]);
+            JudgeArgument(context, tiers, call, arguments[i], parameters[i]);
         }
+    }
+
+    private static void JudgeArgument(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, Parameter parameter)
+    {
+        if(!JudgeExtraction(context, argument, parameter.Modifier.Ownership, parameter.Modifier.IsRef)
+            && PassedByBareRef(argument, parameter.Modifier, context.Model.Clones) is var (kind, name))
+        {
+            context.Report(ProgramAnalysisDiagnostics.OwnedPassedByRef, argument.Node, [argument], new EnumValue(kind), new NameValue(name), new NameValue(parameter.Name));
+        }
+
+        JudgeLend(context, tiers, call, argument, parameter);
+    }
+
+    /// <summary>
+    /// An owned binding or owned field that may not be passed to the parameter, because a bare <c>ref</c>,
+    /// a projected CLR <c>ref</c> or <c>out</c> included, carries no ownership (ownership-v2 Requirement 9.9).
+    /// </summary>
+    internal static (string Kind, string Name)? PassedByBareRef(Expression argument, ParameterModifier parameter, CloneDerivation clones)
+    {
+        if(!BareRef(parameter) || clones.Judge(argument.Type).Kind == CloneKind.Unchangeable)
+        {
+            return null;
+        }
+
+        return OwnershipAnalyzer.Unwrapped(argument) switch
+        {
+            LocalReferenceExpression { Local: { IsRef: false, Ownership: OwnershipKind.Owned } local } => ("owned binding", local.Name),
+            FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => ("owned field", field.Name),
+            MemberAccessExpression { Member: FieldResult { Field: var field } } access when ThisTiers.IsOwned(field) => ("owned field", OwnershipFlow.Spelled(access) ?? field.Name),
+            _ => null,
+        };
     }
 
     private static void JudgeLend(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, Parameter parameter)
@@ -151,16 +181,21 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
             new EnumValue(ThisTiers.Display(given)), new NameValue(Lender(lender)), new EnumValue(ThisTiers.Display(required)), new NameValue(target));
     }
 
-    private static void JudgeExtraction(AnalysisContext context, Expression value, OwnershipKind destination, bool byReference)
+    internal static bool BareRef(ParameterModifier parameter)
+    {
+        return parameter is { IsRef: true, IsReadonly: false, Ownership: OwnershipKind.Unrestricted };
+    }
+
+    private static bool JudgeExtraction(AnalysisContext context, Expression value, OwnershipKind destination, bool byReference)
     {
         if(OwnedProvenance.SharedExtraction(value) is not var (field, holder))
         {
-            return;
+            return false;
         }
 
         if(LocalOwnership.For(context.RootOf(value) ?? value).Of(holder) > ThisTier.None)
         {
-            return;
+            return false;
         }
 
         var refused = byReference
@@ -171,6 +206,8 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
         {
             context.Report(ProgramAnalysisDiagnostics.SharedExtract, value.Node, [value], new NameValue(field.Name), new NameValue(holder.Name));
         }
+
+        return refused;
     }
 
     internal static bool RefusesLend(Expression argument, ThisTier required, LocalOwnership? locals = null)

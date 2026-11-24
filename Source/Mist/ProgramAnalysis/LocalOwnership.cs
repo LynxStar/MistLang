@@ -19,6 +19,7 @@ internal sealed class LocalOwnership
     private readonly Dictionary<LocalVariable, Expression> bindings = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> resolving = new(ReferenceEqualityComparer.Instance);
     private readonly HashSet<LocalVariable> captured;
+    private readonly HashSet<LocalVariable> passedByRef = new(ReferenceEqualityComparer.Instance);
 
     private LocalOwnership()
     {
@@ -56,6 +57,11 @@ internal sealed class LocalOwnership
             for(var i = 0; parameters is not null && i < values.Count && i < parameters.Count; i++)
             {
                 var parameter = parameters[i];
+                if(TierAnalyzer.BareRef(parameter.Modifier) && OwnershipAnalyzer.Unwrapped(values[i]) is LocalReferenceExpression { Local: var passed })
+                {
+                    _ = passedByRef.Add(passed);
+                }
+
                 var required = parameter.Modifier.Ownership == OwnershipKind.Owned
                     || (!parameter.Modifier.IsRef && parameter.Modifier.Ownership == OwnershipKind.Unrestricted && Exclusive(values[i]))
                     ? ThisTier.Owned : ThisTiers.LendTier(parameter);
@@ -304,7 +310,7 @@ internal sealed class LocalOwnership
 
     private bool Shared(LocalVariable local)
     {
-        return captured.Contains(local) && !ThisTiers.IsValue(local.Type) && !Origins.IsUnchangeable(local.Type)
+        return ((captured.Contains(local) && !ThisTiers.IsValue(local.Type)) || passedByRef.Contains(local)) && !Origins.IsUnchangeable(local.Type)
             && OwnershipAnalyzer.Substructural(local.Type) is not (SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine);
     }
 

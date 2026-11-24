@@ -493,4 +493,15 @@ public static partial class ProgramAnalysisDiagnostics
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("action", SlotKind.Enum), new Slot("tier", SlotKind.Enum), new Slot("variable", SlotKind.Name), new Slot("destination", SlotKind.Name)],
         Related: [IncompatibleLend.Number, CapturedBinding.Number]);
+
+    public static readonly MistDiagnostic OwnedPassedByRef = new(
+        DiagnosticNumber.Mint("MIST0509"),
+        Title: "Owned value passed by bare ref",
+        Template: "Cannot pass {kind} '{name}' to bare ref parameter '{parameter}': a bare 'ref' carries no ownership, so the callee could keep the object or store a shared one in its place, and '{name}' would no longer be its sole owner. Lend it as 'borrowed' to change it in place, or pass it to an 'owned' parameter and take the replacement from an 'owned' return.",
+        Description: "An owned binding or owned field is its object's sole owner, and a bare 'ref' parameter, a projected CLR 'ref' or 'out' included, promises nothing about ownership: the callee may keep the object or write a shared one back. Only a value of a type that cannot change may be passed by bare 'ref'. Lend the value as 'borrowed' to change it in place, or move it to an 'owned' parameter and receive its replacement from an 'owned' return.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("kind", SlotKind.Enum), new Slot("name", SlotKind.Name), new Slot("parameter", SlotKind.Name)],
+        Related: [IncompatibleLend.Number, SharedExtract.Number]);
 }

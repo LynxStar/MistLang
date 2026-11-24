@@ -119,7 +119,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     private static void JudgeArgument(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, Parameter parameter)
     {
         if(!JudgeExtraction(context, argument, parameter.Modifier.Ownership, parameter.Modifier.IsRef)
-            && PassedByBareRef(argument, parameter.Modifier, context.Model.Clones) is var (kind, name))
+            && PassedByBareRef(argument, parameter.Modifier, context.Model.Clones, context.RootOf(argument)) is var (kind, name))
         {
             context.Report(ProgramAnalysisDiagnostics.OwnedPassedByRef, argument.Node, [argument], new EnumValue(kind), new NameValue(name), new NameValue(parameter.Name));
         }
@@ -130,15 +130,26 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     /// <summary>
     /// An owned binding or owned field that may not be passed to the parameter, because a bare <c>ref</c>,
     /// a projected CLR <c>ref</c> or <c>out</c> included, carries no ownership (ownership-v2 Requirement 9.9).
+    /// A ref local or ref-returning call is judged as the storage it stands for (<see cref="RefAliases"/>).
     /// </summary>
-    internal static (string Kind, string Name)? PassedByBareRef(Expression argument, ParameterModifier parameter, CloneDerivation clones)
+    internal static (string Kind, string Name)? PassedByBareRef(Expression argument, ParameterModifier parameter, CloneDerivation clones, object? root)
     {
         if(!BareRef(parameter) || clones.Judge(argument.Type).Kind == CloneKind.Unchangeable)
         {
             return null;
         }
 
-        return OwnershipAnalyzer.Unwrapped(argument) switch
+        return RefAliases.Of(argument, root).Select(Owned).FirstOrDefault(found => found is not null);
+    }
+
+    private static (string Kind, string Name)? Owned(RefAliases.Aliased place)
+    {
+        if(!place.Path.IsEmpty)
+        {
+            return ThisTiers.IsOwned(place.Path[^1]) ? ("owned field", place.Spelled()!) : null;
+        }
+
+        return place.Root switch
         {
             LocalReferenceExpression { Local: { IsRef: false, Ownership: OwnershipKind.Owned } local } => ("owned binding", local.Name),
             FieldReferenceExpression { Field: var field } when ThisTiers.IsOwned(field) => ("owned field", field.Name),

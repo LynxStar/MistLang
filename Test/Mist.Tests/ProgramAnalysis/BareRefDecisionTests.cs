@@ -44,7 +44,7 @@ public sealed class BareRefDecisionTests
     [InlineData("static field", "ref", null, null)]
     public void OnlyAnOwnedBindingOrOwnedFieldThatCanChangeIsRefusedABareRef(string argument, string parameter, string? kind, string? name)
     {
-        var refused = TierAnalyzer.PassedByBareRef(Argument(argument), Tier(parameter), new CloneDerivation([]));
+        var refused = TierAnalyzer.PassedByBareRef(Argument(argument), Tier(parameter), new CloneDerivation([]), root: null);
 
         Assert.Equal(kind is null ? null : (kind, name!), refused);
     }

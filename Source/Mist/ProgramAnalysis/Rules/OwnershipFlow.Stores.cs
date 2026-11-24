@@ -43,6 +43,16 @@ internal sealed partial class OwnershipFlow
                 continue;
             }
 
+            if(OwnershipAnalyzer.Unwrapped(selected) is InvocationExpression { Signature.Modifiers.IsRef: true } call)
+            {
+                foreach(var source in RefAliases.Of(call, Aliased).SelectMany(place => ReturnedSources(place, seen, holder)))
+                {
+                    yield return source;
+                }
+
+                continue;
+            }
+
             var placed = false;
 
             foreach(var source in LocalOwnership.Sources(selected).Where(Tracked))
@@ -70,6 +80,22 @@ internal sealed partial class OwnershipFlow
                 }
             }
         }
+    }
+
+    private IEnumerable<string> ReturnedSources(RefAliases.Aliased place, HashSet<LocalVariable> seen, bool holder)
+    {
+        if(place.Path.IsEmpty)
+        {
+            return place.Root is { } root ? OwnedStoreSources(root, seen, holder) : [];
+        }
+
+        if(!place.Path.All(Place.Holds))
+        {
+            return [];
+        }
+
+        var member = string.Join('.', place.Path.Select(field => field.Name));
+        return place.UnderThis ? [member] : OwnedStoreSources(place.Root!, seen, holder: true).Distinct(StringComparer.Ordinal).Select(owner => $"{owner}.{member}");
     }
 
     private Field? RefusedAliasStore(LocalReferenceExpression target, Expression value)

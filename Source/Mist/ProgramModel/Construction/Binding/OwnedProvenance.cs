@@ -10,23 +10,27 @@ namespace Mist.ProgramModel.Construction.Binding;
 
 /// <summary>
 /// Where an owned position gets its value, and what to do when the source does not already own one.
-/// An owned binding promises an INDEPENDENT value, so a source that something else still holds has to
+/// An owned reference promises an INDEPENDENT value, so a source that something else still holds has to
 /// be copied -- otherwise the two names alias and mutating either is visible through the other. An
 /// owned field read through a shared holder is the same promise seen from the other side (owned-fields
 /// Requirement 2.3): the holder cannot give the field away, so what it hands out is a copy.
 /// </summary>
 internal static class OwnedProvenance
 {
-    /// <summary>
-    /// A type with no <c>Clone</c> is left alone -- whether owning it is legal at all is a judgement on a
-    /// finished model, and refusing here would turn a rule about provenance into one about which types
-    /// may be owned.
-    /// </summary>
     public static Expression At(CloneDerivation clones, OwnershipKind target, Expression source, bool byReference = false)
     {
-        if(byReference || target is OwnershipKind.Frozen or OwnershipKind.Borrowed || !Clonable(clones, source.Type))
+        if(byReference || target is OwnershipKind.Frozen or OwnershipKind.Borrowed)
         {
             return source;
+        }
+
+        if(!Clonable(clones, source.Type))
+        {
+            return target == OwnershipKind.Owned && !Owns(source)
+                && ResultTransfers.Discipline(source.Type) == SubstructuralDiscipline.None
+                && OwnedStructCopies.Of(source.Type, clones).Required
+                    ? new CloneExpression(source.Node, source, copiesOwnedFields: true)
+                    : source;
         }
 
         return (target == OwnershipKind.Owned && !Owns(source)) || SharedExtraction(source) is not null

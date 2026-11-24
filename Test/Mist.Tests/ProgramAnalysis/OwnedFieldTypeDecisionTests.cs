@@ -14,7 +14,7 @@ namespace Mist.Tests.ProgramAnalysis;
 [Trait("Tier", "1")]
 public sealed class OwnedFieldTypeDecisionTests
 {
-    private const string NotOwnedOrClonable = "which is neither owned, clonable nor a value type";
+    private const string NotOwnedOrClonable = "which is neither owned, clonable nor an unchangeable value type";
 
     private static readonly CloneDerivation Clones = new([]);
 
@@ -24,6 +24,49 @@ public sealed class OwnedFieldTypeDecisionTests
     private readonly AbstractType clonable = new("IClonable<>", "Standard", new Scope(null), null, null);
     private readonly ClassType stringBuilder = new("StringBuilder", "System.Text", new Scope(null), null, null);
     private readonly StructType nothing = new("Void", "Standard", new Scope(null), null, null);
+
+    [Fact]
+    public void AStructHoldingAChangeableObjectInAPlainFieldIsRefusedAtTheOwnedField()
+    {
+        var style = Declared("Style");
+        Hold(style, "Size", int32);
+        var pair = new StructType("Pair", "Probe", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>());
+        Hold(pair, "S", style);
+        var doc = fragment.Class("Doc");
+        doc.Modifiers = DeclarationFragments.Public with { IsOwned = true };
+        doc.FieldsList.Add(new Field("P", pair, OwnershipKind.Unrestricted, default) { DeclaringType = doc, DeclarationNode = HandBuiltModel.Node(37) });
+
+        var diagnostic = Assert.Single(fragment.Run(new OwnedFieldTypeAnalyzer()));
+
+        Assert.Equal("MIST0237", diagnostic.Number.Value);
+        Assert.Equal(38, diagnostic.Position().Start.Column);
+        Assert.Equal(
+            "Field 'P' of owned type 'Doc' has type 'Pair', which is neither owned, clonable nor an unchangeable value type ('Pair' cannot be cloned: field 'S' of 'Pair' is not owned and holds 'Style', which can change; make that field 'owned' or give the type a 'Clone()' of its own). Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
+            diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("owned-struct")]
+    [InlineData("owned-field")]
+    [InlineData("ints")]
+    [InlineData("readonly")]
+    public void AStructWhoseGraphQualifiesIsAdmitted(string shape)
+    {
+        var style = Declared("Style");
+        Hold(style, "Size", int32);
+        if(shape == "readonly")
+        {
+            style.Modifiers = DeclarationFragments.Public with { IsReadonly = true };
+        }
+
+        var pair = new StructType("Pair", "Probe", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>())
+        {
+            Modifiers = DeclarationFragments.Public with { IsOwned = shape == "owned-struct" },
+        };
+        Hold(pair, "S", shape == "ints" ? int32 : style, owned: shape == "owned-field");
+
+        Assert.Null(OwnedFieldTypes.WhyRefused(pair, Clones));
+    }
 
     [Fact]
     public void AnOwnedFieldTypeIsAdmitted()
@@ -167,10 +210,9 @@ public sealed class OwnedFieldTypeDecisionTests
     }
 
     [Theory]
-    [InlineData("struct")]
     [InlineData("primitive")]
     [InlineData("enum")]
-    public void AValueTypeIsAdmittedWhateverItHolds(string kind)
+    public void AnUnchangeableValueTypeIsAdmitted(string kind)
     {
         var point = HandBuiltModel.Struct("Point");
         Hold(point, "Text", stringBuilder);
@@ -187,7 +229,6 @@ public sealed class OwnedFieldTypeDecisionTests
     [Theory]
     [InlineData("owned")]
     [InlineData("clonable")]
-    [InlineData("struct")]
     public void AConstrainedTypeParameterIsAdmitted(string constraint)
     {
         var box = Declared("Box");
@@ -205,13 +246,14 @@ public sealed class OwnedFieldTypeDecisionTests
     [Theory]
     [InlineData("none")]
     [InlineData("class")]
+    [InlineData("struct")]
     public void ATypeParameterNotConstrainedToOwnedOrClonableIsRefused(string constraint)
     {
         var box = Declared("Box");
         var t = DeclarationFragments.Parameter(box, box.Scope, "T");
-        if(constraint == "class")
+        if(constraint is "class" or "struct")
         {
-            t.ConstraintsList.Add(new KeywordConstraint(TypeParameterConstraintKind.Class));
+            t.ConstraintsList.Add(new KeywordConstraint(constraint == "struct" ? TypeParameterConstraintKind.Struct : TypeParameterConstraintKind.Class));
         }
 
         Assert.Equal("a type parameter not constrained to an owned type or 'IClonable<T>'", OwnedFieldTypes.WhyRefused(t, Clones));
@@ -336,7 +378,7 @@ public sealed class OwnedFieldTypeDecisionTests
 
         Assert.Equal(11, diagnostic.Position().Start.Column);
         Assert.Equal(
-            "Field 'Root.Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor a value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
+            "Field 'Root.Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor an unchangeable value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
             diagnostic.Message);
     }
 
@@ -355,7 +397,7 @@ public sealed class OwnedFieldTypeDecisionTests
         Assert.Equal(1, diagnostic.Position().Start.Line);
         Assert.Equal(38, diagnostic.Position().Start.Column);
         Assert.Equal(
-            "Field 'Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor a value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
+            "Field 'Text' of owned type 'Holder' has type 'StringBuilder', which is neither owned, clonable nor an unchangeable value type. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
             diagnostic.Message);
     }
 

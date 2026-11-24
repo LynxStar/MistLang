@@ -342,6 +342,12 @@ internal static class TypeEmitter
                 GenericCloneEmitter.EmitUnchangeability(concrete, writer, ref anyEmitted);
             }
 
+            if(concrete is StructType structure && CloneDemand.Constructs(structure))
+            {
+                SeparateMember(writer, ref anyEmitted);
+                StructCopyEmitter.Emit(structure, writer, diagnostics);
+            }
+
             if(concrete is { DerivedClone: not null } && DerivedCloneEmitter.IsEmitted(concrete))
             {
                 SeparateMember(writer, ref anyEmitted);

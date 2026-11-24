@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using Mist.ProgramModel.Construction;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
@@ -9,19 +11,22 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// Field state requires a tracked holder; shared field reads belong to <see cref="TierAnalyzer"/>.
-/// Copied or immutable field values leave no ownership state behind when read (owned-fields Requirement 16).
+/// Unchangeable field values leave no ownership state behind when read (owned-fields Requirement 16).
 /// </summary>
 internal sealed class Place : IEquatable<Place>
 {
-    private Place(LocalVariable root, ImmutableArray<Field> path)
+    private Place(LocalVariable root, ImmutableArray<Field> path, IMistType? type = null)
     {
         Root = root;
         Path = path;
+        Type = type ?? (path.IsEmpty ? root.Type : path[^1].Type);
     }
 
     public LocalVariable Root { get; }
 
     public ImmutableArray<Field> Path { get; }
+
+    public IMistType Type { get; }
 
     public bool IsRoot => Path.IsEmpty;
 
@@ -38,8 +43,8 @@ internal sealed class Place : IEquatable<Place>
         {
             ResultIdentityExpression identity => Of(identity.Operand),
             LocalReferenceExpression { Local: var local } => Of(local),
-            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field } }
-                when Holds(field) && Of(receiver) is { } holder && (Tracked(holder) || holder.Root.InfersOwnership) => holder.Child(field),
+            MemberAccessExpression { Receiver: var receiver, Member: FieldResult { Field: var field }, Type: var type }
+                when Holds(field) && Of(receiver) is { } holder && (Tracked(holder) || holder.Root.InfersOwnership) => holder.Child(field, type),
             _ => null,
         };
     }
@@ -56,12 +61,18 @@ internal sealed class Place : IEquatable<Place>
 
     public static bool Holds(Field field)
     {
-        return ThisTiers.IsOwned(field) && !ThisTiers.IsValue(field.Type) && !Origins.IsUnchangeable(field.Type);
+        return (ThisTiers.IsOwned(field) && !ThisTiers.IsValue(field.Type) && !Origins.IsUnchangeable(field.Type))
+            || OwnedStructCopies.HoldsOwnedObjects(field.Type);
     }
 
     public Place Child(Field field)
     {
-        return new Place(Root, Path.Add(field));
+        return Child(field, field.Type);
+    }
+
+    private Place Child(Field field, IMistType type)
+    {
+        return new Place(Root, Path.Add(field), type);
     }
 
     public bool IsAncestorOf(Place other)

@@ -806,6 +806,7 @@ public class Program
         FieldLendingDemo.Run();
         ThisTierDemo.Run();
         OwnershipInferenceDemo.Run();
+        StructCopyDemo.Run();
         Console.WriteLine("--- Ownership Done ---");
     }
 }

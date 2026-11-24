@@ -105,8 +105,8 @@ public static partial class ProgramAnalysisDiagnostics
     public static readonly MistDiagnostic OwnedFieldType = new(
         DiagnosticNumber.Mint("MIST0237"),
         Title: "Owned type field not ownable",
-        Template: "{kind} '{member}' of owned type '{type}' has type '{memberType}', {reason}. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be a value type, so that the owned type owns its whole graph.",
-        Description: "An owned type must own its whole graph, so every field must be an owned type, a value type, or implement 'IClonable<T>', and this field's type is none of these. Change the field's type, or give that type an 'IClonable<T>' implementation.",
+        Template: "{kind} '{member}' of owned type '{type}' has type '{memberType}', {reason}. Every field of an owned type must be an owned type, implement 'IClonable<T>' (declared or derived from fields that all do), or be an unchangeable value type, so that the owned type owns its whole graph.",
+        Description: "An owned type must own its whole graph, so every field must be an owned type, an unchangeable value type, or implement 'IClonable<T>', and this field's type is none of these. Change the field's type, or give that type an 'IClonable<T>' implementation.",
         Category: DiagnosticCategory.Own,
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,

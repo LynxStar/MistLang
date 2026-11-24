@@ -69,7 +69,7 @@ internal sealed partial class OwnershipFlow
     {
         var places = source is null
             ? []
-            : OwnershipAnalyzer.Selected(source).Select(Place.Of).OfType<Place>().ToList();
+            : LocalOwnership.Sources(source).ToList();
 
         var values = places.Count == 0
             ? ImmutableHashSet.Create(fresh)

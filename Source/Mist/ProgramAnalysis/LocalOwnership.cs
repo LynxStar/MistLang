@@ -324,7 +324,9 @@ internal sealed class LocalOwnership
 
     public static IEnumerable<Place> Sources(Expression expression)
     {
-        return OwnershipAnalyzer.Selected(expression).Select(Place.Of).OfType<Place>().Distinct();
+        return OwnershipAnalyzer.Selected(expression).Select(Place.Of).OfType<Place>()
+            .Where(place => place.IsRoot || !ThisTiers.IsValue(place.Type) || OwnershipAnalyzer.Substructural(place.Type) != SubstructuralDiscipline.None)
+            .Distinct();
     }
 
     private static bool Exclusive(Expression expression)

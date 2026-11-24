@@ -1,4 +1,5 @@
 using Mist.Common.Diagnostics;
+using Mist.ProgramModel.Construction;
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
@@ -198,7 +199,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
 
     internal static bool Tracked(LocalVariable local)
     {
-        return (local.Ownership == OwnershipKind.Owned && (!ThisTiers.IsValue(local.Type) || ResultTransfers.Payloads(local.Type).Count > 0))
+        return (local.Ownership == OwnershipKind.Owned && (!ThisTiers.IsValue(local.Type) || ResultTransfers.Payloads(local.Type).Count > 0 || OwnedStructCopies.HoldsOwnedObjects(local.Type)))
             || Substructural(local.Type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
     }
 

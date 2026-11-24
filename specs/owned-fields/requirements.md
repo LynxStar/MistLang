@@ -33,6 +33,7 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 - **Composite_State**: The effective ownership state of a parent binding, computed as the most restrictive state among all its owned fields. Uses the ordering: Live < LentReadonly < LentFrozen < LentRef = Moved. The parent's permitted actions are determined by looking up this composite state in the standard truth table.
 - **Partial_Move**: Moving a value out of an individual owned field, leaving the field in the Moved state while the parent binding and sibling fields remain accessible (subject to composite state restrictions). Only possible through an owned parent binding.
 - **IClonable**: An interface `IClonable<T>` that bridges from shared to owned. Types implementing this interface are acceptable as field types in owned types because they can produce independent copies on demand.
+- **Unchangeable** and **Changeable_Object**: As defined in the [ownership-v2 glossary](../ownership-v2/requirements.md#glossary). A value type is Unchangeable only when none of its fields holds a Changeable_Object, since copying a struct copies the references its fields hold.
 - **Compiler**: The Mist compiler pipeline including lexer, parser, semantic model, and type checker.
 - **Type_Checker**: The analysis phase that enforces ownership rules at compile time.
 - **Parser**: The syntax analysis phase that recognizes ownership-related keywords.
@@ -51,7 +52,7 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 1. WHEN a field is declared with the `owned` ownership specifier (e.g., `owned Widget data;`), THE Parser SHALL accept the declaration and produce an `OwnedSpecifier` node in the ownership-specifier position of the field declaration AST node.
 2. WHEN a field is declared with both a visibility modifier and the `owned` ownership specifier (e.g., `public owned Widget data;`), THE Parser SHALL accept the declaration with the visibility modifier in the modifiers list and the `owned` specifier in the ownership-specifier position, preserving the grammar-mandated order (modifiers before ownership specifier).
 3. THE Parser SHALL accept the `owned` ownership specifier on fields of any reference type (class, interface, trait).
-4. THE Parser SHALL accept the `owned` ownership specifier on fields of value types (structs) without producing any error or warning — the declaration is syntactically and semantically valid, though the ownership guard has no behavioral effect at runtime because value types are copied.
+4. THE Parser SHALL accept the `owned` ownership specifier on fields of value types (structs) without producing any error or warning. A struct assigned to the field is judged as [ownership-v2 Requirement 6 AC 11](../ownership-v2/requirements.md#requirement-6-owned-binding--move-semantics) judges a copy of a struct, a construction from its fields, so on a field of an Unchangeable value type the specifier has no effect.
 5. IF the `owned` ownership specifier is applied to a static field, THEN THE Type_Checker SHALL report a compile error indicating that static fields cannot be marked `owned` — ownership semantics require an instance-level owner.
 6. IF a field declaration combines the `owned` ownership specifier with another ownership specifier (`frozen`, `borrowed`, or `readonly ref`), THEN THE Parser or Type_Checker SHALL report a compile error indicating that only one ownership specifier is permitted per field declaration.
 
@@ -87,8 +88,8 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 
 1. WHEN an `owned type` declares a field whose type is another `owned type`, THE Type_Checker SHALL accept the field declaration — owned types satisfy the field-type restriction.
 2. WHEN an `owned type` declares a field whose type implements `IClonable<T>`, THE Type_Checker SHALL accept the field declaration — clonable types can produce independent copies and bridge into ownership.
-3. WHEN an `owned type` declares a field whose type is a value type (struct or primitive), THE Type_Checker SHALL accept the field declaration without restriction — value types use copy semantics at the field level and cannot introduce aliasing regardless of their internal structure.
-4. IF an `owned type` declares one or more fields whose types are non-owned reference types that do NOT implement `IClonable<T>`, THEN THE Type_Checker SHALL report a compile error for each violating field, identifying the field name, its declared type, and explaining that all fields of an owned type must be owned types or implement `IClonable<T>` to guarantee full graph ownership.
+3. WHEN an `owned type` declares a field whose type is an Unchangeable value type (struct or primitive), THE Type_Checker SHALL accept the field declaration without restriction — a copy of it shares nothing that can change. A field whose type is a value type that holds a Changeable_Object SHALL meet 4.1 or 4.2 as a reference-typed field does: copying the struct copies the reference it holds, so two owners would reach one object.
+4. IF an `owned type` declares one or more fields whose types are non-owned reference types, or value types that hold a Changeable_Object, that do NOT implement `IClonable<T>`, THEN THE Type_Checker SHALL report a compile error for each violating field, identifying the field name, its declared type, and explaining that all fields of an owned type must be owned types or implement `IClonable<T>` to guarantee full graph ownership.
 5. THE Type_Checker SHALL evaluate the field-type restriction after IClonable derivation is complete, so auto-derived IClonable implementations are considered.
 6. IF an `owned type` declares a field whose type is a generic type parameter that is not constrained to be an owned type or to implement `IClonable<T>`, THEN THE Type_Checker SHALL report a compile error identifying the field and the unconstrained type parameter — generic fields must be statically provable as owned or clonable to satisfy the field-type restriction.
 
@@ -98,7 +99,7 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 
 #### Acceptance Criteria
 
-1. WHEN a type is declared `owned`, THE Type_Checker SHALL verify the field-type restriction (Requirement 4) — all fields must have types that are owned types, implement `IClonable<T>`, or are value types.
+1. WHEN a type is declared `owned`, THE Type_Checker SHALL verify the field-type restriction (Requirement 4) — all fields must have types that are owned types, implement `IClonable<T>`, or are Unchangeable value types.
 2. IF an owned type has a field violating the field-type restriction, THEN THE Type_Checker SHALL report a compile error specific to the field-type violation, identifying the field, its type, and the restriction.
 3. THE field-type restriction check SHALL run independently of provenance enforcement — a provenance violation does not suppress the field-type check, and vice versa.
 4. THE behavioral cooperation contract from ownership-v2 (verifying field assignment sources) is subsumed by owned-field provenance enforcement (Requirement 8) applied to all fields (which are all implicitly owned per Requirement 3). No separate behavioral contract pass is needed for owned types.
@@ -131,7 +132,7 @@ This document specifies the requirements for **Owned Fields** — a mechanism to
 
 #### Acceptance Criteria
 
-1. WHEN assigning to an owned field (either in a constructor, a method body, or direct field assignment from an owned binding), THE Type_Checker SHALL require that the source expression yields an owned value — a move from an owned binding, a constructor call, a call to a function returning `owned T`, or a `default`/`default(T)` expression. The same provenance rules as ownership-v2 Requirement 4 apply, including the value-type and primitive exemption (value types and primitives are permitted without provenance restriction because they are copied).
+1. WHEN assigning to an owned field (either in a constructor, a method body, or direct field assignment from an owned binding), THE Type_Checker SHALL require that the source expression yields an owned value — a move from an owned binding, a constructor call, a call to a function returning `owned T`, or a `default`/`default(T)` expression. The same provenance rules as ownership-v2 Requirement 4 apply, including [ownership-v2 Requirement 6 AC 11](../ownership-v2/requirements.md#requirement-6-owned-binding--move-semantics): a struct source is a construction from its fields and needs no provenance beyond what its `owned` fields hold, and a primitive needs none.
 2. THE MoveBoundaryResolver SHALL be used for all owned-field assignment provenance checks — no separate mechanism is introduced.
 3. IF the source for an owned-field assignment does not yield an owned value and the source type implements `IClonable<T>`, THE Compiler SHALL implicitly clone the source by inserting a `.Clone()` call to produce a fresh owned value (existing IClonable semantics apply).
 4. IF the source for an owned-field assignment does not yield an owned value and the source type does NOT implement `IClonable<T>`, THEN THE Type_Checker SHALL report a compile error indicating the provenance violation, identifying the field name and the non-owned source expression.
@@ -151,7 +152,7 @@ Subsumed by Requirement 8. Non-owned types with owned fields get the same proven
 #### Acceptance Criteria
 
 1. WHEN code attempts to move out of, borrow, freeze, or readonly-ref an owned field through a shared (non-owned) parent binding, THE Type_Checker SHALL report an error identifying the field, the operation attempted, and explaining that extracting data from an owned field requires an owned binding to the parent.
-2. WHEN an `owned type` has a field whose type is a reference type that is not an owned type and does not implement `IClonable<T>`, THE Type_Checker SHALL report an error identifying the field, its declared type, and the requirement for owned types to have fully-owned-or-clonable fields — value-type fields are exempt from this check.
+2. WHEN an `owned type` has a field whose type is a reference type that is not an owned type and does not implement `IClonable<T>`, THE Type_Checker SHALL report an error identifying the field, its declared type, and the requirement for owned types to have fully-owned-or-clonable fields — a field of an Unchangeable value type is exempt from this check, and one of a value type that holds a Changeable_Object is checked as a reference-typed field is.
 3. WHEN an owned-field assignment uses a non-owned source that is not IClonable, THE Type_Checker SHALL report an error identifying the target field name, the source expression, and explaining the provenance requirement for owned fields.
 4. WHEN a static field is marked `owned`, THE Type_Checker SHALL report an error explaining that the `owned` modifier cannot be applied to static fields.
 5. THE `MIST_OWN_FIELD_MODIFIER_REMOVED (historical)` diagnostic SHALL be deleted entirely from the compiler.
@@ -167,7 +168,7 @@ Subsumed by Requirement 8. Non-owned types with owned fields get the same proven
 1. THE CSharp_Emitter SHALL emit fields declared `owned` as standard C# field declarations without any ownership-related modifiers, attributes, or wrappers — the `owned` annotation is erased and does not appear in generated C#.
 2. THE CSharp_Emitter SHALL NOT emit any runtime tracking, reference counting, state fields, or assertions for owned fields — enforcement is purely compile-time.
 3. WHEN the MoveBoundaryResolver resolves an owned-field assignment as `ImplicitClone`, THE CSharp_Emitter SHALL emit an explicit `.Clone()` call on the source expression at the assignment site.
-4. WHEN the source expression of an owned-field assignment is a value type (struct), THE CSharp_Emitter SHALL NOT emit a `.Clone()` call — value-type copy semantics already produce an independent value.
+4. WHEN the source expression of an owned-field assignment is a value type (struct), THE Compiler SHALL clone only the `owned` fields that [ownership-v2 Requirement 6 AC 11](../ownership-v2/requirements.md#requirement-6-owned-binding--move-semantics) clones; a struct with none is copied as it is.
 
 ### Requirement 13: TextMate Grammar Update
 

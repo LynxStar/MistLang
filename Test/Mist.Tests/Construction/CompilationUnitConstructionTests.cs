@@ -71,6 +71,96 @@ public sealed class CompilationUnitConstructionTests
         Assert.Empty(diagnostics.ToImmutableArray());
     }
 
+    [Fact]
+    public void AUnitRefusedForItsNamespaceShapeContributesNothingLaterStagesCanTripOver()
+    {
+        var model = new Model();
+        var assembly = model.AddSelfAssembly("Application");
+        var diagnostics = new DiagnosticBag();
+        var context = new BuilderContext(model, diagnostics, NullAmbientTypeProvider.Instance);
+        var ast = new CompilationUnitNode
+        {
+            Usings = [new UsingDeclarationNode { Name = Name("Missing") }],
+            Items =
+            [
+                Namespace(new BlockNamespaceNamespaceDeclarationNode { Name = Name("First"), Body = [TypeIn("Hidden")] }),
+                Namespace(new FileScopedNamespaceNamespaceDeclarationNode { Name = Name("Second"), Body = [TypeIn("Other")] }),
+            ],
+        };
+
+        Assert.Null(new CompilationUnitBuilder(context).Build(Unit(ast)));
+        UsingValidation.Run(context);
+
+        Assert.Equal("MIST0291", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Empty(assembly.CompilationUnits);
+        Assert.Empty(model.TypesByFQN);
+        Assert.Empty(model.Namespaces);
+        Assert.Empty(context.PendingUsings);
+    }
+
+    [Fact]
+    public void AFileScopedNamespaceInsideABlockIsRefusedWithoutDroppingTheRestOfTheUnit()
+    {
+        var model = new Model();
+        var assembly = model.AddSelfAssembly("Application");
+        var diagnostics = new DiagnosticBag();
+        var ast = new CompilationUnitNode
+        {
+            Items =
+            [
+                Namespace(new BlockNamespaceNamespaceDeclarationNode
+                {
+                    Name = Name("Outer"),
+                    Body =
+                    [
+                        TypeIn("Kept"),
+                        new NamespaceNamespaceItemNamespaceBodyItemNode
+                        {
+                            NamespaceDeclaration = new FileScopedNamespaceNamespaceDeclarationNode { Name = Name("Inner"), Body = [] },
+                        },
+                    ],
+                }),
+            ],
+        };
+
+        Assert.NotNull(new CompilationUnitBuilder(new BuilderContext(model, diagnostics, NullAmbientTypeProvider.Instance)).Build(Unit(ast)));
+
+        Assert.Equal("MIST0292", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
+        Assert.Equal("Outer.Kept", Assert.Single(Assert.Single(assembly.CompilationUnits).Types).FullyQualifiedName);
+    }
+
+    private static DriverUnit Unit(CompilationUnitNode ast)
+    {
+        var folder = Path.Combine(Root, "User");
+        return new DriverUnit(new SourceText(Path.Combine(folder, "Shapes.mist"), ""), "UserRoot", folder) { Ast = ast };
+    }
+
+    private static NamespaceItemTopLevelItemNode Namespace(NamespaceDeclarationNode declaration)
+    {
+        return new NamespaceItemTopLevelItemNode { NamespaceDeclaration = declaration };
+    }
+
+    private static NamespaceTypeItemNamespaceBodyItemNode TypeIn(string name)
+    {
+        return new NamespaceTypeItemNamespaceBodyItemNode
+        {
+            TypeDeclaration = new BodyTypeTypeDeclarationNode
+            {
+                TypeBody = new TypeBodyDeclarationNode
+                {
+                    Keyword = new ClassKeywordTypeKeywordNode(),
+                    Name = MistTypeGenerator.MakeToken(name),
+                    Members = [],
+                },
+            },
+        };
+    }
+
+    private static QualifiedIdentifierNode Name(string name)
+    {
+        return new QualifiedIdentifierNode { IDENTIFIER = MistTypeGenerator.MakeToken(name), IDENTIFIERs = [] };
+    }
+
     private static DriverUnit Unit(string project, string directory, string namespaceRoot, string typeName)
     {
         var folder = Path.Combine(Root, project);

@@ -181,6 +181,10 @@ internal sealed partial class OwnershipFlow(
             case { Kind: FlowStepKind.Introduce, Node: WithBlockStatement introduced, Variable: { } binding }:
                 return Install(BindValue(state, binding, introduced.Value, introduced), introduced);
 
+            case { Kind: FlowStepKind.Introduce, Node: TupleDeconstructionStatement deconstruction, Variable: { } target }
+                when OwnershipAnalyzer.Unwrapped(deconstruction.Initializer) is TupleLiteralExpression literal && literal.Elements.Count == deconstruction.Targets.Count:
+                return BindValue(state, target, literal.Elements[deconstruction.Targets.ToList().IndexOf(target)], deconstruction);
+
             case { Kind: FlowStepKind.Leave, Node: Block block }:
                 state = LeaveInstallation(state, block);
 
@@ -196,7 +200,7 @@ internal sealed partial class OwnershipFlow(
                     return state;
                 }
 
-                if(Tracked(Place.Of(target.Local)))
+                if(Tracked(Place.Of(target.Local)) || !target.Local.IsRef)
                 {
                     state = BindValue(state, target.Local, assignment.Value, assignment, assignment: true);
                 }
@@ -217,6 +221,13 @@ internal sealed partial class OwnershipFlow(
             case { Kind: FlowStepKind.Evaluate, Node: AssignmentExpression assignment }:
                 foreach(var (target, value) in Deconstructions.Pairs(assignment))
                 {
+                    if(target is LocalReferenceExpression { Local: { IsRef: false } local } && !Tracked(Place.Of(local)))
+                    {
+                        var prior = ValuesOf(state.Values, Place.Of(local));
+                        state = BindValue(state, local, value, assignment, assignment: true);
+                        state = assignment.IsCoalescing ? state with { Values = state.Values.SetItem(Place.Of(local), ValuesOf(state.Values, Place.Of(local)).Union(prior)) } : state;
+                    }
+
                     if(LocalStoragePath.Of(target) is { Receiver: not null } storage)
                     {
                         state = state with { Moved = state.Moved.Remove(Place.Of(storage.Local)) };

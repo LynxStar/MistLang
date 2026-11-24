@@ -49,7 +49,7 @@ internal sealed class OwnershipAnalyzer : IProgramAnalyzer
         return root.Member is Method { Body: { } body } method && ReferenceEquals(body, root.Root) && ReturnsOwned(method) ? method : null;
     }
 
-    private static bool ReturnsOwned(Method method)
+    internal static bool ReturnsOwned(Method method)
     {
         return method.Modifiers.IsOwned || method.ReturnOwnership == OwnershipKind.Owned;
     }

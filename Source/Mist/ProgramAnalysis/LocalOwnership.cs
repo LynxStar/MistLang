@@ -230,8 +230,7 @@ internal sealed class LocalOwnership
 
     public ThisTier Provided(Expression expression)
     {
-        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
-        return leaves.Count == 0 ? ThisTier.None : leaves.Min(leaf => leaf switch
+        return Least(expression, leaf => leaf switch
         {
             LocalReferenceExpression reference => Of(reference.Local),
             FieldReferenceExpression field => ThisTiers.IsOwned(field.Field) ? ThisTier.Owned : ThisTier.None,
@@ -239,16 +238,55 @@ internal sealed class LocalOwnership
         });
     }
 
+    /// <summary>
+    /// The access a <c>borrowed</c> or <c>frozen</c> binding or argument can take from a source, which only an
+    /// exclusive holder gives (ownership-v2 Requirement 9.6): an owned or lent binding, an owned member of a
+    /// holder that is not shared (owned-fields Requirement 2), a construction keeping <c>this</c> private, or a
+    /// call returning owned. What an owned member of a lent holder gives is not narrowed here.
+    /// </summary>
+    public ThisTier Lends(Expression expression)
+    {
+        return Held(expression, lending: true);
+    }
+
     private ThisTier SourceOf(Expression expression)
     {
-        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
-        return leaves.Count == 0 ? ThisTier.None : leaves.Min(leaf => leaf switch
+        return Held(expression, lending: false);
+    }
+
+    private ThisTier Held(Expression expression, bool lending)
+    {
+        return Least(expression, leaf => leaf switch
         {
-            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } => ThisTiers.IsOwned(field) ? Provided(receiver) : ThisTier.None,
+            LocalReferenceExpression or FieldReferenceExpression => Provided(leaf),
+            PropertyReferenceExpression { Property.Modifiers: { IsOwned: true, IsStatic: false } } => ThisTier.Owned,
+            MemberAccessExpression { Member: FieldResult { Field: var field }, Receiver: var receiver } when ThisTiers.IsOwned(field) => Holder(receiver, lending),
+            MemberAccessExpression { Member: PropertyResult { Property.Modifiers: { IsOwned: true, IsStatic: false } }, Receiver: var receiver } => Holder(receiver, lending),
+            MemberAccessExpression { Member: FieldResult } => lending && Origins.IsUnchangeable(leaf.Type) ? ThisTier.Owned : ThisTier.None,
+            MemberAccessExpression { Member: PropertyResult } or PropertyReferenceExpression or ExtensionPropertyAccessExpression or IndexExpression
+                => Origins.IsUnchangeable(leaf.Type) ? ThisTier.Owned : ThisTier.None,
             InvocationExpression call when call.Signature is not ({ Modifiers.IsOwned: true } or { ReturnOwnership: OwnershipKind.Owned })
                 && !Exclusive(call) && !Origins.IsUnchangeable(call.Type) => ThisTier.None,
-            _ => Provided(leaf),
+            NewExpression creation when IsLeaky(creation) => ThisTier.None,
+            _ => ThisTier.Owned,
         });
+    }
+
+    private ThisTier Holder(Expression receiver, bool lending)
+    {
+        var held = Held(receiver, lending);
+        return lending && held > ThisTier.None ? ThisTier.Owned : held;
+    }
+
+    public static bool IsLeaky(NewExpression creation)
+    {
+        return !ThisTiers.IsValue(creation.Type) && ThisEscapes.Of(creation);
+    }
+
+    private static ThisTier Least(Expression expression, Func<Expression, ThisTier> tier)
+    {
+        var leaves = OwnershipAnalyzer.Selected(expression).ToList();
+        return leaves.Count == 0 ? ThisTier.None : leaves.Min(tier);
     }
 
     public bool IsLoan(LocalVariable local)

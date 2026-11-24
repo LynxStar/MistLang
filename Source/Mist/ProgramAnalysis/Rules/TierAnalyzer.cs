@@ -5,6 +5,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 
 namespace Mist.ProgramAnalysis.Rules;
@@ -36,17 +37,13 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
                 case LocalDeclarationStatement { Initializer: { } initializer } declaration:
                     JudgeExtraction(context, initializer, declaration.Local.Ownership, declaration.Local.IsRef);
-                    if(OwnedProvenance.SharedExtraction(initializer) is null)
+                    var required = declaration.Local.Ownership switch
                     {
-                        var required = declaration.Local.Ownership switch
-                        {
-                            OwnershipKind.Borrowed => ThisTier.Borrowed,
-                            OwnershipKind.Frozen => ThisTier.Frozen,
-                            _ => ThisTier.None,
-                        };
-                        JudgeAccess(context, tiers, initializer, initializer, required, declaration.Local.Name);
-                    }
-
+                        OwnershipKind.Borrowed => ThisTier.Borrowed,
+                        OwnershipKind.Frozen => ThisTier.Frozen,
+                        _ => ThisTier.None,
+                    };
+                    JudgeAccess(context, tiers, initializer, initializer, required, declaration.Local.Name);
                     break;
 
                 case AssignmentExpression { IsCoalescing: false } assignment:
@@ -112,20 +109,31 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
 
     private static void JudgeAccess(AnalysisContext context, ThisTiers tiers, Expression call, Expression argument, ThisTier required, string target)
     {
-        if(required == ThisTier.None || ThisTiers.IsValue(argument.Type))
+        if(required == ThisTier.None || ThisTiers.IsValue(argument.Type) || OwnedProvenance.SharedExtraction(argument) is not null)
         {
             return;
         }
 
-        var given = argument is ThisExpression ? tiers.Provided(argument, context.MemberOf(call))
-            : LocalOwnership.For(context.RootOf(call) ?? call).Provided(argument);
+        var locals = LocalOwnership.For(context.RootOf(call) ?? call);
+        var given = argument is ThisExpression ? tiers.Provided(argument, context.MemberOf(call)) : locals.Lends(argument);
 
-        if(given < required)
+        if(given >= required)
+        {
+            return;
+        }
+
+        if(OwnershipAnalyzer.Selected(argument).OfType<NewExpression>().FirstOrDefault(LocalOwnership.IsLeaky) is { } creation)
         {
             context.Report(
-                ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
-                new EnumValue(ThisTiers.Display(given)), new NameValue(Display(argument)), new EnumValue(ThisTiers.Display(required)), new NameValue(target));
+                ProgramAnalysisDiagnostics.LentConstructionNotFresh, creation.Node, [creation],
+                new EnumValue(ThisTiers.Display(required)), new NameValue(target), DiagnosticSnapshot.Type(creation.Type));
+            return;
         }
+
+        var lender = OwnershipAnalyzer.Selected(argument).FirstOrDefault(leaf => locals.Lends(leaf) == given) ?? argument;
+        context.Report(
+            ProgramAnalysisDiagnostics.IncompatibleLend, argument.Node, [argument],
+            new EnumValue(ThisTiers.Display(given)), new NameValue(Lender(lender)), new EnumValue(ThisTiers.Display(required)), new NameValue(target));
     }
 
     private static void JudgeExtraction(AnalysisContext context, Expression value, OwnershipKind destination, bool byReference)
@@ -184,6 +192,26 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     private static bool Exclusive(IMistType type)
     {
         return OwnershipAnalyzer.Substructural(type) is SubstructuralDiscipline.Linear or SubstructuralDiscipline.Affine;
+    }
+
+    private static string Lender(Expression source)
+    {
+        return OwnershipAnalyzer.Unwrapped(source) switch
+        {
+            MemberAccessExpression { Member: FieldResult { Field.Modifiers.IsStatic: true } } access => $"static field '{Path(access)}'",
+            MemberAccessExpression { Member: FieldResult } access => $"field '{Path(access)}'",
+            MemberAccessExpression { Member: PropertyResult } access => $"property '{Path(access)}'",
+            PropertyReferenceExpression property => $"property '{property.Property.Name}'",
+            ExtensionPropertyAccessExpression property => $"property '{property.Property.Name}'",
+            IndexExpression index => $"element of '{Path(index.Receiver)}'",
+            InvocationExpression { Signature: { } method } => $"result of '{method.Name}'",
+            var other => Display(other),
+        };
+    }
+
+    private static string Path(Expression expression)
+    {
+        return OwnershipFlow.Spelled(expression) ?? Display(expression);
     }
 
     private static string Display(Expression receiver)

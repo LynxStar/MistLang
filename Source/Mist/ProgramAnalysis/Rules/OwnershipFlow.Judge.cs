@@ -40,6 +40,8 @@ internal sealed partial class OwnershipFlow
 
     private void Judge(FlowGraph graph, State state, FlowStep step)
     {
+        JudgeEscapes(state, step);
+
         if(SnapshotAt(step) is { } snapshot)
         {
             if(state.Moved.TryGetValue(snapshot.Place, out var moved))

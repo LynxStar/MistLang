@@ -471,4 +471,26 @@ public static partial class ProgramAnalysisDiagnostics
         Policy: PolicyClass.Fixed,
         DefaultSeverity: DiagnosticSeverity.Error,
         Slots: [new Slot("value", SlotKind.Name), new Slot("field", SlotKind.Name)]);
+
+    public static readonly MistDiagnostic LentConstructionNotFresh = new(
+        DiagnosticNumber.Mint("MIST0507"),
+        Title: "Lent construction not fresh",
+        Template: "Cannot lend this value as {tier} to '{target}': it is neither fresh, moved from an owned binding, nor of a type that cannot change, because the constructor of '{type}' lets 'this' escape. A {tier} lend needs exclusive access, which only an owned binding, an owned field through an owned parent, a construction that keeps 'this' private, or a call returning owned can give.",
+        Description: "A borrowed or frozen lend promises the recipient exclusive access, and a construction gives that only when its constructor chain keeps 'this' private. This constructor stores or hands out 'this', so something else may already reach the new object. Make the constructor keep 'this' private, or hold the object unrestricted and lend it readonly ref.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("tier", SlotKind.Enum), new Slot("target", SlotKind.Name), new Slot("type", SlotKind.Type)],
+        Related: [IncompatibleLend.Number, OwnedSourceNotOwned.Number]);
+
+    public static readonly MistDiagnostic LentReferenceEscapes = new(
+        DiagnosticNumber.Mint("MIST0508"),
+        Title: "Lent reference escapes",
+        Template: "Cannot {action} {tier} '{variable}' {destination}: a {tier} reference is lent only until the scope it was given to ends, so it cannot be stored, returned or passed where it could be kept.",
+        Description: "A borrowed, frozen or readonly ref binding is non-storable: its lender gets full access back when the lend ends, so the reference may not reach a field, a collection element, a return or an unrestricted parameter, and may be lent on only to a parameter of the same tier or a weaker one. Lend it on, read what you need out of it, or clone it into an owned destination.",
+        Category: DiagnosticCategory.Own,
+        Policy: PolicyClass.Fixed,
+        DefaultSeverity: DiagnosticSeverity.Error,
+        Slots: [new Slot("action", SlotKind.Enum), new Slot("tier", SlotKind.Enum), new Slot("variable", SlotKind.Name), new Slot("destination", SlotKind.Name)],
+        Related: [IncompatibleLend.Number, CapturedBinding.Number]);
 }

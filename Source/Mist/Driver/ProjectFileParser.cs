@@ -515,7 +515,7 @@ public static partial class ProjectFileParser
                     break;
 
                 case "warnings_as_errors":
-                    diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("true, false or an array of diagnostic numbers"));
+                    ReportInvalidDiagnosticsValue(diagnostics, key, filePath, "true, false or an array of diagnostic numbers");
                     faults++;
                     break;
 
@@ -524,7 +524,7 @@ public static partial class ProjectFileParser
                     break;
 
                 case "disable" or "enable":
-                    diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("an array of diagnostic numbers"));
+                    ReportInvalidDiagnosticsValue(diagnostics, key, filePath, "an array of diagnostic numbers");
                     faults++;
                     break;
 
@@ -551,7 +551,7 @@ public static partial class ProjectFileParser
         {
             if(item is not string code)
             {
-                diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue("an array of diagnostic numbers written as strings"));
+                ReportInvalidDiagnosticsValue(diagnostics, key, filePath, "an array of diagnostic numbers written as strings");
                 faults++;
                 continue;
             }
@@ -574,6 +574,11 @@ public static partial class ProjectFileParser
         }
 
         return faults;
+    }
+
+    private static void ReportInvalidDiagnosticsValue(DiagnosticBag diagnostics, string key, string filePath, string expected)
+    {
+        diagnostics.ReportTyped(DriverDiagnostics.DiagnosticsValueInvalid, new FileOnly(filePath), new NameValue(key), new PathValue(filePath), new TextValue(expected));
     }
 
     private static ProjectReference? ReferenceTo(string refName, string normalizedPath)

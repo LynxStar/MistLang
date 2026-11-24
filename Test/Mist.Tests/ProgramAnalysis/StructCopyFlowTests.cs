@@ -64,22 +64,65 @@ public sealed class StructCopyFlowTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ACopyIntoANonOwnedBindingLeavesTheOwnedSourceUsable(bool assignment)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ACopyIntoANonOwnedBindingLeavesTheOwnedSourceUsable(bool assignment, bool throughField)
     {
         var (type, clones) = StructCopyDecisionTests.Mixed("mixed");
         var model = new HandBuiltModel();
         model.Model.Clones = clones;
-        var source = new LocalVariable("m", type) { Ownership = OwnershipKind.Owned };
+        var holder = HandBuiltModel.Class("Holder");
+        var field = new Field("Held", type, OwnershipKind.Unrestricted, default) { DeclaringType = holder };
+        holder.FieldsList.Add(field);
+        var source = new LocalVariable("m", throughField ? holder : type) { Ownership = OwnershipKind.Owned };
+        Expression read(int offset)
+        {
+            var local = new LocalReferenceExpression(HandBuiltModel.Node(offset), source);
+            return throughField
+                ? new MemberAccessExpression(HandBuiltModel.Node(offset), local, field.Name, type, member: new FieldResult(field, holder, []))
+                : local;
+        }
+
         var destination = new LocalVariable("q", type);
-        var value = new LocalReferenceExpression(HandBuiltModel.Node(), source);
+        var value = read(0);
         Statement copy = assignment
             ? new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), destination), value, type))
             : new LocalDeclarationStatement(destination, value);
+        var statements = new List<Statement>
+        {
+            new LocalDeclarationStatement(source, new NewExpression(HandBuiltModel.Node(), source.Type, [], null, [], [])),
+        };
+        if(assignment)
+        {
+            statements.Add(new LocalDeclarationStatement(destination, new NewExpression(HandBuiltModel.Node(), type, [], null, [], [])));
+        }
+
+        statements.Add(copy);
+        statements.Add(new ExpressionStatement(Call(type, OwnershipKind.Unrestricted, read(40))));
+        var body = HandBuiltModel.Block([.. statements]);
+
+        Assert.Empty(model.Analyze(new OwnershipAnalyzer(), body));
+    }
+
+    [Fact]
+    public void AStructFieldCopyDoesNotLendItsClassHolder()
+    {
+        var (type, clones) = StructCopyDecisionTests.Mixed("mixed");
+        var model = new HandBuiltModel();
+        model.Model.Clones = clones;
+        var holder = HandBuiltModel.Class("Holder");
+        var field = new Field("Held", type, OwnershipKind.Unrestricted, default) { DeclaringType = holder };
+        holder.FieldsList.Add(field);
+        var source = new LocalVariable("h", holder) { Ownership = OwnershipKind.Owned };
+        var copy = new LocalVariable("copy", type) { InfersOwnership = true };
+        var value = new MemberAccessExpression(HandBuiltModel.Node(), new LocalReferenceExpression(HandBuiltModel.Node(), source), field.Name, type,
+            member: new FieldResult(field, holder, []));
         var body = HandBuiltModel.Block(
-            new LocalDeclarationStatement(source, new NewExpression(HandBuiltModel.Node(), type, [], null, [], [])), copy,
-            new ExpressionStatement(Call(type, OwnershipKind.Unrestricted, new LocalReferenceExpression(HandBuiltModel.Node(40), source))));
+            new LocalDeclarationStatement(source, new NewExpression(HandBuiltModel.Node(), holder, [], null, [], [])),
+            new LocalDeclarationStatement(copy, value),
+            new LocalDeclarationStatement(new LocalVariable("other", holder) { Ownership = OwnershipKind.Owned }, new LocalReferenceExpression(HandBuiltModel.Node(40), source)));
 
         Assert.Empty(model.Analyze(new OwnershipAnalyzer(), body));
     }

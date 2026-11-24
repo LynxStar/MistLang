@@ -70,7 +70,18 @@ internal static class GenericStructConstruction
                 var type = value.GetType();
                 if(!type.IsValueType) return value;
                 var copy = type.GetMethod("__CopyOwned", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-                if(copy is not null) return copy.Invoke(value, null);
+                if(copy is not null)
+                {
+                    try
+                    {
+                        return copy.Invoke(value, null);
+                    }
+                    catch(System.Reflection.TargetInvocationException failure) when(failure.InnerException is { } inner)
+                    {
+                        System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(inner).Throw();
+                        throw;
+                    }
+                }
                 if(value is System.Runtime.CompilerServices.ITuple)
                 {
                     foreach(var field in type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))

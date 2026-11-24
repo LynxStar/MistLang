@@ -494,7 +494,7 @@ internal sealed partial class OwnershipFlow(
 
     private static bool CopiesStruct(Place source)
     {
-        return ThisTiers.IsValue(source.Root.Type) && OwnershipAnalyzer.Substructural(source.Root.Type) == SubstructuralDiscipline.None;
+        return ThisTiers.IsValue(source.Type) && OwnershipAnalyzer.Substructural(source.Type) == SubstructuralDiscipline.None;
     }
 
     private bool MovesInto(LocalVariable recipient, Place source)

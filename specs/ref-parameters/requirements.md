@@ -151,6 +151,9 @@ After the ownership keyword revision (which freed `ref` from its previous role a
 
 1. THE Type_Checker SHALL prohibit combining the ref parameter modifier with the `owned` ownership specifier on the same parameter (error). THE Type_Checker SHALL warn (but permit) combining `ref` with `borrowed` or `frozen` ownership specifiers, treating the ownership specifier as redundant.
 2. WHEN a `ref` parameter references an `owned` variable, THE Type_Checker SHALL treat the ref as a temporary borrow — the owner retains ownership but cannot move the variable while the ref is outstanding.
+
+   > **Revised (2026-11-24, operator decision):** [ownership-v2 Requirement 9.9](../ownership-v2/requirements.md#requirement-9-interaction-with-existing-lending-tiers) supersedes this criterion. An owned binding or `owned` field whose type is not Unchangeable SHALL NOT be passed to a bare `ref` parameter, since a bare `ref` carries no ownership and the callee could keep the object or store a shared one back. This criterion still applies to an owned binding or field whose type is Unchangeable.
+
 3. WHEN a `ref` parameter references a `borrowed` variable, THE Type_Checker SHALL permit the ref (the borrower can grant sub-borrows).
 4. THE Type_Checker SHALL NOT permit passing a `readonly ref` (ownership tier) variable as a `ref` argument (cannot grant write access to a readonly view).
 5. THE Type_Checker SHALL NOT permit passing a `frozen` (ownership tier) variable as a `ref` argument (cannot grant write access to a frozen view).

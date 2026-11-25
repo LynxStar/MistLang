@@ -242,6 +242,88 @@ public sealed partial class StorageWriteSummaryTests
         Assert.Equal(Set(outer.T), writes[(loops[3], StorageAccess.Read)]);
     }
 
+    [Fact]
+    public void AnArrayElementOrAZipTargetWritesWhatItsSlotMentions()
+    {
+        var box = new Generic("Box", "T");
+        var array = new Generic("Array", "E");
+        var items = box.Field("items", Interner.GetOrCreateConstructedType(array.Type, [box.T]));
+        var counts = box.Field("counts", Interner.GetOrCreateConstructedType(array.Type, [Int32]));
+        var pack = Interner.GetOrCreateTupleType([new SpreadType(box.T)]);
+        var item = box.Field("Item", pack);
+        var stores = box.Method("Stores", [new Parameter("value", box.T)], Body(Assign(Element(FieldOf(This(box.Type), items, box.Type), box.T), Local("value", box.T))));
+        var tallies = box.Method("Tallies", [], Body(Assign(Element(FieldOf(This(box.Type), counts, box.Type), Int32), One())));
+        var peeks = box.Method("Peeks", [], Body(Element(FieldOf(This(box.Type), items, box.Type), box.T)));
+        var zips = box.Method("Zips", [new Parameter("values", pack)],
+            Body(Assign(new SpreadExpression(Node(), FieldOf(This(box.Type), item, box.Type), pack), new SpreadExpression(Node(), Local("values", pack), pack))));
+
+        var writes = Solve(box.Roots(stores, tallies, peeks, zips));
+
+        Assert.Equal(Set(box.T), writes[(stores, StorageAccess.Read)]);
+        Assert.Empty(writes[(tallies, StorageAccess.Read)]);
+        Assert.Empty(writes[(peeks, StorageAccess.Read)]);
+        Assert.Equal(Set(box.T), writes[(zips, StorageAccess.Read)]);
+    }
+
+    [Fact]
+    public void AConditionalAccessIsClosedByTheReceiversNonVoidPortion()
+    {
+        var box = new Generic("Box", "T");
+        var rotate = box.Method("Rotate", [], Body(Assign(box.ValueOf(This(box.Type)), box.ValueOf(This(box.Type)))));
+        var lazy = box.Property("Lazy", Int32,
+            getter: Body(Assign(box.ValueOf(This(box.Type)), box.ValueOf(This(box.Type)))),
+            setter: Body());
+        var holder = new Generic("Holder", "V");
+        var maybe = Interner.GetOrCreateUnionType([Interner.GetOrCreateConstructedType(box.Type, [holder.T]), fragments.Built.Type("Void")]);
+        var rotates = holder.Method("Rotates", [],
+            Body(Call(new MemberAccessExpression(Node(), Local("maybe", maybe), rotate.Name, rotate.ReturnType, [], isConditional: true), rotate)));
+        var peeks = holder.Method("Peeks", [],
+            Body(new MemberAccessExpression(Node(), Local("maybe", maybe), lazy.Name, lazy.Type, isConditional: true, member: new PropertyResult(lazy, box.Type, []))));
+
+        var writes = Solve([.. box.Roots(rotate), .. box.AccessorRoots(lazy), .. holder.Roots(rotates, peeks)]);
+
+        Assert.Equal(Set(holder.T), writes[(rotates, StorageAccess.Read)]);
+        Assert.Equal(Set(holder.T), writes[(peeks, StorageAccess.Read)]);
+    }
+
+    [Fact]
+    public void ANewtypeConstructionRunsItsSourcesInitializers()
+    {
+        var cell = new Generic("Cell", "T");
+        var overwrite = cell.Method("Overwrite", [new Parameter("next", cell.T)], Body(Assign(cell.ValueOf(This(cell.Type)), Local("next", cell.T))));
+        var implicitly = new Generic("Implicit", "I");
+        implicitly.Field("tag", Int32).Initializer = Call(Callee(New(cell, implicitly.T, constructor: null), overwrite), overwrite, Local("seed", implicitly.T));
+        var plain = new Generic("Plain", "P");
+        plain.Field("tag", Int32).Initializer = HandBuiltModel.Literal(Int32, 0);
+        var outer = new Generic("Outer", "U");
+        var makeCelled = outer.Method("MakeCelled", [], Body(NewOf(Clone("Celled", implicitly), outer.T)));
+        var makeKept = outer.Method("MakeKept", [], Body(NewOf(Clone("Kept", plain), outer.T)));
+
+        var writes = Gather(cell, implicitly, plain, outer);
+
+        Assert.Equal(Set(outer.T), writes[(makeCelled, StorageAccess.Read)]);
+        Assert.Empty(writes[(makeKept, StorageAccess.Read)]);
+    }
+
+    private Newtype Clone(string name, Generic source)
+    {
+        var clone = HandBuiltModel.Newtype(name, source.Type);
+        var w = new TypeParameter("W", 0, clone.Scope, null);
+        clone.TypeParametersList.Add(w);
+        clone.SourceType = Interner.GetOrCreateConstructedType(source.Type, [w]);
+        return clone;
+    }
+
+    private NewExpression NewOf(Newtype clone, IMistType argument)
+    {
+        return new NewExpression(Node(), Interner.GetOrCreateConstructedType(clone, [argument]), [], constructor: null, [], parameterTypes: null);
+    }
+
+    private IndexExpression Element(Expression receiver, IMistType type)
+    {
+        return new IndexExpression(Node(), receiver, One(), type);
+    }
+
     private static (Generic Type, Method MoveNext, Property Current) Cursor(string name, bool moveNextWrites, bool currentWrites)
     {
         var cursor = new Generic(name, "C");

@@ -2,6 +2,7 @@
 
 using Mist.ProgramAnalysis.Flow;
 using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
@@ -98,6 +99,33 @@ public sealed class ResourceTransferDecisionTests
         Assert.Empty(LentValues.Of(f.Call(f.Peek, Ref(f.Local("t")))));
         Assert.Empty(LentValues.Of(f.Call(f.Take, f.New(2))));
         Assert.Empty(LentValues.Of(f.Call(f.Lend, f.New(3))));
+    }
+
+    /// <summary>
+    /// Extracting a Result keeps its active payload's cleanup obligation (specs/exceptions design), and
+    /// propagation transfers ownership as the matching early return would (exceptions Requirement 3.4). So the
+    /// statement holds a fresh Result it propagates or inspects, exactly once. A named Result stays with its
+    /// local, and one with nothing to release is not held.
+    /// </summary>
+    [Fact]
+    public void AFreshResultCarrierIsHeldOnceByTheStatementThatPropagatesOrInspectsIt()
+    {
+        var shapes = new ResultModel();
+        var carrying = shapes.Result(f.Token, shapes.Text);
+        var plain = shapes.Result(shapes.Integer, shapes.Text);
+        Method maker(IMistType type)
+        {
+            return new Method("Made", type, [], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };
+        }
+
+        var propagated = f.Call(maker(carrying));
+        var inspected = f.Call(maker(carrying));
+        var named = new LocalVariable("r", carrying);
+
+        Assert.Same(propagated, Assert.Single(LentValues.Once(Declare(f.Local("v"), shapes.Propagate(propagated, plain)))));
+        Assert.Same(inspected, Assert.Single(LentValues.Once(Run(shapes.Inspect(inspected)))));
+        Assert.Empty(LentValues.Once(Declare(f.Local("w"), shapes.Propagate(Ref(named), plain))));
+        Assert.Empty(LentValues.Once(Declare(f.Local("n", shapes.Integer), shapes.Propagate(f.Call(maker(plain)), plain))));
     }
 
     [Fact]

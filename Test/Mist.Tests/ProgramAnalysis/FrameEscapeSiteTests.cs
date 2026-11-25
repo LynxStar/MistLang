@@ -2,7 +2,10 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
+using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.FrameFragments;
 
@@ -43,6 +46,35 @@ public sealed class FrameEscapeSiteTests
         var body = HandBuiltModel.Block(Declare(st, f.Stackalloc()), new IfStatement(test, HandBuiltModel.Block(Return(Ref(three, 37))), null));
 
         AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Span");
+    }
+
+    // A switch arm's binding aliases the scrutinee as an `is` binding does (stack-only-types Requirement 8.1-8.2),
+    // so returning the arm's binding returns the stack memory the scrutinee was declared from.
+    [Fact]
+    public void AStackSpanBoundByASwitchArmIsRefusedWhereTheArmReturnsIt()
+    {
+        var st = Local("st", f.Span);
+        var three = Local("three", f.Span);
+        var arm = new SwitchArm(
+            HandBuiltModel.Node(), new ProgramModel.Model.Patterns.TypeTestPattern(HandBuiltModel.Node(), f.Span, three), null, Ref(three));
+        var body = HandBuiltModel.Block(Declare(st, f.Stackalloc()), Return(new SwitchExpression(HandBuiltModel.Node(37), Ref(st), [arm], f.Span)));
+
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Span");
+    }
+
+    // A ref-struct foreach variable is drawn from its collection, as a match enumerated from a span
+    // is (stack-only-types Requirement 8.2/8.4), so it carries the frame the collection was built from.
+    [Fact]
+    public void ARefStructForEachVariableDrawnFromStackMemoryIsRefusedWhereTheLoopReturnsIt()
+    {
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), LoopReturningItsVariable(stackBacked: true)), "MIST0265", "This 'Holder' refers to stackalloc memory");
+    }
+
+    // The same loop over a caller's span returns nothing tied to this frame (stack-only-types Requirement 8.6).
+    [Fact]
+    public void ARefStructForEachVariableDrawnFromACallersSpanIsAdmittedWhereTheLoopReturnsIt()
+    {
+        Assert.Empty(f.Model.Analyze(new EscapeAnalyzer(), LoopReturningItsVariable(stackBacked: false)));
     }
 
     [Fact]
@@ -168,6 +200,18 @@ public sealed class FrameEscapeSiteTests
             : HandBuiltModel.Block(Declare(x, HandBuiltModel.Literal(f.Integer, 1L)), Declare(view, Ref(x)), Return(Ref(view), isRef: true));
 
         Assert.Empty(f.Model.Analyze(new EscapeAnalyzer(), body));
+    }
+
+    private Block LoopReturningItsVariable(bool stackBacked)
+    {
+        var matches = new StructType("Matches", "Probe", new Scope(null), null, null) { Modifiers = new MemberModifiers { IsRef = true } };
+        var enumerate = new Method("Enumerate", matches, [new Parameter("s", f.Span)], new MemberModifiers { IsStatic = true });
+        var st = Local("st", f.Span);
+        var match = Local("match", f.Holder);
+        var source = stackBacked ? Ref(st) : Ref(Parameter("p", f.Span));
+        var loop = new ForEachStatement(match, Call(enumerate, null, 0, source), HandBuiltModel.Block(Return(Ref(match, 37))));
+
+        return HandBuiltModel.Block(Declare(st, f.Stackalloc()), loop);
     }
 
     private static void AssertSite(IReadOnlyList<Diagnostic> diagnostics, string expected, string message)

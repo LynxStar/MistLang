@@ -79,6 +79,7 @@ public sealed class OperatorBindingDecisionTests
 
         Assert.Same(composed, sum.Operator);
         Assert.Equal([results.Error, results.Division], RecordedFor(composed));
+        AssertClosedAt(sum, composed, results.Error, results.Division);
     }
 
     [Fact]
@@ -92,6 +93,7 @@ public sealed class OperatorBindingDecisionTests
 
         Assert.Same(negation, negated.Operator);
         Assert.Equal([results.Division], RecordedFor(negation));
+        AssertClosedAt(negated, negation, results.Division);
     }
 
     private void DeclareAnimals()
@@ -114,6 +116,17 @@ public sealed class OperatorBindingDecisionTests
     private IReadOnlyList<IMistType> RecordedFor(Method method)
     {
         return Assert.Single(fragments.Built.Model.GenericCalls.All(), call => ReferenceEquals(call.Method, method)).TypeArguments;
+    }
+
+    private void AssertClosedAt(Expression site, Method method, params IMistType[] arguments)
+    {
+        var closings = fragments.Built.Model.ConstructorConstraintClosures.Closings
+            .Where(closing => method.TypeParametersList.Exists(parameter => ReferenceEquals(parameter, closing.Parameter)))
+            .ToList();
+
+        Assert.Equal(method.TypeParametersList, closings.Select(closing => closing.Parameter));
+        Assert.Equal(arguments, closings.Select(closing => closing.Argument));
+        Assert.All(closings, closing => Assert.Same(site.Node, closing.Node));
     }
 
     private Expression Bind(ExpressionNode expression)

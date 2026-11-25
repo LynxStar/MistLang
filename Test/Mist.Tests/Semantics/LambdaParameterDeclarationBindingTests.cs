@@ -43,13 +43,19 @@ public sealed class LambdaParameterDeclarationBindingTests
     }
 
     [Theory]
-    [InlineData("supplied")]
-    [InlineData("target")]
-    public void AStatedTypeWinsAndAnUnstatedParameterTakesTheTypeAtItsOwnPosition(string source)
+    [InlineData("supplied", false)]
+    [InlineData("supplied", true)]
+    [InlineData("target", false)]
+    [InlineData("target", true)]
+    public void AStatedTypeWinsAndAnUnstatedParameterTakesTheTypeAtItsOwnPosition(string source, bool stated)
     {
         var f = new BindingFragments();
-        var (text, flag, integer) = (f.Built.Type("String"), f.Built.Type("Boolean"), f.Built.Type("Int32"));
-        var syntax = Lambda(Parenthesized(Typed("a", "Int32", 40), Untyped("b", 50)), Read("b"));
+        var (text, flag) = (f.Built.Type("String"), f.Built.Type("Boolean"));
+        IMistType[] expected = stated ? [f.Built.Type("Int32"), f.Built.Type("Int64")] : [text, flag];
+        var parameters = stated
+            ? Parenthesized(Typed("a", "Int32", 40), Typed("b", "Int64", 50))
+            : Parenthesized(Untyped("a", 40), Untyped("b", 50));
+        var syntax = Lambda(parameters, BindingFragments.Expression(new TrueLiteralExpressionPrimaryNode()));
 
         Expression bound;
         if(source == "supplied")
@@ -65,20 +71,20 @@ public sealed class LambdaParameterDeclarationBindingTests
         var lambda = Assert.IsType<LambdaExpression>(bound);
         Assert.Empty(f.Diagnostics.ToImmutableArray());
         Assert.Equal(["a", "b"], lambda.Parameters.Select(parameter => parameter.Name));
-        Assert.Same(integer, lambda.Parameters[0].Type);
-        Assert.Same(flag, lambda.Parameters[1].Type);
-        Assert.Same(f.Built.Interner.GetOrCreateFunctionType([integer, flag], flag), lambda.Type);
+        Assert.Same(expected[0], lambda.Parameters[0].Type);
+        Assert.Same(expected[1], lambda.Parameters[1].Type);
+        Assert.Same(f.Built.Interner.GetOrCreateFunctionType(expected, flag), lambda.Type);
     }
 
     [Theory]
     [InlineData("implicit", "x", 40)]
-    [InlineData("list", "b", 50)]
+    [InlineData("list", "a", 45)]
     public void AnUnstatedParameterNothingTypesIsRefusedByNameAtThatParameter(string shape, string name, int offset)
     {
         var f = new BindingFragments();
         var parameters = shape == "implicit"
             ? Implicit("x", 40)
-            : Parenthesized(Typed("a", "Int32", 40), Untyped("b", 50), Untyped("c", 60));
+            : Parenthesized(Untyped("a", 45), Untyped("b", 50));
 
         _ = Assert.IsType<ErrorExpression>(LambdaBinder.Bind(Lambda(parameters, Read(name)), f.Binding, f.Builder));
 
@@ -108,7 +114,8 @@ public sealed class LambdaParameterDeclarationBindingTests
 
     [Theory]
     [InlineData("implicit")]
-    [InlineData("mixed")]
+    [InlineData("untyped")]
+    [InlineData("typed")]
     [InlineData("empty")]
     public void StatedParameterTypesResolveOnlyWhatIsWrittenInDeclarationOrder(string shape)
     {
@@ -116,8 +123,8 @@ public sealed class LambdaParameterDeclarationBindingTests
         var (parameters, expected) = shape switch
         {
             "implicit" => (Implicit("x", 40), new IMistType?[] { null }),
-            "mixed" => (Parenthesized(Untyped("a", 40), Typed("b", "Int32", 50), Typed("c", "String", 60)),
-                [null, f.Built.Type("Int32"), f.Built.Type("String")]),
+            "untyped" => (Parenthesized(Untyped("a", 40), Untyped("b", 50)), [null, null]),
+            "typed" => (Parenthesized(Typed("a", "Int32", 40), Typed("b", "String", 50)), [f.Built.Type("Int32"), f.Built.Type("String")]),
             _ => (Parenthesized(), []),
         };
 

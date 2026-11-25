@@ -161,6 +161,9 @@ public sealed class PatternRefusalTests
     [InlineData("nan-reaches-catch-all")]
     [InlineData("empty-later")]
     [InlineData("symbolic-bound")]
+    [InlineData("negated-symbolic-earlier")]
+    [InlineData("conjunction-with-symbolic-earlier")]
+    [InlineData("disjunction-with-symbolic-later")]
     [InlineData("unreadable-later")]
     [InlineData("type-test-of-another-domain")]
     [InlineData("refined-over-refined-below-its-base")]
@@ -474,6 +477,11 @@ public sealed class PatternRefusalTests
             return new ConjunctionPattern(HandBuiltModel.Node(), input, operands);
         }
 
+        Pattern aboveFloor()
+        {
+            return compare(ComparisonKind.GreaterThan, new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("floor", h.Int)));
+        }
+
         Pattern unsigned(ComparisonKind kind, ulong bound)
         {
             return compare(kind, h.Literal(bound, input));
@@ -519,7 +527,10 @@ public sealed class PatternRefusalTests
             "decimal-domain" => ([compare(ComparisonKind.GreaterThan, 0m)], compare(ComparisonKind.GreaterThan, 10m)),
             "no-earlier-arm" => ([], equal(5)),
             "empty-later" => ([compare(ComparisonKind.GreaterThan, 5)], both(compare(ComparisonKind.GreaterThan, 10), compare(ComparisonKind.LessThan, 3))),
-            "symbolic-bound" => ([compare(ComparisonKind.GreaterThan, new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("floor", h.Int)))], compare(ComparisonKind.GreaterThan, 10)),
+            "symbolic-bound" => ([aboveFloor()], compare(ComparisonKind.GreaterThan, 10)),
+            "negated-symbolic-earlier" => ([new NegatedPattern(HandBuiltModel.Node(), input, aboveFloor())], equal(5)),
+            "conjunction-with-symbolic-earlier" => ([both(compare(ComparisonKind.GreaterThan, 0), aboveFloor())], equal(5)),
+            "disjunction-with-symbolic-later" => ([compare(ComparisonKind.GreaterThan, 0)], new DisjunctionPattern(HandBuiltModel.Node(), input, [equal(5), aboveFloor()])),
             "unreadable-later" => ([compare(ComparisonKind.GreaterThan, 0)], new PropertyPattern(HandBuiltModel.Node(), input, [])),
             "enum-has-no-domain" => ([compare(ComparisonKind.GreaterThanOrEqual, 0)], equal(5)),
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),

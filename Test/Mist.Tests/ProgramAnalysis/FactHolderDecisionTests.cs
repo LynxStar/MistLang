@@ -15,6 +15,7 @@ public sealed class FactHolderDecisionTests
     [InlineData("written-by-a-local-function", true)]
     [InlineData("passed-by-ref-in-a-local-function", true)]
     [InlineData("named-by-a-ref-local-in-a-local-function", true)]
+    [InlineData("written-by-a-local-function-through-a-reference-a-call-handed-back", true)]
     [InlineData("passed-by-ref", false)]
     [InlineData("named-by-a-ref-local", false)]
     [InlineData("read-by-a-local-function", false)]
@@ -37,6 +38,8 @@ public sealed class FactHolderDecisionTests
             "written-by-a-local-function" => [nested(FactHolderFragments.Set(FactHolderFragments.Read(d), f.Number(6L)))],
             "passed-by-ref-in-a-local-function" => [nested(bump)],
             "named-by-a-ref-local-in-a-local-function" => [nested(FactHolderFragments.Declare(alias, FactHolderFragments.Read(d)))],
+            "written-by-a-local-function-through-a-reference-a-call-handed-back" => [FactHolderFragments.Declare(alias, f.Free(f.Identity(), FactHolderFragments.Read(d))),
+                nested(FactHolderFragments.Set(FactHolderFragments.Read(alias), f.Number(6L)))],
             "passed-by-ref" => [bump],
             "named-by-a-ref-local" => [FactHolderFragments.Declare(alias, FactHolderFragments.Read(d))],
             "read-by-a-local-function" => [read],
@@ -165,6 +168,9 @@ public sealed class FactHolderDecisionTests
     [InlineData("a-reference-another-such-call-hands-back", "a", "r")]
     [InlineData("a-field", "A", "r")]
     [InlineData("a-field-of-another-object", "", "V,r")]
+    [InlineData("a-ref-local-another-such-call-binds", "a,x", "r,x")]
+    [InlineData("a-local-beside-a-by-value-argument", "a", "r")]
+    [InlineData("the-struct-local-it-is-called-on", "s", "r")]
     public void ARefLocalBoundToARefReturningCallCarriesNoFactsAndEndsWhatTheCallWasHandedByRef(string argument, string named, string unseen)
     {
         var f = new FactHolderFragments();
@@ -172,21 +178,51 @@ public sealed class FactHolderDecisionTests
         var x = FactHolderFragments.Int(f.H, "x", isRef: true);
         var r = FactHolderFragments.Int(f.H, "r", isRef: true);
         var id = f.Identity();
+        var point = HandBuiltModel.Struct("Point");
+        var s = new LocalVariable("s", point);
         Expression passed = argument switch
         {
-            "a-local" => FactHolderFragments.Read(a),
-            "a-ref-local-of-a-local" => FactHolderFragments.Read(x),
+            "a-local" or "a-local-beside-a-by-value-argument" or "the-struct-local-it-is-called-on" => FactHolderFragments.Read(a),
+            "a-ref-local-of-a-local" or "a-ref-local-another-such-call-binds" => FactHolderFragments.Read(x),
             "a-reference-another-such-call-hands-back" => f.Free(id, FactHolderFragments.Read(a)),
             "a-field" => FactHolderFragments.Own(f.A),
             "a-field-of-another-object" => FactHolderFragments.Member(FactHolderFragments.Read(new LocalVariable("other", f.Box)), f.V),
             _ => throw new InvalidOperationException(argument),
         };
+        var pick = new Method("Pick", f.H.Int, [f.ByRef("y").Parameter!, FactHolderFragments.Parameter("b", f.H.Int)], new MemberModifiers { IsRef = true }) { DeclaringType = f.Pair };
+        var own = new Method("Own", f.H.Int, [], new MemberModifiers { IsRef = true }) { DeclaringType = point };
+        var bound = argument switch
+        {
+            "a-local-beside-a-by-value-argument" => f.Free(pick, passed, FactHolderFragments.Read(FactHolderFragments.Int(f.H, "b"))),
+            "the-struct-local-it-is-called-on" => FactHolderFragments.Call(FactHolderFragments.Read(s), own),
+            _ => f.Free(id, passed),
+        };
 
-        Statement alias = argument == "a-ref-local-of-a-local" ? FactHolderFragments.Declare(x, FactHolderFragments.Read(a)) : HandBuiltRefinements.Evaluate(f.Number(0L));
-        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(0L)), alias, FactHolderFragments.Declare(r, f.Free(id, passed))));
+        Statement alias = argument switch
+        {
+            "a-ref-local-of-a-local" => FactHolderFragments.Declare(x, FactHolderFragments.Read(a)),
+            "a-ref-local-another-such-call-binds" => FactHolderFragments.Declare(x, f.Free(id, FactHolderFragments.Read(a))),
+            "the-struct-local-it-is-called-on" => FactHolderFragments.Declare(s, null),
+            _ => HandBuiltRefinements.Evaluate(f.Number(0L)),
+        };
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(0L)), alias, FactHolderFragments.Declare(r, bound)));
 
         Assert.Equal(named, Names(holders.AliasesOf(r)));
         Assert.Equal(unseen, Names(holders.Unseen));
+    }
+
+    [Fact]
+    public void ARefLocalNamingARefLocalBoundToARefReturningCallCarriesNoFactsEither()
+    {
+        var f = new FactHolderFragments();
+        var a = FactHolderFragments.Int(f.H, "a");
+        var r = FactHolderFragments.Int(f.H, "r", isRef: true);
+        var s = FactHolderFragments.Int(f.H, "s", isRef: true);
+
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(a, f.Number(0L)),
+            FactHolderFragments.Declare(r, f.Free(f.Identity(), FactHolderFragments.Read(a))), FactHolderFragments.Declare(s, FactHolderFragments.Read(r))));
+
+        Assert.Equal("r,s", Names(holders.Unseen));
     }
 
     [Theory]

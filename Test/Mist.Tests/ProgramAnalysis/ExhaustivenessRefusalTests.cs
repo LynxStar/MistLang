@@ -17,6 +17,9 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("bool-missing-a-value", "false")]
     [InlineData("enum-missing-a-variant", "Blue")]
     [InlineData("int-constants-only", "0, 3")]
+    [InlineData("int-empty-conjunction", "0")]
+    [InlineData("int-empty-disjunction-in-a-conjunction", "0")]
+    [InlineData("int-negated-catch-all", "0")]
     [InlineData("negated-bool-leaves-its-value", "true")]
     [InlineData("nested-tuple-missing-a-cell", "((false, false), false)")]
     [InlineData("only-a-guarded-catch-all", "_")]
@@ -62,6 +65,10 @@ public sealed class ExhaustivenessRefusalTests
 
     [Theory]
     [Trait("Tier", "1")]
+    [InlineData("int-negated-symbolic-bound")]
+    [InlineData("int-symbolic-bound-in-a-conjunction")]
+    [InlineData("int-symbolic-bound-in-a-disjunction")]
+    [InlineData("int-symbolic-disjunction-in-a-conjunction")]
     [InlineData("nested-tuple-fully-covered")]
     [InlineData("optional-bool-with-a-void-arm")]
     [InlineData("optional-bool-with-void-in-a-disjunction")]
@@ -173,6 +180,16 @@ public sealed class ExhaustivenessRefusalTests
             return new ComparisonPattern(HandBuiltModel.Node(), color, kind, new MemberAccessExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(color), name, color));
         }
 
+        ComparisonPattern aboveFloor()
+        {
+            return new ComparisonPattern(HandBuiltModel.Node(), integer, ComparisonKind.GreaterThan, new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("floor", integer)));
+        }
+
+        SwitchArm positive()
+        {
+            return arm(compare(ComparisonKind.GreaterThan, 0));
+        }
+
         CatchAllPattern any(IMistType type, string? binding = null)
         {
             return new CatchAllPattern(HandBuiltModel.Node(), type, binding is null ? null : new LocalVariable(binding, type));
@@ -209,6 +226,34 @@ public sealed class ExhaustivenessRefusalTests
             case "int-constants-only":
                 input = integer;
                 arms = [arm(constant(integer, 1L)), arm(constant(integer, 2L))];
+                break;
+            case "int-negated-symbolic-bound":
+                input = integer;
+                arms = [positive(), arm(new NegatedPattern(HandBuiltModel.Node(), integer, aboveFloor()))];
+                break;
+            case "int-symbolic-bound-in-a-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [compare(ComparisonKind.LessThanOrEqual, 0), aboveFloor()]))];
+                break;
+            case "int-symbolic-bound-in-a-disjunction":
+                input = integer;
+                arms = [positive(), arm(new DisjunctionPattern(HandBuiltModel.Node(), integer, [constant(integer, 0L), aboveFloor()]))];
+                break;
+            case "int-symbolic-disjunction-in-a-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [new DisjunctionPattern(HandBuiltModel.Node(), integer, [constant(integer, 0L), aboveFloor()]), compare(ComparisonKind.LessThanOrEqual, 0)]))];
+                break;
+            case "int-empty-disjunction-in-a-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [new DisjunctionPattern(HandBuiltModel.Node(), integer, [new NegatedPattern(HandBuiltModel.Node(), integer, any(integer)), new NegatedPattern(HandBuiltModel.Node(), integer, any(integer))]), compare(ComparisonKind.LessThanOrEqual, 0)]))];
+                break;
+            case "int-negated-catch-all":
+                input = integer;
+                arms = [positive(), arm(new NegatedPattern(HandBuiltModel.Node(), integer, any(integer)))];
+                break;
+            case "int-empty-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [compare(ComparisonKind.GreaterThan, 10), compare(ComparisonKind.LessThan, 3)]))];
                 break;
             case "relational-partition-of-an-int":
                 input = integer;

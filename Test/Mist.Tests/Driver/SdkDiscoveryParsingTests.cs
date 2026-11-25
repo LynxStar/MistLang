@@ -29,7 +29,7 @@ public sealed class SdkDiscoveryParsingTests
     [Fact]
     public void CrlfAndIndentedLines_AreParsedLikeBareLines()
     {
-        var output = $"  {Line("8.0.400", LowerRoot)}\r\n{Line("10.0.100", HighestRoot)}  \r\n";
+        var output = $"{Line("8.0.400", LowerRoot)}\r\n  {Line("10.0.100", HighestRoot)}  \r\n";
 
         Assert.Equal(HighestRoot, SdkDiscovery.ParseSdkListOutput(output));
     }

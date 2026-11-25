@@ -52,6 +52,42 @@ public sealed class ConstraintKeywordValidationTests
     }
 
     [Theory]
+    [InlineData("class", "stampable")]
+    [InlineData("readonly", "mutable")]
+    [InlineData("linear", "affine")]
+    [InlineData("linear", "relevant")]
+    [InlineData("affine", "relevant")]
+    public void AConflictNamesItsPairInTheSameOrderWhicheverKeywordIsWrittenFirst(string one, string other)
+    {
+        Assert.Equal<SlotValue>(ConflictArguments(one, other), ConflictArguments(other, one));
+    }
+
+    [Theory]
+    [InlineData(new[] { "relevant", "affine", "linear" }, new[] { "affine linear", "affine relevant", "linear relevant" })]
+    [InlineData(new[] { "stampable", "struct", "class" }, new[] { "class stampable", "class struct" })]
+    [InlineData(new[] { "mutable", "linear", "readonly", "affine" }, new[] { "affine linear", "mutable readonly" })]
+    public void EveryConflictingPairAmongTheWrittenKeywordsIsRefusedOnce(string[] written, string[] pairs)
+    {
+        var f = new BindingFragments();
+        var parameter = new TypeParameter("T", 0, f.Scope, null);
+        var clause = Clause("T", 12, [.. written.Select(Keyword)]);
+
+        new ConstraintResolver(f.Builder, f.Builder.Resolver).Resolve([clause], [parameter], f.Scope);
+
+        Assert.All(f.Diagnostics.Admitted, finding =>
+        {
+            Assert.Equal("MIST0339", finding.Number.Value);
+            Assert.Equal(new NameValue("T"), finding.Arguments[0]);
+            Assert.Equal(DiagnosticHelper.ResolveLocation(clause).Location, finding.Location);
+        });
+        Assert.Equal(
+            pairs,
+            f.Diagnostics.Admitted
+                .Select(finding => string.Join(' ', finding.Arguments.Skip(1).Select(argument => Assert.IsType<EnumValue>(argument).Token).Order()))
+                .Order());
+    }
+
+    [Theory]
     [InlineData("struct", "stampable")]
     [InlineData("linear", "class")]
     [InlineData("relevant", "struct")]
@@ -154,6 +190,18 @@ public sealed class ConstraintKeywordValidationTests
         Assert.Equal(new SlotValue[] { new NameValue("U"), new EnumValue("class") }, finding.Arguments);
         Assert.Equal(DiagnosticHelper.ResolveLocation(repeated).Location, finding.Location);
         Assert.Equal(40, Assert.IsType<SourceRange>(finding.Location).Offset);
+    }
+
+    private static SlotValue[] ConflictArguments(string written, string then)
+    {
+        var f = new BindingFragments();
+        var parameter = new TypeParameter("T", 0, f.Scope, null);
+
+        new ConstraintResolver(f.Builder, f.Builder.Resolver).Resolve([Clause("T", 12, Keyword(written), Keyword(then))], [parameter], f.Scope);
+
+        var finding = Assert.Single(f.Diagnostics.Admitted);
+        Assert.Equal("MIST0339", finding.Number.Value);
+        return [.. finding.Arguments];
     }
 
     private static GenericConstraintClauseWhereClauseNode Clause(string name, int offset, params ConstraintNode[] constraints)

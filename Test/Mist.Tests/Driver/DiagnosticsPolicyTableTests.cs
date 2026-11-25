@@ -69,6 +69,38 @@ public sealed class DiagnosticsPolicyTableTests
         Assert.Equal(new FileOnly(Manifest), occurrence.Location);
     }
 
+    [Fact]
+    public void EnableEntriesAreReadIntoTheEnabledSet()
+    {
+        var optional = ProgramAnalysisDiagnostics.SwitchNotExhaustive;
+        var bag = new DiagnosticBag();
+
+        var policy = ProjectFileParser.ReadDiagnosticsPolicy(Toml.ToModel($"[diagnostics]\nenable = [\"{optional.Number.Value}\"]"), Manifest, bag);
+
+        Assert.NotNull(policy);
+        Assert.Empty(bag.Admitted);
+        Assert.Equal(optional.Number, Assert.Single(policy.Enabled));
+        Assert.Empty(policy.Disabled);
+        Assert.Empty(policy.Promoted);
+    }
+
+    [Theory]
+    [InlineData("warnings_as_errors = \"yes\"", "warnings_as_errors", "true, false or an array of diagnostic numbers")]
+    [InlineData("enable = true", "enable", "an array of diagnostic numbers")]
+    [InlineData("disable = \"MIST0148\"", "disable", "an array of diagnostic numbers")]
+    [InlineData("warnings_as_errors = [7]", "warnings_as_errors", "an array of diagnostic numbers written as strings")]
+    [InlineData("enable = [true]", "enable", "an array of diagnostic numbers written as strings")]
+    public void AWrongShapedValueNamesItsKeyAndTheShapeThatKeyTakes(string entry, string key, string expected)
+    {
+        var bag = new DiagnosticBag();
+
+        Assert.Null(ProjectFileParser.ReadDiagnosticsPolicy(Toml.ToModel($"[diagnostics]\n{entry}"), Manifest, bag));
+
+        var occurrence = Assert.Single(bag.Admitted);
+        Assert.Same(DriverDiagnostics.DiagnosticsValueInvalid, occurrence.Descriptor);
+        Assert.Equal($"'{key}' in '[diagnostics]' of '{Manifest}' must be {expected}.", occurrence.Message);
+    }
+
     [Theory]
     [InlineData("disable")]
     [InlineData("enable")]

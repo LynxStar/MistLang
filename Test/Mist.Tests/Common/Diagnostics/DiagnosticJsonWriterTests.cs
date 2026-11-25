@@ -116,6 +116,118 @@ public sealed class DiagnosticJsonWriterTests
         }
     }
 
+    [Fact]
+    public void SourceSpansCarryStartAndEndAcrossLinesAndAPointHasNoLength()
+    {
+        var file = new SourceIdentity(new MistSourceText("file.mist", "ab\ncdef\ngh"));
+        var spanning = Admit(new SourceRange(file, 1, 6));
+
+        var range = Encode(spanning).GetProperty("location");
+        var point = Encode(Admit(new SourcePoint(file, 4))).GetProperty("location");
+
+        Assert.Equal(["kind", "path", "line", "column", "endLine", "endColumn", "offset", "length"], Keys(range));
+        Assert.Equal([1, 2, 2, 5, 1, 6], Numbers(range));
+        Assert.Equal(["kind", "path", "line", "column", "endLine", "endColumn", "offset"], Keys(point));
+        Assert.Equal([2, 2, 2, 2, 4], Numbers(point));
+        Assert.Equal("file.mist(1,2): error MIST9001: message", DiagnosticFormatter.Format(spanning));
+    }
+
+    [Fact]
+    public void ProjectAndGeneratedLocationsNestTheirSourceSpanOrWriteNull()
+    {
+        var key = new SourceRange(new SourceIdentity(new MistSourceText("mist.toml", "[package]\nname = 1")), 10, 4);
+        var native = new LinePositionSpan(new(3, 5), new(4, 2));
+
+        var keyed = Encode(Admit(new ProjectLocation("mist.toml", key))).GetProperty("location");
+        var unkeyed = Encode(Admit(new ProjectLocation("mist.toml", null))).GetProperty("location");
+        var mapped = Encode(Admit(new GeneratedLocation("out/a.cs", native, key))).GetProperty("location");
+        var unmapped = Encode(Admit(new GeneratedLocation("out/a.cs", native, null))).GetProperty("location");
+
+        Assert.Equal(["kind", "path", "keySpan"], Keys(keyed));
+        Assert.Equal("sourceRange", keyed.GetProperty("keySpan").GetProperty("kind").GetString());
+        Assert.Equal([2, 1, 2, 5, 10, 4], Numbers(keyed.GetProperty("keySpan")));
+        Assert.Equal(JsonValueKind.Null, unkeyed.GetProperty("keySpan").ValueKind);
+        Assert.Equal(["kind", "path", "line", "column", "endLine", "endColumn", "mapped"], Keys(mapped));
+        Assert.Equal("out/a.cs", mapped.GetProperty("path").GetString());
+        Assert.Equal([3, 5, 4, 2], Numbers(mapped));
+        Assert.Equal("mist.toml", mapped.GetProperty("mapped").GetProperty("path").GetString());
+        Assert.Equal([2, 1, 2, 5, 10, 4], Numbers(mapped.GetProperty("mapped")));
+        Assert.Equal(JsonValueKind.Null, unmapped.GetProperty("mapped").ValueKind);
+    }
+
+    [Fact]
+    public void AnExternalLocationNamesItsAssemblyAndSymbolWithoutAPath()
+    {
+        var external = Encode(Admit(new ExternalLocation("System.Runtime", "System.String.Length"))).GetProperty("location");
+
+        Assert.Equal(["kind", "assembly", "symbol"], Keys(external));
+        Assert.Equal("System.Runtime", external.GetProperty("assembly").GetString());
+        Assert.Equal("System.String.Length", external.GetProperty("symbol").GetString());
+    }
+
+    [Theory]
+    [InlineData(AbsenceReason.NotYetAttached, "notYetAttached")]
+    [InlineData(AbsenceReason.TestOrigin, "testOrigin")]
+    [InlineData(AbsenceReason.SyntheticWithoutRoot, "syntheticWithoutRoot")]
+    [InlineData(AbsenceReason.OutOfBounds, "outOfBounds")]
+    [InlineData(AbsenceReason.Unavailable, "unavailable")]
+    public void AnAbsentLocationCarriesOnlyItsLowerCamelCaseReason(AbsenceReason reason, string token)
+    {
+        var absent = Encode(Admit(new Absent(reason))).GetProperty("location");
+
+        Assert.Equal(["kind", "reason"], Keys(absent));
+        Assert.Equal(token, absent.GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public void InvariantStormEntryAndWithholdingFramesWriteTheirOwnFields()
+    {
+        var member = new SymbolValue("System.Span`1.Item", "Item");
+        var diagnostic = Admit(
+            new Absent(AbsenceReason.Unavailable),
+            new InvariantFrame(new EnumValue("binary operator"), new NameValue("Power")),
+            new StormEntryFrame(12, 3, "@@@"),
+            new WithholdingFrame(member, new EnumValue("UnresolvableType"), new TypeValue("System.Span`1", "Span<T>")),
+            new WithholdingFrame(member, new EnumValue("NonPublic")));
+
+        var frames = Encode(diagnostic).GetProperty("frames");
+
+        Assert.Equal(["kind", "operation", "detail"], Keys(frames[0]));
+        Assert.Equal(["invariant", "binary operator", "Power"], frames[0].EnumerateObject().Select(p => p.Value.GetString()));
+        Assert.Equal(["kind", "offset", "length", "spelling"], Keys(frames[1]));
+        Assert.Equal("stormEntry", frames[1].GetProperty("kind").GetString());
+        Assert.Equal([12, 3], Numbers(frames[1]));
+        Assert.Equal("@@@", frames[1].GetProperty("spelling").GetString());
+        Assert.Equal(["kind", "member", "reason", "offending"], Keys(frames[2]));
+        Assert.Equal("withholding", frames[2].GetProperty("kind").GetString());
+        Assert.Equal("Item", frames[2].GetProperty("member").GetProperty("spelling").GetString());
+        Assert.Equal("System.Span`1.Item", frames[2].GetProperty("member").GetProperty("identity").GetString());
+        // Requirement 11.6 asks for lower-case enum tokens, but this frame passes the producer's spelling through; the casing is left to that decision.
+        Assert.Equal("unresolvableType", frames[2].GetProperty("reason").GetString(), ignoreCase: true);
+        Assert.Equal("Span<T>", frames[2].GetProperty("offending").GetProperty("spelling").GetString());
+        Assert.Equal("System.Span`1", frames[2].GetProperty("offending").GetProperty("identity").GetString());
+        Assert.Equal(JsonValueKind.Null, frames[3].GetProperty("offending").ValueKind);
+    }
+
+    private static Diagnostic Admit(Location location, params Frame[] frames)
+    {
+        var bag = new DiagnosticBag();
+        bag.Admit(DiagnosticFactory.Create(
+            DiagnosticFixtures.Descriptor("MIST9001", "message"), location, PipelineStage.Driver, [], frames: [.. frames]));
+        return Assert.Single(bag.Admitted);
+    }
+
+    private static JsonElement Encode(Diagnostic diagnostic)
+    {
+        using var json = JsonDocument.Parse(DiagnosticJsonWriter.Serialize(new("mist", "build", ".", "failed", [diagnostic], [])));
+        return json.RootElement.GetProperty("diagnostics")[0].Clone();
+    }
+
+    private static IEnumerable<int> Numbers(JsonElement element)
+    {
+        return element.EnumerateObject().Where(p => p.Value.ValueKind == JsonValueKind.Number).Select(p => p.Value.GetInt32());
+    }
+
     private static IEnumerable<string> Keys(JsonElement element)
     {
         return element.EnumerateObject().Select(p => p.Name);

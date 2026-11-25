@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.Tests.Helpers;
 using static Mist.Tests.Helpers.LifetimeFragments;
@@ -279,6 +280,67 @@ public sealed class ResourceTransferPlanTests
         Assert.False(plan.Covers(t));
         Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(k));
         Assert.Equal([new LifetimeMark(k, Owned: false)], plan.MarksAfter(passed));
+    }
+
+    [Fact]
+    public void HandingOnASwitchArmBindingHandsOnTheHolderItViews()
+    {
+        var k = f.Local("k");
+        var t = f.Local("t");
+        var passed = Ref(t);
+        var arms = new[]
+        {
+            new SwitchArm(HandBuiltModel.Node(), new TypeTestPattern(HandBuiltModel.Node(), f.Token, t), null, f.Call(f.Take, passed)),
+            new SwitchArm(HandBuiltModel.Node(), new CatchAllPattern(HandBuiltModel.Node(), f.Token, null), null, f.Call(f.Risky)),
+        };
+        var plan = Plan(Declare(k, f.New(1)), Run(new SwitchExpression(HandBuiltModel.Node(), Ref(k), arms, f.Void)));
+
+        Assert.False(plan.Covers(t));
+        Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(k));
+        Assert.Equal([new LifetimeMark(k, Owned: false)], plan.MarksAfter(passed));
+    }
+
+    [Theory]
+    [InlineData("refinement")]
+    [InlineData("and")]
+    [InlineData("or")]
+    [InlineData("not")]
+    public void HandingOnABindingNestedInACompoundPatternHandsOnTheHolderItViews(string shape)
+    {
+        var k = f.Local("k");
+        var t = f.Local("t");
+        var passed = Ref(t);
+        var bound = new TypeTestPattern(HandBuiltModel.Node(), f.Token, t);
+        var other = new CatchAllPattern(HandBuiltModel.Node(), f.Token, null);
+        Pattern pattern = shape switch
+        {
+            "refinement" => new TypeTestPattern(HandBuiltModel.Node(), f.Token, null, refinement: bound),
+            "and" => new ConjunctionPattern(HandBuiltModel.Node(), f.Token, [bound, other]),
+            "or" => new DisjunctionPattern(HandBuiltModel.Node(), f.Token, [bound, other]),
+            _ => new NegatedPattern(HandBuiltModel.Node(), f.Token, bound),
+        };
+        var handOn = HandBuiltModel.Block(Run(f.Call(f.Take, passed)));
+        var test = new IsPatternExpression(HandBuiltModel.Node(), Ref(k), pattern, f.Boolean);
+        var plan = Plan(Declare(k, f.New(1)), shape == "not" ? new IfStatement(test, HandBuiltModel.Block(), handOn) : new IfStatement(test, handOn, null));
+
+        Assert.False(plan.Covers(t));
+        Assert.Equal(LifetimeRelease.Guarded, plan.ReleaseOf(k));
+        Assert.Equal([new LifetimeMark(k, Owned: false)], plan.MarksAfter(passed));
+    }
+
+    [Theory]
+    [InlineData(OwnershipKind.Owned, true)]
+    [InlineData(OwnershipKind.Frozen, false)]
+    [InlineData(OwnershipKind.Borrowed, false)]
+    public void ALocalFunctionReleasesOnlyAnOwnedParameterWhereItsOwnBodyEnds(OwnershipKind ownership, bool owns)
+    {
+        var parameter = Owned("t", f.Token, ownership);
+        var local = new LocalVariable(parameter.Name, parameter.Type) { Parameter = parameter, Ownership = ownership };
+        var inner = f.Function("Inner", HandBuiltModel.Block(), parameter);
+        var plan = Plan(new LocalFunctionStatement(inner, [local]), Run(f.Call(f.Risky)));
+
+        Assert.Equal(owns, plan.Covers(parameter));
+        Assert.Equal(owns ? LifetimeRelease.AtExit : LifetimeRelease.None, plan.ReleaseOf(parameter));
     }
 
     [Fact]

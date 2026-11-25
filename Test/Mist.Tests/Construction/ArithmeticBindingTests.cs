@@ -109,6 +109,34 @@ public sealed class ArithmeticBindingTests
         Assert.NotNull(ResultTypes.Of(f.Divide().Type));
     }
 
+    [Theory]
+    [InlineData(-1, true)]
+    [InlineData(7, false)]
+    public void ANonzeroDivisorThatMayBeNegativeOneGuardsTheRemainder(long divisor, bool guarded)
+    {
+        var f = new Fixture();
+        var helpers = f.Fragments.Built.Type("ResultArithmetic");
+        var remainder = new Method("Remainder", f.Numeric, [new Parameter("a", f.Numeric), new Parameter("b", f.Numeric)],
+            DeclarationFragments.Public with { IsStatic = true })
+        { DeclaringType = helpers };
+        helpers.MethodsList.Add(remainder);
+        _ = f.Local("a", null);
+        _ = f.Local("d", divisor);
+
+        var bound = f.Binary(BindingFragments.Identifier("a"), "%", BindingFragments.Identifier("d"));
+
+        Assert.Empty(f.Fragments.Diagnostics.ToImmutableArray());
+        Assert.Same(f.Numeric, bound.Type);
+        if(guarded)
+        {
+            Assert.Same(remainder, Assert.IsType<InvocationExpression>(bound).Method);
+        }
+        else
+        {
+            Assert.Equal(BinaryOperatorKind.Modulo, Assert.IsType<BinaryExpression>(bound).OperatorKind);
+        }
+    }
+
     [Fact]
     public void AnExpectedIntegerDoesNotSupplySafety()
     {

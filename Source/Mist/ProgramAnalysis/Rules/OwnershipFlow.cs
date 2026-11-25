@@ -21,7 +21,7 @@ namespace Mist.ProgramAnalysis.Rules;
 /// frozen and readonly ref parameters return the loan. Shared holders stay usable but cannot move or
 /// return owned until the holder or affected field is assigned afresh. Joins remember either path's
 /// move; a reported use settles the place on that path. Linear and affine structs move like classes;
-/// structs holding owned objects move into owned destinations. Non-owning fields cannot retain an owned alias.
+/// structs holding owned objects move into owned destinations.
 /// Calls that do not move linear values and frozen lenders lent borrowed by call remain under
 /// MIST-122 and MIST-061 in Carbonek.
 /// </summary>

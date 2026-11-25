@@ -43,6 +43,9 @@ internal sealed partial class PurityFragments
             "bare-static-property" => NoisyTriggeredBy(NoisyTrigger.BareStaticProperty),
             "unary-operator" => NoisyTriggeredBy(NoisyTrigger.UnaryOperator),
             "explicit-conversion" => NoisyTriggeredBy(NoisyTrigger.ExplicitConversion),
+            "binary-operator" => NoisyTriggeredBy(NoisyTrigger.BinaryOperator),
+            "implicit-conversion" => NoisyTriggeredBy(NoisyTrigger.ImplicitConversion),
+            "enum-lookup-cast" => NoisyEnumLookedUp(),
             _ => throw new ArgumentOutOfRangeException(nameof(name)),
         };
     }
@@ -79,6 +82,8 @@ internal sealed partial class PurityFragments
         BareStaticProperty,
         UnaryOperator,
         ExplicitConversion,
+        BinaryOperator,
+        ImplicitConversion,
     }
 
     private NamedTupleType NamedPair(IMistType second)
@@ -194,7 +199,9 @@ internal sealed partial class PurityFragments
 
     private IReadOnlyList<Diagnostic> NoisyTriggeredBy(NoisyTrigger trigger)
     {
-        var noisy = trigger is NoisyTrigger.UnaryOperator or NoisyTrigger.ExplicitConversion ? (ConcreteType)HandBuiltModel.Struct("Noisy") : HandBuiltModel.Class("Noisy");
+        var noisy = trigger is NoisyTrigger.UnaryOperator or NoisyTrigger.ExplicitConversion or NoisyTrigger.BinaryOperator or NoisyTrigger.ImplicitConversion
+            ? (ConcreteType)HandBuiltModel.Struct("Noisy")
+            : HandBuiltModel.Class("Noisy");
 
         switch(trigger)
         {
@@ -223,6 +230,22 @@ internal sealed partial class PurityFragments
                 var negated = new UnaryExpression(Node(37), UnaryOperatorKind.Negate, Ref(a), integer) { Operator = negate };
                 return Judge(new PurityAnalyzer(), Method(probe, "Negate", integer, PureStatic, Returning(negated), a));
 
+            case NoisyTrigger.BinaryOperator:
+                StaticConstructorWritesTicks(noisy);
+                var plus = new Operator(OperatorKind.Plus, integer, [new Parameter("a", noisy), new Parameter("b", noisy)], PureStatic) { DeclaringType = noisy, Body = Returning(Literal(integer, 0L)) };
+                noisy.OperatorsList.Add(plus);
+                var b = Input("b", noisy);
+                var sum = new BinaryExpression(Node(37), Ref(b), BinaryOperatorKind.Add, Ref(b), integer) { Operator = plus };
+                return Judge(new PurityAnalyzer(), Method(probe, "Sum", integer, PureStatic, Returning(sum), b));
+
+            case NoisyTrigger.ImplicitConversion:
+                StaticConstructorWritesTicks(noisy);
+                var widening = new CastOperator(integer, new Parameter("w", noisy), true, PureStatic) { DeclaringType = noisy, Body = Returning(Literal(integer, 0L)) };
+                noisy.CastOperatorsList.Add(widening);
+                var w = Input("w", noisy);
+                var widened = new ImplicitConversionExpression(Node(37), Ref(w), integer, [new ConversionFunction(widening, noisy, integer)]);
+                return Judge(new PurityAnalyzer(), Method(probe, "Widen", integer, PureStatic, Returning(widened), w));
+
             default:
                 StaticConstructorWritesTicks(noisy);
                 var conversion = new CastOperator(integer, new Parameter("d", noisy), false, PureStatic) { DeclaringType = noisy, Body = Returning(Literal(integer, 0L)) };
@@ -231,6 +254,18 @@ internal sealed partial class PurityFragments
                 var cast = new CastExpression(Node(37), Ref(d), integer, [new ConversionFunction(conversion, noisy, integer)], integer);
                 return Judge(new PurityAnalyzer(), Method(probe, "Convert", integer, PureStatic, Returning(cast), d));
         }
+    }
+
+    private IReadOnlyList<Diagnostic> NoisyEnumLookedUp()
+    {
+        var seeds = HandBuiltModel.Class("Seeds");
+        var loud = Method(seeds, "Loud", integer, Static, HandBuiltModel.Block(WriteStatic(ticks), new ReturnStatement(Literal(integer, 7L), integer)));
+        var noisy = HandBuiltModel.Enum("Noisy", integer);
+        noisy.MembersList.Add(new EnumMember("Low", false, Call(loud, null, 0)));
+        var found = model.Interner.GetOrCreateUnionType([noisy, unit]);
+        var raw = Input("raw", integer);
+        var lookup = new CastExpression(Node(37), Ref(raw), noisy, [], found);
+        return Judge(new PurityAnalyzer(), Method(probe, "FromRaw", found, PureStatic, Returning(lookup), raw));
     }
 
     private void StaticConstructorWritesTicks(ConcreteType noisy)

@@ -74,6 +74,9 @@ public sealed class PurityPatternReadTests
     [InlineData("bare-static-property", "read 'Level'")]
     [InlineData("unary-operator", "call operator -")]
     [InlineData("explicit-conversion", "call the conversion to 'int'")]
+    [InlineData("binary-operator", "call operator +")]
+    [InlineData("implicit-conversion", "call the conversion to 'int'")]
+    [InlineData("enum-lookup-cast", "convert to 'Noisy'")]
     public void ARefusedStaticInitializerNamesTheOperationThatRunsIt(string trigger, string operation)
     {
         var finding = Assert.Single(new PurityFragments().NoisyTriggers(trigger));

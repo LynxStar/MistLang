@@ -43,14 +43,16 @@ public sealed class ThisTierDecisionTests
     }
 
     [Theory]
-    [InlineData("owned-property-access", true)]
-    [InlineData("owned-property-reference", true)]
-    [InlineData("owned-field-access", true)]
-    [InlineData("static-owned-property-access", false)]
-    [InlineData("static-owned-property-reference", false)]
-    [InlineData("plain-property-access", false)]
-    [InlineData("plain-field-access", false)]
-    public void OnlyAnOwnedInstanceFieldOrProperty_IsAnOwnedSlot(string target, bool slot)
+    [InlineData("owned-property-access", "owned property 'Item'")]
+    [InlineData("owned-property-reference", "owned property 'Item'")]
+    [InlineData("owned-field-access", "owned field 'Item'")]
+    [InlineData("owned-field-reference", "owned field 'Item'")]
+    [InlineData("static-owned-property-access", null)]
+    [InlineData("static-owned-property-reference", null)]
+    [InlineData("plain-property-access", null)]
+    [InlineData("plain-field-access", null)]
+    [InlineData("plain-field-reference", null)]
+    public void OnlyAnOwnedInstanceFieldOrProperty_IsAnOwnedSlot_NamedByItsKind(string target, string? slot)
     {
         var receiver = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("c", cell));
         var owned = target.Contains("owned", StringComparison.Ordinal);
@@ -58,7 +60,9 @@ public sealed class ThisTierDecisionTests
         if(target.Contains("field", StringComparison.Ordinal))
         {
             var field = new Field("Item", cell, owned ? OwnershipKind.Owned : OwnershipKind.Unrestricted, default) { DeclaringType = cell };
-            written = new MemberAccessExpression(HandBuiltModel.Node(), receiver, field.Name, field.Type, member: new FieldResult(field, cell, []));
+            written = target.EndsWith("reference", StringComparison.Ordinal)
+                ? new FieldReferenceExpression(HandBuiltModel.Node(), field)
+                : new MemberAccessExpression(HandBuiltModel.Node(), receiver, field.Name, field.Type, member: new FieldResult(field, cell, []));
         }
         else
         {
@@ -68,7 +72,7 @@ public sealed class ThisTierDecisionTests
                 : new MemberAccessExpression(HandBuiltModel.Node(), receiver, property.Name, property.Type, member: new PropertyResult(property, cell, []));
         }
 
-        Assert.Equal(slot, ThisTiers.OwnedSlot(written) is not null);
+        Assert.Equal(slot, ThisTiers.OwnedSlot(written));
     }
 
     [Theory]

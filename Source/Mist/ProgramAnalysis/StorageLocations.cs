@@ -50,7 +50,7 @@ internal static class StorageLocations
     }
 
     /// <summary>
-    /// What an assignment cannot write through, by the same reckoning: a property or indexer is written by its
+    /// What an assignment cannot write through: a property or indexer is written by its
     /// setter, which <see cref="Rules.AccessorAnalyzer"/> judges, unless it is reached through a struct that
     /// is itself a value, whose copy the write would be lost on.
     /// </summary>

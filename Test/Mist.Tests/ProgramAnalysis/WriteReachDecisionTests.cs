@@ -188,6 +188,7 @@ public sealed class WriteReachDecisionTests
     [InlineData("member-of-a-struct-copy-a-nested-function-reads", "p,y")]
     [InlineData("member-of-a-struct-held-by-a-struct-copy", "")]
     [InlineData("member-of-a-struct-held-by-a-field", "A,p,y")]
+    [InlineData("member-of-an-object-held-by-a-struct-copy", "A,p,y")]
     [InlineData("member-of-a-by-value-struct-parameter", "")]
     [InlineData("member-of-a-by-value-struct-parameter-a-nested-function-reads", "p,y")]
     [InlineData("by-ref-parameter", "A,B,S,V,p,y")]
@@ -197,11 +198,15 @@ public sealed class WriteReachDecisionTests
     [InlineData("ref-local-bound-to-a-call-returning-a-field", "A,p,y")]
     [InlineData("ref-local-bound-to-a-call-returning-a-field-of-a-new-object", "")]
     [InlineData("ref-local-of-a-member-of-a-new-object", "A")]
+    [InlineData("ref-local-of-a-member-of-another-object", "V,p,y")]
     [InlineData("ref-local-of-an-array-element", "p,y")]
     [InlineData("ref-local-of-an-element-of-an-array-created-here", "")]
+    [InlineData("ref-local-of-an-element-a-ref-indexer-returns", "A,B,S,V,p,y")]
     [InlineData("array-element", "p,y")]
+    [InlineData("element-a-ref-indexer-returns", "A,B,S,V,p,y")]
     [InlineData("element-of-an-array-created-here", "")]
     [InlineData("element-of-an-array-created-here-a-nested-function-reads", "p,y")]
+    [InlineData("element-of-an-array-created-here-an-async-block-reads", "p,y")]
     [InlineData("element-of-a-new-array", "")]
     [InlineData("call-returning-a-field", "A,p,y")]
     [InlineData("local", "")]
@@ -222,6 +227,11 @@ public sealed class WriteReachDecisionTests
         var value = new LocalVariable("v", point) { Parameter = FactHolderFragments.Parameter("v", point) };
         var array = new LocalVariable("arr", f.H.Sequence());
         var creation = f.Create();
+        var linked = new Field("Owner", f.Pair, default, new MemberModifiers()) { DeclaringType = point };
+        var viewed = new IndexExpression(HandBuiltModel.Node(), FactHolderFragments.Read(new LocalVariable("view", f.Span)), f.Number(0L), f.H.Int)
+        {
+            Indexer = new Indexer(f.H.Int, [FactHolderFragments.Parameter("index", f.H.Int)], new MemberModifiers { IsRef = true }),
+        };
         List<Statement> before = [];
         Expression written;
         switch(target)
@@ -282,6 +292,10 @@ public sealed class WriteReachDecisionTests
             case "member-of-a-struct-held-by-a-field":
                 written = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Own(stored), held), f.A);
                 break;
+            case "member-of-an-object-held-by-a-struct-copy":
+                before.Add(FactHolderFragments.Declare(copy, FactHolderFragments.Own(stored)));
+                written = FactHolderFragments.Member(FactHolderFragments.Member(FactHolderFragments.Read(copy), linked), f.A);
+                break;
             case "member-of-a-by-value-struct-parameter":
                 written = FactHolderFragments.Member(FactHolderFragments.Read(value), f.A);
                 break;
@@ -314,6 +328,23 @@ public sealed class WriteReachDecisionTests
             case "ref-local-of-a-member-of-a-new-object":
                 before.Add(FactHolderFragments.Declare(r, FactHolderFragments.Member(creation, f.A)));
                 written = FactHolderFragments.Read(r);
+                break;
+            case "ref-local-of-a-member-of-another-object":
+                before.Add(FactHolderFragments.Declare(r, FactHolderFragments.Member(FactHolderFragments.Read(new LocalVariable("other", f.Box)), f.V)));
+                written = FactHolderFragments.Read(r);
+                break;
+            case "ref-local-of-an-element-a-ref-indexer-returns":
+                before.Add(FactHolderFragments.Declare(r, viewed));
+                written = FactHolderFragments.Read(r);
+                break;
+            case "element-a-ref-indexer-returns":
+                written = viewed;
+                break;
+            case "element-of-an-array-created-here-an-async-block-reads":
+                before.Add(FactHolderFragments.Declare(array, f.H.Array(3L)));
+                before.Add(HandBuiltRefinements.Evaluate(new AsyncBlockExpression(HandBuiltModel.Node(), HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(array))),
+                    f.H.Int, false)));
+                written = f.H.At(FactHolderFragments.Read(array), f.Number(0L));
                 break;
             case "ref-local-of-an-element-of-an-array-created-here":
                 before.Add(FactHolderFragments.Declare(array, f.H.Array(3L)));
@@ -398,6 +429,23 @@ public sealed class WriteReachDecisionTests
         Assert.Equal(reached, holders.Reach(FactHolderFragments.Read(written)).Covers(a));
     }
 
+    [Fact]
+    public void AWriteThroughANestedFunctionsRefParameterReachesAStructLocalHandedToItThroughAReferenceItsOwnMethodReturns()
+    {
+        var f = new FactHolderFragments();
+        var point = HandBuiltModel.Struct("Point");
+        var s = new LocalVariable("s", point);
+        var r = new LocalVariable("r", point) { IsRef = true };
+        var p = f.ByRef("p", point);
+        var own = new Method("Own", point, [], new MemberModifiers { IsRef = true }) { DeclaringType = point };
+        var w = f.Method("W", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(FactHolderFragments.Read(s))), f.H.Int, p.Parameter!);
+
+        var holders = BodyHolders.Of(HandBuiltModel.Block(FactHolderFragments.Declare(s, null), new LocalFunctionStatement(w, [p]),
+            FactHolderFragments.Declare(r, FactHolderFragments.Call(FactHolderFragments.Read(s), own)), HandBuiltRefinements.Evaluate(f.Free(w, FactHolderFragments.Read(r)))));
+
+        Assert.True(holders.Reach(FactHolderFragments.Read(p)).Covers(s));
+    }
+
     [Theory]
     [InlineData(ByRefDirection.Ref, true, true)]
     [InlineData(ByRefDirection.In, true, true)]
@@ -420,6 +468,7 @@ public sealed class WriteReachDecisionTests
     [InlineData("writes-the-local", true)]
     [InlineData("hands-the-local-by-ref", true)]
     [InlineData("calls-a-local-function-that-writes-the-local", true)]
+    [InlineData("is-declared-before-a-local-function-it-calls-that-calls-one-that-writes-the-local", true)]
     [InlineData("writes-another-local", false)]
     [InlineData("is-a-method", false)]
     public void ACallToALocalFunctionReachesTheRefParametersThatMayNameALocalItWrites(string form, bool reached)
@@ -436,8 +485,15 @@ public sealed class WriteReachDecisionTests
             _ => FactHolderFragments.Set(FactHolderFragments.Read(a), f.Number(1L)),
         }));
         var outer = f.Method("Outer", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(f.Free(write))));
+        var top = f.Method("Top", f.Pair, HandBuiltModel.Block(HandBuiltRefinements.Evaluate(f.Free(outer))));
+        var first = form == "is-declared-before-a-local-function-it-calls-that-calls-one-that-writes-the-local";
         List<Statement> body = [FactHolderFragments.Declare(a, f.Number(0L)), FactHolderFragments.Declare(b, f.Number(0L)), new LocalFunctionStatement(m, [p]),
             HandBuiltRefinements.Evaluate(f.Free(m, FactHolderFragments.Read(a)))];
+        if(first)
+        {
+            body.Add(new LocalFunctionStatement(top, []));
+        }
+
         if(form != "is-a-method")
         {
             body.Add(new LocalFunctionStatement(write, []));
@@ -446,7 +502,7 @@ public sealed class WriteReachDecisionTests
 
         var holders = BodyHolders.Of(HandBuiltModel.Block([.. body]));
 
-        Assert.Equal(reached, holders.Called(f.Free(form == "calls-a-local-function-that-writes-the-local" ? outer : write)).Covers(p));
+        Assert.Equal(reached, holders.Called(f.Free(first ? top : form == "calls-a-local-function-that-writes-the-local" ? outer : write)).Covers(p));
     }
 
     [Theory]

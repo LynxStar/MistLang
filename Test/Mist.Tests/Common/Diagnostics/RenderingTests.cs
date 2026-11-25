@@ -137,6 +137,41 @@ public sealed class RenderingTests
     }
 
     [Fact]
+    public void AnArgumentTheTemplateCannotReachRendersTheFallbackNotAPartialMessage()
+    {
+        var flagged = DiagnosticFixtures.Descriptor(
+            "FIXTURE_CARRIER", "Missing{flag?, flagged}.", slots: [new Slot("flag", SlotKind.Optional, SlotKind.Boolean)]);
+        var ghost = DiagnosticFixtures.Descriptor("FIXTURE_GHOST", "'{name}' and '{ghost}'.", slots: [new Slot("name", SlotKind.Name)]);
+        var nested = DiagnosticFixtures.Descriptor(
+            "FIXTURE_NESTED", "'{opt?{opt} and {extra}}'.", slots: [new Slot("opt", SlotKind.Optional, SlotKind.Name), new Slot("extra", SlotKind.Name)]);
+        var opt = new OptionalValue(SlotKind.Name, new NameValue("x"));
+
+        Assert.Equal("Missing, flagged.", DiagnosticRenderer.Render(flagged, [new OptionalValue(SlotKind.Boolean, new BooleanValue(true))]));
+        Assert.Equal(DiagnosticRenderer.Fallback(flagged), DiagnosticRenderer.Render(flagged, []));
+        Assert.True(TemplateSyntax.TryParse(ghost.Template, out _, out _));
+        Assert.Equal(DiagnosticRenderer.Fallback(ghost), DiagnosticRenderer.Render(ghost, [new NameValue("x")]));
+        Assert.Equal("'x and y'.", DiagnosticRenderer.Render(nested, [opt, new NameValue("y")]));
+        Assert.Equal(DiagnosticRenderer.Fallback(nested), DiagnosticRenderer.Render(nested, [opt]));
+    }
+
+    [Fact]
+    public void SlotValuesRenderTheirSpellingNotTheirIdentity()
+    {
+        var types = new SequenceValue(SlotKind.Type, [new TypeValue("Standard.Int32", "int"), new TypeValue("Standard.String", "string")], " -> ");
+        var quoted = new SequenceValue(SlotKind.Name, [new NameValue("a"), new NameValue("b")], ItemPrefix: "'", ItemSuffix: "'");
+
+        Assert.Equal("int", DiagnosticRenderer.Render(new TypeValue("Standard.Int32", "int")));
+        Assert.Equal("Member", DiagnosticRenderer.Render(new SymbolValue("Owner.Member", "Member")));
+        Assert.Equal("int -> string", DiagnosticRenderer.Render(types));
+        Assert.Equal("'a', 'b'", DiagnosticRenderer.Render(quoted));
+        Assert.Equal("", DiagnosticRenderer.Render(new SequenceValue(SlotKind.Name, [], ItemPrefix: "'", ItemSuffix: "'")));
+        Assert.Equal("9223372036854775808", DiagnosticRenderer.Render(new QuantityValue((Int128)long.MaxValue + 1)));
+        Assert.Equal("true", DiagnosticRenderer.Render(new BooleanValue(true)));
+        Assert.Equal("false", DiagnosticRenderer.Render(new BooleanValue(false)));
+        Assert.Equal("string", DiagnosticRenderer.Render(new OptionalValue(SlotKind.Type, new TypeValue("Standard.String", "string"))));
+    }
+
+    [Fact]
     public void TheConstructorIsInternalAndTheMessageIsComputed()
     {
         Assert.Empty(typeof(Diagnostic).GetConstructors());

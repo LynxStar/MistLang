@@ -30,6 +30,9 @@ public sealed class DelegateCeilingDecisionTests
     [InlineData(17, 0, "pack-element")]
     [InlineData(17, 0, "result-of-a-function")]
     [InlineData(17, 0, "parameter-of-a-function")]
+    [InlineData(17, 0, "named-tuple-element")]
+    [InlineData(17, 0, "refined-base")]
+    [InlineData(17, 0, "spread-operand")]
     public void AFunctionWrittenWithMoreThanSixteenInputs_IsFoundWhereverItSits(int inputs, int spreads, string position)
     {
         var function = Function(inputs, spreads, position == "action" ? built.Type("Void") : built.Type("String"));
@@ -56,6 +59,15 @@ public sealed class DelegateCeilingDecisionTests
     }
 
     [Fact]
+    public void OfTwoFunctionsPastTheCeiling_TheOneFoundIsTheFirstWritten()
+    {
+        var (wider, narrower) = (Function(18, 0, built.Type("String")), Function(17, 0, built.Type("String")));
+
+        Assert.Same(wider, DelegateCeiling.Oversized(built.Interner.GetOrCreateTupleType([wider, narrower])));
+        Assert.Same(narrower, DelegateCeiling.Oversized(built.Interner.GetOrCreateTupleType([narrower, wider])));
+    }
+
+    [Fact]
     public void TheSiteIsTheFirstUseThatClosedThePackToThatWidth()
     {
         var (narrow, first, second) = (HandBuiltModel.Node(10), HandBuiltModel.Node(20), HandBuiltModel.Node(30));
@@ -79,6 +91,38 @@ public sealed class DelegateCeilingDecisionTests
 
         Assert.Same(use, DelegateCeiling.InstantiationSite(closings, [inner], [17]));
         Assert.Null(DelegateCeiling.InstantiationSite(closings, [inner], [16]));
+    }
+
+    // A family that uses itself with one more element, `Bundle<String, TArgs...>` inside `Bundle<TArgs...>`:
+    // each step through it adds one, so the width traces back to the outside use however deep it goes,
+    // and a width the outside use cannot reach comes back empty rather than recursing forever.
+    [Fact]
+    public void AWidthReachedThroughAPackForwardingToItself_IsTracedToTheOutsideUse_AndAnUnreachableOneIsNot()
+    {
+        var (recursion, use) = (HandBuiltModel.Node(10), HandBuiltModel.Node(20));
+        var deeper = new LiftedType(built.Type("Type"), new TypePackValue([built.Type("String"), new SpreadType(pack)]));
+        TypeArgumentClosing[] closings = [new(pack, deeper, recursion, TypeSubstitution.Empty), Closing(pack, use, 3)];
+
+        Assert.Same(use, DelegateCeiling.InstantiationSite(closings, [pack], [4]));
+        Assert.Same(use, DelegateCeiling.InstantiationSite(closings, [pack], [5]));
+        Assert.Null(DelegateCeiling.InstantiationSite(closings, [pack], [2]));
+    }
+
+    // Two packs that forward to each other unchanged never narrow, so only remembering the pack and width
+    // already followed ends the trace.
+    [Fact]
+    public void PacksForwardingToEachOther_AreTracedToTheUseThatClosedOne_WithoutLooping()
+    {
+        var (there, back, use) = (HandBuiltModel.Node(10), HandBuiltModel.Node(20), HandBuiltModel.Node(30));
+        TypeArgumentClosing[] closings =
+        [
+            new(pack, new LiftedType(built.Type("Type"), new TypePackValue([new SpreadType(inner)])), there, TypeSubstitution.Empty),
+            new(inner, new LiftedType(built.Type("Type"), new TypePackValue([new SpreadType(pack)])), back, TypeSubstitution.Empty),
+            Closing(inner, use, 17),
+        ];
+
+        Assert.Same(use, DelegateCeiling.InstantiationSite(closings, [pack], [17]));
+        Assert.Null(DelegateCeiling.InstantiationSite(closings, [pack], [16]));
     }
 
     [Fact]
@@ -120,6 +164,9 @@ public sealed class DelegateCeilingDecisionTests
                 built.Type("Tup<>"), [new LiftedType(built.Type("Type"), new TypePackValue([text, function]))]),
             "result-of-a-function" => new FunctionType([text], function),
             "parameter-of-a-function" => new FunctionType([function], text),
+            "named-tuple-element" => new NamedTupleType(built.Interner.GetOrCreateTupleType([text, function]), ["name", "map"]),
+            "refined-base" => HandBuiltModel.Refined(function),
+            "spread-operand" => new SpreadType(function),
             _ => throw new ArgumentOutOfRangeException(nameof(position)),
         };
     }

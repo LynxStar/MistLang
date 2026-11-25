@@ -134,10 +134,12 @@ public sealed class TypeMemberLookupReachTests
     {
         var (bundle, pack) = Bundle();
         var getter = new PropertyAccessor();
+        var setter = new PropertyAccessor();
         var slot = new Property("Slot", new TupleType([new SpreadType(pack)]), new MemberModifiers { Accessibility = Accessibility.Public })
         {
             DeclaringType = bundle,
             Getter = getter,
+            Setter = setter,
         };
         bundle.PropertiesList.Add(slot);
 
@@ -145,7 +147,7 @@ public sealed class TypeMemberLookupReachTests
 
         Assert.Same(pack.ElementAt(1), found.Property.Type);
         Assert.Same(getter, found.Property.Getter);
-        Assert.Null(found.Property.Setter);
+        Assert.Same(setter, found.Property.Setter);
         Assert.Same(bundle, found.Property.DeclaringType);
     }
 

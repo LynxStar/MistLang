@@ -70,12 +70,83 @@ public sealed class SequenceLengthDecisionTests
     [InlineData("an-offset-overload")]
     public void AStaticCallManufacturesNoLengthItsResolvedOperationDoesNotState(string form)
     {
-        var operation = form == "an-unsized-source" ? SequenceLengthOperation.Preserved : SequenceLengthOperation.None;
+        var operation = form == "a-user-method" ? SequenceLengthOperation.None : SequenceLengthOperation.Preserved;
         var h = new HandBuiltRefinements();
         var source = form == "an-unsized-source" ? HandBuiltRefinements.Local(HandBuiltModel.Class("IEnumerable"), "values") : Receiver(h, "Array");
         Expression[] arguments = form == "an-offset-overload" ? [source, h.Literal(1L)] : [source];
 
         Assert.Null(Lengths.Of(Static("AsSpan", h.Sequence("Span"), operation, arguments), Tracked));
+    }
+
+    [Theory]
+    [InlineData("an-unsized-result")]
+    [InlineData("a-user-conversion")]
+    public void AStaticProjectionStatesNoLengthIntoAnUnsizedResultOrThroughAUserConversion(string form)
+    {
+        var h = new HandBuiltRefinements();
+        var values = Receiver(h, "Array");
+        var enumerable = HandBuiltModel.Class("IEnumerable");
+        var conversion = new CastOperator(enumerable, new Parameter("source", values.Type), true, new MemberModifiers());
+        var call = form == "an-unsized-result"
+            ? Static("ToArray", enumerable, SequenceLengthOperation.Preserved, values)
+            : Static("ToArray", h.Sequence("Array"), SequenceLengthOperation.Preserved,
+                new ImplicitConversionExpression(HandBuiltModel.Node(), values, enumerable, [new ConversionFunction(conversion, values.Type, enumerable)]));
+
+        Assert.Null(Lengths.Of(call, Tracked));
+    }
+
+    [Theory]
+    [InlineData("an-unsized-receiver")]
+    [InlineData("an-unsized-result")]
+    public void ADeclaredOperationStatesNoLengthForAnUnsizedReceiverOrResult(string form)
+    {
+        var h = new HandBuiltRefinements();
+        var call = form == "an-unsized-receiver"
+            ? Call(Receiver(h, "Custom"), Method("Slice", h.Sequence("Span"), SequenceLengthOperation.Slice, null, h.Int, h.Int), h.Literal(1L), h.Literal(2L))
+            : Call(Receiver(h, "Array"), Method("ToArray", HandBuiltModel.Class("IEnumerable"), SequenceLengthOperation.Preserved));
+
+        Assert.Null(Lengths.Of(call, Tracked));
+    }
+
+    [Theory]
+    [InlineData("a-to-char-array-of-a-non-string-host")]
+    [InlineData("a-to-char-array-declared-in-source")]
+    [InlineData("a-slice-of-a-non-span-host")]
+    [InlineData("a-slice-declared-on-a-source-host")]
+    [InlineData("a-slice-called-on-another-host")]
+    [InlineData("a-slice-returning-another-host")]
+    public void AnIntrinsicRuleAppliesOnlyToItsOwnHostNeverToALookalike(string form)
+    {
+        var h = new HandBuiltRefinements();
+        var call = form switch
+        {
+            "a-to-char-array-of-a-non-string-host" => Call(HandBuiltRefinements.Local(Intrinsic(h, "Array"), "values"), Method(
+                "ToCharArray", h.Sequence("Array"), SequenceLengthOperation.None, (MemberType)Intrinsic(h, "Array").Definition)),
+            "a-to-char-array-declared-in-source" => Call(h.Literal("abc"), new Method("ToCharArray", h.Sequence("Array"), [], new MemberModifiers())
+            {
+                DeclaringType = IntrinsicString(h),
+            }),
+            "a-slice-of-a-non-span-host" => Slice(h, Intrinsic(h, "Array"), Intrinsic(h, "Array"), Intrinsic(h, "Array")),
+            "a-slice-declared-on-a-source-host" => Slice(h, (ConstructedType)h.Sequence("Span"), h.Sequence("Span"), h.Sequence("Span")),
+            "a-slice-called-on-another-host" => Slice(h, Intrinsic(h, "Span"), Intrinsic(h, "ReadOnlySpan"), Intrinsic(h, "Span")),
+            _ => Slice(h, Intrinsic(h, "Span"), Intrinsic(h, "Span"), Intrinsic(h, "ReadOnlySpan")),
+        };
+
+        Assert.Null(Lengths.Of(call, Tracked));
+    }
+
+    [Theory]
+    [InlineData("a-slice-of-an-aliased-span", 2L)]
+    [InlineData("a-to-char-array-of-a-refined-string", 3L)]
+    public void AnIntrinsicRuleSeesThroughAnAliasedOrRefinedReceiver(string form, long expected)
+    {
+        var h = new HandBuiltRefinements();
+        var call = form == "a-slice-of-an-aliased-span"
+            ? Slice(h, Intrinsic(h, "Span"), new TypeAlias("Span", "Standard", null, null, null!) { AliasedType = Intrinsic(h, "Span") }, Intrinsic(h, "Span"))
+            : Call(HandBuiltRefinements.Local(h.Regex("[a-z]+"), "values"), Method(
+                "ToCharArray", h.Sequence("Array"), SequenceLengthOperation.None, IntrinsicString(h)));
+
+        Assert.Equal(Admitted.Exactly(expected), Lengths.Of(call, Tracked));
     }
 
     [Theory]
@@ -98,15 +169,18 @@ public sealed class SequenceLengthDecisionTests
     public void AnIntrinsicSpanOverAnArrayLiteralKeepsItsLength(string host)
     {
         var h = new HandBuiltRefinements();
-        var span = Intrinsic(h, host);
-        var literal = new ArrayLiteralExpression(HandBuiltModel.Node(), h.Int, [h.Literal(10L), h.Literal(20L), h.Literal(30L)], h.Sequence("Array", 3L));
-        var constructor = new Constructor(host, span, [new Parameter("array", literal.Type)], new MemberModifiers { IsIntrinsic = true })
-        {
-            DeclaringType = (MemberType)span.Definition,
-        };
-        var creation = new NewExpression(HandBuiltModel.Node(), span, [literal], constructor, [], [literal.Type]);
 
-        Assert.Equal(Admitted.Exactly(3), Lengths.Of(creation, Tracked));
+        Assert.Equal(Admitted.Exactly(3), Lengths.Of(SpanOver(h, host, h.Int), Tracked));
+    }
+
+    [Theory]
+    [InlineData("Span")]
+    [InlineData("ReadOnlySpan")]
+    public void AnIntrinsicSpanOverAnArrayOfAnotherElementCopiesNoLength(string host)
+    {
+        var h = new HandBuiltRefinements();
+
+        Assert.Null(Lengths.Of(SpanOver(h, host, h.Built.Type("Int64")), Tracked));
     }
 
     [Theory]
@@ -116,19 +190,15 @@ public sealed class SequenceLengthDecisionTests
     {
         var h = new HandBuiltRefinements();
         var span = Intrinsic(h, host);
-        var slice = Method("Slice", span, SequenceLengthOperation.None, (MemberType)span.Definition, h.Int, h.Int);
-        var call = Call(HandBuiltRefinements.Local(span, "values"), slice, h.Literal(1L), h.Literal(2L));
 
-        Assert.Equal(Admitted.Exactly(2), Lengths.Of(call, Tracked));
+        Assert.Equal(Admitted.Exactly(2), Lengths.Of(Slice(h, span, span, span), Tracked));
     }
 
     [Fact]
     public void AnIntrinsicToCharArrayIsAsLongAsItsString()
     {
         var h = new HandBuiltRefinements();
-        var text = (ClassType)h.String;
-        text.Modifiers = text.Modifiers with { IsIntrinsic = true };
-        var call = Call(h.Literal("abc"), Method("ToCharArray", h.Sequence("Array"), SequenceLengthOperation.None, text));
+        var call = Call(h.Literal("abc"), Method("ToCharArray", h.Sequence("Array"), SequenceLengthOperation.None, IntrinsicString(h)));
 
         Assert.Equal(Admitted.Exactly(3), Lengths.Of(call, Tracked));
     }
@@ -154,6 +224,31 @@ public sealed class SequenceLengthDecisionTests
         var definition = (ClassType)span.Definition;
         definition.Modifiers = definition.Modifiers with { IsIntrinsic = true };
         return span;
+    }
+
+    private static ClassType IntrinsicString(HandBuiltRefinements h)
+    {
+        var text = (ClassType)h.String;
+        text.Modifiers = text.Modifiers with { IsIntrinsic = true };
+        return text;
+    }
+
+    private static NewExpression SpanOver(HandBuiltRefinements h, string host, IMistType element)
+    {
+        var span = Intrinsic(h, host);
+        var array = h.Built.Interner.GetOrCreateConstructedType(((ConstructedType)h.Sequence("Array")).Definition, [element, new LiftedType(h.Int, 3L)]);
+        var literal = new ArrayLiteralExpression(HandBuiltModel.Node(), element, [h.Literal(10L, element), h.Literal(20L, element), h.Literal(30L, element)], array);
+        var constructor = new Constructor(host, span, [new Parameter("array", literal.Type)], new MemberModifiers { IsIntrinsic = true })
+        {
+            DeclaringType = (MemberType)span.Definition,
+        };
+        return new NewExpression(HandBuiltModel.Node(), span, [literal], constructor, [], [literal.Type]);
+    }
+
+    private static InvocationExpression Slice(HandBuiltRefinements h, ConstructedType host, IMistType receiver, IMistType returns)
+    {
+        var slice = Method("Slice", returns, SequenceLengthOperation.None, (MemberType)host.Definition, h.Int, h.Int);
+        return Call(HandBuiltRefinements.Local(receiver, "values"), slice, h.Literal(1L), h.Literal(2L));
     }
 
     private static Method Method(

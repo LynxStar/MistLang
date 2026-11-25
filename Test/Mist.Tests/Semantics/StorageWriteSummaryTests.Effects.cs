@@ -100,6 +100,33 @@ public sealed partial class StorageWriteSummaryTests
         Assert.Equal(Set(wrapper.T), writes[(fills, StorageAccess.Read)]);
     }
 
+    /// <summary>
+    /// A method of a non-generic extension block belongs to no type, so only the block it is declared
+    /// in makes its call an edge, closed by the type arguments the call supplies.
+    /// </summary>
+    [Fact]
+    public void ACallToAnExtensionBlockMethodIsAnEdgeClosedByItsTypeArguments()
+    {
+        var box = new Generic("Box", "T");
+        var anchor = HandBuiltModel.Class("Anchor");
+        var block = new ExtensionBlock("self", "Probe", new ExtensionScope(null), null) { ResolvedReceiverType = anchor };
+        var scramble = BlockMethod(block, "Scramble", box, slot => Assign(slot, Local("seed", slot.Type)));
+        var peek = BlockMethod(block, "Peek", box, slot => slot);
+        var holder = new Generic("Holder", "V");
+        var held = Interner.GetOrCreateConstructedType(box.Type, [holder.T]);
+        var byExtension = holder.Method("ByExtension", [], Body(Call(Callee(Local("pin", anchor), scramble, holder.T), scramble, Local("held", held))));
+        var byReader = holder.Method("ByReader", [], Body(Call(Callee(Local("pin", anchor), peek, holder.T), peek, Local("held", held))));
+
+        var writes = Solve([
+            new StorageWriteRoot(scramble, StorageAccess.Read, scramble.Body, null, Set(scramble.TypeParametersList[0])),
+            new StorageWriteRoot(peek, StorageAccess.Read, peek.Body, null, Set(peek.TypeParametersList[0])),
+            .. holder.Roots(byExtension, byReader)]);
+
+        Assert.Equal(Set(scramble.TypeParametersList[0]), writes[(scramble, StorageAccess.Read)]);
+        Assert.Equal(Set(holder.T), writes[(byExtension, StorageAccess.Read)]);
+        Assert.Empty(writes[(byReader, StorageAccess.Read)]);
+    }
+
     [Fact]
     public void AUnaryOrCompoundOperatorIsAnEdgeToTheSelectedDeclaration()
     {
@@ -334,6 +361,18 @@ public sealed partial class StorageWriteSummaryTests
             setter: Body());
 
         return (cursor, moveNext, current);
+    }
+
+    private Method BlockMethod(ExtensionBlock block, string name, Generic box, Func<MemberAccessExpression, Expression> statement)
+    {
+        var method = new Method(name, Int32, [], DeclarationFragments.Public) { DeclaringBlock = block, Scope = new MethodScope(block.Scope), Body = Body() };
+        var x = BindingFragments.Parameter(method, "X");
+        var boxed = Interner.GetOrCreateConstructedType(box.Type, [x]);
+        method.ParametersList.Add(new Parameter("target", boxed));
+        var slot = new MemberAccessExpression(Node(), Local("target", boxed), box.Value.Name, x, member: new FieldResult(box.Value, box.Type, []));
+        method.Body!.Statements = [new ExpressionStatement(statement(slot))];
+        block.MethodsList.Add(method);
+        return method;
     }
 
     private LiteralExpression One()

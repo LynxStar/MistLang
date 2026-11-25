@@ -96,6 +96,7 @@ public sealed class OriginsClassificationTests
     [InlineData("frozen", "function", "Frozen")]
     [InlineData("plain", "function", "External")]
     [InlineData("plain", "recursive", "External")]
+    [InlineData("frozen", "recursive", "Frozen")]
     [InlineData("plain", "untouched", "Own")]
     public void AClosureReachingThisCapturesTheEnclosingScopesThis_ThroughTheLocalFunctionsItCalls(string member, string reach, string expected)
     {

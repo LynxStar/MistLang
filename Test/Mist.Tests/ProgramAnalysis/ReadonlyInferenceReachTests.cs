@@ -106,18 +106,22 @@ public sealed class ReadonlyInferenceReachTests
     [InlineData(true, "handed", false)]
     [InlineData(true, "fresh", true)]
     [InlineData(false, "handed", true)]
-    public void AnInitializerEntryStoringWhatTheMemberDoesNotOwnIntoAnOwnedPropertyIsAWrite(bool owned, string value, bool expected)
+    [InlineData(true, "handed-unchangeable", true)]
+    public void AnInitializerEntryStoringWhatTheMemberDoesNotOwnIntoAnOwnedPropertyIsAWrite_UnlessItCannotChange(bool owned, string value, bool expected)
     {
         var holder = HandBuiltModel.Class("Holder");
-        var held = new Property("Held", box, new MemberModifiers { IsOwned = owned })
+        var frozen = HandBuiltModel.Class("Frozen");
+        frozen.Modifiers = new MemberModifiers { IsReadonly = true };
+        var slot = value == "handed-unchangeable" ? frozen : box;
+        var held = new Property("Held", slot, new MemberModifiers { IsOwned = owned })
         {
             Getter = new PropertyAccessor { IsAuto = true },
             Setter = new PropertyAccessor { IsAuto = true },
             DeclaringType = holder,
         };
         holder.PropertiesList.Add(held);
-        Expression stored = value == "fresh" ? new NewExpression(HandBuiltModel.Node(), box, [], null, [], []) : Parameter("b", box);
-        var entry = new ObjectInitializerAssignment(HandBuiltModel.Node(), held.Name, stored, box, member: new PropertyResult(held, holder, []));
+        Expression stored = value == "fresh" ? new NewExpression(HandBuiltModel.Node(), box, [], null, [], []) : Parameter("b", slot);
+        var entry = new ObjectInitializerAssignment(HandBuiltModel.Node(), held.Name, stored, slot, member: new PropertyResult(held, holder, []));
 
         Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Keep(new NewExpression(HandBuiltModel.Node(), holder, [], null, [entry], [])))));
     }
@@ -373,6 +377,80 @@ public sealed class ReadonlyInferenceReachTests
             HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), maker), slot.Name, integer), [], integer, slot, []);
 
         Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(written ? Run(new AssignmentExpression(HandBuiltModel.Node(), call, One(), integer)) : Keep(call))));
+    }
+
+    [Theory]
+    [InlineData("default", "default-constrained", false)]
+    [InlineData("default", "class-constrained", true)]
+    [InlineData("default", "concrete", true)]
+    [InlineData("new", "type-parameter", false)]
+    [InlineData("new", "readonly-class", true)]
+    public void TheDefaultOrAllocationOfATypeParameterIsAWrite_SinceTheTypeArgumentChoosesWhatRuns(string form, string type, bool expected)
+    {
+        var parameter = new TypeParameter("T", 0, maker.Scope, maker);
+        parameter.ConstraintsList.Add(new KeywordConstraint(type == "default-constrained" ? TypeParameterConstraintKind.Default : TypeParameterConstraintKind.Class));
+        var plain = HandBuiltModel.Class("Plain");
+        plain.Modifiers = new MemberModifiers { IsReadonly = true };
+        IMistType made = type switch
+        {
+            "concrete" => integer,
+            "readonly-class" => plain,
+            _ => parameter,
+        };
+        Expression value = form == "default"
+            ? new DefaultExpression(HandBuiltModel.Node(), made)
+            : new NewExpression(HandBuiltModel.Node(), made, [], null, [], []);
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Keep(value))));
+    }
+
+    [Theory]
+    [InlineData("method", false)]
+    [InlineData("constructor", true)]
+    public void AssigningThisIsAWrite_ExceptInTheTypesOwnConstructor(string member, bool expected)
+    {
+        var point = HandBuiltModel.Struct("Point");
+        var reset = HandBuiltModel.Block(Run(new AssignmentExpression(
+            HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), point), new DefaultExpression(HandBuiltModel.Node(), point), point)));
+        var assigning = member == "constructor"
+            ? new Constructor("Point", point, [], default) { Body = reset, DeclaringType = point }
+            : new Method("Reset", integer, [], default) { Body = reset, DeclaringType = point };
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(assigning));
+    }
+
+    [Theory]
+    [InlineData("method", "abstract", false, false)]
+    [InlineData("method", "abstract", true, true)]
+    [InlineData("method", "concrete", false, true)]
+    [InlineData("getter", "abstract", false, false)]
+    [InlineData("getter", "concrete", false, true)]
+    public void AnAbstractTypesInstanceMemberIsJudgedByItsDeclarationNotTheBodyItSupplies(string kind, string declaring, bool isStatic, bool expected)
+    {
+        MemberType owner = declaring == "abstract" ? new AbstractType("IGreeter", "Probe", new Scope(null), null, null) : HandBuiltModel.Class("Greeter");
+        var held = Parameter("g", owner);
+        Expression used;
+
+        if(kind == "method")
+        {
+            var greet = new Method("Greet", integer, [], new MemberModifiers { IsStatic = isStatic })
+            {
+                Body = HandBuiltModel.Block(new ReturnStatement(One(), integer)),
+                DeclaringType = owner,
+            };
+            used = new InvocationExpression(HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), held, greet.Name, integer), [], integer, greet, []);
+        }
+        else
+        {
+            var level = new Property("Level", integer, default)
+            {
+                Getter = new PropertyAccessor { Body = HandBuiltModel.Block(new ReturnStatement(One(), integer)) },
+                DeclaringType = owner,
+            };
+            used = new MemberAccessExpression(HandBuiltModel.Node(), held, level.Name, integer, member: new PropertyResult(level, owner, []));
+        }
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Keep(used))));
     }
 
     private Method Make(params Statement[] statements)

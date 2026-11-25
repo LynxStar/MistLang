@@ -126,6 +126,21 @@ public sealed class NumericLiteralBindingTests
     }
 
     [Theory]
+    [InlineData("0x8000_0000")]
+    [InlineData("0b1000_0000_0000_0000_0000_0000_0000_0000")]
+    public void ANegatedHexOrBinaryLiteral_IsALongWhereItsMagnitudeOutgrowsAnInt(string lexeme)
+    {
+        PrimaryNode literal = lexeme.StartsWith("0x", StringComparison.Ordinal)
+            ? new HexLiteralExpressionPrimaryNode { HexLiteral = BindingFragments.Token(lexeme) }
+            : new BinaryLiteralExpressionPrimaryNode { BinaryLiteral = BindingFragments.Token(lexeme) };
+
+        var negation = Assert.IsType<UnaryExpression>(Bind(Negated(Postfix(literal))));
+
+        AssertLiteral(2147483648U, negation.Operand);
+        Assert.Equal("Int64", negation.Type.Name);
+    }
+
+    [Theory]
     [InlineData("5u")]
     [InlineData("5UL")]
     [InlineData("9223372036854775809")]

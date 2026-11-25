@@ -184,6 +184,23 @@ public sealed class UserSliceBindingTests
         Assert.False(bound.IsFailed);
     }
 
+    [Fact]
+    public void AListPatternSliceOfAnUncountedReceiverIsRefused_ThoughItHasASlice()
+    {
+        var f = new Fixture();
+        var rows = f.Type("Rows");
+        _ = DeclareIndexer(rows, f.Int32, f.Int32);
+        _ = DeclareSlice(rows, f.String, f.Int32, f.Int32);
+
+        var bound = f.Match(rows, Patterns.Element(Patterns.Var("first")), Patterns.Slice(Patterns.Var("rest")));
+
+        Assert.Equal(["MIST0355", NotSliceable], f.Errors().Select(diagnostic => diagnostic.Number.Value));
+        Assert.StartsWith("'Rows' cannot be sliced by a range.", f.Errors().Last().Message, StringComparison.Ordinal);
+        Assert.True(bound.IsFailed);
+        Assert.Null(bound.Slice);
+        Assert.True(f.Fragments.Scope.Locals["rest"].IsFailed);
+    }
+
     [Theory]
     [InlineData("unsliceable", NotSliceable)]
     [InlineData("two-slices", "MIST0357")]

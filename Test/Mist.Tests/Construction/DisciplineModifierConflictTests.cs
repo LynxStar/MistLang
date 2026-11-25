@@ -8,9 +8,7 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Construction;
 
 /// <summary>
-/// 'affine', 'linear' and 'relevant' are mutually exclusive on one type (drop-semantics Requirement
-/// 1.6): a declaration that names two or three of them is refused once (MIST0316), wherever the
-/// other modifiers fall, and one discipline alone is the type's discipline.
+/// <see cref="ProgramModelDiagnostics.ConflictingDisciplineModifiers"/>, drop-semantics Requirement 1.6.
 /// </summary>
 [Trait("Tier", "1")]
 public sealed class DisciplineModifierConflictTests

@@ -10,11 +10,9 @@ using Model = Mist.ProgramModel.Model.ProgramModel;
 namespace Mist.Tests.Construction;
 
 /// <summary>
-/// MIST0384: two source-bearing assemblies in one compilation may not share a name (book diagnostics
-/// reference; ProgramModelDiagnostics.DuplicateAssemblyName). The projects are handed to the builder
-/// directly, with no units, so only the assembly registration and its check run. The driver supplies
-/// each referenced project's name and canonical manifest path; which manifest field it reads the name
-/// from is the driver's concern, not this check's.
+/// <see cref="ProgramModelDiagnostics.DuplicateAssemblyName"/> over source-bearing assemblies. The driver
+/// supplies each referenced project's name and canonical manifest path; which manifest field it reads the
+/// name from is the driver's concern, not this check's.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class AssemblyNameUniquenessTests

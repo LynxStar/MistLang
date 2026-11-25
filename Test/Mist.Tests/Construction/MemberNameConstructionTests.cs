@@ -12,10 +12,10 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Construction;
 
 /// <summary>
-/// A member may not share its enclosing type's name (MIST0344): the backend rejects that
-/// declaration, and inside the type the bare name would resolve to the member. Each member builder
-/// that names a member checks it, so each is driven here with the member it builds. An extension
-/// block is not the type its members belong to, and the comparison is ordinal.
+/// Each member builder that names a member checks
+/// <see cref="ProgramModelDiagnostics.MemberNameMatchesEnclosingType"/>, so each is driven here with the
+/// member it builds. An extension block is not the type its members belong to, and the comparison is
+/// ordinal.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class MemberNameConstructionTests

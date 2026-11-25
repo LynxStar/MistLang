@@ -228,6 +228,25 @@ public sealed class EnumRefinementDecisionTests
         Assert.Equal("MIST0272", EnumRefinementModel.Judge(bound, unreadable));
     }
 
+    /// <summary>
+    /// The binder hands a built-in negation the standard library's intrinsic operator, so an initializer such as
+    /// <c>Cold = -20</c> carries one; only a user operator (the <c>operator</c> scenario above) withholds the constant.
+    /// </summary>
+    [Fact]
+    public void ANegationBoundToTheIntrinsicOperatorSuppliesTheNegatedConstant()
+    {
+        var model = new EnumRefinementModel();
+        var h = model.Facts;
+        var color = model.SourceEnum();
+        var intrinsic = new Operator(OperatorKind.Minus, h.Int, [new Parameter("value", h.Int)], new MemberModifiers { IsIntrinsic = true });
+        var negated = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, model.Number(color, 20L), h.Int) { Operator = intrinsic };
+        var cold = EnumRefinementModel.Member(color, "Cold", negated);
+        var exact = EnumRefinementModel.Member(color, "Exact", model.Number(color, -20L));
+
+        Assert.Equal(-20L, Requirement.Constant(cold));
+        Assert.Null(EnumRefinementModel.Judge(cold, h.Refine(color, ComparisonKind.Equal, exact)));
+    }
+
     [Fact]
     public void SourceOnlyReadingLeavesMissingResolvedAndConditionalAccessesUnknown()
     {

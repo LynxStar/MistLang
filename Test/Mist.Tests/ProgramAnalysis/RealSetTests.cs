@@ -6,6 +6,7 @@ using Mist.ProgramModel.Model.Patterns;
 
 namespace Mist.Tests.ProgramAnalysis;
 
+[Trait("Tier", "1")]
 public sealed class RealSetTests
 {
     [Fact]
@@ -175,6 +176,112 @@ public sealed class RealSetTests
         }
     }
 
+    [Fact]
+    public void WideningKeepsAnEndThatHeldAndReleasesOnlyTheEndThatMoved()
+    {
+        foreach(var kind in Enum.GetValues<RealKind>())
+        {
+            var previous = Between(kind, 0, 1);
+            Assert.Equal(AtLeast(kind, Value(0)).And(AtMost(kind, Largest(kind))), Between(kind, 0, 2).WidenedAgainst(previous));
+            Assert.Equal(AtLeast(kind, Smallest(kind)).And(AtMost(kind, Value(1))), Between(kind, -1, 1).WidenedAgainst(previous));
+            Assert.Equal(RealSet.Nothing(kind), RealSet.Nothing(kind).WidenedAgainst(RealSet.Nothing(kind)));
+        }
+
+        var openLow = RealSet.Compare(RealKind.Decimal, ComparisonKind.GreaterThan, Value(0))!.And(AtMost(RealKind.Decimal, Value(1)));
+        var openHigh = AtLeast(RealKind.Decimal, Value(0)).And(RealSet.Compare(RealKind.Decimal, ComparisonKind.LessThan, Value(1))!);
+        Assert.Equal(AtMost(RealKind.Decimal, Value(1)), Between(RealKind.Decimal, 0, 1).WidenedAgainst(openLow));
+        Assert.Equal(AtLeast(RealKind.Decimal, Value(0)), Between(RealKind.Decimal, 0, 1).WidenedAgainst(openHigh));
+
+        var nan = RealSet.Exactly(RealKind.Double, Value(double.NaN))!;
+        var infinity = RealSet.Exactly(RealKind.Double, Value(double.PositiveInfinity))!;
+        Assert.Equal(nan.Or(infinity), nan.WidenedAgainst(infinity));
+    }
+
+    [Fact]
+    public void RenderingSpellsEachDomainsEndpointsOpennessAndEmptiness()
+    {
+        Assert.Equal("(0..79228162514264337593543950335]", RealSet.Compare(RealKind.Decimal, ComparisonKind.GreaterThan, Value(0))!.ToString());
+        Assert.Equal("[-79228162514264337593543950335..1) or (2.5..79228162514264337593543950335]",
+            RealSet.Compare(RealKind.Decimal, ComparisonKind.LessThan, Value(1))!.Or(RealSet.Compare(RealKind.Decimal, ComparisonKind.GreaterThan, Value(2.5m))!).ToString());
+        Assert.Equal("[0.10000001..3.4028235E+38] or +Infinity", RealSet.Compare(RealKind.Single, ComparisonKind.GreaterThan, Value(0.1f))!.ToString());
+        Assert.Equal("[-3.4028235E+38..3.4028235E+38] or NaN or +Infinity or -Infinity", RealSet.Everything(RealKind.Single).ToString());
+        Assert.Equal("NaN", RealSet.Exactly(RealKind.Double, Value(double.NaN))!.ToString());
+        Assert.Equal("-Infinity", RealSet.Exactly(RealKind.Single, Value(float.NegativeInfinity))!.ToString());
+
+        foreach(var kind in Enum.GetValues<RealKind>())
+        {
+            Assert.Equal("nothing", RealSet.Nothing(kind).ToString());
+        }
+    }
+
+    [Fact]
+    public void ACharacterBoundStandsForItsCodePointInEveryDomain()
+    {
+        foreach(var kind in Enum.GetValues<RealKind>())
+        {
+            Assert.Equal(RealSet.Exactly(kind, Value(65)), RealSet.Exactly(kind, Value('A')));
+
+            foreach(var comparison in Enum.GetValues<ComparisonKind>())
+            {
+                Assert.Equal(RealSet.Compare(kind, comparison, Value(66)), RealSet.Compare(kind, comparison, Value('B')));
+            }
+        }
+    }
+
+    [Fact]
+    public void APromotedSingleStaysWithinTheSingleRange()
+    {
+        var promoted = RealSet.Everything(RealKind.Single).ConvertedTo(RealKind.Double)!;
+        Assert.True(promoted.Contains(Value((double)float.MaxValue)));
+        Assert.True(promoted.Contains(Value((double)-float.MaxValue)));
+        Assert.False(promoted.Contains(Value(double.BitIncrement(float.MaxValue))));
+        Assert.False(promoted.Contains(Value(double.BitDecrement(-float.MaxValue))));
+        Assert.True(promoted.IncludesNaN && promoted.IncludesPositiveInfinity && promoted.IncludesNegativeInfinity);
+        Assert.True(promoted.IsSubsetOf(RealSet.Everything(RealKind.Double)));
+        Assert.False(RealSet.Everything(RealKind.Double).IsSubsetOf(promoted));
+    }
+
+    [Fact]
+    public void SetsOfDifferentDomainsNeitherCombineNorCompareEqual()
+    {
+        var single = RealSet.Exactly(RealKind.Single, Value(1))!;
+        var wide = RealSet.Exactly(RealKind.Double, Value(1))!;
+        Assert.Equal("other", Assert.Throws<ArgumentException>(() => single.And(wide)).ParamName);
+        Assert.Equal("other", Assert.Throws<ArgumentException>(() => single.Or(wide)).ParamName);
+        Assert.NotEqual(single, wide);
+        Assert.NotEqual(RealSet.Nothing(RealKind.Single), RealSet.Nothing(RealKind.Decimal));
+    }
+
+    private static RealSet AtLeast(RealKind kind, LiteralValue bound)
+    {
+        return RealSet.Compare(kind, ComparisonKind.GreaterThanOrEqual, bound)!;
+    }
+
+    private static RealSet AtMost(RealKind kind, LiteralValue bound)
+    {
+        return RealSet.Compare(kind, ComparisonKind.LessThanOrEqual, bound)!;
+    }
+
+    private static LiteralValue Largest(RealKind kind)
+    {
+        return kind switch
+        {
+            RealKind.Single => Value(float.MaxValue),
+            RealKind.Double => Value(double.MaxValue),
+            _ => Value(decimal.MaxValue),
+        };
+    }
+
+    private static LiteralValue Smallest(RealKind kind)
+    {
+        return kind switch
+        {
+            RealKind.Single => Value(-float.MaxValue),
+            RealKind.Double => Value(-double.MaxValue),
+            _ => Value(decimal.MinValue),
+        };
+    }
+
     private static void CheckSets(RealKind kind, LiteralValue[] values, LiteralValue[] bounds)
     {
         var sets = new[] { RealSet.Everything(kind), RealSet.Nothing(kind) }
@@ -243,6 +350,7 @@ public sealed class RealSetTests
             uint => WellKnownTypes.UInt32.FullyQualifiedName,
             long => WellKnownTypes.Int64.FullyQualifiedName,
             ulong => WellKnownTypes.UInt64.FullyQualifiedName,
+            char => WellKnownTypes.Char.FullyQualifiedName,
             _ => WellKnownTypes.Int32.FullyQualifiedName,
         };
         return new LiteralValue(value, name);

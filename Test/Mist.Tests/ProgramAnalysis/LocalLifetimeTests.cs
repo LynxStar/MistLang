@@ -140,6 +140,36 @@ public sealed class LocalLifetimeTests
     }
 
     [Fact]
+    public void OfSeveralLaterArgumentsThatMayThrowTheLastSettlesTheHandOff()
+    {
+        var t = f.Local("t");
+        var passed = Ref(t);
+        var first = f.Call(f.Risky);
+        var last = f.Call(f.Risky);
+        var triple = new Method("Triple", f.Void, [new Parameter("t", f.Token), new Parameter("m", f.Int32), new Parameter("n", f.Int32)], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };
+        var plan = Plan(Declare(t, f.New(1)), Run(f.Call(triple, passed, first, last)));
+
+        Assert.Empty(plan.MarksAfter(passed));
+        Assert.Empty(plan.MarksAfter(first));
+        Assert.Equal([new LifetimeMark(t, Owned: false)], plan.MarksAfter(last));
+        Assert.Equal(LifetimeRelease.Guarded, plan.Release(t));
+    }
+
+    [Theory]
+    [InlineData("break")]
+    [InlineData("local function")]
+    public void AStatementThatRunsNothingCannotThrowBeforeTheHandOff(string shape)
+    {
+        var t = f.Local("t");
+        Statement between = shape == "break"
+            ? f.While(HandBuiltModel.Block(f.If(HandBuiltModel.Block(new BreakStatement()))))
+            : new LocalFunctionStatement(f.Function("Inner", HandBuiltModel.Block()), []);
+        var plan = Plan(Declare(t, f.New(1)), between, Run(f.Call(f.Take, Ref(t))));
+
+        Assert.Equal(LifetimeRelease.None, plan.Release(t));
+    }
+
+    [Fact]
     public void LendingLeavesTheReleaseUnconditional()
     {
         var t = f.Local("t");

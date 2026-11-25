@@ -15,7 +15,8 @@ namespace Mist.Tests.Backend;
 // Tier 2: UnionSpecialization's discovery chain over a hand-built model. It covers which instances a
 // generic method declared in a specialized type closes, which construction a call through a closed
 // derived receiver is named at, which overload keeps its name because it answers a slot inherited
-// through another abstract, and where a union over an extension method's pack is refused.
+// through another abstract or the first of two constructions of one abstract, and where a union over
+// an extension method's pack is refused.
 [Trait("Tier", "2")]
 public sealed class UnionSpecializationAdmissionTests
 {
@@ -94,6 +95,39 @@ public sealed class UnionSpecializationAdmissionTests
         var byKey = Take(filler, "key", key);
         var byNumber = Take(filler, "number", integer);
         Register(taker, more, filler);
+        var instance = built.Interner.GetOrCreateConstructedType(filler, [integer]);
+
+        using(UnionSpecialization.Enter(built.Model, new DiagnosticBag()))
+        {
+            Assert.Null(UnionSpecialization.CollidingName(byKey, instance));
+            Assert.Equal("Take__o1", UnionSpecialization.CollidingName(byNumber, instance));
+        }
+    }
+
+    /// <summary>
+    /// <c>Filler&lt;K&gt;</c> conforms to <c>IPair&lt;K, String&gt;</c> and then <c>IPair&lt;Int32, K&gt;</c>,
+    /// whose slot is <c>Take(A)</c>, and declares <c>Take(K)</c> and <c>Take(Int32)</c>. At
+    /// <c>Filler&lt;Int32&gt;</c> both read <c>Take(Int32)</c>; only the first construction of
+    /// <c>IPair</c> is consulted, so <c>Take(K)</c> keeps its name and <c>Take(Int32)</c> is renamed,
+    /// which keeps the two C# declarations distinct.
+    /// </summary>
+    [Fact]
+    public void OfTwoConstructionsOfOneAbstract_OnlyTheFirstDecidesWhichOverloadKeepsItsName()
+    {
+        var integer = built.Type("Int32");
+        var abstractPair = new AbstractType("IPair<,>", "Probe", new Scope(null), null, null);
+        var first = new TypeParameter("A", 0, abstractPair.Scope, abstractPair);
+        abstractPair.TypeParametersList.Add(first);
+        abstractPair.TypeParametersList.Add(new TypeParameter("B", 1, abstractPair.Scope, abstractPair));
+        abstractPair.MethodsList.Add(new Method("Take", integer, [new Parameter("key", first)], Public) { DeclaringType = abstractPair });
+        var filler = Generic("Filler<>", "K");
+        var key = filler.TypeParametersList[0];
+        Writes(key);
+        filler.BaseAbstractTypes.Add(built.Interner.GetOrCreateConstructedType(abstractPair, [key, built.Type("String")]));
+        filler.BaseAbstractTypes.Add(built.Interner.GetOrCreateConstructedType(abstractPair, [integer, key]));
+        var byKey = Take(filler, "key", key);
+        var byNumber = Take(filler, "number", integer);
+        Register(abstractPair, filler);
         var instance = built.Interner.GetOrCreateConstructedType(filler, [integer]);
 
         using(UnionSpecialization.Enter(built.Model, new DiagnosticBag()))

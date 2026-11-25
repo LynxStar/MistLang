@@ -1,6 +1,5 @@
 // Tier 3 (Component): the conversions between a newtype and a copyable source it clones (newtypes spec
-// Requirements 2.4-2.7): out implicitly and losslessly, in only by a cast calling the newtype's conversion,
-// and nothing either way for a mutable class that defines no copy.
+// Requirements 2.4-2.7): out implicitly and losslessly, in only by a cast calling the newtype's conversion.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Common.Diagnostics;

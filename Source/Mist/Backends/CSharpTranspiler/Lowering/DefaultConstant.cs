@@ -7,12 +7,9 @@ using Mist.ProgramModel.Model.Types;
 namespace Mist.Backends.CSharpTranspiler.Lowering;
 
 /// <summary>
-/// The value a compile-time constant default computes, as the emitted C# computes it: literals, intrinsic
-/// defaults, built-in negation, logical not, arithmetic, comparison and logical operators, and intrinsic
-/// casts and conversions. Integral values are carried as Int128 and wrap to their type, as Mist's arithmetic
-/// does; floating-point and decimal values compute in their own CLR type. Null where the value is not known
-/// here: a call, a read of a Mist field, property or local, a construction, a string, a user-declared
-/// operator, a division by zero, an integral quotient that overflows, or a decimal that overflows.
+/// The value a compile-time constant default computes, as the emitted C# computes it, or null where that
+/// is not known here. Integral values are carried as Int128 and wrap to their type, as Mist's arithmetic
+/// does; floating-point and decimal values compute in their own CLR type.
 /// </summary>
 internal static class DefaultConstant
 {

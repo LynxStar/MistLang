@@ -10,7 +10,7 @@ namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
 /// This restriction uses declared types, not provenance (owned-fields Requirement 5.3). Structs
-/// holding changeable objects need the same graph guarantee as references. <see cref="CloneDerivation"/> decides cloning.
+/// holding changeable objects need the same graph guarantee as references.
 /// An owned base judges its own storage, so the inherited-slot walk stops there.
 /// </summary>
 internal static class OwnedFieldTypes

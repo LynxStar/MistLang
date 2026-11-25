@@ -128,9 +128,7 @@ internal sealed class TierAnalyzer : IProgramAnalyzer
     }
 
     /// <summary>
-    /// An owned binding or owned field that may not be passed to the parameter, because a bare <c>ref</c>,
-    /// a projected CLR <c>ref</c> or <c>out</c> included, carries no ownership (ownership-v2 Requirement 9.9).
-    /// A ref local or ref-returning call is judged as the storage it stands for (<see cref="RefAliases"/>).
+    /// Enforces <see cref="ProgramAnalysisDiagnostics.OwnedPassedByRef"/> (ownership-v2 Requirement 9.9) through <see cref="RefAliases"/>.
     /// </summary>
     internal static (string Kind, string Name)? PassedByBareRef(Expression argument, ParameterModifier parameter, CloneDerivation clones, object? root)
     {

@@ -12,11 +12,10 @@ using Mist.ProgramModel.Model.Statements;
 namespace Mist.ProgramAnalysis.Rules;
 
 /// <summary>
-/// A lent reference is non-storable (ownership-system Requirements 4.4, 5.2, 6.2 and 11): what holds a
-/// borrowed, frozen or readonly ref binding's value may reach no field, element, collection, return,
-/// unrestricted parameter (a constructor chain's included), closure capture, or local that outlives it,
-/// so it is lent on only to a lent tier (Requirements 12.2 to 12.4). A bare
-/// <c>ref</c> parameter carries no ownership, so neither its value nor a pass to one is judged here.
+/// Enforces <see cref="ProgramAnalysisDiagnostics.LentReferenceEscapes"/> (ownership-system Requirements 4.4, 5.2,
+/// 6.2, 11 and 12.2 to 12.4); a constructor chain's unrestricted parameter, a closure capture and a local that
+/// outlives the binding keep it too. A bare <c>ref</c> parameter carries no ownership, so neither its value nor a
+/// pass to one is judged here.
 /// </summary>
 internal sealed partial class OwnershipFlow
 {

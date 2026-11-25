@@ -3086,10 +3086,9 @@ internal static partial class BodyEmitter
     }
 
     /// <summary>
-    /// Emits an operand, parenthesizing it when it binds looser than the operator applying to it.
-    /// Required because binding drops the parentheses source wrote, so they have to be re-derived
-    /// here: a negated conjunction arrives as a negation OF a conjunction, and written bare it is C#
-    /// for a conjunction of a negation. A type test is ranked with C#'s relational operators, the
+    /// Binding drops the parentheses source wrote, so they have to be re-derived here: a negated
+    /// conjunction arrives as a negation OF a conjunction, and written bare it is C# for a
+    /// conjunction of a negation. A type test is ranked with C#'s relational operators, the
     /// precedence no <see cref="BinaryOperatorKind"/> names.
     /// </summary>
     private static void EmitSubExpression(

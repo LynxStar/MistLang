@@ -30,6 +30,7 @@ public sealed class ArmContainmentTests
     [InlineData("tuple-optional-element")]
     [InlineData("tuple-ulong-element")]
     [InlineData("tuple-negated-box")]
+    [InlineData("real-refined-test-holds-a-comparison-inside-it")]
     public void AnArmEarlierArmsContain_IsUnreachable(string shape)
     {
         var (input, earlier, later) = Arms(shape);
@@ -50,6 +51,7 @@ public sealed class ArmContainmentTests
     [InlineData("tuple-unreadable-element")]
     [InlineData("tuple-ulong-below-the-sign-boundary")]
     [InlineData("tuple-negated-box-leaves-its-complement")]
+    [InlineData("real-refined-test-leaves-its-boundary")]
     public void AnArmSomeValueStillReaches_StaysSilent(string shape)
     {
         var (input, earlier, later) = Arms(shape);
@@ -99,6 +101,7 @@ public sealed class ArmContainmentTests
         var animal = HandBuiltModel.Class("Animal");
         var dog = HandBuiltModel.Class("Dog");
         dog.BaseType = animal;
+        var positive = h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0, "Positive");
         var color = HandBuiltModel.Enum("Color", integer);
         var pair = h.Built.Interner.GetOrCreateTupleType([truth, truth]);
         var numbers = h.Built.Interner.GetOrCreateTupleType([integer, integer]);
@@ -199,6 +202,8 @@ public sealed class ArmContainmentTests
                     tuple(withUnsigned, equal(unsigned, sign - 1), any(truth))),
             "tuple-negated-box-leaves-its-complement"
                 => (pair, [not(pair, tuple(pair, equal(truth, true), equal(truth, true)))], tuple(pair, equal(truth, true), any(truth))),
+            "real-refined-test-holds-a-comparison-inside-it" => (h.Double, [test(positive)], compare(h.Double, ComparisonKind.GreaterThan, 1.0)),
+            "real-refined-test-leaves-its-boundary" => (h.Double, [test(positive)], compare(h.Double, ComparisonKind.GreaterThanOrEqual, 0.0)),
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),
         };
     }

@@ -27,6 +27,7 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("tuple-of-bools-missing-a-cell", "(false, false)")]
     [InlineData("tuple-of-enums-missing-a-cell", "(Blue, Blue)")]
     [InlineData("tuple-of-ints-with-a-gap", "(0, _)")]
+    [InlineData("tuple-with-an-enum-type-test", "(Red, false), (Green, false), (Blue, false)")]
     [InlineData("tuple-with-only-guarded-arms", "(false, _), (true, _)")]
     [InlineData("union-missing-a-constituent", "string")]
     [InlineData("union-missing-a-refined-constituent", "Big")]
@@ -94,6 +95,37 @@ public sealed class ExhaustivenessRefusalTests
         Assert.Equal("MIST0148", finding.Number.Value);
         Assert.Equal(31, finding.Position().Start.Column);
         Assert.Contains(witness, finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [Trait("Tier", "1")]
+    [InlineData("SByte", -128L, 127L, "-128", "127")]
+    [InlineData("Byte", 0L, 255L, "0", "255")]
+    [InlineData("Int16", -32768L, 32767L, "-32768", "32767")]
+    [InlineData("UInt16", 0L, 65535L, "0", "65535")]
+    [InlineData("Int32", -2147483648L, 2147483647L, "-2147483648", "2147483647")]
+    [InlineData("UInt32", 0L, 4294967295L, "0", "4294967295")]
+    [InlineData("Int64", long.MinValue, long.MaxValue, "-9223372036854775808", "9223372036854775807")]
+    [InlineData("Char", 0L, 65535L, "'\\u0000'", "'\\uFFFF'")]
+    public void AnIntegralScrutineeRangesOverExactlyItsTypesValues(string typeName, long min, long max, string minWitness, string maxWitness)
+    {
+        var model = new HandBuiltModel();
+        var type = model.Type(typeName);
+        var clr = Type.GetType($"System.{typeName}", throwOnError: true)!;
+
+        string witnesses(ComparisonKind kind, long bound)
+        {
+            var pattern = new ComparisonPattern(HandBuiltModel.Node(), type, kind,
+                HandBuiltModel.Literal(type, Convert.ChangeType(bound, clr, System.Globalization.CultureInfo.InvariantCulture)));
+            var arms = new[] { new SwitchArm(HandBuiltModel.Node(), pattern, null, HandBuiltModel.Literal(type, bound)) };
+            var expression = new SwitchExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(type), arms, type);
+            return ExhaustivenessAnalyzer.Missing(expression) is { } missing ? string.Join(", ", missing) : "no verdict";
+        }
+
+        Assert.Equal("", witnesses(ComparisonKind.GreaterThanOrEqual, min));
+        Assert.Equal("", witnesses(ComparisonKind.LessThanOrEqual, max));
+        Assert.Equal(minWitness, witnesses(ComparisonKind.GreaterThan, min));
+        Assert.Equal(maxWitness, witnesses(ComparisonKind.LessThan, max));
     }
 
     private static SwitchExpression Switch(string caseName)
@@ -283,6 +315,10 @@ public sealed class ExhaustivenessRefusalTests
             case "tuple-with-a-relational-enum-element":
                 input = colors;
                 arms = [arm(tuple(colors, variant("Red", ComparisonKind.GreaterThan), any(color)))];
+                break;
+            case "tuple-with-an-enum-type-test":
+                input = mixed;
+                arms = [arm(tuple(mixed, new TypeTestPattern(HandBuiltModel.Node(), color, new LocalVariable("c", color)), constant(boolean, true)))];
                 break;
             case "tuple-of-an-enum-and-a-bool":
                 input = mixed;

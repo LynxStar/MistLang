@@ -1,6 +1,6 @@
 // Tier 2 (Functional): the storage-write classification (unknown-type Requirement 9) over bodies built
 // by hand -- effects read off each tree, edges substituted the way each site closes its callee, and the
-// fixed point over them. No parsing and no binding: each root is the tree the binder would have left.
+// fixed point over them.
 
 using Mist.ProgramModel.Construction.Binding;
 using Mist.ProgramModel.Construction.Binding.StorageWrites;

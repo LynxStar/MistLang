@@ -4,11 +4,6 @@ using Mist.Common.Diagnostics;
 namespace Mist.CLI.Tests.Args;
 
 /// <summary>
-/// Pins which command the parser selects, the commands that refuse lex mode, how
-/// <c>inspect</c> splits its type name from its project folder, and that the commands which
-/// return before project-folder validation still refuse earlier flag errors.
-/// </summary>
-/// <remarks>
 /// The expectations come from <c>book/src/tooling/cli-usage.md</c>,
 /// <c>specs/cli-build-run-commands/requirements.md</c> (Requirement 7),
 /// <c>specs/attributes-and-test-command/requirements.md</c> (the test command's criterion 7),
@@ -17,7 +12,7 @@ namespace Mist.CLI.Tests.Args;
 /// "The command cannot proceed with this input", so a refused parse yields no arguments. Tests
 /// that pass no project folder never touch the file system and are Tier 1; the one test that
 /// names a real folder is Tier 2.
-/// </remarks>
+/// </summary>
 public sealed class CliCommandSelectionTests
 {
     // Requirement 7 of cli-build-run-commands and criterion 7 of the test command; the book says

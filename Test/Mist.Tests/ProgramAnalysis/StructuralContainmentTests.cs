@@ -24,10 +24,12 @@ public sealed class StructuralContainmentTests
     [InlineData("property-nested-member")]
     [InlineData("property-empty-after-type-test")]
     [InlineData("property-refined-type-test")]
+    [InlineData("property-repeated-member-meets-itself")]
     [InlineData("struct-catch-all-after-every-member-value")]
     [InlineData("struct-negated-property")]
     [InlineData("optional-held-property")]
     [InlineData("tuple-with-property-element")]
+    [InlineData("tuple-declared-unreadable-element")]
     [InlineData("list-same-pair")]
     [InlineData("list-open-prefix-before-pair")]
     [InlineData("list-empty-twice")]
@@ -35,6 +37,9 @@ public sealed class StructuralContainmentTests
     [InlineData("list-open-slice-before-every-list")]
     [InlineData("list-covered-only-by-lengths-together")]
     [InlineData("list-bound-slice")]
+    [InlineData("list-declared-slice")]
+    [InlineData("list-empty-property-pattern-before-pair")]
+    [InlineData("list-typed-empty-property-pattern-before-pair")]
     [InlineData("list-property-element")]
     [InlineData("list-of-lists")]
     [InlineData("list-tuple-element")]
@@ -57,7 +62,10 @@ public sealed class StructuralContainmentTests
     [InlineData("property-failed-pattern")]
     [InlineData("property-regex-member-earlier")]
     [InlineData("property-static-member")]
+    [InlineData("property-repeated-member-leaves-below")]
+    [InlineData("property-repeated-member-leaves-above")]
     [InlineData("class-catch-all-after-every-member-value")]
+    [InlineData("tuple-reachable-past-the-box-limit")]
     [InlineData("list-pair-against-other-pair")]
     [InlineData("list-different-length")]
     [InlineData("list-empty-against-open")]
@@ -178,6 +186,8 @@ public sealed class StructuralContainmentTests
         var count = Member(custom, "Count", integer);
         var indexer = new Indexer(integer, [new Parameter("at", integer)], new MemberModifiers()) { DeclaringType = custom };
         var origin = HandBuiltRefinements.RefinePattern(point, Property(point, (x, Equal(integer, 0))), "Origin");
+        var colored = h.Built.Interner.GetOrCreateTupleType([color, h.Bool]);
+        var bounded = Property(point, (x, Compare(integer, ComparisonKind.GreaterThanOrEqual, 0)), (x, Compare(integer, ComparisonKind.LessThanOrEqual, 10)));
 
         Pattern list(IMistType sequence, IMistType element, params Pattern?[] elements)
         {
@@ -205,6 +215,7 @@ public sealed class StructuralContainmentTests
                     Property(holder, (held, Property(inner, (innerX, Equal(integer, 1)))))),
             "property-empty-after-type-test" => (point, [Test(point)], Property(point)),
             "property-refined-type-test" => (point, [Property(point, (x, Compare(integer, ComparisonKind.LessThanOrEqual, 0)))], Test(origin)),
+            "property-repeated-member-meets-itself" => (point, [bounded], Property(point, (x, Equal(integer, 5)))),
             "struct-catch-all-after-every-member-value"
                 => (pair, [Property(pair, (flag, Equal(h.Bool, true))), Property(pair, (flag, Equal(h.Bool, false)))], Any(pair)),
             "struct-negated-property" => (pair, [Not(pair, Property(pair, (flag, Equal(h.Bool, true))))], Property(pair, (flag, Equal(h.Bool, false)))),
@@ -212,6 +223,7 @@ public sealed class StructuralContainmentTests
             "tuple-with-property-element"
                 => (labelled, [tuple(labelled, Property(point, (x, Compare(integer, ComparisonKind.GreaterThan, 0))), Any(h.Bool))],
                     tuple(labelled, Property(point, (x, Equal(integer, 2))), Equal(h.Bool, true))),
+            "tuple-declared-unreadable-element" => (colored, [tuple(colored, Test(color), Any(h.Bool))], tuple(colored, Any(color), Equal(h.Bool, true))),
             "list-same-pair" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
             "list-open-prefix-before-pair" => (numbers, [list(numbers, integer, Any(integer), null)], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
             "list-empty-twice" => (numbers, [list(numbers, integer)], list(numbers, integer)),
@@ -221,6 +233,9 @@ public sealed class StructuralContainmentTests
                 => (numbers, [list(numbers, integer, Equal(integer, 1)), list(numbers, integer, Equal(integer, 1), Any(integer), null)],
                     list(numbers, integer, Equal(integer, 1), null)),
             "list-bound-slice" => (numbers, [list(numbers, integer, Equal(integer, 1), Any(numbers))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
+            "list-declared-slice" => (numbers, [list(numbers, integer, Equal(integer, 1), Test(numbers))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
+            "list-empty-property-pattern-before-pair" => (numbers, [Property(numbers)], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
+            "list-typed-empty-property-pattern-before-pair" => (numbers, [Property(numbers, Test(numbers))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
             "list-property-element"
                 => (points, [list(points, point, Property(point, (x, Compare(integer, ComparisonKind.GreaterThanOrEqual, 0))), null)],
                     list(points, point, Property(point, (x, Equal(integer, 1))), Any(point))),
@@ -251,6 +266,10 @@ public sealed class StructuralContainmentTests
                     Property(point, (x, Equal(integer, 1)))),
             "class-catch-all-after-every-member-value"
                 => (point, [Property(point, (x, Compare(integer, ComparisonKind.GreaterThan, 0))), Property(point, (x, Compare(integer, ComparisonKind.LessThanOrEqual, 0)))], Any(point)),
+            "property-repeated-member-leaves-below" => (point, [bounded], Property(point, (x, Equal(integer, -5)))),
+            "property-repeated-member-leaves-above" => (point, [bounded], Property(point, (x, Equal(integer, 20)))),
+            "tuple-reachable-past-the-box-limit"
+                => (couple, [.. Enumerable.Range(0, 256).Select(i => tuple(couple, Equal(integer, i), Equal(integer, 0)))], tuple(couple, Any(integer), Any(integer))),
             "list-pair-against-other-pair" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 3))),
             "list-different-length" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2), Equal(integer, 3))),
             "list-empty-against-open" => (numbers, [list(numbers, integer, Any(integer), null)], list(numbers, integer)),
@@ -309,6 +328,7 @@ public sealed class StructuralContainmentTests
             null => new ListPatternElement(null, true, null),
             CatchAllPattern slice when ReferenceEquals(slice.NarrowedType, sequence) => new ListPatternElement(slice, true, sequence),
             ListPattern slice when ReferenceEquals(slice.NarrowedType, sequence) => new ListPatternElement(slice, true, sequence),
+            TypeTestPattern slice when ReferenceEquals(slice.NarrowedType, sequence) => new ListPatternElement(slice, true, sequence),
             _ => new ListPatternElement(pattern, false, element),
         })], sequence);
     }

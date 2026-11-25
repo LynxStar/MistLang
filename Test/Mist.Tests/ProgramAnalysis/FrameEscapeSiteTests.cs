@@ -45,6 +45,20 @@ public sealed class FrameEscapeSiteTests
         AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Span");
     }
 
+    // A switch arm's binding aliases the scrutinee as an `is` binding does (stack-only-types Requirement 8.1-8.2),
+    // so returning the arm's binding returns the stack memory the scrutinee was declared from.
+    [Fact]
+    public void AStackSpanBoundByASwitchArmIsRefusedWhereTheArmReturnsIt()
+    {
+        var st = Local("st", f.Span);
+        var three = Local("three", f.Span);
+        var arm = new SwitchArm(
+            HandBuiltModel.Node(), new ProgramModel.Model.Patterns.TypeTestPattern(HandBuiltModel.Node(), f.Span, three), null, Ref(three));
+        var body = HandBuiltModel.Block(Declare(st, f.Stackalloc()), Return(new SwitchExpression(HandBuiltModel.Node(37), Ref(st), [arm], f.Span)));
+
+        AssertSite(f.Model.Analyze(new EscapeAnalyzer(), body), "MIST0265", "This 'Span");
+    }
+
     [Fact]
     public void ALambdaResultOverItsOwnStackMemoryIsRefused()
     {

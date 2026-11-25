@@ -1,6 +1,7 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -13,10 +14,12 @@ namespace Mist.Tests.ProgramAnalysis;
 
 /// <summary>
 /// What <see cref="ReadonlyInference"/> infers for an unmarked member from the members an initializer
-/// block, an allocation with no constructor, a slice and a foreach call on its behalf: readonly-contexts
-/// Requirements 10.8 and 11.5 judge each by its status, and purity Requirement 11.1 admits a local one on
-/// what the member owns while counting an initializer's setter and a store into an owned slot. Asked
-/// without a purity oracle, as the emitter asks before spelling C# <c>readonly</c>.
+/// block, an allocation with no constructor, a slice, a foreach, a user unary operator, an extension
+/// property and a from-end index call on its behalf, and from a write through an indexer, an extension
+/// property or a ref a call returns: readonly-contexts Requirements 10.8 and 11.5 judge each call by its
+/// status, a readonly context calls no setter and writes nothing it does not own, and purity Requirement
+/// 11.1 admits a local member on what the member owns while counting an initializer's setter and a store
+/// into an owned slot. Asked without a purity oracle, as the emitter asks before spelling C# <c>readonly</c>.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ReadonlyInferenceReachTests
@@ -139,6 +142,8 @@ public sealed class ReadonlyInferenceReachTests
     [InlineData("index", "handed", "readonly", true)]
     [InlineData("index", "fresh", "local-writing-its-own-field", true)]
     [InlineData("index", "handed", "local-writing-its-own-field", false)]
+    [InlineData("index", "fresh", "writing-a-static", false)]
+    [InlineData("index", "fresh", "writing-its-own-field", false)]
     [InlineData("pattern", "handed", "writing-a-static", false)]
     [InlineData("pattern", "handed", "readonly", true)]
     public void ASliceIsJudgedByTheSliceMethodItCalls_UnlessALocalOneOnWhatTheMemberOwns(string form, string receiver, string slice, bool expected)
@@ -181,6 +186,7 @@ public sealed class ReadonlyInferenceReachTests
     [InlineData("bodiless-get-enumerator", "handed", false)]
     [InlineData("local-get-enumerator-writing-its-own-field", "fresh", true)]
     [InlineData("local-get-enumerator-writing-its-own-field", "handed", false)]
+    [InlineData("get-enumerator-writing-a-static", "fresh", false)]
     [InlineData("move-next-advancing-its-cursor", "handed", false)]
     [InlineData("current-writing-a-static", "handed", false)]
     public void AForEachIsJudgedByTheMembersItCalls_UnlessALocalOneOnWhatTheMemberOwns(string shape, string collection, bool expected)
@@ -235,6 +241,140 @@ public sealed class ReadonlyInferenceReachTests
         Assert.True(new ReadonlyInference().IsReadonly(Make(loop)));
     }
 
+    [Theory]
+    [InlineData("writing-a-static", false)]
+    [InlineData("writing-nothing", true)]
+    [InlineData("bodiless", false)]
+    [InlineData("bodiless-intrinsic", true)]
+    public void AUnaryOperatorIsJudgedByTheOperatorItCalls_UnlessItIsIntrinsic(string shape, bool expected)
+    {
+        var negate = new Operator(OperatorKind.Minus, box, [new Parameter("b", box)], new MemberModifiers { IsStatic = true, IsIntrinsic = shape == "bodiless-intrinsic" })
+        {
+            Body = shape switch
+            {
+                "writing-a-static" => HandBuiltModel.Block(Run(Assign(total)), new ReturnStatement(Parameter("b", box), box)),
+                "writing-nothing" => HandBuiltModel.Block(new ReturnStatement(Parameter("b", box), box)),
+                _ => null,
+            },
+            DeclaringType = box,
+        };
+        var negated = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, Parameter("b", box), box) { Operator = negate };
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Keep(negated))));
+    }
+
+    [Theory]
+    [InlineData("handed", "auto", true)]
+    [InlineData("handed", "writing-a-static", false)]
+    [InlineData("handed", "readonly-writing-a-static", true)]
+    [InlineData("fresh", "writing-a-static", false)]
+    [InlineData("fresh", "local-writing-its-own-field", true)]
+    [InlineData("handed", "local-writing-its-own-field", false)]
+    public void ReadingAnExtensionPropertyIsJudgedByItsGetter_UnlessALocalOneOnWhatTheMemberOwns(string receiver, string getter, bool expected)
+    {
+        var level = new Property("Level", integer, default)
+        {
+            Getter = getter switch
+            {
+                "auto" => new PropertyAccessor { IsAuto = true },
+                "writing-a-static" => new PropertyAccessor { Body = Returning(total) },
+                "readonly-writing-a-static" => new PropertyAccessor { Body = Returning(total), OwnModifiers = new MemberModifiers { IsReadonly = true } },
+                _ => new PropertyAccessor { Body = Returning(count), OwnModifiers = new MemberModifiers { IsLocal = true } },
+            },
+            DeclaringType = box,
+        };
+        var made = new LocalVariable("made", box);
+        var read = new ExtensionPropertyAccessExpression(HandBuiltModel.Node(), Held(receiver, made), level, "BoxExtensions", integer);
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Made(made), Keep(read))));
+    }
+
+    [Theory]
+    [InlineData("fresh", "auto", true)]
+    [InlineData("fresh", "local-writing-its-own-field", true)]
+    [InlineData("handed", "auto", false)]
+    [InlineData("fresh", "writing-nothing", false)]
+    public void SettingAnExtensionPropertyIsAWrite_UnlessALocalSetterOnWhatTheMemberOwns(string receiver, string setter, bool expected)
+    {
+        var level = new Property("Level", integer, default)
+        {
+            Getter = new PropertyAccessor { IsAuto = true },
+            Setter = setter switch
+            {
+                "auto" => new PropertyAccessor { IsAuto = true },
+                "local-writing-its-own-field" => new PropertyAccessor { Body = Writes(count), OwnModifiers = new MemberModifiers { IsLocal = true } },
+                _ => new PropertyAccessor { Body = HandBuiltModel.Block() },
+            },
+            DeclaringType = box,
+        };
+        var made = new LocalVariable("made", box);
+        var set = new ExtensionPropertyAccessExpression(HandBuiltModel.Node(), Held(receiver, made), level, "BoxExtensions", integer);
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Made(made), Run(new AssignmentExpression(HandBuiltModel.Node(), set, One(), integer)))));
+    }
+
+    [Theory]
+    [InlineData("fresh", "local-writing-its-own-field", true)]
+    [InlineData("handed", "local-writing-its-own-field", false)]
+    [InlineData("fresh", "writing-nothing", false)]
+    public void SettingThroughAnIndexerIsAWrite_UnlessALocalSetterOnWhatTheMemberOwns(string receiver, string setter, bool expected)
+    {
+        var cell = new Indexer(integer, [new Parameter("i", integer)], default)
+        {
+            Getter = new PropertyAccessor { Body = HandBuiltModel.Block(new ReturnStatement(One(), integer)), OwnModifiers = new MemberModifiers { IsReadonly = true } },
+            Setter = setter == "writing-nothing"
+                ? new PropertyAccessor { Body = HandBuiltModel.Block() }
+                : new PropertyAccessor { Body = Writes(count), OwnModifiers = new MemberModifiers { IsLocal = true } },
+            DeclaringType = box,
+        };
+        var made = new LocalVariable("made", box);
+        var element = new IndexExpression(HandBuiltModel.Node(), Held(receiver, made), One(), integer) { Indexer = cell };
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Made(made), Run(new AssignmentExpression(HandBuiltModel.Node(), element, One(), integer)))));
+    }
+
+    [Theory]
+    [InlineData("auto", "readonly", true)]
+    [InlineData("writing-a-static", "readonly", false)]
+    [InlineData("readonly-writing-a-static", "readonly", true)]
+    [InlineData("bodiless", "readonly", false)]
+    [InlineData("auto", "writing-a-static", false)]
+    public void IndexingFromTheEndIsJudgedByTheCountGetterItCallsAsWellAsTheIndexersGetter(string counted, string getter, bool expected)
+    {
+        var length = new Property("Count", integer, default)
+        {
+            Getter = counted switch
+            {
+                "auto" => new PropertyAccessor { IsAuto = true },
+                "writing-a-static" => new PropertyAccessor { Body = Returning(total) },
+                "bodiless" => new PropertyAccessor(),
+                _ => new PropertyAccessor { Body = Returning(total), OwnModifiers = new MemberModifiers { IsReadonly = true } },
+            },
+            DeclaringType = box,
+        };
+        var cell = new Indexer(integer, [new Parameter("i", integer)], default)
+        {
+            Getter = new PropertyAccessor { Body = Returning(total), OwnModifiers = getter == "readonly" ? new MemberModifiers { IsReadonly = true } : null },
+            DeclaringType = box,
+        };
+        var last = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.FromEnd, One(), model.Type("Index"));
+        var element = new IndexExpression(HandBuiltModel.Node(), Parameter("b", box), last, integer) { Indexer = cell, FromEnd = new CountedIndexer(cell, integer, length) };
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(Keep(element))));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void WritingThroughARefACallReturnsIsAWrite_ThoughReadingItIsNot(bool written, bool expected)
+    {
+        var slot = new Method("Slot", integer, [], new MemberModifiers { IsRef = true, IsReadonly = true }) { DeclaringType = maker };
+        var call = new InvocationExpression(
+            HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), new ThisExpression(HandBuiltModel.Node(), maker), slot.Name, integer), [], integer, slot, []);
+
+        Assert.Equal(expected, new ReadonlyInference().IsReadonly(Make(written ? Run(new AssignmentExpression(HandBuiltModel.Node(), call, One(), integer)) : Keep(call))));
+    }
+
     private Method Make(params Statement[] statements)
     {
         return new Method("Make", integer, [], default) { Body = HandBuiltModel.Block(statements), DeclaringType = maker };
@@ -253,6 +393,21 @@ public sealed class ReadonlyInferenceReachTests
     private static LocalReferenceExpression Parameter(string name, IMistType type)
     {
         return new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable(name, type) { Parameter = new Parameter(name, type) });
+    }
+
+    private static LocalDeclarationStatement Made(LocalVariable made)
+    {
+        return new LocalDeclarationStatement(made, new NewExpression(HandBuiltModel.Node(), made.Type, [], null, [], []));
+    }
+
+    private static LocalReferenceExpression Held(string receiver, LocalVariable made)
+    {
+        return receiver == "fresh" ? new LocalReferenceExpression(HandBuiltModel.Node(), made) : Parameter("b", made.Type);
+    }
+
+    private Block Returning(Field written)
+    {
+        return HandBuiltModel.Block(Run(Assign(written)), new ReturnStatement(One(), integer));
     }
 
     private Block Writes(Field field)

@@ -32,7 +32,10 @@ public sealed class CSharpProjectBuilderOutputTests : IDisposable
     {
         var project = Path.Combine(root, "Migrations", "Migrations.csproj");
         var output = Path.Combine(root, "bin", "App.Migrations.dll");
-        Touch(output, "Zeta.dll", "alpha.dll", "Beta.dll", "App.Migrations.pdb", "App.Migrations.runtimeconfig.json", "notes.txt");
+        // Mixed case tells ordinal from ignore-case order; six names make it unlikely that the directory
+        // already lists them in ordinal order (on APFS these come back as Beta, Zeta, Core, Gamma, delta, alpha).
+        Touch(output, "Zeta.dll", "alpha.dll", "Beta.dll", "Gamma.dll", "delta.dll", "Core.dll",
+            "App.Migrations.pdb", "App.Migrations.runtimeconfig.json", "notes.txt");
         Touch(Path.Combine(root, "bin", "runtimes", "Native.dll"));
         var diagnostics = new DiagnosticBag();
 
@@ -49,7 +52,9 @@ public sealed class CSharpProjectBuilderOutputTests : IDisposable
         Assert.NotNull(assembly);
         Assert.Equal(("App.Migrations", output, ReferenceKind.CSharpProject), (assembly.Name, assembly.Path, assembly.Kind));
         var bin = Path.Combine(root, "bin");
-        Assert.Equal<string>([Path.Combine(bin, "Beta.dll"), Path.Combine(bin, "Zeta.dll"), Path.Combine(bin, "alpha.dll")], assembly.Closure);
+        Assert.Equal<string>(
+            [.. new[] { "Beta.dll", "Core.dll", "Gamma.dll", "Zeta.dll", "alpha.dll", "delta.dll" }.Select(name => Path.Combine(bin, name))],
+            assembly.Closure);
         Assert.Equal(Path.Combine(bin, "App.Migrations.runtimeconfig.json"), assembly.RuntimeConfigPath);
     }
 

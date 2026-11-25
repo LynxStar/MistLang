@@ -49,6 +49,37 @@ public sealed class NarrowedPackTypePositionTests
     }
 
     [Fact]
+    public void AnIndexPastTheProvenWidth_NamesTheIndexAndTheWidthAndFailsTheResolution()
+    {
+        var resolution = f.Builder.Resolver.ResolveWithFailure(new TypeReferenceNode { First = Indexed("narrowed", 5) }, Guarded());
+
+        Assert.True(resolution.IsFailed);
+        Assert.Same(ErrorType.Instance, resolution.Type);
+        Assert.Equal(
+            "'narrowed[5]' is outside the pack: 'narrowed' is declared to hold exactly 2 element(s), indexed from 0.",
+            Assert.Single(f.Diagnostics.ToImmutableArray()).Message);
+    }
+
+    [Theory]
+    [InlineData("qualified")]
+    [InlineData("type-arguments")]
+    [InlineData("pure")]
+    public void AWrittenTypeOtherThanTheBareIndexedBinding_ResolvesAsItWouldWithoutTheGuard(string shape)
+    {
+        var unguarded = new BodyScope(f.Scope);
+        unguarded.DeclareLocal(new LocalVariable("narrowed", TypeArray(2)), HandBuiltModel.Node(), f.Diagnostics);
+        var expected = Resolve(Shaped(shape), unguarded);
+        var expectedNumbers = Numbers(0);
+
+        var resolved = Resolve(Shaped(shape), Guarded());
+
+        Assert.NotSame(pack.ElementAt(0), resolved);
+        Assert.Same(expected, resolved);
+        Assert.NotEmpty(expectedNumbers);
+        Assert.Equal(expectedNumbers, Numbers(expectedNumbers.Count));
+    }
+
+    [Fact]
     public void TheNarrowedName_IsUnknownOutsideItsBranch()
     {
         _ = Guarded();
@@ -113,6 +144,32 @@ public sealed class NarrowedPackTypePositionTests
     private IMistType Resolve(NamedSingleTypeRefSingleTypeRefNode written, Scope scope)
     {
         return f.Builder.Resolver.Resolve(new TypeReferenceNode { First = written }, scope);
+    }
+
+    private List<string> Numbers(int skip)
+    {
+        return [.. f.Diagnostics.ToImmutableArray().Skip(skip).Select(diagnostic => diagnostic.Number.Value)];
+    }
+
+    private static NamedSingleTypeRefSingleTypeRefNode Shaped(string shape)
+    {
+        var written = Indexed("narrowed", 0);
+        switch(shape)
+        {
+            case "qualified":
+                written.Name = new QualifiedIdentifierNode { IDENTIFIER = BindingFragments.Token("narrowed"), IDENTIFIERs = [BindingFragments.Token("Inner")] };
+                break;
+
+            case "type-arguments":
+                written.TypeArgs = BindingFragments.TypeArguments("Int32");
+                break;
+
+            default:
+                written.Pure = BindingFragments.Token("pure");
+                break;
+        }
+
+        return written;
     }
 
     private static NamedSingleTypeRefSingleTypeRefNode Indexed(string name, int index)

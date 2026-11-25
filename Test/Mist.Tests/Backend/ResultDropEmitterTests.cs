@@ -1,8 +1,6 @@
-// How a Result's owned payload is released when the Result itself goes out of scope: whether a
-// release is owed, which spelling each Result shape takes, and the Drop() an inspection snapshot's
-// carrier declares. Extracting or discarding a Result preserves its active payload's cleanup
-// obligation (specs/exceptions design, "Extracting or discarding a Result"); releasing that payload
-// is the compiler honouring the obligation, not silently ignoring a user's fallible cleanup.
+// Extracting or discarding a Result preserves its active payload's cleanup obligation
+// (specs/exceptions design, "Extracting or discarding a Result"); releasing that payload is the
+// compiler honouring the obligation, not silently ignoring a user's fallible cleanup.
 
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.ProgramModel.Construction.Binding;
@@ -18,8 +16,7 @@ public sealed class ResultDropEmitterTests
     private readonly ResultModel shapes = new();
 
     /// <summary>
-    /// A payload owes a release when it is linear or affine with a Drop. A relevant or unrestricted
-    /// payload does not, whichever Result shape holds it: the Result adds no obligation of its own.
+    /// Linear and affine alike count only with a Drop, and the Result adds no obligation of its own.
     /// </summary>
     [Theory]
     [Trait("Tier", "1")]
@@ -44,8 +41,8 @@ public sealed class ResultDropEmitterTests
     }
 
     /// <summary>
-    /// A droppable value that is not a Result releases through its own Drop, which the structural
-    /// release must leave to the ordinary drop path.
+    /// It releases through its own Drop, which the structural release must leave to the ordinary
+    /// drop path.
     /// </summary>
     [Fact]
     [Trait("Tier", "1")]
@@ -91,10 +88,6 @@ public sealed class ResultDropEmitterTests
         Assert.Null(ResultDropEmitter.Release("r", Inspection(shapes.Integer, f.Plain)));
     }
 
-    /// <summary>
-    /// Inside a specialization a Result over a type parameter is judged by the argument it is closed
-    /// over, not by the open parameter.
-    /// </summary>
     [Fact]
     [Trait("Tier", "1")]
     public void AnOpenResultIsJudgedByTheArgumentItIsClosedOver()
@@ -121,8 +114,7 @@ public sealed class ResultDropEmitterTests
     }
 
     /// <summary>
-    /// The carrier stores constituent N under tag N, counting from one, so the Drop reads the payload
-    /// slot of exactly the constituents that owe a release, at their position rather than their case.
+    /// The carrier stores constituent N under tag N, counting from one, whatever its case.
     /// </summary>
     [Fact]
     [Trait("Tier", "1")]

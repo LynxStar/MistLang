@@ -296,6 +296,31 @@ public sealed class UnsafeReachArmTests
         Assert.DoesNotContain("Updated", declared, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ACompoundWriteToAPrivateFieldThroughAnExplicitReceiver_UpdatesItsStorageInPlace()
+    {
+        var stripes = new Field("stripes", Integer, OwnershipKind.Unrestricted, new MemberModifiers { Accessibility = Accessibility.Private })
+        {
+            DeclaringType = strip,
+        };
+        var target = new MemberAccessExpression(HandBuiltModel.Node(), Local("other", strip), "stripes", Integer, member: new FieldResult(stripes, strip, []));
+
+        var (emitted, declared) = Emit(Compound(target));
+
+        Assert.Equal("__Out_Probe_Strip_stripes(other) += 2", emitted);
+        Assert.Contains("private static extern ref int __Out_Probe_Strip_stripes(Strip __target);", declared);
+        Assert.DoesNotContain("Updated", declared, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACompoundWriteToALocal_IsTheOrdinaryOperator()
+    {
+        var (emitted, declared) = Emit(Compound(Local("total", Integer)));
+
+        Assert.Equal("total += 2", emitted);
+        Assert.Equal("", declared);
+    }
+
     [Theory]
     [InlineData(Accessibility.Private, Accessibility.Public, "Count")]
     [InlineData(Accessibility.Public, Accessibility.Private, "this[]")]

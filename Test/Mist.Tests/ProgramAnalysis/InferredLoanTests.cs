@@ -163,6 +163,34 @@ public sealed class InferredLoanTests
         Assert.Empty(f.Model.Analyze(new TierAnalyzer(), body));
     }
 
+    // A frozen lease forbids writes to its source while it lives (ownership-v2 Requirement 7.3) and a readonly
+    // view does not (7.2), so a field written through the source under a live alias leaves it only the view
+    // (owned-fields Requirement 18.4): the write itself is the mutation, with no borrowing call to show it.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AFieldWriteThroughTheSourceLeavesALiveAliasOnlyAReadonlyView(bool compound)
+    {
+        var account = HandBuiltModel.Class("Account");
+        var balance = new Field("Balance", f.Int32, OwnershipKind.Unrestricted, default) { DeclaringType = account };
+        account.FieldsList.Add(balance);
+        var original = new LocalVariable("original", account) { Ownership = OwnershipKind.Owned };
+        var alias = new LocalVariable("alias", account) { InfersOwnership = true };
+        var read = new Method("Read", f.Void, [], default) { DeclaredThisTier = ThisTier.ReadonlyRef };
+        var target = new MemberAccessExpression(HandBuiltModel.Node(), Ref(original), balance.Name, balance.Type, member: new FieldResult(balance, account, []));
+        var one = HandBuiltModel.Literal(f.Int32, 1);
+        Expression write = compound
+            ? new CompoundAssignmentExpression(HandBuiltModel.Node(), target, BinaryOperatorKind.Add, one, f.Int32, null, IncrementForm.None)
+            : new AssignmentExpression(HandBuiltModel.Node(), target, one, f.Int32);
+        var reading = new InvocationExpression(HandBuiltModel.Node(), new MemberAccessExpression(HandBuiltModel.Node(), Ref(alias), read.Name, f.Void), [], f.Void, read, []);
+
+        var body = HandBuiltModel.Block(Declare(original, Fresh(account)), Declare(alias, Ref(original)), Run(write), Run(reading));
+
+        Assert.Equal(ThisTier.ReadonlyRef, LocalOwnership.For(body).Of(alias));
+        Assert.Empty(f.Model.Analyze(new OwnershipAnalyzer(), body));
+        Assert.Empty(f.Model.Analyze(new TierAnalyzer(), body));
+    }
+
     [Fact]
     public void AnInferredOwnerPreservesOwnedFieldExtractionAsAMove()
     {

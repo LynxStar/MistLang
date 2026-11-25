@@ -130,8 +130,8 @@ internal static class OwnedProvenance
     }
 
     /// <summary>
-    /// A <see cref="CastOperator.CopiesClone"/> conversion is not owned: its field-by-field copy shares the
-    /// operand's fields.
+    /// A plain <see cref="CastOperator.CopiesClone"/> conversion, not <see cref="CastOperator.CopiesDerivedClone"/>,
+    /// is not owned: its field-by-field copy shares the operand's fields.
     /// </summary>
     public static bool Yields(CastOperator conversion)
     {

@@ -20,6 +20,7 @@ public sealed class WriteReachDecisionTests
     [InlineData("its-ref-parameter-given-a-field", "A,p,y")]
     [InlineData("its-ref-parameter-given-a-member-of-a-new-object", "")]
     [InlineData("array-element", "p,y")]
+    [InlineData("a-ref-local-bound-to-a-field-of-this", "A,B,S,V,p,y")]
     [InlineData("another-call-returning-a-field", "A,p,y")]
     [InlineData("a-field-handed-to-another-call", "B,p,y")]
     [InlineData("no-body", "A,B,S,V,p,y")]
@@ -29,6 +30,9 @@ public sealed class WriteReachDecisionTests
     [InlineData("field-of-a-parameter-given-this", "A,p,y")]
     [InlineData("field-of-a-parameter-reassigned-to-this", "A,p,y")]
     [InlineData("field-of-a-parameter-handed-by-ref", "A,p,y")]
+    [InlineData("field-of-a-parameter-compound-assigned-from-this", "A,p,y")]
+    [InlineData("field-of-a-parameter-bound-to-a-ref-local", "A,p,y")]
+    [InlineData("field-of-a-parameter-copied-to-a-local", "")]
     [InlineData("field-of-a-struct-field-of-a-parameter-given-another-object", "")]
     [InlineData("field-of-a-struct-field-of-a-parameter-given-this", "p,y")]
     [InlineData("field-of-a-struct-field-of-a-parameter-reassigned-to-this", "p,y")]
@@ -83,6 +87,7 @@ public sealed class WriteReachDecisionTests
         var recP = f.RefMethod("RecP", recursing.Parameter!);
         var bounce = f.ByRef("z");
         var passOn = f.RefMethod("PassOn", bounce.Parameter!);
+        var alias = FactHolderFragments.Int(f.H, "r", isRef: true);
         var callee = returned switch
         {
             "field-of-an-extension-receiver-that-is-another-object" or "field-of-an-extension-receiver-that-is-this" =>
@@ -98,6 +103,11 @@ public sealed class WriteReachDecisionTests
             "field-of-a-parameter-reassigned-to-this" => f.Returning("Through", toThis, FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
             "field-of-a-parameter-handed-by-ref" => f.Returning("Through", [HandBuiltRefinements.Evaluate(f.Free(swap, FactHolderFragments.Read(owner)))],
                 FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
+            "field-of-a-parameter-compound-assigned-from-this" => f.Returning("Through", [HandBuiltRefinements.Evaluate(new CompoundAssignmentExpression(HandBuiltModel.Node(),
+                FactHolderFragments.Read(owner), BinaryOperatorKind.Add, f.This, f.Pair, null, IncrementForm.None))], FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
+            "field-of-a-parameter-bound-to-a-ref-local" or "field-of-a-parameter-copied-to-a-local" => f.Returning("Through", [FactHolderFragments.Declare(new LocalVariable("r", f.Pair) { IsRef = returned == "field-of-a-parameter-bound-to-a-ref-local" },
+                FactHolderFragments.Read(owner))], FactHolderFragments.Member(FactHolderFragments.Read(owner), f.A), owner.Parameter!),
+            "a-ref-local-bound-to-a-field-of-this" => f.Returning("Alias", [FactHolderFragments.Declare(alias, FactHolderFragments.Member(f.This, f.A))], FactHolderFragments.Read(alias)),
             "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-given-this" =>
                 f.Returning("Deep", ownerX, owner.Parameter!),
             "field-of-a-struct-field-of-a-parameter-reassigned-to-this" => f.Returning("Deep", toThis, ownerX, owner.Parameter!),
@@ -139,6 +149,7 @@ public sealed class WriteReachDecisionTests
             "a-recursive-call-handing-its-parameter-on-given-this" => [f.This],
             "its-ref-parameter-given-a-member-of-a-new-object" => [FactHolderFragments.Member(f.Create(), f.A)],
             "field-of-a-parameter-given-another-object" or "field-of-a-parameter-reassigned-to-this" or "field-of-a-parameter-handed-by-ref"
+                or "field-of-a-parameter-compound-assigned-from-this" or "field-of-a-parameter-bound-to-a-ref-local" or "field-of-a-parameter-copied-to-a-local"
                 or "field-of-a-struct-field-of-a-parameter-given-another-object" or "field-of-a-struct-field-of-a-parameter-reassigned-to-this"
                 or "another-call-handed-a-parameter-given-another-object" or "another-call-handed-a-parameter-reassigned-to-this" => [f.Create()],
             "field-of-a-parameter-given-this" or "field-of-a-struct-field-of-a-parameter-given-this"

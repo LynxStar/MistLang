@@ -57,11 +57,11 @@ public sealed class NuGetRestoreFailureTests
     }
 
     [Theory]
-    [InlineData("error NU1301: opaque", true)]
-    [InlineData("error NU9999: network timeout connection", false)]
-    [InlineData("network timeout connection", false)]
+    [InlineData("error NU1301: opaque", true, "NU1301")]
+    [InlineData("error NU9999: network timeout connection", false, "NU9999")]
+    [InlineData("network timeout connection", false, null)]
     [Trait("Tier", "2")]
-    public void ASourceFailureIsClassifiedByItsCodeAndOtherwiseKeepsTheRawExcerpt(string raw, bool network)
+    public void ASourceFailureIsClassifiedByItsCodeAndOtherwiseKeepsTheRawExcerpt(string raw, bool network, string? code)
     {
         var diagnostics = new DiagnosticBag();
 
@@ -71,6 +71,7 @@ public sealed class NuGetRestoreFailureTests
         var finding = Assert.Single(diagnostics.Admitted);
         Assert.Equal(network ? $"Connection or network failure while restoring packages: {raw}" : raw, finding.Message);
         Assert.Equal(raw, Assert.IsType<TextValue>(finding.Arguments[^1]).Text);
+        Assert.Equal(code is null ? null : new ProviderCode("nuget", code, DiagnosticSeverity.Error), finding.Native);
     }
 
     [Fact]

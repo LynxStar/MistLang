@@ -251,6 +251,26 @@ public sealed class OwnedDestinationDecisionTests
     }
 
     [Theory]
+    [InlineData(false, "Kept")]
+    [InlineData(true, "Copy")]
+    public void ACastCopyingADerivedCloneNamesTheOperandWhenItCannotBeCopiedAndOtherwiseTheTarget(bool operandCopies, string named)
+    {
+        var copy = HandBuiltModel.Class("Copy");
+        var operandType = operandCopies
+            ? new ClassType("Plain", "Probe", new Scope(null), null, DeclarationFragments.At<BodyTypeTypeDeclarationNode>())
+            : HandBuiltModel.Class("Kept");
+        var conversion = new CastOperator(copy, new Parameter("value", operandType), false, Public with { IsStatic = true }) { DeclaringType = copy, CopiesDerivedClone = true };
+        var cast = new CastExpression(HandBuiltModel.Node(37), Ref(new LocalVariable("source", operandType)), copy, [new ConversionFunction(conversion, operandType, copy)], copy);
+        var method = Method("Run", Public, HandBuiltModel.Block(new ExpressionStatement(cast)));
+
+        var finding = Assert.Single(Judge(method.Body!, method));
+
+        Assert.Equal("MIST0506", finding.Number.Value);
+        Assert.Equal(38, finding.Position().Start.Column);
+        Assert.StartsWith($"Cannot clone this '{named}': ", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(true, true)]
     [InlineData(false, true)]
     [InlineData(true, false)]

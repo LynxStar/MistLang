@@ -30,6 +30,7 @@ public sealed class StructuralContainmentTests
     [InlineData("optional-held-property")]
     [InlineData("tuple-with-property-element")]
     [InlineData("tuple-declared-unreadable-element")]
+    [InlineData("tuple-conjunction-of-disjunctions")]
     [InlineData("list-same-pair")]
     [InlineData("list-open-prefix-before-pair")]
     [InlineData("list-empty-twice")]
@@ -66,6 +67,7 @@ public sealed class StructuralContainmentTests
     [InlineData("property-repeated-member-leaves-above")]
     [InlineData("class-catch-all-after-every-member-value")]
     [InlineData("tuple-reachable-past-the-box-limit")]
+    [InlineData("tuple-conjunction-past-the-box-limit")]
     [InlineData("list-pair-against-other-pair")]
     [InlineData("list-different-length")]
     [InlineData("list-empty-against-open")]
@@ -199,6 +201,15 @@ public sealed class StructuralContainmentTests
             return new TuplePattern(HandBuiltModel.Node(), elements, type, null, null);
         }
 
+        // Every first element in [0, count) and every second element in [0, count): count * count boxes once met.
+        Pattern square(int count)
+        {
+            return new ConjunctionPattern(HandBuiltModel.Node(), couple, [
+                new DisjunctionPattern(HandBuiltModel.Node(), couple, [.. Enumerable.Range(0, count).Select(i => tuple(couple, Equal(integer, i), Any(integer)))]),
+                new DisjunctionPattern(HandBuiltModel.Node(), couple, [.. Enumerable.Range(0, count).Select(i => tuple(couple, Any(integer), Equal(integer, i)))]),
+            ]);
+        }
+
         return shape switch
         {
             "property-same-constant" => (point, [Property(point, (x, Equal(integer, 1)))], Property(point, (x, Equal(integer, 1)))),
@@ -224,6 +235,7 @@ public sealed class StructuralContainmentTests
                 => (labelled, [tuple(labelled, Property(point, (x, Compare(integer, ComparisonKind.GreaterThan, 0))), Any(h.Bool))],
                     tuple(labelled, Property(point, (x, Equal(integer, 2))), Equal(h.Bool, true))),
             "tuple-declared-unreadable-element" => (colored, [tuple(colored, Test(color), Any(h.Bool))], tuple(colored, Any(color), Equal(h.Bool, true))),
+            "tuple-conjunction-of-disjunctions" => (couple, [square(2)], tuple(couple, Equal(integer, 1), Equal(integer, 0))),
             "list-same-pair" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
             "list-open-prefix-before-pair" => (numbers, [list(numbers, integer, Any(integer), null)], list(numbers, integer, Equal(integer, 1), Equal(integer, 2))),
             "list-empty-twice" => (numbers, [list(numbers, integer)], list(numbers, integer)),
@@ -270,6 +282,7 @@ public sealed class StructuralContainmentTests
             "property-repeated-member-leaves-above" => (point, [bounded], Property(point, (x, Equal(integer, 20)))),
             "tuple-reachable-past-the-box-limit"
                 => (couple, [.. Enumerable.Range(0, 256).Select(i => tuple(couple, Equal(integer, i), Equal(integer, 0)))], tuple(couple, Any(integer), Any(integer))),
+            "tuple-conjunction-past-the-box-limit" => (couple, [square(17)], tuple(couple, Equal(integer, 5), Equal(integer, 100))),
             "list-pair-against-other-pair" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 3))),
             "list-different-length" => (numbers, [list(numbers, integer, Equal(integer, 1), Equal(integer, 2))], list(numbers, integer, Equal(integer, 1), Equal(integer, 2), Equal(integer, 3))),
             "list-empty-against-open" => (numbers, [list(numbers, integer, Any(integer), null)], list(numbers, integer)),

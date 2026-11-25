@@ -3,6 +3,7 @@ using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Generated;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -82,6 +83,23 @@ public sealed class SlotLiftErasureTests
         });
         Assert.Equal(["Raw", "Boxed"], refusals.Select(refusal => Assert.IsType<NameValue>(refusal.Arguments[1]).Name));
         Assert.Contains("'IStore.Raw'", refusals[0].Message);
+    }
+
+    [Fact]
+    public void AnUnboundedParameterizedSlotOnATypeWithNoDeclaration_IsRefusedAtItsAssemblyAndQualifiedName()
+    {
+        var store = new AbstractType("IStore", "Probe", new Scope(null), null, null)
+        {
+            Assembly = new MistAssembly("Library", MistAssemblyKind.Reference),
+        };
+        _ = Slot(store, "Raw<>", "T");
+        var diagnostics = new DiagnosticBag(PipelineStage.Backend);
+
+        SlotLift.ReportUnboundedParameterized(store, diagnostics);
+
+        var refusal = Assert.Single(diagnostics.Admitted);
+        Assert.Equal(BackendDiagnostics.UnboundedParameterizedTypeSlot.Number, refusal.Number);
+        Assert.Equal(new ExternalLocation("Library", "Probe.IStore"), refusal.Location);
     }
 
     [Fact]

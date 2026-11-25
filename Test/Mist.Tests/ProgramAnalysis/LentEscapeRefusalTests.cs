@@ -52,6 +52,11 @@ public sealed class LentEscapeRefusalTests
     [InlineData("local a closure captures", "store borrowed 'x' in 't', which a closure captures")]
     [InlineData("alias captured by a lambda", "capture borrowed 'x' in a lambda")]
     [InlineData("alias captured by a local function", "capture borrowed 'x' in a local function")]
+    [InlineData("collection element", "pass borrowed 'x' to unrestricted parameter 'item' of 'Add'")]
+    [InlineData("params argument", "pass borrowed 'x' to unrestricted parameter 'rest' of 'Log'")]
+    [InlineData("local outliving the lend's enclosing block", "store borrowed 'o' in 'kept', declared outside the block that holds 'o'")]
+    [InlineData("ref local naming a local outliving the lend's block", "store borrowed 'o' in 'kept', declared outside the block that holds 'o'")]
+    [InlineData("inferred loan of an owned local", "store readonly ref 'y' in 'Hook.S'")]
     public void ALentValueCannotGetOut(string program, string message)
     {
         var (root, owner, member) = Program(program);
@@ -75,6 +80,10 @@ public sealed class LentEscapeRefusalTests
     [InlineData("local declared inside the closure")]
     [InlineData("alias in the lend's block")]
     [InlineData("lambda capturing an unrelated local")]
+    [InlineData("collection element lent on")]
+    [InlineData("local declared in a block inside the lend's")]
+    [InlineData("inferred local of an unrestricted value")]
+    [InlineData("bare ref parameter stored")]
     public void ALentValueStaysAdmittedWhereItIsOnlyLentOnOrRead(string program)
     {
         var (root, owner, member) = Program(program);
@@ -82,9 +91,21 @@ public sealed class LentEscapeRefusalTests
         Assert.Empty(f.Analyze(new OwnershipAnalyzer(), root, owner, member));
     }
 
+    [Fact]
+    public void ALentValueGivenToAnOwnedInitializerMemberIsRefusedOnceAsAMoveAndNotAsAnEscape()
+    {
+        var x = Parameter("x", f.Box, Tier("borrowed"));
+        var entry = new ObjectInitializerAssignment(HandBuiltModel.Node(), "Kept", Ref(x, 37), f.Box, member: new FieldResult(f.Kept, f.Holder, []));
+        var keeper = Local("Keep", f.Model.Type("Void"), HandBuiltModel.Block(Run(new NewExpression(HandBuiltModel.Node(), f.Holder, [], null, [entry], []))), x);
+
+        var diagnostic = Assert.Single(f.Analyze(new OwnershipAnalyzer(), HandBuiltModel.Block(keeper)));
+
+        Assert.Equal("MIST0264", diagnostic.Number.Value);
+    }
+
     private (object Root, MistType? Owner, object? Member) Program(string program)
     {
-        var tier = program switch { "S2" or "frozen chain argument" => "frozen", "S3" => "readonly ref", _ => "borrowed" };
+        var tier = program switch { "S2" or "frozen chain argument" => "frozen", "S3" => "readonly ref", "bare ref parameter stored" => "ref", _ => "borrowed" };
         var x = Parameter("x", f.Box, Tier(tier));
         var hook = Static(f.S);
         Block keep;
@@ -232,6 +253,44 @@ public sealed class LentEscapeRefusalTests
                     ? Local("Look", f.Int32, HandBuiltModel.Block(new ReturnStatement(viewRead, f.Int32)), isStatic: false)
                     : Run(f.Lambda(viewRead));
                 keep = HandBuiltModel.Block(Declare(viewer, program == "lambda capturing an unrelated local" ? Fresh(f.Box) : Ref(x)), closureStatement);
+                break;
+            case "collection element" or "collection element lent on":
+                var adds = program == "collection element" ? f.Add
+                    : new Method("Add", f.Model.Type("Void"), [new Parameter("item", f.Box, Tier("borrowed"))], default) { DeclaringType = f.Boxes };
+                var element = new ObjectInitializerAssignment(HandBuiltModel.Node(), null, Ref(x, 37), f.Box, add: adds);
+                keep = HandBuiltModel.Block(Run(new NewExpression(HandBuiltModel.Node(), f.Boxes, [], null, [element], [])));
+                break;
+            case "params argument":
+                var log = new Method("Log", f.Model.Type("Void"), [new Parameter("first", f.Box), new Parameter("rest", f.BoxArray) { IsFlattened = true }], new MemberModifiers { IsStatic = true });
+                keep = HandBuiltModel.Block(Run(Call(log, null, 0, Fresh(f.Box), Fresh(f.Box), Ref(x, 37))));
+                break;
+            case "local outliving the lend's enclosing block" or "ref local naming a local outliving the lend's block" or "local declared in a block inside the lend's":
+                var owner = new LocalVariable("b", f.Box) { Ownership = OwnershipKind.Owned };
+                var lentLocal = new LocalVariable("o", f.Box) { Ownership = OwnershipKind.Borrowed };
+                var longer = new LocalVariable("kept", f.Box);
+                var through = new LocalVariable("r", f.Box) { IsRef = true };
+                var shorter = new LocalVariable("t", f.Box);
+                var heldBlock = program switch
+                {
+                    "local outliving the lend's enclosing block" => HandBuiltModel.Block(HandBuiltModel.Block(Declare(lentLocal, Ref(owner)), Run(Store(Ref(longer), Ref(lentLocal, 37))))),
+                    "ref local naming a local outliving the lend's block" => HandBuiltModel.Block(Declare(lentLocal, Ref(owner)), Declare(through, Ref(longer)), Run(Store(Ref(through), Ref(lentLocal, 37)))),
+                    _ => HandBuiltModel.Block(Declare(lentLocal, Ref(owner)), HandBuiltModel.Block(Declare(shorter, Fresh(f.Box)), Run(Store(Ref(shorter), Ref(lentLocal))))),
+                };
+                return (HandBuiltModel.Block(Declare(owner, Fresh(f.Box)), Declare(longer, Fresh(f.Box)), heldBlock), null, null);
+            case "inferred loan of an owned local":
+                var lending = new LocalVariable("b", f.Box) { Ownership = OwnershipKind.Owned };
+                var loan = new LocalVariable("y", f.Box) { InfersOwnership = true };
+                return (HandBuiltModel.Block(
+                    Declare(lending, Fresh(f.Box)), Declare(loan, Ref(lending)), Run(Store(hook, Ref(loan, 37))),
+                    Run(Store(Access(Ref(lending), f.V), HandBuiltModel.Literal(f.Int32, 1L)))), null, null);
+            case "inferred local of an unrestricted value":
+                var shared = Parameter("u", f.Box, default);
+                var inferred = new LocalVariable("y", f.Box) { InfersOwnership = true };
+                extra.Add(shared);
+                keep = HandBuiltModel.Block(Declare(inferred, Ref(shared)), Run(Store(hook, Ref(inferred))));
+                break;
+            case "bare ref parameter stored":
+                keep = HandBuiltModel.Block(Run(Store(hook, Ref(x))));
                 break;
             case "C1":
                 keep = HandBuiltModel.Block(Run(Store(Access(Ref(x), f.V), HandBuiltModel.Literal(f.Int32, 5L))), Declare(new LocalVariable("n", f.Int32) { InfersOwnership = true }, Access(Ref(x), f.V)));

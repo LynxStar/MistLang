@@ -5,9 +5,8 @@ using Mist.Driver.Contracts;
 namespace Mist.Tests.Driver;
 
 /// <summary>
-/// The <c>[csproj_properties]</c> table of mist.toml, read through <see cref="ProjectFileParser.Parse(string, DiagnosticBag)"/>
-/// from a manifest written to a temporary folder (specs/csproj-property-passthrough, Requirements 1, 2 and 4).
-/// Expected messages are written out from the descriptor templates, not rendered through them.
+/// specs/csproj-property-passthrough, Requirements 1, 2 and 4. Expected messages are written out from
+/// the descriptor templates, not rendered through them.
 /// </summary>
 [Trait("Tier", "2")]
 public sealed class ProjectFileParserCsprojPropertiesTests : IDisposable

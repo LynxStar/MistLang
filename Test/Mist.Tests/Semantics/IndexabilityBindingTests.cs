@@ -32,6 +32,26 @@ public sealed class IndexabilityBindingTests
     }
 
     [Fact]
+    public void ATwoArgumentGenericThatIsNotASpanSlicesThroughItsOwnSlice()
+    {
+        var f = new Fixture();
+        f.Fragments.Register(f.Built.Type("Span<,>"));
+        f.Fragments.Register(f.Built.Type("ReadOnlySpan<,>"));
+        var pair = f.Type("Pair");
+        pair.TypeParametersList.Add(new TypeParameter("A", 0, pair.Scope, pair));
+        pair.TypeParametersList.Add(new TypeParameter("B", 1, pair.Scope, pair));
+        var count = DeclareCount(pair, f.Int32);
+        var slice = BindingFragments.Member(pair, "Slice", f.String, f.Int32, f.Int32);
+        var constructed = f.Built.Interner.GetOrCreateConstructedType(pair, [f.String, f.Int32]);
+
+        var sliced = Assert.IsType<IndexExpression>(f.Access(constructed, "window"));
+
+        Assert.Empty(f.Errors());
+        Assert.Same(f.String, sliced.Type);
+        Assert.Equal(new CountedSlice(count, null, slice), sliced.Slice);
+    }
+
+    [Fact]
     public void ACountOfARefinedIntStillCountsTheReceiver()
     {
         var f = new Fixture();

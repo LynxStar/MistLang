@@ -18,6 +18,7 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("enum-missing-a-variant", "Blue")]
     [InlineData("int-constants-only", "0, 3")]
     [InlineData("int-empty-conjunction", "0")]
+    [InlineData("int-empty-disjunction-in-a-conjunction", "0")]
     [InlineData("int-negated-catch-all", "0")]
     [InlineData("negated-bool-leaves-its-value", "true")]
     [InlineData("nested-tuple-missing-a-cell", "((false, false), false)")]
@@ -67,6 +68,7 @@ public sealed class ExhaustivenessRefusalTests
     [InlineData("int-negated-symbolic-bound")]
     [InlineData("int-symbolic-bound-in-a-conjunction")]
     [InlineData("int-symbolic-bound-in-a-disjunction")]
+    [InlineData("int-symbolic-disjunction-in-a-conjunction")]
     [InlineData("nested-tuple-fully-covered")]
     [InlineData("optional-bool-with-a-void-arm")]
     [InlineData("optional-bool-with-void-in-a-disjunction")]
@@ -236,6 +238,14 @@ public sealed class ExhaustivenessRefusalTests
             case "int-symbolic-bound-in-a-disjunction":
                 input = integer;
                 arms = [positive(), arm(new DisjunctionPattern(HandBuiltModel.Node(), integer, [constant(integer, 0L), aboveFloor()]))];
+                break;
+            case "int-symbolic-disjunction-in-a-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [new DisjunctionPattern(HandBuiltModel.Node(), integer, [constant(integer, 0L), aboveFloor()]), compare(ComparisonKind.LessThanOrEqual, 0)]))];
+                break;
+            case "int-empty-disjunction-in-a-conjunction":
+                input = integer;
+                arms = [positive(), arm(new ConjunctionPattern(HandBuiltModel.Node(), integer, [new DisjunctionPattern(HandBuiltModel.Node(), integer, [new NegatedPattern(HandBuiltModel.Node(), integer, any(integer)), new NegatedPattern(HandBuiltModel.Node(), integer, any(integer))]), compare(ComparisonKind.LessThanOrEqual, 0)]))];
                 break;
             case "int-negated-catch-all":
                 input = integer;

@@ -92,17 +92,20 @@ public sealed class ExitDropMoveTests
     }
 
     [Fact]
-    public void ALocalDeclaredInANestedLambdaOrLocalFunctionIsDroppedByThatScopeAlone()
+    public void ALocalDeclaredInANestedLambdaLocalFunctionOrAsyncBlockIsDroppedByThatScopeAlone()
     {
         var captured = f.Local("inner", f.Shared);
         var lambda = f.Lambda(HandBuiltModel.Block(Declare(captured, f.New(1, f.Shared))));
         var nested = f.Local("nested", f.Shared);
         var function = new LocalFunctionStatement(f.Function("Local", HandBuiltModel.Block(Declare(nested, f.New(2, f.Shared)))), []);
-        var body = HandBuiltModel.Block(Run(lambda), function);
+        var lifted = f.Local("lifted", f.Shared);
+        var asyncBlock = new AsyncBlockExpression(HandBuiltModel.Node(), HandBuiltModel.Block(Declare(lifted, f.New(3, f.Shared))), f.Model.Type("Task"), false);
+        var body = HandBuiltModel.Block(Run(lambda), function, Run(asyncBlock));
 
         Assert.Empty(PurityJudge.ExitDrops(body, member: null));
         Assert.Equal(["inner"], PurityJudge.ExitDrops(lambda, member: null).Select(exit => exit.Name));
         Assert.Equal(["nested"], PurityJudge.ExitDrops(function, member: null).Select(exit => exit.Name));
+        Assert.Equal(["lifted"], PurityJudge.ExitDrops(asyncBlock.Body, member: null).Select(exit => exit.Name));
     }
 
     [Fact]

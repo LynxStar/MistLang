@@ -296,6 +296,21 @@ public sealed class OwnedDestinationDecisionTests
     }
 
     [Fact]
+    public void ANestedDefaultEntryUnderAnInterfaceFieldIsJudgedAgainstTheBoundType()
+    {
+        var contract = new AbstractType("IPart", "Probe", new Scope(null), null, null);
+        var part = HandBuiltModel.Class("Part");
+        part.BaseAbstractTypes.Add(contract);
+        _ = Field(part, "Inner", box, OwnershipKind.Owned);
+        var partSlot = Field(holder, "Part", contract, OwnershipKind.Unrestricted);
+        holder.DefaultBlock = new DefaultBlock(
+            [new DefaultBindingEntry(partSlot.Name, part, [new DefaultValueEntry("Inner", StaticRead(shared, 37))], new DefaultTypeBindingDefaultFieldInitializerNode())],
+            new DefaultBlockDeclarationNode());
+
+        AssertRefused(Assert.Single(JudgeDefaults(holder)), "owned field 'Inner'", SharedStatic);
+    }
+
+    [Fact]
     public void ATopLevelDefaultEntryNamesTheOwnedFieldItFills()
     {
         _ = Field(holder, "Inner", box, OwnershipKind.Owned);

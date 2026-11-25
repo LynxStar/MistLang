@@ -178,6 +178,14 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
+    public void DirectoryHoldingProject_NamesABinThatContainsTheProject()
+    {
+        var layout = new ProjectLayout(At("proj"), At("proj", "out"), WorkingDirectory, WorkingDirectory);
+
+        Assert.Equal(WorkingDirectory, layout.DirectoryHoldingProject());
+    }
+
+    [Fact]
     public void DirectoryHoldingProject_IgnoresADirectoryThatOnlySharesThePrefix()
     {
         var layout = new ProjectLayout(At("project"), At("proj"), At("project-bin"), WorkingDirectory);

@@ -76,8 +76,20 @@ public sealed class ManagedBlockTests
             merge.Text);
     }
 
+    [Fact]
+    public void Merge_CrlfFileWithStaleBlock_ReplacesOnlyBetweenTheMarkersAndKeepsCrlf()
+    {
+        var existing = "before\r\n" + ManagedBlock.BeginMarker + "\r\nold line\r\n" + ManagedBlock.EndMarker + "\r\nafter\r\n";
+
+        var merge = ManagedBlock.Merge(existing, Body);
+
+        Assert.Equal(ManagedBlockOutcome.Replaced, merge.Outcome);
+        Assert.Equal("before\r\n" + Block("\r\n") + "\r\nafter\r\n", merge.Text);
+    }
+
     [Theory]
     [InlineData("<!-- BEGIN MIST-MANAGED -->\nbody\n")]
+    [InlineData("# Rules\n  <!-- BEGIN MIST-MANAGED -->\nbody\n")]
     [InlineData("body\n<!-- END MIST-MANAGED -->\n")]
     [InlineData("<!-- END MIST-MANAGED -->\nbody\n<!-- BEGIN MIST-MANAGED -->\n")]
     [InlineData("<!-- BEGIN MIST-MANAGED -->\n<!-- END MIST-MANAGED -->\n<!-- BEGIN MIST-MANAGED -->\n<!-- END MIST-MANAGED -->\n")]
@@ -93,6 +105,7 @@ public sealed class ManagedBlockTests
     [Theory]
     [InlineData("@AGENTS.md", true)]
     [InlineData("# Rules\n\n@./AGENTS.md\n", true)]
+    [InlineData("# Rules\r\n\r\n@AGENTS.md\r\n", true)]
     [InlineData("Follow @AGENTS.md as well.", true)]
     [InlineData("Follow AGENTS.md as well.", false)]
     [InlineData("@docs/AGENTS.md", false)]

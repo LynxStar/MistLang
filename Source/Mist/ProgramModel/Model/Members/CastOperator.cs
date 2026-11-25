@@ -22,7 +22,7 @@ internal sealed class CastOperator(
     public bool IsImplicit { get; } = isImplicit;
 
     /// <summary>
-    /// A conversion between a newtype's clone and its copyable source, synthesized rather than declared
+    /// A conversion between a newtype's clone and its source, synthesized rather than declared
     /// (newtypes spec Requirements 2.4 and 2.5). It has no body: the copy is the backend's to write, and
     /// the implicit one is lossless, so <see cref="Construction.Binding.ConversionRelation"/> reads it as
     /// containment wherever C# carries it unaided.

@@ -9,8 +9,8 @@ namespace Mist.ProgramModel.Construction;
 /// <summary>
 /// Gives each type <see cref="CloneDerivation"/> derives the <c>Clone</c> and the <c>IClonable</c> conformance a
 /// declared one would have (ownership-v2 Requirement 8.13), before bodies bind, so a call, a constraint and an
-/// implicit clone all find them. The <c>Clone</c> is kept off the declared methods, which have bodies or are slots. Every decision is taken before any member is added,
-/// so none depends on the order the types are visited in.
+/// implicit clone all find them. The <c>Clone</c> is kept off the declared methods, which have bodies or are slots.
+/// Every decision is taken before any member is added, so none depends on the order the types are visited in.
 /// </summary>
 internal static class CloneSynthesis
 {

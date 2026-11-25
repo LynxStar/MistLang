@@ -80,4 +80,49 @@ public sealed class ContractImplicationTests
         Assert.True(ContractImplication.Proves(closed(3), closed(5)));
         Assert.False(ContractImplication.Proves(closed(5), closed(3)));
     }
+
+    [Fact]
+    public void ATupleIsProvenElementByElement()
+    {
+        var h = new HandBuiltRefinements();
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
+        var alsoPositive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "AlsoPositive");
+        var nonNegative = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L, "NonNegative");
+
+        Assert.True(ContractImplication.Proves(new TupleType([positive, h.Int]), new TupleType([alsoPositive, h.Int])));
+        Assert.True(ContractImplication.Invariant(new TupleType([positive, h.Int]), new TupleType([alsoPositive, h.Int])));
+        Assert.False(ContractImplication.Proves(new TupleType([nonNegative, h.Int]), new TupleType([positive, h.Int])));
+        Assert.False(ContractImplication.Proves(new TupleType([positive, h.Int]), new TupleType([alsoPositive, h.Int, h.Int])));
+    }
+
+    [Fact]
+    public void ElementNamesDoNotChangeWhatATupleProves()
+    {
+        var h = new HandBuiltRefinements();
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
+        var alsoPositive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "AlsoPositive");
+        var nonNegative = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L, "NonNegative");
+
+        NamedTupleType named(IMistType first)
+        {
+            return new NamedTupleType(new TupleType([first, h.Int]), ["count", "rest"]);
+        }
+
+        Assert.True(ContractImplication.Proves(named(positive), new TupleType([alsoPositive, h.Int])));
+        Assert.True(ContractImplication.Proves(new TupleType([positive, h.Int]), named(alsoPositive)));
+        Assert.False(ContractImplication.Proves(named(nonNegative), named(positive)));
+    }
+
+    [Fact]
+    public void AFunctionMustAcceptEveryArgumentAndKeepItsReturnPromise()
+    {
+        var h = new HandBuiltRefinements();
+        var positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "Positive");
+        var alsoPositive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "AlsoPositive");
+
+        Assert.True(ContractImplication.Proves(new FunctionType([positive], h.Int), new FunctionType([alsoPositive], h.Int)));
+        Assert.False(ContractImplication.Proves(new FunctionType([positive], h.Int), new FunctionType([alsoPositive, h.Int], h.Int)));
+        Assert.False(ContractImplication.Proves(new FunctionType([], h.Int), new FunctionType([], positive)));
+        Assert.False(ContractImplication.Proves(new FunctionType([positive], h.Int), new FunctionType([h.Int], h.Int)));
+    }
 }

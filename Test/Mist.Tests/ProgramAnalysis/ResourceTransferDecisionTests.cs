@@ -88,6 +88,29 @@ public sealed class ResourceTransferDecisionTests
     }
 
     [Fact]
+    public void ACallOnAFreshValueALiteralATypeAnExtensionCarrierOrAValueTypeAlwaysEnters()
+    {
+        var fresh = new NewExpression(HandBuiltModel.Node(), f.Box, [], null, [], null);
+        var literal = HandBuiltModel.Literal(f.Model.Type("String"), "text");
+        var type = new TypeReferenceExpression(HandBuiltModel.Node(), f.Box);
+        var lease = Ref(new LocalVariable("l", f.Lease));
+        var contract = Ref(new LocalVariable("c", new AbstractType("IBox", "Probe", new Scope(null), null, null)));
+        var carried = new Method("Carry", f.Void, [new Parameter("t", f.Token)], default)
+        {
+            DeclaringBlock = new ExtensionBlock("self", "Probe", new Scope(null), null),
+        };
+        var carrierCall = new InvocationExpression(HandBuiltModel.Node(),
+            new MemberAccessExpression(HandBuiltModel.Node(), Ref(new LocalVariable("b", f.Box)), carried.Name, f.Void), [], f.Void, carried, [f.Token]);
+
+        Assert.Equal(CallEntry.Certain, CallEntries.Of(f.CallOn(fresh, conditional: false), _ => false));
+        Assert.Equal(CallEntry.Certain, CallEntries.Of(f.CallOn(literal, conditional: false), _ => false));
+        Assert.Equal(CallEntry.Certain, CallEntries.Of(f.CallOn(type, conditional: false), _ => false));
+        Assert.Equal(CallEntry.Certain, CallEntries.Of(carrierCall, _ => false));
+        Assert.Equal(CallEntry.Certain, CallEntries.Of(f.CallOn(lease, conditional: false), _ => false));
+        Assert.Equal(CallEntry.Absentable, CallEntries.Of(f.CallOn(contract, conditional: false), _ => false));
+    }
+
+    [Fact]
     public void OnlyAFreshValuePassedToAFrozenOrBorrowedParameterIsLent()
     {
         var borrowed = new Method("Borrow", f.Void, [Owned("t", f.Token, OwnershipKind.Borrowed)], new MemberModifiers { IsStatic = true }) { DeclaringType = f.Sink };

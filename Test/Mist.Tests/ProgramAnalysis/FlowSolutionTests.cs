@@ -60,6 +60,41 @@ public sealed class FlowSolutionTests
         Assert.Equal(10, solution.AtExit);
     }
 
+    [Fact]
+    public void AnUnreachedLatchAddsNothingToItsLoopHeadersIncomingState()
+    {
+        string[] created = ["entry", "outer", "pre", "inner", "body", "after", "latch", "exit"];
+        var blocks = created.Select((label, ordinal) => (label, block: new FlowBlock(ordinal))).ToDictionary(pair => pair.label, pair => pair.block);
+        foreach(var (label, block) in blocks)
+        {
+            block.Steps.Add(new FlowStep(FlowStepKind.Evaluate, label));
+        }
+
+        (string From, string To)[] edges =
+        [
+            ("entry", "outer"), ("outer", "pre"), ("outer", "exit"), ("pre", "inner"), ("inner", "body"), ("inner", "after"),
+            ("body", "after"), ("latch", "inner"), ("after", "outer"),
+        ];
+        foreach(var (from, to) in edges)
+        {
+            blocks[from].Successors.Add(blocks[to]);
+        }
+
+        var graph = new FlowGraph(blocks["entry"], blocks["exit"], [.. created.Select(label => blocks[label])],
+            [new FlowLoop(blocks["outer"], blocks["after"], null!), new FlowLoop(blocks["inner"], blocks["latch"], null!)],
+            new Dictionary<object, FlowGraph>());
+        var lattice = new Labels();
+
+        var solution = FlowSolution<ImmutableSortedSet<string>>.Solve(graph, lattice, ImmutableSortedSet.Create<string>(StringComparer.Ordinal));
+
+        string[] outerPass = ["after", "body", "entry", "inner", "outer", "pre"];
+        Assert.Equal(["outer", "inner"], lattice.Incoming.Select(widened => widened.Header).ToArray());
+        Assert.Equal(["entry"], lattice.Incoming[0].State);
+        Assert.Equal(outerPass, lattice.Incoming[1].State);
+        Assert.False(solution.Reaches(blocks["latch"]));
+        Assert.Equal(outerPass, solution.At(blocks["inner"]).ToArray());
+    }
+
     private sealed class Counting : IFlowLattice<int>
     {
         public List<int> Rounds { get; } = [];
@@ -124,6 +159,7 @@ public sealed class FlowSolutionTests
     private sealed class Labels : IFlowLattice<ImmutableSortedSet<string>>
     {
         public List<string> Visits { get; } = [];
+        public List<(string Header, string[] State)> Incoming { get; } = [];
 
         public ImmutableSortedSet<string> Join(ImmutableSortedSet<string> left, ImmutableSortedSet<string> right)
         {
@@ -140,6 +176,12 @@ public sealed class FlowSolutionTests
             var label = (string)step.Node;
             Visits.Add(label);
             return state.Add(label);
+        }
+
+        public ImmutableSortedSet<string> PrepareWiden(ImmutableSortedSet<string> joined, ImmutableSortedSet<string> incoming, FlowBlock header)
+        {
+            Incoming.Add(((string)header.Steps[0].Node, [.. incoming]));
+            return joined;
         }
     }
 }

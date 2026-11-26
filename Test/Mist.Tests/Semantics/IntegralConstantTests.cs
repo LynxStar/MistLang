@@ -1,6 +1,7 @@
 using System.Globalization;
 using Mist.ProgramModel;
 using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Types;
@@ -75,6 +76,31 @@ public sealed class IntegralConstantTests
         Assert.Null(IntegralConstant.Fold(Binary(Literal(2U, UInt32), BinaryOperatorKind.Subtract, Literal(3U, UInt32), UInt32)));
         Assert.Null(IntegralConstant.Fold(Binary(Literal(ulong.MaxValue, UInt64), BinaryOperatorKind.Multiply, Literal(ulong.MaxValue, UInt64), UInt64)));
         Assert.Null(IntegralConstant.Fold(Binary(Literal(1), BinaryOperatorKind.Divide, Literal(0), Int32)));
+    }
+
+    [Fact]
+    public void ALocalTimesZero_IsNoConstant()
+    {
+        var local = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("value", UInt64));
+        var product = Binary(local, BinaryOperatorKind.Multiply, Literal(0UL, UInt64), UInt64);
+
+        Assert.Null(IntegralConstant.Fold(product));
+    }
+
+    [Fact]
+    public void RemainderWithAZeroDivisor_IsNoConstant()
+    {
+        var remainder = Binary(Literal(7), BinaryOperatorKind.Modulo, Literal(0), Int32);
+
+        Assert.Null(IntegralConstant.Fold(remainder));
+    }
+
+    [Fact]
+    public void TheLargestUnsignedConstantTimesZero_FoldsToZero()
+    {
+        var product = Binary(Literal(ulong.MaxValue, UInt64), BinaryOperatorKind.Multiply, Literal(0UL, UInt64), UInt64);
+
+        Assert.Equal((Int128)0, IntegralConstant.Fold(product));
     }
 
     [Fact]

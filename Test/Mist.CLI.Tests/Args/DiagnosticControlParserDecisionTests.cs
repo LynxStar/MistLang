@@ -64,6 +64,17 @@ public sealed class DiagnosticControlParserDecisionTests
     }
 
     [Theory]
+    [InlineData("--disable")]
+    [InlineData("--enable")]
+    public void RepeatingTheSameSwitchPreservesBothNumbers(string flag)
+    {
+        var parsed = DiagnosticControlParser.Parse([flag, "MIST9004", flag, "MIST9005"], Find);
+
+        Assert.Null(parsed.Error);
+        Assert.Equal(["MIST9004", "MIST9005"], Values(Switched(parsed.Controls.Policy!, flag)));
+    }
+
+    [Theory]
     [InlineData("--diagnostic-format")]
     [InlineData("--diagnostic-file")]
     [InlineData("--min-severity")]

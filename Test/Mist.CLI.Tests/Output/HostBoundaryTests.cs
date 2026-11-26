@@ -9,6 +9,24 @@ namespace Mist.CLI.Tests.Output;
 public sealed class HostBoundaryTests
 {
     [Fact]
+    public void RunPreservesTheChildExitAfterSuccessfulDiagnosticCompletion()
+    {
+        using var stderr = new StringWriter();
+        var controls = new DiagnosticControls(DiagnosticFormat.Json);
+        var parsed = new CliParseResult(new CliArguments("project", Command: CliCommand.Run), [], controls);
+
+        var exit = CliHost.Run([], (_, output) =>
+        {
+            output.Complete(true);
+            return 7;
+        }, stderr, _ => parsed);
+
+        Assert.Equal(7, exit);
+        using var document = JsonDocument.Parse(stderr.ToString());
+        Assert.Equal("succeeded", document.RootElement.GetProperty("outcome").GetString());
+    }
+
+    [Fact]
     public void ThrowingCommandCompletesActiveJsonWithOneIceAndSnapshottedCauseAndStack()
     {
         using var stdout = new StringWriter();

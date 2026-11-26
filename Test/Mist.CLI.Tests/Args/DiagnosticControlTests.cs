@@ -112,8 +112,21 @@ public sealed class DiagnosticControlTests
         Assert.False(disabled.IsEnabled(Optional));
     }
 
-    private static MistDiagnostic? Find(string number)
+    internal static MistDiagnostic? Find(string number)
     {
         return new[] { Info, Warning, Fixed, Optional }.FirstOrDefault(d => d.Number.Value == number);
+    }
+}
+
+[Trait("Tier", "1")]
+public sealed class DiagnosticControlMixedPromotionTests
+{
+    [Fact]
+    public void PromotionListRejectsAFixedSelectorAfterAPromotableSelector()
+    {
+        var parsed = DiagnosticControlParser.Parse(["--warnings-as-errors", "MIST9002,MIST9003"], DiagnosticControlTests.Find);
+
+        Assert.Contains("MIST9003", parsed.Error);
+        Assert.Contains("Fixed", parsed.Error);
     }
 }

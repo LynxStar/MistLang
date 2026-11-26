@@ -69,6 +69,20 @@ public sealed class DiagnosticControlParserDecisionTests
     }
 
     [Theory]
+    [InlineData("--enable", "MIST9004", null)]
+    [InlineData("--disable", null, "MIST9004")]
+    public void DiagnosticTogglePreservesEarlierBarePromotion(string flag, string? enabled, string? disabled)
+    {
+        var parsed = DiagnosticControlParser.Parse(["--warnings-as-errors", flag, "MIST9004"], Find);
+
+        Assert.Null(parsed.Error);
+        var policy = Assert.IsType<DiagnosticPolicyOverrides>(parsed.Controls.Policy);
+        Assert.True(policy.PromoteAll);
+        Assert.Equal(enabled is null ? [] : [enabled], Values(policy.Enabled));
+        Assert.Equal(disabled is null ? [] : [disabled], Values(policy.Disabled));
+    }
+
+    [Theory]
     [InlineData("--disable", "--enable")]
     [InlineData("--enable", "--disable")]
     public void TheLaterSwitchMovesOnlyItsNumber(string first, string later)

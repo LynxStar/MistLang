@@ -65,6 +65,23 @@ public sealed class InspectFeedbackTests
     }
 
     [Fact]
+    public void AFrameworkErrorAfterAPackageWarning_IsReportedOnceAndFailsInspection()
+    {
+        var reported = new List<Diagnostic>();
+        var feedback = new InspectFeedback(reported.Add);
+
+        feedback.Report([Warning]);
+
+        Assert.Equal([Warning], reported);
+        Assert.False(feedback.Failed);
+
+        feedback.Report([Warning, Framework]);
+
+        Assert.Equal([Warning, Framework], reported);
+        Assert.True(feedback.Failed);
+    }
+
+    [Fact]
     public void NoDiagnostics_WritesNothing()
     {
         using var error = new StringWriter();

@@ -130,3 +130,17 @@ public sealed class DiagnosticControlMixedPromotionTests
         Assert.Contains("Fixed", parsed.Error);
     }
 }
+
+[Trait("Tier", "1")]
+public sealed class DiagnosticControlMixedToggleTests
+{
+    [Theory]
+    [InlineData("--enable")]
+    [InlineData("--disable")]
+    public void ToggleListRejectsAPromotableSelectorAfterAnOptionalSelector(string flag)
+    {
+        var parsed = DiagnosticControlParser.Parse([flag, "MIST9004,MIST9002"], DiagnosticControlTests.Find);
+
+        Assert.Contains("Diagnostic 'MIST9002' has policy Promotable", parsed.Error);
+    }
+}

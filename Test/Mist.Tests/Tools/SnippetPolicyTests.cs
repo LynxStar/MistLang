@@ -18,6 +18,30 @@ public sealed class SnippetPolicyTests
         Assert.True(options.List);
     }
 
+    [Fact]
+    public void SeparatorKeepsOptionShapedSelectorsAndEarlierOptions()
+    {
+        var options = SnippetOptions.Parse([
+            "chapter", "--jobs", "2", "--timings",
+            "--",
+            "--jobs", "7", "--list", "--help", "-h", "--job", "--", "-Draft.MIST",
+        ]);
+
+        Assert.Equal(["chapter", "--jobs", "7", "--list", "--help", "-h", "--job", "--", "-Draft.MIST"], options.Paths);
+        Assert.Equal(2, options.Jobs);
+        Assert.True(options.Timings);
+        Assert.False(options.List);
+        Assert.False(options.Help);
+    }
+
+    [Fact]
+    public void ShortHelpOptionEnablesHelp()
+    {
+        var options = SnippetOptions.Parse(["-h"]);
+
+        Assert.True(options.Help);
+    }
+
     [Theory]
     [InlineData("0")]
     [InlineData("-1")]
@@ -32,6 +56,14 @@ public sealed class SnippetPolicyTests
     {
         _ = Assert.Throws<ArgumentException>(() => SnippetOptions.Parse(["--jobs"]));
         _ = Assert.Throws<ArgumentException>(() => SnippetOptions.Parse(["--job", "2"]));
+    }
+
+    [Fact]
+    public void UnknownFlagBeforeSeparatorIsRefused()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => SnippetOptions.Parse(["--job", "--", "chapter"]));
+
+        Assert.Equal("Unknown option: --job", exception.Message);
     }
 
     [Fact]

@@ -28,6 +28,45 @@ public sealed class DiagnosticOutputTests
     }
 
     [Fact]
+    public void FailedDocumentWriteEscapesAndRecoveryAddsOnlyTheHostFailureToStderr()
+    {
+        using var error = new StringWriter();
+        var failure = new IOException("Diagnostic document write failed");
+        var writeAttempts = 0;
+        var output = new DiagnosticOutput(error, DiagnosticFormat.Json, documentFile: _ =>
+        {
+            writeAttempts++;
+            throw failure;
+        });
+        var location = new Absent(AbsenceReason.Unavailable);
+        var earlier = new DiagnosticBag(output.Operation);
+        earlier.ReportAt(DiagnosticFixtures.Descriptor("MIST9001", "earlier warning", DiagnosticSeverity.Warning), location);
+        output.Collect(earlier.Admitted);
+
+        Assert.Same(failure, Assert.Throws<IOException>(() => output.Complete(true)));
+        const string warning = "warning MIST9001: earlier warning";
+        var earlierOutput = warning + Environment.NewLine;
+        Assert.Equal(earlierOutput, error.ToString());
+
+        var host = new DiagnosticBag(output.Operation);
+        var details = new SequenceValue(SlotKind.Text,
+            [new TextValue("System.IO.IOException"), new TextValue(failure.Message), new TextValue("")]);
+        host.Admit(DiagnosticFactory.Create(HostDiagnostics.UnhandledException, location, PipelineStage.Driver, [details]));
+        output.ReportHostFailure(host.Admitted[0]);
+        Assert.Equal(earlierOutput, error.ToString());
+        output.Complete(false, outcome: "internalFailure");
+
+        Assert.Equal(1, writeAttempts);
+        Assert.Collection(error.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries),
+            line => Assert.Equal(warning, line),
+            line =>
+            {
+                Assert.StartsWith("error MIST0423: Internal compiler error:", line);
+                Assert.Contains(failure.Message, line);
+            });
+    }
+
+    [Fact]
     public void FilterDoesNotChangeSummaryOrFailureAndQuietDoesNotHideErrors()
     {
         using var error = new StringWriter();

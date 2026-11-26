@@ -53,6 +53,22 @@ public sealed class DiagnosticControlParserDecisionTests
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData("MIST9001")]
+    public void PromotionPreservesEarlierDiagnosticToggles(string? promotedNumber)
+    {
+        string[] args = ["--enable", "MIST9004", "--disable", "MIST9005", "--warnings-as-errors"];
+        var parsed = DiagnosticControlParser.Parse(promotedNumber is null ? args : [.. args, promotedNumber], Find);
+
+        Assert.Null(parsed.Error);
+        var policy = Assert.IsType<DiagnosticPolicyOverrides>(parsed.Controls.Policy);
+        Assert.Equal(promotedNumber is null, policy.PromoteAll);
+        Assert.Equal(promotedNumber is null ? [] : [promotedNumber], Values(policy.Promoted));
+        Assert.Equal(["MIST9004"], Values(policy.Enabled));
+        Assert.Equal(["MIST9005"], Values(policy.Disabled));
+    }
+
+    [Theory]
     [InlineData("--disable", "--enable")]
     [InlineData("--enable", "--disable")]
     public void TheLaterSwitchMovesOnlyItsNumber(string first, string later)

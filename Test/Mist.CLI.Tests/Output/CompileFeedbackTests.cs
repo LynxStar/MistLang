@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Mist.CLI.Output;
 using Mist.Common.Diagnostics;
 using Mist.Driver.Contracts;
@@ -168,6 +169,44 @@ public sealed class CompileFeedbackTests
 
         Assert.Equal(Formatted(warning), Lines(error));
         Assert.Equal(0, exit);
+    }
+
+    [Fact]
+    public void AStreamedPromotedWarningFailsTheCommandAndAppearsOnceInJson()
+    {
+        using var error = new StringWriter();
+        var output = new DiagnosticOutput(error, DiagnosticFormat.Json, command: "test");
+        output.Operation.Policy = DiagnosticPolicy.Default with { PromoteAllWarnings = true };
+        var bag = new DiagnosticBag(output.Operation);
+        bag.ReportTyped(DriverDiagnostics.TestFrameworkPackageMissing, new ProjectLocation("mist.toml", null));
+        var warning = Assert.Single(bag.Admitted);
+        var launched = false;
+
+        var exit = new CompileFeedback(NullProgressReporter.Instance, output).Run(
+            listener =>
+            {
+                listener.Receive(warning);
+                Assert.Equal(1, output.Counts.Errors);
+                return new CompilerResult(true, "bin/Probe.dll", [warning]);
+            },
+            Stopwatch.StartNew(),
+            _ => Launch(ref launched));
+
+        Assert.False(launched);
+        Assert.Equal(1, exit);
+        using var document = JsonDocument.Parse(error.ToString());
+        var root = document.RootElement;
+        Assert.Equal("failed", root.GetProperty("outcome").GetString());
+        var counts = root.GetProperty("counts");
+        Assert.Equal(1, counts.GetProperty("errors").GetInt32());
+        Assert.Equal(0, counts.GetProperty("warnings").GetInt32());
+
+        var finding = Assert.Single(root.GetProperty("diagnostics").EnumerateArray());
+        Assert.Equal("MIST0102", finding.GetProperty("code").GetString());
+        Assert.Equal(warning.Ordinal, finding.GetProperty("ordinal").GetInt32());
+        var severity = finding.GetProperty("severity");
+        Assert.Equal("warning", severity.GetProperty("default").GetString());
+        Assert.Equal("error", severity.GetProperty("effective").GetString());
     }
 
     [Fact]

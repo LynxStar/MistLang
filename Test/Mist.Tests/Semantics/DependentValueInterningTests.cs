@@ -43,10 +43,11 @@ public sealed class DependentValueInterningTests
     public void PacksWithNamesakeElementsLiftToDistinctValues()
     {
         var namesake = HandBuiltModel.Class("Int32");
-        var original = interner.LiftPack(packDomain, new TypePackValue([text, integer]));
-        var different = interner.LiftPack(packDomain, new TypePackValue([text, namesake]));
+        var originalPack = new TypePackValue([text, integer]);
+        var namesakePack = new TypePackValue([text, namesake]);
 
-        Assert.NotSame(original, different);
+        Assert.False(originalPack.Equals(namesakePack));
+        Assert.NotSame(interner.LiftPack(packDomain, originalPack), interner.LiftPack(packDomain, namesakePack));
     }
 
     [Fact]

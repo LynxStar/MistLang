@@ -84,6 +84,35 @@ public sealed class DiagnosticOutputTests
     }
 
     [Fact]
+    public void DefaultTextWithDocumentSinkHidesWarningOnlyOnStderr()
+    {
+        using var error = new StringWriter();
+        var documents = new List<byte[]>();
+        var output = new DiagnosticOutput(error, minimum: DiagnosticSeverity.Error, documentFile: documents.Add);
+        var bag = new DiagnosticBag(output.Operation);
+        var location = new Absent(AbsenceReason.TestOrigin);
+        bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9001", "filtered warning", DiagnosticSeverity.Warning), location);
+        bag.ReportAt(DiagnosticFixtures.Descriptor("MIST9002", "build failure", DiagnosticSeverity.Error), location);
+        output.Collect(bag.Admitted);
+
+        output.Complete(false);
+
+        Assert.Equal("error MIST9002: build failure" + Environment.NewLine, error.ToString());
+        using var json = JsonDocument.Parse(Assert.Single(documents));
+        var diagnostics = json.RootElement.GetProperty("diagnostics");
+        Assert.Equal(2, diagnostics.GetArrayLength());
+        var warning = Assert.Single(diagnostics.EnumerateArray(), d => d.GetProperty("code").GetString() == "MIST9001");
+        var failure = Assert.Single(diagnostics.EnumerateArray(), d => d.GetProperty("code").GetString() == "MIST9002");
+        Assert.False(warning.GetProperty("visible").GetBoolean());
+        Assert.True(failure.GetProperty("visible").GetBoolean());
+        var counts = json.RootElement.GetProperty("counts");
+        Assert.Equal(2, counts.GetProperty("admitted").GetInt32());
+        Assert.Equal(1, counts.GetProperty("warnings").GetInt32());
+        Assert.Equal(1, counts.GetProperty("errors").GetInt32());
+        Assert.Equal(1, counts.GetProperty("hidden").GetInt32());
+    }
+
+    [Fact]
     public void JsonBuffersStreamedFindingsUntilCompletion()
     {
         using var error = new StringWriter();

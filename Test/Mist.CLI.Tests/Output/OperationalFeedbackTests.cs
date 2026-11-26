@@ -29,6 +29,48 @@ public sealed class OperationalFeedbackTests
         Assert.Equal("--missing", finding.GetProperty("arguments").GetProperty("flag").GetString());
     }
 
+    [Fact]
+    public void UnsafeCleanRejectionSurvivesInTheCompletedJsonDocument()
+    {
+        const string directory = "workspace";
+        const string project = "workspace/app";
+        const string manifest = "workspace/app/mist.toml";
+        using var error = new StringWriter();
+        var output = new DiagnosticOutput(error, DiagnosticFormat.Json);
+
+        CommandFeedback.Report(output, CommandDiagnostics.UnsafeCleanDirectory, new ProjectLocation(manifest, null),
+            new PathValue(directory), new PathValue(project));
+
+        Assert.Equal(1, output.Operation.Admitted);
+        Assert.Empty(error.ToString());
+        output.Complete(false);
+
+        using var document = JsonDocument.Parse(error.ToString());
+        var root = document.RootElement;
+        Assert.Equal("failed", root.GetProperty("outcome").GetString());
+        var counts = root.GetProperty("counts");
+        Assert.Equal(1, counts.GetProperty("admitted").GetInt32());
+        Assert.Equal(1, counts.GetProperty("errors").GetInt32());
+        Assert.Equal(0, counts.GetProperty("warnings").GetInt32());
+        Assert.Equal(0, counts.GetProperty("info").GetInt32());
+        Assert.Equal(0, counts.GetProperty("hidden").GetInt32());
+
+        var finding = Assert.Single(root.GetProperty("diagnostics").EnumerateArray());
+        Assert.Equal(1, finding.GetProperty("ordinal").GetInt32());
+        Assert.Equal("MIST0446", finding.GetProperty("code").GetString());
+        Assert.Equal("driver", finding.GetProperty("stage").GetString());
+        Assert.Equal("error", finding.GetProperty("severity").GetProperty("effective").GetString());
+        Assert.True(finding.GetProperty("visible").GetBoolean());
+
+        var arguments = finding.GetProperty("arguments");
+        Assert.Equal(directory, arguments.GetProperty("directory").GetString());
+        Assert.Equal(project, arguments.GetProperty("project").GetString());
+        var location = finding.GetProperty("location");
+        Assert.Equal("project", location.GetProperty("kind").GetString());
+        Assert.Equal(manifest, location.GetProperty("path").GetString());
+        Assert.Equal(JsonValueKind.Null, location.GetProperty("keySpan").ValueKind);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

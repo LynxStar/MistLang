@@ -45,6 +45,21 @@ public sealed class SnippetFilesTests : IDisposable
     }
 
     [Fact]
+    public void CompanionDirectivesAreReadOnlyFromTheLeadingHeader()
+    {
+        var main = Write("main.mist", """
+            using Standard;
+            // with: header.mist
+            namespace Demo;
+            // with: late.mist
+            """);
+        var header = Write("header.mist", "namespace Demo;\n");
+        _ = Write("late.mist", "namespace Demo;\n");
+
+        Assert.Equal([header], SnippetCompiler.Companions(main));
+    }
+
+    [Fact]
     public void FailedValidationPreservesTheExistingTwin()
     {
         var path = Write("example.mist", "");

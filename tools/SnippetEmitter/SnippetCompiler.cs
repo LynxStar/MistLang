@@ -72,6 +72,17 @@ internal sealed class SnippetCompiler
         return found;
     }
 
+    internal static string? SelectEmittedPath(string mistFileName, IEnumerable<string> emittedPaths)
+    {
+        var expectedCsName = Path.ChangeExtension(mistFileName, ".cs");
+        var candidates = emittedPaths
+            .Where(path => !Path.GetFileName(path).StartsWith("__", StringComparison.Ordinal))
+            .OrderBy(path => path)
+            .ToList();
+
+        return candidates.FirstOrDefault(path => Path.GetFileName(path) == expectedCsName) ?? candidates.FirstOrDefault();
+    }
+
     private string? EmitSnippet(string mistPath)
     {
         var preparation = Stopwatch.StartNew();
@@ -180,21 +191,8 @@ internal sealed class SnippetCompiler
 
             // The emitted file is named after the .mist file and sits under the assembly's folder; the
             // rest of the output is runtime support the book does not show.
-            var expectedCsName = Path.ChangeExtension(fileName, ".cs");
-            var emitted = Directory.GetFiles(outputDir, "*.cs", SearchOption.AllDirectories)
-                .Where(path => !Path.GetFileName(path).StartsWith("__", StringComparison.Ordinal))
-                .OrderBy(path => path)
-                .ToList();
-
-            var expectedCsPath = emitted.FirstOrDefault(path => Path.GetFileName(path) == expectedCsName);
-            if(expectedCsPath is not null)
-            {
-                return File.ReadAllText(expectedCsPath);
-            }
-
-            var candidates = emitted;
-
-            if(candidates.Count == 0)
+            var emittedPath = SelectEmittedPath(fileName, Directory.GetFiles(outputDir, "*.cs", SearchOption.AllDirectories));
+            if(emittedPath is null)
             {
                 var produced = Directory.Exists(outputDir)
                     ? string.Join(", ", Directory.GetFiles(outputDir, "*", SearchOption.AllDirectories).Select(Path.GetFileName).OrderBy(name => name))
@@ -203,7 +201,7 @@ internal sealed class SnippetCompiler
                 return null;
             }
 
-            return File.ReadAllText(candidates[0]);
+            return File.ReadAllText(emittedPath);
         }
         catch(Exception ex)
         {

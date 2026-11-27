@@ -32,6 +32,28 @@ public sealed class ConstructedBaseSubstitutionTests
     }
 
     [Fact]
+    public void AClosedOuterCarriesTheStillOpenMiddleParameterIntoANestedMemberType()
+    {
+        var built = new HandBuiltModel();
+        var outer = Generic("Outer<>", null, "T");
+        var middle = Generic("Middle<>", outer, "U");
+        var leaf = Generic("Leaf", middle);
+        var integer = built.Type("Int32");
+        var substitution = TypeSubstitution.ForReceiver(new ConstructedType(outer, [integer]));
+
+        var result = Assert.IsType<ConstructedType>(substitution.Apply(leaf, interner: null));
+
+        Assert.Same(leaf, result.Definition);
+        Assert.Empty(result.TypeArguments);
+        var closedMiddle = Assert.IsType<ConstructedType>(result.Enclosing);
+        Assert.Same(middle, closedMiddle.Definition);
+        Assert.Same(middle.TypeParametersList[0], Assert.Single(closedMiddle.TypeArguments));
+        var closedOuter = Assert.IsType<ConstructedType>(closedMiddle.Enclosing);
+        Assert.Same(outer, closedOuter.Definition);
+        Assert.Same(integer, Assert.Single(closedOuter.TypeArguments));
+    }
+
+    [Fact]
     public void ABaseClosesItsEnclosingAndOwnArgumentsThroughTheReceiver()
     {
         var built = new HandBuiltModel();

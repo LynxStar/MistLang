@@ -1,5 +1,6 @@
 using Mist.ProgramAnalysis;
 using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Enums;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
@@ -33,28 +34,39 @@ public sealed class ReadonlyFunctionValueInferenceTests
     [InlineData(false, true, true)]
     [InlineData(true, true, false)]
     [InlineData(true, false, true)]
-    public void CallingAKnownPlainLambdaUsesItsBodyEffect(bool writesCapturedArray, bool invokesCallback, bool expectedReadonly)
+    public void CallingAKnownPlainLambdaIncludesItsScopeExitEffect(bool declaresTicket, bool invokesCallback, bool expectedReadonly)
     {
         var model = new HandBuiltModel();
         var integer = model.Type("Int32");
         var function = new FunctionType([], integer);
-        var arrayType = model.Interner.GetOrCreateConstructedType(model.Type("Array<,>"), [integer, new LiftedType(integer, 1L)]);
-        var buffer = new LocalVariable("buffer", arrayType);
-        var zero = HandBuiltModel.Literal(integer, 0L);
-        var array = new ArrayLiteralExpression(HandBuiltModel.Node(), integer, [zero], arrayType);
-        var element = new IndexExpression(HandBuiltModel.Node(), Reference(buffer), zero, integer);
-        var read = new ReturnStatement(element, integer);
-        var write = new ExpressionStatement(new AssignmentExpression(HandBuiltModel.Node(), element, HandBuiltModel.Literal(integer, 1L), integer));
-        var lambdaBody = writesCapturedArray ? HandBuiltModel.Block(write, read) : HandBuiltModel.Block(read);
+        var ticket = HandBuiltModel.Class("Ticket");
+        ticket.Modifiers = new MemberModifiers { Discipline = SubstructuralDiscipline.Linear };
+        var closed = new Field("closed", integer, OwnershipKind.Unrestricted, new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = ticket,
+            Initializer = HandBuiltModel.Literal(integer, 0L),
+        };
+        ticket.FieldsList.Add(closed);
+        var write = new AssignmentExpression(HandBuiltModel.Node(), new FieldReferenceExpression(HandBuiltModel.Node(), closed),
+            HandBuiltModel.Literal(integer, 1L), integer);
+        ticket.MethodsList.Add(new Method("Drop", model.Type("Void"), [], new MemberModifiers { Accessibility = Accessibility.Public })
+        {
+            DeclaringType = ticket,
+            Body = HandBuiltModel.Block(new ExpressionStatement(write)),
+        });
+
+        var read = new ReturnStatement(new FieldReferenceExpression(HandBuiltModel.Node(), closed), integer);
+        var declaration = new LocalDeclarationStatement(new LocalVariable("ticket", ticket),
+            new NewExpression(HandBuiltModel.Node(), ticket, [], null, [], []));
+        var lambdaBody = declaresTicket ? HandBuiltModel.Block(declaration, read) : HandBuiltModel.Block(read);
         var lambda = new LambdaExpression(HandBuiltModel.Node(), [], null, lambdaBody, false, function);
         var callback = new LocalVariable("callback", function);
-        var caller = new Method("Run", integer, [], default)
+        var caller = new Method("Run", integer, [], new MemberModifiers { IsStatic = true })
         {
-            DeclaringType = HandBuiltModel.Class("Runner"),
+            DeclaringType = ticket,
             Body = HandBuiltModel.Block(
-                new LocalDeclarationStatement(buffer, array),
                 new LocalDeclarationStatement(callback, lambda),
-                invokesCallback ? Invoke(callback, function) : new ReturnStatement(zero, integer)),
+                invokesCallback ? Invoke(callback, function) : new ReturnStatement(HandBuiltModel.Literal(integer, 0L), integer)),
         };
 
         Assert.Equal(expectedReadonly, new ReadonlyInference().IsReadonly(caller));

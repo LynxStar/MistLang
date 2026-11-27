@@ -34,6 +34,19 @@ public sealed class SnippetFilesTests : IDisposable
         _ = Assert.Throws<ArgumentException>(() => SnippetSelection.Resolve([root]));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ExplicitOrphanIsRefusedInMixedSelection(bool orphanFirst)
+    {
+        var orphan = Write("orphan.mist", "");
+        var paired = Write("example.mist", "");
+        _ = Write("example.cs", "");
+        string[] paths = orphanFirst ? [orphan, paired] : [paired, orphan];
+
+        _ = Assert.Throws<ArgumentException>(() => SnippetSelection.Resolve(paths));
+    }
+
     [Fact]
     public void CompanionTraversalIsTransitiveAndTerminatesOnCycles()
     {

@@ -40,6 +40,16 @@ public sealed class TupleNameRowsTests
     }
 
     [Fact]
+    public void NamedAndUnnamedRowsWithTheSameSignatureYieldNoNames()
+    {
+        const string key = "Pair";
+        (string Key, string?[]? Names) named = (key, ["Left", "Right"]);
+
+        Expect(["Left", "Right"], TupleNameRows.Matching(key, [named]));
+        Assert.Null(TupleNameRows.Matching(key, [named, (key, null)]));
+    }
+
+    [Fact]
     public void AttributeValuesDecodeEveryNameAndEveryAbsentOne()
     {
         Expect(["Key", "Value"], Decode(Value(1, ["Key", "Value"])));

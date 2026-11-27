@@ -101,6 +101,17 @@ public class SourceTextTests
     }
 
     [Fact]
+    [Trait("Tier", "1")]
+    public void ToLinePositionSpan_ZeroWidthAtEndOfFileAfterTerminalCarriageReturn()
+    {
+        var source = new Mist.Common.Source.SourceText("test.mist", "abc\r");
+        var eof = new SourceSpan(4, 0);
+        var expected = new LinePosition(2, 1);
+
+        Assert.Equal(new LinePositionSpan(expected, expected), source.ToLinePositionSpan(eof));
+    }
+
+    [Fact]
     public void ToLinePositionSpan_WindowsLineEndings()
     {
         var source = new Mist.Common.Source.SourceText("test.mist", "ab\r\ncd");

@@ -1,8 +1,8 @@
 // Every intrinsic declaration in the real Standard sources is classified against real CLR metadata, so a
 // promise the backend cannot keep fails here rather than as a Roslyn error in a user's build.
 
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
-using Mist.Backends.CSharpTranspiler.AmbientProvider;
 using Mist.Backends.CSharpTranspiler.Emitter;
 using Mist.Backends.CSharpTranspiler.Lowering;
 using Mist.Common.Diagnostics;
@@ -12,34 +12,12 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Backend;
 
 [Trait("Tier", "4")]
-public sealed class IntrinsicSupplyTests : IDisposable
+public sealed class IntrinsicSupplyTests(StandardIntrinsicFixture fixture) : IClassFixture<StandardIntrinsicFixture>
 {
-    private readonly AmbientTypeProviderV2 metadata;
-
-    public IntrinsicSupplyTests()
-    {
-        metadata = AmbientProviderTestHelper.ProviderOver(
-            new DiagnosticBag(),
-            typeof(object).Assembly.Location,
-            typeof(Console).Assembly.Location,
-            typeof(Regex).Assembly.Location);
-    }
-
-    public void Dispose()
-    {
-        metadata.Dispose();
-    }
-
-    private Type? FindClrType(string fullName)
-    {
-        return metadata.FindClrType(fullName);
-    }
-
     [Fact]
     public void AMistBodiedMemberOfAnIntrinsicTypeIsCarriedOnTheBackingType()
     {
-        var model = StandardModelProbe.Build("", out _);
-        var int32 = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Standard.Int32"]);
+        var int32 = fixture.Int32;
         var writer = new CSharpWriter();
         var diagnostics = new DiagnosticBag();
 
@@ -59,7 +37,7 @@ public sealed class IntrinsicSupplyTests : IDisposable
     [Fact]
     public void EveryIntrinsicStandardDeclaresIsSupplied()
     {
-        var audit = IntrinsicSupply.Audit(StandardModelProbe.Build("", out _), FindClrType);
+        var audit = fixture.Audit;
         var missing = audit.Where(entry => entry.Kind == IntrinsicSupply.Kind.Missing).Select(entry => entry.Description).ToList();
 
         Assert.NotEmpty(audit);
@@ -91,9 +69,28 @@ public sealed class IntrinsicSupplyTests : IDisposable
     [InlineData("Standard.Array<TValue, Length>.new(func<int, TValue>)", "Respelled")]
     public void ReadsEachKindOfSupply(string member, string kind)
     {
-        var audit = IntrinsicSupply.Audit(StandardModelProbe.Build("", out _), FindClrType);
+        var audit = fixture.Audit;
         var entry = Assert.Single(audit, candidate => candidate.Description == member);
 
         Assert.Equal(Enum.Parse<IntrinsicSupply.Kind>(kind), entry.Kind);
+    }
+}
+
+public sealed class StandardIntrinsicFixture
+{
+    internal ConcreteType Int32 { get; }
+    internal ImmutableArray<(string Description, IntrinsicSupply.Kind Kind)> Audit { get; }
+
+    public StandardIntrinsicFixture()
+    {
+        var model = StandardModelProbe.Build("", out _);
+        Int32 = Assert.IsAssignableFrom<ConcreteType>(model.TypesByFQN["Standard.Int32"]);
+
+        using var metadata = AmbientProviderTestHelper.ProviderOver(
+            new DiagnosticBag(),
+            typeof(object).Assembly.Location,
+            typeof(Console).Assembly.Location,
+            typeof(Regex).Assembly.Location);
+        Audit = [.. IntrinsicSupply.Audit(model, metadata.FindClrType).Select(entry => (entry.Description, entry.Kind))];
     }
 }

@@ -1,144 +1,409 @@
-// Tier 3: closed return promises follow the selected inherited, mapped or replacement member and both accessor directions.
-
-using System.Collections.Immutable;
-using Mist.Common.Diagnostics;
+using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
+using Mist.ProgramModel.Model;
+using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Types;
+using Mist.Tests.Helpers;
 
 namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class RefinedReturnDispatchDecisionTests
 {
-    private const string Types = """
-        type PositiveInt = int > 0;
-        type NonNegativeInt = int >= 0;
-        type LargeInt = int >= 2;
-        type PositiveReal = double > 0.0;
-        type NonNegativeReal = double >= 0.0;
-        public class Outer<T> { public class Token { public T Value; } }
-        public class Box<T>
-        {
-            public T Value { get; set; }
-            public Box(T value) { Value = value; }
-        }
-        """;
+    private readonly DeclarationFragments fragment = new();
+    private readonly HandBuiltRefinements h = new();
+    private readonly AbstractType contract;
+    private readonly ClassType factory;
+    private readonly RefinedType positive;
+    private readonly RefinedType nonnegative;
 
-    [Theory]
-    [InlineData("public abstract IFactory<T> { T Make(); } public class Factory : IFactory<PositiveInt> { public PositiveInt Make() { return 1; } }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Factory : IFactory<NonNegativeInt, PositiveInt> { public PositiveInt Make(PositiveInt value) { return value; } }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Make(T value) { return value; } } public class Factory : Base<PositiveInt>, IFactory<NonNegativeInt, PositiveInt> { }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Make(T value) { return value; } } public class Middle<T> : Base<T> { } public class Factory : Middle<PositiveInt>, IFactory<NonNegativeInt, PositiveInt> { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make<U>(PositiveInt value); } public class Factory : IFactory { public PositiveInt Make<V>(PositiveInt value) { return value; } }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); } public abstract ILeft : IFactory { } public abstract IRight : IFactory { } public class Factory : ILeft, IRight { public PositiveInt Make() { return 1; } }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); } public class Base { public PositiveInt Make() { return 1; } } public class Factory : Base, IFactory { }")]
-    [InlineData("public abstract IFactory { NonNegativeReal Make(PositiveReal value); } public class Base { public PositiveReal Make(PositiveReal value) { return value; } } public class Factory : Base, IFactory { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); } public class Factory { public PositiveInt Text() { return 1; } } with Factory : IFactory { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); int Text(); } public class Factory { public PositiveInt Make() { return 1; } public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Text(T value) { return value; } } public class Factory : Base<PositiveInt> { } with Factory : IFactory<NonNegativeInt, PositiveInt> { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory : IFactory { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory : IFactory { public PositiveInt Make() { return 2; } }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Base { public PositiveInt Make() { return 2; } } public class Factory : Base, IFactory { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory { public PositiveInt Text() { return 2; } } with Factory : IFactory { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } int Text(); } public class Factory { public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
-    public void ASelectedMethodPreservingItsClosedReturnContract_IsAdmitted(string declarations)
+    public RefinedReturnDispatchDecisionTests()
     {
-        Assert.Empty(RefinedReturnContractDecisionTests.Analyse(Types + declarations));
-    }
-
-    [Theory]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Factory : IFactory<PositiveInt, NonNegativeInt> { public NonNegativeInt Make(NonNegativeInt value) { return value; } }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Make(T value) { return value; } } public class Factory : Base<NonNegativeInt>, IFactory<PositiveInt, NonNegativeInt> { }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Make(T value) { return value; } } public class Middle<T> : Base<T> { } public class Factory : Middle<NonNegativeInt>, IFactory<PositiveInt, NonNegativeInt> { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make<U>(); } public class Factory : IFactory { public int Make<V>() { return -1; } }")]
-    [InlineData("public abstract IFactory { PositiveReal Make(); } public class Base { public double Make() { return -1.0; } } public class Factory : Base, IFactory { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); } public class Factory { public int Text() { return -1; } } with Factory : IFactory { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make(); int Text(); } public class Factory { public int Make() { return -1; } public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
-    [InlineData("public abstract IFactory<TOut, TIn> { TOut Make(TIn value); } public class Base<T> { public T Text(T value) { return value; } } public class Factory : Base<NonNegativeInt> { } with Factory : IFactory<PositiveInt, NonNegativeInt> { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory : IFactory { public int Make() { return -1; } }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Base { public int Make() { return -1; } } public class Factory : Base, IFactory { }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } } public class Factory { public int Text() { return -1; } } with Factory : IFactory { Text as Make; }")]
-    [InlineData("public abstract IFactory { PositiveInt Make() { return 1; } int Text(); } public class Factory { public int Make() { return -1; } public int Text() { return 0; } } with Factory : IFactory { Text as Text; }")]
-    public void ASelectedMethodLosingItsClosedReturnContract_IsRefused(string declarations)
-    {
-        Assert.Equal("MIST0284", Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
-    }
-
-    [Theory]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } } }")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public int Value { get { return 1; } } }")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }")]
-    [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public int Value { set { } } }")]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<PositiveInt>, IFactory { }")]
-    [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public PositiveInt Value { get { return 1; } } } with Factory : IFactory<NonNegativeInt> { Value as Value; }")]
-    public void APropertyMeetingBothAccessorDirections_IsAdmitted(string declarations)
-    {
-        Assert.Empty(RefinedReturnContractDecisionTests.Analyse(Types + declarations));
-    }
-
-    [Theory]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } } }", "MIST0284")]
-    [InlineData("public abstract IFactory { PositiveReal Value { get; } } public class Factory : IFactory { public double Value { get { return 1.0; } } }", "MIST0284")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; set; } } public class Factory : IFactory { public NonNegativeInt Held = 1;public NonNegativeInt Value { get { return Held; } set { Held = value; } } }", "MIST0284")]
-    [InlineData("public abstract IFactory { NonNegativeInt Value { get; set; } } public class Factory : IFactory { public PositiveInt Held = 1;public PositiveInt Value { get { return Held; } set { Held = value; } } }", "MIST0283")]
-    [InlineData("public abstract IFactory { PositiveInt Value { set; } } public class Factory : IFactory { public LargeInt Value { set { } } }", "MIST0283")]
-    [InlineData("public abstract IFactory { PositiveInt Value { get; } } public class Base<T> { public T Value { get; } } public class Factory : Base<NonNegativeInt>, IFactory { }", "MIST0284")]
-    [InlineData("public abstract IFactory<T> { T Value { get; } } public class Factory { public int Value { get { return -1; } } } with Factory : IFactory<PositiveInt> { Value as Value; }", "MIST0284")]
-    public void APropertyLosingEitherAccessorContract_IsRefused(string declarations, string diagnostic)
-    {
-        Assert.Equal(diagnostic, Assert.Single(RefinedReturnContractDecisionTests.Analyse(Types + declarations)).Number.Value);
-    }
-
-    [Theory]
-    [InlineData("Box<PositiveInt>", "Box<PositiveInt>")]
-    [InlineData("Box<Box<PositiveInt>>", "Box<Box<PositiveInt>>")]
-    [InlineData("(PositiveInt, int)", "(PositiveInt, int)")]
-    [InlineData("func<PositiveInt>", "func<PositiveInt>")]
-    [InlineData("PositiveInt | string", "PositiveInt | string")]
-    [InlineData("Outer<PositiveInt>.Token", "Outer<PositiveInt>.Token")]
-    public void AnEmbeddedRefinedReturnWithTheSameClosedType_IsAdmitted(string promised, string produced)
-    {
-        Assert.Empty(Embedded(promised, produced));
-    }
-
-    [Theory]
-    [InlineData("Box<PositiveInt>", "Box<int>")]
-    [InlineData("Box<NonNegativeInt>", "Box<PositiveInt>")]
-    [InlineData("Box<Box<PositiveInt>>", "Box<Box<int>>")]
-    [InlineData("Outer<PositiveInt>.Token", "Outer<int>.Token")]
-    public void AnEmbeddedRefinedReturnWithADifferentClosedType_IsRefused(string promised, string produced)
-    {
-        Assert.Equal("MIST0284", Assert.Single(Embedded(promised, produced)).Number.Value);
-    }
-
-    [Theory]
-    [InlineData("(PositiveInt, int)", "(int, int)")]
-    [InlineData("(NonNegativeInt, int)", "(PositiveInt, int)")]
-    [InlineData("func<PositiveInt>", "func<int>")]
-    [InlineData("PositiveInt | string", "int | string")]
-    public void AStructurallyDifferentEmbeddedReturn_RemainsRefusedBySignatureMatching(string promised, string produced)
-    {
-        Assert.Equal("MIST0184", Assert.Single(Embedded(promised, produced)).Number.Value);
+        contract = fragment.Abstract("IFactory");
+        factory = fragment.Class("Factory");
+        positive = h.Refine(h.Int, ComparisonKind.GreaterThan, 0L, "PositiveInt");
+        nonnegative = h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 0L, "NonNegativeInt");
     }
 
     [Fact]
+    [Trait("Tier", "2")]
+    public void AReturnClosesOverTheAbstractsArgument()
+    {
+        var t = Parameter(contract, "T");
+        factory.BaseAbstractTypes.Add(Close(contract, positive));
+        _ = DeclarationFragments.Method(contract, "Make", t);
+        _ = Returning(factory, positive, h.Literal(1L));
+        AssertJudgment(null);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(0, true)]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    [InlineData(1, false)]
+    [InlineData(2, true)]
+    [InlineData(2, false)]
+    public void TheFillerClosesThroughEveryGenericBase(int baseDepth, bool preserves)
+    {
+        var promised = preserves ? nonnegative : positive;
+        var produced = preserves ? positive : nonnegative;
+        factory.BaseAbstractTypes.Add(Close(contract, promised, produced));
+        _ = DeclarationFragments.Method(contract, "Make", Parameter(contract, "TOut"), Parameter(contract, "TIn"));
+
+        if(baseDepth == 0)
+        {
+            _ = ReturningArgument(factory, produced);
+        }
+        else
+        {
+            var baseType = fragment.Class("Base<>");
+            var t = Parameter(baseType, "T");
+            _ = ReturningArgument(baseType, t);
+            if(baseDepth == 2)
+            {
+                var middle = fragment.Class("Middle<>");
+                middle.BaseType = Close(baseType, Parameter(middle, "T"));
+                baseType = middle;
+            }
+
+            factory.BaseType = Close(baseType, produced);
+        }
+
+        AssertJudgment(preserves ? null : "MIST0284");
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GenericMethodsAnswerSlotsWithRenamedTypeParameters(bool preserves)
+    {
+        factory.BaseAbstractTypes.Add(contract);
+        IMistType[] parameters = preserves ? [positive] : [];
+        var slot = DeclarationFragments.Method(contract, "Make", positive, parameters);
+        var filler = preserves ? ReturningArgument(factory, positive) : Returning(factory, h.Int, h.Literal(-1L));
+        slot.TypeParametersList.Add(new TypeParameter("U", 0, slot.Scope, contract) { DeclaringMethod = slot });
+        filler.TypeParametersList.Add(new TypeParameter("V", 0, filler.Scope, factory) { DeclaringMethod = filler });
+        AssertJudgment(preserves ? null : "MIST0284");
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AnAbstractSlotReachedAlongBothSidesOfADiamondIsAnswered()
+    {
+        _ = DeclarationFragments.Method(contract, "Make", positive);
+        var left = fragment.Abstract("ILeft");
+        var right = fragment.Abstract("IRight");
+        left.BaseAbstractTypes.Add(contract);
+        right.BaseAbstractTypes.Add(contract);
+        factory.BaseAbstractTypes.AddRange([left, right]);
+        _ = Returning(factory, positive, h.Literal(1L));
+        AssertJudgment(null);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("inherited", false, true)]
+    [InlineData("mapped", false, true)]
+    [InlineData("mapped", false, false)]
+    [InlineData("unrelated mapping", false, true)]
+    [InlineData("unrelated mapping", false, false)]
+    [InlineData("default only", true, true)]
+    [InlineData("direct", true, true)]
+    [InlineData("direct", true, false)]
+    [InlineData("inherited", true, true)]
+    [InlineData("inherited", true, false)]
+    [InlineData("mapped", true, true)]
+    [InlineData("mapped", true, false)]
+    [InlineData("unrelated mapping", true, true)]
+    [InlineData("unrelated mapping", true, false)]
+    public void TheSelectedMethodMustPreserveTheRefinedReturn(string route, bool hasDefault, bool preserves)
+    {
+        var slot = new Method("Make", positive, [], DeclarationFragments.Public)
+        {
+            DeclaringType = contract,
+            Body = hasDefault ? DeclarationFragments.Returning(h.Literal(1L)) : null,
+        };
+        contract.MethodsList.Add(slot);
+
+        if(route == "default only")
+        {
+            factory.BaseAbstractTypes.Add(contract);
+        }
+        else
+        {
+            var owner = route == "inherited" ? fragment.Class("Base") : factory;
+            if(owner != factory)
+            {
+                factory.BaseType = owner;
+            }
+
+            var filler = new Method(route == "mapped" ? "Text" : "Make", preserves ? positive : h.Int, [], DeclarationFragments.Public)
+            {
+                DeclaringType = owner,
+                Body = DeclarationFragments.Returning(h.Literal(preserves ? 2L : -1L)),
+            };
+            owner.MethodsList.Add(filler);
+            switch(route)
+            {
+                case "mapped":
+                    Map(contract, new MethodMapping(filler, slot, contract));
+                    break;
+                case "unrelated mapping":
+                    var otherSlot = DeclarationFragments.Method(contract, "Text", h.Int);
+                    var otherFiller = new Method("Text", h.Int, [], DeclarationFragments.Public)
+                    { DeclaringType = factory, Body = DeclarationFragments.Returning(h.Literal(0L)) };
+                    factory.MethodsList.Add(otherFiller);
+                    Map(contract, new MethodMapping(otherFiller, otherSlot, contract));
+                    break;
+                default:
+                    factory.BaseAbstractTypes.Add(contract);
+                    break;
+            }
+        }
+
+        AssertJudgment(preserves ? null : "MIST0284");
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnInheritedMethodPreservesARealReturnPromise(bool preserves)
+    {
+        var positiveReal = h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0, "PositiveReal");
+        var nonnegativeReal = h.Refine(h.Double, ComparisonKind.GreaterThanOrEqual, 0.0, "NonNegativeReal");
+        var owner = fragment.Class("Base");
+        factory.BaseType = owner;
+        factory.BaseAbstractTypes.Add(contract);
+        if(preserves)
+        {
+            _ = DeclarationFragments.Method(contract, "Make", nonnegativeReal, positiveReal);
+            _ = ReturningArgument(owner, positiveReal);
+        }
+        else
+        {
+            _ = DeclarationFragments.Method(contract, "Make", positiveReal);
+            owner.MethodsList.Add(new Method("Make", h.Double, [], DeclarationFragments.Public)
+            { DeclaringType = owner, Body = DeclarationFragments.Returning(h.Literal(-1.0)) });
+        }
+
+        AssertJudgment(preserves ? null : "MIST0284");
+    }
+
+    [Theory]
+    [Trait("Tier", "4")]
+    [InlineData("NonNegativeInt", "PositiveInt", null)]
+    [InlineData("PositiveInt", "NonNegativeInt", "MIST0284")]
+    public void BindingAnInheritedMappedMethodSuppliesItsClosedReturnToAnalysis(string promised, string produced, string? expected)
+    {
+        var findings = RefinedReturnContractDecisionTests.Analyse($$"""
+            type PositiveInt = int > 0;
+            type NonNegativeInt = int >= 0;
+            public abstract IFactory<TOut, TIn> { TOut Make(TIn value); }
+            public class Base<T> { public T Text(T value) { return value; } }
+            public class Factory : Base<{{produced}}> { }
+            with Factory : IFactory<{{promised}}, {{produced}}> { Text as Make; }
+            """);
+
+        Assert.Equal(expected is null ? [] : new[] { expected }, findings.Select(finding => finding.Number.Value));
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("direct", "nonnegative", "positive", "get", "field", null)]
+    [InlineData("direct", "positive", "int", "get", "literal", null)]
+    [InlineData("direct", "positive", "positive", "both", "field", null)]
+    [InlineData("direct", "positive", "int", "set", "", null)]
+    [InlineData("inherited", "nonnegative", "positive", "get", "auto", null)]
+    [InlineData("mapped", "nonnegative", "positive", "get", "literal", null)]
+    [InlineData("direct", "positive", "nonnegative", "get", "field", "MIST0284")]
+    [InlineData("direct", "positive real", "double", "get", "literal", "MIST0284")]
+    [InlineData("direct", "positive", "nonnegative", "both", "field", "MIST0284")]
+    [InlineData("direct", "nonnegative", "positive", "both", "field", "MIST0283")]
+    [InlineData("direct", "positive", "large", "set", "", "MIST0283")]
+    [InlineData("inherited", "positive", "nonnegative", "get", "auto", "MIST0284")]
+    [InlineData("mapped", "positive", "int", "get", "negative", "MIST0284")]
+    public void APropertyMeetsTheContractInEachAccessorDirection(
+        string route, string promise, string production, string accessors, string body, string? expected)
+    {
+        var promised = Type(promise);
+        var produced = Type(production);
+        var slotType = route == "mapped" ? Parameter(contract, "T") : promised;
+        var slot = new Property("Value", slotType, DeclarationFragments.Public)
+        {
+            DeclaringType = contract,
+            Getter = accessors != "set" ? new PropertyAccessor { IsAuto = true } : null,
+            Setter = accessors != "get" ? new PropertyAccessor { IsAuto = true } : null,
+        };
+        contract.PropertiesList.Add(slot);
+
+        var owner = factory;
+        var fillerType = produced;
+        if(route == "inherited")
+        {
+            owner = fragment.Class("Base<>");
+            fillerType = Parameter(owner, "T");
+            factory.BaseType = Close(owner, produced);
+        }
+
+        var field = new Field("Held", fillerType, default, DeclarationFragments.Public) { DeclaringType = owner };
+        if(body == "field")
+        {
+            owner.FieldsList.Add(field);
+        }
+
+        var getter = body switch
+        {
+            "auto" => new PropertyAccessor { IsAuto = true },
+            "field" => new PropertyAccessor { Body = DeclarationFragments.Returning(new FieldReferenceExpression(HandBuiltModel.Node(), field)) },
+            "literal" => new PropertyAccessor { Body = DeclarationFragments.Returning(production == "double" ? h.Literal(1.0) : h.Literal(1L)) },
+            "negative" => new PropertyAccessor { Body = DeclarationFragments.Returning(h.Literal(-1L)) },
+            _ => null,
+        };
+        var filler = new Property("Value", fillerType, DeclarationFragments.Public)
+        {
+            DeclaringType = owner,
+            Getter = getter,
+            Setter = accessors == "get" ? null : new PropertyAccessor
+            {
+                Body = accessors == "set" ? HandBuiltModel.Block() : HandBuiltModel.Block(HandBuiltRefinements.Evaluate(HandBuiltRefinements.Assign(
+                    new FieldReferenceExpression(HandBuiltModel.Node(), field), HandBuiltRefinements.Local(fillerType, "value")))),
+            },
+        };
+        owner.PropertiesList.Add(filler);
+        if(route == "mapped")
+        {
+            var closing = Close(contract, promised);
+            Map(closing, new PropertyMapping(filler, slot, closing));
+        }
+        else
+        {
+            factory.BaseAbstractTypes.Add(contract);
+        }
+
+        AssertJudgment(expected);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("box", "positive", "positive", null)]
+    [InlineData("nested box", "positive", "positive", null)]
+    [InlineData("tuple", "positive", "positive", null)]
+    [InlineData("function", "positive", "positive", null)]
+    [InlineData("union", "positive", "positive", null)]
+    [InlineData("enclosing", "positive", "positive", null)]
+    [InlineData("box", "positive", "int", "MIST0284")]
+    [InlineData("box", "nonnegative", "positive", "MIST0284")]
+    [InlineData("nested box", "positive", "int", "MIST0284")]
+    [InlineData("enclosing", "positive", "int", "MIST0284")]
+    [InlineData("tuple", "positive", "int", "MIST0184")]
+    [InlineData("tuple", "nonnegative", "positive", "MIST0184")]
+    [InlineData("function", "positive", "int", "MIST0184")]
+    [InlineData("union", "positive", "int", "MIST0184")]
+    public void AnEmbeddedRefinementIsJudgedBySignatureAndReturn(string shape, string promise, string production, string? expected)
+    {
+        var box = fragment.Class("Box<>");
+        _ = Parameter(box, "T");
+        var outer = fragment.Class("Outer<>");
+        _ = Parameter(outer, "T");
+        var token = fragment.Class("Token", outer);
+        IMistType embed(IMistType inner)
+        {
+            return shape switch
+            {
+                "box" => Close(box, inner),
+                "nested box" => Close(box, Close(box, inner)),
+                "tuple" => fragment.Built.Interner.GetOrCreateTupleType([inner, h.Int]),
+                "function" => fragment.Built.Interner.GetOrCreateFunctionType([], inner),
+                "union" => fragment.Built.Interner.GetOrCreateUnionType([inner, h.String]),
+                "enclosing" => fragment.Built.Interner.GetOrCreateConstructedType(token, [], Close(outer, inner)),
+                _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+            };
+        }
+
+        var promised = embed(Type(promise));
+        var produced = embed(Type(production));
+        factory.BaseAbstractTypes.Add(contract);
+        _ = DeclarationFragments.Method(contract, "Make", promised, produced);
+        _ = ReturningArgument(factory, produced);
+        AssertJudgment(expected);
+    }
+
+    [Fact]
+    [Trait("Tier", "2")]
     public void AStrongerSymbolicParameterBound_IsNotDiscarded()
     {
-        var findings = RefinedReturnContractDecisionTests.Analyse(Types + """
-            public abstract IConsumer { void Take(PositiveInt value); }
-            public class Consumer : IConsumer
-            {
-                public readonly int Bound = 10;
-                public void Take(PositiveInt value) where value < Bound { }
-            }
-            """);
-        var finding = Assert.Single(findings);
+        factory.BaseAbstractTypes.Add(contract);
+        var bound = new Field("Bound", h.Int, default, DeclarationFragments.Public with { IsReadonly = true }) { DeclaringType = factory };
+        factory.FieldsList.Add(bound);
+        var demanding = HandBuiltRefinements.RefinePattern(positive, h.Compare(h.Int, ComparisonKind.LessThan,
+            new FieldReferenceExpression(HandBuiltModel.Node(), bound)), null);
+        _ = DeclarationFragments.Method(contract, "Take", h.Built.Type("Void"), positive);
+        _ = DeclarationFragments.Method(factory, "Take", h.Built.Type("Void"), demanding);
+
+        var finding = Assert.Single(fragment.Run(new RefinementAnalyzer()));
         Assert.Equal("MIST0283", finding.Number.Value);
         Assert.Contains("< Bound", finding.Message, StringComparison.Ordinal);
     }
 
-    private static ImmutableArray<Diagnostic> Embedded(string promised, string produced)
+    private IMistType Type(string name)
     {
-        return RefinedReturnContractDecisionTests.Analyse(Types + $$"""
-            public abstract IFactory { {{promised}} Make({{produced}} value); }
-            public class Factory : IFactory { public {{produced}} Make({{produced}} value) { return value; } }
-            """);
+        return name switch
+        {
+            "int" => h.Int,
+            "double" => h.Double,
+            "large" => h.Refine(h.Int, ComparisonKind.GreaterThanOrEqual, 2L, "LargeInt"),
+            "positive real" => h.Refine(h.Double, ComparisonKind.GreaterThan, 0.0, "PositiveReal"),
+            "positive" => positive,
+            "nonnegative" => nonnegative,
+            _ => throw new ArgumentOutOfRangeException(nameof(name)),
+        };
+    }
+
+    private static Method ReturningArgument(MemberType owner, IMistType type)
+    {
+        var parameter = new Parameter("value", type);
+        var value = HandBuiltRefinements.Read(new LocalVariable(parameter.Name, type) { Parameter = parameter });
+        return Returning(owner, type, value, parameter);
+    }
+
+    private static Method Returning(MemberType owner, IMistType type, Expression value, params Parameter[] parameters)
+    {
+        var method = new Method("Make", type, [.. parameters], DeclarationFragments.Public)
+        {
+            DeclaringType = owner,
+            Scope = new Scope(owner.Scope),
+            DeclarationNode = HandBuiltModel.Node(20),
+            Body = DeclarationFragments.Returning(value),
+        };
+        owner.MethodsList.Add(method);
+        return method;
+    }
+
+    private static TypeParameter Parameter(MemberType type, string name)
+    {
+        var parameter = new TypeParameter(name, type.TypeParametersList.Count, type.Scope, type);
+        type.TypeParametersList.Add(parameter);
+        return parameter;
+    }
+
+    private ConstructedType Close(IMistType type, params IMistType[] arguments)
+    {
+        return fragment.Built.Interner.GetOrCreateConstructedType(type, arguments);
+    }
+
+    private void Map(IMistType target, MemberMapping mapping)
+    {
+        factory.ConformancesList.Add(new ConformanceDeclaration(factory, target, "Refusal", [mapping], [], HandBuiltModel.Node(40)));
+    }
+
+    private void AssertJudgment(string? expected)
+    {
+        var findings = fragment.Run(new ConformanceAnalyzer()).Concat(fragment.Run(new RefinementAnalyzer()));
+        Assert.Equal(expected is null ? [] : new[] { expected }, findings.Select(finding => finding.Number.Value));
     }
 }

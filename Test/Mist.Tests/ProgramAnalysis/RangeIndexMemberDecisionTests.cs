@@ -1,182 +1,310 @@
-// Tier 3: real Standard slices and element accesses consume captured Index markers and declared or lifted member bounds.
-
-using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Scopes;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
-using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
+using static Mist.Tests.Helpers.HandBuiltModel;
+using static Mist.Tests.Helpers.HandBuiltRefinements;
+using static Mist.Tests.ProgramAnalysis.RangeFlowBody;
 
 namespace Mist.Tests.ProgramAnalysis;
 
 public sealed class RangeIndexMemberDecisionTests
 {
-    private const string Preamble = "bool flag = Branch.Choose(true); int[] numbers = [10, 20, 30, 40, 50];";
-    private const string Unknown = "public class Pick { public static Index Edge() { return ^1; } public static void Change(ref Index edge) { edge = ^5; } public static int Offset(int value) { return value; } }";
-
     [Theory]
-    [InlineData("Index end = ^1; Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("int offset = 1; Index end = ^offset; offset = 5; Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index end = ^1; Index copy = end; end = ^4; Range window = 0..copy; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index end = ^1; Range window = 0..end; end = ^4; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index end = ^1; end = ^2; Range window = 0..end; var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("Index end = ^1; if(flag) { end = ^1; } Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index end = ^1; while(flag) { end = ^1; flag = false; } Range window = 0..end; var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index end = ^1; Range window = 0..end; if(flag) { window = 0..^1; } var slice = numbers[window]; var last = slice[3];")]
-    [InlineData("Index start = ^3; Index end = ^1; var slice = numbers[start..end]; var last = slice[1];")]
-    [InlineData("Index end = ^0; var slice = numbers[end..end];")]
-    [InlineData("Index end = ^1; var last = numbers[end];")]
-    [InlineData("int offset = Pick.Offset(1); if(offset >= 1 && offset <= 2) { Index end = ^offset; offset = 5; var slice = numbers[0..end]; var last = slice[2]; } ")]
-    [InlineData("Index end = ^1; var value = \"abc\"[end];")]
-    public void StoredIndexes_PreserveTheirCapturedOffsetsAndMarkers(string statements)
+    [Trait("Tier", "2")]
+    [InlineData("stored-end")]
+    [InlineData("offset-overwritten")]
+    [InlineData("copy-before-write")]
+    [InlineData("range-before-write")]
+    [InlineData("reassigned-end")]
+    [InlineData("same-at-join")]
+    [InlineData("same-in-loop")]
+    [InlineData("equivalent-range-at-join")]
+    [InlineData("two-stored-ends")]
+    [InlineData("empty-at-end")]
+    [InlineData("element")]
+    [InlineData("narrowed-offset")]
+    [InlineData("string-element")]
+    public void StoredIndexes_PreserveTheirCapturedOffsetsAndMarkers(string scenario)
     {
-        Assert.Empty(Findings(Build(statements, Unknown)));
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var end = Local(h.Index, "end");
+        var start = Local(h.Index, "start");
+        var offset = Local(h.Int, "offset");
+        var initial = Give(end, r.Back(1));
+        var capture = Give(r.Window, r.To(end));
+        Statement[] body = scenario switch
+        {
+            "stored-end" => [initial, capture, r.ReadWindow(3)],
+            "offset-overwritten" => [Give(offset, r.Number(1)), Give(end, h.Back(offset)), Set(offset, r.Number(5)), capture, r.ReadWindow(3)],
+            "copy-before-write" => [initial, Give(start, end), Set(end, r.Back(4)), Give(r.Window, r.To(start)), r.ReadWindow(3)],
+            "range-before-write" => [initial, capture, Set(end, r.Back(4)), r.ReadWindow(3)],
+            "reassigned-end" => [initial, Set(end, r.Back(2)), capture, r.ReadWindow(2)],
+            "same-at-join" => [initial, If(r.Flag, Set(end, r.Back(1))), capture, r.ReadWindow(3)],
+            "same-in-loop" => [initial, new WhileStatement(r.Flag, Block(Set(end, r.Back(1)), Set(r.Flag, h.Literal(false)))), capture, r.ReadWindow(3)],
+            "equivalent-range-at-join" => [initial, capture, If(r.Flag, Set(r.Window, r.To(r.Back(1)))), r.ReadWindow(3)],
+            "two-stored-ends" => [Give(start, r.Back(3)), initial, r.ReadSlice(h.Slice(start, end), 1)],
+            "empty-at-end" => [Give(end, r.Back(0)), Give(r.Slice, r.SliceOf(h.Slice(end, end)))],
+            "element" => [initial, Evaluate(h.At(r.Numbers, end))],
+            "narrowed-offset" => [Give(offset, IdentityCall("Offset", r.Number(1))), If(r.InInterval(offset, 1, 2),
+                Give(end, h.Back(offset)), Set(offset, r.Number(5)), r.ReadSlice(r.To(end), 2))],
+            "string-element" => [initial, Evaluate(new IndexExpression(Node(), h.Literal("abc"), end, h.Built.Type("Char")))],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(null, body);
     }
 
     [Theory]
-    [InlineData("Index end = ^0; var last = numbers[end];", "MIST0274")]
-    [InlineData("Index end = ^6; var last = numbers[end];", "MIST0274")]
-    [InlineData("Index end = ^6; var slice = numbers[0..end]; var last = slice[0];", "MIST0274")]
-    [InlineData("Index end = ^1; if(flag) { end = ^2; } var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; Range window = 0..end; if(flag) { window = 0..4; } var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = Pick.Edge(); Range window = 0..end; end = ^1; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; var change = () => { end = ^5; }; change(); var slice = numbers[0..end]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; ref Index alias = end; Range window = 0..alias; alias = ^5; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    [InlineData("Index end = ^1; Pick.Change(ref end); Range window = 0..end; var slice = numbers[window]; var last = slice[0];", "MIST0275")]
-    public void UnknownDifferentAndInvalidIndexes_RemainRefused(string statements, string id)
+    [Trait("Tier", "2")]
+    [InlineData("past-end-element", "MIST0274")]
+    [InlineData("before-start-element", "MIST0274")]
+    [InlineData("before-start-endpoint", "MIST0274")]
+    [InlineData("different-index-at-join", "MIST0275")]
+    [InlineData("different-marker-at-join", "MIST0275")]
+    [InlineData("write-after-unknown-index", "MIST0275")]
+    [InlineData("lambda-write", "MIST0275")]
+    [InlineData("ref-local", "MIST0275")]
+    [InlineData("ref-argument", "MIST0275")]
+    public void UnknownDifferentAndInvalidIndexes_RemainRefused(string scenario, string id)
     {
-        Assert.Equal(id, Assert.Single(Findings(Build(statements, Unknown))).Number.Value);
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var end = Local(h.Index, "end");
+        var alias = Read(new LocalVariable("alias", h.Index) { IsRef = true });
+        var initial = Give(end, r.Back(1));
+        var element = Evaluate(h.At(r.Numbers, end));
+        var capture = Give(r.Window, r.To(end));
+        var read = r.ReadWindow(0);
+        Statement[] body = scenario switch
+        {
+            "past-end-element" => [Give(end, r.Back(0)), element],
+            "before-start-element" => [Give(end, r.Back(6)), element],
+            "before-start-endpoint" => [Give(end, r.Back(6)), r.ReadSlice(r.To(end), 0)],
+            "different-index-at-join" => [initial, If(r.Flag, Set(end, r.Back(2))), capture, read],
+            "different-marker-at-join" => [initial, capture, If(r.Flag, Set(r.Window, r.To(r.Number(4)))), read],
+            "write-after-unknown-index" => [Give(end, CallReturning("Edge", h.Index, r.Back(1))), capture, Set(end, r.Back(1)), read],
+            "lambda-write" => [initial, r.LambdaWrite(end, r.Back(5)), capture, read],
+            "ref-local" => [initial, Give(alias, end), Give(r.Window, r.To(alias)), Set(alias, r.Back(5)), read],
+            "ref-argument" => [initial, r.PassByRef(end, r.Back(5)), capture, read],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(id, body);
     }
 
     [Theory]
+    [Trait("Tier", "4")]
     [InlineData("Index end = 4;")]
     [InlineData("Index end = ^1; end = 4;")]
     public void AnIntegerAssignment_DoesNotInventAnImplicitIndexConversion(string statements)
     {
-        Assert.Equal("MIST0157", Assert.Single(Findings(Build(statements))).Number.Value);
-    }
-
-    [Theory]
-    [InlineData("public int End { get { return 3; } }", "Range window = 0..holder.End; var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public Offset end = 3; public void Change() { end = 4; }", "Range window = 0..holder.end; holder.Change(); var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public Offset end = 3;", "Range original = 0..holder.end; Range window = original; holder.end = 4; var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public Offset End { get { return 3; } }", "Range window = 0..holder.End; if(flag) { window = 0..holder.End; } var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public static int End { get { return 3; } }", "Range window = 0..Holder.End; var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public int End { get { return 3; } }", "Index end = ^holder.End; Range window = end..^0; var slice = numbers[window]; var last = slice[2];")]
-    [InlineData("public int End { get { if(PickFlag) { return 3; } return 4; } } bool PickFlag = true;", "Range window = 0..holder.End; var slice = numbers[window]; var last = slice[2];")]
-    public void MemberOffsets_UseTheirDeclaredOrLiftedSignature(string members, string statements)
-    {
-        var model = Build("var holder = new Holder();" + statements, "type Offset = int >= 3 and <= 4; public class Holder { " + members + " }");
-
-        Assert.Empty(Findings(model));
-    }
-
-    [Theory]
-    [InlineData("public int end = 3;", "Range window = 0..holder.end;")]
-    [InlineData("int end = 3; public int End { get { return end; } }", "Range window = 0..holder.End;")]
-    [InlineData("public Index End { get { return ^1; } }", "Range window = 0..holder.End;")]
-    [InlineData("public Index end = ^1;", "Range window = 0..holder.end;")]
-    [InlineData("public Holder Child { get { return this; } } public int End { get { return 3; } }", "Range window = 0..holder.Child.End;")]
-    [InlineData("public int End { get { return 3; } }", "ref Holder alias = holder; Range window = 0..alias.End;")]
-    public void UnsupportedMembers_DoNotAcquireFactsFromTheirSourceOrReceiver(string members, string statements)
-    {
-        var model = Build("var holder = new Holder();" + statements + "var slice = numbers[window]; var last = slice[0];", "public class Holder { " + members + " }");
-
-        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
-    }
-
-    [Theory]
-    [InlineData("edge = ^1; Range window = 0..this.edge; edge = ^4; var slice = numbers[window]; return slice[3];", null)]
-    [InlineData("this.edge = ^1; Range window = 0..edge; if(flag) { window = 0..^1; } var slice = numbers[window]; return slice[3];", null)]
-    [InlineData("edge = ^1; Range window = 0..edge; Change(); var slice = numbers[window]; return slice[3];", null)]
-    [InlineData("edge = ^1; ref Index alias = edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
-    [InlineData("this.edge = ^1; ref Index alias = this.edge; alias = ^5; Range window = 0..this.edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
-    [InlineData("edge = ^1; var self = this; ref Index alias = self.edge; alias = ^5; Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
-    [InlineData("edge = ^1; Change(); Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
-    [InlineData("edge = ^1; if(flag) { edge = ^2; } Range window = 0..edge; var slice = numbers[window]; return slice[0];", "MIST0275")]
-    public void VisibleOwnedFieldAssignments_CaptureIndexesUntilAnInvalidatingCallOrDifferentJoin(string statements, string? id)
-    {
-        var model = Build("var holder = new Holder(); var last = holder.Read(flag);",
-            "public class Holder { Index edge; public void Change() { edge = ^5; } public int Read(bool flag) { int[] numbers = [10, 20, 30, 40, 50]; " + statements + " } }");
-        var findings = Findings(model);
-
-        if(id is null)
+        var model = StandardModelProbe.Build("int[] numbers = [1, 2]; Index edge = ^1; Range window = 0..edge; " +
+            "var part = numbers[window]; var text = \"abc\"[0..edge]; var last = part[0]; " + statements, out var buildDiagnostics);
+        Assert.DoesNotContain(buildDiagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+        var body = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!;
+        var indexes = BodyWalker.DescendantsAndSelf(body).OfType<IndexExpression>().ToArray();
+        Assert.Equal(3, indexes.Length);
+        Assert.All(indexes, index => Assert.IsNotType<ErrorType>(index.Type));
+        var slices = indexes.Where(Lengths.IsRangeSlice).ToArray();
+        Assert.Equal(2, slices.Length);
+        Assert.All(slices, slice =>
         {
-            Assert.Empty(findings);
-        }
-        else
-        {
-            Assert.Equal(id, Assert.Single(findings).Number.Value);
-        }
-    }
-
-    [Theory]
-    [InlineData("Range window = 1..numbers.Length; var slice = numbers[window]; var last = slice[3];", null)]
-    [InlineData("Range window = 1..numbers.Length; numbers = [10]; var slice = numbers[window]; var last = slice[0];", "MIST0274")]
-    [InlineData("Index end = ^numbers.Length; var slice = numbers[end..^0]; var last = slice[4];", null)]
-    public void BuiltinLength_CapturesTheMeasuredValueOnce(string statements, string? id)
-    {
-        var findings = Findings(Build(statements));
-
-        if(id is not null)
-        {
-            Assert.Equal(id, Assert.Single(findings).Number.Value);
-        }
-        else
-        {
-            Assert.Empty(findings);
-        }
-    }
-
-    [Theory]
-    [InlineData("int[] a = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5) { Range window = 0..a.Length; if(flag) { window = 0..a.Length; } var slice = a[window]; var last = slice[2]; }", null)]
-    [InlineData("int[] a = Inputs.Values(); int[] b = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5 && b.Length >= 3 && b.Length <= 5) { Range window = 0..a.Length; if(flag) { window = 0..b.Length; } var slice = a[window]; var last = slice[0]; }", "MIST0275")]
-    [InlineData("int[] a = Inputs.Values(); if(a.Length >= 3 && a.Length <= 5) { Range window = 0..a.Length; Range copy = window; a = [10]; var slice = a[copy]; var last = slice[0]; }", "MIST0274")]
-    public void NonExactLengthCaptures_KeepReceiverIdentityAndTheirCapturedValues(string statements, string? id)
-    {
-        var findings = Findings(Build(statements, "public class Inputs { public static int[] Values() { return [10, 20, 30]; } }"));
-
-        if(id is null)
-        {
-            Assert.Empty(findings);
-        }
-        else
-        {
-            Assert.Equal(id, Assert.Single(findings).Number.Value);
-        }
-    }
-
-    private static ProgramModelClass Build(string statements, string types = "")
-    {
-        var model = StandardModelProbe.Build(Preamble + statements, out var diagnostics, types + " public class Branch { public static bool Choose(bool value) { return value; } }");
-        Assert.Empty(diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error));
-
-        foreach(var index in BodyWalker.DescendantsAndSelf(Body(model)).OfType<IndexExpression>())
-        {
-            Assert.IsNotType<ErrorType>(index.Type);
-
-            if(Lengths.IsRangeSlice(index))
-            {
-                Assert.Null(index.ParameterType);
-                Assert.Null(index.Indexer);
-            }
-        }
-
-        return model;
-    }
-
-    private static Block Body(ProgramModelClass model)
-    {
-        return Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!;
-    }
-
-    private static ImmutableArray<Diagnostic> Findings(ProgramModelClass model)
-    {
+            Assert.Null(slice.ParameterType);
+            Assert.Null(slice.Indexer);
+        });
         var diagnostics = new DiagnosticBag();
         ProgramAnalysisRunner.Run(model, diagnostics);
-        return diagnostics.ToImmutableArray();
+        Assert.Equal("MIST0157", Assert.Single(diagnostics.ToImmutableArray()).Number.Value);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("literal-getter")]
+    [InlineData("declared-field-then-call")]
+    [InlineData("copy-then-write-field")]
+    [InlineData("declared-getter-at-join")]
+    [InlineData("static-getter")]
+    [InlineData("from-end-getter")]
+    [InlineData("two-return-getter")]
+    public void MemberOffsets_UseTheirDeclaredOrLiftedSignature(string scenario)
+    {
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var holder = Class("Holder");
+        var held = Local(holder, "holder");
+        var offset = h.Between(h.Int, 3L, 4L, "Offset");
+        var field = new Field("end", offset, default, new MemberModifiers()) { Initializer = r.Number(3), DeclaringType = holder };
+        var fieldAccess = new MemberAccessExpression(Node(), held, field.Name, field.Type, member: new FieldResult(field, holder, []));
+        var memberType = scenario == "declared-getter-at-join" ? offset : h.Int;
+        var staticGetter = scenario == "static-getter";
+        var getterBody = scenario == "two-return-getter"
+            ? Block(If(r.Flag, new ReturnStatement(r.Number(3), h.Int)), new ReturnStatement(r.Number(4), h.Int))
+            : Block(new ReturnStatement(r.Number(3), memberType));
+        var property = new Property("End", memberType, new MemberModifiers { IsStatic = staticGetter })
+        { DeclaringType = holder, Getter = new PropertyAccessor { Body = getterBody } };
+        Expression getter()
+        {
+            return new MemberAccessExpression(Node(), staticGetter ? new TypeReferenceExpression(Node(), holder) : held, property.Name, memberType,
+            member: new PropertyResult(property, holder, []));
+        }
+
+        var original = Local(h.Range, "original");
+        var end = Local(h.Index, "end");
+        var change = new Method("Change", h.Built.Type("Void"), [], new MemberModifiers())
+        { Body = Block(Set(new FieldReferenceExpression(Node(), field), r.Number(4))), DeclaringType = holder };
+        Statement[] body = scenario switch
+        {
+            "declared-field-then-call" => [Give(r.Window, r.To(fieldAccess)),
+                Evaluate(new InvocationExpression(Node(), new MemberAccessExpression(Node(), held, change.Name, change.ReturnType), [], change.ReturnType, change, []))],
+            "copy-then-write-field" => [Give(original, r.To(fieldAccess)), Give(r.Window, original), Set(fieldAccess, r.Number(4))],
+            "declared-getter-at-join" => [Give(r.Window, r.To(getter())), If(r.Flag, Set(r.Window, r.To(getter())))],
+            "from-end-getter" => [Give(end, h.Back(getter())), Give(r.Window, h.Slice(end, r.Back(0)))],
+            "literal-getter" or "static-getter" or "two-return-getter" => [Give(r.Window, r.To(getter()))],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(null, [.. body, r.ReadWindow(2)]);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("field-initializer")]
+    [InlineData("getter-reads-field")]
+    [InlineData("index-getter")]
+    [InlineData("index-field")]
+    [InlineData("indirect-receiver")]
+    [InlineData("ref-receiver")]
+    public void UnsupportedMembers_DoNotAcquireFactsFromTheirSourceOrReceiver(string scenario)
+    {
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var holder = Class("Holder");
+        var held = Local(holder, "holder");
+        var alias = Read(new LocalVariable("alias", holder) { IsRef = true });
+        var index = scenario is "index-field" or "index-getter";
+        var memberType = index ? h.Index : h.Int;
+        var constant = index ? r.Back(1) : r.Number(3);
+        var field = new Field("end", memberType, default, new MemberModifiers()) { DeclaringType = holder, Initializer = constant };
+        var getter = new Property("End", memberType, new MemberModifiers())
+        {
+            DeclaringType = holder,
+            Getter = new PropertyAccessor { Body = Block(new ReturnStatement(scenario == "getter-reads-field" ? new FieldReferenceExpression(Node(), field) : constant, memberType)) },
+        };
+        var child = new Property("Child", holder, new MemberModifiers())
+        { Getter = new PropertyAccessor { Body = Block(new ReturnStatement(new ThisExpression(Node(), holder), holder)) }, DeclaringType = holder };
+        Expression receiver = scenario switch
+        {
+            "indirect-receiver" => new MemberAccessExpression(Node(), held, child.Name, holder, member: new PropertyResult(child, holder, [])),
+            "ref-receiver" => alias,
+            _ => held,
+        };
+        var member = scenario is "index-field" or "field-initializer"
+            ? new MemberAccessExpression(Node(), receiver, field.Name, memberType, member: new FieldResult(field, holder, []))
+            : new MemberAccessExpression(Node(), receiver, getter.Name, memberType, member: new PropertyResult(getter, holder, []));
+        var capture = Give(r.Window, r.To(member));
+        if(scenario == "ref-receiver")
+        {
+            r.Check("MIST0275", Give(alias, held), capture, r.ReadWindow(0));
+        }
+        else
+        {
+            r.Check("MIST0275", capture, r.ReadWindow(0));
+        }
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("write-after-this-capture", null)]
+    [InlineData("explicit-write-and-equivalent-join", null)]
+    [InlineData("call-after-capture", null)]
+    [InlineData("field-ref-alias", "MIST0275")]
+    [InlineData("this-field-ref-alias", "MIST0275")]
+    [InlineData("aliased-this-field-ref-alias", "MIST0275")]
+    [InlineData("call-before-capture", "MIST0275")]
+    [InlineData("different-at-join", "MIST0275")]
+    public void VisibleOwnedFieldAssignments_CaptureIndexesUntilAnInvalidatingCallOrDifferentJoin(string scenario, string? id)
+    {
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var holder = Class("Holder");
+        var field = new Field("edge", h.Index, default, new MemberModifiers()) { DeclaringType = holder };
+        var implicitField = new FieldReferenceExpression(Node(), field);
+        var self = new ThisExpression(Node(), holder);
+        var alias = Local(holder, "self");
+        Expression access(Expression receiver)
+        {
+            return new MemberAccessExpression(Node(), receiver, field.Name, h.Index, member: new FieldResult(field, holder, []));
+        }
+
+        var explicitField = access(self);
+        var change = new Method("Change", h.Built.Type("Void"), [], new MemberModifiers()) { DeclaringType = holder, Body = Block(Set(implicitField, r.Back(5))) };
+        var call = Evaluate(new InvocationExpression(Node(), new MethodReferenceExpression(Node(), change), [], change.ReturnType, change, []));
+        var initial = Set(implicitField, r.Back(1));
+        var capture = Give(r.Window, r.To(implicitField));
+        Statement[] body = scenario switch
+        {
+            "write-after-this-capture" => [initial, Give(r.Window, r.To(explicitField)), Set(implicitField, r.Back(4))],
+            "explicit-write-and-equivalent-join" => [Set(explicitField, r.Back(1)), capture, If(r.Flag, Set(r.Window, r.To(r.Back(1))))],
+            "call-after-capture" => [initial, capture, call],
+            "field-ref-alias" => [initial, RefWrite(implicitField, r.Back(5)), capture],
+            "this-field-ref-alias" => [Set(explicitField, r.Back(1)), RefWrite(explicitField, r.Back(5)), Give(r.Window, r.To(explicitField))],
+            "aliased-this-field-ref-alias" => [initial, Give(alias, self), RefWrite(access(alias), r.Back(5)), capture],
+            "call-before-capture" => [initial, call, capture],
+            "different-at-join" => [initial, If(r.Flag, Set(implicitField, r.Back(2))), capture],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(id, [.. body, r.ReadWindow(id is null ? 3 : 0)]);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("length", null)]
+    [InlineData("shorter-receiver", "MIST0274")]
+    [InlineData("from-end-length", null)]
+    public void BuiltinLength_CapturesTheMeasuredValueOnce(string scenario, string? id)
+    {
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var end = Local(h.Index, "end");
+        var length = h.Length(r.Numbers);
+        var capture = Give(r.Window, h.Slice(r.Number(1), length));
+        Statement[] body = scenario switch
+        {
+            "length" => [capture, r.ReadWindow(3)],
+            "shorter-receiver" => [capture, Set(r.Numbers, r.ArrayLiteral(10)), r.ReadWindow(0)],
+            "from-end-length" => [Give(end, h.Back(length)), Give(r.Window, h.Slice(end, r.Back(0))), r.ReadWindow(4)],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(id, body);
+    }
+
+    [Theory]
+    [Trait("Tier", "2")]
+    [InlineData("same-length-source", null)]
+    [InlineData("different-length-sources", "MIST0275")]
+    [InlineData("copied-before-write", "MIST0274")]
+    public void NonExactLengthCaptures_KeepReceiverIdentityAndTheirCapturedValues(string scenario, string? id)
+    {
+        var r = new RangeFlowBody();
+        var h = r.Values;
+        var first = Local(h.Sequence(), "a");
+        var second = Local(h.Sequence(), "b");
+        var copy = Local(h.Range, "copy");
+        var capture = Give(r.Window, r.To(h.Length(first)));
+        var guard = r.InInterval(h.Length(first), 3, 5);
+        Statement[] body = scenario switch
+        {
+            "same-length-source" => [If(guard, capture, If(r.Flag, Set(r.Window, r.To(h.Length(first)))), r.ReadSlice(r.Window, 2, first))],
+            "different-length-sources" => [Give(second, CallReturning("Values", second.Type, r.ArrayLiteral(10, 20, 30))), If(h.And(guard, r.InInterval(h.Length(second), 3, 5)),
+                capture, If(r.Flag, Set(r.Window, r.To(h.Length(second)))), r.ReadSlice(r.Window, 0, first))],
+            "copied-before-write" => [If(guard, capture, Give(copy, r.Window), Set(first, r.ArrayLiteral(10)), r.ReadSlice(copy, 0, first))],
+            _ => throw new ArgumentOutOfRangeException(nameof(scenario)),
+        };
+        r.Check(id, [Give(first, CallReturning("Values", first.Type, r.ArrayLiteral(10, 20, 30))), .. body]);
     }
 }

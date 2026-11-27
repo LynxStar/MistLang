@@ -3,10 +3,10 @@ using Mist.Driver;
 
 namespace Mist.Tests.Driver;
 
+[Trait("Tier", "1")]
 public sealed class StdlibSourceReadFailureTests
 {
     [Fact]
-    [Trait("Tier", "1")]
     public void LoadFrom_ReportsUnreadableSourceAndLoadsLaterSource()
     {
         const string root = "Standard";

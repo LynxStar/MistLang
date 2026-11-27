@@ -215,6 +215,23 @@ public sealed class OwnedValueStoreTests
         Assert.Contains("'Value'", diagnostic.Message);
     }
 
+    [Fact]
+    public void ARefLocalNamingAnUnqualifiedNonOwningFieldCannotReceiveAnOwnedBinding()
+    {
+        var f = new Stores();
+        var value = new LocalVariable("value", f.Item) { Ownership = OwnershipKind.Owned };
+        var alias = new LocalVariable("slot", f.Item) { IsRef = true };
+        var body = HandBuiltModel.Block(new LocalDeclarationStatement(value, Stores.Fresh(f.Item)),
+            new LocalDeclarationStatement(alias, new FieldReferenceExpression(HandBuiltModel.Node(), f.Field)),
+            Stores.Write(alias, new LocalReferenceExpression(HandBuiltModel.Node(37), value), coalescing: false));
+
+        var diagnostic = Assert.Single(f.Model.Analyze(new OwnershipAnalyzer(), body, owner: f.Holder));
+
+        Assert.Equal("MIST0486", diagnostic.Number.Value);
+        Assert.Equal(37, Assert.IsType<SourceRange>(diagnostic.Location).Offset);
+        Assert.Contains("Cannot store owned value 'value' in non-owning field 'Value'", diagnostic.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("local", "member")]
     [InlineData("local", "initializer")]

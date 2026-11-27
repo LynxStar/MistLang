@@ -234,6 +234,34 @@ public sealed class OtherPrimitiveFactTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void AConjunctionRequiresEveryNestedOperandToBeKnownFromRegexMatches(bool hasOtherPredicate)
+    {
+        var h = new HandBuiltRefinements();
+        var node = HandBuiltModel.Node();
+        var letters = new RegexPattern(node, h.String, "[a-z]+");
+        var startsWithA = new RegexPattern(node, h.String, "a.*");
+        Pattern last = hasOtherPredicate
+            ? new NegatedPattern(node, h.String, h.Compare(h.String, ComparisonKind.Equal, "az"))
+            : new RegexPattern(node, h.String, ".*z");
+        var nested = new ConjunctionPattern(node, h.String, [startsWithA, last]);
+        var conjunction = new ConjunctionPattern(node, h.String, [letters, nested]);
+
+        var stated = Matching.Stated(conjunction);
+
+        if(hasOtherPredicate)
+        {
+            Assert.Null(stated);
+        }
+        else
+        {
+            var required = Assert.NotNull(stated);
+            Assert.Equal([".*z", "[a-z]+", "a.*"], required.Order(StringComparer.Ordinal));
+        }
+    }
+
+    [Theory]
     [InlineData("abc", true)]
     [InlineData("ABC", false)]
     public void AMatchIsProvenFromALiteral(string text, bool proven)

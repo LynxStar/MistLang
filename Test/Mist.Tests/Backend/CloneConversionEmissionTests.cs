@@ -1,4 +1,4 @@
-// Tier 3 (Component): what a conversion running a Clone body emits (newtypes spec Requirement 10). Asserted
+// What a conversion running a Clone body emits (newtypes spec Requirement 10). Asserted
 // on the emitted text, since a member written by name where C# refuses it fails only in Roslyn, and a static
 // read from the wrong type prints a plausible count either way.
 
@@ -10,7 +10,7 @@ using Mist.Tests.Helpers;
 
 namespace Mist.Tests.Backend;
 
-public sealed class CloneConversionEmissionTests
+public sealed class CloneConversionFixture
 {
     private const string Types = """
         public class Cat
@@ -248,10 +248,47 @@ public sealed class CloneConversionEmissionTests
         var branch = (Branch<int>)twig;
         """;
 
+    private readonly ProgramModel.Model.ProgramModel model;
+    private readonly ConstraintClosureMap closures;
+    private readonly Dictionary<string, string> emitted = new(StringComparer.Ordinal);
+
+    public CloneConversionFixture()
+    {
+        model = StandardModelProbe.Build(Casts, out var buildDiagnostics, Types);
+        Assert.Empty(buildDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        var diagnostics = new DiagnosticBag();
+        closures = ConstraintClosureMap.Build(model, diagnostics);
+        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    internal string Emit(string typeName)
+    {
+        if(emitted.TryGetValue(typeName, out var declaration))
+        {
+            return declaration;
+        }
+
+        var type = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN[$"Probe.{typeName}"]);
+        var diagnostics = new DiagnosticBag();
+        var writer = new CSharpWriter();
+        TypeEmitter.EmitTypeBody(type, closures, model.VariadicUses, writer, diagnostics);
+        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
+
+        declaration = writer.ToString();
+        emitted.Add(typeName, declaration);
+        return declaration;
+    }
+}
+
+[Trait("Tier", "4")]
+public sealed class CloneConversionEmissionTests(CloneConversionFixture declarations)
+    : IClassFixture<CloneConversionFixture>
+{
     [Fact]
     public void ACastToTheNewtype_ReadsTheSourcesPrivateAndProtectedMembersThroughAccessors()
     {
-        var emitted = EmitDeclaration("Jaguar");
+        var emitted = declarations.Emit("Jaguar");
 
         Assert.Contains("public static explicit operator Probe.Jaguar(Probe.Tiger @this)", emitted);
         Assert.Contains("Probe.Jaguar.made = Probe.Jaguar.made + 1;", emitted);
@@ -263,7 +300,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void ACastToTheSource_ConstructsItAndWritesItsPrivateStateThroughAccessors()
     {
-        var emitted = EmitDeclaration("Jaguar");
+        var emitted = declarations.Emit("Jaguar");
 
         Assert.Contains("public static explicit operator Probe.Tiger(Probe.Jaguar @this)", emitted);
         Assert.Contains("__Out_Probe_Tiger_made(null) = __Out_Probe_Tiger_made(null) + 1;", emitted);
@@ -277,7 +314,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AConstructedSourcesPrivateState_IsReachedThroughAHolderOverItsDefinitionsParameters()
     {
-        var emitted = EmitDeclaration("IntCell");
+        var emitted = declarations.Emit("IntCell");
 
         Assert.Contains("new Probe.IntCell(__In_Probe_Cell_Access<int>.__content(@this), Probe.IntCell.made)", emitted);
         Assert.Contains("private static class __In_Probe_Cell_Access<T>", emitted);
@@ -287,7 +324,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void ACastToAConstructedSource_SpellsItsStaticsAndConstructorOnTheConstruction()
     {
-        var emitted = EmitDeclaration("IntCell");
+        var emitted = declarations.Emit("IntCell");
 
         Assert.Contains("Probe.Cell<int>.Cloned = Probe.Cell<int>.Cloned + 1;", emitted);
         Assert.Contains("__Out_Probe_Cell_Access<int>.__made(null) = __Out_Probe_Cell_Access<int>.__made(null) + 1;", emitted);
@@ -298,7 +335,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AGenericNewtype_NamesEachDirectionsHolderApartAndDeclaresBothOutsideItself()
     {
-        var emitted = EmitDeclaration("Celled<>");
+        var emitted = declarations.Emit("Celled<>");
         var clone = emitted[..emitted.IndexOf("file static class", StringComparison.Ordinal)];
 
         Assert.Contains("public static explicit operator Probe.Celled<C>(Probe.Cell<C> @this)", clone);
@@ -313,7 +350,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AConditionalAccessThroughAnOptionalConstruction_CallsTheHolderAtItsArguments()
     {
-        var emitted = EmitDeclaration("IntSpot");
+        var emitted = declarations.Emit("IntSpot");
 
         Assert.Contains("(int?)__Out_Probe_Spot_Access<int>.__spots(", emitted);
         Assert.DoesNotContain("Access<T>.__spots", emitted);
@@ -322,7 +359,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AHolderOverAConstrainedDefinition_RepeatsItsConstraints()
     {
-        var emitted = EmitDeclaration("WordSorted");
+        var emitted = declarations.Emit("WordSorted");
         var holder = emitted[emitted.IndexOf("private static class __In_Probe_Sorted_Access<T>", StringComparison.Ordinal)..];
 
         Assert.StartsWith("where T : Probe.IShow", holder[(holder.IndexOf('\n') + 1)..].TrimStart());
@@ -331,7 +368,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AConditionalAccessToAnUnreachableMember_NarrowsItsReceiverBeforeTheAccessor()
     {
-        var emitted = EmitDeclaration("Ocelot");
+        var emitted = declarations.Emit("Ocelot");
 
         Assert.Matches(@"int\? read = \(maybe is \{ \} (__reached\d+) \? \(int\?\)__Out_Probe_Lynx_spots\(\1\) : null\);", emitted);
         Assert.Matches(@"__Out_When\(maybe, (__reached\d+) => __Out_Probe_Lynx_Bump\(\1\)\);", emitted);
@@ -341,7 +378,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void ACoalescingWriteThroughAComputedProperty_ReadsAndWritesThroughItsAccessors()
     {
-        var emitted = EmitDeclaration("Ocelot");
+        var emitted = declarations.Emit("Ocelot");
 
         Assert.Contains(
             "__In_Coalesced(@this, (object?)null, (__t, __k) => __In_Probe_Lynx_get_Note(__t), (__t, __k, __v) => __In_Probe_Lynx_set_Note(__t, __v), () => \"self\");",
@@ -351,7 +388,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AGenericMethod_IsCalledThroughAGenericAccessor()
     {
-        var emitted = EmitDeclaration("Ocelot");
+        var emitted = declarations.Emit("Ocelot");
 
         Assert.Contains("new Probe.Ocelot(__In_Probe_Lynx_Echo<int>(@this, __In_Probe_Lynx_spots(@this)))", emitted);
         Assert.Contains("private static extern T __In_Probe_Lynx_Echo<T>(Probe.Lynx __target, T value);", emitted);
@@ -362,7 +399,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AnIndexer_IsReadAndWrittenThroughItsItemAccessors()
     {
-        var emitted = EmitDeclaration("Ocelot");
+        var emitted = declarations.Emit("Ocelot");
 
         Assert.Contains("copy[1] = __In_Probe_Lynx_get_Item(@this, 1) + 10;", emitted);
         Assert.Contains("__Out_Probe_Lynx_set_Item(copy, 1, (@this[1] + 10));", emitted);
@@ -372,7 +409,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AWriteThroughASetOnlyIndexer_DeclaresNoGetter()
     {
-        var emitted = EmitDeclaration("Caracal");
+        var emitted = declarations.Emit("Caracal");
 
         Assert.Contains("__Out_Probe_Serval_set_Item(copy, 1, 2);", emitted);
         Assert.DoesNotContain("get_Item", emitted);
@@ -381,7 +418,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AMethodGroup_IsALambdaOverItsAccessorWithAnExplicitReceiverBoundOnce()
     {
-        var emitted = EmitDeclaration("Ocelot");
+        var emitted = declarations.Emit("Ocelot");
 
         Assert.Contains("System.Func<int> three = ((System.Func<int>)(() => __In_Probe_Lynx_Three(@this)));", emitted);
         Assert.Contains("System.Func<int> copyThree = __Out_Bound(copy, __t => (System.Func<int>)(() => __Out_Probe_Lynx_Three(__t)));", emitted);
@@ -391,7 +428,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void ACloneOfASelfTypedSlot_IsTheConversionItselfAndGuardsAnAbsentOperand()
     {
-        var emitted = EmitDeclaration("Chain");
+        var emitted = declarations.Emit("Chain");
 
         Assert.Matches(@"new Probe\.Chain\(@this\.Item, \(@this\.Next is \{ \} (__converted\d+) \? \(Probe\.Chain\)\(\1\) : null\)\)", emitted);
         Assert.Matches(@"new Probe\.Link\(@this\.Item, \(@this\.Next is \{ \} (__converted\d+) \? \(Probe\.Link\)\(\1\) : null\)\)", emitted);
@@ -401,7 +438,7 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void ATestNamingTheResultWithinAConversion_TestsForTheOperandAndCastsWhatItBinds()
     {
-        var emitted = EmitDeclaration("Twig<>");
+        var emitted = declarations.Emit("Twig<>");
         var clone = emitted[..emitted.IndexOf("file static class", StringComparison.Ordinal)];
 
         Assert.Contains("if (@this.Next is Probe.Branch<T> next)", clone);
@@ -414,23 +451,6 @@ public sealed class CloneConversionEmissionTests
     [Fact]
     public void AConversionNoCastCalls_IsNotEmitted()
     {
-        Assert.DoesNotContain("explicit operator", EmitDeclaration("Puma"));
-    }
-
-    private static string EmitDeclaration(string typeName)
-    {
-        var model = StandardModelProbe.Build(Casts, out var buildDiagnostics, Types);
-        Assert.Empty(buildDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error));
-
-        var type = Assert.IsAssignableFrom<MemberType>(model.TypesByFQN[$"Probe.{typeName}"]);
-        var emitDiagnostics = new DiagnosticBag();
-        var writer = new CSharpWriter();
-
-        TypeEmitter.EmitTypeBody(
-            type, ConstraintClosureMap.Build(model, emitDiagnostics), model.VariadicUses, writer, emitDiagnostics);
-
-        Assert.Empty(emitDiagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
-
-        return writer.ToString();
+        Assert.DoesNotContain("explicit operator", declarations.Emit("Puma"));
     }
 }

@@ -10,7 +10,7 @@ public sealed class RestoreReferenceDiagnosticRoutingTests
     [Fact]
     public void MissingReference_IsDeliveredOnceThroughTheSelectedChannel()
     {
-        const string referenceName = "Bridge";
+        const string referenceName = "BridgeApi";
         var projectFolder = Directory.CreateTempSubdirectory("mist-restore-reference-");
         try
         {

@@ -91,6 +91,21 @@ public sealed class RegistryValidationTests
     }
 
     [Theory]
+    [InlineData("probe value", "The probe found a value. Remove it.", PolicyClass.Fixed, "sentence case")]
+    [InlineData("Probe value.", "The probe found a value. Remove it.", PolicyClass.Fixed, "ends in punctuation")]
+    [InlineData("Probe value", "The probe found a value.\n\nRemove it.", PolicyClass.Fixed, "one paragraph")]
+    [InlineData("Probe value", "The probe found a value. Remove it.", (PolicyClass)99, "policy class")]
+    public void InvalidDescriptorMetadataIsRejected(string title, string description, PolicyClass policy, string expectedProblem)
+    {
+        var entry = Entry("Probe", "MIST9001", title, "Value is probed.", description);
+        var descriptor = entry.Descriptor with { Policy = policy, DefaultSeverity = DiagnosticSeverity.Warning };
+
+        var problem = Assert.Single(RegistryValidator.Validate([entry with { Descriptor = descriptor }], []));
+
+        Assert.Contains(expectedProblem, problem, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("Value '{0}'.", false)]
     [InlineData("Value '{0}'.", true)]
     [InlineData("Value '{name}' and '{0}'.", false)]

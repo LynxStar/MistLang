@@ -47,10 +47,21 @@ public static class StdlibLoader
     /// <summary>Test hook; production callers go through <see cref="LoadFor"/>.</summary>
     internal static ImmutableArray<CompilationUnit> LoadFrom(string stdlibRoot, DiagnosticBag diagnostics)
     {
+        return LoadFrom(stdlibRoot, diagnostics,
+            static root => Directory.GetFiles(root, "*.mist", SearchOption.AllDirectories),
+            File.ReadAllText);
+    }
+
+    internal static ImmutableArray<CompilationUnit> LoadFrom(
+        string stdlibRoot,
+        DiagnosticBag diagnostics,
+        Func<string, string[]> listSourceFiles,
+        Func<string, string> readSource)
+    {
         string[] files;
         try
         {
-            files = Directory.GetFiles(stdlibRoot, "*.mist", SearchOption.AllDirectories);
+            files = listSourceFiles(stdlibRoot);
         }
         catch(Exception ex)
         {
@@ -68,7 +79,7 @@ public static class StdlibLoader
             string contents;
             try
             {
-                contents = File.ReadAllText(path);
+                contents = readSource(path);
             }
             catch(Exception ex)
             {

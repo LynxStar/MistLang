@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.Common.Source;
 using Mist.Lexing;
@@ -10,6 +11,14 @@ namespace Mist.Tests.Lexing;
 [Trait("Tier", "1")]
 public sealed class StormLexerDiagnosticTests
 {
+    private const string AttributionSource = "xx#\nx$+@";
+    private static readonly ImmutableArray<Token> PartialMatches =
+    [
+        CreateToken(Generated.TokenKind.Error, 2, 1, 3, "#"),
+        CreateToken(Generated.TokenKind.Error, 5, 2, 2, "$"),
+        CreateToken(Generated.TokenKind.PLUS, 6, 2, 3, "+"),
+    ];
+
     [Theory]
     [InlineData("@", 0, 1, 1)]
     [InlineData("x\r\n@", 3, 2, 1)]
@@ -30,6 +39,33 @@ public sealed class StormLexerDiagnosticTests
         Assert.Equal(offset, range.Offset);
         Assert.Equal(1, range.Length);
         Assert.Equal(new StormEntryFrame(offset, 1, "@"), Assert.Single(finding.Frames));
+    }
+
+    [Fact]
+    public void MatchingErrorSuppliesRangeAndFrameAfterPartialMatches()
+    {
+        var source = new SourceText("source.mist", AttributionSource);
+        var diagnostics = new DiagnosticBag(PipelineStage.Lexing);
+        var error = CreateToken(Generated.TokenKind.Error, 6, 2, 3, "+@");
+
+        StormLexerDiagnostics.Report(source, "unstructured", source.Path, 2, 3, [.. PartialMatches, error], diagnostics);
+
+        var finding = Assert.Single(diagnostics.Admitted);
+        Assert.Equal(new SourceRange(new SourceIdentity(source), 6, 2), finding.Location);
+        Assert.Equal(new StormEntryFrame(6, 2, "+@"), Assert.Single(finding.Frames));
+    }
+
+    [Fact]
+    public void OnlyPartialMatchesLeaveSourcePointWithoutFrame()
+    {
+        var source = new SourceText("source.mist", AttributionSource);
+        var diagnostics = new DiagnosticBag(PipelineStage.Lexing);
+
+        StormLexerDiagnostics.Report(source, "unstructured", source.Path, 2, 3, PartialMatches, diagnostics);
+
+        var finding = Assert.Single(diagnostics.Admitted);
+        Assert.Equal(new SourcePoint(new SourceIdentity(source), 6), finding.Location);
+        Assert.Empty(finding.Frames);
     }
 
     [Fact]
@@ -68,4 +104,10 @@ public sealed class StormLexerDiagnosticTests
             finding => Assert.Same(InternalDiagnostics.LocationOutOfBounds, finding.Descriptor));
     }
 
+    private static Token CreateToken(Generated.TokenKind kind, int offset, int line, int column, string lexeme)
+    {
+        return new Token((int)kind, new Storm.Runtime.SourceSpan(offset, lexeme.Length),
+            new Storm.Runtime.LinePosition(line, column), new Storm.Runtime.LinePosition(line, column + lexeme.Length),
+            TokenChannel.Default, lexeme);
+    }
 }

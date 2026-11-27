@@ -78,6 +78,18 @@ public sealed class IntegralConstantTests
         Assert.Null(IntegralConstant.Fold(Binary(Literal(1), BinaryOperatorKind.Divide, Literal(0), Int32)));
     }
 
+    [Theory]
+    [InlineData(int.MaxValue, null)]
+    [InlineData(int.MaxValue - 1, int.MaxValue - 1)]
+    public void AdditionFollowedBySubtraction_FoldsOnlyWhenTheIntermediateFits(int start, int? expected)
+    {
+        var one = Literal(1);
+        var sum = Binary(Literal(start), BinaryOperatorKind.Add, one, Int32);
+        var difference = Binary(sum, BinaryOperatorKind.Subtract, one, Int32);
+
+        Assert.Equal((Int128?)expected, IntegralConstant.Fold(difference));
+    }
+
     [Fact]
     public void DividingTheSignedMinimumByNegativeOne_IsNoConstant()
     {

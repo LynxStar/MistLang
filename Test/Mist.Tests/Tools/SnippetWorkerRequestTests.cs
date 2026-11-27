@@ -37,7 +37,9 @@ public sealed class SnippetWorkerRequestTests : IDisposable
 
         Assert.Equal(1, exitCode);
         Assert.Empty(stdout.ToString());
-        Assert.StartsWith("error: ", stderr.ToString());
+        var diagnostic = stderr.ToString();
+        Assert.StartsWith("error: ", diagnostic);
+        Assert.DoesNotContain("Unknown option:", diagnostic, StringComparison.Ordinal);
         Assert.Equal(previousResponse, await File.ReadAllBytesAsync(response));
         Assert.Equal(previousWriteTime, File.GetLastWriteTimeUtc(response));
     }

@@ -115,6 +115,34 @@ public sealed class SnippetPolicyTests
         }));
     }
 
+    [Fact]
+    public void StageCompletionsAccumulateAcrossAttemptsByStageId()
+    {
+        var timings = new SnippetTimings { Attempts = 1 };
+        timings.ReportStageComplete("parse", TimeSpan.FromMilliseconds(3), []);
+        timings.ReportStageComplete("emit", TimeSpan.FromMilliseconds(11), []);
+
+        timings.Attempts = 2;
+        timings.ReportStageComplete("parse", TimeSpan.FromMilliseconds(7), []);
+
+        Assert.Equal(["emit", "parse"], timings.Stages.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(10d, timings.Stages["parse"]);
+        Assert.Equal(11d, timings.Stages["emit"]);
+    }
+
+    [Fact]
+    public void ClearingTimingsResetsStagesAndAttemptsForTheNextSnippet()
+    {
+        var timings = new SnippetTimings { Attempts = 2 };
+        timings.Add("prepare", TimeSpan.FromMilliseconds(5));
+        timings.ReportStageComplete("parse", TimeSpan.FromMilliseconds(13), []);
+
+        timings.Clear();
+
+        Assert.Empty(timings.Stages);
+        Assert.Equal(0, timings.Attempts);
+    }
+
     [Theory]
     [InlineData("class A {}", "class A {}\n")]
     [InlineData("class A {}\r\n", "class A {}\n")]

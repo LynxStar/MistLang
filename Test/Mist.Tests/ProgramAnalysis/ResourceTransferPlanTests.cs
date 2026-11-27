@@ -400,6 +400,29 @@ public sealed class ResourceTransferPlanTests
     }
 
     [Fact]
+    public void OnlyTheInvocationPassingAResourceGetsATransferGate()
+    {
+        var box = new LocalVariable("box", f.Box);
+        var token = f.Local("token");
+        var optional = f.Model.Interner.GetOrCreateUnionType([f.Token, f.Void]);
+        var use = new Method("UseOptional", f.Void, [new Parameter("value", optional)], default) { DeclaringType = f.Box };
+        var absent = new VoidLiteralExpression(HandBuiltModel.Node(), VoidReading.Absence, optional);
+        var withoutTransfer = createCall(absent);
+        var withTransfer = createCall(Ref(token));
+
+        var plan = Plan(Declare(token, f.New(1)), Run(withoutTransfer), Run(withTransfer));
+
+        Assert.True(plan.Gates(withTransfer));
+        Assert.False(plan.Gates(withoutTransfer));
+
+        InvocationExpression createCall(Expression argument)
+        {
+            var member = new MemberAccessExpression(HandBuiltModel.Node(), Ref(box), use.Name, f.Void);
+            return new InvocationExpression(HandBuiltModel.Node(), member, [argument], f.Void, use, [optional]);
+        }
+    }
+
+    [Fact]
     public void ACallOnThisIsAlwaysEntered()
     {
         var t = f.Local("t");

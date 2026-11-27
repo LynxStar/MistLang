@@ -2,7 +2,6 @@ using Mist.Driver;
 
 namespace Mist.Tests.Driver;
 
-[Trait("Tier", "1")]
 public sealed class RidGraphTests
 {
     private const string SdkShapedGraph = """
@@ -26,6 +25,7 @@ public sealed class RidGraphTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void TheOrder_WalksImportsBreadthFirst_EachOnce_TargetFirst()
     {
         Assert.Equal<string>(
@@ -34,12 +34,14 @@ public sealed class RidGraphTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void AnIdentifierInTheGraph_IsContained()
     {
         Assert.True(RidGraph.Contains(Graph(), "win-x64"));
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void AnIdentifierAbsentFromTheGraph_IsNotContained_AndFallsBackToNothingButItself()
     {
         var graph = Graph();
@@ -49,6 +51,7 @@ public sealed class RidGraphTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void AnImportTheGraphDoesNotList_EndsItsBranch()
     {
         var graph = RidGraph.Parse("""{ "runtimes": { "a-x64": { "#import": [ "a", "missing" ] }, "a": { "#import": [] } } }""")!;
@@ -57,6 +60,7 @@ public sealed class RidGraphTests
     }
 
     [Theory]
+    [Trait("Tier", "1")]
     [InlineData("not json")]
     [InlineData("""{ "other": {} }""")]
     [InlineData("""{ "runtimes": {} }""")]
@@ -67,6 +71,7 @@ public sealed class RidGraphTests
     }
 
     [Theory]
+    [Trait("Tier", "1")]
     [InlineData("osx-arm64", new[] { "osx-arm64", "osx", "unix", "any" })]
     [InlineData("osx-x64", new[] { "osx-x64", "osx", "unix", "any" })]
     [InlineData("linux-x64", new[] { "linux-x64", "linux", "unix", "any" })]
@@ -79,6 +84,7 @@ public sealed class RidGraphTests
     }
 
     [Theory]
+    [Trait("Tier", "1")]
     [InlineData("linux-musl-x64", new[] { "linux-musl-x64", "linux-musl", "linux", "unix", "any" })]
     [InlineData("freebsd-x64", new[] { "freebsd-x64", "freebsd", "any" })]
     [InlineData("browser", new[] { "browser", "any" })]
@@ -88,6 +94,7 @@ public sealed class RidGraphTests
     }
 
     [Fact]
+    [Trait("Tier", "1")]
     public void TheBuiltInTable_AcceptsEveryIdentifier()
     {
         Assert.True(RidGraph.Contains(RidGraph.BuiltIn, "foo-bar"));

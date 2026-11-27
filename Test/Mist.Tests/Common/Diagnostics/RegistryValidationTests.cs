@@ -130,6 +130,20 @@ public sealed class RegistryValidationTests
         Assert.Empty(RegistryValidator.Validate([entry], []));
     }
 
+    [Theory]
+    [InlineData("", false)]
+    [InlineData(" \t", false)]
+    [InlineData(" \t", true)]
+    public void MissingTemplatesAreReportedBeforeSlotReconciliation(string template, bool declaresSlot)
+    {
+        Slot[] slots = declaresSlot ? [new Slot("value", SlotKind.Text)] : [];
+        var entry = Entry("Probe", "MIST9001", "Probe value", template, "Remove the probed value.", slots);
+
+        var problem = Assert.Single(RegistryValidator.Validate([entry], []));
+
+        Assert.Equal($"{entry.Field}: template is missing", problem);
+    }
+
     [Fact]
     public void NamedSchemasAllowRepeatedSlotsAndOptionalSegments()
     {

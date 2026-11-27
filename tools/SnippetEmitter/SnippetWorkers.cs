@@ -68,10 +68,7 @@ internal static class SnippetWorkers
 
             var results = JsonSerializer.Deserialize<SnippetResult[]>(await File.ReadAllTextAsync(response, cancellation))
                 ?? throw new JsonException("Worker returned no results.");
-            if(!results.Select(result => result.Path).SequenceEqual(paths, SnippetSelection.PathComparer))
-            {
-                throw new IOException($"Worker {index + 1} returned an incomplete selection.");
-            }
+            ValidateResponse(paths, results, index);
 
             Console.WriteLine($"  worker {index + 1}: {results.Length} snippets processed.");
             return results;
@@ -88,6 +85,14 @@ internal static class SnippetWorkers
                 process.Kill(entireProcessTree: true);
                 await process.WaitForExitAsync(CancellationToken.None);
             }
+        }
+    }
+
+    internal static void ValidateResponse(string[] paths, SnippetResult[] results, int index)
+    {
+        if(!results.Select(result => result.Path).SequenceEqual(paths, SnippetSelection.PathComparer))
+        {
+            throw new IOException($"Worker {index + 1} returned an incomplete selection.");
         }
     }
 }

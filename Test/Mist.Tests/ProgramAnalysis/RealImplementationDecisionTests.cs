@@ -1,8 +1,7 @@
-// Tier 3: an implementation accepts every real value promised by its abstract slot, including NaN where admitted.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
@@ -13,57 +12,78 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RealImplementationDecisionTests
 {
     [Theory]
-    [InlineData("double", ">= 0.0 and <= 1.0", ">= 0.0 and <= 1.0")]
-    [InlineData("double", ">= 0.0 and <= 1.0", ">= 0.0")]
-    [InlineData("double", "> 0.0", ">= 0.0")]
-    [InlineData("double", "> 0.0", "")]
-    [InlineData("double", "", "")]
-    [InlineData("double", "<= 0.0", "not > 0.0")]
-    [InlineData("double", "not > 0.0", "not > 0.0")]
-    [InlineData("float", ">= 0.0f and <= 1.0f", ">= 0.0f and <= 1.0f")]
-    [InlineData("float", ">= 0.0f and <= 1.0f", ">= 0.0f")]
-    [InlineData("float", "> 0.0f", "")]
-    [InlineData("float", "<= 0.1", "<= 0.1f")]
-    [InlineData("decimal", ">= 0.0m and <= 1.0m", ">= 0.0m and <= 1.0m")]
-    [InlineData("decimal", "> 0.0m and < 1.0m", ">= 0.0m and <= 1.0m")]
-    [InlineData("decimal", "> 0.0m", "")]
-    [InlineData("decimal", "not > 0.0m", "<= 0.0m")]
+    [Trait("Tier", "1")]
+    [InlineData("Double", "closed unit", "closed unit")]
+    [InlineData("Double", "closed unit", "nonnegative")]
+    [InlineData("Double", "positive", "nonnegative")]
+    [InlineData("Double", "positive", "")]
+    [InlineData("Double", "", "")]
+    [InlineData("Double", "complement of positive", "complement of positive")]
+    [InlineData("Single", "closed unit", "closed unit")]
+    [InlineData("Single", "closed unit", "nonnegative")]
+    [InlineData("Single", "positive", "")]
+    [InlineData("Single", "at most double tenth", "at most float tenth")]
+    [InlineData("Decimal", "closed unit", "closed unit")]
+    [InlineData("Decimal", "open unit", "closed unit")]
+    [InlineData("Decimal", "positive", "")]
     public void ASameLooserOrUnconstrainedRealImplementation_IsAdmitted(string type, string promised, string demanded)
     {
-        Assert.Empty(Analyse(type, promised, demanded));
+        Assert.Null(Finding(type, promised, demanded));
     }
 
     [Theory]
-    [InlineData("double", ">= 0.0", "> 0.0")]
-    [InlineData("double", ">= 0.0 and <= 1.0", ">= 0.0 and < 1.0")]
-    [InlineData("double", "", ">= 0.0")]
-    [InlineData("double", "not > 0.0", "<= 0.0")]
-    [InlineData("double", "not <= 0.0", "> 0.0")]
-    [InlineData("float", ">= 0.0f", "> 0.0f")]
-    [InlineData("float", "<= 0.1f", "<= 0.1")]
-    [InlineData("float", "not > 0.0f", "<= 0.0f")]
-    [InlineData("float", "", ">= 0.0f and <= 1.0f")]
-    [InlineData("decimal", ">= 0.0m", "> 0.0m")]
-    [InlineData("decimal", ">= 0.0m and <= 1.0m", ">= 0.0m and < 1.0m")]
-    [InlineData("decimal", "", ">= 0.0m")]
+    [Trait("Tier", "1")]
+    [InlineData("Double", "nonnegative", "positive")]
+    [InlineData("Double", "closed unit", "half-open unit")]
+    [InlineData("Double", "", "nonnegative")]
+    [InlineData("Double", "complement of nonpositive", "positive")]
+    [InlineData("Single", "nonnegative", "positive")]
+    [InlineData("Single", "complement of positive", "nonpositive")]
+    [InlineData("Single", "", "closed unit")]
+    [InlineData("Decimal", "nonnegative", "positive")]
+    [InlineData("Decimal", "closed unit", "half-open unit")]
+    [InlineData("Decimal", "", "nonnegative")]
     public void AStricterRealImplementation_IsRefused(string type, string promised, string demanded)
     {
-        Assert.Equal("MIST0283", Assert.Single(Analyse(type, promised, demanded)).Number.Value);
+        Assert.Equal("MIST0283", Finding(type, promised, demanded)?.Number.Value);
+    }
+
+    private static MistDiagnostic? Finding(string domain, string promised, string demanded)
+    {
+        var contract = new NumericContract(domain);
+        return RefinementContracts.ParameterFinding(contract.TypeFor(promised), contract.TypeFor(demanded));
+    }
+
+    [Theory]
+    [Trait("Tier", "4")]
+    [InlineData("double", "<= 0.0", "not > 0.0", null)]
+    [InlineData("double", "not > 0.0", "<= 0.0", "MIST0283")]
+    [InlineData("float", "<= 0.1f", "<= 0.1", "MIST0283")]
+    [InlineData("decimal", "not > 0.0m", "<= 0.0m", null)]
+    public void BoundWhereClausesRetainTheirNumericDomain(string type, string promised, string demanded, string? expected)
+    {
+        var findings = Analyse(type, promised, demanded);
+        if(expected is null)
+        {
+            Assert.Empty(findings);
+        }
+        else
+        {
+            Assert.Equal(expected, Assert.Single(findings).Number.Value);
+        }
     }
 
     private static ImmutableArray<Diagnostic> Analyse(string type, string promised, string demanded)
     {
-        var slotWhere = promised.Length == 0 ? "" : $"where value {promised}";
-        var implementationWhere = demanded.Length == 0 ? "" : $"where value {demanded}";
         var source = $$"""
             public abstract IRealContract
             {
-                {{type}} Keep({{type}} value) {{slotWhere}};
+                {{type}} Keep({{type}} value) where value {{promised}};
             }
 
             public class RealImplementation : IRealContract
             {
-                public {{type}} Keep({{type}} value) {{implementationWhere}}
+                public {{type}} Keep({{type}} value) where value {{demanded}}
                 {
                     return value;
                 }

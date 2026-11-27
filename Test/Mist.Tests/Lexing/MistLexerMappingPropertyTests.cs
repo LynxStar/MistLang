@@ -3,11 +3,20 @@ using FsCheck;
 using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Mist.Common.Diagnostics;
+using Mist.Common.Source;
 using Mist.Lexing;
 
 namespace Mist.Tests.Lexing;
 
-public record DiagnosticEntryData(string Message, string FilePath, int Line, int Column);
+public record DiagnosticEntryData(string Message, string FilePath, int Line, int Column)
+{
+    internal static SourceText SourceAt(string path, int line, int column)
+    {
+        var padding = new string(' ', column);
+        var text = line == 1 ? padding : padding + new string('\n', line - 1) + padding;
+        return new SourceText(path, text);
+    }
+}
 
 public class MistLexerMappingPropertyTests
 {
@@ -24,13 +33,14 @@ public class MistLexerMappingPropertyTests
     }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistLexerMappingPropertyTests) })]
+    [Trait("Tier", "2")]
     public bool MistLexerMapping_PreservesStructuredFields(DiagnosticEntryData entryData)
     {
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
         stormDiagnostics.Add(entryData.Message, entryData.FilePath, entryData.Line, entryData.Column);
 
         var entry = stormDiagnostics.Entries[0];
-        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
+        var source = DiagnosticEntryData.SourceAt(entryData.FilePath, entryData.Line, entryData.Column);
         var bag = new DiagnosticBag();
 
         bag.ReportAt(LexerDiagnostics.LexError, StormEntryLocation.Of(source, entry.FilePath, entry.Line, entry.Column), entry.Message);
@@ -65,14 +75,16 @@ public class MistLexerMappingPropertyTests
     }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistLexerMappingPropertyTests) })]
+    [Trait("Tier", "1")]
     public bool MistLexerMapping_PositiveLineColumn_ProducesNonNullLocation(DiagnosticEntryData entryData)
     {
-        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
+        var source = DiagnosticEntryData.SourceAt(entryData.FilePath, entryData.Line, entryData.Column);
 
         return StormEntryLocation.Of(source, entryData.FilePath, entryData.Line, entryData.Column) is SourcePoint;
     }
 
     [Property(MaxTest = 100)]
+    [Trait("Tier", "1")]
     public bool MistLexerMapping_NullFilePath_FallsBackToSourcePath(PositiveInt line, PositiveInt column)
     {
         var sourcePath = "original-source.mist";
@@ -82,11 +94,6 @@ public class MistLexerMappingPropertyTests
 
         var entry = stormDiagnostics.Entries[0];
 
-        return StormEntryLocation.Of(SourceOf(sourcePath, line.Get, column.Get), entry.FilePath, entry.Line, entry.Column).Path == sourcePath;
-    }
-
-    private static Mist.Common.Source.SourceText SourceOf(string path, int lines, int width)
-    {
-        return new Mist.Common.Source.SourceText(path, string.Join("\n", Enumerable.Repeat(new string(' ', width), lines)));
+        return StormEntryLocation.Of(DiagnosticEntryData.SourceAt(sourcePath, line.Get, column.Get), entry.FilePath, entry.Line, entry.Column).Path == sourcePath;
     }
 }

@@ -3,7 +3,6 @@ using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
 using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
-using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Patterns;
@@ -110,56 +109,8 @@ public sealed class RefinedReturnContractDecisionTests
 
     private static MistDiagnostic? DeclaredReturn(string domain, string promised, string produced)
     {
-        var h = new HandBuiltRefinements();
-        var type = h.Built.Type(domain);
-
-        IMistType declared(string shape, string name)
-        {
-            var zero = Number(domain, 0);
-            var one = Number(domain, 1);
-            Pattern compared(ComparisonKind op, object value)
-            {
-                return h.Compare(type, op, value);
-            }
-
-            Pattern between(ComparisonKind left, object low, ComparisonKind right, object high)
-            {
-                return new ConjunctionPattern(HandBuiltModel.Node(), type, [compared(left, low), compared(right, high)]);
-            }
-
-            Pattern negate(ComparisonKind op)
-            {
-                return new NegatedPattern(HandBuiltModel.Node(), type, compared(op, zero));
-            }
-
-            if(shape.Length == 0)
-            {
-                return type;
-            }
-
-            var predicate = shape switch
-            {
-                "positive" => compared(ComparisonKind.GreaterThan, zero),
-                "nonnegative" => compared(ComparisonKind.GreaterThanOrEqual, zero),
-                "nonpositive" => compared(ComparisonKind.LessThanOrEqual, zero),
-                "nonzero" => negate(ComparisonKind.Equal),
-                "complement of positive" => negate(ComparisonKind.GreaterThan),
-                "complement of nonpositive" => negate(ComparisonKind.LessThanOrEqual),
-                "zero through one hundred" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 100L),
-                "zero through ten" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 10L),
-                "zero through nine" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 9L),
-                "one through nine" => between(ComparisonKind.GreaterThanOrEqual, one, ComparisonKind.LessThanOrEqual, 9L),
-                "open unit" => between(ComparisonKind.GreaterThan, zero, ComparisonKind.LessThan, one),
-                "half-open unit" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThan, one),
-                "closed unit" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, one),
-                "at most float tenth" => compared(ComparisonKind.LessThanOrEqual, 0.1f),
-                "at most double tenth" => compared(ComparisonKind.LessThanOrEqual, 0.1),
-                _ => throw new ArgumentOutOfRangeException(nameof(shape)),
-            };
-            return HandBuiltRefinements.RefinePattern(type, predicate, name);
-        }
-
-        return RefinementContracts.ReturnFinding(declared(produced, "Produced"), declared(promised, "Promised"));
+        var contract = new NumericContract(domain);
+        return RefinementContracts.ReturnFinding(contract.TypeFor(produced, "Produced"), contract.TypeFor(promised, "Promised"));
     }
 
     private static MistDiagnostic? OpaqueReturn(string promised, string produced)
@@ -193,10 +144,10 @@ public sealed class RefinedReturnContractDecisionTests
     {
         var h = new HandBuiltRefinements();
         var type = h.Built.Type(domain);
-        var promised = h.Refine(type, ComparisonKind.GreaterThan, Number(domain, 0), "Positive");
+        var promised = h.Refine(type, ComparisonKind.GreaterThan, NumericContract.Number(domain, 0), "Positive");
         var owner = HandBuiltModel.Class("Factory");
         Block returns;
-        var one = h.Literal(Number(domain, 1));
+        var one = h.Literal(NumericContract.Number(domain, 1));
         var negative = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, one, type);
         switch(body)
         {
@@ -229,18 +180,6 @@ public sealed class RefinedReturnContractDecisionTests
 
         var make = new Method("Make", type, [], DeclarationFragments.Public) { DeclaringType = owner, Body = returns };
         return RefinementContracts.ReturnFinding(type, promised, lifted: new LiftedReturns().Of(make));
-    }
-
-    private static object Number(string domain, int value)
-    {
-        return domain switch
-        {
-            "Int32" => (long)value,
-            "Single" => (float)value,
-            "Double" => (double)value,
-            "Decimal" => (decimal)value,
-            _ => throw new ArgumentOutOfRangeException(nameof(domain)),
-        };
     }
 
     internal static ImmutableArray<Diagnostic> Analyse(string source)

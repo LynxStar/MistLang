@@ -45,6 +45,7 @@ public sealed class ProjectFileParserManifestDecisionTests : IDisposable
         { "name = \"App\"\n[references]\n\" \" = { path = \"../Lib\" }", "MIST0068" },
         { "name = \"App\"\n[references]\n\"Bad Ref\" = { path = \"../Lib\" }", "MIST0067" },
         { "name = \"App\"\nglobal_usings = 5", "MIST0076" },
+        { "name = \"App\"\n[global_usings]\nnamespaces = [\"Company.Tools.9Invalid\"]", "MIST0081" },
         { "name = \"App\"\ndiagnostics = 3", "MIST0103" },
     };
 

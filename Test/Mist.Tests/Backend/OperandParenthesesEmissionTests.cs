@@ -1,88 +1,83 @@
-// Tier 3 (Component): the parentheses an operand keeps in C#, over the real Standard sources. The model holds
-// the tree and parentheses written in source reach it as nothing, so every operand that binds more loosely
-// than its position in C# has to be parenthesized again on the way out. Asserted on the emitted text because
-// a lost pair still compiles and prints a different number: bare, `(maybe ?? b) + b` prints 250 for
-// 260 and `a - (b - c)` prints 5 for 9.
-
-using Mist.Backends.CSharpTranspiler.Emitter;
-using Mist.Backends.CSharpTranspiler.Lowering;
-using Mist.Common.Diagnostics;
-using Mist.ProgramModel.Model.Types;
-using Mist.Tests.Helpers;
+using System.Collections.Immutable;
 
 namespace Mist.Tests.Backend;
 
+// Mist's binder erases source parentheses, so emitted C# must restore them when its operand precedence requires them.
+[Trait("Tier", "4")]
 public sealed class OperandParenthesesEmissionTests
 {
+    private static readonly Lazy<ImmutableDictionary<string, string>> Bodies = new(() => ParenthesesMethodBodies.Emit(
+        CoalescingOperands.Concat(RightOperands).Concat(LooserOperands).Concat(TightlyBoundOperands).Select(row => Assert.IsType<string>(row[0])),
+        Locals));
+
     private const string Locals = """
         int a = 10; int b = 3; int c = 2; int? maybe = 250; int? other = 4; bool? flag = false; string? text = "xyz";
         int[]? xs = void; int[] ys = [7];
         """;
 
+    public static TheoryData<string, string> CoalescingOperands => new()
+    {
+        { "int left = (maybe ?? b) + b;", "int left = (maybe ?? b) + b;" },
+        { "int right = b + (maybe ?? b);", "int right = b + (maybe ?? b);" },
+        { "bool compared = (maybe ?? b) > 5;", "bool compared = (maybe ?? b) > 5;" },
+        { "int negated = -(maybe ?? b);", "int negated = -(maybe ?? b);" },
+        { "bool inverted = !(flag ?? false);", "bool inverted = !(flag ?? false);" },
+        { "bool either = (flag ?? false) || true;", "bool either = (flag ?? false) || true;" },
+        { "string upper = (text ?? \"abc\").ToUpper();", "string upper = (text ?? \"abc\").ToUpperInvariant();" },
+        { "int first = (xs ?? ys)[0];", "int first = (xs ?? ys)[0];" },
+        { "int identity = ((maybe ?? b) as int) + b;", "int identity = (maybe ?? b) + b;" },
+    };
+
     [Theory]
-    [InlineData("int left = (maybe ?? b) + b;", "int left = (maybe ?? b) + b;")]
-    [InlineData("int right = b + (maybe ?? b);", "int right = b + (maybe ?? b);")]
-    [InlineData("bool compared = (maybe ?? b) > 5;", "bool compared = (maybe ?? b) > 5;")]
-    [InlineData("int negated = -(maybe ?? b);", "int negated = -(maybe ?? b);")]
-    [InlineData("bool inverted = !(flag ?? false);", "bool inverted = !(flag ?? false);")]
-    [InlineData("bool either = (flag ?? false) || true;", "bool either = (flag ?? false) || true;")]
-    [InlineData("string upper = (text ?? \"abc\").ToUpper();", "string upper = (text ?? \"abc\").ToUpperInvariant();")]
-    [InlineData("int first = (xs ?? ys)[0];", "int first = (xs ?? ys)[0];")]
-    [InlineData("int identity = ((maybe ?? b) as int) + b;", "int identity = (maybe ?? b) + b;")]
+    [MemberData(nameof(CoalescingOperands))]
     public void ACoalescingOperand_KeepsItsParentheses(string statement, string expected)
     {
-        Assert.Contains(expected, Emit(Locals + statement), StringComparison.Ordinal);
+        Assert.Contains(expected, Bodies.Value[statement], StringComparison.Ordinal);
     }
 
+    public static TheoryData<string, string> RightOperands => new()
+    {
+        { "int subtracted = a - (b - c);", "int subtracted = a - (b - c);" },
+        { "int divided = a / (b / c);", "int divided = a / (b / c);" },
+        { "string joined = \"n=\" + (b + c);", "string joined = \"n=\" + (b + c).ToString(System.Globalization.CultureInfo.InvariantCulture);" },
+    };
+
     [Theory]
-    [InlineData("int subtracted = a - (b - c);", "int subtracted = a - (b - c);")]
-    [InlineData("int divided = a / (b / c);", "int divided = a / (b / c);")]
-    [InlineData("string joined = \"n=\" + (b + c);", "string joined = \"n=\" + (b + c).ToString(System.Globalization.CultureInfo.InvariantCulture);")]
+    [MemberData(nameof(RightOperands))]
     public void ARightOperandOfTheSamePrecedence_KeepsItsParentheses(string statement, string expected)
     {
-        Assert.Contains(expected, Emit(Locals + statement), StringComparison.Ordinal);
+        Assert.Contains(expected, Bodies.Value[statement], StringComparison.Ordinal);
     }
 
+    public static TheoryData<string, string> LooserOperands => new()
+    {
+        { "var named = (b + c) switch { 5 => \"five\", _ => \"other\" };", "string named = (b + c) switch {" },
+        { "int switched = -(c switch { 2 => 5, _ => 6 });", "int switched = -(c switch {" },
+        { "int assigned = (a = 5) + 1;", "int assigned = (a = 5) + 1;" },
+        { "int fallback = maybe ?? (a = 5);", "int fallback = maybe ?? (a = 5);" },
+        { "int reassigned = (maybe = other) ?? 9;", "int reassigned = (maybe = other) ?? 9;" },
+        { "var widened = (a + b) as long;", "((long)(a + b))" },
+    };
+
     [Theory]
-    [InlineData("var named = (b + c) switch { 5 => \"five\", _ => \"other\" };", "string named = (b + c) switch {")]
-    [InlineData("int switched = -(c switch { 2 => 5, _ => 6 });", "int switched = -(c switch {")]
-    [InlineData("int assigned = (a = 5) + 1;", "int assigned = (a = 5) + 1;")]
-    [InlineData("int fallback = maybe ?? (a = 5);", "int fallback = maybe ?? (a = 5);")]
-    [InlineData("int reassigned = (maybe = other) ?? 9;", "int reassigned = (maybe = other) ?? 9;")]
-    [InlineData("var widened = (a + b) as long;", "((long)(a + b))")]
+    [MemberData(nameof(LooserOperands))]
     public void ALooserOperand_KeepsItsParentheses(string statement, string expected)
     {
-        Assert.Contains(expected, Emit(Locals + statement), StringComparison.Ordinal);
+        Assert.Contains(expected, Bodies.Value[statement], StringComparison.Ordinal);
     }
+
+    public static TheoryData<string, string> TightlyBoundOperands => new()
+    {
+        { "int chained = a - b - c;", "int chained = a - b - c;" },
+        { "int mixed = a + b * c;", "int mixed = a + b * c;" },
+        { "int scaled = (c switch { 2 => 5, _ => 6 }) * 2;", "int scaled = c switch { 2 => 5, var _ => 6 } * 2;" },
+        { "int picked = maybe ?? b;", "int picked = maybe ?? b;" },
+    };
 
     [Theory]
-    [InlineData("int chained = a - b - c;", "int chained = a - b - c;")]
-    [InlineData("int mixed = a + b * c;", "int mixed = a + b * c;")]
-    [InlineData("int scaled = (c switch { 2 => 5, _ => 6 }) * 2;", "int scaled = c switch { 2 => 5, var _ => 6 } * 2;")]
-    [InlineData("int picked = maybe ?? b;", "int picked = maybe ?? b;")]
+    [MemberData(nameof(TightlyBoundOperands))]
     public void AnOperandThatAlreadyBindsTightly_IsLeftBare(string statement, string expected)
     {
-        Assert.Contains(expected, Emit(Locals + statement), StringComparison.Ordinal);
-    }
-
-    private static string Emit(string statements)
-    {
-        var model = StandardModelProbe.Build(statements, out var built);
-        Assert.Empty(built.Where(d => d.Severity == DiagnosticSeverity.Error));
-
-        var run = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(m => m.Name == "Run");
-        var writer = new CSharpWriter();
-        var diagnostics = new DiagnosticBag();
-
-        Assert.NotNull(run.Body);
-
-        using(IntrinsicSupply.Enter(model, Type.GetType))
-        using(AsyncPromotion.Enter(model))
-        {
-            BodyEmitter.EmitMethodBody(run, run.Body, writer, diagnostics);
-        }
-
-        Assert.Empty(diagnostics.ToImmutableArray().Where(d => d.Severity == DiagnosticSeverity.Error));
-        return writer.ToString();
+        Assert.Contains(expected, Bodies.Value[statement], StringComparison.Ordinal);
     }
 }

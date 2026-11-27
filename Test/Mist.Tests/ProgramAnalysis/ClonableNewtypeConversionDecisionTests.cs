@@ -1,13 +1,11 @@
-// Tier 3 (Component): the conversions between a newtype and a mutable class source that defines its own
-// copy (newtypes spec Requirement 10). Each runs a Clone body with the operand as this, so a cast holds
-// exactly when that body types with the operand in place, and a private member of either type never stops
-// it. Built over the real Standard sources, the only place IClonable is declared.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Construction.Binding.Expressions;
 using Mist.ProgramModel.Model.Expressions;
 using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
@@ -15,7 +13,7 @@ using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.ProgramAnalysis;
 
-public sealed class ClonableNewtypeConversionDecisionTests
+public sealed class ClonableConversionPrograms
 {
     private const string Types = """
         public class Cat
@@ -180,26 +178,106 @@ public sealed class ClonableNewtypeConversionDecisionTests
         var step = new Step(1, void);
         """;
 
+    internal const string LeaveIntCell = "var leftForAConstruction = (Cell<int>)intCell;";
+    internal const string EnterChain = "var aSelfTypedSlotClonedConditionally = (Chain)link;";
+    internal const string RefusedPuma = "var renamedField = (Puma)lion;";
+
+    private static readonly string[] Statements =
+    [
+        "var entered = (Jaguar)tiger;",
+        "var left = (Tiger)jaguar;",
+        "var enteredFromAConstruction = (IntCell)cell;",
+        LeaveIntCell,
+        "var enteredAGenericNewtype = (Celled<int>)cell;",
+        "var enteredAtAnotherInstance = (Celled<string>)new Cell<string>(\"s\");",
+        "var leftAGenericNewtype = (Cell<string>)celled;",
+        EnterChain,
+        "var aSelfTypedSlotClonedConditionallyBack = (Link)new Chain(1, void);",
+        "var aSelfTypedSlotClonedUnderAPattern = (Twig<int>)branch;",
+        "var aSelfTypedSlotClonedUnderAPatternBack = (Branch<int>)new Twig<int>(1, void);",
+        "var aReadonlySourceWhoseCopyDoesNotHold = (Step)rung;",
+        "var aReadonlySourceWhoseCopyDoesNotHoldBack = (Rung)step;",
+    ];
+
+    public static TheoryData<string> AdmittedCasts => new(Statements);
+
+    private readonly Lazy<(Dictionary<string, CastExpression> Casts, ClassType Chain)> accepted = new(BindAccepted);
+    private readonly Lazy<ProgramModelClass> declarations = new(() =>
+    {
+        var model = Build("", out var diagnostics);
+        Assert.Empty(Errors(diagnostics));
+        return model;
+    });
+    private readonly Lazy<Diagnostic[]> refusedPuma = new(() => AnalyzeErrors(RefusedPuma));
+
+    internal ProgramModelClass Declarations => declarations.Value;
+    internal ClassType Chain => accepted.Value.Chain;
+
+    internal CastExpression Accepted(string statement)
+    {
+        return accepted.Value.Casts[statement];
+    }
+
+    internal Diagnostic[] Refusals(string statement)
+    {
+        return statement == RefusedPuma ? refusedPuma.Value : AnalyzeErrors(statement);
+    }
+
+    internal static ProgramModelClass Build(string statement, out ImmutableArray<Diagnostic> diagnostics)
+    {
+        return StandardModelProbe.Build(Locals + statement, out diagnostics, Types);
+    }
+
+    private static (Dictionary<string, CastExpression> Casts, ClassType Chain) BindAccepted()
+    {
+        var cases = Statements.Select((statement, i) => (Statement: statement, Method: $"Cast{i}")).ToArray();
+        var methods = string.Join("\n", cases.Select(c => $"public static void {c.Method}() {{\n{Locals}\n{c.Statement}\n}}"));
+        var model = StandardModelProbe.Build("", out var built, $$"""
+            {{Types}}
+            public class AcceptedCasts
+            {
+                {{methods}}
+            }
+            """);
+        Assert.Empty(Errors(built));
+        var findings = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, findings);
+        Assert.Empty(Errors(findings.ToImmutableArray()));
+
+        var owner = Assert.IsType<ClassType>(model.TypesByFQN["Probe.AcceptedCasts"]);
+        var bound = owner.MethodsList.ToDictionary(method => method.Name, StringComparer.Ordinal);
+        var casts = cases.ToDictionary(c => c.Statement, c =>
+            Assert.IsType<CastExpression>(bound[c.Method].Body!.Statements.OfType<LocalDeclarationStatement>().Last().Initializer),
+            StringComparer.Ordinal);
+        return (casts, Assert.IsType<ClassType>(model.TypesByFQN["Probe.Chain"]));
+    }
+
+    private static Diagnostic[] AnalyzeErrors(string statement)
+    {
+        var model = Build(statement, out var built);
+        var findings = new DiagnosticBag();
+        ProgramAnalysisRunner.Run(model, findings);
+        return [.. Errors(built), .. Errors(findings.ToImmutableArray())];
+    }
+
+    private static IEnumerable<Diagnostic> Errors(IEnumerable<Diagnostic> diagnostics)
+    {
+        return diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+}
+
+public sealed class ClonableNewtypeConversionDecisionTests(ClonableConversionPrograms programs) : IClassFixture<ClonableConversionPrograms>
+{
     [Theory]
-    [InlineData("var entered = (Jaguar)tiger;")]
-    [InlineData("var left = (Tiger)jaguar;")]
-    [InlineData("var enteredFromAConstruction = (IntCell)cell;")]
-    [InlineData("var leftForAConstruction = (Cell<int>)intCell;")]
-    [InlineData("var enteredAGenericNewtype = (Celled<int>)cell;")]
-    [InlineData("var enteredAtAnotherInstance = (Celled<string>)new Cell<string>(\"s\");")]
-    [InlineData("var leftAGenericNewtype = (Cell<string>)celled;")]
-    [InlineData("var aSelfTypedSlotClonedConditionally = (Chain)link;")]
-    [InlineData("var aSelfTypedSlotClonedConditionallyBack = (Link)new Chain(1, void);")]
-    [InlineData("var aSelfTypedSlotClonedUnderAPattern = (Twig<int>)branch;")]
-    [InlineData("var aSelfTypedSlotClonedUnderAPatternBack = (Branch<int>)new Twig<int>(1, void);")]
-    [InlineData("var aReadonlySourceWhoseCopyDoesNotHold = (Step)rung;")]
-    [InlineData("var aReadonlySourceWhoseCopyDoesNotHoldBack = (Rung)step;")]
+    [Trait("Tier", "4")]
+    [MemberData(nameof(ClonableConversionPrograms.AdmittedCasts), MemberType = typeof(ClonableConversionPrograms))]
     public void ACastRunningAClonableSourcesClone_IsAdmittedEitherWay(string statement)
     {
-        Assert.Empty(Errors(Analyse(statement)));
+        Assert.NotNull(programs.Accepted(statement).Operator);
     }
 
     [Theory]
+    [Trait("Tier", "4")]
     [InlineData("Jaguar withoutACast = tiger;", "MIST0158")]
     [InlineData("var noCopy = (Actor)entity;", "MIST0152")]
     [InlineData("var noCopyBack = (Entity)new Actor();", "MIST0152")]
@@ -207,41 +285,55 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [InlineData("Celled<int> genericWithoutACast = cell;", "MIST0158")]
     [InlineData("var fromAnotherInstance = (Celled<string>)cell;", "MIST0151")]
     [InlineData("var toAnotherInstance = (Cell<int>)celled;", "MIST0149")]
-    [InlineData("var renamedField = (Puma)lion;", "MIST0154")]
+    [InlineData(ClonableConversionPrograms.RefusedPuma, "MIST0154")]
     [InlineData("var renamedFieldBack = (Lion)puma;", "MIST0154")]
     [InlineData("Rung aReadonlySourceNoLongerLeavesImplicitly = step;", "MIST0158")]
     public void ACastWithNoCopyThatHolds_IsRefused(string statement, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
+        Assert.Equal(expected, Assert.Single(programs.Refusals(statement)).Number.Value);
     }
 
     [Theory]
-    [InlineData("var aCloneTestedAgainstAMutableSource = jaguar is Tiger;", "MIST0193")]
-    [InlineData("var aCloneTestedAgainstAMutableSourceByAs = jaguar as Tiger;", "MIST0403")]
-    public void ATypeTestBetweenACloneAndASourceThatDefinesItsOwnCopy_IsRefused(string statement, string expected)
+    [Trait("Tier", "1")]
+    [InlineData("is", "MIST0193")]
+    [InlineData("as", "MIST0403")]
+    public void ATypeTestBetweenACloneAndASourceThatDefinesItsOwnCopy_IsRefused(string operation, string expected)
     {
-        Assert.Equal(expected, Assert.Single(Errors(Analyse(statement))).Number.Value);
+        var (_, tiger, jaguar) = TigerFamily();
+        var finding = operation switch
+        {
+            "is" => PatternAnalyzer.TypeFinding(new TypeTestPattern(HandBuiltModel.Node(), tiger, null), jaguar, new HandBuiltModel().Interner),
+            "as" => OperatorBinder.AsFinding(jaguar, tiger),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation)),
+        };
+        Assert.Equal(expected, finding?.Number.Value);
     }
 
     [Fact]
+    [Trait("Tier", "1")]
     public void ACloneTestedAgainstItsRenamedBase_IsAdmitted()
     {
-        Assert.Empty(Errors(Analyse("var aCloneIsItsRenamedBase = jaguar is Cat;")));
+        var (cat, _, jaguar) = TigerFamily();
+        var pattern = new TypeTestPattern(HandBuiltModel.Node(), cat, null);
+        Assert.Null(PatternAnalyzer.TypeFinding(pattern, jaguar, new HandBuiltModel().Interner));
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void ARefusedConversion_NamesTheMemberThatBlocksIt()
     {
-        var refusal = Assert.Single(Errors(Analyse("var renamedField = (Puma)lion;")));
+        var refusal = Assert.Single(programs.Refusals(ClonableConversionPrograms.RefusedPuma));
 
         Assert.Contains("'Puma.Clone' with a 'Lion' as this", refusal.Message);
         Assert.Contains("at 'Mate'", refusal.Message);
     }
 
+    // IsCalled belongs to the operator definition, so each marking assertion binds its cast in isolation.
     [Fact]
+    [Trait("Tier", "3")]
     public void ACastToTheNewtype_RunsTheNewtypesCloneWithTheSourceAsThis()
     {
-        var cast = Assert.IsType<CastExpression>(LastLocal(Build("var entered = (Jaguar)tiger;", out _)).Initializer);
+        var cast = Assert.IsType<CastExpression>(LastLocal(ClonableConversionPrograms.Build("var entered = (Jaguar)tiger;", out _)).Initializer);
         var conversion = Assert.IsType<CastOperator>(cast.Operator);
 
         Assert.Equal("Probe.Jaguar", conversion.ClonesThrough?.DeclaringType?.FullyQualifiedName);
@@ -250,9 +342,10 @@ public sealed class ClonableNewtypeConversionDecisionTests
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void ACastToAConstructedSource_RunsItsCloneWithTheArgumentsInPlace()
     {
-        var cast = Assert.IsType<CastExpression>(LastLocal(Build("var left = (Cell<int>)intCell;", out _)).Initializer);
+        var cast = programs.Accepted(ClonableConversionPrograms.LeaveIntCell);
         var conversion = Assert.IsType<CastOperator>(cast.Operator);
         var copy = Assert.IsType<ReturnStatement>(conversion.Body!.Statements[^1]).Value!;
 
@@ -261,9 +354,10 @@ public sealed class ClonableNewtypeConversionDecisionTests
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void ACastToAnInstanceOfAGenericNewtype_RunsTheNewtypesCloneTypedAtThatInstance()
     {
-        var cast = Assert.IsType<CastExpression>(LastLocal(Build("var entered = (Celled<int>)cell;", out _)).Initializer);
+        var cast = Assert.IsType<CastExpression>(LastLocal(ClonableConversionPrograms.Build("var entered = (Celled<int>)cell;", out _)).Initializer);
         var conversion = Assert.IsType<CastOperator>(cast.Operator);
 
         Assert.Equal("Probe.Celled<>", conversion.ClonesThrough?.DeclaringType?.FullyQualifiedName);
@@ -277,8 +371,7 @@ public sealed class ClonableNewtypeConversionDecisionTests
     [Trait("Tier", "3")]
     public void ACloneOfAClone_ConvertsWithItsImmediateSourceByEachSidesOwnClone()
     {
-        var model = Build("", out var diagnostics);
-        Assert.Empty(Errors(diagnostics));
+        var model = programs.Declarations;
 
         var lynx = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Lynx"]);
         var into = lynx.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Lynx");
@@ -294,24 +387,24 @@ public sealed class ClonableNewtypeConversionDecisionTests
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void ACloneOfTheOperandWithinAConversion_IsThatConversionAndIsNotJudgedAgainstItself()
     {
-        var model = Build("var entered = (Chain)link;", out _);
-        var chain = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Chain"]);
-        var into = chain.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Chain");
+        var into = programs.Chain.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Chain");
+        Assert.Same(into, programs.Accepted(ClonableConversionPrograms.EnterChain).Operator);
         var creation = Assert.IsType<NewExpression>(Assert.IsType<ReturnStatement>(into.Body!.Statements[^1]).Value);
         var converted = Assert.IsType<CastExpression>(creation.Arguments[1]);
 
         Assert.Same(into, converted.Operator);
         Assert.True(converted.IsConditional);
         Assert.Equal("Probe.Chain", converted.TargetType.FullyQualifiedName);
-        Assert.Empty(Errors(Analyse("var entered = (Chain)link;")));
     }
 
     [Fact]
+    [Trait("Tier", "3")]
     public void AStaticTheCloneReads_IsTheBodysOwnTypesNotTheOperands()
     {
-        var model = Build("", out _);
+        var model = programs.Declarations;
         var jaguar = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Jaguar"]);
         var toTiger = jaguar.CastOperatorsList.Single(conversion => conversion.TargetType.FullyQualifiedName == "Probe.Tiger");
         var counter = Assert.IsType<ExpressionStatement>(toTiger.Body!.Statements[0]).Expression;
@@ -320,18 +413,22 @@ public sealed class ClonableNewtypeConversionDecisionTests
         Assert.Equal("Probe.Tiger", Assert.IsType<FieldReferenceExpression>(assignment.Target).Field.DeclaringType?.FullyQualifiedName);
     }
 
-    private static List<Diagnostic> Analyse(string statement)
+    private static (ClassType Cat, ClassType Tiger, ClassType Jaguar) TigerFamily()
     {
-        var model = Build(statement, out var buildDiagnostics);
-        var findings = new DiagnosticBag();
-        ProgramAnalysisRunner.Run(model, findings);
+        var cat = HandBuiltModel.Class("Cat");
+        var tiger = HandBuiltModel.Class("Tiger", cat);
+        var jaguar = HandBuiltModel.Class("Jaguar", cat);
+        jaguar.CloneSource = tiger;
+        jaguar.CloneSourceType = tiger;
+        foreach(var (owner, source, target) in new[] { (jaguar, tiger, jaguar), (tiger, jaguar, tiger) })
+        {
+            var clone = new Method("Clone", owner, [], DeclarationFragments.Public with { IsOwned = true }) { DeclaringType = owner };
+            owner.MethodsList.Add(clone);
+            jaguar.CastOperatorsList.Add(new CastOperator(target, new Parameter("value", source), false, DeclarationFragments.Public)
+            { DeclaringType = jaguar, ClonesThrough = clone });
+        }
 
-        return [.. buildDiagnostics, .. findings.ToImmutableArray()];
-    }
-
-    private static ProgramModelClass Build(string statement, out ImmutableArray<Diagnostic> diagnostics)
-    {
-        return StandardModelProbe.Build(Locals + statement, out diagnostics, Types);
+        return (cat, tiger, jaguar);
     }
 
     private static LocalDeclarationStatement LastLocal(ProgramModelClass model)
@@ -339,10 +436,5 @@ public sealed class ClonableNewtypeConversionDecisionTests
         var run = Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run");
 
         return run.Body!.Statements.OfType<LocalDeclarationStatement>().Last();
-    }
-
-    private static IEnumerable<Diagnostic> Errors(IEnumerable<Diagnostic> diagnostics)
-    {
-        return diagnostics.Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
     }
 }

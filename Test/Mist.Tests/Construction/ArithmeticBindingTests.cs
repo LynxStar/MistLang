@@ -46,6 +46,27 @@ public sealed class ArithmeticBindingTests
     }
 
     [Theory]
+    [InlineData(nameof(BinaryOperatorKind.LessThan), false, false, true)]
+    [InlineData(nameof(BinaryOperatorKind.GreaterThan), true, false, false)]
+    [InlineData(nameof(BinaryOperatorKind.LessThanOrEqual), false, true, true)]
+    [InlineData(nameof(BinaryOperatorKind.GreaterThanOrEqual), true, true, false)]
+    public void ADecimalGuardWithTheLocalOnTheRightNarrowsItsValues(string operation, bool below, bool equal, bool above)
+    {
+        var f = new BindingFragments();
+        var numeric = f.Built.Type("Decimal");
+        var amount = f.Local("amount", numeric);
+        var comparison = new BinaryExpression(HandBuiltModel.Node(), HandBuiltModel.Literal(numeric, 1m),
+            Enum.Parse<BinaryOperatorKind>(operation), amount, f.Built.Type("Boolean"));
+
+        OperandFacts.Learn(f.Binding, f.Scope, comparison, holds: true);
+        var values = DecimalOperandFacts.For(f.Binding, f.Scope, amount);
+
+        Assert.Equal(below, values.Contains(new LiteralValue(0.9m, numeric.FullyQualifiedName)));
+        Assert.Equal(equal, values.Contains(new LiteralValue(1m, numeric.FullyQualifiedName)));
+        Assert.Equal(above, values.Contains(new LiteralValue(1.1m, numeric.FullyQualifiedName)));
+    }
+
+    [Theory]
     [InlineData("ref-call")]
     [InlineData("ref-alias")]
     [InlineData("inferred-ref-alias")]

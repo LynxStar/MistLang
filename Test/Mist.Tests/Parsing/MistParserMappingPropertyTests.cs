@@ -24,13 +24,14 @@ public class MistParserMappingPropertyTests
     }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistParserMappingPropertyTests) })]
+    [Trait("Tier", "2")]
     public bool MistParserMapping_PreservesStructuredFields(DiagnosticEntryData entryData)
     {
         var stormDiagnostics = new Storm.Runtime.DiagnosticBag();
         stormDiagnostics.Add(entryData.Message, entryData.FilePath, entryData.Line, entryData.Column);
 
         var entry = stormDiagnostics.Entries[0];
-        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
+        var source = DiagnosticEntryData.SourceAt(entryData.FilePath, entryData.Line, entryData.Column);
         var bag = new DiagnosticBag();
 
         bag.ReportAt(ParserDiagnostics.ParseError, StormEntryLocation.Of(source, entry.FilePath, entry.Line, entry.Column), entry.Message);
@@ -65,14 +66,16 @@ public class MistParserMappingPropertyTests
     }
 
     [Property(MaxTest = 100, Arbitrary = new[] { typeof(MistParserMappingPropertyTests) })]
+    [Trait("Tier", "1")]
     public bool MistParserMapping_PositiveLineColumn_ProducesNonNullLocation(DiagnosticEntryData entryData)
     {
-        var source = SourceOf(entryData.FilePath, entryData.Line, entryData.Column);
+        var source = DiagnosticEntryData.SourceAt(entryData.FilePath, entryData.Line, entryData.Column);
 
         return StormEntryLocation.Of(source, entryData.FilePath, entryData.Line, entryData.Column) is SourcePoint;
     }
 
     [Property(MaxTest = 100)]
+    [Trait("Tier", "1")]
     public bool MistParserMapping_NullFilePath_FallsBackToSourcePath(PositiveInt line, PositiveInt column)
     {
         var sourcePath = "original-source.mist";
@@ -82,11 +85,6 @@ public class MistParserMappingPropertyTests
 
         var entry = stormDiagnostics.Entries[0];
 
-        return StormEntryLocation.Of(SourceOf(sourcePath, line.Get, column.Get), entry.FilePath, entry.Line, entry.Column).Path == sourcePath;
-    }
-
-    private static Mist.Common.Source.SourceText SourceOf(string path, int lines, int width)
-    {
-        return new Mist.Common.Source.SourceText(path, string.Join("\n", Enumerable.Repeat(new string(' ', width), lines)));
+        return StormEntryLocation.Of(DiagnosticEntryData.SourceAt(sourcePath, line.Get, column.Get), entry.FilePath, entry.Line, entry.Column).Path == sourcePath;
     }
 }

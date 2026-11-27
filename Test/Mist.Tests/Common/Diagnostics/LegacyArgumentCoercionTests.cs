@@ -32,6 +32,20 @@ public sealed class LegacyArgumentCoercionTests
     }
 
     [Fact]
+    public void AnEmptyEnumerableProducesAnInitializedEmptySequence()
+    {
+        var descriptor = DiagnosticFixtures.Descriptor(
+            "FIXTURE_LEGACY_EMPTY_NAMES", "Names: {names}.", slots: [new Slot("names", SlotKind.Sequence, SlotKind.Name)]);
+
+        var values = LegacyArguments.For(descriptor, [Array.Empty<string>()]);
+
+        var names = Assert.IsType<SequenceValue>(Assert.Single(values));
+        Assert.Equal(SlotKind.Name, names.ElementKind);
+        Assert.False(names.Items.IsDefault);
+        Assert.Empty(names.Items);
+    }
+
+    [Fact]
     public void AnEnumerableCoercesItemsInSourceOrder()
     {
         var descriptor = DiagnosticFixtures.Descriptor(

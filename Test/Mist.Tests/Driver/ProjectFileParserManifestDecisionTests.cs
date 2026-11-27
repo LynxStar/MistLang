@@ -136,6 +136,22 @@ public sealed class ProjectFileParserManifestDecisionTests : IDisposable
     }
 
     [Fact]
+    public void TheCliPromotionList_OverridesTheRootManifestsPromotionOfItsOwnWarning()
+    {
+        File.WriteAllText(ManifestPath, DuplicateUsingPromoted);
+        var diagnostics = new DiagnosticBag(new DiagnosticOperation
+        {
+            Overrides = new DiagnosticPolicyOverrides(PromoteAll: false, Promoted: [DriverDiagnostics.CsprojPropertyManagedOverride.Number]),
+        });
+
+        Assert.NotNull(ProjectFileParser.ParseRoot(projectDir, diagnostics));
+
+        var occurrence = Assert.Single(diagnostics.Admitted);
+        Assert.Equal("MIST0082", occurrence.Number.Value);
+        Assert.Equal(DiagnosticSeverity.Warning, occurrence.Severity);
+    }
+
+    [Fact]
     public void AReferencedManifestsPolicy_ReachesNeitherTheOperationNorItsOwnWarnings()
     {
         File.WriteAllText(ManifestPath, DuplicateUsingPromoted);

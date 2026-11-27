@@ -122,6 +122,28 @@ public sealed class ProjectDependencyUnionTests
     }
 
     [Fact]
+    public void HigherVersionWithDifferentCasing_ReplacesTheFirstDeclarationInPlace()
+    {
+        var root = Root(packages:
+        [
+            new NuGetPackageReference("Root.Package", "1.0.0"),
+            new NuGetPackageReference("Newtonsoft.Json", "12.0.1"),
+        ]);
+        var first = Referenced("First", packages: [new NuGetPackageReference("First.Package", "2.0.0")]);
+        var second = Referenced("Second", packages:
+        [
+            new NuGetPackageReference("Second.Package", "3.0.0"),
+            new NuGetPackageReference("newtonsoft.json", "13.0.3"),
+        ]);
+
+        var composed = ProjectDependencyUnion.Apply(root, [first, second]);
+
+        Assert.Equal(
+            ["Root.Package 1.0.0", "newtonsoft.json 13.0.3", "First.Package 2.0.0", "Second.Package 3.0.0"],
+            Describe(composed.Packages));
+    }
+
+    [Fact]
     public void AVersionThatDoesNotParse_LeavesTheEarlierDeclarationForResolutionToReport()
     {
         var root = Root(packages: [new NuGetPackageReference("Newtonsoft.Json", "not-a-version")]);

@@ -57,7 +57,6 @@ public sealed class RegistryValidationTests
     }
 
     [Theory]
-    [InlineData("duplicate")]
     [InlineData("malformed")]
     [InlineData("tombstone")]
     [InlineData("missing-title")]
@@ -72,7 +71,6 @@ public sealed class RegistryValidationTests
     [InlineData("optional-error")]
     [InlineData("ice-warning")]
     [InlineData("conditional-on-non-optional")]
-    [InlineData("related-unknown")]
     public void APlantedFaultFailsValidation(string fault)
     {
         var (entries, tombstones) = Plant(fault);
@@ -80,6 +78,48 @@ public sealed class RegistryValidationTests
         var problems = RegistryValidator.Validate(entries, tombstones);
 
         _ = Assert.Single(problems);
+    }
+
+    [Fact]
+    public void DuplicateNumberIdentifiesOnlyItsDeclaringFields()
+    {
+        var (entries, tombstones) = Plant("duplicate");
+        var unrelated = Entry("Unrelated", "MIST9003", "Unrelated probe", "A separate value was probed.", "Remove the separate value.");
+
+        var problem = Assert.Single(RegistryValidator.Validate([.. entries, unrelated], tombstones));
+
+        Assert.StartsWith("MIST9001:", problem, StringComparison.Ordinal);
+        Assert.Contains("RegistryValidationTests.First", problem, StringComparison.Ordinal);
+        Assert.Contains("RegistryValidationTests.Second", problem, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegistryValidationTests.Unrelated", problem, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("MIST9998")]
+    [InlineData("MIST9099")]
+    public void RelatedNumberMustIdentifyAnActiveDescriptor(string number)
+    {
+        var (entries, tombstones) = Plant("none");
+        var source = entries[1];
+        var referring = source with { Descriptor = Related(source.Descriptor, DiagnosticNumber.Mint(number)) };
+
+        var problem = Assert.Single(RegistryValidator.Validate([entries[0], referring], tombstones));
+
+        Assert.Equal($"RegistryValidationTests.Second: related number '{number}' is not in the registry", problem);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RelatedNumberResolvesInEitherDeclarationOrder(bool targetFirst)
+    {
+        var (entries, tombstones) = Plant("none");
+        var target = entries[0];
+        var source = entries[1];
+        var referring = source with { Descriptor = Related(source.Descriptor, target.Descriptor.Number) };
+        RegistryEntry[] orderedEntries = targetFirst ? [target, referring] : [referring, target];
+
+        Assert.Empty(RegistryValidator.Validate(orderedEntries, tombstones));
     }
 
     [Fact]
@@ -178,7 +218,6 @@ public sealed class RegistryValidationTests
             "optional-error" => second with { Descriptor = second.Descriptor with { Policy = PolicyClass.Optional } },
             "ice-warning" => second with { Descriptor = second.Descriptor with { Category = DiagnosticCategory.Ice, DefaultSeverity = DiagnosticSeverity.Warning } },
             "conditional-on-non-optional" => second with { Descriptor = second.Descriptor with { Template = "Name{name? '{name}'}." } },
-            "related-unknown" => second with { Descriptor = Related(second.Descriptor, DiagnosticNumber.Mint("MIST9998")) },
             _ => throw new ArgumentOutOfRangeException(nameof(fault)),
         };
 

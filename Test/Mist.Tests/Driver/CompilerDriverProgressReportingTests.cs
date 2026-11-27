@@ -9,52 +9,9 @@ using Mist.Tests.Helpers;
 namespace Mist.Tests.Driver;
 
 [Trait("Tier", "4")]
-public sealed class CompilerDriverProgressReportingTests : IDisposable
+public sealed class CompilerDriverProgressReportingTests
 {
-    private readonly string scratchDir;
-
-    public CompilerDriverProgressReportingTests()
-    {
-        scratchDir = Path.Combine(
-            Path.GetTempPath(),
-            "mist-progress-" + Guid.NewGuid().ToString("N"));
-        _ = Directory.CreateDirectory(scratchDir);
-    }
-
-    public void Dispose()
-    {
-        if(Directory.Exists(scratchDir))
-        {
-            try { Directory.Delete(scratchDir, recursive: true); } catch { /* best effort */ }
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
-    private static CompilerDriver CreateDriver(RecordingProgressReporter reporter)
-    {
-        return new CompilerDriver(new MistLexer(), new MistParser(), reporter, ambientTypes: _ => StubAmbientTypeSource.Instance);
-    }
-
-    private CompilerOptions CreateOptionsForSource(string source, string fileName = "Program.mist")
-    {
-        var userPath = Path.Combine(scratchDir, fileName);
-        File.WriteAllText(userPath, source);
-
-        var outputDir = Path.Combine(scratchDir, "output");
-        var binDir = Path.Combine(scratchDir, "bin");
-        _ = Directory.CreateDirectory(outputDir);
-        _ = Directory.CreateDirectory(binDir);
-
-        return new CompilerOptions(
-            ProjectFolder: scratchDir,
-            SourcePaths: ImmutableArray.Create(userPath),
-            Backend: new BackendId("csharp"),
-            OutputDirectory: outputDir,
-            BinDirectory: binDir,
-            ProjectName: "TestProject",
-            NamespaceRoot: "TestProject");
-    }
+    private static readonly Lazy<ProgressCapture> Progress = new(Capture);
 
     private const string ValidProgram = """
         namespace TestNs;
@@ -66,15 +23,9 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     [Fact]
     public void Stage1_ReportsCorrectFileCounts()
     {
-        var reporter = new RecordingProgressReporter();
-        var driver = CreateDriver(reporter);
-        var options = CreateOptionsForSource(ValidProgram);
+        var details = Progress.Value.Files;
 
-        _ = driver.Compile(options);
-
-        var details = reporter.DetailsOf("1");
-
-        Assert.Equal(3, details.Count);
+        Assert.Equal(3, details.Length);
 
         // The test project copies stdlib files to output.
         Assert.Matches(@"^\d+ stdlib files$", details[0]);
@@ -89,13 +40,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     [Fact]
     public void Stage2_ReportsTokenCount()
     {
-        var reporter = new RecordingProgressReporter();
-        var driver = CreateDriver(reporter);
-        var options = CreateOptionsForSource(ValidProgram);
-
-        _ = driver.Compile(options);
-
-        var details = reporter.DetailsOf("2");
+        var details = Progress.Value.Tokens;
 
         _ = Assert.Single(details);
         Assert.Matches(@"^\d+ tokens$", details[0]);
@@ -106,13 +51,7 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     [Fact]
     public void Stage3_ReportsNodeCount()
     {
-        var reporter = new RecordingProgressReporter();
-        var driver = CreateDriver(reporter);
-        var options = CreateOptionsForSource(ValidProgram);
-
-        _ = driver.Compile(options);
-
-        var details = reporter.DetailsOf("3");
+        var details = Progress.Value.Nodes;
 
         _ = Assert.Single(details);
         Assert.Matches(@"^\d+ AST nodes$", details[0]);
@@ -123,17 +62,47 @@ public sealed class CompilerDriverProgressReportingTests : IDisposable
     [Fact]
     public void NoDependencies_SkipStage1_5_AndDeliverNothing()
     {
-        var reporter = new RecordingProgressReporter();
-        var listener = new CountingListener();
-        var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, listener, ambientTypes: _ => StubAmbientTypeSource.Instance);
-        var options = CreateOptionsForSource(ValidProgram);
-
-        var result = driver.Compile(options);
-
-        Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Diagnostics));
-        Assert.Equal(0, listener.Received);
-        Assert.Equal(["1", "2", "3", "4", "5", "6"], reporter.Events.Where(e => e.Kind == "start").Select(e => e.StageId));
+        Assert.Equal(0, Progress.Value.ResolutionDiagnostics);
+        Assert.Equal<string>(["1", "2", "3", "4", "5", "6"], Progress.Value.StartedStages);
     }
+
+    private static ProgressCapture Capture()
+    {
+        var scratch = Directory.CreateTempSubdirectory("mist-progress-");
+        try
+        {
+            var userPath = Path.Combine(scratch.FullName, "Program.mist");
+            File.WriteAllText(userPath, ValidProgram);
+            var options = new CompilerOptions(
+                ProjectFolder: scratch.FullName,
+                SourcePaths: [userPath],
+                Backend: new BackendId("csharp"),
+                OutputDirectory: scratch.CreateSubdirectory("output").FullName,
+                BinDirectory: scratch.CreateSubdirectory("bin").FullName,
+                ProjectName: "TestProject",
+                NamespaceRoot: "TestProject");
+
+            var reporter = new RecordingProgressReporter();
+            var listener = new CountingListener();
+            var driver = new CompilerDriver(new MistLexer(), new MistParser(), reporter, listener, ambientTypes: _ => StubAmbientTypeSource.Instance);
+            var result = driver.Compile(options);
+            Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Diagnostics));
+
+            return new ProgressCapture([.. reporter.DetailsOf("1")], [.. reporter.DetailsOf("2")], [.. reporter.DetailsOf("3")],
+                [.. reporter.Events.Where(e => e.Kind == "start").Select(e => e.StageId)], listener.Received);
+        }
+        finally
+        {
+            try { scratch.Delete(recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    private sealed record ProgressCapture(
+        ImmutableArray<string> Files,
+        ImmutableArray<string> Tokens,
+        ImmutableArray<string> Nodes,
+        ImmutableArray<string> StartedStages,
+        int ResolutionDiagnostics);
 
     private sealed class CountingListener : IResolutionDiagnosticListener
     {

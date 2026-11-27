@@ -72,7 +72,7 @@ public static class FrameworkReferenceResolver
             failureCount);
     }
 
-    private static (ImmutableArray<string> Assemblies, string Version)? ResolvePack(
+    internal static (ImmutableArray<string> Assemblies, string Version)? ResolvePack(
         string dotnetRoot,
         string frameworkName,
         string targetFramework)

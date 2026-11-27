@@ -1,9 +1,14 @@
-// Tier 3: an abstract return promise survives only a supported subset proof, integral member lift or refined identity.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
+using Mist.ProgramAnalysis.Refinements;
+using Mist.ProgramAnalysis.Rules;
+using Mist.ProgramModel.Contracts.Types;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
+using Mist.ProgramModel.Model.Patterns;
+using Mist.ProgramModel.Model.Scopes;
+using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
 
@@ -12,58 +17,62 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class RefinedReturnContractDecisionTests
 {
     [Theory]
-    [InlineData("int", "> 0", "> 0")]
-    [InlineData("int", ">= 0", "> 0")]
-    [InlineData("int", ">= 0 and <= 100", ">= 1 and <= 9")]
-    [InlineData("int", "not 0", "> 0")]
-    [InlineData("double", "> 0.0", "> 0.0")]
-    [InlineData("double", ">= 0.0", "> 0.0")]
-    [InlineData("double", ">= 0.0 and <= 1.0", "> 0.0 and < 1.0")]
-    [InlineData("double", "not > 0.0", "<= 0.0")]
-    [InlineData("double", "not > 0.0", "not > 0.0")]
-    [InlineData("double", "not <= 0.0", "> 0.0")]
-    [InlineData("float", ">= 0.0f", "> 0.0f")]
-    [InlineData("float", "not > 0.0f", "<= 0.0f")]
-    [InlineData("float", "<= 0.1f", "<= 0.1")]
-    [InlineData("decimal", ">= 0.0m", "> 0.0m")]
-    [InlineData("decimal", "<= 0.0m", "not > 0.0m")]
+    [Trait("Tier", "1")]
+    [InlineData("Int32", "positive", "positive")]
+    [InlineData("Int32", "nonnegative", "positive")]
+    [InlineData("Int32", "zero through one hundred", "one through nine")]
+    [InlineData("Int32", "nonzero", "positive")]
+    [InlineData("Double", "positive", "positive")]
+    [InlineData("Double", "nonnegative", "positive")]
+    [InlineData("Double", "closed unit", "open unit")]
+    [InlineData("Double", "complement of positive", "nonpositive")]
+    [InlineData("Double", "complement of positive", "complement of positive")]
+    [InlineData("Double", "complement of nonpositive", "positive")]
+    [InlineData("Single", "nonnegative", "positive")]
+    [InlineData("Single", "complement of positive", "nonpositive")]
+    [InlineData("Single", "at most float tenth", "at most double tenth")]
+    [InlineData("Decimal", "nonnegative", "positive")]
+    [InlineData("Decimal", "nonpositive", "complement of positive")]
     public void ASameOrStrongerDeclaredReturn_IsAdmitted(string domain, string promised, string produced)
     {
-        Assert.Empty(AnalyseFactory(domain, promised, produced));
+        Assert.Null(DeclaredReturn(domain, promised, produced));
     }
 
     [Theory]
-    [InlineData("int", "> 0", ">= 0")]
-    [InlineData("int", ">= 0 and <= 9", ">= 0 and <= 10")]
-    [InlineData("int", "> 0", "")]
-    [InlineData("double", "> 0.0", ">= 0.0")]
-    [InlineData("double", ">= 0.0 and < 1.0", ">= 0.0 and <= 1.0")]
-    [InlineData("double", "<= 0.0", "not > 0.0")]
-    [InlineData("double", "> 0.0", "not <= 0.0")]
-    [InlineData("double", "> 0.0", "")]
-    [InlineData("float", "> 0.0f", ">= 0.0f")]
-    [InlineData("float", "<= 0.0f", "not > 0.0f")]
-    [InlineData("float", "<= 0.1", "<= 0.1f")]
-    [InlineData("float", "> 0.0f", "")]
-    [InlineData("decimal", "> 0.0m", ">= 0.0m")]
-    [InlineData("decimal", ">= 0.0m and < 1.0m", ">= 0.0m and <= 1.0m")]
-    [InlineData("decimal", "> 0.0m", "")]
+    [Trait("Tier", "1")]
+    [InlineData("Int32", "positive", "nonnegative")]
+    [InlineData("Int32", "zero through nine", "zero through ten")]
+    [InlineData("Int32", "positive", "")]
+    [InlineData("Double", "positive", "nonnegative")]
+    [InlineData("Double", "half-open unit", "closed unit")]
+    [InlineData("Double", "nonpositive", "complement of positive")]
+    [InlineData("Double", "positive", "complement of nonpositive")]
+    [InlineData("Double", "positive", "")]
+    [InlineData("Single", "positive", "nonnegative")]
+    [InlineData("Single", "nonpositive", "complement of positive")]
+    [InlineData("Single", "at most double tenth", "at most float tenth")]
+    [InlineData("Single", "positive", "")]
+    [InlineData("Decimal", "positive", "nonnegative")]
+    [InlineData("Decimal", "half-open unit", "closed unit")]
+    [InlineData("Decimal", "positive", "")]
     public void AWeakerOrUnrefinedDeclaredReturn_IsRefused(string domain, string promised, string produced)
     {
-        Assert.Equal("MIST0284", Assert.Single(AnalyseFactory(domain, promised, produced)).Number.Value);
+        Assert.Equal("MIST0284", DeclaredReturn(domain, promised, produced)?.Number.Value);
     }
 
     [Theory]
+    [Trait("Tier", "1")]
     [InlineData("Letters", "Letters")]
     [InlineData("Letters", "NonEmptyLetters")]
     [InlineData("BelowLimit", "BelowLimit")]
     [InlineData("BelowLimit", "NonNegativeBelowLimit")]
     public void AnUnreadablePredicatePreservedByRefinedIdentity_IsAdmitted(string promised, string produced)
     {
-        Assert.Empty(AnalyseOpaqueFactory(promised, produced));
+        Assert.Null(OpaqueReturn(promised, produced));
     }
 
     [Theory]
+    [Trait("Tier", "1")]
     [InlineData("Letters", "SameLetters")]
     [InlineData("Letters", "Digits")]
     [InlineData("Letters", "string")]
@@ -71,74 +80,167 @@ public sealed class RefinedReturnContractDecisionTests
     [InlineData("BelowLimit", "int")]
     public void AnUnreadablePredicateWithoutRefinedIdentity_IsRefused(string promised, string produced)
     {
-        Assert.Equal("MIST0284", Assert.Single(AnalyseOpaqueFactory(promised, produced)).Number.Value);
+        Assert.Equal("MIST0284", OpaqueReturn(promised, produced)?.Number.Value);
     }
 
     [Theory]
-    [InlineData("int", "public int Make() { return 1; }")]
-    [InlineData("int", "public bool Flag; public int Make() { if(Flag) { return 1; } return 2; }")]
-    [InlineData("int", "public int Make() { return Keep(); } public Positive Keep() { return 1; }")]
-    public void ASupportedIntegralLiftMeetsTheReturnContract(string domain, string member)
+    [Trait("Tier", "2")]
+    [InlineData("Int32", "literal")]
+    [InlineData("Int32", "two positive returns")]
+    [InlineData("Int32", "refined call")]
+    public void ASupportedIntegralLiftMeetsTheReturnContract(string domain, string body)
     {
-        Assert.Empty(AnalyseMember(domain, member));
+        Assert.Null(LiftedReturn(domain, body));
     }
 
     [Theory]
-    [InlineData("int", "public int Make() { return -1; }")]
-    [InlineData("int", "public bool Flag; public int Make() { if(Flag) { return 1; } return -1; }")]
-    [InlineData("int", "public int Make() { int held = 1; return held; }")]
-    [InlineData("int", "public int Make() { return 1 + 1; }")]
-    [InlineData("double", "public double Make() { return -1.0; }")]
-    [InlineData("double", "public double Make() { return 1.0; }")]
-    [InlineData("float", "public float Make() { return 1.0f; }")]
-    [InlineData("decimal", "public decimal Make() { return 1.0m; }")]
-    public void AnInsufficientOrUnsupportedBodyLift_IsRefused(string domain, string member)
+    [Trait("Tier", "2")]
+    [InlineData("Int32", "negative literal")]
+    [InlineData("Int32", "one negative return")]
+    [InlineData("Int32", "local")]
+    [InlineData("Int32", "sum")]
+    [InlineData("Double", "negative literal")]
+    [InlineData("Double", "literal")]
+    [InlineData("Single", "literal")]
+    [InlineData("Decimal", "literal")]
+    public void AnInsufficientOrUnsupportedBodyLift_IsRefused(string domain, string body)
     {
-        Assert.Equal("MIST0284", Assert.Single(AnalyseMember(domain, member)).Number.Value);
+        Assert.Equal("MIST0284", LiftedReturn(domain, body)?.Number.Value);
     }
 
-    private static ImmutableArray<Diagnostic> AnalyseFactory(string domain, string promised, string produced)
+    private static MistDiagnostic? DeclaredReturn(string domain, string promised, string produced)
     {
-        var producedDeclaration = produced.Length == 0 ? "" : $"type Produced = {domain} {produced};";
-        var producedType = produced.Length == 0 ? domain : "Produced";
-        return Analyse($$"""
-            type Promised = {{domain}} {{promised}};
-            {{producedDeclaration}}
-            public abstract IFactory { Promised Make({{producedType}} value); }
-            public class Factory : IFactory
+        var h = new HandBuiltRefinements();
+        var type = h.Built.Type(domain);
+
+        IMistType declared(string shape, string name)
+        {
+            var zero = Number(domain, 0);
+            var one = Number(domain, 1);
+            Pattern compared(ComparisonKind op, object value)
             {
-                public {{producedType}} Make({{producedType}} value) { return value; }
+                return h.Compare(type, op, value);
             }
-            """);
-    }
 
-    private static ImmutableArray<Diagnostic> AnalyseOpaqueFactory(string promised, string produced)
-    {
-        return Analyse($$"""
-            public class Limits { public static readonly int Bound = 10; }
-            type Letters = string `[a-z]+`;
-            type NonEmptyLetters = Letters and not "";
-            type SameLetters = string `[a-z]+`;
-            type Digits = string `[0-9]+`;
-            type BelowLimit = int < Limits.Bound;
-            type NonNegativeBelowLimit = BelowLimit and >= 0;
-            type OtherBelowLimit = int < Limits.Bound;
-            public abstract IFactory { {{promised}} Make({{produced}} value); }
-            public class Factory : IFactory
+            Pattern between(ComparisonKind left, object low, ComparisonKind right, object high)
             {
-                public {{produced}} Make({{produced}} value) { return value; }
+                return new ConjunctionPattern(HandBuiltModel.Node(), type, [compared(left, low), compared(right, high)]);
             }
-            """);
+
+            Pattern negate(ComparisonKind op)
+            {
+                return new NegatedPattern(HandBuiltModel.Node(), type, compared(op, zero));
+            }
+
+            if(shape.Length == 0)
+            {
+                return type;
+            }
+
+            var predicate = shape switch
+            {
+                "positive" => compared(ComparisonKind.GreaterThan, zero),
+                "nonnegative" => compared(ComparisonKind.GreaterThanOrEqual, zero),
+                "nonpositive" => compared(ComparisonKind.LessThanOrEqual, zero),
+                "nonzero" => negate(ComparisonKind.Equal),
+                "complement of positive" => negate(ComparisonKind.GreaterThan),
+                "complement of nonpositive" => negate(ComparisonKind.LessThanOrEqual),
+                "zero through one hundred" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 100L),
+                "zero through ten" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 10L),
+                "zero through nine" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, 9L),
+                "one through nine" => between(ComparisonKind.GreaterThanOrEqual, one, ComparisonKind.LessThanOrEqual, 9L),
+                "open unit" => between(ComparisonKind.GreaterThan, zero, ComparisonKind.LessThan, one),
+                "half-open unit" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThan, one),
+                "closed unit" => between(ComparisonKind.GreaterThanOrEqual, zero, ComparisonKind.LessThanOrEqual, one),
+                "at most float tenth" => compared(ComparisonKind.LessThanOrEqual, 0.1f),
+                "at most double tenth" => compared(ComparisonKind.LessThanOrEqual, 0.1),
+                _ => throw new ArgumentOutOfRangeException(nameof(shape)),
+            };
+            return HandBuiltRefinements.RefinePattern(type, predicate, name);
+        }
+
+        return RefinementContracts.ReturnFinding(declared(produced, "Produced"), declared(promised, "Promised"));
     }
 
-    private static ImmutableArray<Diagnostic> AnalyseMember(string domain, string member)
+    private static MistDiagnostic? OpaqueReturn(string promised, string produced)
     {
-        var zero = domain switch { "double" => "0.0", "float" => "0.0f", "decimal" => "0.0m", _ => "0" };
-        return Analyse($$"""
-            type Positive = {{domain}} > {{zero}};
-            public abstract IFactory { Positive Make(); }
-            public class Factory : IFactory { {{member}} }
-            """);
+        var h = new HandBuiltRefinements();
+        var letters = h.Regex("[a-z]+", "Letters");
+        var limits = HandBuiltModel.Class("Limits");
+        var field = new Field("Bound", h.Int, default, DeclarationFragments.Public with { IsStatic = true, IsReadonly = true })
+        { DeclaringType = limits };
+        var access = new MemberAccessExpression(HandBuiltModel.Node(), new TypeReferenceExpression(HandBuiltModel.Node(), limits),
+            "Bound", h.Int, member: new FieldResult(field, limits, []));
+        var belowLimit = h.Refine(h.Int, ComparisonKind.LessThan, access, "BelowLimit");
+        var source = produced switch
+        {
+            "Letters" => letters,
+            "NonEmptyLetters" => HandBuiltRefinements.RefinePattern(letters,
+                new NegatedPattern(HandBuiltModel.Node(), h.String, h.Compare(h.String, ComparisonKind.Equal, "")), produced),
+            "SameLetters" => h.Regex("[a-z]+", produced),
+            "Digits" => h.Regex("[0-9]+", produced),
+            "string" => h.String,
+            "BelowLimit" => belowLimit,
+            "NonNegativeBelowLimit" => h.Refine(belowLimit, ComparisonKind.GreaterThanOrEqual, 0L, produced),
+            "OtherBelowLimit" => h.Refine(h.Int, ComparisonKind.LessThan, access, produced),
+            "int" => h.Int,
+            _ => throw new ArgumentOutOfRangeException(nameof(produced)),
+        };
+        return RefinementContracts.ReturnFinding(source, promised == "Letters" ? letters : belowLimit);
+    }
+
+    private static MistDiagnostic? LiftedReturn(string domain, string body)
+    {
+        var h = new HandBuiltRefinements();
+        var type = h.Built.Type(domain);
+        var promised = h.Refine(type, ComparisonKind.GreaterThan, Number(domain, 0), "Positive");
+        var owner = HandBuiltModel.Class("Factory");
+        Block returns;
+        var one = h.Literal(Number(domain, 1));
+        var negative = new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, one, type);
+        switch(body)
+        {
+            case "literal":
+            case "negative literal":
+                returns = DeclarationFragments.Returning(body == "literal" ? one : negative);
+                break;
+            case "two positive returns":
+            case "one negative return":
+                var flag = new Field("Flag", h.Bool, default, DeclarationFragments.Public) { DeclaringType = owner };
+                returns = HandBuiltModel.Block(HandBuiltRefinements.If(new FieldReferenceExpression(HandBuiltModel.Node(), flag),
+                    new ReturnStatement(one, type)), new ReturnStatement(body == "one negative return" ? negative : h.Literal(2L), type));
+                break;
+            case "refined call":
+                var keep = new Method("Keep", promised, [], DeclarationFragments.Public)
+                { DeclaringType = owner, Body = DeclarationFragments.Returning(one) };
+                returns = DeclarationFragments.Returning(new InvocationExpression(HandBuiltModel.Node(),
+                    new MethodReferenceExpression(HandBuiltModel.Node(), keep), [], promised, keep, []));
+                break;
+            case "local":
+                var held = HandBuiltRefinements.Local(type, "held");
+                returns = HandBuiltModel.Block(HandBuiltRefinements.Give(held, one), new ReturnStatement(held, type));
+                break;
+            case "sum":
+                returns = DeclarationFragments.Returning(h.Binary(one, BinaryOperatorKind.Add, one, type));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(body));
+        }
+
+        var make = new Method("Make", type, [], DeclarationFragments.Public) { DeclaringType = owner, Body = returns };
+        return RefinementContracts.ReturnFinding(type, promised, lifted: new LiftedReturns().Of(make));
+    }
+
+    private static object Number(string domain, int value)
+    {
+        return domain switch
+        {
+            "Int32" => (long)value,
+            "Single" => (float)value,
+            "Double" => (double)value,
+            "Decimal" => (decimal)value,
+            _ => throw new ArgumentOutOfRangeException(nameof(domain)),
+        };
     }
 
     internal static ImmutableArray<Diagnostic> Analyse(string source)

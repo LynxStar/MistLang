@@ -218,6 +218,21 @@ public sealed class OtherPrimitiveFactTests
         Assert.True(Exactness.Holds(halve, operand, bag.Add(RealFacts.Compare(operand, ComparisonKind.GreaterThanOrEqual, new Rational(1, 1 << 20))), Limit));
     }
 
+    [Fact]
+    public void HalvingANegativeDoubleRequiresProofOfNormalMagnitude()
+    {
+        var h = new HandBuiltRefinements();
+        var x = new Value(h.Double, "x", HandBuiltModel.Node());
+        var halve = h.Binary(HandBuiltRefinements.Local(h.Double), BinaryOperatorKind.Divide, h.Literal(2.0), h.Double);
+        var operand = new Term(x);
+        var negative = MakeBag(RealFacts.Compare(operand, ComparisonKind.GreaterThanOrEqual, new Term(-1000)),
+            RealFacts.Compare(operand, ComparisonKind.LessThan, new Term(0)));
+        var awayFromZero = negative.Add(RealFacts.Compare(operand, ComparisonKind.LessThanOrEqual, new Term(-1)));
+
+        Assert.False(Exactness.Holds(halve, operand, negative, Limit));
+        Assert.True(Exactness.Holds(halve, operand, awayFromZero, Limit));
+    }
+
     [Theory]
     [InlineData("abc", true)]
     [InlineData("ABC", false)]

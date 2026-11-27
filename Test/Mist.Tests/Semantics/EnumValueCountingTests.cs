@@ -51,14 +51,20 @@ public sealed class EnumValueCountingTests
     }
 
     [Fact]
-    public void CountingPastTheBase_IsRefusedAtTheVariantThatWouldLeaveIt()
+    public void CountingPastTheBase_IsRefusedAndResumesFromAnExplicitValue()
     {
         var octet = Primitive("Byte");
-        var levels = Enum(octet, ("Top", HandBuiltModel.Literal(Primitive("Int32"), 255)), ("Over", null));
+        var levels = Enum(
+            octet,
+            ("Top", HandBuiltModel.Literal(Primitive("Int32"), 255)),
+            ("Over", null),
+            ("Reset", HandBuiltModel.Literal(octet, (byte)40)),
+            ("Next", null));
 
         EnumMemberBinder.BindAll(levels, fragments.Builder);
 
         Assert.Null(levels.MembersList[1].Value);
+        AssertValue((byte)41, levels, "Next");
         Assert.Equal("MIST0400", Assert.Single(fragments.Diagnostics.ToImmutableArray()).Number.Value);
     }
 

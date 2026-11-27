@@ -61,6 +61,20 @@ public sealed class TupleNameRowsTests
         }));
     }
 
+    [Fact]
+    public void TruncatedSecondNameDiscardsAllNames()
+    {
+        Expect(["A", "BC"], Decode(Value(1, ["A", "BC"])));
+        Assert.Null(Decode(value =>
+        {
+            value.WriteUInt16(1);
+            value.WriteInt32(2);
+            value.WriteSerializedString("A");
+            value.WriteByte(2);
+            value.WriteByte((byte)'B');
+        }));
+    }
+
     private static void Expect(string?[] expected, string?[]? actual)
     {
         Assert.Equal<IEnumerable<string?>>(expected, Assert.IsType<string?[]>(actual));

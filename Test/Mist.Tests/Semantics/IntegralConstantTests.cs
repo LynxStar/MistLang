@@ -79,6 +79,22 @@ public sealed class IntegralConstantTests
     }
 
     [Fact]
+    public void DividingTheSignedMinimumByNegativeOne_IsNoConstant()
+    {
+        var quotient = Binary(Literal(long.MinValue, Int64), BinaryOperatorKind.Divide, Literal(-1L, Int64), Int64);
+
+        Assert.Null(IntegralConstant.Fold(quotient));
+    }
+
+    [Fact]
+    public void DividingOneAboveTheSignedMinimumByNegativeOne_FoldsToTheSignedMaximum()
+    {
+        var quotient = Binary(Literal(long.MinValue + 1, Int64), BinaryOperatorKind.Divide, Literal(-1L, Int64), Int64);
+
+        Assert.Equal((Int128)long.MaxValue, IntegralConstant.Fold(quotient));
+    }
+
+    [Fact]
     public void ALocalTimesZero_IsNoConstant()
     {
         var local = new LocalReferenceExpression(HandBuiltModel.Node(), new LocalVariable("value", UInt64));

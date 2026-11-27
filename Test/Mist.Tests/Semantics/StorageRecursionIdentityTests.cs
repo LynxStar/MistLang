@@ -27,6 +27,20 @@ public sealed class StorageRecursionIdentityTests
         Assert.True(recursion.Enter(box, inner));
     }
 
+    [Fact]
+    public void RefusesDescendantFromADifferentGenericDefinition()
+    {
+        var box = GenericStruct("Box<>");
+        var other = GenericStruct("Other<>");
+        var leaf = HandBuiltModel.Struct("Leaf");
+        var outer = new ConstructedType(box, [new ConstructedType(other, [leaf])]);
+        var candidate = new ConstructedType(box, [leaf]);
+        var recursion = new StorageRecursion();
+
+        Assert.True(recursion.Enter(box, outer));
+        Assert.False(recursion.Enter(box, candidate));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

@@ -1,6 +1,3 @@
-// Tier 3 (Component): stored range joins carry proofs only for equivalent supported bounds, over real
-// Standard declarations so the slice and the element access are both resolved before flow is judged.
-
 using System.Collections.Immutable;
 using Mist.Common.Diagnostics;
 using Mist.ProgramAnalysis;
@@ -9,9 +6,12 @@ using Mist.ProgramAnalysis.Refinements;
 using Mist.ProgramAnalysis.Rules;
 using Mist.ProgramModel.Model;
 using Mist.ProgramModel.Model.Expressions;
+using Mist.ProgramModel.Model.Members;
 using Mist.ProgramModel.Model.Statements;
 using Mist.ProgramModel.Model.Types;
 using Mist.Tests.Helpers;
+using static Mist.Tests.Helpers.HandBuiltRefinements;
+using static Mist.Tests.ProgramAnalysis.RangeFlowBody;
 using ProgramModelClass = Mist.ProgramModel.Model.ProgramModel;
 
 namespace Mist.Tests.ProgramAnalysis;
@@ -19,6 +19,8 @@ namespace Mist.Tests.ProgramAnalysis;
 public sealed class StoredRangeDecisionTests
 {
     private const string Preamble = "bool flag = Branch.Choose(true); int[] numbers = [10, 20, 30, 40, 50];";
+
+    private readonly RangeFlowBody flow = new();
 
     [Theory]
     [InlineData("0..3", "0..3", 2)]
@@ -33,29 +35,36 @@ public sealed class StoredRangeDecisionTests
     [InlineData("^3..", "^3..", 2)]
     [InlineData("^4..^1", "^4..^1", 2)]
     [InlineData("1..^1", "1..^1", 2)]
+    [Trait("Tier", "2")]
     public void EquivalentStoredRangesAtAJoin_ProveTheSliceLength(string before, string assigned, int last)
     {
-        var model = BuildResolved($"Range window = {before}; if(flag) {{ window = {assigned}; }} var slice = numbers[window]; var last = slice[{last}];");
-
-        Assert.Empty(Findings(model));
+        var body = JoinedRanges(before, assigned, last);
+        Assert.Empty(Findings(body));
     }
 
     [Theory]
-    [InlineData("if(flag) { window = 0..3; } else { window = 0..3; }")]
-    [InlineData("while(flag) { window = 0..3; flag = false; }")]
-    public void EquivalentAssignmentsOnBothPathsOrALoop_KeepTheProof(string branch)
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Tier", "2")]
+    public void EquivalentAssignmentsOnBothPathsOrALoop_KeepTheProof(bool loop)
     {
-        var model = BuildResolved($"Range window = 0..3; {branch} var slice = numbers[window]; var last = slice[2];");
+        Statement branch = loop
+            ? new WhileStatement(flow.Flag, HandBuiltModel.Block(Set(flow.Window, Bounds("0..3")), Set(flow.Flag, flow.Values.Literal(false))))
+            : new IfStatement(flow.Flag, HandBuiltModel.Block(Set(flow.Window, Bounds("0..3"))), HandBuiltModel.Block(Set(flow.Window, Bounds("0..3"))));
+        var body = IndexAfter(2, Give(flow.Window, Bounds("0..3")), branch);
 
-        Assert.Empty(Findings(model));
+        Assert.Empty(Findings(body));
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void AConstantRangeCopy_KeepsItsValueAfterTheOriginalIsReassigned()
     {
-        var model = BuildResolved("Range original = 0..3; Range window = original; if(flag) { window = 0..3; } original = 0..1; var slice = numbers[window]; var last = slice[2];");
+        var original = Local(flow.Values.Range, "original");
+        var body = IndexAfter(2, Give(original, Bounds("0..3")), Give(flow.Window, original),
+            If(flow.Flag, Set(flow.Window, Bounds("0..3"))), Set(original, Bounds("0..1")));
 
-        Assert.Empty(Findings(model));
+        Assert.Empty(Findings(body));
     }
 
     [Theory]
@@ -64,27 +73,35 @@ public sealed class StoredRangeDecisionTests
     [InlineData("0..1", "0..3", 1, "MIST0275")]
     [InlineData("0..3", "0..^3", 0, "MIST0275")]
     [InlineData("^3..^1", "3..^1", 0, "MIST0275")]
+    [Trait("Tier", "2")]
     public void AJoinKeepsNeitherDifferingBoundsNorAnOutOfBoundsProof(string before, string assigned, int last, string id)
     {
-        var model = BuildResolved($"Range window = {before}; if(flag) {{ window = {assigned}; }} var slice = numbers[window]; var last = slice[{last}];");
-
-        Assert.Equal(id, Assert.Single(Findings(model)).Number.Value);
+        var body = JoinedRanges(before, assigned, last);
+        Assert.Equal(id, Assert.Single(Findings(body)).Number.Value);
     }
 
     [Theory]
-    [InlineData("low..high")]
-    [InlineData("low..^high")]
-    public void EquivalentSymbolBounds_ProveTheirCapturedLength(string bounds)
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Tier", "2")]
+    public void EquivalentSymbolBounds_ProveTheirCapturedLength(bool endFromBack)
     {
-        var model = BuildResolved($"int low = 0; int high = 3; Range window = {bounds}; if(flag) {{ window = {bounds}; }} var slice = numbers[window]; var last = slice[0];");
-        var body = Body(model);
-        var state = StateAtExit(body);
+        var low = Local(flow.Values.Int, "low");
+        var high = Local(flow.Values.Int, "high");
+        RangeExpression range()
+        {
+            return flow.Values.Slice(low, endFromBack ? flow.Values.Back(high) : high);
+        }
 
-        Assert.NotNull(Held(state, Local(body, "window")).Slice);
-        Assert.Empty(Findings(model));
+        var body = IndexAfter(0, Give(low, flow.Number(0L)), Give(high, flow.Number(3L)),
+            Give(flow.Window, range()), If(flow.Flag, Set(flow.Window, range())));
+
+        Assert.NotNull(Held(StateAtExit(body), flow.Window.Local).Slice);
+        Assert.Empty(Findings(body));
     }
 
     [Fact]
+    [Trait("Tier", "4")]
     public void IdenticallyNamedBoundsFromSeparateScopes_AreDifferentSymbols()
     {
         var model = BuildResolved("Range window = ..; if(flag) { int end = 3; window = 0..end; } else { int end = 1; window = 0..end; } var slice = numbers[window]; var last = slice[0];");
@@ -95,47 +112,56 @@ public sealed class StoredRangeDecisionTests
         Assert.Equal(2, bounds.Count);
         Assert.Equal(bounds[0].Local.Name, bounds[1].Local.Name);
         Assert.NotSame(bounds[0].Local, bounds[1].Local);
-        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
+        Assert.Null(Held(StateAtExit(body), BoundLocal(body, "window")).Slice);
         Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
     }
 
     [Theory]
-    [InlineData("low = 1;")]
-    [InlineData("high = 1;")]
-    public void AWriteToASymbolicBound_KeepsTheCapturedValue(string write)
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Tier", "2")]
+    public void AWriteToASymbolicBound_KeepsTheCapturedValue(bool writeHigh)
     {
-        var model = BuildResolved($"int low = 0; int high = 3; Range window = low..high; if(flag) {{ window = low..high; }} {write} var slice = numbers[window]; var last = slice[0];");
-        var body = Body(model);
+        var low = Local(flow.Values.Int, "low");
+        var high = Local(flow.Values.Int, "high");
+        var body = IndexAfter(0, Give(low, flow.Number(0L)), Give(high, flow.Number(3L)),
+            Give(flow.Window, flow.Values.Slice(low, high)), If(flow.Flag, Set(flow.Window, flow.Values.Slice(low, high))),
+            Set(writeHigh ? high : low, flow.Number(1L)));
 
-        Assert.NotNull(Held(StateAtExit(body), Local(body, "window")).Slice);
-        Assert.Empty(Findings(model));
+        Assert.NotNull(Held(StateAtExit(body), flow.Window.Local).Slice);
+        Assert.Empty(Findings(body));
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void ACopyOfASymbolicRange_KeepsTheCapturedValueWhenItsBoundIsWritten()
     {
-        var model = BuildResolved("int end = 3; Range original = 0..end; Range window = original; if(flag) { window = original; } end = 1; var slice = numbers[window]; var last = slice[0];");
-        var body = Body(model);
+        var end = Local(flow.Values.Int, "end");
+        var original = Local(flow.Values.Range, "original");
+        var body = IndexAfter(0, Give(end, flow.Number(3L)), Give(original, flow.To(end)),
+            Give(flow.Window, original), If(flow.Flag, Set(flow.Window, original)), Set(end, flow.Number(1L)));
         var state = StateAtExit(body);
 
-        Assert.NotNull(Held(state, Local(body, "original")).Slice);
-        Assert.NotNull(Held(state, Local(body, "window")).Slice);
-        Assert.Empty(Findings(model));
+        Assert.NotNull(Held(state, original.Local).Slice);
+        Assert.NotNull(Held(state, flow.Window.Local).Slice);
+        Assert.Empty(Findings(body));
     }
 
-    [Theory]
-    [InlineData("int end = 3; Range window = 0..end; if(flag) { end = 1; window = 0..end; }")]
-    public void AReconstructedRangeOverDifferentCapturedValues_ProvidesNoStoredProof(string ranges)
+    [Fact]
+    [Trait("Tier", "2")]
+    public void AReconstructedRangeOverDifferentCapturedValues_ProvidesNoStoredProof()
     {
-        var model = BuildResolved(ranges + "var slice = numbers[window]; var last = slice[0];");
-        var body = Body(model);
+        var end = Local(flow.Values.Int, "end");
+        var body = IndexAfter(0, Give(end, flow.Number(3L)), Give(flow.Window, flow.To(end)),
+            If(flow.Flag, Set(end, flow.Number(1L)), Set(flow.Window, flow.To(end))));
 
-        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
-        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
+        Assert.Null(Held(StateAtExit(body), flow.Window.Local).Slice);
+        Assert.Equal("MIST0275", Assert.Single(Findings(body)).Number.Value);
     }
 
     [Theory]
     [InlineData("foreach(var end in [3, 1]) { Range window = 0..end; var slice = numbers[window]; var last = slice[0]; }", "")]
+    [Trait("Tier", "4")]
     public void AnUnknownForeachBound_ProvidesNoSliceLength(string loop, string types)
     {
         var model = BuildResolved(loop, types);
@@ -149,7 +175,7 @@ public sealed class StoredRangeDecisionTests
                 return;
             }
 
-            Assert.NotNull(Held(state, Local(body, "window")).Slice);
+            Assert.NotNull(Held(state, BoundLocal(body, "window")).Slice);
             inspected = true;
         });
 
@@ -158,25 +184,89 @@ public sealed class StoredRangeDecisionTests
     }
 
     [Fact]
+    [Trait("Tier", "2")]
     public void RepeatedUnsupportedBoundExpressions_ProvideNoStoredProof()
     {
-        var model = BuildResolved(
-            "Range window = 0..Pick.End(); if(flag) { window = 0..Pick.End(); } var slice = numbers[window]; var last = slice[0];",
-            "public class Pick { public static int End() { return 3; } }");
-        var body = Body(model);
+        var end = new Method("End", flow.Values.Int, [], new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = HandBuiltModel.Class("Pick"),
+            Body = HandBuiltModel.Block(new ReturnStatement(flow.Number(3L), flow.Values.Int)),
+        };
+        RangeExpression range()
+        {
+            return flow.To(Call(end));
+        }
 
-        Assert.Null(Held(StateAtExit(body), Local(body, "window")).Slice);
-        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
+        var body = IndexAfter(0, Give(flow.Window, range()), If(flow.Flag, Set(flow.Window, range())));
+
+        Assert.Null(Held(StateAtExit(body), flow.Window.Local).Slice);
+        Assert.Equal("MIST0275", Assert.Single(Findings(body)).Number.Value);
     }
 
     [Theory]
-    [InlineData("window = Pick.Replacement();", "public class Pick { public static Range Replacement() { return 0..1; } }")]
-    [InlineData("var change = () => { window = 0..1; }; change();", "")]
-    public void AStoredRangeWrittenWithoutAVisibleEquivalentValue_IsUnproven(string write, string types)
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Tier", "2")]
+    public void AStoredRangeWrittenWithoutAVisibleEquivalentValue_IsUnproven(bool lambdaWrite)
     {
-        var model = BuildResolved($"Range window = 0..3; if(flag) {{ window = 0..3; }} {write} var slice = numbers[window]; var last = slice[2];", types);
+        var initial = Give(flow.Window, Bounds("0..3"));
+        var branch = If(flow.Flag, Set(flow.Window, Bounds("0..3")));
+        var replacement = new Method("Replacement", flow.Values.Range, [], new MemberModifiers { IsStatic = true })
+        {
+            DeclaringType = HandBuiltModel.Class("Pick"),
+            Body = HandBuiltModel.Block(new ReturnStatement(Bounds("0..1"), flow.Values.Range)),
+        };
+        var write = lambdaWrite
+            ? flow.LambdaWrite(flow.Window, Bounds("0..1"))
+            : Set(flow.Window, Call(replacement));
+        var body = IndexAfter(2, initial, branch, write);
 
-        Assert.Equal("MIST0275", Assert.Single(Findings(model)).Number.Value);
+        Assert.Equal("MIST0275", Assert.Single(Findings(body)).Number.Value);
+    }
+
+    private Block JoinedRanges(string before, string assigned, int last)
+    {
+        return IndexAfter(last, Give(flow.Window, Bounds(before)), If(flow.Flag, Set(flow.Window, Bounds(assigned))));
+    }
+
+    private Block IndexAfter(int last, params Statement[] changes)
+    {
+        return flow.WithNumbers([.. changes, flow.ReadWindow(last)]);
+    }
+
+    private RangeExpression Bounds(string shape)
+    {
+        return shape switch
+        {
+            "0..1" => flow.Values.Slice(flow.Number(0), flow.Number(1)),
+            "0..3" => flow.Values.Slice(flow.Number(0), flow.Number(3)),
+            "-0..3" => flow.Values.Slice(new UnaryExpression(HandBuiltModel.Node(), UnaryOperatorKind.Negate, flow.Number(0), flow.Values.Int), flow.Number(3)),
+            "1..4" => flow.Values.Slice(flow.Number(1), flow.Number(4)),
+            "..3" => flow.Values.Slice(null, flow.Number(3)),
+            "2.." => flow.Values.Slice(flow.Number(2), null),
+            "2..^0" => flow.Values.Slice(flow.Number(2), flow.Back(0)),
+            ".." => flow.Values.Slice(null, null),
+            "0..^0" => flow.Values.Slice(flow.Number(0), flow.Back(0)),
+            "^3.." => flow.Values.Slice(flow.Back(3), null),
+            "^4..^1" => flow.Values.Slice(flow.Back(4), flow.Back(1)),
+            "1..^1" => flow.Values.Slice(flow.Number(1), flow.Back(1)),
+            "0..^3" => flow.Values.Slice(flow.Number(0), flow.Back(3)),
+            "^3..^1" => flow.Values.Slice(flow.Back(3), flow.Back(1)),
+            "3..^1" => flow.Values.Slice(flow.Number(3), flow.Back(1)),
+            _ => throw new ArgumentOutOfRangeException(nameof(shape), shape, null),
+        };
+    }
+
+    private static InvocationExpression Call(Method method)
+    {
+        var receiver = new TypeReferenceExpression(HandBuiltModel.Node(), method.DeclaringType!);
+        var member = new MemberAccessExpression(HandBuiltModel.Node(), receiver, method.Name, method.ReturnType);
+        return new InvocationExpression(HandBuiltModel.Node(), member, [], method.ReturnType, method, []);
+    }
+
+    private IReadOnlyList<Diagnostic> Findings(Block body)
+    {
+        return flow.Values.Built.Analyze(new RefinementAnalyzer(), body);
     }
 
     private static ProgramModelClass BuildResolved(string statements, string types = "")
@@ -208,7 +298,7 @@ public sealed class StoredRangeDecisionTests
         return Assert.IsType<ClassType>(model.TypesByFQN["Probe.Probe"]).MethodsList.Single(method => method.Name == "Run").Body!;
     }
 
-    private static LocalVariable Local(Block body, string name)
+    private static LocalVariable BoundLocal(Block body, string name)
     {
         return BodyWalker.DescendantsAndSelf(body).OfType<LocalDeclarationStatement>().Single(declaration => declaration.Local.Name == name).Local;
     }
